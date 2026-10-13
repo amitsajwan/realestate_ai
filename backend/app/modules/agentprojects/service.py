@@ -41,6 +41,17 @@ def _months(a: Optional[str], b: Optional[str]) -> Optional[int]:
     return (yb - ya) * 12 + (mb - ma)
 
 
+def public_registrations(doc: dict) -> List[dict]:
+    """The registrations the project is sold under, each with its MahaRERA link (built like `rera.url`). [] for a record
+    with just rera_no: its page shows only the MahaRERA box, as before."""
+    out = []
+    for r in doc.get("registrations") or []:
+        mid = r.get("maharera_id")
+        out.append({k: r.get(k) for k in ("regno", "tower", "holds", "maharera_id", "completion", "checked_at", "source")
+                    if r.get(k) is not None} | {"url": maharera.view_url(mid) if mid else ""})
+    return out
+
+
 def public_view(doc: dict) -> dict:
     confs = []
     for c in doc.get("configurations") or []:
@@ -55,7 +66,7 @@ def public_view(doc: dict) -> dict:
     return {
         "id": doc["_id"], "slug": doc["slug"], "name": doc["name"], "builder": doc["builder"],
         "locality": doc["locality"], "address": doc.get("address", ""), "pincode": doc.get("pincode", ""),
-        "rera_no": doc["rera_no"], "registrations": doc.get("registrations") or [],  # never `candidates` (owner-only)
+        "rera_no": doc["rera_no"], "registrations": public_registrations(doc),  # never `candidates` (owner-only)
         "scope_note": doc.get("scope_note", ""), "configurations": confs,
         "price_min": min(prices) if prices else None, "price_max": max(prices) if prices else None,
         "bhk_options": sorted({c["bhk"] for c in confs}), "possession_target": doc.get("possession_target"),

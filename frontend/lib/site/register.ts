@@ -44,6 +44,8 @@ export interface RegisterProject {
   checks?: EnrichCheck[]
   text_checked?: boolean
   enriched_at?: string | null
+  /** the marketed project this registration is one tower of, when that project is live on our pages (agentprojects.groups) */
+  group?: { name: string; tower: string; towers: number; path: string } | null
 }
 
 /** One enrichment check behind the page (areastats.enrich): passed or not, when, and what was compared. */

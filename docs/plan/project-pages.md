@@ -66,8 +66,24 @@ BUILT (branch work/project-groups, not deployed):
   5 numbers in Upper Kharadi (not towers 5, 6, 9).
 - Seed: `backend/scripts/lodha_camelot.py` (draft; `--dry-run` prints it).
 
+BUILT (branch work/group-pages, not deployed; LIVE once deployed is the owner's call):
+- Public reads (`/public/agents/{agent}/projects[/{slug}]`, `/public/projects[/{slug}]`) carry `registrations` as
+  `PublicRegistration` {regno, tower, holds, maharera_id, completion, checked_at, source, url}; `url` is the MahaRERA view link
+  built from maharera_id like `rera.url` ('' without one). Never `candidates` or `issues`. One-registration records: `[]`, page as
+  before. `nearby[].minutes` is public (it was already in the model).
+- Agent project page and `/projects/<slug>` (shared `ProjectDetails`): a "MahaRERA registrations" block (`RegistrationsBox`, only
+  with 2+ registrations): per tower, what it holds, the number linked to MahaRERA, "Completion filed with MahaRERA: Jul 2030";
+  the MahaRERA box names its tower ("PR1260002501386 (Tower 1)") and "When could you move in?" says whose date it is. Nearby shows
+  minutes ("Podar International School · 1 min") with "Travel times as per the builder; not measured by us".
+  JSON-LD `ApartmentComplex.identifier`: one PropertyValue per registration (only with 2+).
+- Register project pages: `GET /public/register/projects/{slug}` has `group` {name, tower, towers, path} from
+  `agentprojects.groups.public_group(db, regno)` -- only when the group's record is `live` on a public agent page and has 2+
+  registrations (drafts never show). `path` is `/projects/<slug>` when the shared catalog carries it (indexable agent and a MahaRERA
+  reading), else `/agent/<agent>/projects/<slug>`. The page's hero says "Sold as Lodha Camelot (Tower 11) -- see all 5 towers";
+  JSON-LD adds `containedInPlace` (the group). The primary registration's register page still redirects to the catalog page when
+  an agent lists it.
+
 TARGET (not built):
-- Register project pages (`/projects/<slug>` for a register record) and area pages say "part of Lodha Camelot" and link the group.
-- The shared catalog and the frontend project page show the registrations and the brochure's travel times (`nearby[].minutes`).
+- Area pages say "part of Lodha Camelot" and link the group.
 - propertyfacts sheets stay one per registration; a listing named only "Lodha Camelot" keeps its own name-keyed sheet.
 - Owner review in Studio: confirm or drop a candidate (today: edit the record and re-run the seed).

@@ -340,7 +340,12 @@ async def project_page(db, slug: str) -> Optional[dict]:
     docs = await store.all_projects()   # about a thousand records: the same-area list and the builder's track record
     key = "locality" if doc.get("locality") else "pune_place"
     peers = [d for d in docs if doc.get(key) and d.get(key) == doc[key]]
-    return view(doc, _similar(doc, peers), docs)
+    out = view(doc, _similar(doc, peers), docs)
+    # one tower of a project marketed under several registrations (Lodha Camelot): name it and link the whole project, only
+    # when that project is live on a public page (agentprojects.groups.public_group; drafts never show)
+    from app.modules.agentprojects.groups import public_group
+    out["group"] = await public_group(db, out["regno"])
+    return out
 
 
 async def page_for(db, regno: str) -> Optional[dict]:

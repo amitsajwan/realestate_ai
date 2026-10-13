@@ -5,6 +5,8 @@ import type { PublicProject } from '@/lib/site/types'
 /** What MahaRERA's public record says about the project, with the date we read it and a link to check it yourself. */
 export default function ReraBox({ p }: { p: PublicProject }) {
   const r = p.rera
+  // a project registered tower by tower: this box is the primary registration's record, so name its tower
+  const tower = (p.registrations ?? []).length > 1 ? p.registrations?.find((x) => x.regno === r?.regno)?.tower : undefined
   return (
     <section aria-labelledby="rera-title" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-950">
       <h2 id="rera-title" className="flex flex-wrap items-center gap-2 text-lg font-bold">
@@ -14,7 +16,7 @@ export default function ReraBox({ p }: { p: PublicProject }) {
       {r ? (
         <>
           <dl className="mt-3 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
-            <Row k="Registration no." v={r.regno} />
+            <Row k="Registration no." v={tower ? `${r.regno} (${tower})` : r.regno} />
             <Row k="Name on MahaRERA" v={r.name} />
             {r.promoter && <Row k="Promoter" v={r.promoter} />}
             {r.registered_on && <Row k="Registered on" v={formatDay(r.registered_on)} />}

@@ -44,8 +44,13 @@ export function possessionLines(p: PublicProject, agentName: string): string[] {
   const now = formatDay(p.rera?.completion_now)
   const then = formatDay(p.rera?.completion_at_registration)
   if (target) lines.push(`Builder's target: ${target} (as quoted by ${agentName}).`)
+  // a project registered tower by tower: the MahaRERA reading is the primary registration's, so say whose date it is
+  const regs = p.registrations ?? []
+  const tower = regs.length > 1 ? regs.find((r) => r.regno === p.rera?.regno)?.tower : undefined
   if (now) {
-    lines.push(`Date filed with MahaRERA: ${now}. This is the date the builder has committed to under RERA.`)
+    lines.push(tower
+      ? `${tower}'s date filed with MahaRERA: ${now}. Each tower has its own date (see MahaRERA registrations above); it is the date the builder has committed to under RERA.`
+      : `Date filed with MahaRERA: ${now}. This is the date the builder has committed to under RERA.`)
     if (then && then !== now) lines.push(`At registration the MahaRERA date was ${then}; it has since moved to ${now}.`)
     const gap = monthsBetween(p.possession_target, p.rera?.completion_now)
     if (target && gap != null && gap >= 3) {

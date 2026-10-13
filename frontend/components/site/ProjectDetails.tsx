@@ -1,5 +1,6 @@
 import React from 'react'
 import ReraBox from '@/components/site/ReraBox'
+import RegistrationsBox from '@/components/site/RegistrationsBox'
 import SlideStrip from '@/components/site/SlideStrip'
 import { formatPrice, groupIndian } from '@/lib/site/format'
 import { formatDay, mapsLink, possessionLines, sourceLabel } from '@/lib/site/projects'
@@ -56,6 +57,8 @@ export default function ProjectDetails({ p, agentName }: { p: PublicProject; age
 
       <ReraBox p={p} />
 
+      <RegistrationsBox p={p} />
+
       {possession.length > 0 && (
         <section aria-labelledby="when-title">
           <h2 id="when-title" className="text-xl font-bold">When could you move in?</h2>
@@ -92,13 +95,18 @@ export default function ProjectDetails({ p, agentName }: { p: PublicProject; age
             {p.nearby.map((n) => (
               <li key={n.name} className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-sm">
                 <span>{n.name}</span>
-                <span className="font-semibold">{n.km != null ? `${n.km} km by road` : ''}</span>
+                <span className="shrink-0 pl-2 font-semibold">{n.km != null ? `${n.km} km by road` : n.minutes != null ? `${n.minutes} min` : ''}</span>
               </li>
             ))}
           </ul>
         )}
         {p.nearby.some((n) => n.km != null) && (
           <p className="mt-2 text-xs text-slate-500">Road distances from {p.place?.note || 'the project'} (OpenStreetMap routing, no traffic).</p>
+        )}
+        {p.nearby.some((n) => n.km == null && n.minutes != null) && (
+          <p className="mt-2 text-xs text-slate-500">
+            Travel times {[...new Set(p.nearby.filter((n) => n.km == null && n.minutes != null).map((n) => n.source === 'agent' ? 'as quoted by ' + name : n.source === 'builder' ? 'as per the builder' : 'from ' + sourceLabel(n.source, name)))].join(', ')}; not measured by us, and traffic changes them.
+          </p>
         )}
         <a href={mapsLink(p)} target="_blank" rel="noopener noreferrer"
           className="mt-3 inline-flex min-h-[44px] items-center rounded-xl border border-slate-300 px-4 font-semibold text-[var(--site-primary)] no-underline">

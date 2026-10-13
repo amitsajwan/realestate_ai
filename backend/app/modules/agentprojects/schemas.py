@@ -193,6 +193,18 @@ class PublicConfiguration(BaseModel):
     source: Source
 
 
+class PublicRegistration(BaseModel):
+    """A registration as public pages show it: the Registration fields plus the MahaRERA link (none without its id)."""
+    regno: str
+    tower: str
+    holds: str = ""
+    maharera_id: Optional[int] = None
+    completion: Optional[str] = None  # filed with MahaRERA, YYYY-MM-DD
+    checked_at: Optional[str] = None
+    source: Source = "builder"
+    url: str = ""
+
+
 class PublicProject(BaseModel):
     id: str
     slug: str
@@ -202,7 +214,7 @@ class PublicProject(BaseModel):
     address: str = ""
     pincode: str = ""
     rera_no: str
-    registrations: List[Registration] = []
+    registrations: List[PublicRegistration] = []
     scope_note: str = ""
     configurations: List[PublicConfiguration] = []
     price_min: Optional[int] = None

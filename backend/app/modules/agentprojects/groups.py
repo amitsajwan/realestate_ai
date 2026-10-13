@@ -112,3 +112,22 @@ class Groups:
     async def resolve(self, regno: str = "", name: str = "") -> Optional[Dict[str, Any]]:
         """By a member registration number first, else by the marketed name."""
         return (await self.by_regno(regno) if regno else None) or (await self.by_name(name) if name else None)
+
+
+async def public_group(db, regno: str) -> Optional[Dict[str, Any]]:
+    """For a public page about one registration: the marketed project it is sold as, when that project is LIVE on a public
+    agent page and has more than one registration. {name, tower, towers, path}; None otherwise (drafts never leak).
+    `path` is Avasetu's shared page (/projects/<slug>) when the catalog carries the project (an indexable agent and a
+    MahaRERA reading), else the agent's own project page."""
+    from .service import indexable  # service imports maharera and schemas; kept local so this module stays light
+
+    g = await Groups(db).by_regno(regno)
+    if not g or g["status"] != "live" or len(g["registrations"]) < 2 or not g.get("slug"):
+        return None
+    profile = await db.get_collection("agent_public_profiles").find_one({"agent_id": g["agent_id"], "is_public": True})
+    if not profile or not profile.get("slug"):
+        return None
+    doc = await db.get_collection(COLLECTION).find_one({"agent_id": g["agent_id"], "slug": g["slug"]}, {"rera": 1})
+    shared = indexable(profile) and bool((doc or {}).get("rera"))
+    path = f"/projects/{g['slug']}" if shared else f"/agent/{profile['slug']}/projects/{g['slug']}"
+    return {"name": g["name"], "tower": g["tower"], "towers": len(g["registrations"]), "path": path}

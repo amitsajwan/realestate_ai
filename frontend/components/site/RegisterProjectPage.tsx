@@ -122,6 +122,12 @@ function Hero({ p }: { p: RegisterProject }) {
       <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">{shown}{area ? `, ${area}` : ''}</h1>
       <p className="mt-2 text-sm text-slate-300" data-testid="legal-name">Filed on MahaRERA as {p.name} · {p.regno}</p>
       {aka.length > 0 && <p className="mt-1 text-sm text-slate-300" data-testid="aka">Also known as: {aka.join(', ')}</p>}
+      {p.group && (
+        <p className="mt-2 text-base text-white" data-testid="group">
+          Sold as <span className="font-semibold">{p.group.name}</span>{p.group.tower ? ` (${p.group.tower})` : ''} —{' '}
+          <Link href={p.group.path} className="inline-flex min-h-[44px] items-center font-semibold text-amber-300 underline underline-offset-2">see all {p.group.towers} towers</Link>
+        </p>
+      )}
       <p className="mt-2 text-base text-slate-200">{[p.promoter && `by ${p.promoter}`, where, p.pincode].filter(Boolean).join(' · ')}</p>
       {stats.length > 0 && (
         <dl className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -354,6 +360,8 @@ export default function RegisterProjectPage({ p, siteUrl, facts }: { p: Register
     ...(p.map ? { geo: { '@type': 'GeoCoordinates', latitude: p.map.lat, longitude: p.map.lon } } : {}),
     ...(p.promoter ? { builder: { '@type': 'Organization', name: p.promoter } } : {}),
     ...(p.maharera_url ? { sameAs: p.maharera_url } : {}),
+    // one tower of a marketed project registered tower by tower: the whole project is the place this one is in
+    ...(p.group ? { containedInPlace: { '@type': 'ApartmentComplex', name: p.group.name, url: siteUrl + p.group.path } } : {}),
     description: p.paragraph,
   }
   const nearby = (facts as unknown as { nearby?: Near[] } | null)?.nearby ?? []

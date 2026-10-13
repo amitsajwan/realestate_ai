@@ -123,5 +123,9 @@ export function projectJsonLd(p: PublicProject, url: string): Record<string, unk
     address: { '@type': 'PostalAddress', streetAddress: p.address || undefined, addressLocality: p.locality, addressRegion: 'Maharashtra', postalCode: p.pincode || undefined, addressCountry: 'IN' },
     image: photo ? [absolute(photo.url)] : undefined,
     numberOfAccommodationUnits: p.rera?.units_total ?? undefined,
+    // a project registered tower by tower: every registration the page lists (one-registration projects stay as before)
+    identifier: (p.registrations?.length ?? 0) > 1
+      ? p.registrations!.map((r) => ({ '@type': 'PropertyValue', propertyID: 'MahaRERA registration', name: r.tower, value: r.regno, url: r.url || undefined }))
+      : undefined,
   }
 }

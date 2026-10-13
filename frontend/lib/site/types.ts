@@ -129,6 +129,24 @@ export interface ProjectRera {
   checked_at?: string | null
 }
 
+/** One MahaRERA registration a marketed project is sold under (a big project is registered tower by tower). */
+export interface ProjectRegistration {
+  regno: string
+  /** as the builder labels it: "Tower 1" */
+  tower: string
+  /** what this registration sells: "3 BHK, 3 BHK + study" */
+  holds?: string
+  maharera_id?: number | null
+  /** completion date filed with MahaRERA, YYYY-MM-DD */
+  completion?: string | null
+  /** the day that date was read */
+  checked_at?: string | null
+  /** who says the registration belongs to the project */
+  source: FactSource
+  /** the MahaRERA record; '' when we do not have its MahaRERA id */
+  url: string
+}
+
 export interface PublicProject {
   id: string
   slug: string
@@ -138,6 +156,8 @@ export interface PublicProject {
   address: string
   pincode: string
   rera_no: string
+  /** every registration the project is sold under; empty for a one-registration project */
+  registrations?: ProjectRegistration[]
   scope_note: string
   configurations: ProjectConfiguration[]
   price_min?: number | null
@@ -150,7 +170,8 @@ export interface PublicProject {
   amenities: string[]
   specs: Record<string, string>
   provenance: Record<string, FactSource>
-  nearby: { name: string; km?: number | null; source: FactSource }[]
+  /** km: measured road distance (osm); minutes: travel time as the source quotes it (the brochure) */
+  nearby: { name: string; km?: number | null; minutes?: number | null; source: FactSource }[]
   place?: { lat: number; lon: number; source: FactSource; note: string } | null
   maps_query: string
   media: { url: string; caption: string; credit: string; artist_impression: boolean; kind: 'image' | 'video'; slide?: boolean }[]
