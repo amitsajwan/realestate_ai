@@ -75,7 +75,9 @@ def model_order(spec: str) -> list[str]:
 RETIRED_COOLDOWN = 24 * 3600.0   # a 404 model (retired free model) is skipped for a day
 NO_ACCESS_COOLDOWN = 3600.0      # 401/402/403 (bad key, no credit): skipped for an hour, then tried again
 BUSY_COOLDOWN = 60.0              # a 429 model is rested this long, or as long as the provider's Retry-After says
+SLOW_COOLDOWN = 5 * 60.0          # a model that timed out: rested, so the next call does not wait on it again
 MAX_COOLDOWN = 15 * 60.0
+CHAIN_BUDGET = 45.0               # one call across every provider: past it no further provider is tried (the caller falls back)
 
 
 class ModelHealth:
@@ -108,6 +110,9 @@ class ModelHealth:
                 wait = BUSY_COOLDOWN
             self.until[(url, model)] = self.clock() + min(max(wait, 5.0), MAX_COOLDOWN)
 
+    def slow(self, url: str, model: str) -> None:
+        self.until[(url, model)] = self.clock() + SLOW_COOLDOWN
+
 
 HEALTH = ModelHealth()
 _TURN = itertools.count()
@@ -132,6 +137,8 @@ async def post_with_failover(order: list[str], send, per_attempt: float, budget:
             last_exc = None
         except httpx.TransportError as e:
             r, last_exc = None, e
+            if health is not None and isinstance(e, httpx.TimeoutException):
+                health.slow(url, model)
             continue
         if health is not None:
             health.note(url, model, r)
@@ -303,7 +310,11 @@ class FallbackLLM:
         return [p for p in turn if not resting(p)] + [p for p in turn if resting(p)]
 
     async def _first(self, method: str, *args, **kw):
+        start = time.monotonic()
         for p in self._order():
+            if time.monotonic() - start > CHAIN_BUDGET:
+                log.info("LLM %s call: no answer within %.0f s, the caller goes on without", method, CHAIN_BUDGET)
+                break
             out = await getattr(p, method)(*args, **kw)
             if out:
                 return out

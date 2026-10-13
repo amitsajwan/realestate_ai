@@ -16,8 +16,12 @@ RUN apt-get update && apt-get install -y \
     g++ \
     curl \
     libraqm0 \
+    tesseract-ocr \
+    tesseract-ocr-eng \
+    tesseract-ocr-mar \
     && rm -rf /var/lib/apt/lists/*
 # libraqm0 (with fribidi and harfbuzz): Pillow loads it at run time to shape Devanagari, so Marathi cards join their letters
+# tesseract: the words on brochure pages drawn as pictures (propertyfacts/brochure_doc.py), English and Marathi
 
 # Create non-root user
 RUN groupadd -r appuser && useradd -r -g appuser appuser

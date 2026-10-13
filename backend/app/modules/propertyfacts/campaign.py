@@ -219,6 +219,8 @@ class Ctx:
         # (live 2026-10-10, Gulmohar City: its 30 acres, 1,306,800 sq ft, posted as "this plot is 1200 guntha")
         sqft = self.v.get("size_min_sqft") or self.v.get("plot_sqft") or self.v.get("carpet_sqft")
         self.sqft = None if not sqft or (self.plot or self.layout) and float(sqft) > MAX_PLOT_SQFT else sqft
+        if self.sqft is None:   # the rate was worked out from a size no post may state: it goes with it
+            self.v.pop("price_per_sqft", None)
         self.readers = reader_note(self.v, self.plot, self.layout)
         # images the agent confirmed from the brochure (brochure.usable_images): {kind, path, label, configs}
         self.images = [dict(i) for i in images if isinstance(i, dict) and i.get("path") and Path(str(i["path"])).is_file()]
@@ -369,7 +371,7 @@ def size_in_guntha(c: Ctx) -> Optional[Brief]:
 
 def rate_per_sqft(c: Ctx) -> Optional[Brief]:
     r = c.v.get("price_per_sqft")
-    if not r:
+    if not (r and c.sqft and c.v.get("price_inr")):
         return None
     price = price_label(c.v["price_inr"])
     return c.brief(angle="rate_per_sqft", hook=f"₹{r:,} per sq ft in {c.locality}", topic=f"Rate per sq ft at {c.where}", short="rate per sq ft", stat_value=f"₹{r:,} per sq ft",
@@ -476,7 +478,7 @@ def near_work(c: Ctx) -> Optional[Brief]:
 
 def layout_size(c: Ctx) -> Optional[Brief]:
     units, on = c.v.get("units_total"), c.v.get("registered_on")
-    if not (units and c.maharera):
+    if not (units and c.maharera and c.project):   # "88 homes in " with no name says nothing
         return None
     unit = "plots" if c.plot else "homes"
     line = f"{c.project} has {units} {unit}, registered on MahaRERA" + (f" on {day(on)}." if on else ".")
@@ -721,7 +723,13 @@ def plan(facts: Dict[str, Fact], photo: str = "none", link: str = "", angles: Se
             if skipped is not None:
                 skipped[a.id] = "enough posts already"
             continue
-        b = a.build(c)
+        try:
+            b = a.build(c)
+        except Exception as e:   # one angle's missing value drops that post, never the whole campaign
+            log.warning("campaign: angle %s failed (%s: %s)", a.id, type(e).__name__, e)
+            if skipped is not None:
+                skipped[a.id] = f"could not be made ({type(e).__name__})"
+            continue
         if b is not None and PRELAUNCH.search(" ".join((b.corpus(), *b.hooks.values()))):   # never advertised
             b = None
         if b is not None:

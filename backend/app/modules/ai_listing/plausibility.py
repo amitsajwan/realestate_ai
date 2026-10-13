@@ -45,6 +45,8 @@ def build_warnings(f: dict, conf: dict) -> list[str]:
         per = (carpet or area) / bhk
         if per < 180 or per > 1800:
             w.append(f"Area of {format_inr(carpet or area)} sq ft looks implausible for {bhk:g} BHK; please check.")
+    if bhk and f.get("property_type") == "plot":
+        w.append(f"A plot has no BHK, but this says {bhk:g} BHK. Is it a flat? Please check the property type.")
     if f.get("floor") is not None and f.get("total_floors") and f["floor"] > f["total_floors"]:
         w.append("Floor number is higher than the total floors.")
     return w

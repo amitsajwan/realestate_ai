@@ -210,6 +210,27 @@ async def _group_cards(register: Any, group: dict) -> List[MahaReraProject]:
     return out
 
 
+async def as_group(rs: List[Reading], group: Optional[dict], register: Any, asked: str) -> List[Reading]:
+    """A member tower's readings as the marketed project's, when the listing names that project (`asked`, "Lodha Camelot"):
+    its name is the group's (MahaRERA's working name stays as `maharera_name`), and its units are every tower's together,
+    or left out when a tower's count is not in our register (one tower's 88 homes are not the project's). A tower's own
+    page (asked by MahaRERA's name), one registration, or no group: the readings as they are."""
+    if not group or len(group.get("registrations") or []) < 2 or _words(asked or "") != _words(group["name"]):
+        return rs
+    out: List[Reading] = []
+    for x in rs:
+        if x.key == "project_name":
+            out += [Reading("maharera_name", x.value, x.source, x.url, x.fetched_at),
+                    Reading("project_name", group["name"], "agent project", "", x.fetched_at)]
+        elif x.key == "units_total":
+            counts = [((await _register_doc(register, r["regno"])) or {}).get("units_total") for r in group["registrations"]]
+            if all(isinstance(c, int) and c > 0 for c in counts):
+                out.append(Reading("units_total", sum(counts), "calc", x.url, x.fetched_at))
+        elif x.key != "units_booked":
+            out.append(x)
+    return out
+
+
 async def lookup(get_text: GetText, fetch_general: FetchGeneral, name: str, rera_no: str = "",
                  place: Optional[Place] = None, now: Optional[datetime] = None,
                  register: Any = None, groups: Any = None) -> "tuple[Match, List[Reading]]":
@@ -218,6 +239,7 @@ async def lookup(get_text: GetText, fetch_general: FetchGeneral, name: str, rera
     registrations ("Lodha Camelot") is not a MahaRERA name: the tower the name says is looked up, else its towers are offered
     to pick from (never one guessed); a member's number is searched on MahaRERA under the working name MahaRERA uses for it."""
     now = now or datetime.utcnow()
+    asked = name
     group = await _group(groups, rera_no, name)
     if group and not (rera_no or "").strip():
         if not group["regno"]:
@@ -231,7 +253,7 @@ async def lookup(get_text: GetText, fetch_general: FetchGeneral, name: str, rera
         if got:
             if group and got[0].project is not None:
                 got[0].how += f" ({group['name']}, {group['tower'] or 'one of its registrations'})"
-            return got
+            return got[0], await as_group(got[1], group if got[0].project is not None else None, register, asked)
     if group and group["regno"]:  # MahaRERA's search knows a member by its working name, not the marketed one
         d = await _register_doc(register, group["regno"])
         if d and d.get("name"):
@@ -257,4 +279,4 @@ async def lookup(get_text: GetText, fetch_general: FetchGeneral, name: str, rera
             general = None
     trace.event(log, "rera", m.project.regno, "lookup", trace.OK if general else trace.FALLBACK, how=m.how,
                 details="read" if general else "not read (card only)")
-    return m, readings(m.project, general, now)
+    return m, await as_group(readings(m.project, general, now), group, register, asked)

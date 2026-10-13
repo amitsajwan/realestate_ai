@@ -57,7 +57,7 @@ SPEC_WORDS = ("flooring", "floor", "kitchen", "main door", "doors", "door", "win
 
 _MONTHS = ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
 RERA = _rera.SPACED   # P + 11 digits or PR/PP/PM + 13, spaces allowed (core/rera.py)
-BHK = re.compile(r"\b(\d(?:\.5)?)\s*(?:BHK|B\.H\.K\.?)(?![a-z])", re.I)
+BHK = re.compile(r"\b(\d(?:\.5)?)\s*(?:BHK|B\.H\.K\.?|bed(?:room)?s?\s+(?:residences?|apartments?|homes?|flats?))(?![a-z])", re.I)
 RK = re.compile(r"\b1\s*RK\b", re.I)
 AREA = re.compile(r"(?P<n>\d{2,6}(?:,\d{3})*(?:\.\d+)?)\s*(?P<u>sq\.?\s*f(?:ee)?t\.?|sqft|sft|square\s+f(?:ee|oo)t|"
                   r"sq\.?\s*m(?:trs?|eters?|etres?)?\.?|sqm|square\s+met(?:er|re)s?)(?![a-z])", re.I)

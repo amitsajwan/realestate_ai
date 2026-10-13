@@ -34,6 +34,7 @@ MARKETABLE = ("live", "under_offer")
 ACTIVE = ("queued", "facts", "asking", "posts")  # asking: waiting for the agent's answers (understand.py)
 AD_REELS = 6  # ad reels per campaign (ad_reel.py): one per post, in campaign order
 WALKTHROUGH_NOTE = "Add 2 photos to get a walkthrough reel with voiceover"
+DOC_WAIT = 300.0  # the brochure document (brochure_doc): usually read since the upload; a run waits for it rather than guess
 # The walkthrough reel's style, split by listing so the two can be compared on real results (schedule.WALKTHROUGH_EXPERIMENT
 # tags the calendar rows; the insights collector reads them back). Fixed per listing: a campaign made again keeps its style.
 
@@ -416,7 +417,7 @@ class MarketingRuns:
         regno = str(f.value).upper()
         url = sheet.facts.get("maharera_url")
         m = re.search(r"/view/(\d+)", str(url.value)) if url and url.usable else None
-        name = sheet.facts["project_name"].value if "project_name" in sheet.facts else ""
+        name = next((sheet.facts[k].value for k in ("maharera_name", "project_name") if k in sheet.facts), "")
         try:
             from app.modules.areastats.watch import WatchItem, watch
             from app.modules.newsroom.store import Store as Register
@@ -424,6 +425,13 @@ class MarketingRuns:
         except Exception:
             log.warning("marketing: could not add %s to the register's watch list", regno, exc_info=True)
         await self._enrich_soon(regno)
+        try:   # a tower of a marketed project (Lodha Camelot): the project's own page, once it is public
+            from app.modules.agentprojects.groups import public_group
+            group = await public_group(self.db, regno)
+            if group and group.get("path"):
+                return regno, self.site + group["path"]
+        except Exception:
+            log.info("marketing: no project group page for %s", regno, exc_info=True)
         page_for = self.page_for
         if page_for is None:
             try:
@@ -580,7 +588,7 @@ class MarketingRuns:
         assistant (files.save_claims) and summarised on the run for Studio. {} without a brochure; never raises.
         A run resumed after the agent's answers reuses the claims it read before (only the pages are drawn again), and so does
         a listing whose `file_claims` were read from this same file (by the AI draft at creation, or an earlier run)."""
-        from . import files
+        from . import brochure_doc, files
         pdf = files.brochure_pdf(listing, self.uploads_dir)
         if not pdf:
             return {}
@@ -591,21 +599,22 @@ class MarketingRuns:
             except Exception:
                 pages = []
             return {**before, "pages": pages, **await self._page_photos(listing, pdf, pages, out)}
+        doc = await brochure_doc.get(pdf, self.uploads_dir, wait=DOC_WAIT)
         kept = files.claims_for(listing, pdf)  # the AI draft (or an earlier run) already read this brochure: draw pages only
         if kept:
             try:
                 pages = await asyncio.to_thread(files.pdf_pages, pdf, out / "brochure")
             except Exception:
                 pages = []
-            info = {**kept, "pages": pages}
+            info = {**kept, "pages": pages, "kind": (doc or {}).get("kind")}
         else:
-            info = await files.read_brochure(pdf, out / "brochure")
+            info = await files.read_brochure(pdf, out / "brochure", doc)
             await files.save_claims(self.listings, listing["_id"], brochure=info["claims"], rera_on_brochure=info["rera_no"],
                                     now=self.now(), brochure_url=files.brochure_url(listing, pdf),
                                     facts=info.get("facts") or {}, language=info.get("language"))
         info.update(await self._page_photos(listing, pdf, info["pages"], out))
         summary = {k: info.get(k) for k in ("claims", "rera_no", "rera_missing", "error", "weak", "facts", "language",
-                                            "photo_note")}
+                                            "photo_note", "kind")}
         await self._set(job["_id"], files={"brochure": {**summary, "pages": len(info["pages"]),
                                                         "photo_pages": len(info["photo_pages"])}})
         return info
@@ -1065,6 +1074,9 @@ class MarketingRuns:
             claims = [] if brochure.get("weak") else list(brochure.get("claims") or [])
             claims += list(((listing.get("file_claims") or {}).get("video")) or [])
             seen = await understand.read(listing, claims, llm)
+            kind = (brochure.get("kind") or {}).get("kind")
+            if kind:   # the brochure's own words, checked by code (brochure_doc.offer_kind), outrank the model's reading
+                seen["property_type"] = kind
             listing = await self._selling_points(listing, brochure)
             rera = sheet.facts.get("rera_no")
             units = sheet.facts.get("units_total")

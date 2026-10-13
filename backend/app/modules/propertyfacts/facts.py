@@ -21,8 +21,9 @@ from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional
 
 # "listing": the agent's own offer (their asking price is the price); "agent confirmed": a brochure selling point the agent
-# confirmed on the listing (points.py)
-OFFICIAL = frozenset({"maharera", "listing", "agent confirmed"})
+# confirmed on the listing (points.py); "agent project": the agent's project record that names the towers it sells
+# (agentprojects.groups: "Lodha Camelot" for MahaRERA's "Kharadi New Project - Tower 1")
+OFFICIAL = frozenset({"maharera", "listing", "agent confirmed", "agent project"})
 MEASURED = frozenset({"osm", "calc"})
 BUILDER = frozenset({"brochure"})  # the builder's brochure, confirmed by the agent (brochure.py)
 USABLE = ("official", "measured", "corroborated")

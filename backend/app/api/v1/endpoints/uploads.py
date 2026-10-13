@@ -308,6 +308,8 @@ async def upload_brochure(request: Request, file: UploadFile = File(...), agent_
         raise
     base_url = str(request.base_url).rstrip('/')
     logger.info(f"brochure uploaded by {agent_id}: {name} ({size} bytes, {pages} pages)")
+    from app.modules.propertyfacts import brochure_doc
+    brochure_doc.start(dest, DOCUMENTS_DIR.parent)   # read once now: the draft and Start marketing find it ready
     return {"url": f"{base_url}/uploads/documents/{name}", "pages": pages}
 
 

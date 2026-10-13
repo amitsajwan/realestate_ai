@@ -137,6 +137,9 @@ def decide(listing: dict, seen: Dict[str, Any], registered: bool, units_total: O
         ptype = auto["property_type"] = seen["property_type"]
     elif not ptype:
         ask.append(_q("property_type", "What is on offer?", [("Plot", "plot"), ("Flat", "apartment"), ("House", "house")]))
+    elif ptype == "plot" and listing.get("bhk"):   # "4 BHK plot": a plot has no bedrooms, one of the two is wrong
+        ask.append(_q("property_type", f"The listing says plot, but also {listing['bhk']:g} BHK. Which is it?",
+                      [("Plot", "plot"), (f"Flat ({listing['bhk']:g} BHK)", "apartment")]))
     word = TYPE_WORD.get(ptype or "", "unit")
     words = "flats" if word == "flat" else word + "s"
 

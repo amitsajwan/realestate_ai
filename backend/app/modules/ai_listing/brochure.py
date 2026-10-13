@@ -7,16 +7,18 @@ import asyncio
 import hashlib
 import logging
 import re
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from app.core import pune_places, rera
-from app.modules.propertyfacts import files
+from app.modules.propertyfacts import brochure_doc, files
 from app.modules.propertyfacts.registration import CANDIDATES, _words, core
 
 log = logging.getLogger(__name__)
 
 READ_TIMEOUT = 120.0      # the whole brochure read (render, page triage, vision); past it the draft goes on with its text
+DOC_WAIT = 100.0          # the brochure document (brochure_doc, started at upload): a 35-page picture brochure took 81 s
 TEXT_CHARS = 3000         # brochure text handed to the extractors
 HIGHLIGHTS = 6            # About.highlights cap
 _URL = re.compile(r"/uploads/documents/([A-Za-z0-9._-]+\.pdf)$", re.I)
@@ -48,13 +50,17 @@ async def read(url: str, uploads_dir: Path, timeout: float = READ_TIMEOUT) -> Di
     if pdf is None:
         return {"text": "", "claims": [], "rera_no": None, "pages": 0, "error": "The brochure file was not found."}
     out_dir = Path(uploads_dir) / "drafts" / hashlib.sha1(pdf.name.encode()).hexdigest()[:16]
+    started = time.monotonic()
+    doc = await brochure_doc.get(pdf, uploads_dir, wait=DOC_WAIT)   # read since the upload, OCR included
     try:
-        text = await asyncio.wait_for(asyncio.to_thread(files.pdf_text, pdf), 20)
+        text = brochure_doc.full_text(doc) if doc else await asyncio.wait_for(asyncio.to_thread(files.pdf_text, pdf), 20)
     except Exception:
         text = ""
-    out: Dict[str, Any] = {"text": text or "", "claims": [], "rera_no": None, "rera_nos": [], "pages": 0}
+    out: Dict[str, Any] = {"text": text or "", "claims": [], "rera_no": None, "rera_nos": [], "pages": 0,
+                           "kind": (doc or {}).get("kind")}
     try:
-        info = await asyncio.wait_for(files.read_brochure(pdf, out_dir), timeout)
+        info = await asyncio.wait_for(files.read_brochure(pdf, out_dir, doc),
+                                      max(timeout - (time.monotonic() - started), 20.0))
     except asyncio.TimeoutError:
         info = {"error": "Reading the brochure took too long; only its text was used."}
     except Exception as e:

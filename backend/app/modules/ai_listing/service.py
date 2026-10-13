@@ -124,7 +124,9 @@ class AIListingService:
         selling_warnings: list = []
         if brochure is not None:
             sources = self._brochure_facts(facts, conf, brochure, agent_text or "", city_hint)
+            kind_warnings = self._brochure_kind(facts, conf, sources, brochure)
             selling_points, selling_warnings = self._selling(facts, conf, sources, brochure)
+            selling_warnings = kind_warnings + selling_warnings
         rera_candidates: list = []
         maharera = None
         if register is not None and (facts.get("rera_no") or (brochure is not None and facts.get("project_name"))):
@@ -210,6 +212,24 @@ class AIListingService:
             av = agent.values.get(k)
             out[k] = "agent" if av is not None and str(av).lower() == str(v).lower() else "brochure"
         return out
+
+    @staticmethod
+    def _brochure_kind(facts: dict, conf: dict, sources: dict, b: dict) -> list:
+        """What the brochure's own words say is on offer (brochure_doc.offer_kind: floor plans and "3 Bed Residence" are
+        flats; "NA plots" and guntha are plots) sets the type the agent did not state; when the agent's words say the other
+        one, theirs stays and the draft says the brochure disagrees."""
+        kind = b.get("kind") or {}
+        if kind.get("kind") not in ("apartment", "plot"):
+            return []
+        have = facts.get("property_type")
+        if not have or (sources.get("property_type") != "agent" and have != kind["kind"]):
+            facts["property_type"], conf["property_type"], sources["property_type"] = kind["kind"], 0.9, "brochure"
+            return []
+        if have != kind["kind"] and {have, kind["kind"]} & {"plot"}:
+            word = "flats" if kind["kind"] == "apartment" else "plots"
+            return [f"The brochure reads like {word} (page {kind['page']}: \"{kind['quote'][:80]}\"), but this listing says "
+                    f"{have}. Please check the property type."]
+        return []
 
     @staticmethod
     def _selling(facts: dict, conf: dict, sources: dict, b: dict) -> tuple:

@@ -24,7 +24,7 @@ import httpx
 
 from app.core.rera import SEARCH, find_all
 
-from . import brochure_triage, points
+from . import brochure_doc, brochure_triage, points
 
 log = logging.getLogger(__name__)
 
@@ -387,9 +387,10 @@ async def page_labels(pages: List[str], out_dir: Path, source: str = "") -> Dict
     return labels
 
 
-async def read_brochure(pdf: Path, out_dir: Path) -> Dict[str, Any]:
+async def read_brochure(pdf: Path, out_dir: Path, doc: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """{"pages": [jpg...], "claims": [...], "rera_no": str|None, "rera_nos": [...], "rera_missing": bool, "triage": {page:
-    label}}. Never raises."""
+    label}, "kind": brochure_doc.offer_kind}. `doc`: the brochure document (brochure_doc.get): its words, OCR included, go
+    beside each page the vision model reads, and its rules' claims stand in when no model answers. Never raises."""
     try:
         pages = await asyncio.to_thread(pdf_pages, pdf, out_dir)
     except Exception as e:
@@ -398,7 +399,7 @@ async def read_brochure(pdf: Path, out_dir: Path) -> Dict[str, Any]:
                 "error": "The PDF could not be read."}
     labels = await page_labels(pages, out_dir, await asyncio.to_thread(_file_hash, pdf))
     try:
-        texts = await asyncio.to_thread(page_texts, pdf)
+        texts = brochure_doc.page_texts(doc) if doc else await asyncio.to_thread(page_texts, pdf)
     except Exception:
         texts = []
     text = "\n".join(texts)
@@ -408,10 +409,10 @@ async def read_brochure(pdf: Path, out_dir: Path) -> Dict[str, Any]:
     except Exception:
         big = {}
     read = await read_pages([big.get(i + 1, p) for i, p in enumerate(pages)], order, texts)
-    claims = clean_claims(read.get("claims"))
+    claims = clean_claims(read.get("claims") or (brochure_doc.claims(doc) if doc else []))
     pins = printed_pins(text, claims)
     nos = find_all(" ".join([str(read.get("rera_no") or "")] + list(read.get("rera_nos") or []) + [text]))
-    name = text_spelling(read["project_name"], text) if read.get("project_name") else read.get("project_name")
+    name = text_spelling(read["project_name"], text) if read.get("project_name") else (brochure_doc.project_name(doc) if doc else None)
     claims = [c for c in claims if not wrong_place(c, pins, nos, name or "")]
     facts = dict(read.get("facts") or {})
     for k in ("village", "taluka"):   # a village the brochure's PIN code does not cover was misread
@@ -420,7 +421,7 @@ async def read_brochure(pdf: Path, out_dir: Path) -> Dict[str, Any]:
     return {"pages": pages, "claims": claims, "project_name": name,
             "rera_no": nos[0] if nos else None, "rera_nos": nos,
             "rera_missing": not nos, "read_by_ai": bool(read), "weak": bool(read.get("weak")),
-            "facts": facts, "language": read.get("language") or "en", "triage": labels}
+            "facts": facts, "language": read.get("language") or "en", "triage": labels, "kind": (doc or {}).get("kind")}
 
 
 async def save_claims(listings, listing_id: str, *, brochure: Optional[List[str]] = None, video: Optional[List[str]] = None,
