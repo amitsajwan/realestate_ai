@@ -36,6 +36,7 @@ RETRY_AFTER = timedelta(days=1)
 PAUSE = 2.0                      # seconds between MahaRERA searches; tests set it to 0
 MIN_NAME = 5                     # characters: shorter names match too many projects to be worth a search
 SOURCE = "web_discovered"        # the watch source name
+IGNORED = "ignored"              # the owner said this number is not ours to add (Studio → Insights → Found on Google)
 
 _SEGMENT = re.compile(r"\s+[|–—:-]\s+|\s*\|\s*|\s*[–—]\s*")
 # words that start the selling part of a title, not the project's name
@@ -74,7 +75,7 @@ def names_from_title(title: str) -> List[str]:
 def candidates(doc: dict) -> List[str]:
     """Every candidate name for a discovered number, from all the titles it was seen in, not yet tried."""
     tried = {t.lower() for t in doc.get("tried_names") or []}
-    out: List[str] = []
+    out: List[str] = [n for n in doc.get("owner_names") or [] if n.lower() not in tried]   # the owner's names go first
     for s in doc.get("seen") or []:
         for n in names_from_title(s.get("title", "")):
             if n.lower() not in tried and n not in out:
@@ -89,7 +90,7 @@ async def resolve(store: Store, get: search.Fetcher, now: datetime) -> dict:
     docs = await coll.find({}).to_list(2000)
     open_docs = []
     for d in docs:
-        if d.get("status") == "found" or d["_id"] in known:
+        if d.get("status") in ("found", IGNORED) or d["_id"] in known:
             continue
         last = d.get("last_try")
         if isinstance(last, datetime) and now - _aware(last) < RETRY_AFTER:
@@ -119,6 +120,27 @@ async def resolve(store: Store, get: search.Fetcher, now: datetime) -> dict:
     return {"tried": regno, "found": None, "names": tried[-NAMES_PER_STEP:]}
 
 
+async def ignore(store: Store, regno: str, now: datetime) -> bool:
+    """The owner's "Ignore": never searched again. False when the number is unknown."""
+    r = await store.db.get_collection(DISCOVERED).update_one({"_id": regno}, {"$set": {"status": IGNORED, "ignored_at": now}})
+    return r.matched_count > 0
+
+
+async def search_as(store: Store, regno: str, name: str) -> bool:
+    """The owner's name for a number nobody could find (the builder registered another name): tried first, on the next step."""
+    name = " ".join((name or "").split())[:80]
+    if len(name) < MIN_NAME:
+        return False
+    coll = store.db.get_collection(DISCOVERED)
+    doc = await coll.find_one({"_id": regno})
+    if doc is None:
+        return False
+    names = [n for n in doc.get("owner_names") or [] if n.lower() != name.lower()] + [name]
+    tried = [t for t in doc.get("tried_names") or [] if t.lower() != name.lower()]
+    await coll.update_one({"_id": regno}, {"$set": {"owner_names": names, "tried_names": tried, "status": "open", "last_try": None}})
+    return True
+
+
 async def watch_items(db) -> List[WatchItem]:
     """The watch source: every discovered number found on MahaRERA (with its id), for the register."""
     docs = await db.get_collection(DISCOVERED).find({"status": "found"}).to_list(2000)
@@ -130,5 +152,5 @@ async def pending(store: Store, limit: int = 50) -> List[dict]:
     """Numbers seen in Google results that no candidate name found on MahaRERA (every name tried): for a person to resolve."""
     known = {d.get("regno") or d["_id"] for d in await store.all_projects()}
     docs = [d for d in await store.db.get_collection(DISCOVERED).find({}).to_list(2000)
-            if d.get("status") != "found" and d["_id"] not in known and d.get("tried_names") and not candidates(d)]
+            if d.get("status") not in ("found", IGNORED) and d["_id"] not in known and d.get("tried_names") and not candidates(d)]
     return [{"regno": d["_id"], "tried_names": d.get("tried_names"), "seen": (d.get("seen") or [])[-3:]} for d in docs[:limit]]

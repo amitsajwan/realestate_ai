@@ -219,3 +219,56 @@ async def project_enrichment(status: Optional[str] = None, limit: int = 300, use
     if status and status not in enrich.STATUSES:
         raise HTTPException(422, "status is one of " + ", ".join(enrich.STATUSES))
     return await enrich.status_list(store, status, max(1, min(limit, 2000)))
+
+
+# ---- Insights (docs/plan/insights-and-seo.md O1 O2 O6): what we collect, for the owner -------------------------------------------
+
+@router.get("/insights/hot")
+async def insights_hot(user: User = Depends(owner_only), store: Store = Depends(get_store)) -> dict:
+    """Hot projects: score, reasons, marketer sites, last and next page refresh."""
+    from app.modules.areastats import owner
+    return await owner.hot(store, datetime.now(timezone.utc))
+
+
+@router.post("/insights/hot/{regno}/refresh")
+async def insights_refresh(regno: str, user: User = Depends(owner_only), store: Store = Depends(get_store)) -> dict:
+    """Rewrite this project's page from fresh facts now (the enrichment loop takes urgent requests first)."""
+    from app.modules.areastats import enrich
+    if not await enrich.enrich_now(store.db, regno, by="owner"):
+        raise HTTPException(404, "The register does not have this project")
+    return {"regno": regno.upper(), "queued": True}
+
+
+@router.get("/insights/found")
+async def insights_found(user: User = Depends(owner_only), store: Store = Depends(get_store)) -> dict:
+    """MahaRERA numbers seen in Google results that the register lacks, with what the lookup did."""
+    from app.modules.areastats import owner
+    return await owner.found(store)
+
+
+class SearchAsBody(BaseModel):
+    name: str
+
+
+@router.post("/insights/found/{regno}/search-as")
+async def insights_search_as(regno: str, body: SearchAsBody, user: User = Depends(owner_only), store: Store = Depends(get_store)) -> dict:
+    """Search MahaRERA for this number under the owner's name for it (the builder registered another name)."""
+    from app.modules.areastats import discover
+    if not await discover.search_as(store, regno, body.name):
+        raise HTTPException(422, f"Give a name of at least {discover.MIN_NAME} letters for a number we have seen")
+    return {"regno": regno, "queued": True}
+
+
+@router.post("/insights/found/{regno}/ignore")
+async def insights_ignore(regno: str, user: User = Depends(owner_only), store: Store = Depends(get_store)) -> dict:
+    from app.modules.areastats import discover
+    if not await discover.ignore(store, regno, datetime.now(timezone.utc)):
+        raise HTTPException(404, "Number not found")
+    return {"regno": regno, "ignored": True}
+
+
+@router.get("/insights/system")
+async def insights_system(user: User = Depends(owner_only), store: Store = Depends(get_store)) -> dict:
+    """Every background loop's last good cycle and failure, the register's report and Serper credits left."""
+    from app.modules.areastats import owner
+    return await owner.system(store, datetime.now(timezone.utc))

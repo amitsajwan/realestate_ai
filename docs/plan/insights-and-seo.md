@@ -1,8 +1,8 @@
 # Insights and SEO: turning the data we collect into buyer pages, agent tools, an owner view and rankings
 
-Status: **plan, not started** (2026-10-13). Owner decisions are marked **DECIDE** with a recommendation; confirm them with the
-owner before building those parts. Labels: **LIVE** = built and running in production, **DATA ONLY** = collected and stored but
-shown nowhere, **NEW** = to build.
+Status: **decided and building** (2026-10-13). The owner handed the decisions to the architect; all four are taken as
+recommended (section 7). O1, O2 and O6 are **BUILT** (Studio → Newsroom → Insights). Labels: **LIVE** = built and running in
+production, **BUILT** = in the code, not yet deployed, **DATA ONLY** = collected and stored but shown nowhere, **NEW** = to build.
 
 ## 1. What we already collect
 
@@ -54,12 +54,12 @@ One owner-only screen with tabs, read-only from stored data. Studio already has 
 
 | # | Tab | Shows | Action |
 |---|---|---|---|
-| O1 | **Hot projects** | score, reasons, marketers, last page refresh (`enriched_at`), next due (`HOT_REFRESH_DAYS` = 14) | Refresh page now (sets the enrichment urgent request) |
-| O2 | **Found on Google** | `discovered_projects`: number, where it was seen, added or not | Add now / Ignore |
+| O1 | **Hot projects** (BUILT: `areastats/owner.hot`, `GET /newsroom/insights/hot`) | score, reasons, marketers, last page refresh (`enriched_at`), next due (`HOT_REFRESH_DAYS` = 14) | Refresh page now (sets the enrichment urgent request) |
+| O2 | **Found on Google** (BUILT: `owner.found`) | `discovered_projects`: number, where it was seen, searching / needs a name / found / added / ignored | Search MahaRERA under a name the owner gives (`discover.search_as`) / Ignore (`discover.ignore`) |
 | O3 | **Search demand** | phrases, our rank, rising phrases (what `demand_report.py` prints) | "Make a page" for a phrase with no page (S5) |
 | O4 | **Pages and Google** | indexed or not and why (coverage), impressions, near page one, last IndexNow send | Refresh page |
 | O5 | **Neighbourhoods** | found, published, refused with the reason (`write_notes`) | Hide / write again |
-| O6 | **System** | one row per pipeline from heartbeats and the latest trace line: last ok, last failure, Serper credits left | none |
+| O6 | **System** (BUILT: `owner.system`) | one row per loop from heartbeats (as `worker --check`): last ok, last failure; the register report; Serper credits left (`/account`, no credit used) | none |
 | O7 | **Daily digest** (WhatsApp or email), only when something changed: "3 new hot projects, 1 found on Google, a page near page one, Serper 2,340 credits left" | NEW | |
 
 Build O1, O2 and O6 first: the data is already stored and the owner cannot see it today.
@@ -92,12 +92,12 @@ The loop: **measure** (Search Console + Serper) → **decide** (hot + near page 
 | 4 | O4, O5, O7 digest, S3 FAQs, S7 weekly report | Polish |
 | later | B5 follow a project on WhatsApp | Needs the WhatsApp number live |
 
-## 7. Decisions to confirm with the owner
+## 7. Decisions (taken 2026-10-13)
 
-1. Public pages show factual activity lines, not a "hot" badge or score. Recommended: yes.
-2. Marketer sites (`web_marketers`) are for the owner and agents only, never public. Recommended: yes.
-3. Merge towers and phases into one page per project, with the old URLs answering 301. Recommended: yes.
-4. Start with week 1 (O1, O2, O6, S1).
+1. Public pages show factual activity lines with their source, never a "hot" badge or score.
+2. Marketer sites (`web_marketers`) are for the owner and agents only, never public.
+3. Towers and phases merge into one page per project; old URLs answer 301 (S1).
+4. Week 1 first: O1, O2, O6, then S1.
 
 ## 8. Rules that hold for all of it
 
