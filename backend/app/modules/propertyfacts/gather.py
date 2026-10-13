@@ -4,6 +4,7 @@ Today: the listing itself, its place (Nominatim), its MahaRERA registration, sur
 facts the agent confirmed from the builder's brochure (brochure.py; level builder_claim, never above MahaRERA or the listing).
 The builder record (PF-3) and portals (PF-5) add readings here as they land."""
 import asyncio
+import logging
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -17,6 +18,7 @@ from . import brochure, calc, points, registration, surroundings
 from . import place as place_mod
 from .facts import Fact, Reading, sheet
 
+log = logging.getLogger(__name__)
 BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128 Safari/537.36"
 LISTING_KEYS = ("transaction", "property_type", "price_inr", "bhk", "carpet_sqft", "locality", "city", "project_name",
                 "rera_no", "amenities",
@@ -78,9 +80,11 @@ class Clients:
                 await asyncio.sleep(wait)
             try:
                 async with httpx.AsyncClient(timeout=self.timeout, headers={"User-Agent": place_mod.USER_AGENT}) as c:
-                    # Overpass queries are long: send them as a form POST, as Overpass expects
-                    r = await (c.post(url, data=params) if url == surroundings.OVERPASS else c.get(url, params=params))
-                data = r.json() if r.status_code == 200 else None
+                    if url == surroundings.OVERPASS:   # long queries go as a form POST; a refusing server passes to a mirror
+                        data = await _overpass(c, params)
+                    else:
+                        r = await c.get(url, params=params)
+                        data = r.json() if r.status_code == 200 else None
             except (httpx.HTTPError, ValueError):
                 data = None
             finally:
@@ -88,6 +92,21 @@ class Clients:
         if data is not None:
             self._cache[key] = data
         return data
+
+
+async def _overpass(c: httpx.AsyncClient, params: dict) -> Any:
+    """The Overpass answer from the main server, else from each mirror in turn (surroundings.OVERPASS_MIRRORS); None when
+    none answers."""
+    for i, url in enumerate((surroundings.OVERPASS, *surroundings.OVERPASS_MIRRORS)):
+        try:
+            r = await c.post(url, data=params)
+            if r.status_code == 200:
+                return r.json()
+            reason = f"answered {r.status_code}"
+        except (httpx.HTTPError, ValueError) as e:
+            reason = type(e).__name__
+        log.warning("overpass: %s %s%s", url, reason, ", trying a mirror" if i < len(surroundings.OVERPASS_MIRRORS) else "")
+    return None
 
 
 def brochure_notes(kit: dict, used: int) -> List[str]:

@@ -60,7 +60,9 @@ async def step(store: Store, llm, get_json: GetJson, now: datetime) -> dict:
     found = _aware((await store.get_mark(FOUND_MARK)).get("at"))
     if found is None or now - found >= FIND_EVERY:
         out["found"] = await discover.run(store, get_json, now)
-        await store.set_mark(FOUND_MARK, at=now, **out["found"])
+        # nothing found is usually OpenStreetMap not answering: look again in a day, not a week
+        at = now if out["found"].get("found") else now - FIND_EVERY + timedelta(days=1)
+        await store.set_mark(FOUND_MARK, at=at, **out["found"])
     last = _aware((await store.get_mark(WRITTEN_MARK)).get("at"))
     if last is None or now - last >= timedelta(days=1) / per_day():
         doc = await next_doc(store, now)

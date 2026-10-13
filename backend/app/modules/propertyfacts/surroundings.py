@@ -22,6 +22,8 @@ from .facts import Reading
 from .place import NOMINATIM, GetJson
 
 OVERPASS = "https://overpass-api.de/api/interpreter"
+# tried in order when OVERPASS refuses or times out (2026-10-13: overpass-api.de answers our server 406 whatever the agent)
+OVERPASS_MIRRORS = ("https://maps.mail.ru/osm/tools/overpass/api/interpreter", "https://overpass.private.coffee/api/interpreter")
 LOCAL_PLACES = Path(__file__).resolve().parent / "data" / "pune_places.json.gz"
 LOCAL_BOX = (17.85, 19.40, 73.30, 75.20)   # south, north, west, east: where the copy covers a full 10 km radius
 RADIUS_M = 10000
