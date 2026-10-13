@@ -31,19 +31,45 @@ log = logging.getLogger(__name__)
 MAX_PAGES = 40          # pages rendered into pictures (brochure.MAX_PAGES: the most a brochure may have)
 READ_PAGES = 6          # pages the vision model reads for claims (each page costs ~2k tokens)
 PAGE_W = 1080
+# a page the vision model reads is drawn again this big on its long side: a two-page spread at PAGE_W (Lodha Camelot's map,
+# 1080 x 388) sent at 900 px has unreadable small print, and the model made up the rest ("located in Khadakwasla", "50 mins
+# from Kharadi Beach"); at 2000 px it read the printed travel times
+READ_LONG_SIDE = 2000
 MAX_CLAIMS = 25        # a 4-page brochure: travel times alone fill a dozen
 CLAIM_MAX_CHARS = 160
 RERA = SEARCH            # MahaRERA number, either form (core/rera.py)
 PHONE = re.compile(r"(?:\d[\s-]?){8,}")
 SALES_PROBLEMS = ("hype word", "prediction", "promise", "claim not in facts")
 INVEST = re.compile(r"\b(investment|returns?|appreciation|profit|earning)\b|गुंतवणूक|गुंतवणुकी|कमाई|परतावा|निवेश|मुनाफ", re.I)
+# the developer's company, not this project (the reader is told to leave these out and still copied Lodha's Mumbai corporate
+# address from the small print): its offices, portfolio, awards and company-wide figures
+COMPANY = re.compile(r"\b(?:corporate|head|registered)\s+(?:office|address)\b|\bportfolio\b|\bawards?\b|\baward[- ]winning\b|"
+                     r"\bother\s+projects?\b|\bmillion\s+sq|\bm(?:n|sf)\b|\bsbti\b|\bdjsi\b|science[- ]based\s+targets|"
+                     r"dow\s+jones|\byears\s+of\s+(?:legacy|experience|excellence)\b|\bsince\s+(?:19|20)\d\d\b", re.I)
+# a city that is not Pune: a claim naming one is about the developer's other work ("landmarks in Mumbai and London"), unless
+# it is a road to it ("20 min to the Pune-Mumbai Expressway")
+OTHER_CITY = re.compile(r"\b(?:mumbai|thane|london|dubai|bengaluru|bangalore|hyderabad|delhi|gurugram|gurgaon|chennai|"
+                        r"kolkata)\b", re.I)
+ROAD = re.compile(r"\b(?:expressway|highway|road|rd)\b|pune\s*-\s*\w+|\w+\s*-\s*pune", re.I)
+# the small print of a legal page, read as claims once the page is sharp: not something the builder says about the project
+DISCLAIMER = re.compile(r"\bindicative\b|\b(?:does|shall)\s+not\s+constitute\b|\bnot\s+an?\s+(?:offer|contract)\b|"
+                        r"\breserves?\s+the\s+right\b|\bsubject\s+to\s+change\b|\bequivalent\s+or\s+better\b|\bvariance\b|"
+                        r"\bpolyline\b|\bunfinished\s+(?:surfaces|dimensions)\b|\bat\s+an?\s+additional\s+(?:price|cost)\b|"
+                        r"\bfinished\s+floor\s+level\b|\bartist'?s\s+impression\b|\bdisclaimer\b", re.I)
+PIN = re.compile(r"(?<!\d)(4[01]\d{4})(?!\d)")
+# the project itself placed somewhere ("The project is located in X"; "EON IT Park is in Kharadi" is not about the project)
+AT = re.compile(r"\b(?:located|situated|set|lies|is)\s+(?:in|at)\b", re.I)
+LOCATED = re.compile(r"^(?:located|situated)\b|\b(?:project|site|homes?|flats?|apartments?|plots?|towers?|residences?|estate|"
+                     r"township|layout)\b[^.]{0,30}?" + AT.pattern + r"|\blocation\s*:", re.I)
 
 READ_PROMPT = (
     "These are pages of a real-estate project brochure (India). List what the BUILDER claims about the project, one short "
     "plain sentence each, in English: location and distances, land area, plot or flat sizes, roads, water, power, amenities, "
-    "approvals, prices or offers as written. Copy numbers exactly as printed; copy room sizes exactly as printed, with their "
+    "approvals, prices or offers as written; a page's list of amenities is one claim naming them all (only MAX_CLAIMS claims "
+    "are kept, and travel times must fit). Copy numbers exactly as printed; copy room sizes exactly as printed, with their "
     "units. A page may show the developer's OTHER projects, its portfolio or company achievements (awards, other cities, "
-    "landmarks, years in business): never report those as this project's claims; leave them out. \"(CGI)\" on a picture "
+    "landmarks, years in business, corporate address): never report those as this project's claims; leave them out, and "
+    "leave out the disclaimer and small print (plans are indicative, not an offer, variances). \"(CGI)\" on a picture "
     "means a computer-generated artist's impression, not a photo. Text may be in Marathi or Hindi: write "
     "place names as they are known in English, for example शिक्रापूर Shikrapur, मळठण Malthan, रांजणगाव Ranjangaon, चाकण "
     "Chakan, शिरूर Shirur, लोणी काळभोर Loni Kalbhor, राजगुरूनगर Rajgurunagar, वाघोली Wagholi, सणसवाडी Sanaswadi; a name "
@@ -89,6 +115,31 @@ def pdf_pages(pdf: Path, out_dir: Path, max_pages: int = MAX_PAGES) -> List[str]
             p = out_dir / f"page{i:02d}.jpg"
             img.save(p, "JPEG", quality=85)
             out.append(str(p))
+    finally:
+        doc.close()
+    return out
+
+
+def read_copies(pdf: Path, numbers: List[int], out_dir: Path, long_side: int = READ_LONG_SIDE) -> Dict[int, str]:
+    """{page (from 1): JPEG} of the pages the vision model reads, drawn READ_LONG_SIDE px on the long side in out_dir/read/
+    (the card pictures stay PAGE_W wide). A page that fails is left out (its PAGE_W picture is read instead)."""
+    import pypdfium2 as pdfium
+    folder = out_dir / "read"
+    folder.mkdir(parents=True, exist_ok=True)
+    out: Dict[int, str] = {}
+    doc = pdfium.PdfDocument(str(pdf))
+    try:
+        for n in numbers:
+            if not 1 <= n <= len(doc):
+                continue
+            try:
+                page = doc[n - 1]
+                w, h = page.get_size()
+                p = folder / f"page{n - 1:02d}.jpg"
+                page.render(scale=long_side / max(w, h, 1.0)).to_pil().convert("RGB").save(p, "JPEG", quality=85)
+                out[n] = str(p)
+            except Exception:
+                log.info("project files: page %s could not be drawn for reading", n)
     finally:
         doc.close()
     return out
@@ -143,7 +194,7 @@ async def read_pages(pages: List[str], order: Optional[List[int]] = None,
     images: List[tuple] = []
     for n in numbers[:READ_PAGES]:
         im = Image.open(pages[n - 1]).convert("RGB")
-        im.thumbnail((900, 1400))
+        im.thumbnail((READ_LONG_SIDE, READ_LONG_SIDE))
         buf = io.BytesIO()
         im.save(buf, "JPEG", quality=80)
         text = _page_text_block(texts[n - 1]) if texts and n <= len(texts) else ""
@@ -216,6 +267,10 @@ def clean_claims(raw) -> List[str]:
         c = re.sub(r"\s+", " ", str(c or "")).strip().strip('"')
         if not c or len(c) > CLAIM_MAX_CHARS or PHONE.search(c) or INVEST.search(c) or points.PRELAUNCH.search(c):
             continue
+        if COMPANY.search(c) or (OTHER_CITY.search(c) and not ROAD.search(c)):   # the developer's, not this project's
+            continue
+        if DISCLAIMER.search(c):
+            continue
         # sales claims ("safe investment", "assured", "high returns") and hype are dropped; the builder's own numbers stay
         # (they are claims by definition, so the number check against our facts does not apply)
         if any(p.startswith(SALES_PROBLEMS) for p in problems_in(c, "")):
@@ -225,6 +280,56 @@ def clean_claims(raw) -> List[str]:
         if len(out) >= MAX_CLAIMS:
             break
     return out
+
+
+def printed_pins(text: str, claims: List[str]) -> List[str]:
+    """The Pune district PIN codes the brochure prints for its site: from the PDF's text layer, else from a claim that is an
+    address (read from the picture)."""
+    from app.core.pune_places import TALUKA_BY_PIN
+    pins = [p for p in PIN.findall(text or "") if p in TALUKA_BY_PIN]
+    if not pins:
+        pins = [p for c in claims if re.search(r"\baddress\b", c, re.I) for p in PIN.findall(c) if p in TALUKA_BY_PIN]
+    return list(dict.fromkeys(pins))
+
+
+def wrong_place(claim: str, pins: List[str], regnos: List[str] = (), name: str = "") -> bool:
+    """A claim that puts the project in a Pune place filed under none of the brochure's own PIN codes ("located in
+    Khadakwasla" for a 412207 project), or, when one of its MahaRERA numbers is placed by hand (pune_places.VERIFIED), in
+    another place than that one ("Wagholi" shares 412207 with Upper Kharadi). A place whose name is part of a right one's
+    passes ("Kharadi" for Upper Kharadi). `name`: the project's name, a subject like "the project" ("Lodha Camelot is set in")."""
+    from app.core import pune_places as pp
+    verified = [pp.BY_KEY[pp.VERIFIED[n]] for n in regnos if n in pp.VERIFIED]
+    m = LOCATED.search(claim) or (AT.search(claim) if name and claim.lower().startswith(name.lower()) else None)
+    if not (pins or verified) or not m:
+        return False
+    here = verified or [p for p in pp.PLACES if set(p.pincodes) & set(pins)]
+    text = pp._norm(claim[m.end():])
+    named = [p for p in pp.PLACES if pp._named(p, text)]
+    ok = {pp._norm(n) for p in here for n in (p.name.lower(),) + p.aliases}
+    return any(p not in here and not any(pp._norm(p.name.lower()) in o for o in ok) for p in named)
+
+
+def text_spelling(name: str, text: str) -> str:
+    """The project's name as the PDF's text layer spells it when the reader's is a near miss of it ("Lodha Camellia" for the
+    printed "Lodha Camelot"): same first word, same number of words, close letters. Else the reader's."""
+    import difflib
+    words = name.split()
+    if not words or not text or _plain(name) in _plain(text):
+        return name
+    toks = re.findall(r"[A-Za-z0-9&'.-]+", text)
+    best, score = name, 0.0
+    for i in range(len(toks) - len(words) + 1):
+        cand = " ".join(toks[i:i + len(words)])
+        if cand.lower().split()[0] != words[0].lower():
+            continue
+        r = difflib.SequenceMatcher(None, cand.lower(), name.lower()).ratio()
+        if r > score:
+            best, score = cand, r
+    return best if score >= 0.75 and trusted_name(best) else name
+
+
+def _plain(s: str) -> str:
+    return " ".join(re.findall(r"[a-z0-9]+", (s or "").lower()))
 
 
 def brochure_pdf(listing: dict, uploads_dir: Path) -> Optional[Path]:
@@ -297,12 +402,25 @@ async def read_brochure(pdf: Path, out_dir: Path) -> Dict[str, Any]:
     except Exception:
         texts = []
     text = "\n".join(texts)
-    read = await read_pages(pages, brochure_triage.read_order(labels, len(pages)) if labels else None, texts)
+    order = brochure_triage.read_order(labels, len(pages)) if labels else list(range(1, len(pages) + 1))
+    try:   # the pages to read, drawn big enough for their small print
+        big = await asyncio.to_thread(read_copies, pdf, order[:READ_PAGES], out_dir)
+    except Exception:
+        big = {}
+    read = await read_pages([big.get(i + 1, p) for i, p in enumerate(pages)], order, texts)
+    claims = clean_claims(read.get("claims"))
+    pins = printed_pins(text, claims)
     nos = find_all(" ".join([str(read.get("rera_no") or "")] + list(read.get("rera_nos") or []) + [text]))
-    return {"pages": pages, "claims": clean_claims(read.get("claims")), "project_name": read.get("project_name"),
+    name = text_spelling(read["project_name"], text) if read.get("project_name") else read.get("project_name")
+    claims = [c for c in claims if not wrong_place(c, pins, nos, name or "")]
+    facts = dict(read.get("facts") or {})
+    for k in ("village", "taluka"):   # a village the brochure's PIN code does not cover was misread
+        if facts.get(k) and wrong_place(f"The project is located in {facts[k]}.", pins, nos):
+            facts.pop(k)
+    return {"pages": pages, "claims": claims, "project_name": name,
             "rera_no": nos[0] if nos else None, "rera_nos": nos,
             "rera_missing": not nos, "read_by_ai": bool(read), "weak": bool(read.get("weak")),
-            "facts": dict(read.get("facts") or {}), "language": read.get("language") or "en", "triage": labels}
+            "facts": facts, "language": read.get("language") or "en", "triage": labels}
 
 
 async def save_claims(listings, listing_id: str, *, brochure: Optional[List[str]] = None, video: Optional[List[str]] = None,

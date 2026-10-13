@@ -53,7 +53,7 @@ VALUE_CLAIM = re.compile(
     r"secure your (?:land|plot|home|flat))\b|"
     + _dev("सस्त", "किफ़ायत", "किफायत", "परवड", "स्वस्त", "बजेटमध्ये", "बजट में", "पैसा वसूल"), re.I)
 # A promise about the reader's life or home.
-PROMISE = re.compile(r"\byour (?:new|future|own|forever|perfect) home\b|\bhome of your\b|"
+PROMISE = re.compile(r"\byour (?:new|future|own|forever|perfect) home\b|\bhome of your\b|\bpeace of mind\b|"
                      + _dev("तुमचे नवीन घर", "तुमचं नवीन घर", "तुमचे स्वतःचे घर", "तुमचं स्वतःचं घर", "स्वप्नातील", "स्वप्नातलं",
                             "आपका नया घर", "आपका अपना घर", "सपनों का", "तुमचे हक्काचे", "तुमचं हक्काचं"), re.I)
 # Nothing on an Instagram card or caption can be tapped or clicked.
