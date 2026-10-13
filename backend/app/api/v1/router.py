@@ -35,6 +35,7 @@ from app.modules.ai_listing.router import router as ai_listing_router
 from app.modules.engage.router import router as engage_router
 from app.modules.radar import router as radar_router
 from app.modules.newsroom.router import router as newsroom_router
+from app.api.v1.endpoints.owner_system import router as owner_system_router
 from app.modules.concierge.router import router as concierge_router
 from app.modules.whatsapp.router import router as whatsapp_router
 from app.modules.whatsapp.dm_router import router as messenger_router
@@ -92,6 +93,7 @@ wire()  # callbacks lower modules need from the operator console (app/wiring.py)
 api_router.include_router(engage_router, prefix="/engage", tags=["engage"])
 api_router.include_router(radar_router, prefix="/radar", tags=["radar"])
 api_router.include_router(newsroom_router, prefix="/newsroom", tags=["newsroom"])
+api_router.include_router(owner_system_router, prefix="/newsroom", tags=["newsroom"])
 api_router.include_router(concierge_router, prefix="/concierge", tags=["concierge"])
 api_router.include_router(admin_router, prefix="/admin", tags=["admin"])
 api_router.include_router(whatsapp_router, prefix="/whatsapp", tags=["whatsapp"])

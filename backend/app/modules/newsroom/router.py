@@ -266,9 +266,3 @@ async def insights_ignore(regno: str, user: User = Depends(owner_only), store: S
         raise HTTPException(404, "Number not found")
     return {"regno": regno, "ignored": True}
 
-
-@router.get("/insights/system")
-async def insights_system(user: User = Depends(owner_only), store: Store = Depends(get_store)) -> dict:
-    """Every background loop's last good cycle and failure, the register's report and Serper credits left."""
-    from app.modules.areastats import owner
-    return await owner.system(store, datetime.now(timezone.utc))

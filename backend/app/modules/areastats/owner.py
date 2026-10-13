@@ -7,7 +7,7 @@ Marketer sites stay here and in the agents' studio: never on a public page.
 """
 import os
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import httpx
 
@@ -85,14 +85,14 @@ async def serper_credits(transport: Optional[httpx.AsyncBaseTransport] = None) -
         return None
 
 
-async def system(store: Store, now: datetime) -> dict:
-    """O6: one row per background loop (as `python -m app.worker --check`), the register's report and Serper credits."""
+async def system(store: Store, now: datetime, intervals: Dict[str, Optional[float]]) -> dict:
+    """O6: one row per background loop (`intervals` as `python -m app.worker --check` expects them), the register's report and
+    Serper credits. The caller passes the intervals: this module never imports the worker."""
     from app.platform import heartbeats
-    from app.worker import expected_intervals
     from . import refresh
     docs = await heartbeats.read_all(store.db)
     loops = []
-    for name, interval in expected_intervals().items():
+    for name, interval in intervals.items():
         d = docs.get(name) or {}
         err_at, ok_at = _aware(d.get("last_error_at")), _aware(d.get("last_ok_at"))
         state = "off" if interval is None else "stale" if heartbeats.stale(d, interval, now) else \
