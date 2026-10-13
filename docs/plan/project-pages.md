@@ -87,3 +87,21 @@ TARGET (not built):
 - Area pages say "part of Lodha Camelot" and link the group.
 - propertyfacts sheets stay one per registration; a listing named only "Lodha Camelot" keeps its own name-keyed sheet.
 - Owner review in Studio: confirm or drop a candidate (today: edit the record and re-run the seed).
+
+## From the web (2026-10-14, LIVE)
+
+Owner, 2026-10-14: Google's AI answer shows more about a project than our page, so pages also use the web, checked.
+- `areastats/webfacts.py`, one step of the enrichment loop (`steps.web`, not in the score). Sources: the Google results stored
+  for the project under the name buyers use (one Serper search when there are none); the builder's own site first
+  (lodhagroup.com: domain = builder word + company suffix; microsites are not official), then sites naming the project, up to
+  4 pages that answer out of 8 tried.
+- One model call per page for a fixed list (towers, floors, land, open space, homes, clubhouse, architect, partners), each
+  with its sentence. Kept only when the sentence is on the page and holds the value. Published when the builder's site says
+  it, or two sites agree (numbers within 5%); text facts only from the builder's site. Disagreements stay owner-only.
+  MahaRERA dates, bookings and numbers are never read from the web.
+- Stored as `web_facts` on the tower group's primary record. Shown on register pages (`web_facts` in the page payload) and on
+  agent-listed pages (`GET /public/register/web-facts/{regno}`), each fact linked to its sources with the read date.
+- Agent-listed pages (/projects/<slug>) also got buyer questions (price, each tower's MahaRERA date, registration numbers,
+  bookings, size) with FAQ data, and a title aimed at searches: "<name>, <area>: Price <from>, Possession <Mon YYYY>".
+- First trial, Lodha Camelot: 10 acres (lodhagroup.com, nobroker.in, magicbricks.com) and 80% open space (lodhagroup.com)
+  published; towers held back (nobroker 6, magicbricks 7). 99acres and housing.com refuse the reader.

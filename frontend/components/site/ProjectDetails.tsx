@@ -14,6 +14,19 @@ export default function ProjectDetails({ p, agentName }: { p: PublicProject; age
   const possession = possessionLines(p, name)
   const photo = p.media.find((m) => m.kind === 'image' && !m.slide)
   const slides = p.media.filter((m) => m.kind === 'image' && m.slide).map((m, i, all) => ({ url: m.url, alt: `${p.name}: ${m.caption || 'slide ' + (i + 1) + ' of ' + all.length}` }))
+  const resourceLinks = [
+    p.brochure_url ? { label: 'Download brochure', href: p.brochure_url } : null,
+    ...(p.floor_plan_url ? [{ label: 'Floor plan', href: p.floor_plan_url }] : []),
+    ...(p.floor_plan_urls ?? []).map((href, index) => ({ label: `Floor plan ${index + 1}`, href })),
+    p.virtual_tour_url ? { label: 'Virtual tour', href: p.virtual_tour_url } : null,
+    p.emi_calculator_url ? { label: 'EMI calculator', href: p.emi_calculator_url } : null,
+    p.video_url ? { label: 'Watch video', href: p.video_url } : null,
+  ].filter(Boolean) as Array<{ label: string; href: string }>
+  const videos = [
+    ...(p.video_url ? [{ url: p.video_url, caption: `${p.name} project video` }] : []),
+    ...p.media.filter((m) => m.kind === 'video').map((m) => ({ url: m.url, caption: m.caption || `${p.name} video` })),
+  ]
+
   return (
     <>
       {photo && (
@@ -24,6 +37,34 @@ export default function ProjectDetails({ p, agentName }: { p: PublicProject; age
             {photo.caption}{photo.credit ? ' · ' + photo.credit : ''}
           </figcaption>
         </figure>
+      )}
+
+      {resourceLinks.length > 0 && (
+        <section aria-labelledby="resources-title">
+          <h2 id="resources-title" className="text-xl font-bold">Project resources</h2>
+          <div className="mt-3 flex flex-wrap gap-3">
+            {resourceLinks.map((resource) => (
+              <a key={resource.label} href={resource.href} target="_blank" rel="noopener noreferrer"
+                className="inline-flex min-h-[44px] items-center rounded-xl border border-slate-300 bg-white px-4 font-semibold text-[var(--site-primary)] no-underline shadow-sm">
+                {resource.label}
+              </a>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {videos.length > 0 && (
+        <section aria-labelledby="video-title">
+          <h2 id="video-title" className="text-xl font-bold">Videos</h2>
+          <div className="mt-3 grid gap-4 sm:grid-cols-2">
+            {videos.map((video, i) => (
+              <div key={video.url + i} className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+                <video src={video.url} controls className="aspect-video w-full bg-slate-900" preload="metadata" />
+                <p className="px-3 py-2 text-xs text-slate-600">{video.caption}</p>
+              </div>
+            ))}
+          </div>
+        </section>
       )}
 
       {slides.length > 0 && (

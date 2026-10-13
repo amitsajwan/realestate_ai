@@ -1,7 +1,9 @@
 import type { Metadata } from 'next'
 import { formatPrice, truncate, bhkLabel } from './format'
 import { agentPath, siteOrigin } from './slug'
-import type { AgentProfile, PublicListing, PublicProject } from './types'
+import { formatDay } from './projects'
+import type { AgentProfile, CatalogProject, PublicListing, PublicProject } from './types'
+import { earliestPossession, webFact, type WebFacts } from './webfacts'
 
 export function firstImage(l: PublicListing): string | undefined {
   const imgs = (l.media || []).filter((m) => m.kind === 'image').sort((a, b) => a.order - b.order)
@@ -105,10 +107,30 @@ export function projectMetadata(agent: AgentProfile, p: PublicProject, priceText
   return withPreview(agent, md)
 }
 
-/** Metadata for Avasetu's shared project page (/projects/<slug>). */
-export function catalogProjectMetadata(p: PublicProject, priceText: string): Metadata {
-  const title = `${p.name}, ${p.locality}, Pune: prices and MahaRERA dates`
-  const description = truncate([priceText, p.positioning, 'MahaRERA ' + p.rera_no + ', completion date and homes booked from the public record'].filter(Boolean).join('. '), 160)
+/** Metadata for Avasetu's shared project page (/projects/<slug>): the title says what buyers search for (price, possession),
+ *  the description carries the facts only we put together (each tower's MahaRERA date, bookings, checked web facts). */
+export function catalogProjectMetadata(p: CatalogProject, priceText: string, web: WebFacts | null = null): Metadata {
+  const when = earliestPossession(p)
+  const from = p.price_min != null ? formatPrice(p.price_min) : ''
+  const options = [
+    when && from ? `${p.name}, ${p.locality}: Price ${from}, Possession ${when}` : '',
+    when ? `${p.name}, ${p.locality}: Price, Possession ${when}` : '',
+    when && from ? `${p.name}: Price ${from}, Possession ${when}` : '',
+    `${p.name}, ${p.locality}, Pune: Price, MahaRERA`,
+  ].filter(Boolean)
+  const title = options.find((t) => t.length <= 60) ?? `${p.name}, ${p.locality}`
+  const regs = (p.registrations ?? []).filter((r) => r.completion)
+  const later = regs.filter((r) => r.completion && formatDay(r.completion.slice(0, 7)) !== when)
+  const moved = p.rera?.completion_at_registration && p.rera.completion_now && p.rera.completion_at_registration !== p.rera.completion_now
+    ? `, moved from ${formatDay(p.rera.completion_at_registration.slice(0, 7))}` : ''
+  const land = webFact(web, 'land_acres'), open = webFact(web, 'open_space_pct')
+  const description = truncate([
+    priceText,
+    when ? `MahaRERA possession ${when}${later.length ? ` (${later.map((r) => `${r.tower}: ${formatDay(r.completion!.slice(0, 7))}`).join(', ')})` : ''}${moved}` : '',
+    p.rera?.units_total ? `${p.rera.units_booked ?? 0} of ${p.rera.units_total} homes booked` : '',
+    land || open ? [land?.text, open ? open.text + ' open space' : ''].filter(Boolean).join(', ') : '',
+    'MahaRERA ' + p.rera_no,
+  ].filter(Boolean).join('. '), 160)
   const image = p.media.find((m) => m.kind === 'image' && !m.slide)?.url
   return build(title, description, '/projects/' + p.slug, image ? absolute(image) : undefined)
 }

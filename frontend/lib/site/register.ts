@@ -3,6 +3,7 @@
  * The facts are Avasetu's (the register); an agent's listing in the project lives on the agent's page and uses them.
  */
 import { serverApiBase } from './api'
+import type { WebFacts } from './webfacts'
 
 export interface RegisterProject {
   slug: string
@@ -46,6 +47,8 @@ export interface RegisterProject {
   enriched_at?: string | null
   /** the marketed project this registration is one tower of, when that project is live on our pages (agentprojects.groups) */
   group?: { name: string; tower: string; towers: number; path: string } | null
+  /** what the builder's site and the sites ranking for the project say, checked (backend areastats/webfacts.py) */
+  web_facts?: WebFacts | null
 }
 
 /** One enrichment check behind the page (areastats.enrich): passed or not, when, and what was compared. */

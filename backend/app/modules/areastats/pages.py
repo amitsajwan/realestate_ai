@@ -332,6 +332,33 @@ def _similar(doc: dict, docs: List[dict]) -> List[dict]:
     return others[:SAME_AREA]
 
 
+def web_public(web: Optional[dict]) -> Optional[dict]:
+    """What a project page shows of `web_facts` (areastats.webfacts): the published facts with their sources and the read date;
+    never the sites that disagree."""
+    if not web or not web.get("facts"):
+        return None
+    at = web.get("at")
+    return {"read_at": at.date().isoformat() if isinstance(at, datetime) else None,
+            "facts": [{k: f[k] for k in ("key", "label", "text", "official", "sources")} for f in web["facts"]]}
+
+
+def group_primary(doc: dict, docs: List[dict]) -> dict:
+    """The record a tower group's shared facts are kept on (the doc itself when it is alone or the primary)."""
+    want = doc.get("cluster_primary")
+    return next((d for d in docs if d["_id"] == want), doc) if want else doc
+
+
+async def web_facts_for(db, regno: str) -> Optional[dict]:
+    """The published web facts for a registration (its tower group's), or None."""
+    store = Store(db)
+    doc = await store.project((regno or "").strip().upper())
+    if doc is None:
+        return None
+    if doc.get("cluster_primary"):
+        doc = await store.project(doc["cluster_primary"]) or doc
+    return web_public(doc.get("web_facts"))
+
+
 async def project_page(db, slug: str) -> Optional[dict]:
     store = Store(db)
     doc = await store.projects.find_one({"page_slug": slug})
@@ -341,6 +368,7 @@ async def project_page(db, slug: str) -> Optional[dict]:
     key = "locality" if doc.get("locality") else "pune_place"
     peers = [d for d in docs if doc.get(key) and d.get(key) == doc[key]]
     out = view(doc, _similar(doc, peers), docs)
+    out["web_facts"] = web_public(group_primary(doc, docs).get("web_facts"))
     # one tower of a project marketed under several registrations (Lodha Camelot): name it and link the whole project, only
     # when that project is live on a public page (agentprojects.groups.public_group; drafts never show)
     from app.modules.agentprojects.groups import public_group

@@ -7,6 +7,7 @@ import ContactButtons from '@/components/site/ContactButtons'
 import EnquiryForm from '@/components/site/EnquiryForm'
 import ProjectCard from '@/components/site/ProjectCard'
 import ProjectDetails from '@/components/site/ProjectDetails'
+import WebFactsBox from '@/components/site/WebFactsBox'
 import { BRAND_NAME } from '@/lib/brand'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { localityByName } from '@/lib/marketing/localities'
@@ -19,6 +20,7 @@ import { getRegisterProject, registerDescription, registerTitle } from '@/lib/si
 import { bhkRange, mainAgent, priceRange, projectWhatsAppMessage } from '@/lib/site/projects'
 import { catalogProjectMetadata, projectJsonLd } from '@/lib/site/seo'
 import { agentPath } from '@/lib/site/slug'
+import { catalogFaq, getWebFacts } from '@/lib/site/webfacts'
 import type { CatalogProject } from '@/lib/site/types'
 
 // ISR: each project page is rendered on its first visit and kept for an hour (nothing here reads cookies or headers)
@@ -54,7 +56,7 @@ async function loadRegister(params: Props['params']) {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const p = await load(params)
-  if (p && p.agents.length) return catalogProjectMetadata(p, priceRange(p) + ', ' + bhkRange(p.bhk_options))
+  if (p && p.agents.length) return catalogProjectMetadata(p, priceRange(p) + ', ' + bhkRange(p.bhk_options), await getWebFacts(p.rera_no))
   const r = await loadRegister(params)
   if (!r) return { title: 'Project not found', robots: { index: false } }
   const meta = pageMetadata(getMarketingConfig(), {
@@ -90,8 +92,12 @@ export default async function SharedProjectPage({ params }: Props) {
   const area = localityByName(p.locality)
   const others = (await getCatalog()).filter((x) => x.slug !== p.slug)
   const similar = [...others.filter((x) => x.locality === p.locality), ...others.filter((x) => x.locality !== p.locality)].slice(0, 3)
+  const web = await getWebFacts(p.rera_no)
+  const faq = catalogFaq(p, web)
   const ld = [
     projectJsonLd(p, url),
+    { '@context': 'https://schema.org', '@type': 'FAQPage',
+      mainEntity: faq.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })) },
     breadcrumbJsonLd(cfg.siteUrl, [
       { name: 'Home', path: '/' }, { name: 'Projects', path: '/projects' }, { name: p.name, path: '/projects/' + p.slug },
     ]),
@@ -125,6 +131,20 @@ export default async function SharedProjectPage({ params }: Props) {
         </header>
 
         <ProjectDetails p={p} agentName={main.name} />
+
+        <WebFactsBox web={web} name={p.name} />
+
+        <section aria-labelledby="faq-title">
+          <h2 id="faq-title" className="text-xl font-bold">Questions buyers ask about {p.name}</h2>
+          <div className="mt-3 space-y-2">
+            {faq.map((f) => (
+              <details key={f.q} className="rounded-xl border border-slate-200 bg-white p-3">
+                <summary className="min-h-[44px] cursor-pointer py-2 font-semibold text-slate-900">{f.q}</summary>
+                <p className="mt-1 text-slate-800">{f.a}</p>
+              </details>
+            ))}
+          </div>
+        </section>
 
         <section aria-labelledby="agents-title">
           <h2 id="agents-title" className="text-xl font-bold">{p.agents.length > 1 ? 'Agents for this project' : 'Agent for this project'}</h2>

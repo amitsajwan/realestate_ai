@@ -179,6 +179,13 @@ export interface PublicProject {
   booked_pct?: number | null
   completion_moved_months?: number | null
   updated_at?: string | null
+  /** Optional downloadable or embeddable project materials. */
+  brochure_url?: string | null
+  floor_plan_url?: string | null
+  floor_plan_urls?: string[]
+  virtual_tour_url?: string | null
+  video_url?: string | null
+  emi_calculator_url?: string | null
   /** Avasetu's shared page for this project (/projects/<catalog_slug>), when it has one; the agent's copy points Google there. */
   catalog_slug?: string | null
 }

@@ -128,7 +128,7 @@ describe('shared project pages', () => {
   it('has its own canonical address, and the agent copy points there', async () => {
     const md = await generateMetadata({ params: Promise.resolve({ slug: 'goyal-my-home' }) })
     expect(md.alternates?.canonical).toBe('https://avasetu.in/projects/goyal-my-home')
-    expect(String(md.title)).toContain('MahaRERA')
+    expect(String(md.title)).toContain('Possession')
     const agent = { agent_name: 'House Deal', slug: 'house-deal', branding_data: {} } as never
     expect(projectMetadata(agent, GOYAL, '').alternates?.canonical).toBe('https://avasetu.in/projects/goyal-my-home')
     expect(projectMetadata(agent, { ...GOYAL, catalog_slug: null }, '').alternates?.canonical).toBe('https://avasetu.in/agent/house-deal/projects/goyal-my-home')

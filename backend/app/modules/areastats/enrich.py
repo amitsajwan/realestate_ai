@@ -12,6 +12,8 @@ REFRESH_DAYS old. Projects finished more than a year ago are skipped. For that p
    place and what is nearby, worked-out numbers, the agent's offer; each with its source. No model here.
 2. text: ONE model call writes the page text from those facts only. `check_text` refuses any number not in the facts, sales words
    and anything too long; a refused draft keeps the code-written paragraph.
+2b. web: what the builder's site and the sites ranking for the project say (areastats.webfacts), checked, kept as
+   `web_facts` on the group's primary record; the accepted facts are given to the text model too. Not counted in the score.
 3. stored on the register record: `page_text` (when accepted), `enriched_at`, `enrich_notes`, `geo` (the gathered position,
    checked to be within NEAR_KM of the pincode's centre) and `enrichment` = {at, steps: {maharera_general, buildings, places,
    text}: each {ok, at, checked...}, score "n/4"}; `status_list` is the owner's view of it (Studio > Newsroom > Project pages).
@@ -32,7 +34,7 @@ from app.modules.newsroom import register
 from app.modules.newsroom.store import Store
 from app.platform import trace
 
-from . import hot, pages, searchconsole
+from . import hot, pages, searchconsole, webfacts
 from .service import _day
 
 log = logging.getLogger(__name__)
@@ -124,7 +126,7 @@ async def next_project(store: Store, now: datetime) -> Optional[dict]:
 _JUNK_NAME = re.compile(r"^\W*(hospital|school|college|clinic|bus stop|bus stand|station|temple|park|shop|office|building)\W*\d*\W*$", re.I)
 
 
-def facts_text(doc: dict, gathered: Optional[dict]) -> str:
+def facts_text(doc: dict, gathered: Optional[dict], web: Optional[dict] = None) -> str:
     """Everything the model may use, as plain labelled lines: the register record (dates spelt out with what they are), then the
     gathered sheet. Names that are only a category and a number ("Hospital 9") are left out."""
     lines = [pages.paragraph(doc)]
@@ -149,6 +151,7 @@ def facts_text(doc: dict, gathered: Optional[dict]) -> str:
     o = g.get("offer") or {}
     if o.get("price_inr"):
         lines.append(f"Price on the agent's listing: Rs {o['price_inr']:,} ({o.get('source') or 'agent listing'})")
+    lines += webfacts.lines(web)
     return "\n".join(lines)
 
 
@@ -181,11 +184,11 @@ SYSTEM = ("You write the description on a property website's page about one hous
           'Answer as JSON: {"text": "..."}')
 
 
-async def write_text(llm, doc: dict, gathered: Optional[dict]) -> tuple:
+async def write_text(llm, doc: dict, gathered: Optional[dict], web: Optional[dict] = None) -> tuple:
     """(text or None, why it was refused: [] when accepted)."""
     if llm is None:
         return None, ["no LLM key"]
-    facts = facts_text(doc, gathered)
+    facts = facts_text(doc, gathered, web)
     try:
         out = await llm.json(SYSTEM, "Facts:\n" + facts)
     except Exception as e:
@@ -340,7 +343,14 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime) -> dict:
     else:
         notes.append("no gatherer configured")
     steps["places"], placed = await check_places(store, doc, await sheet(), located_from, now)
-    text, refused = await write_text(llm, doc, gathered)
+    try:
+        steps["web"], web = await webfacts.gather(store, doc, llm, now)
+    except Exception as e:
+        log.exception("enrich: web facts failed for %s", regno)
+        steps["web"], web = _step(False, now, checked=f"failed ({type(e).__name__})"), {}
+    if web:
+        await store.set_project(doc["_id"], **web)
+    text, refused = await write_text(llm, doc, gathered, (web or {}).get("web_facts") or doc.get("web_facts"))
     steps["text"] = _step(bool(text), now, refused_reasons=refused)
     if text is None:
         notes.extend(refused)

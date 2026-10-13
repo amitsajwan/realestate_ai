@@ -54,6 +54,16 @@ async def public_project_by_regno(regno: str, db=Depends(get_db)) -> dict:
     return {k: out[k] for k in ("slug", "path", "indexable")}
 
 
+@public_router.get("/register/web-facts/{regno}")
+async def public_web_facts(regno: str, response: Response, db=Depends(get_db)) -> dict:
+    """What the builder's site and the sites ranking for the project say, checked (areastats.webfacts): for agent-listed pages."""
+    out = await pages.web_facts_for(db, regno)
+    if out is None:
+        raise HTTPException(status_code=404, detail="No web facts")
+    response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
+    return out
+
+
 @public_router.get("/register/projects")
 async def public_project_list(response: Response, area: Optional[str] = None, all: bool = False, limit: int = 2000,
                               place: Optional[str] = None, db=Depends(get_db)) -> list:

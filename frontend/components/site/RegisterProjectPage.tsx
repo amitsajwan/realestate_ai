@@ -5,6 +5,7 @@ import VerifiedFacts from '@/components/site/VerifiedFacts'
 import { breadcrumbJsonLd, jsonLdString } from '@/lib/marketing/seo'
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
 import type { RegisterProject } from '@/lib/site/register'
+import WebFactsBox from '@/components/site/WebFactsBox'
 import { areaName, displayName, longDay, monthYear, otherNames, projectFaq, placePath } from '@/lib/site/register'
 import type { EnrichCheck, Faq } from '@/lib/site/register'
 import type { PropertyFactsView } from '@/lib/site/types'
@@ -412,6 +413,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts }: { p: Register
           <BuildingsTable p={p} />
           <MapBox p={p} nearby={nearby} />
           <BuilderBox p={p} />
+          <WebFactsBox web={p.web_facts} name={displayName(p)} />
           <FaqBox faq={faq} />
 
           {byPromoter.length > 0 && p.promoter && (
