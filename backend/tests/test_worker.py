@@ -125,6 +125,16 @@ async def test_check_passes_when_every_enabled_loop_is_fresh(capsys):
     assert "OFF   newsroom" in out and "OK    calendar" in out and "last error: boom" in out
 
 
+async def test_check_hides_an_error_a_later_good_cycle_passed(capsys):
+    docs = {"engage": {"last_ok_at": T0 - timedelta(seconds=30), "last_error": "old", "last_error_at": T0 - timedelta(days=4)},
+            "calendar": {"last_ok_at": T0 - timedelta(seconds=30)}, "listing_reels": {"last_ok_at": T0 - timedelta(seconds=30)}}
+
+    async def read():
+        return docs
+    assert await worker.check(read, INTERVALS, T0) == 0
+    assert "last error" not in capsys.readouterr().out
+
+
 async def test_check_fails_on_a_stale_or_missing_heartbeat_but_not_on_a_disabled_loop(capsys):
     docs = {"engage": {"last_start_at": T0 - timedelta(seconds=121)},  # limit is 2 x 60s
             "calendar": {"last_start_at": T0 - timedelta(seconds=10)},

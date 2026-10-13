@@ -124,7 +124,10 @@ def evaluate(docs: Dict[str, dict], intervals: Dict[str, Optional[float]], now: 
             continue
         age = heartbeats.age_s(docs.get(name), now)
         shown = "never" if age is None else f"{int(age)}s ago"
-        err = (docs.get(name) or {}).get("last_error")
+        doc = docs.get(name) or {}
+        err_at, ok_at = heartbeats._aware(doc.get("last_error_at")), heartbeats._aware(doc.get("last_ok_at"))
+        # an error a later good cycle has passed is history, not news (radar showed Oct 9's error for days)
+        err = doc.get("last_error") if not (err_at and ok_at and ok_at > err_at) else None
         if heartbeats.stale(docs.get(name), interval, now):
             bad.append(name)
             lines.append(f"STALE {name}: last heartbeat {shown} (limit {int(2 * interval)}s)")

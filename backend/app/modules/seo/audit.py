@@ -13,13 +13,13 @@ import argparse
 import asyncio
 import json
 import os
+import re
 import sys
 from collections import Counter
 from dataclasses import dataclass, field
 from html.parser import HTMLParser
 from typing import Dict, List, Optional, Tuple
 from urllib.parse import urlparse
-from urllib.robotparser import RobotFileParser
 import xml.etree.ElementTree as ET
 
 import httpx
@@ -94,7 +94,46 @@ def _same(a: str, b: str) -> bool:
     return (pa.scheme, pa.netloc.lower(), pa.path.rstrip("/") or "/", pa.query) == (pb.scheme, pb.netloc.lower(), pb.path.rstrip("/") or "/", pb.query)
 
 
-def check_page(url: str, status: int, headers: Dict[str, str], html: str, robots: Optional[RobotFileParser]) -> Tuple[List[str], List[str], Optional[str]]:
+class Robots:
+    """robots.txt read the way Googlebot reads it: the `Googlebot` group, else `*`; the longest matching rule wins and Allow
+    wins a tie (Python's RobotFileParser takes the first match instead, so `Allow: /` before `Disallow: /studio` hid the block)."""
+
+    def __init__(self, text: str):
+        groups: Dict[str, List[Tuple[bool, str]]] = {}
+        agents: List[str] = []
+        in_rules = False
+        for raw in text.splitlines():
+            line = raw.split("#", 1)[0].strip()
+            if ":" not in line:
+                continue
+            key, val = (x.strip() for x in line.split(":", 1))
+            key = key.lower()
+            if key == "user-agent":
+                if in_rules:
+                    agents, in_rules = [], False
+                agents.append(val.lower())
+                for a in agents:
+                    groups.setdefault(a, [])
+            elif key in ("allow", "disallow"):
+                in_rules = True
+                if val:
+                    for a in agents:
+                        groups[a].append((key == "allow", val))
+        self.rules = groups.get("googlebot", groups.get("*", []))
+
+    def can_fetch(self, agent: str, url: str) -> bool:
+        path = urlparse(url).path or "/"
+        best: Optional[Tuple[int, bool]] = None
+        for allow, prefix in self.rules:
+            pat = re.escape(prefix.rstrip("$")).replace(r"\*", ".*") + ("$" if prefix.endswith("$") else "")
+            if re.match(pat, path):
+                cand = (len(prefix), allow)
+                if best is None or cand > best:   # longer wins; same length: allow (True) wins
+                    best = cand
+        return True if best is None else best[1]
+
+
+def check_page(url: str, status: int, headers: Dict[str, str], html: str, robots: Optional[Robots]) -> Tuple[List[str], List[str], Optional[str]]:
     """(errors, warnings, title) for one sitemap page."""
     errs: List[str] = []
     warns: List[str] = []
@@ -150,11 +189,10 @@ async def audit(site: str, max_pages: int = 300, transport: Optional[httpx.Async
     site = site.rstrip("/")
     rep = Report()
     async with httpx.AsyncClient(timeout=30, transport=transport, headers={"User-Agent": AGENT}) as c:
-        robots: Optional[RobotFileParser] = None
+        robots: Optional[Robots] = None
         r = await c.get(site + "/robots.txt")
         if r.status_code == 200:
-            robots = RobotFileParser()
-            robots.parse(r.text.splitlines())
+            robots = Robots(r.text)
             if "sitemap:" not in r.text.lower():
                 rep.errors.append("robots.txt does not name the sitemap")
         else:

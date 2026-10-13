@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 
 from app.modules.areastats import searchconsole
 from app.modules.newsroom.store import Store
+from app.platform import trace
 
 from . import coverage, indexnow
 
@@ -28,6 +29,13 @@ async def round_once(store: Store, now: datetime) -> dict:
         except Exception as e:
             log.exception("seo: %s failed", name)
             res = {"error": type(e).__name__}
+        # one line per step every round, so a quiet loop is visibly alive: skipped = off, or nothing due this round
+        if not res:
+            trace.event(log, "seo", "site", name, trace.SKIPPED, reason="off or nothing due")
+        elif "error" in res:
+            trace.event(log, "seo", "site", name, trace.FAILED, reason=res["error"])
+        else:
+            trace.event(log, "seo", "site", name, trace.OK, **{k: v for k, v in res.items() if isinstance(v, (int, float, str))})
         if res:
             out[name] = res
     return out
