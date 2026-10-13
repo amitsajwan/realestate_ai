@@ -1,0 +1,55 @@
+"""The seo worker loop (app/worker.py): every INTERVAL_S, IndexNow (indexnow.py) then the daily index coverage read
+(coverage.py). Each step does nothing while its own setting is unset, and one failing never stops the other."""
+import asyncio
+import logging
+from datetime import datetime, timezone
+
+from app.modules.areastats import searchconsole
+from app.modules.newsroom.store import Store
+
+from . import coverage, indexnow
+
+log = logging.getLogger(__name__)
+
+INTERVAL_S = 1800
+
+
+def enabled() -> bool:
+    return indexnow.key() is not None or searchconsole.key() is not None
+
+
+async def round_once(store: Store, now: datetime) -> dict:
+    out = {}
+    for name, step in (("indexnow", indexnow.run_once), ("coverage", coverage.run_once)):
+        try:
+            res = await step(store, now)
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            log.exception("seo: %s failed", name)
+            res = {"error": type(e).__name__}
+        if res:
+            out[name] = res
+    return out
+
+
+async def loop() -> None:
+    from app.core.database import get_database
+    from app.platform.heartbeats import heartbeat
+
+    log.info("seo: loop started")
+    while True:
+        try:
+            async with heartbeat("seo", get_database, on=enabled()) as hb:
+                if enabled():
+                    out = await round_once(Store(get_database()), datetime.now(timezone.utc))
+                    if out:
+                        log.info("seo: %s", out)
+                    errors = [k for k, v in out.items() if "error" in v]
+                    if errors:
+                        hb.failed(", ".join(errors) + " failed")
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            log.exception("seo: round failed")
+        await asyncio.sleep(INTERVAL_S)

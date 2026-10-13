@@ -129,3 +129,15 @@ async def test_endpoint_returns_the_contract_and_404_for_unknown_areas():
     assert body["projects"] == 1 and body["units_total"] == 12 and body["units_booked"] == 3
     assert set(body["recent"][0]) == {"name", "regno", "promoter", "completion", "updated", "url", "page"}
     assert c.get("/public/areas/mundhwa/stats").status_code == 404
+
+
+async def test_all_areas_in_menu_order_for_the_city_tracker():
+    from app.core.areas import AREAS
+    db = await db_with(rec(1, "wagholi", completion="2027-05-31", units=12, booked=3), rec(2, "kharadi"))
+    r = client(db).get("/public/areas/stats")
+    assert r.status_code == 200 and r.headers["cache-control"] == f"public, max-age={service.CACHE_SECONDS}"
+    body = r.json()
+    assert [a["area"]["key"] for a in body["areas"]] == [a.key for a in AREAS]
+    by = {a["area"]["key"]: a for a in body["areas"]}
+    assert (by["wagholi"]["projects"], by["wagholi"]["units_total"], by["kharadi"]["projects"], by["lohegaon"]["projects"]) == (1, 12, 1, 0)
+    assert body["as_of"] == "2026-10-04" and body["source"] == service.SOURCE

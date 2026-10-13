@@ -2,8 +2,8 @@
 
 Each round picks ONE project (`next_project`): an urgent request first (a campaign about to post), then hot projects (areastats.hot:
 selling, in the news, searched for; refreshed every HOT_REFRESH_DAYS), then the pages Google already shows (Search Console
-impressions, when that job has stored them), then indexable pages never enriched, then the rest, then the oldest enrichment once it
-is REFRESH_DAYS old. For that project:
+impressions, when that job has stored them; those just off page one first), then indexable pages never enriched, then the rest,
+then the oldest enrichment once it is REFRESH_DAYS old. For that project:
 1. facts: the property-facts gatherer (set at startup in app/wiring.py, `configure(gather=...)`): MahaRERA's full record, the
    place and what is nearby, worked-out numbers, the agent's offer; each with its source. No model here.
 2. text: ONE model call writes the page text from those facts only. `check_text` refuses any number not in the facts, sales words
@@ -80,8 +80,8 @@ def priority(d: dict, urgent: set, now: datetime) -> Optional[tuple]:
     if isinstance(done, datetime):
         return (5, _aware(done).timestamp())                   # due for a refresh, oldest first
     seen = int(d.get("gsc_impressions") or 0)
-    if seen:
-        return (2, -seen)                                       # Google already shows it: most impressions first
+    if seen:   # Google already shows it: just off page one first, then most impressions first
+        return (2, 0 if searchconsole.near_page_one(d.get("gsc_position"), seen) else 1, -seen)
     return (3 if pages.indexable(d) else 4, -(int(d.get("units_total") or 0)))   # bigger projects first
 
 

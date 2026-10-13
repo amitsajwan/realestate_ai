@@ -1,11 +1,13 @@
 """What Google already shows of our project pages (Search Console), so enrichment starts with the pages people see.
 
-Once a day (inside the enrichment loop) it reads impressions and clicks per page for the last 28 days and stores them on the
-register record behind each /projects/<slug> page (`gsc_impressions`, `gsc_clicks`, `gsc_read_at`), and the search phrases behind
-them (query and page) for areastats.demand, with the dated readings
-(`gsc_history`) and the impressions of the 28 days before (`gsc_impressions_prev`), so areastats.hot sees searches rising. Read-only access through a
-service account the owner added in Search Console as a Restricted user. Its key lives only in the VM's environment
-(GSC_SA_KEY_B64: the key file, base64), never in git or chat. Without a key this does nothing.
+Once a day (inside the enrichment loop) it reads impressions, clicks and average position per page for the last 28 days and
+stores them on the register record behind each /projects/<slug> page (`gsc_impressions`, `gsc_clicks`, `gsc_position`,
+`gsc_read_at`), and the search phrases behind them (query and page) for areastats.demand, with the dated readings
+(`gsc_history`) and the impressions of the 28 days before (`gsc_impressions_prev`), so areastats.hot sees searches rising.
+Pages of any kind that sit just off page one (`near_page_one`: position NEAR_FIRST to NEAR_LAST with at least
+NEAR_MIN_IMPRESSIONS) are kept on the mark, most seen first; enrichment takes such project pages before the others.
+Read-only access through a service account the owner added in Search Console as a Restricted user. Its key lives only in the
+VM's environment (GSC_SA_KEY_B64: the key file, base64), never in git or chat. Without a key this does nothing.
 """
 import base64
 import json
@@ -29,7 +31,15 @@ DAYS = 28
 ROWS = 5000                          # most rows Search Console returns per call
 READ_EVERY = timedelta(hours=24)
 HISTORY = 60         # daily readings kept per project: enough to compare with 28 days ago
-MARK = "gsc_pages"   # newsroom_status document: when we last read
+MARK = "gsc_pages"   # newsroom_status document: when we last read, and the pages just off page one
+NEAR_FIRST, NEAR_LAST = 8.0, 20.0    # average positions: bottom of page one to the end of page two
+NEAR_MIN_IMPRESSIONS = 20
+NEAR_KEEP = 50
+
+
+def near_page_one(position, impressions) -> bool:
+    """Seen often enough and ranked where a better page most often moves it onto page one."""
+    return position is not None and NEAR_FIRST <= float(position) <= NEAR_LAST and int(impressions or 0) >= NEAR_MIN_IMPRESSIONS
 
 
 def key() -> Optional[dict]:
@@ -75,11 +85,13 @@ async def query_rows(sa: dict, today: date, transport: Optional[httpx.AsyncBaseT
 
 
 async def page_counts(sa: dict, today: date, transport: Optional[httpx.AsyncBaseTransport] = None) -> Dict[str, dict]:
-    """{path: {"impressions", "clicks"}} for our pages over the last DAYS days (Search Console lags about 2 days)."""
+    """{path: {"impressions", "clicks", "position"}} for our pages over the last DAYS days (Search Console lags about 2 days)."""
     out = {}
     for row in await _rows(sa, today, ["page"], transport):
         path = urlparse((row.get("keys") or [""])[0]).path.rstrip("/")
-        out[path] = {"impressions": int(row.get("impressions") or 0), "clicks": int(row.get("clicks") or 0)}
+        pos = row.get("position")
+        out[path] = {"impressions": int(row.get("impressions") or 0), "clicks": int(row.get("clicks") or 0),
+                     "position": round(float(pos), 1) if pos is not None else None}
     return out
 
 
@@ -104,16 +116,18 @@ async def refresh(store: Store, now: datetime, transport: Optional[httpx.AsyncBa
         slug = d.get("page_slug")
         c = counts.get(f"/projects/{slug}") if slug else None
         if c or d.get("gsc_impressions"):
-            c = c or {"impressions": 0, "clicks": 0}
+            c = c or {"impressions": 0, "clicks": 0, "position": None}
             hist = (list(d.get("gsc_history") or []) + [{"at": now, "impressions": c["impressions"]}])[-HISTORY:]
-            await store.set_project(d["_id"], gsc_impressions=c["impressions"], gsc_clicks=c["clicks"], gsc_read_at=now,
-                                    gsc_history=hist, gsc_impressions_prev=_previous(hist, now))
+            await store.set_project(d["_id"], gsc_impressions=c["impressions"], gsc_clicks=c["clicks"], gsc_position=c.get("position"),
+                                    gsc_read_at=now, gsc_history=hist, gsc_impressions_prev=_previous(hist, now))
             updated += 1
+    near = sorted(({"path": p or "/", **c} for p, c in counts.items() if near_page_one(c.get("position"), c["impressions"])),
+                  key=lambda x: -x["impressions"])[:NEAR_KEEP]
     phrases = 0
     try:   # the searches behind those pages, for areastats.demand; a failure here never loses the page counts above
         from . import demand
         phrases = await demand.from_gsc(store, await query_rows(sa, now.date(), transport), now)
     except Exception:
         log.exception("searchconsole: reading the search phrases failed")
-    await store.set_mark(MARK, at=now, pages=len(counts), projects=updated, phrases=phrases)
+    await store.set_mark(MARK, at=now, pages=len(counts), projects=updated, near_page_one=near, phrases=phrases)
     return {"pages": len(counts), "projects": updated, "phrases": phrases}

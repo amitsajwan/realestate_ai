@@ -49,6 +49,21 @@ def _agent_view(a: dict) -> dict:
     return {k: a.get(k) for k in keep}
 
 
+async def _seo_rows(svc: AdminService) -> list:
+    from app.modules.areastats.searchconsole import key as gsc_key
+    from app.modules.seo.indexnow import key as indexnow_key
+    marks = {d["_id"]: d for d in await svc.c("newsroom_status").find({"_id": {"$in": ["indexnow", "gsc_coverage", "gsc_pages"]}}).to_list(3)}
+    from app.modules.communities.discover import COLLECTION as COMMUNITIES
+    from app.modules.communities.runner import enabled as articles_on
+    hoods = await svc.c(COMMUNITIES).find({}).to_list(None)
+    held = sorted((d for d in hoods if not d.get("published") and d.get("write_notes")), key=lambda d: d.get("written_at"), reverse=True)
+    articles = {"found": len(hoods), "published": sum(1 for d in hoods if d.get("published")),
+                "last_note": f"{held[0]['name']}: {held[0]['write_notes'][0]}" if held else None}
+    return health.seo_rows(indexnow_on=indexnow_key() is not None, gsc_on=gsc_key() is not None, indexnow=marks.get("indexnow"),
+                           coverage=marks.get("gsc_coverage"), pages=marks.get("gsc_pages"), articles_on=articles_on(),
+                           articles=articles)
+
+
 @router.get("/overview")
 async def overview(user: User = Depends(owner_only), svc: AdminService = Depends(get_service), concierge=Depends(get_concierge),
                    ai_ping=Depends(get_ai_ping)) -> dict:
@@ -63,6 +78,7 @@ async def overview(user: User = Depends(owner_only), svc: AdminService = Depends
     rows = health.build_health(social=load_social(), wa=load_wa(), engage=load_engage(), calendar=load_calendar(), newsroom=load_newsroom(),
                                meta=await svc.meta_status(), cal_run=cal_run, news_run=news_run, controls=ctl,
                                ai=await health.ai_status(ai_ping), dm=load_dm())
+    rows += await _seo_rows(svc)
     return {
         "generated_at": datetime.utcnow().isoformat() + "Z",
         "counts": await svc.counts(),
