@@ -10,7 +10,11 @@ layer, and the listing gets a kit of fact candidates the agent confirms, fixes o
     images  -> a page whose text says it is a floor plan, master plan, location map or an artist's impression
                (brochure_parse.image_kind) is also kept as a large JPEG (i<page>.jpg, IMAGE_LONG_SIDE px), pending until the
                agent says "use" or "don't use". A confirmed floor plan can carry a post (campaign.floor_plan); a confirmed
-               render is only ever shown labelled "Artist's impression" and never in the walkthrough reel (S4)
+               render is only ever shown labelled "Artist's impression" and never in the walkthrough reel (S4).
+               Most big-builder brochures are image-only pages; there the vision triage (brochure_triage: triage.json next
+               to the pages) names each page, and its plans, maps and renders join the kit the same way, pending. Pages it
+               calls the builder's other projects, company, stock lifestyle or text are never kit images, and an image-only
+               brochure without triage gives no page to the posts' photos (pictures.brochure_photos; the kit's photo_note says so)
     MahaRERA-> a registration number in the brochure is looked up. MahaRERA not returning it means `unverified`: held for the
                agent, never posted as registered. No number and no record means `unknown`, and the agent is asked whether the
                project is registered or exempt (RERA Act section 3)
@@ -19,6 +23,7 @@ Collection `brochures`: one document per (listing, brochure file); the listing's
 its only writer. The PDF is untrusted input: pdfium reads it without forms or scripts, under page, size and time limits."""
 import asyncio
 import hashlib
+import json
 import logging
 import re
 import threading
@@ -32,7 +37,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 from app.core.rera import HINT as RERA_HINT
 
 from . import brochure_parse as bp
-from . import registration
+from . import pictures, registration
 from .facts import Reading
 
 log = logging.getLogger(__name__)
@@ -137,6 +142,98 @@ def read_pdf(data: bytes, thumbs: Optional[Path] = None, max_pages: int = MAX_PA
     return out
 
 
+def render_images(pdf: Any, thumbs: Path, pages: Sequence[int]) -> List[int]:
+    """A large JPEG (i<page>.jpg) of each of `pages` (from 1) of `pdf` (bytes or a path), as read_pdf keeps for a plan, map
+    or render; returns the pages drawn. Never raises (a page that fails is left out)."""
+    import pypdfium2 as pdfium
+
+    done: List[int] = []
+    if not pages:
+        return done
+    thumbs.mkdir(parents=True, exist_ok=True)
+    with _pdfium_lock:
+        try:
+            doc = pdfium.PdfDocument(pdf if isinstance(pdf, (bytes, bytearray)) else str(pdf))
+        except Exception:
+            return done
+        try:
+            for n in sorted(set(pages)):
+                if not 1 <= n <= len(doc):
+                    continue
+                page = doc[n - 1]
+                try:
+                    w, h = page.get_size()
+                    big = page.render(scale=IMAGE_LONG_SIDE / max(w, h, 1.0), may_draw_forms=False).to_pil()
+                    big.convert("RGB").save(thumbs / f"i{n}.jpg", "JPEG", quality=IMAGE_QUALITY, optimize=True)
+                    done.append(n)
+                except Exception:
+                    log.info("brochure: page %s could not be drawn", n, exc_info=True)
+                finally:
+                    page.close()
+        finally:
+            doc.close()
+    return done
+
+
+# ---- the vision triage (brochure_triage) ----------------------------------------------------------------------------------
+def triage_sig(triage: Dict[int, dict]) -> str:
+    if not triage:
+        return ""
+    blob = json.dumps(sorted((int(k), v) for k, v in triage.items()), sort_keys=True, default=str)
+    return hashlib.sha1(blob.encode("utf-8")).hexdigest()[:16]
+
+
+def merge_triage(images: Sequence[dict], triage: Dict[int, dict]) -> Tuple[List[dict], List[int]]:
+    """The kit's images with the triage applied, and the pages whose large image must be drawn. The agent stays in control:
+    a page triage calls a plan, map or render is added pending (or a pending one re-kinded); a pending image of a page it
+    calls anything else is removed. An image the agent already decided keeps their decision, except one of the builder's
+    other projects, which is never used (dropped)."""
+    out: List[dict] = []
+    seen = set()
+    for im in images:
+        im = dict(im)
+        page = int(im.get("page") or 0)
+        seen.add(page)
+        e = triage.get(page)
+        if e is None:
+            out.append(im)
+            continue
+        use = pictures.page_use(e)
+        pending = (im.get("state") or "pending") == "pending"
+        if use in ("plan", "render"):
+            kind = str(e.get("kind")) if use == "plan" else "render"
+            if pending and kind != im.get("kind"):
+                im.update(kind=kind, label=bp.ARTISTS_IMPRESSION if kind == "render" else "",
+                          configs=list(im.get("configs") or []) if kind == "floor_plan" else [])
+            out.append(im)
+        elif pending:
+            continue
+        elif e.get("other_project"):
+            out.append({**im, "state": "dropped", "by": "triage"})
+        else:
+            out.append(im)
+    draw = []
+    for n in sorted(triage):
+        use = pictures.page_use(triage[n])
+        if n in seen or use not in ("plan", "render"):
+            continue
+        out.append({**_image_doc(n, str(triage[n].get("kind")) if use == "plan" else "render", []), "by": "triage"})
+        draw.append(n)
+    out.sort(key=lambda im: int(im.get("page") or 0))
+    return out, draw
+
+
+def _drawn_only(images: List[dict], draw: Sequence[int], drawn: Sequence[int]) -> List[dict]:
+    """Triage-added images whose page could not be drawn are left out (an image without a file is never offered)."""
+    missing = set(draw) - set(drawn)
+    return [im for im in images if not (im.get("by") == "triage" and im.get("state") == "pending" and im["page"] in missing)]
+
+
+def photo_note(image_only: Sequence[int], pages: int, triage: Dict[int, dict]) -> str:
+    """What the agent is told about the brochure's pages as photos on posts (pictures.brochure_photos), or ""."""
+    return pictures.brochure_photos([], triage, len(image_only) / max(pages, 1))[1]
+
+
 # ---- the kit ---------------------------------------------------------------------------------------------------------------
 def _iso(dt: Any) -> Optional[str]:
     if not isinstance(dt, datetime):
@@ -166,7 +263,7 @@ def kit_out(doc: Optional[dict]) -> Optional[dict]:
                      for f in doc.get("facts") or []],
            "registration": {"status": reg.get("status") or "unknown", "rera_no": reg.get("rera_no") or None,
                             "note": reg.get("note") or ""},
-           "images": images}
+           "images": images, "photo_note": doc.get("photo_note") or None}
     if doc.get("error"):
         out["error"] = doc["error"]
     return out
@@ -347,7 +444,26 @@ class Brochures:
         """The listing's kit: the brochure read last (for the fact sheet; no owner check). A brochure that could not be read is
         kept for the record but never replaces the kit before it (its confirmed facts and registration answer stay in use)."""
         docs = await self.col.find({"listing_id": str(listing_id), "status": "done"}).sort("uploaded_at", -1).limit(1).to_list(1)
-        return docs[0] if docs else None
+        return await self._triaged(docs[0]) if docs else None
+
+    async def _triaged(self, kit: dict) -> dict:
+        """The kit with a vision triage that arrived (or changed) after it was read applied once (merge_triage): new plans,
+        maps and renders pending for the agent, photo_note brought up to date. Never raises: the kit as it was on any failure."""
+        try:
+            folder = self._dir(kit["listing_id"]) / kit["sha256"]
+            triage = await asyncio.to_thread(pictures.load_triage, folder)
+            if not triage or triage_sig(triage) == kit.get("triage_sig"):
+                return kit
+            images, draw = merge_triage(kit.get("images") or [], triage)
+            pdf = self._dir(kit["listing_id"]) / f"{kit['sha256']}.pdf"
+            drawn = await asyncio.to_thread(render_images, pdf, folder, draw) if draw and pdf.is_file() else []
+            update = {"images": _drawn_only(images, draw, drawn), "triage_sig": triage_sig(triage),
+                      "photo_note": photo_note(kit.get("image_only_pages") or [], int(kit.get("pages") or 0), triage)}
+            await self.col.update_one({"_id": kit["_id"]}, {"$set": update})
+            return {**kit, **update}
+        except Exception:
+            log.warning("brochure: the page triage of %s could not be applied", kit.get("_id"), exc_info=True)
+            return kit
 
     async def get(self, agent_id: str, listing_id: str) -> dict:
         await self._listing(agent_id, listing_id)
@@ -400,6 +516,12 @@ class Brochures:
         texts = read.texts
         doc["page_types"] = {str(n): bp.page_type(t, n) for n, t in texts.items()}
         doc["images"] = [_image_doc(n, kind, configs) for n, kind, configs in read.images]
+        triage = await asyncio.to_thread(pictures.load_triage, folder / sha)
+        if triage:
+            doc["images"], draw = merge_triage(doc["images"], triage)
+            drawn = await asyncio.to_thread(render_images, data, folder / sha, draw)
+            doc["images"] = _drawn_only(doc["images"], draw, drawn)
+            doc["triage_sig"] = triage_sig(triage)
         rules = bp.extract(sorted(texts.items()))
         model, used = await self._model_facts(texts)
         cands = bp.merge(rules, model)
@@ -412,6 +534,7 @@ class Brochures:
         if read.image_only:
             doc["notes"] = [f"Pages {', '.join(map(str, read.image_only))} have no text layer (images only); they are not "
                             "read yet."]
+        doc["photo_note"] = photo_note(read.image_only, read.pages, triage)
         doc.update(status="done", error=None)
         await self.col.insert_one(doc)
         return doc

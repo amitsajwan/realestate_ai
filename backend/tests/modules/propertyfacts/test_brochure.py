@@ -123,7 +123,7 @@ async def test_upload_makes_a_kit_once_per_file(tmp_path, monkeypatch):
     data = text_pdf(GULMOHAR + [None])
     kit = brochure.kit_out(await kits.upload("a1", "L1", "gulmohar.pdf", data))
     assert set(kit) == {"id", "listing_id", "filename", "pages", "image_only_pages", "status", "read_at", "facts", "registration",
-                        "images"}
+                        "images", "photo_note"}
     assert kit["status"] == "done" and kit["pages"] == 6 and kit["image_only_pages"] == [6] and kit["read_at"] == "2026-10-11T09:00:00Z"
     f = kit["facts"][0]
     assert set(f) == {"id", "key", "label", "value", "page", "quote", "level", "state", "edited"}

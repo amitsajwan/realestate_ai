@@ -404,6 +404,9 @@ export function BrochureCard({ listingId, client = brochureApi }: { listingId: s
               {imageOnly} {imageOnly === 1 ? t('brochureImagePagesOne') : t('brochureImagePagesMany')}
             </p>
           )}
+          {kit.photo_note && (
+            <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900" data-testid="brochure-photo-note">{kit.photo_note}</p>
+          )}
 
           <RegistrationBlock key={`${kit.registration.status}:${kit.registration.rera_no ?? ''}`} kit={kit} busy={!!b.saving.registration} onAnswer={b.setRegistration} />
 

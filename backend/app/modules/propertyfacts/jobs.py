@@ -590,7 +590,7 @@ class MarketingRuns:
                 pages = await asyncio.to_thread(files.pdf_pages, pdf, out / "brochure")
             except Exception:
                 pages = []
-            return {**before, "pages": pages}
+            return {**before, "pages": pages, **await self._page_photos(listing, pdf, pages, out)}
         kept = files.claims_for(listing, pdf)  # the AI draft (or an earlier run) already read this brochure: draw pages only
         if kept:
             try:
@@ -603,9 +603,32 @@ class MarketingRuns:
             await files.save_claims(self.listings, listing["_id"], brochure=info["claims"], rera_on_brochure=info["rera_no"],
                                     now=self.now(), brochure_url=files.brochure_url(listing, pdf),
                                     facts=info.get("facts") or {}, language=info.get("language"))
-        summary = {k: info.get(k) for k in ("claims", "rera_no", "rera_missing", "error", "weak", "facts", "language")}
-        await self._set(job["_id"], files={"brochure": {**summary, "pages": len(info["pages"])}})
+        info.update(await self._page_photos(listing, pdf, info["pages"], out))
+        summary = {k: info.get(k) for k in ("claims", "rera_no", "rera_missing", "error", "weak", "facts", "language",
+                                            "photo_note")}
+        await self._set(job["_id"], files={"brochure": {**summary, "pages": len(info["pages"]),
+                                                        "photo_pages": len(info["photo_pages"])}})
         return info
+
+    async def _page_photos(self, listing: dict, pdf: Path, pages: Sequence[str], out: Path) -> Dict[str, Any]:
+        """{"photo_pages": the brochure pages that may be card photos, "photo_note"} (pictures.brochure_photos). The triage is
+        read next to the run's pages, else from the listing's brochure kit when the kit is this very file; without one, an
+        image-only brochure gives no pages (its builder's other projects and stock photos cannot be told apart)."""
+        from . import pictures
+        if not pages:
+            return {"photo_pages": [], "photo_note": ""}
+        dirs: List[Any] = [out / "brochure"]
+        try:
+            kits = Brochures(self.db, self.uploads_dir)
+            kit = await kits.current(listing["_id"])
+            if kit and kit.get("sha256") == await asyncio.to_thread(lambda: hashlib.sha256(pdf.read_bytes()).hexdigest()):
+                dirs.append(kits._dir(listing["_id"]) / kit["sha256"])
+        except Exception:
+            log.info("marketing: no brochure kit to match for %s", listing.get("_id"), exc_info=True)
+        triage = await asyncio.to_thread(pictures.load_triage, *dirs)
+        share = 0.0 if triage else await asyncio.to_thread(pictures.image_only_share, pdf)
+        kept, note = pictures.brochure_photos(pages, triage, share)
+        return {"photo_pages": kept, "photo_note": note}
 
     async def _photo_pool(self, listing: dict, out: Path, pages: Sequence = ()) -> List[str]:
         """The property's own pictures for the post cards, one per post, best first: its photos, the stills of its video and
@@ -742,7 +765,9 @@ class MarketingRuns:
             # step 2: the posts, only now that the facts are kept
             step = "posts"
             dropped: Dict[str, Any] = {}
-            photos = await self._photo_pool(listing, out, brochure.get("pages", []))
+            # only the brochure pages that may be card photos (pictures.brochure_photos): never the builder's other projects,
+            # company or stock pages; renders and plans reach posts only through the kit, labelled (campaign.first_look)
+            photos = await self._photo_pool(listing, out, brochure.get("photo_pages", []))
             previous = await self._live_posts(job, listing)
             plan_rows: List[dict] = []
 
@@ -857,7 +882,7 @@ class MarketingRuns:
             briefs = dict(campaign.plan(sheet.facts, "none", job.get("page_url") or "", follow_ups=None, **who))
             own = await self._photo_pool(listing, out)
             pages = [str(x) for x in brochure.get("pages", [])]
-            pool = own + pages
+            pool = own + [str(x) for x in brochure.get("photo_pages", [])]
             locked = await self._locked(job)
             for i, p in enumerate(posts):
                 b = briefs.get(p["angle"])

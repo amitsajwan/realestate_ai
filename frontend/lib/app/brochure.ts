@@ -57,6 +57,8 @@ export interface BrochureKit {
   registration: BrochureRegistration
   /** Plans, maps and renders kept from the brochure (absent on kits read before images were kept). */
   images?: BrochureImage[]
+  /** Whether the brochure's pages are used as photos on posts (none from an unchecked image-only brochure). */
+  photo_note?: string | null
 }
 
 export type RegistrationAnswer = { status: 'registered'; rera_no: string } | { status: 'exempt' }

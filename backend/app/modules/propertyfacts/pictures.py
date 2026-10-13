@@ -2,11 +2,11 @@
 of its video and the pages of its brochure. Clear, sharp, colourful place shots (site, road, building, plot) first; a
 presenter filling the frame, burned-in captions or phone numbers, and text-heavy pages last; near-duplicates (perceptual
 hash) of a picture already chosen left out, so neighbouring cards never show the same scene. Pillow only, on thumbnails:
-fast, and every failure falls back to a neutral score."""
+fast, and every failure falls back to a neutral score. Which brochure pages may join the pool at all: brochure_photos."""
 import json
 import re
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Sequence
+from typing import Any, Dict, Iterable, List, Optional, Sequence
 
 from PIL import Image, ImageFilter, ImageStat
 
@@ -144,6 +144,119 @@ def rank(pool: Sequence[str], own: Iterable[str] = (), notes: Optional[Dict[str,
             out.append(p)
             hashes.append(h)
     return out + unread
+
+
+# ---- which brochure pages may be card photos ---------------------------------------------------------------------------
+# A big builder's brochure is mostly pages that must never stand for this project on a post: the builder's other projects,
+# corporate and award pages, lifestyle stock photos (a model by a pool, a butler, a handshake), legal text. Its renders
+# (CGI) may only be shown labelled "Artist's impression", which a photo card cannot do: they reach posts only through the
+# brochure kit (brochure.py: kind "render", pending until the agent says "use", then campaign.first_look labels them).
+# Plans and the location map go the same way as kit images. So a page is a card photo only when the vision triage
+# (brochure_triage, triage.json next to the pages) calls it something else and not CGI, not another project.
+PHOTO_KINDS = ("amenities", "other")                        # triage kinds a brochure page may be a card photo as
+KIT_KINDS = ("floor_plan", "master_plan", "location_map")   # triage kinds that become kit images (with "render")
+NEVER_KINDS = ("cover", "corporate", "lifestyle", "legal", "text", "price", "specs")
+MOSTLY_IMAGES = 0.5    # share of image-only pages above which, without triage, no page of a brochure is a card photo
+NO_PAGES_NOTE = ("Most pages of this brochure are pictures without text, and they could not be checked one by one, so none "
+                 "of them is used as a photo on your posts or reels: a builder's brochure mixes in its other projects and "
+                 "stock photos. Posts use your own photos and video. Floor plans and renders appear only when you choose "
+                 "\"use\" on them here.")
+TRIAGE_NOTE = ("Pages were sorted by what they show: the builder's other projects, company pages, stock lifestyle photos and "
+               "text pages are never used on posts. Renders are shown only labelled \"Artist's impression\", and plans and "
+               "maps only when you choose \"use\".")
+
+
+def load_triage(*dirs: Any) -> Dict[int, dict]:
+    """{page number (from 1): {kind, other_project, cgi, note}} from brochure_triage (triage.json in the first of `dirs`
+    that has one), or {} when there is none or the triage module is not deployed."""
+    try:
+        from . import brochure_triage
+    except ImportError:
+        return {}
+    for d in dirs:
+        if not d:
+            continue
+        try:
+            got = brochure_triage.load(Path(d)) or {}
+        except Exception:
+            got = {}
+        if got:
+            out = {}
+            for k, v in got.items():
+                try:
+                    out[int(k)] = dict(v or {})
+                except (TypeError, ValueError):
+                    continue
+            if out:
+                return out
+    return {}
+
+
+def page_use(entry: Optional[dict]) -> str:
+    """What a triaged brochure page may be: "photo" (a card photo), "render" (a kit image, always labelled "Artist's
+    impression"), "plan" (a kit image: floor plan, master plan, location map) or "none". An untriaged page is "none"."""
+    if not entry or entry.get("other_project"):
+        return "none"
+    kind = str(entry.get("kind") or "other")
+    if kind in KIT_KINDS:
+        return "plan"
+    if kind in NEVER_KINDS:
+        return "none"
+    if kind == "render" or entry.get("cgi"):
+        return "render"
+    return "photo" if kind in PHOTO_KINDS else "none"
+
+
+def page_number(path: Any) -> Optional[int]:
+    """The brochure page (from 1) a page picture shows: files.pdf_pages' pageNN.jpg counts from 0, the kit's pN.jpg / iN.jpg
+    from 1."""
+    name = Path(str(path)).name
+    m = re.fullmatch(r"page(\d+)\.jpe?g", name, re.I)
+    if m:
+        return int(m.group(1)) + 1
+    m = re.fullmatch(r"[pi](\d+)\.jpe?g", name, re.I)
+    return int(m.group(1)) if m else None
+
+
+def image_only_share(pdf: Any) -> float:
+    """The share of a PDF's pages without a text layer (brochure_parse.image_only); 1.0 when it cannot be read."""
+    try:
+        import pypdfium2 as pdfium
+
+        from . import brochure_parse as bp
+        from .brochure import _pdfium_lock
+        with _pdfium_lock:
+            doc = pdfium.PdfDocument(str(pdf))
+            try:
+                n = len(doc)
+                if not n:
+                    return 1.0
+                empty = 0
+                for i in range(n):
+                    page = doc[i]
+                    try:
+                        tp = page.get_textpage()
+                        empty += bp.image_only(bp.clean(tp.get_text_range()))
+                        tp.close()
+                    finally:
+                        page.close()
+                return empty / n
+            finally:
+                doc.close()
+    except Exception:
+        return 1.0
+
+
+def brochure_photos(pages: Sequence[Any], triage: Dict[int, dict], image_share: float) -> tuple:
+    """(the brochure page pictures that may be card photos, a note for the agent or ""). With triage: only pages it calls
+    "photo" (page_use). Without: none from a brochure that is mostly image-only pages (it could not be checked), every page
+    from a text brochure (its text pages are ranked last by `rank`, as before)."""
+    pages = [str(p) for p in pages]
+    if triage:
+        return [p for p in pages if page_use(triage.get(page_number(p) or 0)) == "photo"], TRIAGE_NOTE
+    if image_share > MOSTLY_IMAGES:
+        return [], NO_PAGES_NOTE
+    return pages, ""
 
 
 def walkthrough_pictures(pool: Sequence[str], keep: int = 5) -> List[str]:

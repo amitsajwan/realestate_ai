@@ -128,7 +128,8 @@ async def test_a_new_brochure_remakes_posts_on_its_pages(tmp_path):
 
     async def brochure(job, listing, out):
         read.append(job["_id"])
-        return {"pages": [str(tmp_path / "images" / "page1.jpg")], "claims": []}
+        pages = [str(tmp_path / "images" / "page1.jpg")]
+        return {"pages": pages, "photo_pages": pages, "claims": []}
     runs._brochure = brochure
     await change(db, media=[{"kind": "document", "url": "/uploads/documents/b.pdf"}])
     run, created = await runs.create("a1", "L1")
