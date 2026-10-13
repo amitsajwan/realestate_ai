@@ -73,8 +73,9 @@ $common = @("--project", $Project, "--zone", $Zone); if ($Iap) { $common += "--t
 function Show-Status {
   $names = ($Catalog | ForEach-Object { $_.Name }) -join " "
   # prints "NAME SET abcd" or "NAME EMPTY": only the last 4 characters ever leave the VM
-  $sh = "cd ~/$RemoteDir/deploy/gcp && for k in $names; do v=`$(grep -m1 `"^`$k=`" .env | cut -d= -f2-); " +
-        "if [ -n `"`$v`" ]; then echo `"`$k SET `${v: -4}`"; else echo `"`$k EMPTY`"; fi; done"
+  # no double quotes inside: Windows PowerShell 5.1 splits a native argument at embedded quotes (gcloud: unrecognized arguments)
+  $sh = "cd ~/$RemoteDir/deploy/gcp && for k in $names; do v=`$(grep -m1 ^`$k= .env | cut -d= -f2-); " +
+        "if [ `${#v} -gt 0 ]; then echo `$k SET `${v: -4}; else echo `$k EMPTY; fi; done"
   $out = & gcloud compute ssh $Instance @common --command $sh
   if ($LASTEXITCODE -ne 0) { throw "could not read the VM's .env" }
   $state = @{}
