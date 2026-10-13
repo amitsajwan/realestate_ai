@@ -50,6 +50,6 @@ def synth(text: str, lang: str = "en", voice: Optional[str] = None, rate: float 
     except Exception as e:
         raise VoiceError(f"voice service unreachable ({type(e).__name__})")
     if r.status_code >= 400:
-        msg = (r.json().get("error") or {}).get("message", f"HTTP {r.status_code}") if r.headers.get("content-type", "").startswith("application/json") else f"HTTP {r.status_code}"
-        raise VoiceError(msg.replace(key, "[redacted]")[:200])
+        msg = (r.json().get("error") or {}).get("message", "") if r.headers.get("content-type", "").startswith("application/json") else ""
+        raise VoiceError((f"HTTP {r.status_code}" + (f": {msg}" if msg else "")).replace(key, "[redacted]")[:200])
     return base64.b64decode(r.json()["audioContent"])

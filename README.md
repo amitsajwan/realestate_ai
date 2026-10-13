@@ -1,5 +1,9 @@
 # 🏠 Avasetu - AI-Powered Real Estate Platform
 
+> **Running or deploying Avasetu?** Use the operator guide: [docs/operator/OPERATOR_GUIDE.md](docs/operator/OPERATOR_GUIDE.md). It
+> covers a fresh install, every release, settings, keys and operations. The deployment notes further down this README are older and
+> do not match the production setup (`deploy/gcp/`).
+
 A comprehensive, production-ready real estate platform with AI-powered content generation, social media publishing, and advanced analytics.
 
 ## 🌟 Key Features

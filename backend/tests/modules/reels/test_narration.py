@@ -167,7 +167,7 @@ def test_render_uses_the_one_take_lines(tmp_path, monkeypatch):
     subject, facts, f = lr.reel_facts(LISTING, {})
     script = lr.with_cta(lr.rules_script(f, "hi"), "hi")
     out = lr.render(script, ["a.jpg", "b.jpg", "c.jpg", "d.jpg", "e.jpg"], "hi", tmp_path / "r.mp4", voiced=True)
-    assert out == {"audio": "voice+music", "note": ""}
+    assert out == {"audio": "voice+music", "note": "", "voice": "take", "voice_error": ""}
     assert len(fake.takes) == 1 and not fake.lines
     inputs = [seen["mix"][i + 1] for i, a in enumerate(seen["mix"]) if a == "-i"]
     assert [Path(x).name for x in inputs[:5]] == [f"take{i}.wav" for i in range(5)] and inputs[5].endswith("bed.wav")

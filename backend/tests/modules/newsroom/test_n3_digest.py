@@ -63,7 +63,8 @@ def test_at_most_two_per_pillar_and_most_important_pillar_first():
     rules = {**SAMPLES[4], "status": "published"}
     got = digest.compose(infra + [rules], SUNDAY_EVENING)["digest"]["items"]
     pillars = [i["pillar"] for i in got]
-    assert pillars.count("infrastructure") == 2 and pillars == ["infrastructure", "infrastructure", "rules_money"]
+    # rules and money comes first: it changes what a buyer pays; road work is the most frequent news, not the most important
+    assert pillars.count("infrastructure") == 2 and pillars == ["rules_money", "infrastructure", "infrastructure"]
 
 
 def test_the_digest_is_a_pending_review_item_with_title_stories_tip_and_as_of():

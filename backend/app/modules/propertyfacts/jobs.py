@@ -11,10 +11,13 @@ import asyncio
 import hashlib
 import logging
 import re
+import time
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
+
+from app.platform import trace
 
 from . import campaign, identity
 from .brochure import Brochures, usable_images
@@ -357,8 +360,10 @@ class MarketingRuns:
                                         hook=(p["caption"].splitlines() or [""])[0], kicker=(project or "").upper()[:28] or None)
                 reels.append({"kind": "slides", "angle": p["angle"], "caption": p["caption"],
                               "video": "/uploads/" + dest.resolve().relative_to(self.uploads_dir.resolve()).as_posix()})
-            except Exception:
-                log.warning("marketing run %s: slides reel %s failed", job["_id"], p["angle"], exc_info=True)
+                trace.event(log, "marketing", job["_id"], "slides_reel", trace.OK, angle=p["angle"])
+            except Exception as e:
+                trace.event(log, "marketing", job["_id"], "slides_reel", trace.FAILED, angle=p["angle"],
+                            reason=str(e) or type(e).__name__, exc_info=True)
         if self.reel_jobs is not None:
             try:
                 from app.modules.reels.listing_reel import caption as reel_caption
@@ -366,8 +371,13 @@ class MarketingRuns:
                 doc, _ = await self.reel_jobs.create(job["agent_id"], job["listing_id"], lang, style=style)
                 reels.append({"kind": "walkthrough", "job_id": doc["_id"], "status": doc["status"], "video": doc.get("video_path"),
                               "style": style, "language": lang, "caption": reel_caption(listing, "", lang) + "\n\n" + link_line})
+                trace.event(log, "marketing", job["_id"], "walkthrough_reel", trace.OK, reel_job=doc["_id"], status=doc["status"],
+                            lang=lang, style=style)
             except Exception as e:  # fewer than 2 photos, the daily limit...: the campaign goes on without it
-                reels.append({"kind": "walkthrough", "status": "skipped", "note": str(getattr(e, "detail", "") or "not made")})
+                note = str(getattr(e, "detail", "") or "not made")
+                reels.append({"kind": "walkthrough", "status": "skipped", "note": note})
+                trace.event(log, "marketing", job["_id"], "walkthrough_reel", trace.SKIPPED, reason=note if note != "not made" else
+                            (str(e) or type(e).__name__))
         return reels
 
     async def _with_walkthrough(self, doc: Optional[dict]) -> Optional[dict]:
@@ -386,9 +396,13 @@ class MarketingRuns:
     async def run(self, job: dict) -> None:
         """Step 1, then step 2. Never raises: a failure is stored with a message safe to show, keeping a finished step 1."""
         jid, step = job["_id"], "facts"
+        started = time.monotonic()
+        trace.event(log, "marketing", jid, "start", trace.OK, listing=job["listing_id"], agent=job["agent_id"],
+                    lang=job.get("language") or "en")
         try:
             listing = await self.listings.find_one({"_id": job["listing_id"], "agent_id": job["agent_id"]})
             if not listing:
+                trace.event(log, "marketing", jid, "done", trace.FAILED, reason="listing removed")
                 return await self._set(jid, status="failed", error="The listing was removed.", finished_at=self.now())
             # step 1: the knowledge base and the page
             clients = self.clients_factory() if self.clients_factory else Clients(facts_store=self.facts_store)
@@ -396,13 +410,17 @@ class MarketingRuns:
             listing_url = await self._page_url(job["agent_id"], job["listing_id"])
             # page first (docs/plan/project-pages.md): a registered project is marketed only once its own page exists
             regno, project_url = await self._project_page(sheet)
+            summary = _summary(sheet)
+            trace.event(log, "marketing", jid, "facts", trace.OK, usable=summary["usable"], held=summary["held"],
+                        maharera=summary["maharera"] or "none", nearby=summary["nearby"], notes="; ".join(map(str, summary["notes"])) or None)
             if regno and not project_url:
-                return await self._set(jid, status="failed", step="facts", facts=_summary(sheet), page_url=listing_url,
+                trace.event(log, "marketing", jid, "done", trace.FAILED, reason=f"project page for {regno} not ready")
+                return await self._set(jid, status="failed", step="facts", facts=summary, page_url=listing_url,
                                        listing_url=listing_url, facts_done_at=self.now(), finished_at=self.now(),
                                        error=f"The facts are saved, but the project page for {regno} is not ready yet, so no "
                                              "posts were made. Please start marketing again in a few minutes.")
             page = project_url or listing_url
-            await self._set(jid, status="posts", step="posts", facts=_summary(sheet), page_url=page, listing_url=listing_url,
+            await self._set(jid, status="posts", step="posts", facts=summary, page_url=page, listing_url=listing_url,
                             facts_done_at=self.now())
             # step 2: the posts, only now that the facts are kept
             step = "posts"
@@ -420,6 +438,9 @@ class MarketingRuns:
                               "caption": p.caption, "used_llm": p.used_llm, "prompts": p.prompts})
             ctx = campaign.Ctx(sheet.facts)
             where = ctx.where or "this property"
+            trace.event(log, "marketing", jid, "posts", trace.OK if posts and not dropped else trace.FALLBACK if posts else trace.FAILED,
+                        made=len(posts), by_llm=sum(1 for p in posts if p["used_llm"]), photo="none" if photo == "none" else "listing",
+                        dropped="; ".join(f"{k}: {v}" for k, v in dropped.items()) or None)
             await self._set(jid, posts=posts, dropped={k: str(v)[:300] for k, v in dropped.items()},
                             link_line=campaign.link_line_for(where, job.get("language") or "en", ctx.maharera))
             # step 3 (best effort, never fails the run): reels from the best carousels, and the walkthrough reel
@@ -427,8 +448,12 @@ class MarketingRuns:
             link_line = campaign.link_line_for(where, job.get("language") or "en", ctx.maharera)
             reels = await self._reels(job, listing, posts, out, ctx.project, link_line)
             await self._set(jid, status="done", reels=reels, error=None, finished_at=self.now())
-        except Exception:
+            trace.event(log, "marketing", jid, "done", trace.OK, posts=len(posts), reels=len(reels),
+                        seconds=time.monotonic() - started)
+        except Exception as e:
             log.exception("marketing run %s failed in step %s", jid, step)
+            trace.event(log, "marketing", jid, "done", trace.FALLBACK if step == "reels" else trace.FAILED, failed_step=step,
+                        error=type(e).__name__, reason=str(e) or type(e).__name__, seconds=time.monotonic() - started)
             msg = ("Could not gather the property facts. Please try again." if step == "facts"
                    else "The facts are saved, but the posts could not be made. Please try again." if step == "posts"
                    else "The posts are ready, but the reels could not be made.")

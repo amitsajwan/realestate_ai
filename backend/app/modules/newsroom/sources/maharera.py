@@ -14,10 +14,12 @@ import logging
 import re
 from datetime import datetime, timezone
 from typing import List, Optional
+from urllib.parse import quote
 
 from app.modules.newsroom.policy import MAHARERA_PAGES, MAHARERA_PHRASE
 from app.modules.newsroom.sources._util import canonical_url, item_id, now_utc, strip_html
 from app.modules.newsroom.types import Fetcher, MahaReraProject, RawItem
+from app.platform import trace
 
 log = logging.getLogger(__name__)
 
@@ -36,6 +38,7 @@ DETAIL = "https://maharerait.maharashtra.gov.in/public/project/view/"
 # the same search with project_location set to a pincode lists that pincode's projects in Pune district (verified 2026-10-04:
 # 411047 gave 196, 411057 gave 645; a place name there gives nothing): how the area sweep reads older projects in our areas
 BY_PINCODE = SEARCH.replace("project_location=", "project_location={pincode}")
+BY_NAME = SEARCH.replace("project_name=", "project_name={name}")
 
 _TOTAL = re.compile(r'Showing Final\s*<span[^>]*>\s*(\d+)\s*</span>', re.I)
 _CARD = re.compile(r'<div class="row shadow[^"]*">(.*?)(?=<div class="row shadow|\Z)', re.S)
@@ -96,6 +99,15 @@ async def read_pincode_page(get: Fetcher, pincode: str, page: int, district: int
     return (parse_total(body), parse_projects(body)) if body else (None, [])
 
 
+async def search_by_name(get: Fetcher, name: str, district: int = PUNE_DISTRICT) -> Optional[List[MahaReraProject]]:
+    """The cards MahaRERA's search gives for a project name in the district ([] when none); None when the site did not answer.
+    The site searches by name only (its registration-number filter is ignored, verified 2026-10-06); a real answer always
+    carries its result count, its failures do not. Spaces must be %20 ("gulmohar+city" finds nothing)."""
+    url = BY_NAME.format(district=district, page=1, name=quote((name or "").strip(), safe=""))
+    body = await _ask(get, url, lambda b: parse_total(b) is not None)
+    return parse_projects(body) if body is not None else None
+
+
 def to_item(p: MahaReraProject, fetched_at: Optional[datetime] = None) -> RawItem:
     published = datetime.strptime(p.last_modified, "%Y-%m-%d").replace(tzinfo=timezone.utc) if p.last_modified else None
     where = ", ".join(x for x in (p.location, f"{p.district} district" if p.district else "") if x)
@@ -151,7 +163,8 @@ class MahaReraSource:
                     break
             total = parse_total(first or "")
             if not total or total < 1:
-                log.warning("newsroom: MahaRERA gave no result count after %d rounds", 1 + LATE_ROUNDS)
+                trace.event(log, "rera", "newest", "fetch", trace.FAILED, reason=f"no result count after {1 + LATE_ROUNDS} rounds",
+                            effect="no new projects this cycle")
                 return []
             last = last_page(total)
             seen, missed = set(), list(range(last, max(last - self.pages, 0), -1))
@@ -169,10 +182,11 @@ class MahaReraSource:
                             seen.add(p.regno)
                             self.projects.append(p)
                 missed = still
-            if missed:  # a page still empty after the late rounds: its projects were not read this run
-                log.warning("newsroom: MahaRERA pages %s stayed empty after %d rounds", missed, 1 + LATE_ROUNDS)
+            trace.event(log, "rera", "newest", "fetch", trace.FALLBACK if missed else trace.OK, projects=len(self.projects),
+                        pages=len(range(last, max(last - self.pages, 0), -1)), empty_pages=",".join(map(str, missed)) or None)
             fetched_at = now_utc()
             return [to_item(p, fetched_at) for p in self.projects]
-        except Exception:
+        except Exception as e:
+            trace.event(log, "rera", "newest", "fetch", trace.FAILED, reason=f"{type(e).__name__}: {e}", exc_info=True)
             self.projects = []
             return []

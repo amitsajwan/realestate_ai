@@ -3,6 +3,8 @@
 How content is made, approved, posted to Facebook and Instagram, and followed up. Code as of 7 Oct 2026; production settings
 read from the VM the same day. Plans and work items live in `docs/CONTENT_PLATFORM.md`; the architecture review of the photos and brochure to reels and posts journey is `docs/MARKETING_ARCHITECTURE_REVIEW.md`; the rules every module follows are in
 `docs/ARCHITECTURE.md` §6 and §7. Update this file when a part changes status. Reels and campaign reels updated 11 Oct 2026.
+To find out whether a run, a reel or a post worked, and why not (a reel without a voice-over, a post that did not go out), read
+`docs/LOGS.md`.
 
 Every part below carries one status:
 

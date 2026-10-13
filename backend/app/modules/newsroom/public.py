@@ -116,7 +116,7 @@ def view(doc: dict, full: bool = True, item_ids: Optional[Dict[str, str]] = None
     is_digest = d.get("format") == "digest"
     out = {
         "id": slug(doc), "kind": "digest" if is_digest else "story",
-        "headline": _clean(pr.headline(doc)), "summary": _clean(parts.summary)[:SUMMARY_MAX],
+        "headline": _clean(pr.headline(doc)), "summary": _clean(parts.lead)[:SUMMARY_MAX],
         "pillar": pr.pillar(doc), "pillar_label": pr.pillar_label(doc),
         "areas": [{"key": a, "slug": core_areas.BY_KEY[a].slug, "name": core_areas.BY_KEY[a].name} for a in _area_keys(doc)],
         "source_name": _clean(pr.source_name(doc)),
@@ -128,7 +128,12 @@ def view(doc: dict, full: bool = True, item_ids: Optional[Dict[str, str]] = None
         "buyer_line": _clean(pr.buyer_line(doc)) or None,
     }
     if full:
-        out.update({"our_view": _clean(parts.our_view), "what_to_check": _clean(parts.what_to_check), "disclaimer": policy.DISCLAIMER})
+        out.update({"our_view": _clean(parts.our_view), "what_to_check": _clean(parts.what_to_check), "disclaimer": policy.DISCLAIMER,
+                    # a researched article: its paragraphs after the summary, our labelled background, and every report it drew on
+                    "body": [_clean(p) for p in parts.body[1:]] if len(parts.body) > 1 else [],
+                    "background": _clean(parts.background),
+                    "sources": [] if is_digest else [{"name": _clean(x["name"]), "url": x["url"],
+                                                      "is_redirect": pr.is_google_redirect(x["url"] or "")} for x in pr.sources(doc)]})
         if is_digest and digest:
             ids = item_ids or {}
             out["items"] = [{"id": ids.get(i["id"], i["id"]), "linked": i["id"] in ids, "headline": _clean(i.get("headline", "")),

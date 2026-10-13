@@ -192,7 +192,7 @@ async def test_flaky_pages_are_asked_again(caplog):
         await run(store, get)
     assert await store.projects.count_documents({}) == 3
     assert sum("page=1290&" in u for u in calls) == 3 * 3  # 3 tries in the pass, 3 in each of 2 late rounds
-    assert "[1290, 1289]" in caplog.text
+    assert "step=fetch outcome=fallback" in caplog.text and "empty_pages=1290,1289" in caplog.text
 
 
 async def test_a_page_lost_to_a_burst_of_failures_is_recovered_later():
