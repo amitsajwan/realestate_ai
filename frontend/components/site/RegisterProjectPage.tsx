@@ -323,7 +323,8 @@ function MapBox({ p, nearby }: { p: RegisterProject; nearby: Near[] }) {
         )}
       </div>
       <p className="mt-2 text-xs text-slate-500">
-        {m ? "Approximate area from OpenStreetMap, checked to be near the project's pincode; not the exact plot."
+        {m && p.map_from === 'google' ? "The project's pin on Google Maps, checked against its MahaRERA name and pincode."
+          : m ? "Approximate area from OpenStreetMap, checked to be near the project's pincode; not the exact plot."
           : "A map search for the project's name and area; we have not checked this position yet."}
         {nearby.length > 0 && ' Distances are straight-line; the drive is longer.'}{' '}
         <a href={link} target="_blank" rel="noopener noreferrer" className="text-[#0f2340] underline underline-offset-2">Open the map<span className="sr-only"> (opens in a new tab)</span></a>

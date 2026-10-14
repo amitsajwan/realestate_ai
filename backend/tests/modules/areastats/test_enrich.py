@@ -24,7 +24,7 @@ class FakeLLM:
 
 GOOD = ("Rohan Abhilasha 4 is a housing project by Rohan Builders in Wagholi, Pune. Its completion date filed with MahaRERA is "
         "30 Oct 2029, later than the 31 Dec 2028 filed at registration. 244 of 416 homes were booked when the record was read.\n\n"
-        "Lexicon School is about 1.2 km away.")
+        "The filed completion date has not passed.")
 
 
 @pytest.fixture(autouse=True)
@@ -142,12 +142,12 @@ def test_off_unless_switched_on(monkeypatch):
     assert enrich.load().enabled and enrich.load().every == timedelta(minutes=30)
 
 
-def test_facts_label_both_dates_and_drop_junk_names():
+def test_facts_label_both_dates_and_leave_distances_to_the_page():
     doc = {**FULL, "_id": "P1", "name": "Ivy", "locality": "wagholi", "regno": "P1"}
     g = {"nearby": [{"label": "Hospital", "name": "HOSPITAL 9", "km": 0.5}, {"label": "Hospital", "name": "Care Hospital", "km": 0.6}]}
     facts = enrich.facts_text(doc, g)
     assert "Completion date filed when the project was registered: 31 Dec 2028 (this is a completion date, not the registration date)" in facts
-    assert "HOSPITAL 9" not in facts and "Care Hospital, 0.6 km" in facts
+    assert "Care Hospital" not in facts and "km" not in facts   # the page lists them beside the map
 
 
 BUILDINGS = {"status": "1", "responseObject": [

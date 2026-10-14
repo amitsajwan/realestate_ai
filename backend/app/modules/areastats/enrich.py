@@ -138,12 +138,9 @@ async def next_project(store: Store, now: datetime) -> Optional[dict]:
     return ranked[0][1] if ranked else None
 
 
-_JUNK_NAME = re.compile(r"^\W*(hospital|school|college|clinic|bus stop|bus stand|station|temple|park|shop|office|building)\W*\d*\W*$", re.I)
-
-
 def facts_text(doc: dict, gathered: Optional[dict], web: Optional[dict] = None) -> str:
     """Everything the model may use, as plain labelled lines: the register record (dates spelt out with what they are), then the
-    gathered sheet. Names that are only a category and a number ("Hospital 9") are left out."""
+    gathered sheet. Nearby places are not given: the page lists them beside the map, measured from the project's own pin."""
     lines = [pages.paragraph(doc)]
     now, first = _day(doc.get("completion_now")), _day(doc.get("completion_at_registration"))
     if now:
@@ -154,9 +151,6 @@ def facts_text(doc: dict, gathered: Optional[dict], web: Optional[dict] = None) 
     if t.get("towers"):
         lines.append(f"Buildings registered with MahaRERA: {t['towers']}" + (f", up to {t['max_floors']} floors" if t.get("max_floors") else ""))
     g = gathered or {}
-    for n in (g.get("nearby") or [])[:8]:
-        if n.get("name") and n.get("km") is not None and not _JUNK_NAME.match(str(n["name"])):
-            lines.append(f"Nearby {n.get('label') or 'place'}: {n['name']}, {n['km']} km (OpenStreetMap)")
     for k, v in (g.get("numbers") or {}).items():
         if isinstance(v, (int, float)):
             lines.append(f"{k.replace('_', ' ')}: {v}")
@@ -193,8 +187,8 @@ def check_text(text: str, facts: str) -> List[str]:
 
 SYSTEM = ("You write the description on a property website's page about one housing project in Pune. Use ONLY the facts given. "
           "Plain, neutral English, 2 short paragraphs, under 120 words. Say what the project is, where, the completion date filed "
-          "with MahaRERA and whether it moved, how many homes are booked (or that bookings were not reported), whether the completion "
-          "date has passed, and what is nearby with distances, if given. Keep each date with its label. No adjectives "
+          "with MahaRERA and whether it moved, how many homes are booked (or that bookings were not reported) and whether the completion "
+          "date has passed. Do not list nearby places or distances: the page shows them as a list beside the map. Keep each date with its label. No adjectives "
           "of praise, no advice to buy, no prices unless a fact gives one, no numbers that are not in the facts. "
           'Answer as JSON: {"text": "..."}')
 
@@ -289,6 +283,8 @@ async def check_buildings(regno: str, mid: Optional[int], now: datetime) -> tupl
 async def check_places(store: Store, doc: dict, sheet: Optional[dict], located_from: str, now: datetime) -> tuple:
     """(step, register fields): where the gathered sheet put the project, checked against the pincode's centre."""
     lat, lon = sheet_value(sheet, "lat"), sheet_value(sheet, "lon")
+    if sheet_value(sheet, "located_at") == "project":
+        located_from = "google"                                    # the project's own pin (propertyfacts.pin)
     if not isinstance(lat, (int, float)) or not isinstance(lon, (int, float)):
         return _step(False, now, located_from=located_from or None, checked="no position found"), {}
     fields = {"geo": {"lat": float(lat), "lon": float(lon), "located_from": located_from}}
