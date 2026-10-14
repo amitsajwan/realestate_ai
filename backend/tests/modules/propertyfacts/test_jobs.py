@@ -231,6 +231,25 @@ async def test_reels_are_made_after_the_posts(tmp_path):
     assert out["reels"][0]["video"].startswith("https://api.avasetu.in/uploads/campaigns/L1/")
 
 
+async def test_each_reel_is_saved_as_it_is_made(tmp_path):
+    RENDERED.clear()
+    db, runs, _, _ = await setup(tmp_path)
+    await runs.create("a1", "L1")
+    seen = []
+    orig = runs._set
+
+    async def spy(jid, **f):
+        if "reels" in f:
+            seen.append(len(f["reels"]))
+        return await orig(jid, **f)
+    runs._set = spy
+    await runs.run_once()
+    d = await runs.latest("a1", "L1")
+    ads = [r for r in d["reels"] if r["kind"] == "ad"]
+    assert len(ads) == min(jobs.AD_REELS, len(d["posts"]))
+    assert seen[:len(ads)] == list(range(1, len(ads) + 1))   # reel i lands before reel i+1 is rendered: Studio can show them
+
+
 async def test_a_reel_failure_never_loses_the_posts(tmp_path):
     def broken(*a, **k):
         raise RuntimeError("ffmpeg missing")
