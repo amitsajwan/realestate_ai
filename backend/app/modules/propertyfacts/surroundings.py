@@ -80,12 +80,20 @@ def category(tags: Dict[str, str]) -> Optional[str]:
 
 
 def _add(best: Dict[str, List[Dict[str, Any]]], cat: str, name: str, d: float, url: str) -> None:
+    if not readable(name):   # a vowel-less abbreviation is not a name a buyer can read
+        return
     items = best.setdefault(cat, [])
     if any(i["name"] == name for i in items):
         return
     items.append({"name": name, "km": round(d, 1), "url": url})
     items.sort(key=lambda i: i["km"])
     del items[PER_CATEGORY:]
+
+
+def readable(name: str) -> bool:
+    """OSM holds objects named by internal abbreviations with no vowels ("CTR", a works on Nagar Road) that read as
+    rubbish on a card; EON, ISBT and NMMC pass (they carry a vowel), and so does anything longer or mixed-case."""
+    return not (name and len(name) <= 4 and " " not in name and name.isupper() and not any(c in "AEIOU" for c in name))
 
 
 def from_overpass(elements: List[Dict[str, Any]], lat: float, lon: float) -> Dict[str, List[Dict[str, Any]]]:
