@@ -106,6 +106,13 @@ async def read(listing: dict, claims: List[str], llm) -> Dict[str, Any]:
     return out
 
 
+def one_unit(listing: dict) -> bool:
+    """A flat or house with its own carpet area and no range of sizes: one unit on offer, whatever its scope says."""
+    lo, hi = listing.get("size_min_sqft"), listing.get("size_max_sqft")
+    return (listing.get("property_type") != "plot" and bool(listing.get("carpet_sqft"))
+            and not (lo and hi and hi > lo))
+
+
 def _q(key: str, text: str, options: List[Tuple[str, Any]], free_text: str = "") -> dict:
     q = {"key": key, "text": text, "options": [{"label": l, "value": v} for l, v in options]}
     if free_text:
@@ -145,9 +152,17 @@ def decide(listing: dict, seen: Dict[str, Any], registered: bool, units_total: O
     # one unit or a whole project
     scope = listing.get("listing_scope")
     sizes = seen.get("sizes") or []
+    single = one_unit(listing)
+    if scope == "layout" and single:   # a brochure made the form say "whole project" for one 3 BHK (Camelot, 2026-10-14)
+        bhk = f"{listing['bhk']:g} BHK " if listing.get("bhk") else ""
+        ask.append(_q("scope_check", f"This listing gives one {bhk}{word} of {listing['carpet_sqft']:,.0f} sq ft at one price, "
+                      "but it is marked as a whole project. Which is it?",
+                      [(f"One {word}: the price is for this {word}", "single"),
+                       (f"A whole project: the price is a starting price", "layout")]))
     if not scope:
-        # MahaRERA's unit count and the brochure's several sizes outrank the wording ("a plot is available...")
-        if len(sizes) > 1 or (units_total or 0) > 1:
+        # MahaRERA's unit count and the brochure's several sizes outrank the wording ("a plot is available..."); a flat with
+        # its own carpet area is one unit even though its project registers many
+        if len(sizes) > 1 or (units_total or 0) > 1 and not single:
             scope = auto["listing_scope"] = "layout"
         elif seen.get("scope") and seen.get("scope_sure"):
             scope = auto["listing_scope"] = seen["scope"]
@@ -218,9 +233,11 @@ def apply_answer(key: str, value: Any) -> Dict[str, Any]:
         if value not in TYPES:
             raise ValueError("Pick one of the choices.")
         return {"property_type": value}
-    if key == "listing_scope":
+    if key in ("listing_scope", "scope_check"):
         if value not in SCOPES:
             raise ValueError("Pick one of the choices.")
+        if key == "scope_check" and value == "layout":   # a whole project has no one carpet area: the sizes range stays
+            return {"listing_scope": value, "carpet_sqft": None, "super_built_up_sqft": None}
         return {"listing_scope": value}
     if key == "sizes":
         lo, hi = _num((value or {}).get("min")), _num((value or {}).get("max"))

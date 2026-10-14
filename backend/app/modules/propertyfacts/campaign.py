@@ -207,6 +207,8 @@ class Ctx:
         self.where_named = ", ".join(p for p in (self.name, self.locality) if p)
         self.plot = self.v.get("property_type") == "plot"
         self.kind = "plot" if self.plot else "home"
+        bhk = self.v.get("bhk")   # one flat is named as buyers search it ("3 BHK"); a project's many stay "homes"
+        self.unit = bhk_label(float(bhk)) if bhk and not self.plot and self.v.get("listing_scope") != "layout" else self.kind
         self.layout = self.v.get("listing_scope") == "layout"   # a whole project: the price is a starting price
         self.registered = self.maharera   # the listing page carries a MahaRERA record (the link line says so)
         if self.plot:  # a plot's size needs a source besides the agent's own entry (a layout's total area once went out as one plot's size)
@@ -300,7 +302,7 @@ def price_reveal(c: Ctx) -> Optional[Brief]:
                        tip="Ask what the price includes: development charges, stamp duty and registration.", prefer="stat")
     line = f"A {c.sqft:,} sq ft {c.kind} at {c.where} is listed at {price}."
     c.used.add("price")
-    return c.brief(angle="price_reveal", hook=f"{price} for a {c.kind} in {c.project or c.locality}", topic=f"Price of a {c.kind} at {c.where}", short=f"{c.kind} price", stat_value=price,
+    return c.brief(angle="price_reveal", hook=f"{price} for a {c.unit} in {c.project or c.locality}", topic=f"Price of a {c.kind} at {c.where}", short=f"{c.kind} price", stat_value=price,
                    stat_label=f"for this {c.kind}", facts=[line],
                    tip="Ask what the price includes: development charges, stamp duty and registration.", prefer="stat")
 
@@ -560,7 +562,7 @@ def plot_myth(c: Ctx) -> Optional[Brief]:
 
 
 def overview(c: Ctx) -> Optional[Brief]:
-    """The whole property on one carousel: price on the cover, then size, location, possession and the visit slide.
+    """The whole property on one carousel: the unit and size on the cover, then size, location, possession and the visit slide.
     A slide whose facts are missing is left out; under 3 slides there is no overview."""
     price = price_label(c.v["price_inr"]) if c.v.get("price_inr") else ""
     steps = []
@@ -583,7 +585,12 @@ def overview(c: Ctx) -> Optional[Brief]:
     if len(steps) < 2:   # with the visit slide below, fewer than 3 slides: not an overview
         return None
     steps.append("Book a site visit: full details in the caption.")
-    lead = (f"{c.kind.capitalize()}s from {price}" if c.layout else f"{price} for a {c.kind}") if price else f"A {c.kind}"
+    # the size leads, not the price: the price_reveal post opens with the price (two "Homes from ₹2.24 crore" covers, Camelot)
+    if c.layout:
+        lead = f"{lo:,} to {hi:,} sq ft {c.kind}s" if lo and hi and hi > lo else f"{c.kind.capitalize()}s"
+    else:
+        sqft = f"{c.sqft:,} sq ft" if c.sqft else ""
+        lead = (f"{c.unit}, {sqft}" if sqft else c.unit) if c.unit != c.kind else " ".join(w for w in ("A", sqft, c.kind) if w)
     hook = f"{lead} at {c.project or c.locality}" if (c.project or c.locality) else lead
     facts = [f"{c.kind.capitalize()}s at {c.where} start at {price}." if c.layout else f"This {c.kind} at {c.where} is listed at {price}."] if price else []
     return c.brief(angle="overview", hook=hook, topic=f"{c.where or 'This property'} at a glance", short="property overview",

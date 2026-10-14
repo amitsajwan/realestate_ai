@@ -121,7 +121,9 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
       const d = await api.aiDraft({ text, audio: audio ?? undefined, image_count: photos.length })
       setDraft(d)
       const { about: found, ...rest } = d.draft
-      setForm({ visibility: 'network', ...(projectDefault ? { listing_scope: 'layout' as const } : {}), ...rest })
+      // a draft with one carpet area is one flat even with a brochure attached (a 3 BHK went out as "Homes from ₹2.24 crore")
+      const project = projectDefault && !rest.carpet_sqft
+      setForm({ visibility: 'network', ...(project ? { listing_scope: 'layout' as const } : {}), ...rest })
       setAbout(found ?? {})
       setStep('about') // quick and skippable: what the assistant uses to answer buyers
     } catch (e) {
