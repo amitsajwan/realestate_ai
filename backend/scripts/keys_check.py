@@ -76,6 +76,13 @@ def gemini(c: httpx.Client, key: str) -> Result:
     return _ok(c.get("https://generativelanguage.googleapis.com/v1beta/models", params={"pageSize": 1, "key": key}))
 
 
+def gemini_brochure(c: httpx.Client, key: str) -> Result:
+    """A real call on the brochure model: a key whose project has billing but no credit lists models yet answers 402 here."""
+    model = env("BROCHURE_GEMINI_MODEL", "gemini-3.5-flash").split(",")[0].strip()
+    return _ok(c.post(f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+                      headers={"x-goog-api-key": key}, json={"contents": [{"parts": [{"text": "Say OK"}]}]}), model)
+
+
 def search_console(c: httpx.Client, raw: str) -> Result:
     """The base64 service-account file: it must decode, and Google must give it a token for Search Console (read-only)."""
     try:
@@ -124,6 +131,7 @@ CHECKS: List[Tuple[str, str, Check]] = [
     ("YOUTUBE_API_KEY", "YouTube videos for hot projects", youtube),
     ("GOOGLE_TTS_API_KEY", "Reel voice-overs", google_tts),
     ("GEMINI_API_KEY", "Gemini (voice, fallback AI)", gemini),
+    ("BROCHURE_GEMINI_KEY", "Brochure reading (Gemini, one read per PDF)", gemini_brochure),
     ("GSC_SA_KEY_B64", "Search Console reader", search_console),
     ("AI_LLM_API_KEY", "Text AI", openai_compatible(("AI_LLM_BASE_URL",), GROQ)),
     ("GROQ_API_KEY", "Text AI (Groq)", openai_compatible((), GROQ)),

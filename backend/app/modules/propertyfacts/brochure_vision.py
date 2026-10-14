@@ -26,7 +26,9 @@ from . import brochure_parse as bp
 
 log = logging.getLogger(__name__)
 
-MODELS = os.environ.get("BROCHURE_GEMINI_MODEL", "gemini-3.8-flash,gemini-3.5-flash")
+# Gemini 3.5 Flash on the free tier (owner 2026-10-14; 15 requests a minute, and a brochure is one request). The free tier
+# needs a key from an AI Studio project WITHOUT billing: a project with billing on answers 402 when its credit runs out.
+MODELS = os.environ.get("BROCHURE_GEMINI_MODEL", "gemini-3.5-flash")
 URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 LONG_SIDE = 1400          # px per page picture: floor-plan labels stay readable; 35 pages stay under the request limit
 MAX_REQUEST_BYTES = 18 * 1024 * 1024
