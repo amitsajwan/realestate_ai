@@ -118,11 +118,16 @@ def badge(agent_name: str, agent_logo: Optional[str]) -> Image.Image:
     with the agent's logo on a white chip and 'Powered by Avasetu'. A white pill sat badly on the black letterbox bars of a
     fitted video and blew out on bright frames; the dark one reads on both, and the chip keeps a dark agent logo visible."""
     img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    from .compose import _tag_item   # the same brand tag, in the same place, as every other reel (owner, 2026-10-14)
+    tag = _tag_item()
+    img.alpha_composite(tag.img, (tag.x, tag.y))
     d = ImageDraw.Draw(img)
     logo = _agent_logo(agent_logo, 56)
     name = latin(agent_name)[:40]
     name_font = load_font(32, "semibold")
     small = load_font(22, "medium")
+    if not logo and not name:   # our own reel: the brand tag above says it; a partner's keeps its pill below
+        return img
     powered = f"Powered by {brand.NAME}"
     top_w = (logo.width + 14 if logo else 0) + (16 if logo and name else 0) + (int(d.textlength(name, font=name_font)) if name else 0)
     inner_w = max(top_w, int(d.textlength(powered, font=small)))
@@ -146,7 +151,7 @@ def badge(agent_name: str, agent_logo: Optional[str]) -> Image.Image:
 
 
 HOOK_SECONDS = 3.0
-HOOK_Y = 300            # top of the hook box: under a builder's logo in the corner, above the presenter
+HOOK_Y = 380            # top of the hook box: under the brand tag row (compose.CONTENT_TOP), above the presenter
 
 
 def _hook_font(size: int, devanagari: bool):

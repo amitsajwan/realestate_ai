@@ -5,6 +5,7 @@ import { api, errorMessage } from '@/lib/app/client'
 import { t } from '@/lib/app/strings'
 import type { CampaignResult, DraftLanguage, MarketingRun, RunQuestion } from '@/lib/app/types'
 import { BoostStep } from './BoostStep'
+import { CreativeRoom } from './CreativeRoom'
 import { CampaignPostEditor } from './CampaignPostEditor'
 import { RunFileUpload } from './RunFileUpload'
 import { Btn, ErrorBox } from './ui'
@@ -45,7 +46,11 @@ function stepStates(run: MarketingRun | null): StepState[] {
   return s
 }
 
-const angleName = (a: string) => (a.charAt(0).toUpperCase() + a.slice(1)).replace(/_/g, ' ')
+// a creative room piece is "room2_homes": its job in the campaign is the name
+const angleName = (a: string) => {
+  const s = a.replace(/^room\d+_/, '')
+  return (s.charAt(0).toUpperCase() + s.slice(1)).replace(/_/g, ' ')
+}
 
 /** "See more" under a step: closed by default so the steps stay a short list. */
 function More({ label, children }: { label: string; children: React.ReactNode }) {
@@ -300,10 +305,10 @@ export function MarketingRunCard({ listingId }: { listingId: string }) {
     api.getCampaignResults(listingId).then((r) => { if (alive.current) setResults(r) }, () => undefined)
   }, [listingId, sent])
 
-  const start = async (again = false, language: DraftLanguage = lang) => {
+  const start = async (again = false, language: DraftLanguage = lang, pick?: number) => {
     setError(null)
     try {
-      const r = await api.startMarketingRun(listingId, again, language)
+      const r = await api.startMarketingRun(listingId, again, language, pick)
       if (alive.current) setRun(r)
     } catch (e) {
       if (alive.current) setError(errorMessage(e))
@@ -369,6 +374,7 @@ export function MarketingRunCard({ listingId }: { listingId: string }) {
         </>
       )}
       {error && <ErrorBox message={error} />}
+      {run && <CreativeRoom run={run} onPick={(n) => void start(true, lang, n)} />}
       {run && (
         <ol className="list-none space-y-4 p-0">
           <Step n={1} title="Discovery" state={s1}>

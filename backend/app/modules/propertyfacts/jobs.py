@@ -11,6 +11,7 @@ import asyncio
 import hashlib
 import json
 import logging
+import os
 import re
 import time
 import uuid
@@ -21,7 +22,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence
 
 from app.platform import trace
 
-from . import campaign, identity, points, understand
+from . import campaign, identity, points, room, understand
 from .brochure import Brochures, usable_images
 from .facts import USABLE
 from .gather import Clients, gather
@@ -97,7 +98,18 @@ def run_out(doc: Optional[dict], base_url: str = "") -> Optional[dict]:
             "mode": doc.get("mode") or "full", "changes": doc.get("changes") or [], "base_run": doc.get("base_run"),
             "redone": doc.get("redone") or [], "stale": [p["angle"] for p in doc.get("posts") or [] if p.get("stale")],
             "reels_state": doc.get("reels_state"), "reels_error": doc.get("reels_error") or "",
-            "boost": boost_out(doc.get("boost"), base)}
+            "boost": boost_out(doc.get("boost"), base), "room": room_out(doc.get("room")), "pick": doc.get("pick")}
+
+
+def room_out(r: Optional[dict]) -> Optional[dict]:
+    """The creative room for Studio: the brief, every pitch with its score, the chosen campaign (the fact book stays inside)."""
+    if not r:
+        return None
+    scores = {s.get("pitch"): s for s in r.get("scores") or []}
+    return {"brief": r.get("brief") or {}, "chosen": r.get("chosen"), "why": r.get("why") or "",
+            "pitches": [{**p, "score": (scores.get(i + 1) or {}).get("score"), "note": (scores.get(i + 1) or {}).get("note") or ""}
+                        for i, p in enumerate(r.get("pitches") or [])],
+            "campaign": r.get("campaign") or {}, "facts": len(r.get("book") or [])}
 
 
 def boost_out(b: Optional[dict], base: str = "") -> Optional[dict]:
@@ -170,7 +182,8 @@ class MarketingRuns:
         docs = await self.runs.find(flt).sort("created_at", -1).limit(1).to_list(1)
         return docs[0] if docs else None
 
-    async def create(self, agent_id: str, listing_id: str, again: bool = False, language: str = "en") -> tuple:
+    async def create(self, agent_id: str, listing_id: str, again: bool = False, language: str = "en",
+                     pick: Optional[int] = None) -> tuple:
         """(job, created). A running job is returned as it is; a finished one too unless `again`, the listing changed or
         another language is asked for (en, mr, hi: the posts' language). A change to a finished run's `inputs` (facts,
         brochure, video, photos) makes an update run: that run's posts, remaking only what the change touches. Posts the
@@ -191,19 +204,41 @@ class MarketingRuns:
         doc = {"_id": uuid.uuid4().hex, **flt, "status": "queued", "step": "facts", "language": language, "facts": None, "page_url": None, "posts": [],
                "dropped": {}, "error": None, "created_at": self.now(), "started_at": None, "facts_done_at": None,
                "finished_at": None, "mode": "full", "base_run": done["_id"] if done else None}
+        if pick:   # the agent chose another of the room's pitches: the director writes the campaign from it
+            earlier = await self._latest({**flt, "room": {"$ne": None}})
+            if not earlier or not earlier.get("room") or pick > len(earlier["room"].get("pitches") or []):
+                raise RunError("That pitch is no longer available. Start marketing again.", 409)
+            doc.update(pick=pick, earlier_room=earlier["room"])
         if done and not again:
             changes = self._changes(done["inputs"], self._inputs(listing)) if done.get("inputs") else None
             changed = listing.get("updated_at")
             if changes == [] or (changes is None and not (isinstance(changed, datetime) and changed > done["created_at"])):
                 return done, False
-            if changes and done.get("posts"):
+            if changes and done.get("posts") and not done.get("room"):   # a room campaign is pitched again, not patched
                 keep = ("facts", "page_url", "listing_url", "posts", "reels", "calendar", "link_line", "files", "plan", "skipped",
                         "dropped", "inputs", "facts_done_at", "boost")
                 doc.update({k: done[k] for k in keep if k in done}, mode="update", changes=changes)
         if done and done.get("calendar") and not doc.get("calendar"):
             doc["calendar"] = done["calendar"]   # the same rows (one per listing and angle): planned ones take the new posts
         await self.runs.insert_one(doc)
+        if again:
+            await self._withdraw(flt)
         return doc, True
+
+    async def _withdraw(self, flt: dict) -> int:
+        """Marketing made again: the earlier runs' approved posts and reels that have not gone out yet are skipped, so the old
+        campaign stops publishing beside the new one (2026-10-14: two approved Camelot reels went out after a remake).
+        Planned rows stay: they wait for approval and take the new posts (_keep_edited)."""
+        from app.modules.calendar.store import Store as CalendarStore
+        cal, n = CalendarStore(self.db), 0
+        for r in await self.runs.find(dict(flt)).to_list(200):
+            for c in r.get("calendar") or []:
+                row = await cal.get(c["row_id"])
+                if row and row.get("status") in ("approved", "scheduled") and await cal.skip(c["row_id"], "withdrawn: marketing made again"):
+                    n += 1
+        if n:
+            trace.event(log, "marketing", flt["listing_id"], "withdrawn", trace.OK, rows=n)
+        return n
 
     def _inputs(self, listing: dict) -> dict:
         """What a run's posts are made from: a hash of the fact fields, the brochure, the video and the photos."""
@@ -312,6 +347,8 @@ class MarketingRuns:
         who = await self._identity(run)
         briefs = dict(campaign.plan(await self._facts(run, listing), follow_ups=None, images=await self._brochure_images(agent_id, listing_id),
                                     kit=await self._kit(listing_id, agent_id), **self._who(run, who)))
+        if angle not in briefs and run.get("room"):
+            briefs.update(await self._room_briefs(run, listing, angle, idx))
         corpus = briefs[angle].corpus() if angle in briefs else ""
         checked = "\n".join(line for line in caption.splitlines() if line.strip() not in who.contact)  # code-made contact block
         problems = [p for p in problems_in(checked, corpus, allow_url=True) if p != "url"] if corpus else []
@@ -320,6 +357,17 @@ class MarketingRuns:
         await self._set(run["_id"], posts=posts)
         synced = await self._sync_calendar(run, angle, caption)
         return {**run, "posts": posts, "synced": synced}, problems
+
+    async def _room_briefs(self, run: dict, listing: dict, angle: str, idx: int) -> Dict[str, Any]:
+        """The room campaign's briefs for a post edit or redo: the same pieces, this post keeping its own picture."""
+        who = self._who(run, await self._identity(run))
+        images = await self._brochure_images(run["agent_id"], run["listing_id"])
+        ctx = campaign.Ctx(await self._facts(run, listing), await asyncio.to_thread(self._photo, listing), run.get("page_url") or "",
+                           who.get("voice"), who.get("card_brand"), who.get("contact") or (), "en", (), who.get("names"),
+                           who.get("claims") or (), None, images, await self._kit(run["listing_id"], run["agent_id"]))
+        own = run["posts"][idx].get("photo")
+        photos = [own] if own and own != "none" and Path(own).is_file() else []
+        return dict(room.briefs(run["room"], ctx, photos, images))
 
     async def redo_post(self, agent_id: str, listing_id: str, angle: str, note: str) -> dict:
         """Make this post again with the agent's note (the copywriter's feedback), from the kept facts, under every guard."""
@@ -331,6 +379,8 @@ class MarketingRuns:
                                     images=await self._brochure_images(agent_id, listing_id),
                                     kit=await self._kit(listing_id, agent_id),
                                     **self._who(run, await self._identity(run))))
+        if angle not in briefs and run.get("room"):
+            briefs.update(await self._room_briefs(run, listing, angle, idx))
         if angle not in briefs:
             raise RunError("The facts for this post are no longer available. Start marketing again.", 409)
         n = int(run["posts"][idx].get("redos") or 0) + 1
@@ -514,8 +564,13 @@ class MarketingRuns:
         render = self.ad_renderer or ad_reel.render
         llm = self.llm_factory() if self.llm_factory else None
         ctx = campaign.Ctx(facts)
-        todo = posts[:AD_REELS]
-        formats = ad_reel.for_posts([p["angle"] for p in todo], ad_reel.eligible(ctx), await ad_reel.scores(self.db))
+        written = room.scripts(job.get("room"))   # the creative room's reels: the director chose which pieces get one
+        if written:
+            todo = [p for p in posts if p["angle"] in written][:room.MAX_REELS]
+            formats = ["story"] * len(todo)
+        else:
+            todo = posts[:AD_REELS]
+            formats = ad_reel.for_posts([p["angle"] for p in todo], ad_reel.eligible(ctx), await ad_reel.scores(self.db))
         pics = [p for p in pool if Path(p).is_file()]
         kicker = (project or "").upper()[:28] or None
         reels: List[dict] = []
@@ -524,7 +579,12 @@ class MarketingRuns:
                 continue
             dest = out / "reels" / f"ad-{_safe(p['angle'])}.mp4"
             try:
-                script = await ad_reel.write(fmt, ctx, llm)
+                if p["angle"] in written:
+                    script = written[p["angle"]]
+                    if llm is not None:
+                        await ad_reel.speak(script, llm)
+                else:
+                    script = await ad_reel.write(fmt, ctx, llm)
                 order = pics[i % len(pics):] + pics[:i % len(pics)] if pics else []
                 made = await asyncio.to_thread(render, script, order, dest, kicker)
                 made = made if isinstance(made, dict) else {}
@@ -786,10 +846,16 @@ class MarketingRuns:
             photo = await asyncio.to_thread(self._photo, listing)
             images = await self._brochure_images(job["agent_id"], job["listing_id"])
             kit = await self._kit(job["listing_id"], job["agent_id"])
+            # the creative room pitches and chooses the campaign; without it (no model, another language, too few facts
+            # surviving the check) the fixed angles make the posts as before
+            room_doc, room_ctx = await self._room(job, listing, sheet.facts, photo, page, who, photos, images, kit, previous, llm)
+            planned = room.briefs(room_doc, room_ctx, photos, images) if room_doc else None
+            job = {**job, "room": room_doc}
             packs = await campaign.make(sheet.facts, out, llm=llm, photo=photo, link=page, dropped=dropped,
                                         photos=photos, previous=previous, on_plan=on_plan, on_post=on_post, used=used,
-                                        images=images, kit=kit, **who)
-            keys = {aid: campaign.brief_key(b) for aid, b in campaign.plan(sheet.facts, follow_ups=None, images=images, kit=kit, **who)}
+                                        images=images, kit=kit, planned=planned, **who)
+            keys = {aid: campaign.brief_key(b) for aid, b in (planned or campaign.plan(sheet.facts, follow_ups=None, images=images,
+                                                                                          kit=kit, **who))}
             ctx = campaign.Ctx(sheet.facts)
             where = ctx.where or "this property"
             link_line = campaign.link_line_for(where, job.get("language") or "en", ctx.registered)
@@ -826,6 +892,32 @@ class MarketingRuns:
                 return await self._set(jid, status="done", error="The change could not be applied to the posts. Please try again.",
                                        finished_at=self.now())
             await self._set(jid, status="failed", error=msg, finished_at=self.now())
+
+    async def _room(self, job: dict, listing: dict, facts: Dict[str, Any], photo: str, page: str, who: Dict[str, Any],
+                    photos: Sequence[str], images: Sequence[Dict[str, Any]], kit: Optional[dict], previous: Sequence[str],
+                    llm: Any) -> tuple:
+        """(the creative room's work, the Ctx its briefs are made with), or (None, None): no model, a Marathi or Hindi run,
+        CREATIVE_ROOM=off, or too little surviving the fact check. Kept on the run as `room` (Studio shows the brief, the
+        pitches and the chosen campaign). A run made for a pitch the agent picked (`pick`) reuses the earlier brief and pitches."""
+        if llm is None or (job.get("language") or "en") != "en" or os.environ.get("CREATIVE_ROOM", "on").lower() == "off":
+            return None, None
+        ctx = campaign.Ctx(facts, photo, page, who.get("voice"), who.get("card_brand"), who.get("contact") or (), "en", previous,
+                           who.get("names"), who.get("claims") or (), None, images, kit)
+        await self._set(job["_id"], step="room")
+        try:
+            doc = await room.convene(ctx, listing, llm, photos=len(photos), images=images, pick=job.get("pick"),
+                                     earlier=job.get("earlier_room"))
+        except Exception as e:
+            trace.event(log, "marketing", job["_id"], "room", trace.FAILED, reason=str(e)[:200] or type(e).__name__, exc_info=True)
+            return None, None
+        if doc is None:
+            trace.event(log, "marketing", job["_id"], "room", trace.FALLBACK, reason="no campaign survived the fact check")
+            return None, None
+        camp = doc["campaign"]
+        trace.event(log, "marketing", job["_id"], "room", trace.OK, pitches=len(doc.get("pitches") or []), chosen=doc.get("chosen"),
+                    campaign=camp["name"], pieces=len(camp["pieces"]), reels=sum(1 for p in camp["pieces"] if p.get("reel")))
+        await self._set(job["_id"], room=doc)
+        return doc, ctx
 
     def _post(self, aid: str, pack, key: Optional[str], photo: str) -> dict:
         """A post as kept on the run; `brief` (what it says) and `photo` (photo or none) let a later change remake only the

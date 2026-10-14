@@ -572,7 +572,7 @@ export interface AppApi {
   getToday(): Promise<BusinessToday>
   createFollowupDraft(id: string, language?: DraftLanguage): Promise<FollowupDraft>
   /** Start marketing: step 1 gathers the property facts (shown on the listing page), step 2 makes the posts. 409 unless live. */
-  startMarketingRun(listingId: string, again?: boolean, language?: DraftLanguage): Promise<MarketingRun>
+  startMarketingRun(listingId: string, again?: boolean, language?: DraftLanguage, pick?: number): Promise<MarketingRun>
   /** The latest run, or null when marketing was never started for this listing. */
   getMarketingRun(listingId: string): Promise<MarketingRun | null>
   /** Send the finished run's posts to the approval calendar as planned rows (one a day). 409 before the posts exist. */
@@ -612,7 +612,7 @@ export interface MarketingRun {
   id: string
   listing_id: string
   status: 'queued' | 'facts' | 'asking' | 'posts' | 'done' | 'failed'
-  step?: 'facts' | 'posts' | 'plan' | 'content' | 'design' | 'reels' | 'boost' | null
+  step?: 'facts' | 'room' | 'posts' | 'plan' | 'content' | 'design' | 'reels' | 'boost' | null
   /** The campaign plan: the angles chosen (overview first), each one's headline as written, and how far it got. */
   plan?: { angle: string; headline: string; was?: string; state: 'planned' | 'content' | 'designed' | 'dropped' }[]
   /** Angles left out of the plan, and why. */
@@ -641,6 +641,29 @@ export interface MarketingRun {
   calendar?: { angle: string; channel: string; row_id: string; due_at: string }[]
   /** Paid boost kit (reel, photos, texts, Facebook guide); absent until the backend offers one. */
   boost?: RunBoost | null
+  /** The creative room: the brief, three pitches, the director's scores and the campaign chosen (English runs). */
+  room?: CreativeRoomDoc | null
+  /** The pitch the agent chose (1-based), when this run was made for one. */
+  pick?: number | null
+}
+
+export interface RoomPiece {
+  role: string
+  format: string
+  headline: string
+  lines: string[]
+  visual?: string
+  ask?: string
+  reel?: { hook: string; beats: string[]; payoff: string; cta: string } | null
+}
+
+export interface CreativeRoomDoc {
+  brief: { positioning?: string; tier?: string; buyers?: { who: string; why?: string }[]; idea?: string; tone?: string; avoid?: string[] }
+  pitches: { by: string; name: string; idea: string; pieces: RoomPiece[]; score?: number | null; note?: string }[]
+  chosen: number
+  why: string
+  campaign: { name: string; idea: string; pieces: RoomPiece[] }
+  facts: number
 }
 
 export interface BoostCopy { primary_text: string; headline: string }

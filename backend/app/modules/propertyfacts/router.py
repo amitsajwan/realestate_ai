@@ -19,7 +19,7 @@ from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile
 from fastapi.responses import FileResponse
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.auth_backend import current_active_user
 from app.core.database import get_database
@@ -85,6 +85,7 @@ class StartIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     again: bool = False
     language: Literal["en", "mr", "hi"] = "en"   # the posts' language (cards and captions)
+    pick: Optional[int] = Field(default=None, ge=1, le=5)   # the creative room's pitch the agent chose (Studio: "Use this pitch")
 
 
 def get_runs() -> jobs.MarketingRuns:
@@ -101,7 +102,7 @@ async def start_marketing(listing_id: str, request: Request, body: Optional[Star
                           _w: None = Depends(start_worker)) -> dict:
     try:
         b = body or StartIn()
-        doc, created = await runs.create(str(user.id), listing_id, b.again, b.language)
+        doc, created = await runs.create(str(user.id), listing_id, b.again or bool(b.pick), b.language, pick=b.pick)
     except jobs.RunError as e:
         raise HTTPException(status_code=e.status_code, detail=e.detail)
     return {"run": jobs.run_out(doc, str(request.base_url)), "created": created}

@@ -881,7 +881,8 @@ async def make(facts: Dict[str, Fact], out_dir: Path, llm: Any = None, photo: st
                on_post: Optional[Callable[[str, dict], Awaitable[None]]] = None,
                used: Optional[Dict[str, str]] = None, claims: Sequence[str] = (),
                today: Optional[date] = None, names: Optional[Dict[str, str]] = None,
-               images: Sequence[Dict[str, Any]] = (), kit: Optional[dict] = None) -> List[Tuple[str, CreativePack]]:
+               images: Sequence[Dict[str, Any]] = (), kit: Optional[dict] = None,
+               planned: Optional[List[Tuple[str, Brief]]] = None) -> List[Tuple[str, CreativePack]]:
     """Render every planned angle; consecutive posts avoid repeating a layout. `photos` (the property's own: listing photos and
     the best frames of its video, best first) are shared out so each post shows a different one behind its text. An angle that fails a guard is retried with
     other seeds, then dropped (its problems go into `dropped` when given). `voice`: who speaks (default the brand desk).
@@ -894,17 +895,19 @@ async def make(facts: Dict[str, Fact], out_dir: Path, llm: Any = None, photo: st
     pf = facts.get("project_name")
     if names is None:  # `names`: the spelling the run already chose (kept on the run, so redraws match)
         names = await project_name_for(str(pf.value or "") if pf is not None and pf.usable else "", language, llm)
-    planned = plan(facts, photo, link, voice=voice, card_brand=card_brand, contact=contact, language=language,
-                   previous=previous, skipped=skipped, names=names, claims=claims, today=today, images=images, kit=kit)
+    room = planned is not None   # the creative room's campaign: its pictures and headlines are chosen already
+    if planned is None:
+        planned = plan(facts, photo, link, voice=voice, card_brand=card_brand, contact=contact, language=language,
+                       previous=previous, skipped=skipped, names=names, claims=claims, today=today, images=images, kit=kit)
     if on_plan is not None:
         await on_plan([{"angle": aid, "headline": next(iter(b.hooks.values()), "")} for aid, b in planned], skipped)
     for i, (aid, brief) in enumerate(planned):
-        if photos:
+        if photos and not room:
             brief = replace(brief, photo=photos[i % len(photos)])
         if used is not None:
             used[aid] = str(brief.photo or "none")
         was = next(iter(brief.hooks.values()), "")
-        if llm is not None and brief.hooks:
+        if llm is not None and brief.hooks and not room:
             brief = await sharpen(brief, llm)
         now_ = next(iter(brief.hooks.values()), "")
         if on_post is not None:

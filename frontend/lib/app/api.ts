@@ -212,9 +212,9 @@ export function createApiClient(opts: ClientOptions): AppApi {
     createFollowupDraft: (id, language) =>
       request<FollowupDraft>(`/inbox/leads/${id}/followup-draft`, { method: 'POST', json: language ? { language } : {} }),
 
-    startMarketingRun: async (listingId, again, language) =>
+    startMarketingRun: async (listingId, again, language, pick) =>
       (await request<{ run: MarketingRun }>(`/listings/${listingId}/campaign`, {
-        method: 'POST', json: { again: !!again, language: language ?? 'en' },
+        method: 'POST', json: { again: !!again, language: language ?? 'en', ...(pick ? { pick } : {}) },
       })).run,
     getMarketingRun: async (listingId) => (await request<{ run: MarketingRun | null }>(`/listings/${listingId}/campaign`)).run,
     sendRunToCalendar: async (listingId) =>
