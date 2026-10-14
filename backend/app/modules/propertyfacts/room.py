@@ -56,6 +56,27 @@ LENSES = {
     "film_director": ("Film director", "You think in reels: the opening two seconds, the arc of a 20-second story, pace, what the "
                       "voice says over which picture."),
 }
+# where each one starts, so the three pitches differ (the first live room: three pitches named after the brief's own line)
+LEAD = {
+    "copywriter": "Start from one of the brief's buyers: the life this home gives them, told as a story across the posts.",
+    "art_director": "Start from the place itself: its design, architecture, landscape and spaces, shown before price or distance.",
+    "film_director": "Start from a moment: a morning, a commute, an arrival home; the campaign plays like short scenes.",
+}
+# what the checker cuts whatever the prompt said: registration sold as approval, puffery, a walk to somewhere a car is needed
+OVERCLAIM = re.compile(r"\b(?:approved|trusted|certified|endorsed)\b[^.]{0,30}\b(?:rera|maharera|regulator)|\b(?:rera|maharera|regulator)s?\b"
+                       r"[^.]{0,20}\b(?:approved|trusted|certified)\b|\b(?:renowned|world[\s-]*class|iconic|unmatched|unparalleled)\b", re.I)
+WALK = re.compile(r"\bwalk(?:ing|able)?\b", re.I)
+KM = re.compile(r"(\d+(?:\.\d+)?)\s*km\b", re.I)
+
+
+def overclaims(text: str) -> bool:
+    """A registration sold as an approval, puffery, or a walk to a place 1 km or more away (or with no distance at all)."""
+    if OVERCLAIM.search(text):
+        return True
+    if WALK.search(text):
+        kms = [float(x) for x in KM.findall(text)]
+        return not kms or max(kms) >= 1
+    return False
 
 
 # ---- the fact book: every claim a piece may make, numbered --------------------------------------------------------------------
@@ -114,7 +135,11 @@ def _book_text(facts: Sequence[Dict[str, str]]) -> str:
 RULES = ("Rules for everyone in the room: use ONLY the numbered facts; never a number, name, date or claim that is not in them "
          "(no prices beyond the one given, no 'ready to move', no investment returns, no 'best', 'dream', 'guaranteed', 'luxurious'). "
          "Premium words are fine when the facts carry them (a known builder, a named architect, a clubhouse). A price that is a "
-         "starting price is always 'from ... onwards'. The only ask is a comment: 'Comment INFO'. Plain English a Pune buyer speaks.")
+         "starting price is always 'from ... onwards'. Keep every fact where it belongs: a feature of one home type (a servant "
+         "quarter in the 4 BHK) is never given to another. A MahaRERA registration is a registration: never 'approved', "
+         "'trusted' or 'certified'. 'Walk' or 'walking distance' only for a place under 1 km; others are 'X km away'. No "
+         "'renowned', 'world-class', 'iconic', 'unmatched'. The only ask is a comment: 'Comment INFO'. Plain English a Pune "
+         "buyer speaks.")
 
 STRATEGIST = (
     "You are the marketing strategist of a Pune property agency. From the numbered facts, write the campaign brief. Decide what "
@@ -126,11 +151,12 @@ STRATEGIST = (
 
 def _creative(lens: str) -> str:
     title, how = LENSES[lens]
-    return (f"You are the {title} in the creative room. {how} Pitch ONE campaign for this brief: a name, the big idea in one "
-            "sentence, and 4-6 pieces in posting order, each with a DIFFERENT job in the story (" + ", ".join(ROLES) + "): never two "
+    return (f"You are the {title} in the creative room. {how} {LEAD[lens]} Pitch ONE campaign for this brief: your OWN campaign "
+            "name (2-5 words) and your OWN big idea in one sentence (not the brief's words: two other people pitch too, and a "
+            "pitch that repeats the brief loses), and 4-6 pieces in posting order, each with a DIFFERENT job in the story (" + ", ".join(ROLES) + "): never two "
             "pieces selling the same thing (at most one about distances). For each piece: role, format (" + ", ".join(FORMATS) +
             "), a headline of at most 9 words, 2-5 short lines (at most 12 words each), the visual (photo, render, floor_plan or "
-            "text), the fact ids it uses, and for at most 3 pieces a reel: hook (at most 9 words), 3 beats (at most 8 words each), "
+            "text), the fact ids it uses, and for 2-3 pieces a reel: hook (at most 9 words), 3 beats (at most 8 words each), "
             "a payoff line. " + RULES + " Reply JSON only: {\"name\": \"...\", \"idea\": \"...\", \"pieces\": [{\"role\": \"...\", "
             "\"format\": \"...\", \"headline\": \"...\", \"lines\": [\"...\"], \"visual\": \"...\", \"facts\": [\"F1\"], "
             "\"reel\": {\"hook\": \"...\", \"beats\": [\"...\"], \"payoff\": \"...\"} or null}]}")
@@ -140,7 +166,7 @@ DIRECTOR = (
     "You are the creative director. You have the brief, the facts and three pitches. Score each pitch 1-10 for fit with the "
     "brief, freshness, and how well every piece is backed by the facts. Pick the best, borrow the strongest ideas of the others, "
     "and write the final campaign: 4-6 pieces in posting order, each with a different job, never two about the same thing, at "
-    "most one about distances, at most 3 reels. For each piece also write the closing question of its caption (one line). "
+    "most one about distances, 2-3 reels (the pieces a film carries best). For each piece also write the closing question of its caption (one line). "
     + RULES + " Reply JSON only: {\"scores\": [{\"pitch\": 1, \"score\": 8, \"note\": \"...\"}], \"chosen\": 1, \"why\": \"...\", "
     "\"campaign\": {\"name\": \"...\", \"idea\": \"...\", \"pieces\": [{\"role\": \"...\", \"format\": \"...\", \"headline\": \"...\", "
     "\"lines\": [\"...\"], \"visual\": \"...\", \"facts\": [\"F1\"], \"ask\": \"...\", \"reel\": {...} or null}]}}")
@@ -177,9 +203,9 @@ def check(piece: Dict[str, Any], corpus: str) -> Optional[Dict[str, Any]]:
     """The piece with only lines the facts back (guards.problems_in against the whole fact book), or None when its headline
     fails or a post is left with nothing to say."""
     head = _clean(piece.get("headline"), 10)
-    if not head or problems_in(head, corpus):
+    if not head or problems_in(head, corpus) or overclaims(head):
         return None
-    lines = [x for x in (_clean(l, 14) for l in (piece.get("lines") or [])[:5]) if x and not problems_in(x, corpus)]
+    lines = [x for x in (_clean(l, 14) for l in (piece.get("lines") or [])[:5]) if x and not problems_in(x, corpus) and not overclaims(x)]
     if not lines:
         return None
     role = str(piece.get("role") or "").lower().strip()
@@ -193,7 +219,7 @@ def check(piece: Dict[str, Any], corpus: str) -> Optional[Dict[str, Any]]:
     if reel:
         s = ad_reel.Script("story", _clean(reel.get("hook"), 10), [x for x in (_clean(b, 9) for b in reel.get("beats") or []) if x][:5],
                            _clean(reel.get("payoff"), 10), f"Comment {ad_reel.CTA_WORD} for the details", by="room")
-        if s.hook and s.payoff and not ad_reel.check(s, corpus):
+        if s.hook and s.payoff and not ad_reel.check(s, corpus) and not any(overclaims(x) for x in s.lines()):
             out["reel"] = s.out()
     return out
 
