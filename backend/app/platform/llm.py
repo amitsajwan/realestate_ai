@@ -64,6 +64,7 @@ class Transcriber(Protocol):
 
 
 FAILOVER_STATUS = (402, 404, 429, 500, 503)  # out of credit, model retired, daily quota used up, provider error, busy: try the next model
+JSON_MAX_TOKENS = 3000   # room for a whole campaign pitch; a short answer stops early anyway
 
 
 def model_order(spec: str) -> list[str]:
@@ -171,7 +172,8 @@ class GroqLLM:
         headers = {"Authorization": f"Bearer {self.api_key}"}
 
         async def send(model: str, timeout: float) -> httpx.Response:
-            body = {"model": model, "temperature": 0, "response_format": {"type": "json_object"},
+            # max_tokens: some providers default to ~256 (Cloudflare), which cut a campaign brief or pitch short
+            body = {"model": model, "temperature": 0, "response_format": {"type": "json_object"}, "max_tokens": JSON_MAX_TOKENS,
                     "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
             if self._client:
                 return await self._client.post(self.url, json=body, headers=headers, timeout=timeout)

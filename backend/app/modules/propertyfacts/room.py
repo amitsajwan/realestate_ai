@@ -298,8 +298,10 @@ async def convene(c: Ctx, listing: dict, llm: Any, photos: int = 0, images: Sequ
         room.update({k: earlier.get(k) for k in ("brief", "pitches")})
     else:
         brief = await _ask(llm, STRATEGIST, _user(facts, room))
+        if not brief.get("idea"):   # a short answer: the positioning is the idea to own
+            brief["idea"] = brief.get("positioning")
         if not brief.get("idea"):
-            log.info("creative room: the strategist gave no idea (%s)", list(brief)[:6])
+            log.info("creative room: the strategist gave no brief (%s)", list(brief)[:6])
             return None
         room["brief"] = {k: brief.get(k) for k in ("positioning", "tier", "buyers", "idea", "tone", "avoid")}
         raws = [await _ask(llm, _creative(lens), _user(facts, room)) for lens in LENSES]   # one at a time: the free tiers rate-limit
