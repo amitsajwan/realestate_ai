@@ -163,13 +163,14 @@ def _and(xs: List[str], word: str) -> str:
 _HOURS = re.compile(r"24\s*(?:x\s*7|hours?|hrs?|h\b|तास|घंटे)", re.I)
 KIND = {"plot": ("Plots", "प्लॉट", "प्लॉट"), "apartment": ("Flats", "फ्लॅट", "फ्लैट"), "house": ("Homes", "घरे", "घर"),
         "villa": ("Villas", "व्हिला", "विला")}
+UNKNOWN_KIND = ("Units", "युनिट", "यूनिट")   # the type not known yet: never "Plots" by default (a flat project once read as plots)
 
 
-def selling_points(facts: Dict[str, Any], language: str = "en", property_type: Optional[str] = "plot") -> List[Dict[str, Any]]:
+def selling_points(facts: Dict[str, Any], language: str = "en", property_type: Optional[str] = None) -> List[Dict[str, Any]]:
     """[{key, text, text_local?, value, source: "brochure"}] from checked facts. `language`: the brochure's ("mr"/"hi" adds
     text_local). The offer's label is kept as printed (the agent sees it); the posts never print it (campaign.offer)."""
     lang = language if language in ("mr", "hi") else ""
-    en_kind, mr_kind, hi_kind = KIND.get(property_type or "plot", KIND["plot"])
+    en_kind, mr_kind, hi_kind = KIND.get(property_type or "", UNKNOWN_KIND)
     out: List[Dict[str, Any]] = []
 
     def add(key: str, value: Any, text: str, mr: str = "", hi: str = "") -> None:

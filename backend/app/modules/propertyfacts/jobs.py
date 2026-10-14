@@ -1098,7 +1098,7 @@ class MarketingRuns:
         would offer, kept on the listing unconfirmed (the agent is asked before any is posted)."""
         if listing.get("selling_points") or brochure.get("weak") or not brochure.get("facts"):
             return listing
-        sp = points.selling_points(brochure["facts"], brochure.get("language") or "en", listing.get("property_type") or "plot")
+        sp = points.selling_points(brochure["facts"], brochure.get("language") or "en", listing.get("property_type"))
         if sp:
             sp = [{**p, "confirmed": False} for p in sp]
             await self.listings.update_one({"_id": listing["_id"]}, {"$set": {"selling_points": sp}})

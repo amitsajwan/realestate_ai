@@ -207,6 +207,13 @@ class AIListingService:
         if not facts.get("city") and bro.in_pune_district(printed):
             facts["city"], conf["city"] = "Pune", 0.8
         agent = extract(agent_text, city_hint)[0] if agent_text.strip() else Extraction()
+        # the type is the agent's word, or the brochure's checked evidence (_brochure_kind); never a keyword anywhere in the
+        # brochure's text: Lodha's legal page ("appurtenant land(s)") once made a "4 BHK flat" a plot
+        if agent.values.get("property_type"):
+            facts["property_type"], conf["property_type"] = agent.values["property_type"], agent.confidence.get("property_type", 0.9)
+        else:
+            facts.pop("property_type", None)
+            conf.pop("property_type", None)
         out = {}
         for k, v in facts.items():
             av = agent.values.get(k)
@@ -246,7 +253,7 @@ class AIListingService:
             for k in ("carpet_sqft", "builtup_sqft", "super_builtup_sqft", "plot_sqft", "size_min_sqft", "size_max_sqft"):
                 if (facts.get(k) or 0) >= HALF_ACRE_SQFT:
                     facts.pop(k, None), conf.pop(k, None), sources.pop(k, None)
-        pts = selling.selling_points(sf, b.get("language") or "en", facts.get("property_type") or "plot")
+        pts = selling.selling_points(sf, b.get("language") or "en", facts.get("property_type"))
         return pts, selling.warnings(sf, facts.get("price_inr"))
 
     @staticmethod

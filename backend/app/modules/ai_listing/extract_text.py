@@ -26,7 +26,9 @@ _TYPE_RES = [(k, re.compile(r"(?<![a-z])(?:" + p + r")(?![a-z])")) for k, p in _
 
 
 def parse_type(clean: str, has_bhk: bool) -> Optional[tuple[str, float]]:
-    for k, rx in _TYPE_RES:
+    # with a BHK count a home's own word wins over a plot word ("2 BHK flat near the land parcel" is a flat)
+    order = [t for t in _TYPE_RES if t[0] != "plot"] + [t for t in _TYPE_RES if t[0] == "plot"] if has_bhk else _TYPE_RES
+    for k, rx in order:
         if rx.search(clean):
             return k, 0.9
     return ("apartment", 0.6) if has_bhk else None
