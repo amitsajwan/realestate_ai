@@ -244,13 +244,7 @@ function PostLeads({ items }: { items: CampaignResult[] }) {
   )
 }
 
-/** `autoStart`: a language to start in once on load (from `?start=1&lang=`), unless a run in that language is already
- *  going or done; `onAutoStarted` fires once it has been handled so the page can drop the param. */
-export function MarketingRunCard({ listingId, autoStart, onAutoStarted }: {
-  listingId: string
-  autoStart?: DraftLanguage | null
-  onAutoStarted?: () => void
-}) {
+export function MarketingRunCard({ listingId }: { listingId: string }) {
   const [run, setRun] = useState<MarketingRun | null>(null)
   const [results, setResults] = useState<CampaignResult[]>([])
   const [loading, setLoading] = useState(true)
@@ -307,18 +301,6 @@ export function MarketingRunCard({ listingId, autoStart, onAutoStarted }: {
       if (alive.current) setError(errorMessage(e))
     }
   }
-
-  // start once from the URL; the ref survives strict-mode's double effect, so only one run is asked for
-  const autoDone = useRef(false)
-  useEffect(() => {
-    if (!autoStart || loading || autoDone.current) return
-    autoDone.current = true
-    picked.current = true
-    setLang(autoStart)
-    const has = run && run.language === autoStart && run.status !== 'failed'
-    void (has ? Promise.resolve() : start(!!run, autoStart)).finally(() => onAutoStarted?.())
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoStart, loading])
 
   const remakeReels = async () => {
     setError(null)

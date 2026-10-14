@@ -8,13 +8,12 @@ import { conciergeApi, firstName } from '@/lib/app/concierge'
 import { getSiteUrl } from '@/lib/app/session'
 import { listingLink } from '@/lib/app/share'
 import { compactAbout } from '@/lib/app/about'
-import { t, type Lang } from '@/lib/app/strings'
+import { t } from '@/lib/app/strings'
 import { MAX_BROCHURE_MB, MAX_VIDEO_MB, uploadBrochure, uploadVideo } from '@/lib/app/video'
 import type { About, AIDraft, Listing, ListingInput, SellingPoint, UploadedFile } from '@/lib/app/types'
 import { qualityFields } from '@/lib/app/quality'
 import { FIELD_LABELS, lowConfidenceFields, missingFields, priceSanity } from '@/lib/app/validate'
 import { AboutStep } from './AboutStep'
-import { MarketingRunCard } from './MarketingRunCard'
 import { PhotoPicker } from './PhotoPicker'
 import { ReviewForm } from './ReviewForm'
 import { SellingPoints, toSellingPoints } from './SellingPoints'
@@ -22,9 +21,6 @@ import { ShareBar } from './ShareBar'
 import { VoiceRecorder } from './VoiceRecorder'
 import { Btn, ErrorBox, LinkBtn, Spinner, inputCls } from './ui'
 import { BRAND_NAME } from '@/lib/brand'
-
-/** The marketing page starts the run itself when opened with ?start=1. */
-export const marketingHref = (id: string, lang: Lang) => `/studio/listings/${id}/marketing?start=1&lang=${lang}`
 
 function FilePick({ label, empty, file, accept, onPick, testid }: { label: string; empty: string; file: File | null; accept: string; onPick: (f: File | null) => void; testid: string }) {
   return (
@@ -111,7 +107,6 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
   const [newProject, setNewProject] = useState(false)
   const [brochure, setBrochure] = useState<File | null>(null)
   const [video, setVideo] = useState<File | null>(null)
-  const [lang, setLang] = useState<Lang>('en')
   const [draft, setDraft] = useState<AIDraft | null>(null)
   const [phase, setPhase] = useState<DraftPhase | null>(null)
   // The brochure the draft read: its claims go with the listing only while that same file is attached.
@@ -190,7 +185,7 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
     return url
   }
 
-  async function confirmAndPost(market: boolean) {
+  async function confirmAndPost() {
     if (missing.length) return setError(`${t('required')}: ${missing.map((m) => FIELD_LABELS[m] ?? m).join(', ')}`)
     if (priceBlocked) return setError('Please check the price, then tick "Yes, this price is correct".')
     setError(null)
@@ -218,7 +213,6 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
       createdId.current = saved.id
       const live = onBehalfOf ? await conciergeApi.publishListing(onBehalfOf.id, saved.id) : await api.publishListing(saved.id)
       setPosted(live)
-      if (market && !onBehalfOf) return window.location.assign(marketingHref(live.id, lang))
       setStep('done')
     } catch (e) {
       if (e instanceof ApiError && e.status === 422) setErrors(e.fields)
@@ -261,8 +255,7 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
             <LinkBtn variant="secondary" href={`/studio/listings/${posted.id}`}>Add photos</LinkBtn>
           </div>
         )}
-        <LinkBtn href={marketingHref(posted.id, lang)}>{t('startMarketing')}</LinkBtn>
-        <MarketingRunCard listingId={posted.id} />
+        <LinkBtn href={`/studio/listings/${posted.id}/marketing`}>{t('startMarketing')}</LinkBtn>
         <section className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4">
           <p className="break-all text-sm text-blue-700">{link}</p>
           <ShareBar url={link} message={`New property: ${posted.title}.`} />
@@ -323,25 +316,9 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
         )}
         {error && <ErrorBox message={error} />}
         <div className="sticky bottom-0 -mx-4 border-t border-gray-200 bg-white p-4" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
-          {onBehalfOf ? (
-            <Btn variant="whatsapp" onClick={() => confirmAndPost(false)} disabled={missing.length > 0 || priceBlocked} className="!bg-blue-600 disabled:!bg-blue-300">
-              {t('confirmPost')}
-            </Btn>
-          ) : (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm" role="group" aria-label={t('postsIn')}>
-                <span className="text-gray-600">{t('postsIn')}</span>
-                {([['en', 'English'], ['mr', 'मराठी'], ['hi', 'हिन्दी']] as const).map(([l, label]) => (
-                  <button key={l} type="button" aria-pressed={lang === l} onClick={() => setLang(l)}
-                    className={`min-h-[44px] flex-1 rounded-lg font-semibold ${lang === l ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}>{label}</button>
-                ))}
-              </div>
-              <Btn variant="whatsapp" onClick={() => confirmAndPost(true)} disabled={missing.length > 0 || priceBlocked} className="!bg-blue-600 disabled:!bg-blue-300">
-                {t('postAndMarket')}
-              </Btn>
-              <Btn variant="secondary" onClick={() => confirmAndPost(false)} disabled={missing.length > 0 || priceBlocked}>{t('postOnly')}</Btn>
-            </div>
-          )}
+          <Btn variant="whatsapp" onClick={() => confirmAndPost()} disabled={missing.length > 0 || priceBlocked} className="!bg-blue-600 disabled:!bg-blue-300">
+            {t('confirmPost')}
+          </Btn>
           {missing.length > 0 && <p className="mt-2 text-center text-xs text-red-600">{t('required')}: {missing.map((m) => FIELD_LABELS[m] ?? m).join(', ')}</p>}
         </div>
       </div>

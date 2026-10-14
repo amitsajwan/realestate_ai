@@ -2,6 +2,8 @@
 import { API_BASE_URL } from '@/lib/config/api'
 import { outcomePatchError } from './outcomes'
 import type {
+  AskAiLine,
+  AskAiPrompt,
   AIDraft,
   AIDraftRequest,
   AboutSuggestRequest,
@@ -166,6 +168,9 @@ export function createApiClient(opts: ClientOptions): AppApi {
     updateListing: (id, patch) => request<Listing>(`/listings/${id}`, { method: 'PATCH', json: patch }),
     publishListing: (id) => request<Listing>(`/listings/${id}/publish`, { method: 'POST' }),
     setListingStatus: (id, status) => request<Listing>(`/listings/${id}/status`, { method: 'POST', json: { status } }),
+    deleteListing: (id) => request<void>(`/listings/${id}`, { method: 'DELETE' }),
+    askAiPrompts: async (id, lang = 'en') => (await request<{ prompts: AskAiPrompt[] }>(`/listings/${id}/ask-ai${qs({ lang })}`)).prompts,
+    askAiCheck: async (id, text) => (await request<{ lines: AskAiLine[] }>(`/listings/${id}/ask-ai/check`, { method: 'POST', json: { text } })).lines,
 
     aiDraft: (req: AIDraftRequest) => {
       const form = new FormData()

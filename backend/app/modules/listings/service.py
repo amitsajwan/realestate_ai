@@ -62,6 +62,7 @@ def missing_for_publish(doc: dict) -> List[str]:
 
 class ListingService:
     def __init__(self, db, now: Callable[[], datetime] = datetime.utcnow):
+        self.db = db
         self.listings = db.get_collection("listings")
         self.profiles = db.get_collection("agent_public_profiles")
         self.now = now
@@ -118,6 +119,24 @@ class ListingService:
                    "updated_at": now, "fingerprint": compute_fingerprint(doc)}
         await self.listings.update_one({"_id": listing_id, "agent_id": agent_id}, {"$set": changes})
         return self._out({**doc, **changes})
+
+    async def delete(self, agent_id: str, listing_id: str) -> None:
+        """Gone for good: off the website, and its posts not yet out are skipped. Posts already on Facebook/Instagram stay
+        (their views count), and so do its leads. Refused while a marketing run is still making its posts; a run only
+        waiting on the agent's answers is closed."""
+        from app.modules.calendar.store import COLLECTION as CALENDAR, OPEN
+        from app.modules.propertyfacts.jobs import ACTIVE, COLLECTION as RUNS
+        await self._mine(agent_id, listing_id)
+        now = self.now()
+        runs = self.db.get_collection(RUNS)
+        flt = {"listing_id": listing_id, "agent_id": agent_id}
+        if await runs.find_one({**flt, "status": {"$in": [s for s in ACTIVE if s != "asking"]}}):
+            raise ListingError("Marketing is still making posts for this listing. Delete it once they are ready.", 409)
+        await runs.update_many({**flt, "status": "asking"}, {"$set": {"status": "cancelled", "finished_at": now}})
+        await self.db.get_collection(CALENDAR).update_many(
+            {"listing_id": listing_id, "status": {"$in": list(OPEN)}},
+            {"$set": {"status": "skipped", "updated_at": now}, "$push": {"history": {"at": now, "status": "skipped", "note": "listing deleted"}}})
+        await self.listings.delete_one({"_id": listing_id, "agent_id": agent_id})
 
     async def change_status(self, agent_id: str, listing_id: str, target: str) -> Listing:
         doc = await self._mine(agent_id, listing_id)

@@ -2,9 +2,10 @@
 import Link from 'next/link'
 import { useParams, useSearchParams } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
+import { AskAiPanel } from '@/components/app/AskAiPanel'
 import { FreshnessSection } from '@/components/app/FreshnessPrompt'
 import { ListingFacts } from '@/components/app/ListingFacts'
-import { cleanInput, marketingHref } from '@/components/app/NewListingFlow'
+import { cleanInput } from '@/components/app/NewListingFlow'
 import { PhotoPicker } from '@/components/app/PhotoPicker'
 import { ListingPhotos } from '@/components/app/quality/ListingPhotos'
 import { ReviewForm } from '@/components/app/ReviewForm'
@@ -33,6 +34,7 @@ const TABS = [
   { id: 'details', label: 'Details' },
   { id: 'files', label: 'Photos & files' },
   { id: 'facts', label: 'Checked facts' },
+  { id: 'ai', label: 'Ask AI' },
   { id: 'status', label: 'Status' },
 ] as const
 type Tab = (typeof TABS)[number]['id']
@@ -80,6 +82,7 @@ export default function ListingDetailPage() {
   const [confirming, setConfirming] = useState(false)
   const [newPhotos, setNewPhotos] = useState<File[]>([])
   const [asking, setAsking] = useState<{ status: ListingStatus; label: string } | null>(null)
+  const [deleting, setDeleting] = useState(false)
   // The marketing run: its post count for the Start marketing button, its facts and brochure claims for the facts tab,
   // and whether it is still working — while it is, status changes and file removals wait, so the posts are never made
   // for a listing that was just sold, paused or emptied.
@@ -279,24 +282,23 @@ export default function ListingDetailPage() {
 
       {tab === 'facts' && <ListingFacts listing={listing} run={campaign.data ?? null} />}
 
+      {tab === 'ai' && <AskAiPanel listing={listing} onSaved={setData} />}
+
       {tab === 'status' && (
         <>
           <FreshnessSection listings={[listing]} onUpdated={(l) => setData(l)} />
           <div className="space-y-2">
             {marketingActive && (
               <p role="status" className="rounded-xl bg-blue-50 p-3 text-center text-sm font-semibold text-blue-900">
-                Marketing is in progress. Marking it sold, rented or paused waits until the posts are ready.
+                Marketing is in progress. Marking it sold, rented, paused or deleting it waits until the posts are ready.
               </p>
             )}
             {actionsFor(listing).map((a) =>
               a.status === 'publish' ? (
                 confirming ? (
                   <div key="c" className="space-y-2 rounded-xl border border-blue-200 bg-blue-50 p-3">
-                    <p className="text-center text-sm font-semibold">Post this listing to your website?</p>
-                    <Btn disabled={busy || missing.length > 0} onClick={async () => {
-                      if (await run(() => api.publishListing(listing.id), t('posted'))) window.location.assign(marketingHref(listing.id, 'en'))
-                    }}>{t('postAndMarket')}</Btn>
-                    <Btn variant="secondary" disabled={busy || missing.length > 0} onClick={() => run(() => api.publishListing(listing.id), t('posted'))}>{t('publishOnly')}</Btn>
+                    <p className="text-center text-sm font-semibold">Post this listing to your website? Marketing is the next step, when you start it.</p>
+                    <Btn disabled={busy || missing.length > 0} onClick={() => run(() => api.publishListing(listing.id), t('posted'))}>{t('publish')}</Btn>
                     <Btn variant="ghost" onClick={() => setConfirming(false)}>{t('back')}</Btn>
                   </div>
                 ) : (
@@ -322,6 +324,25 @@ export default function ListingDetailPage() {
                 setAsking(null)
               }}>
               <p>{ASK[asking.status]!(listing.title).body}</p>
+            </ConfirmSheet>
+          )}
+          <Btn variant="danger" disabled={busy || marketingActive} onClick={() => setDeleting(true)}>Delete listing</Btn>
+          {deleting && (
+            <ConfirmSheet title={`Delete ${listing.title || 'this listing'}?`} confirmLabel="Delete" busy={busy}
+              onCancel={() => setDeleting(false)}
+              onConfirm={async () => {
+                setBusy(true)
+                setErr(null)
+                try {
+                  await api.deleteListing(listing.id)
+                  window.location.assign('/studio/listings')
+                } catch (e) {
+                  setErr(errorMessage(e))
+                  setDeleting(false)
+                  setBusy(false)
+                }
+              }}>
+              <p>It comes off your website for good and its posts not yet out are cancelled. Posts already on Facebook and Instagram stay, and so do its leads. This cannot be undone.</p>
             </ConfirmSheet>
           )}
         </>

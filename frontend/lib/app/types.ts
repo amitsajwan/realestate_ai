@@ -368,6 +368,11 @@ export interface FollowupDraft {
 
 export type DraftLanguage = 'en' | 'hi' | 'mr'
 
+export interface AskAiPrompt { id: string; title: string; use: string; text: string }
+/** checked: in our records; builder: some numbers only in the builder's brochure; unchecked: a number found nowhere
+ *  (never kept); words: no numbers. `keep` is the text to save as a highlight ('' for unchecked). */
+export interface AskAiLine { text: string; source: string; status: 'checked' | 'builder' | 'unchecked' | 'words'; missing: string[]; keep: string }
+
 export interface TodayHotBuyer {
   id: string
   name: string
@@ -538,6 +543,12 @@ export interface AppApi {
   updateListing(id: string, patch: ListingInput): Promise<Listing>
   publishListing(id: string): Promise<Listing>
   setListingStatus(id: string, status: ListingStatus): Promise<Listing>
+  /** Gone for good: off the website, its posts not yet out skipped (posts already out and leads stay). 409 while marketing makes posts. */
+  deleteListing(id: string): Promise<void>
+  /** Ready prompts for the agent's own ChatGPT, Gemini or Claude, built from what we know of the listing. */
+  askAiPrompts(id: string, lang?: DraftLanguage): Promise<AskAiPrompt[]>
+  /** Each line of a pasted AI answer, marked by where its numbers are found. */
+  askAiCheck(id: string, text: string): Promise<AskAiLine[]>
   aiDraft(req: AIDraftRequest): Promise<AIDraft>
   suggestAbout(req: AboutSuggestRequest): Promise<AboutSuggestion>
   uploadImages(files: File[]): Promise<UploadedFile[]>

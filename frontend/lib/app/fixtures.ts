@@ -506,6 +506,19 @@ export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
       save()
       return view(l)
     },
+    async deleteListing(id) {
+      find(id)
+      load().listings = load().listings.filter((x) => x.id !== id)
+      save()
+    },
+    async askAiPrompts(id) {
+      const l = find(id)
+      return [{ id: 'posts', title: 'Post ideas', use: 'Demo mode', text: `Write social media posts for ${l.title}.` }]
+    },
+    async askAiCheck(id, text) {
+      find(id)
+      return text.split('\n').filter((x) => x.trim()).map((x) => ({ text: x.trim(), source: '', status: 'words' as const, missing: [], keep: x.trim() }))
+    },
     async setListingStatus(id, status: ListingStatus) {
       const l = find(id)
       const reactivated = status === 'live' && (l.status === 'paused' || l.status === 'expired')

@@ -1,17 +1,21 @@
 """Listing routes. `router` is mounted at /listings (bearer auth), `public_router` at /public (no auth).
 
-Route shapes: POST "" , GET "", GET/PATCH "/{listing_id}", POST "/{listing_id}/publish|status|confirm-available".
+Route shapes: POST "" , GET "", GET/PATCH/DELETE "/{listing_id}", POST "/{listing_id}/publish|status|confirm-available",
+GET "/{listing_id}/ask-ai", POST "/{listing_id}/ask-ai/check".
 None can shadow the ai_listing module's POST /listings/ai/draft (two segments, last is "draft"),
 so mount order does not matter.
 """
-from typing import Optional
+from pathlib import Path
+from typing import Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from pydantic import BaseModel, Field
 
 from app.core.auth_backend import current_active_user
 from app.core.database import get_database
 from app.models.user import User
 
+from . import askai
 from .schemas import (Listing, ListingCreate, ListingPage, ListingUpdate, PublicListing,
                       PublicListingPage, Status, StatusChange)
 from .service import ListingError, ListingService
@@ -56,6 +60,45 @@ async def update_listing(listing_id: str, body: ListingUpdate, user: User = Depe
         return await svc.patch(str(user.id), listing_id, body)
     except ListingError as e:
         raise _http(e)
+
+
+@router.delete("/{listing_id}", status_code=204)
+async def delete_listing(listing_id: str, user: User = Depends(current_active_user),
+                         svc: ListingService = Depends(get_service)):
+    try:
+        await svc.delete(str(user.id), listing_id)
+    except ListingError as e:
+        raise _http(e)
+    return Response(status_code=204)
+
+
+async def _ask_ai_context(listing_id: str, user: User, svc: ListingService):
+    from app.core.config import settings
+    try:
+        doc = await svc._mine(str(user.id), listing_id)
+    except ListingError as e:
+        raise _http(e)
+    return doc, await askai.gather(svc.db, doc, Path(settings.upload_directory))
+
+
+@router.get("/{listing_id}/ask-ai")
+async def ask_ai_prompts(listing_id: str, lang: Literal["en", "mr", "hi"] = "en", user: User = Depends(current_active_user),
+                         svc: ListingService = Depends(get_service)):
+    """Ready prompts for the agent's own ChatGPT, Gemini or Claude, built from what we know of this listing."""
+    doc, (sheet, web, _) = await _ask_ai_context(listing_id, user, svc)
+    return {"prompts": askai.prompts(doc, sheet, web, lang)}
+
+
+class AskAiAnswer(BaseModel):
+    text: str = Field(..., min_length=1, max_length=20000)
+
+
+@router.post("/{listing_id}/ask-ai/check")
+async def ask_ai_check(listing_id: str, body: AskAiAnswer, user: User = Depends(current_active_user),
+                       svc: ListingService = Depends(get_service)):
+    """Each line of a pasted AI answer, marked by where its numbers are found (askai.check)."""
+    doc, (sheet, web, brochure) = await _ask_ai_context(listing_id, user, svc)
+    return {"lines": askai.check(body.text, askai.known(doc, sheet, web, brochure))}
 
 
 @router.post("/{listing_id}/publish", response_model=Listing)
