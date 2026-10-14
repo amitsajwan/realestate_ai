@@ -1,13 +1,14 @@
 """PF-4: what is near a place. Up to 3 nearest named places per category.
 
-Google's own places lead (Places API (New) searchNearby, `Nearby` below) since 2026-10-14: they carry the project's pin as
-their centre and names a buyer recognises. OpenStreetMap fills the categories Google did not answer: Overpass answers
-everything in one query but the public server is often busy (504) or refuses us (406), so when it fails each category is
-asked of Nominatim instead (one request a second, bounded to the area). Distances are straight-line ("about 2.3 km away")
+Google's own places lead (Places API (New), `Nearby` below) since 2026-10-14: they carry the project's pin as their
+centre, and only open, well-known places are kept (ranked by Google's popularity, then nearest). OpenStreetMap fills the
+categories Google did not answer: Overpass answers everything in one query but the public server is often busy (504) or
+refuses us (406), so when it fails each category is asked of Nominatim instead (one request a second, bounded to the area). Distances are straight-line ("about 2.3 km away")
 for now; road distance (OSRM) can replace `km` later without changing callers. OSM is sparse outside the city, so a
 category with nothing found is noted rather than implied absent. To add a category, add one line to CATEGORIES.
 
 `from_local` (our one-off Geofabrik copy) stays for the communities' area pages, which have no project pin to ask Google around."""
+import asyncio
 import gzip
 import json
 import logging
@@ -32,12 +33,17 @@ LOCAL_BOX = (17.85, 19.40, 73.30, 75.20)   # south, north, west, east: where the
 RADIUS_M = 10000
 PER_CATEGORY = 3
 NEARBY_SEARCH = "https://places.googleapis.com/v1/places:searchNearby"
-NEARBY_FIELDS = "places.displayName,places.location,places.googleMapsUri,places.primaryType"
-# Google's primaryType -> our category; 10 types is searchNearby's cap, and work gets its own text query below
-GOOGLE_TYPE = {"hospital": "hospital", "clinic": "hospital", "school": "school", "college": "college",
-               "university": "college", "train_station": "railway", "bus_station": "bus", "hindu_temple": "temple",
-               "shopping_mall": "market", "supermarket": "market"}
-WORK_QUERY = "IT park industrial estate"   # "Near work" wants the places people drive to, not an OSM polygon named "CTR"
+TEXT_SEARCH = "https://places.googleapis.com/v1/places:searchText"
+NEARBY_FIELDS = "places.displayName,places.location,places.googleMapsUri,places.businessStatus,places.userRatingCount"
+# our category -> Google's place types (Table A). One call per category, ranked by Google's popularity: nearest-first had a
+# small clinic and a closed school on a Camelot post. An unknown type ("clinic", "college") fails the whole call.
+GOOGLE_TYPES: Dict[str, Tuple[str, ...]] = {
+    "hospital": ("hospital",), "school": ("school", "primary_school", "secondary_school"), "college": ("university",),
+    "railway": ("train_station",), "bus": ("bus_station",), "temple": ("hindu_temple",),
+    "market": ("shopping_mall", "supermarket")}
+WORK_QUERY = "IT park"   # "Near work" wants the places people drive to, not an OSM polygon named "CTR"
+KNOWN_REVIEWS = 100      # a place with this many Google reviews is one buyers know; schools show none, so popularity alone ranks them
+KNOWN_TOP = 6            # how many of Google's most popular open places compete on distance for the PER_CATEGORY slots
 
 # key -> (label for posts, Overpass filters, Nominatim search phrase). Every place needs a name: an unnamed school cannot go on a card.
 CATEGORIES: Dict[str, Tuple[str, Tuple[str, ...], str]] = {
@@ -160,30 +166,38 @@ def from_local(lat: float, lon: float) -> Optional[Dict[str, List[Dict[str, Any]
     return best
 
 
-def _place(best: Dict[str, List[Dict[str, Any]]], lat: float, lon: float, p: dict, cat: Optional[str]) -> None:
-    """One searchNearby place into the category it belongs to; ignored when it is not one, has no name, or is out of range."""
+def _place(best: Dict[str, List[Dict[str, Any]]], lat: float, lon: float, p: dict, cat: str) -> None:
+    """One Google place into its category; ignored when it has no name or is out of range."""
     name = ((p.get("displayName") or {}).get("text") or "").strip()
     loc = p.get("location") or {}
-    if not cat or not name or not isinstance(loc.get("latitude"), (int, float)) or not isinstance(loc.get("longitude"), (int, float)):
+    if not name or not isinstance(loc.get("latitude"), (int, float)) or not isinstance(loc.get("longitude"), (int, float)):
         return
     d = km(lat, lon, loc["latitude"], loc["longitude"])
     if d <= RADIUS_M / 1000:
         _add(best, cat, name, d, p.get("googleMapsUri") or "https://maps.google.com/")
 
 
+def known(places: List[dict]) -> List[dict]:
+    """The places a buyer would know, in Google's popularity order: open ones only (a closed school went on a post), those
+    with KNOWN_REVIEWS+ reviews when Google shows any that many, at most KNOWN_TOP."""
+    open_ = [p for p in places if p.get("businessStatus") == "OPERATIONAL"]
+    rated = [p for p in open_ if (p.get("userRatingCount") or 0) >= KNOWN_REVIEWS]
+    return (rated or open_)[:KNOWN_TOP]
+
+
 class Nearby:
-    """Google's own places around a position (Places API (New) searchNearby): the nearest named hospital, school, ... and,
-    on a separate text query, the work places people drive to. Two calls for a project, 20 places each. `transport` is for
-    tests. No key configured: nothing is asked and the caller falls back to OpenStreetMap."""
+    """Google's own places around a position (Places API (New)): for each category the best-known open places near the pin
+    (searchNearby ranked by popularity), the nearest of those first; and, on a text search, the work places people drive
+    to. Eight calls for a project, made together. `transport` is for tests. No key configured: nothing is asked and the
+    caller falls back to OpenStreetMap."""
 
     def __init__(self, key: Optional[str], timeout: float = 20.0, transport: Optional[httpx.AsyncBaseTransport] = None):
         self.key, self.timeout, self.transport = (key or "").strip(), timeout, transport
 
-    async def _call(self, body: dict) -> Optional[List[dict]]:
+    async def _call(self, c: httpx.AsyncClient, url: str, body: dict) -> Optional[List[dict]]:
         headers = {"X-Goog-Api-Key": self.key, "X-Goog-FieldMask": NEARBY_FIELDS}
         try:
-            async with httpx.AsyncClient(timeout=self.timeout, transport=self.transport) as c:
-                r = await c.post(NEARBY_SEARCH, json=body, headers=headers)
+            r = await c.post(url, json=body, headers=headers)
         except httpx.HTTPError as e:
             log.warning("places nearby: %s", type(e).__name__)
             return None
@@ -194,7 +208,7 @@ class Nearby:
             data = r.json()
         except ValueError:
             return None
-        places = data.get("places")
+        places = data.get("places", [])   # an empty area answers {} : asked and nothing there
         return places if isinstance(places, list) else None
 
     async def search(self, lat: float, lon: float) -> Tuple[Dict[str, List[Dict[str, Any]]], bool]:
@@ -202,18 +216,21 @@ class Nearby:
         if not self.key:
             return {}, False
         circle = {"center": {"latitude": lat, "longitude": lon}, "radius": RADIUS_M}
-        base = {"locationRestriction": {"circle": circle}, "maxResultCount": 20, "rankPreference": "DISTANCE", "regionCode": "IN"}
+        dlat, dlon = RADIUS_M / 111000, RADIUS_M / (111000 * math.cos(math.radians(lat)))
+        box = {"rectangle": {"low": {"latitude": lat - dlat, "longitude": lon - dlon},
+                             "high": {"latitude": lat + dlat, "longitude": lon + dlon}}}   # searchText restricts to boxes only
+        asks = [(cat, NEARBY_SEARCH, {"locationRestriction": {"circle": circle}, "includedPrimaryTypes": list(types),
+                                      "maxResultCount": 20, "rankPreference": "POPULARITY", "regionCode": "IN"})
+                for cat, types in GOOGLE_TYPES.items()]
+        asks.append(("industry", TEXT_SEARCH, {"textQuery": WORK_QUERY, "locationRestriction": box, "pageSize": 20,
+                                               "regionCode": "IN"}))
+        async with httpx.AsyncClient(timeout=self.timeout, transport=self.transport) as c:
+            got = await asyncio.gather(*(self._call(c, url, body) for _, url, body in asks))
         best: Dict[str, List[Dict[str, Any]]] = {}
-        got = await self._call({**base, "includedPrimaryTypes": list(GOOGLE_TYPE)})
-        answered = got is not None
-        for p in got or []:
-            _place(best, lat, lon, p, GOOGLE_TYPE.get(str(p.get("primaryType") or "").split(".")[-1]))
-        got = await self._call({**base, "textQuery": WORK_QUERY})
-        answered = answered or got is not None
-        for p in got or []:
-            _place(best, lat, lon, p, "industry")
-        return best, answered
-
+        for (cat, _, _), places in zip(asks, got):
+            for p in known(places or []):
+                _place(best, lat, lon, p, cat)
+        return best, any(g is not None for g in got)
 
 async def around(get_json: GetJson, lat: float, lon: float, now=None,
                  nearby: Optional[Nearby] = None) -> Tuple[List[Reading], List[str]]:
