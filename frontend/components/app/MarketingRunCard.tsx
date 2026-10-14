@@ -14,32 +14,40 @@ const RUNNING: MarketingRun['status'][] = ['queued', 'facts', 'posts']
 
 type StepState = 'waiting' | 'working' | 'done' | 'failed'
 
-const ORDER = ['facts', 'plan', 'content', 'design', 'reels'] as const
+/** Where the run is in the step order. The job's 'posts' step is making the posts (plan onwards); 'boost' is the last reel
+ *  pair after the reels, so it keeps the Reels step open. */
+function stepIdx(run: MarketingRun): number {
+  const s = run.step
+  if (s === 'reels' || s === 'boost') return 4
+  if (s === 'design') return 3
+  if (s === 'content') return 2
+  if (s === 'facts') return 0
+  return 1
+}
 
-/** Discovery, Facts, Plan, Content, Design: each step's state from where the run is. Discovery and facts share the job's
+/** Discovery, Facts, Plan, Content, Design, Reels: each step's state from where the run is. Discovery and facts share the job's
  *  'facts' step; questions keep discovery open. Older runs (no plan saved) show plan, content and design together. */
 function stepStates(run: MarketingRun | null): StepState[] {
-  if (!run) return ['waiting', 'waiting', 'waiting', 'waiting', 'waiting']
-  if (run.status === 'done') return ['done', 'done', 'done', 'done', 'done']
+  if (!run) return ['waiting', 'waiting', 'waiting', 'waiting', 'waiting', 'waiting']
+  if (run.status === 'done') return ['done', 'done', 'done', 'done', 'done', 'done']
   const factsDone = !!run.facts_done_at
-  const at = run.status === 'posts' ? Math.max(1, ORDER.indexOf((run.step || 'plan') as (typeof ORDER)[number])) : 0
-  const s: StepState[] = [0, 1, 2, 3, 4].map((i) => {
+  const at = run.status === 'posts' ? Math.max(1, stepIdx(run)) : 0
+  const s: StepState[] = [0, 1, 2, 3, 4, 5].map((i) => {
     if (i < 2) return factsDone ? 'done' : 'working'
     return i - 1 < at ? 'done' : i - 1 === at ? 'working' : 'waiting'
   })
   if (run.status === 'asking') s[0] = 'working'
-  if (run.status === 'posts' && at === 1) s[2] = 'working'
   if (run.status === 'failed') {
     const i = s.findIndex((x) => x === 'working')
     if (i >= 0) s[i] = 'failed'
-    else if (!factsDone) s[0] = 'failed'
+    else s[factsDone ? stepIdx(run) + 1 : 0] = 'failed'
   }
   return s
 }
 
 const angleName = (a: string) => (a.charAt(0).toUpperCase() + a.slice(1)).replace(/_/g, ' ')
 
-/** "See more" under a step: closed by default so the five steps stay a short list. */
+/** "See more" under a step: closed by default so the steps stay a short list. */
 function More({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <details className="mt-1 text-sm">
@@ -338,7 +346,7 @@ export function MarketingRunCard({ listingId }: { listingId: string }) {
   }
 
   const selected = run?.posts.find((p) => p.angle === open) || null
-  const [s1, s2, s3, s4, s5] = stepStates(run)
+  const [s1, s2, s3, s4, s5, s6] = stepStates(run)
   // older runs saved no plan: the posts stand in for it
   const plan: NonNullable<MarketingRun['plan']> = run?.plan?.length
     ? run.plan
@@ -435,9 +443,11 @@ export function MarketingRunCard({ listingId }: { listingId: string }) {
                 </ul>
               </More>
             )}
-            {run.status === 'done' && (
+            {run.posts.length > 0 && (
               <div className="mt-2 space-y-2">
-                <p className="text-sm text-gray-700">{run.posts.length} {t(run.posts.length === 1 ? 'postReady' : 'postsReady')}</p>
+                {run.status === 'done' && (
+                  <p className="text-sm text-gray-700">{run.posts.length} {t(run.posts.length === 1 ? 'postReady' : 'postsReady')}</p>
+                )}
                 <ul className="grid list-none grid-cols-3 gap-2 p-0 sm:grid-cols-4">
                   {run.posts.map((p) => (
                     <li key={p.angle}>
@@ -460,65 +470,73 @@ export function MarketingRunCard({ listingId }: { listingId: string }) {
                         <img key={src} src={src} alt="" className="h-40 w-32 shrink-0 rounded-lg object-cover" />
                       ))}
                     </div>
-                    <CampaignPostEditor key={selected.angle + (selected.redos || 0)} listingId={listingId} post={selected} onRun={setRun} />
+                    {run.status === 'done' && (
+                      <CampaignPostEditor key={selected.angle + (selected.redos || 0)} listingId={listingId} post={selected} onRun={setRun} />
+                    )}
                   </div>
                 )}
-                {run.reels && run.reels.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-sm font-semibold text-gray-800">{t('reelsTitle')}</p>
-                    <ul className="grid list-none grid-cols-3 gap-2 p-0 sm:grid-cols-4">
-                      {run.reels.filter((r) => r.video && (r.kind === 'ad' || r.kind === 'slides' || r.status === 'done')).map((r) => (
-                        <li key={r.kind + (r.angle || '')}>
-                          <video src={r.video || undefined} controls preload="metadata" playsInline
-                            aria-label={r.kind === 'walkthrough' ? t('walkthroughReel') : r.kind === 'video' ? 'Reel from your video' : r.angle}
-                            className="aspect-[9/16] w-full rounded-lg bg-black object-cover" />
-                          {r.kind === 'ad' && r.script && (
-                            <p className="mt-1 text-xs text-gray-600" title={[r.script.hook, ...r.script.beats, r.script.payoff].join(' / ')}>
-                              <span className="font-medium">{(r.format || '').replace(/_/g, ' ')}</span>: {r.script.hook.replace(/\*/g, '')}
-                            </p>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                    {run.reels.filter((r) => r.kind === 'walkthrough' && r.status !== 'done').map((r) => (
-                      <p key="walk" className="text-xs text-gray-500">
-                        {t('walkthroughReel')}: {r.status === 'skipped' ? `${t('walkthroughSkipped')}${r.note ? ` (${r.note})` : ''}` : t('walkthroughMaking')}
-                      </p>
-                    ))}
-                    {run.reels.filter((r) => r.kind === 'video' && r.status === 'skipped').map((r) => (
-                      <p key="video" className="text-xs text-gray-500">Reel from your video: not made{r.note ? ` (${r.note})` : ''}</p>
-                    ))}
-                  </div>
-                )}
-                {run.status === 'done' && (
-                  <div className="space-y-1">
-                    <Btn disabled={run.reels_state === 'making'} onClick={remakeReels}>
-                      {run.reels_state === 'making' ? 'Making the reels…' : 'Make the reels again (ad style)'}
-                    </Btn>
-                    <p className="text-xs text-gray-500">
-                      Every post becomes a short ad reel (hook, quick cuts, price at the end, "Comment VISIT"). Uses these posts,
-                      facts and photos; waiting calendar posts are swapped for their reels.
-                    </p>
-                    {run.reels_state === 'failed' && run.reels_error && <p className="text-xs text-red-600">{run.reels_error}</p>}
-                  </div>
-                )}
-                {!sent && <Btn onClick={toCalendar}>{t('sendToCalendar')}</Btn>}
+                {run.status === 'done' && !sent && <Btn onClick={toCalendar}>{t('sendToCalendar')}</Btn>}
+              </div>
+            )}
+          </Step>
+          <Step n={6} title="Reels" state={s6}>
+            {run.status === 'posts' && (run.step === 'reels' || run.step === 'boost') && (
+              <p className="mt-1 text-sm text-gray-700">
+                {run.step === 'boost' ? 'Reels made. Making the boost pair…' : 'Making the reels… this takes a few minutes; each one appears here as it is made.'}
+              </p>
+            )}
+            {(run.reels?.length ?? 0) > 0 && (
+              <div className="mt-2 space-y-2">
+                <ul className="grid list-none grid-cols-3 gap-2 p-0 sm:grid-cols-4">
+                  {run.reels!.filter((r) => r.video && (r.kind === 'ad' || r.kind === 'slides' || r.status === 'done')).map((r) => (
+                    <li key={r.kind + (r.angle || '')}>
+                      <video src={r.video || undefined} controls preload="metadata" playsInline
+                        aria-label={r.kind === 'walkthrough' ? t('walkthroughReel') : r.kind === 'video' ? 'Reel from your video' : r.angle}
+                        className="aspect-[9/16] w-full rounded-lg bg-black object-cover" />
+                      {r.kind === 'ad' && r.script && (
+                        <p className="mt-1 text-xs text-gray-600" title={[r.script.hook, ...r.script.beats, r.script.payoff].join(' / ')}>
+                          <span className="font-medium">{(r.format || '').replace(/_/g, ' ')}</span>: {r.script.hook.replace(/\*/g, '')}
+                        </p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+                {run.status === 'done' && run.reels!.filter((r) => r.kind === 'walkthrough' && r.status !== 'done').map((r) => (
+                  <p key="walk" className="text-xs text-gray-500">
+                    {t('walkthroughReel')}: {r.status === 'skipped' ? `${t('walkthroughSkipped')}${r.note ? ` (${r.note})` : ''}` : t('walkthroughMaking')}
+                  </p>
+                ))}
+                {run.status === 'done' && run.reels!.filter((r) => r.kind === 'video' && r.status === 'skipped').map((r) => (
+                  <p key="video" className="text-xs text-gray-500">Reel from your video: not made{r.note ? ` (${r.note})` : ''}</p>
+                ))}
+              </div>
+            )}
+            {run.status === 'done' && (
+              <div className="space-y-1">
+                <Btn disabled={run.reels_state === 'making'} onClick={remakeReels}>
+                  {run.reels_state === 'making' ? 'Making the reels…' : 'Make the reels again (ad style)'}
+                </Btn>
+                <p className="text-xs text-gray-500">
+                  Every post becomes a short ad reel (hook, quick cuts, price at the end, "Comment VISIT"). Uses these posts,
+                  facts and photos; waiting calendar posts are swapped for their reels.
+                </p>
+                {run.reels_state === 'failed' && run.reels_error && <p className="text-xs text-red-600">{run.reels_error}</p>}
               </div>
             )}
           </Step>
           {run.status === 'done' && sent > 0 && (
             <>
-              <Step n={6} title="In the calendar" state="done">
+              <Step n={7} title="In the calendar" state="done">
                 <p className="mt-1 text-sm text-gray-700">{sent} {t('sentToCalendar')} {firstDay(run.calendar!)}.</p>
                 {results.length > 0 && <CalendarState items={results} />}
               </Step>
-              <Step n={7} title="Leads from these posts" state={results.some((r) => r.state === 'posted') ? 'done' : 'waiting'}>
+              <Step n={8} title="Leads from these posts" state={results.some((r) => r.state === 'posted') ? 'done' : 'waiting'}>
                 {results.length > 0 && <PostLeads items={results} />}
               </Step>
             </>
           )}
           {run.status === 'done' && run.boost && (
-            <Step n={sent > 0 ? 8 : 6} title={t('boostTitle')}
+            <Step n={sent > 0 ? 9 : 7} title={t('boostTitle')}
               state={run.boost.state === 'failed' ? 'failed' : run.boost.state === 'making' ? 'working'
                 : run.boost.state === 'boosted' || run.boost.state === 'finished' ? 'done' : 'waiting'}>
               <BoostStep listingId={listingId} run={run} onRun={setRun} />

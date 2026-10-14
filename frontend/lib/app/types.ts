@@ -612,7 +612,7 @@ export interface MarketingRun {
   id: string
   listing_id: string
   status: 'queued' | 'facts' | 'asking' | 'posts' | 'done' | 'failed'
-  step?: 'facts' | 'posts' | 'plan' | 'content' | 'design' | 'reels' | null
+  step?: 'facts' | 'posts' | 'plan' | 'content' | 'design' | 'reels' | 'boost' | null
   /** The campaign plan: the angles chosen (overview first), each one's headline as written, and how far it got. */
   plan?: { angle: string; headline: string; was?: string; state: 'planned' | 'content' | 'designed' | 'dropped' }[]
   /** Angles left out of the plan, and why. */

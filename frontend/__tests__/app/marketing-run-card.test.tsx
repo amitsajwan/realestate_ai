@@ -8,6 +8,9 @@ const startMarketingRun = jest.fn()
 const sendRunToCalendar = jest.fn()
 const editRunPost = jest.fn()
 const redoRunPost = jest.fn()
+const getCampaignResults = jest.fn().mockResolvedValue([])
+const remakeReels = jest.fn()
+const answerRunQuestion = jest.fn()
 jest.mock('@/lib/app/client', () => ({
   api: {
     getMarketingRun: (...a: unknown[]) => getMarketingRun(...a),
@@ -15,6 +18,9 @@ jest.mock('@/lib/app/client', () => ({
     sendRunToCalendar: (...a: unknown[]) => sendRunToCalendar(...a),
     editRunPost: (...a: unknown[]) => editRunPost(...a),
     redoRunPost: (...a: unknown[]) => redoRunPost(...a),
+    getCampaignResults: (...a: unknown[]) => getCampaignResults(...a),
+    remakeReels: (...a: unknown[]) => remakeReels(...a),
+    answerRunQuestion: (...a: unknown[]) => answerRunQuestion(...a),
   },
   errorMessage: (e: Error) => e.message,
 }))
@@ -42,21 +48,38 @@ it('offers Start marketing when nothing ran yet, then shows step 1 working', asy
   render(<MarketingRunCard listingId="L1" />)
   fireEvent.click(await screen.findByRole('button', { name: 'Start marketing' }))
   expect(startMarketingRun).toHaveBeenCalledWith('L1', false, 'en')
-  expect(await screen.findByText(/Project facts and listing page/)).toBeInTheDocument()
-  expect(screen.getAllByText(/Working/)).toHaveLength(1)   // step 2 waits for step 1
+  expect(await screen.findByText(/Reading the listing, its files and MahaRERA/)).toBeInTheDocument()
+  expect(screen.getAllByText(/Working/)).toHaveLength(2)   // Discovery and Facts share the facts step
+  expect(screen.getAllByText(/Waiting/)).toHaveLength(4)   // Plan, Content, Design, Reels wait
 })
 
-it('polls: facts first (with the page link), then the posts', async () => {
+it('polls: facts first, then the posts', async () => {
   getMarketingRun.mockResolvedValueOnce(factsDone).mockResolvedValueOnce(done)
   render(<MarketingRunCard listingId="L1" />)
-  expect(await screen.findByText(/28 facts checked · MahaRERA P52100076768 · 2 nearby places/)).toBeInTheDocument()
-  expect(screen.getByRole('link', { name: 'See the listing page' })).toHaveAttribute('href', factsDone.page_url)
+  expect(await screen.findByText(/28 facts checked · 2 places nearby/)).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'See checked facts' })).toHaveAttribute('href', '/studio/listings/L1?tab=facts')
   await act(async () => {
     jest.advanceTimersByTime(3000)
   })
   expect(await screen.findByText('1 post ready for your approval')).toBeInTheDocument()
   expect(screen.getByRole('img', { name: '₹32.3 lakh for a plot in Gulmohar City.' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Check again and remake' })).toBeInTheDocument()
+})
+
+it('shows the finished cards and a working Reels step while the reels render', async () => {
+  jest.useRealTimers()
+  getMarketingRun.mockResolvedValue({
+    ...factsDone, status: 'posts', step: 'reels',
+    plan: [{ angle: 'price_reveal', headline: '₹32.3 lakh for a plot in Gulmohar City.', state: 'designed' as const }],
+    posts: [{ angle: 'price_reveal', images: ['https://api/uploads/campaigns/L1/a.png'], caption: '₹32.3 lakh for a plot in Gulmohar City.\n\nMore' }],
+    reels: [{ kind: 'ad' as const, angle: 'price_reveal', format: 'price_reveal', video: 'https://api/uploads/campaigns/L1/a/reels/price_reveal.mp4' }],
+  })
+  render(<MarketingRunCard listingId="L1" />)
+  expect(await screen.findByRole('img', { name: '₹32.3 lakh for a plot in Gulmohar City.' })).toBeInTheDocument()
+  expect(screen.getByText('1 of 1 cards made')).toBeInTheDocument()
+  expect(screen.getByText(/Making the reels/)).toBeInTheDocument()
+  expect(screen.getByLabelText('price_reveal')).toHaveAttribute('src', 'https://api/uploads/campaigns/L1/a/reels/price_reveal.mp4')
+  expect(screen.queryByRole('button', { name: 'Send to calendar for approval' })).not.toBeInTheDocument()
 })
 
 it('a failed posts step keeps the facts and offers a retry', async () => {
@@ -70,6 +93,10 @@ it('a failed posts step keeps the facts and offers a retry', async () => {
 it('sends the finished posts to the calendar for approval', async () => {
   jest.useRealTimers()
   getMarketingRun.mockResolvedValue(done)
+  getCampaignResults.mockResolvedValue([
+    { angle: 'price_reveal', kind: 'post', channel: 'instagram', state: 'waiting', due_at: '2026-10-07T13:30:00Z', posted_at: null, permalink: null, clicks: 0, interests: 0 },
+    { angle: 'price_reveal', kind: 'post', channel: 'facebook_page', state: 'waiting', due_at: '2026-10-07T13:30:00Z', posted_at: null, permalink: null, clicks: 0, interests: 0 },
+  ])
   sendRunToCalendar.mockResolvedValue({
     ...done, calendar: [{ angle: 'price_reveal', channel: 'instagram', row_id: 'r1', due_at: '2026-10-07T13:30:00Z' },
                         { angle: 'price_reveal', channel: 'facebook_page', row_id: 'r2', due_at: '2026-10-07T13:30:00Z' }],
@@ -77,8 +104,8 @@ it('sends the finished posts to the calendar for approval', async () => {
   render(<MarketingRunCard listingId="L1" />)
   fireEvent.click(await screen.findByRole('button', { name: 'Send to calendar for approval' }))
   expect(sendRunToCalendar).toHaveBeenCalledWith('L1')
-  expect(await screen.findByText(/2 planned in the calendar, one a day from 7 Oct/)).toBeInTheDocument()
-  expect(screen.getByRole('link', { name: 'Approve them in Content' })).toHaveAttribute('href', '/studio/content')
+  expect(await screen.findByText(/2 planned in the calendar, two a day from 7 Oct/)).toBeInTheDocument()
+  expect(await screen.findByRole('link', { name: 'Approve them in Content' })).toHaveAttribute('href', '/studio/content')
   expect(screen.queryByRole('button', { name: 'Send to calendar for approval' })).not.toBeInTheDocument()
 })
 
