@@ -108,4 +108,4 @@ async def system(store: Store, now: datetime, intervals: Dict[str, Optional[floa
     except Exception as e:                  # the screen still shows the loops
         register = [f"WARN could not read the register ({type(e).__name__})"]
     return {"loops": loops, "register": register, "marks": marks, "serper_credits": await serper_credits(),
-            "serper_per_day": websearch.AREA_PER_DAY + websearch.PROJECT_PER_DAY}
+            "serper_per_day": websearch.AREA_PER_DAY + websearch.PROJECT_PER_DAY + websearch.TARGET_PER_DAY}

@@ -3,10 +3,12 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import MarketingShell from '@/components/marketing/MarketingShell'
+import ActiveProjects from '@/components/site/ActiveProjects'
 import CheckBadge from '@/components/site/CheckBadge'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/seo'
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
+import { getActive } from '@/lib/site/hubs'
 import { displayName, getRegisterPlaces, getRegisterProjects, placePath, projectSummary } from '@/lib/site/register'
 import type { RegisterListItem, RegisterPlace } from '@/lib/site/register'
 
@@ -52,6 +54,7 @@ export default async function PlaceProjectsPage({ params }: Props) {
   if (!got) notFound()
   const { place, projects } = got
   const cfg = getMarketingConfig()
+  const active = await getActive({ place: place.key })
   const building = projects.filter((r) => r.active !== false).sort((a, b) => displayName(a).localeCompare(displayName(b)))
   const finished = projects.filter((r) => r.active === false).sort((a, b) => displayName(a).localeCompare(displayName(b)))
   return (
@@ -70,6 +73,8 @@ export default async function PlaceProjectsPage({ params }: Props) {
           {finished.length > 0 ? `, and ${finished.length} older ones` : ''}. Each page shows the completion date the builder filed with
           MahaRERA, whether it has moved, and how many homes are booked, with the date we read the record.
         </p>
+
+        <ActiveProjects title={`Most active projects in ${place.name}`} items={active} className="mt-10" />
 
         {building.length > 0 && (
           <section aria-labelledby="building-title" className="mt-10">

@@ -84,3 +84,38 @@ async def public_places(response: Response, db=Depends(get_db)) -> list:
     """Every Pune place with projects in the register: {key, slug, name, zone, projects, indexable}, in zone order."""
     response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
     return await pages.places(db)
+
+
+# ---- internal links and builder pages (docs/plan/rank-loop.md R5, R6) -------------------------------------------------------
+from . import hubs  # noqa: E402
+
+
+@public_router.get("/register/active")
+async def public_active(response: Response, area: Optional[str] = None, place: Optional[str] = None, limit: int = hubs.ACTIVE,
+                        db=Depends(get_db)) -> list:
+    """"Most active projects" for an area (key or slug) or a Pune place: [{slug, name, fact, source}]; never a score."""
+    response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
+    return await hubs.active(db, area=area, place=place, limit=max(1, min(limit, 20)))
+
+
+@public_router.get("/register/near/{area_slug}/{slug}")
+async def public_near_guide(area_slug: str, slug: str, response: Response, db=Depends(get_db)) -> list:
+    """Project pages near a neighbourhood guide: [{slug, name, km, fact, source}], nearest first."""
+    response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
+    return await hubs.near_projects(db, area_slug, slug)
+
+
+@public_router.get("/builders")
+async def public_builders(response: Response, all: bool = False, db=Depends(get_db)) -> list:
+    """Builders with a page: [{slug, name, projects, indexable, page_updated}] (the sitemap, the builders index)."""
+    response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
+    return await hubs.builders(db, only_indexable=not all)
+
+
+@public_router.get("/builders/{slug}")
+async def public_builder(slug: str, response: Response, db=Depends(get_db)) -> dict:
+    out = await hubs.builder_page(db, slug)
+    if out is None:
+        raise HTTPException(status_code=404, detail="Unknown builder")
+    response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
+    return out

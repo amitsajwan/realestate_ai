@@ -75,7 +75,8 @@ export default async function SharedProjectPage({ params }: Props) {
     if (!r) notFound()
     if (r.slug !== slug) permanentRedirect(`/projects/${r.slug}`)
     // an agent lists this project: its shared page (with the agents) is the project's page
-    const listed = (await getCatalog()).find((x) => x.rera_no === r.regno && x.agents.length)
+    const regnos = new Set([r.regno, ...(r.towers ?? []).map((t) => t.regno)])   // any tower of the project
+    const listed = (await getCatalog()).find((x) => regnos.has(x.rera_no) && x.agents.length)
     if (listed) permanentRedirect(`/projects/${listed.slug}`)
     const facts = await getPropertyFacts({ rera: r.regno, project: r.name, locality: r.area?.name }).catch(() => null)
     return (

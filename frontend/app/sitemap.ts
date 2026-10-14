@@ -7,6 +7,7 @@ import { fetchPosts, postPath } from '@/lib/posts/data'
 import { getCommunities } from '@/components/localities/communities'
 import { getCatalog, getSitemapEntries } from '@/lib/site/api'
 import { livePages } from '@/lib/site/filters'
+import { getBuilders } from '@/lib/site/hubs'
 import { getRegisterProjects, getRegisterPlaces, placePath } from '@/lib/site/register'
 import { agentPath } from '@/lib/site/slug'
 
@@ -24,7 +25,7 @@ const POSTS_MAX = 500 // the API's most per call: every published post for years
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = getMarketingConfig().siteUrl
   const at = (path: string, priority: number, date?: string | null) => ({ url: base + path, lastModified: day(date), priority })
-  const [news, agents, projects, posts, register, places, hoods] = await Promise.all([fetchNews(50), getSitemapEntries(), getCatalog(), fetchPosts(POSTS_MAX), getRegisterProjects(undefined, true), getRegisterPlaces(), getCommunities()])
+  const [news, agents, projects, posts, register, places, hoods, builders] = await Promise.all([fetchNews(50), getSitemapEntries(), getCatalog(), fetchPosts(POSTS_MAX), getRegisterProjects(undefined, true), getRegisterPlaces(), getCommunities(), getBuilders()])
   const listedRegnos = new Set(projects.map((p) => p.rera_no))   // those redirect to the shared agent page, listed above
   const shared = new Set(projects.flatMap((p) => p.agents.map((a) => a.slug + '/' + a.project_slug)))
   const fallbackLocalities = new Map<string, string | null | undefined>()
@@ -68,6 +69,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...places.filter((p) => p.indexable > 0).map((p) => at(placePath(p.slug), 0.6)),
     ...register.filter((r) => r.indexable && !listedRegnos.has(r.regno))
       .map((r) => at('/projects/' + r.slug, r.active === false ? 0.4 : 0.7, r.page_updated)),   // our own page date only; MahaRERA's old dates never
+    // one page per builder with two or more indexable projects (docs/plan/rank-loop.md R6)
+    ...builders.filter((b) => b.indexable).map((b) => at('/builders/' + b.slug, 0.6, b.page_updated)),
     // an agent's copy of a project on a shared page names that page as canonical, so only the others are listed
     ...agents.projects.filter((p) => !shared.has(p.agent_slug + '/' + p.slug)).map((p) => at(agentPath(p.agent_slug, 'projects/' + p.slug), 0.6, p.updated_at)),
     ...agents.listings.map((l) => at(agentPath(l.agent_slug, 'listings/' + l.id), 0.6, l.updated_at)),

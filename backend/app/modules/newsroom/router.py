@@ -259,6 +259,25 @@ async def insights_search_as(regno: str, body: SearchAsBody, user: User = Depend
     return {"regno": regno, "queued": True}
 
 
+class RevertBody(BaseModel):
+    path: str
+
+
+@router.get("/insights/rankings")
+async def insights_rankings(user: User = Depends(owner_only), store: Store = Depends(get_store)) -> dict:
+    """The rank loop (docs/plan/rank-loop.md R9): this week's numbers, the page doctor's fixes and results, target searches with
+    who ranks above us, our pages competing for one search, and searches with no page."""
+    from app.modules.seo import report
+    return await report.rankings(store, datetime.now(timezone.utc))
+
+
+@router.post("/insights/rankings/revert")
+async def insights_rankings_revert(body: RevertBody, user: User = Depends(owner_only), store: Store = Depends(get_store)) -> dict:
+    """Undo the page doctor's title and description changes on one page."""
+    from app.modules.seo import doctor
+    return {"path": body.path, "reverted": await doctor.revert(store, body.path)}
+
+
 @router.post("/insights/found/{regno}/ignore")
 async def insights_ignore(regno: str, user: User = Depends(owner_only), store: Store = Depends(get_store)) -> dict:
     from app.modules.areastats import discover

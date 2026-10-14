@@ -72,6 +72,8 @@ O1, O2 and O6 are deployed (b247751f, 2026-10-13).
 
 ## 5. SEO: how the data drives rankings
 
+**2026-10-14: the build plan for this section is `docs/plan/rank-loop.md` (R0 to R9); its order replaces the S items in section 6.**
+
 The loop: **measure** (Search Console + Serper) → **decide** (hot + near page one + demand) → **improve the page** →
 **tell search engines** (IndexNow + sitemap date) → measure again. Measure, decide and tell are running; improve is mostly NEW.
 

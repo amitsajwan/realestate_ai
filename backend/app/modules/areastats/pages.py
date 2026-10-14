@@ -9,7 +9,6 @@ list first (areastats.watch), and then has its page at once.
 """
 import re
 import time
-import unicodedata
 from datetime import date, datetime, timedelta, timezone
 from typing import List, Optional
 
@@ -18,14 +17,10 @@ from app.core.areas import BY_KEY
 from app.modules.newsroom.store import Store
 
 from .service import _count, _day
+from .text import ascii_text, builder_slug, promoter_key, words
 
 SAME_AREA = 6
-_WORDS = re.compile(r"[a-z0-9]+")
 _MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
-
-
-def _ascii(text: str) -> str:
-    return unicodedata.normalize("NFKD", text or "").encode("ascii", "ignore").decode().lower()
 
 
 def _place_word(doc: dict) -> str:
@@ -41,12 +36,12 @@ def in_register(d: dict) -> bool:
 
 def base_slug(doc: dict) -> str:
     """Name words (at most 8) plus the area, e.g. "rohan-abhilasha-4-wagholi"; the area word is not repeated."""
-    words = _WORDS.findall(_ascii(doc.get("name", "")))[:8] or ["project"]
+    picked = words(doc.get("name", ""))[:8] or ["project"]
     area = BY_KEY.get(doc.get("locality") or "")
-    tail = _WORDS.findall(_ascii(area.name if area else (_place_word(doc) or "pune")))
-    if " ".join(tail) not in " ".join(words):
-        words += tail
-    return "-".join(words)[:80].strip("-")
+    tail = words(area.name if area else (_place_word(doc) or "pune"))
+    if " ".join(tail) not in " ".join(picked):
+        picked += tail
+    return "-".join(picked)[:80].strip("-")
 
 
 async def assign_slug(store: Store, doc: dict) -> str:
@@ -56,7 +51,7 @@ async def assign_slug(store: Store, doc: dict) -> str:
     slug = base_slug(doc)
     other = await store.projects.find_one({"page_slug": slug})
     if other and other["_id"] != doc["_id"]:
-        slug = f"{slug}-{_ascii(doc['_id'])[-5:]}"
+        slug = f"{slug}-{ascii_text(doc['_id'])[-5:]}"
     await store.set_project(doc["_id"], page_slug=slug)
     return slug
 
@@ -133,7 +128,7 @@ def _brand_fix(name: str, promoter: Optional[str]) -> tuple:
     words = name.split()
     first = words[0] if words else ""
     pwords = promoter_key(promoter).split()
-    if len(first) > 2 and first[-1] in "sS" and pwords and _ascii(first[:-1]) == pwords[0]:
+    if len(first) > 2 and first[-1] in "sS" and pwords and ascii_text(first[:-1]) == pwords[0]:
         return " ".join([first[:-1]] + words[1:]), first[:-1]
     return name, None
 
@@ -196,15 +191,6 @@ def paragraph(doc: dict) -> str:
     return " ".join(out)
 
 
-_LEGAL = re.compile(r"\b(m s|private|pvt|limited|ltd|llp|the|and|co|company|corporation|corp)\b")
-
-
-def promoter_key(name: Optional[str]) -> str:
-    """'M/s. Rohan Builders Pvt. Ltd.' and 'ROHAN BUILDERS PRIVATE LIMITED' -> 'rohan builders'."""
-    words = " ".join(_WORDS.findall(_ascii(name or "")))
-    return " ".join(_LEGAL.sub(" ", words).split())
-
-
 def months_later(doc: dict) -> Optional[int]:
     """Whole months the filed completion date moved later since registration; 0 when it did not; None when unknown."""
     now, first = _day(doc.get("completion_now")), _day(doc.get("completion_at_registration"))
@@ -217,6 +203,16 @@ def months_later(doc: dict) -> Optional[int]:
 
 def _served(d: dict) -> bool:
     return bool(d.get("page_slug")) and in_register(d)
+
+
+def can_host(d: dict) -> bool:
+    """A record a cluster's other registrations may point at: it has a page we serve AND search may list it.
+
+    Every reader of R0 asks this one question, so a tower never gives its page up to a record that is not in the sitemap:
+    `listing`, `hubs`, `seo.targets` and `seo.doctor` all stand a member aside only behind a primary that passes this, and
+    `primary_of` follows the member's 301 only to one that still does. `clusters._primary_for` ranks on it too, so when any
+    tower of the project has a page search may list, that is the one that hosts the others (docs/plan/seo-review.md D1)."""
+    return _served(d) and indexable(d)
 
 
 def track_record(doc: dict, docs: List[dict]) -> Optional[dict]:
@@ -291,6 +287,7 @@ def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None) ->
         "place": doc.get("place_locality") or None, "taluka": doc.get("taluka") or None,
         "slug": doc.get("page_slug"), "name": doc.get("name", ""), "regno": doc.get("regno") or doc["_id"],
         "promoter": doc.get("promoter") or None, "pincode": doc.get("pincode") or None,
+        "builder_slug": builder_slug(doc.get("promoter")) or None,
         "area": {"key": area.key, "slug": area.slug, "name": area.name} if area else None,
         "pune_place": {"key": doc["pune_place"], "name": doc.get("pune_place_name")} if doc.get("pune_place") else None,
         "completion_now": _day(doc.get("completion_now")), "completion_at_registration": _day(doc.get("completion_at_registration")),
@@ -300,9 +297,18 @@ def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None) ->
         # the enriched text (model-written from gathered facts, checked) when there is one, else the code-written paragraph
         "paragraph": doc.get("page_text") or paragraph(doc), "indexable": indexable(doc),
         "marketed_name": names(doc)[0], "aliases": names(doc)[1], "page_updated": page_updated(doc),
+        # how people search for the page (seo.targets, rank-loop R1): leads the title and H1; the legal name stays in the body
+        "search_name": doc.get("search_name") or None,
+        # "People also ask" questions answered from our facts (seo.questions, R4), each with its source and its topic:
+        # the topic is what lets the page drop its own question on a topic a real one already covers
+        "faq": [{k: f.get(k) for k in ("q", "a", "source", "topic")} for f in doc.get("seo_faq") or []],
+        # a search description from facts, written by the page doctor when the page was seen but not clicked (R3)
+        "search_description": doc.get("seo_description") or None,
         "same_promoter": same_promoter(doc, docs) if docs is not None else [],
         "enriched_at": doc["enriched_at"].date().isoformat() if isinstance(doc.get("enriched_at"), datetime) else None,
-        "same_area": [{"name": s.get("name", ""), "slug": s["page_slug"], "completion_now": _day(s.get("completion_now"))} for s in same_area],
+        # links into other pages say how people search for them (rank-loop R5): search_name, else the marketed name
+        "same_area": [{"name": s.get("search_name") or names(s)[0], "slug": s["page_slug"], "completion_now": _day(s.get("completion_now"))}
+                      for s in same_area],
         "source": "MahaRERA public records",
     }
 
@@ -317,7 +323,7 @@ def same_promoter(doc: dict, docs: List[dict]) -> List[dict]:
         return []
     mine = [d for d in docs if d["_id"] != doc["_id"] and _served(d) and promoter_key(d.get("promoter")) == key]
     mine.sort(key=lambda d: (is_old(d), d.get("name", "")))
-    return [{"name": d.get("name", ""), "marketed_name": names(d)[0], "slug": d["page_slug"],
+    return [{"name": d.get("name", ""), "marketed_name": names(d)[0], "search_name": d.get("search_name") or None, "slug": d["page_slug"],
              "completion_now": _day(d.get("completion_now"))} for d in mine[:SAME_PROMOTER]]
 
 
@@ -359,16 +365,58 @@ async def web_facts_for(db, regno: str) -> Optional[dict]:
     return web_public(doc.get("web_facts"))
 
 
+def primary_of(doc: dict, docs: List[dict]) -> dict:
+    """The page a registration is shown on: its cluster's primary when that one is a page search may list (tower and phase
+    pages answer 301 to it, docs/plan/rank-loop.md R0), else its own."""
+    want = doc.get("cluster_primary")
+    if not want:
+        return doc
+    p = next((d for d in docs if d["_id"] == want), None)
+    return p if p is not None and can_host(p) else doc
+
+
+def towers(doc: dict, docs: List[dict]) -> List[dict]:
+    """Every registration of the project a primary page stands for (towers, phases), its own first: MahaRERA facts each."""
+    cid = doc.get("cluster_id")
+    if not cid:
+        return []
+    mine = [d for d in docs if d.get("cluster_id") == cid]
+    if len(mine) < 2:
+        return []
+    mine.sort(key=lambda d: (d["_id"] != doc["_id"], _day(d.get("completion_now")) or "9999", d.get("name", "")))
+    return [{"regno": d.get("regno") or d["_id"], "name": d.get("name", ""), "completion_now": _day(d.get("completion_now")),
+             "completion_at_registration": _day(d.get("completion_at_registration")), "units_total": _count(d.get("units_total")),
+             "units_booked": booked(d), "registered_on": _day(d.get("registered_on")), "maharera_url": d.get("source_url") or None}
+            for d in mine]
+
+
+def cluster_updated(doc: dict, docs: List[dict]) -> Optional[str]:
+    """A page's own last change; for a primary, the newest of its members' (a tower read changes the merged page too)."""
+    cid = doc.get("cluster_id")
+    stamps = [page_updated(d) for d in docs if d.get("cluster_id") == cid] if cid else [page_updated(doc)]
+    stamps = [x for x in stamps if x]
+    return max(stamps) if stamps else None
+
+
 async def project_page(db, slug: str) -> Optional[dict]:
+    """The page for a slug. A tower's slug gets its project's primary page, whose own slug the frontend redirects to (301)."""
     store = Store(db)
     doc = await store.projects.find_one({"page_slug": slug})
     if doc is None or not in_register(doc):
         return None
     docs = await store.all_projects()   # about a thousand records: the same-area list and the builder's track record
+    doc = primary_of(doc, docs)
     key = "locality" if doc.get("locality") else "pune_place"
-    peers = [d for d in docs if doc.get(key) and d.get(key) == doc[key]]
+    peers = [d for d in docs if doc.get(key) and d.get(key) == doc[key] and not d.get("cluster_primary")]
     out = view(doc, _similar(doc, peers), docs)
+    out["towers"] = towers(doc, docs)
+    out["page_updated"] = cluster_updated(doc, docs)
     out["web_facts"] = web_public(group_primary(doc, docs).get("web_facts"))
+    try:   # the neighbourhood guide nearest the project (rank-loop R5): a link both ways
+        from .hubs import near_guide
+        out["near_guide"] = await near_guide(db, doc)
+    except Exception:
+        out["near_guide"] = None
     # one tower of a project marketed under several registrations (Lodha Camelot): name it and link the whole project, only
     # when that project is live on a public page (agentprojects.groups.public_group; drafts never show)
     from app.modules.agentprojects.groups import public_group
@@ -391,7 +439,10 @@ async def listing(db, area: Optional[str] = None, only_indexable: bool = True, l
     """Pages for the sitemap, area pages and search: {slug, regno, name, area, place, place_name, promoter, completion_now,
     checked, active, indexable}, newest listed first. `area` is one of our covered areas; `place` any Pune place (key or slug)."""
     store = Store(db)
-    docs = [d for d in await store.all_projects() if d.get("page_slug") and in_register(d)]
+    every = await store.all_projects()
+    served = {d["_id"] for d in every if can_host(d)}
+    # a tower or phase whose project has a page search may list is not a page of its own (it answers 301 to it)
+    docs = [d for d in every if _served(d) and d.get("cluster_primary") not in served]
     if area:
         key = (BY_KEY.get(area) or next((a for a in BY_KEY.values() if a.slug == area), None))
         docs = [d for d in docs if key and d.get("locality") == key.key]
@@ -402,12 +453,13 @@ async def listing(db, area: Optional[str] = None, only_indexable: bool = True, l
         docs = [d for d in docs if indexable(d)]
     docs.sort(key=lambda d: (_day(d.get("last_modified")) or "", d.get("name", "")), reverse=True)
     return [{"slug": d["page_slug"], "regno": d.get("regno") or d["_id"], "name": d.get("name", ""), "marketed_name": names(d)[0],
+             "search_name": d.get("search_name") or None,
              "area": d.get("locality"), "units_total": _count(d.get("units_total")), "units_booked": booked(d),
              "place": d.get("pune_place"), "place_name": d.get("pune_place_name"),
              "promoter": d.get("promoter") or None, "completion_now": _day(d.get("completion_now")),
              "checked": checked_count(d), "checks_total": len(CHECK_LABELS), "active": not is_old(d),
              "listed_or_updated": _day(d.get("last_modified")),
-             "page_updated": page_updated(d),   # our own last change (the sitemap's lastmod), never MahaRERA's dates
+             "page_updated": cluster_updated(d, every),   # our own last change (the sitemap's lastmod; a primary: its newest tower), never MahaRERA's dates
              "indexable": indexable(d)} for d in docs[:limit]]
 
 
@@ -417,7 +469,7 @@ _search_cache: dict = {}
 
 
 def _norm(text: Optional[str]) -> str:
-    return " ".join(_WORDS.findall(_ascii(text or "")))
+    return " ".join(words(text))
 
 
 def clear_search_cache() -> None:

@@ -120,7 +120,7 @@ function Hero({ p }: { p: RegisterProject }) {
         <span className="rounded-full bg-white/10 px-3 py-1 font-mono text-xs text-slate-200">{p.regno}</span>
         {p.completion_passed && <span className="rounded-full bg-amber-400/20 px-3 py-1 text-xs font-semibold text-amber-200">Completion date passed</span>}
       </div>
-      <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">{shown}{area ? `, ${area}` : ''}</h1>
+      <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">{shown}{area && !shown.toLowerCase().includes(area.toLowerCase()) ? `, ${area}` : ''}</h1>
       <p className="mt-2 text-sm text-slate-300" data-testid="legal-name">Filed on MahaRERA as {p.name} · {p.regno}</p>
       {aka.length > 0 && <p className="mt-1 text-sm text-slate-300" data-testid="aka">Also known as: {aka.join(', ')}</p>}
       {p.group && (
@@ -247,6 +247,46 @@ function BuildingsTable({ p }: { p: RegisterProject }) {
   )
 }
 
+/** One project that MahaRERA holds tower by tower or phase by phase: every registration, each with its own dates and bookings. */
+function TowersTable({ p }: { p: RegisterProject }) {
+  const rows = p.towers ?? []
+  if (rows.length < 2) return null
+  const total = rows.reduce((s, t) => s + (t.units_total ?? 0), 0)
+  const sold = rows.every((t) => t.units_booked != null) ? rows.reduce((s, t) => s + (t.units_booked ?? 0), 0) : null
+  return (
+    <section aria-labelledby="towers-title" data-testid="towers">
+      <SectionHead id="towers-title" title={`Towers and phases (${rows.length} registrations)`} kind="rera" />
+      <p className="mt-2 text-slate-800">
+        MahaRERA holds {displayName(p)} as {rows.length} registrations.
+        {total > 0 && <> Together they list {n(total)} homes{sold != null ? `, ${n(sold)} booked` : ''}.</>}
+      </p>
+      <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-slate-50 text-slate-600">
+            <tr><th className="px-3 py-2 font-semibold">Registration</th><th className="px-3 py-2 font-semibold">Completion filed</th><th className="px-3 py-2 font-semibold">Booked</th></tr>
+          </thead>
+          <tbody>
+            {rows.map((t) => (
+              <tr key={t.regno} className="border-t border-slate-200 align-top">
+                <td className="px-3 py-2">
+                  <span className="block font-semibold text-slate-900">{t.name}</span>
+                  {t.maharera_url ? <a href={t.maharera_url} target="_blank" rel="noopener noreferrer" className="font-mono text-xs text-[#0f2340] underline underline-offset-2">{t.regno}<span className="sr-only"> (opens in a new tab)</span></a>
+                    : <span className="font-mono text-xs text-slate-600">{t.regno}</span>}
+                </td>
+                <td className="px-3 py-2">{t.completion_now ? longDay(t.completion_now) : '-'}
+                  {t.completion_at_registration && t.completion_now && t.completion_at_registration !== t.completion_now &&
+                    <span className="block text-xs text-slate-500">at registration {longDay(t.completion_at_registration)}</span>}</td>
+                <td className="px-3 py-2">{t.units_total ? (t.units_booked != null ? `${n(t.units_booked)} of ${n(t.units_total)}` : `${n(t.units_total)} homes`) : '-'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="mt-2 text-xs text-slate-500">Each row is its own MahaRERA registration, as filed.</p>
+    </section>
+  )
+}
+
 type Near = { label: string; name: string; km: number }
 
 /** The map: OpenStreetMap around the position we checked against the pincode; without one, a map search by name and area, marked
@@ -316,6 +356,9 @@ function BuilderBox({ p }: { p: RegisterProject }) {
             </li>
           ))}
         </ul>
+      )}
+      {p.builder_slug && b.count > 1 && (
+        <p className="mt-2"><Link href={`/builders/${p.builder_slug}`} className="inline-flex min-h-[44px] items-center font-semibold text-[#0f2340] underline underline-offset-2">All {b.count} projects by {b.name} in Pune</Link></p>
       )}
       <p className="mt-2 text-xs text-slate-500">Counted from MahaRERA records we hold; projects outside Pune are not included.</p>
     </section>
@@ -410,6 +453,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts }: { p: Register
           </section>
 
           <DetailsGrid p={p} />
+          <TowersTable p={p} />
           <BuildingsTable p={p} />
           <MapBox p={p} nearby={nearby} />
           <BuilderBox p={p} />
@@ -448,6 +492,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts }: { p: Register
               <div className="mt-3 flex flex-wrap gap-x-5">
                 {placeHref && <Link href={placeHref} className="inline-flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2">All projects in {placeName ?? p.area?.name}</Link>}
                 {p.area && <Link href={`/localities/${p.area.slug}`} className="inline-flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2">{p.area.name} area guide</Link>}
+                {p.near_guide && <Link href={p.near_guide.path} className="inline-flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2" data-testid="near-guide">Near {p.near_guide.name} ({p.near_guide.km} km): neighbourhood guide</Link>}
               </div>
             </section>
           )}

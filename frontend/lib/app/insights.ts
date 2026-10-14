@@ -76,3 +76,66 @@ export const getFound = () => call<FoundList>('found')
 export const searchAs = (regno: string, name: string) => call<{ queued: boolean }>(`found/${encodeURIComponent(regno)}/search-as`, { name })
 export const ignoreFound = (regno: string) => call<{ ignored: boolean }>(`found/${encodeURIComponent(regno)}/ignore`, {})
 export const getSystem = () => call<SystemView>('system')
+
+// ---- Rankings (docs/plan/rank-loop.md R9; backend app/modules/seo/report.py) -------------------------------------------------
+export interface WeekNumbers { at: string; clicks: number; impressions: number; page_one: number; near_page_one: number; targeted: number }
+
+export interface FixResult {
+  fix: string
+  tried: number
+  measured: number
+  median_gain: number | null
+  improved_pct: number | null
+  reverted: number
+  clicks_before: number
+  clicks_after: number
+}
+
+export interface PageNumbers { position: number | null; impressions: number; clicks: number }
+
+export interface RankAction {
+  path: string
+  fix: string
+  at: string | null
+  phrase: string | null
+  note: string | null
+  before: PageNumbers | null
+  after14: PageNumbers | null
+  after28: PageNumbers | null
+  gain: number | null
+  reverted: boolean
+  new: string | null
+}
+
+export interface RankTarget {
+  path: string
+  name: string
+  phrase: string
+  impressions: number | null
+  position: number | null
+  page_position: number | null
+  clicks: number | null
+  history: { at: string | null; position: number | null }[]
+  page_fix_at: string | null
+  page_fix: string | null
+  checked_at: string | null
+  our_rank: number | null
+  above: string[]
+}
+
+export interface RankConflict { phrase: string; impressions: number; position: number | null; pages: string[] }
+
+export interface RankGap { phrase: string; impressions: number; position: number | null; rising: boolean; page: string | null; shown_pages: string[]; action: string }
+
+export interface Rankings {
+  week: { now: WeekNumbers | null; week_ago: WeekNumbers | null }
+  targets_at: string | null
+  doctor: { at: string | null; treated: { path: string; fix: string; reason: string }[]; menu: string[]; results: FixResult[] }
+  actions: RankAction[]
+  targets: RankTarget[]
+  conflicts: { at: string | null; total: number; items: RankConflict[] }
+  gaps: { at: string | null; total: number; items: RankGap[] }
+}
+
+export const getRankings = () => call<Rankings>('rankings')
+export const revertPage = (path: string) => call<{ reverted: number }>('rankings/revert', { path })

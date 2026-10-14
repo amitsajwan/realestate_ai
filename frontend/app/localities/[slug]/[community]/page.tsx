@@ -6,6 +6,8 @@ import AgentStrip from '@/components/marketing/AgentStrip'
 import MarketingShell from '@/components/marketing/MarketingShell'
 import { longDate } from '@/components/localities/areaStats'
 import { getCommunities, getCommunity } from '@/components/localities/communities'
+import ActiveProjects from '@/components/site/ActiveProjects'
+import { getNearGuide } from '@/lib/site/hubs'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { INSIGHT_NOTE } from '@/lib/marketing/insights'
 import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/seo'
@@ -33,7 +35,8 @@ export default async function CommunityPage({ params }: Props) {
   if (!c || c.area_slug !== slug) notFound()
   const cfg = getMarketingConfig()
   const path = `/localities/${c.area_slug}/${c.slug}`
-  const others = (await getCommunities(c.area)).filter((o) => o.slug !== c.slug).slice(0, 8)
+  const [all, nearby] = await Promise.all([getCommunities(c.area), getNearGuide(c.area_slug, c.slug)])
+  const others = all.filter((o) => o.slug !== c.slug).slice(0, 8)
   const article = {
     '@context': 'https://schema.org', '@type': 'Article', headline: c.title, url: cfg.siteUrl + path,
     datePublished: c.published ?? undefined, dateModified: c.updated ?? undefined,
@@ -66,6 +69,8 @@ export default async function CommunityPage({ params }: Props) {
             </ul>
           </section>
         )}
+
+        <ActiveProjects title={`Projects near ${c.name}`} items={nearby} />
 
         {c.facts.projects.length > 0 && (
           <section className="mt-9" aria-labelledby="projects">

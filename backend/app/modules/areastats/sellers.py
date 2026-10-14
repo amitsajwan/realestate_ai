@@ -33,7 +33,7 @@ import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from app.modules.areastats.pages import promoter_key
+from app.modules.areastats.text import promoter_key
 from app.modules.areastats.websearch import NOT_MARKETERS, site as _site
 
 # ---------------------------------------------------------------------------

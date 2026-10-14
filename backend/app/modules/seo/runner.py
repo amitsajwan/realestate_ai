@@ -1,5 +1,11 @@
-"""The seo worker loop (app/worker.py): every INTERVAL_S, IndexNow (indexnow.py) then the daily index coverage read
-(coverage.py). Each step does nothing while its own setting is unset, and one failing never stops the other."""
+"""The seo worker loop (app/worker.py): every INTERVAL_S, the Search Console read (areastats.searchconsole), IndexNow
+(indexnow.py), the daily index coverage read (coverage.py), then the rank loop (docs/plan/rank-loop.md): daily target searches
+and titles (targets.py), the daily page doctor (doctor.py) and the weekly search gaps (gaps.py). Each step does nothing while
+its own setting is unset or nothing is due, and one failing never stops the others.
+
+The read comes FIRST and is ours to make, not the enrichment loop's (docs/plan/seo-review.md D5): targets and the doctor
+measure pages on those numbers, so with PROJECT_ENRICH_ENABLED off this loop would otherwise treat 15 pages a day against
+yesterday's readings. searchconsole.refresh keeps its own daily mark, so the enrichment loop calling it costs one read."""
 import asyncio
 import logging
 from datetime import datetime, timezone
@@ -8,7 +14,7 @@ from app.modules.areastats import searchconsole
 from app.modules.newsroom.store import Store
 from app.platform import trace
 
-from . import coverage, indexnow
+from . import coverage, doctor, gaps, indexnow, targets
 
 log = logging.getLogger(__name__)
 
@@ -21,7 +27,9 @@ def enabled() -> bool:
 
 async def round_once(store: Store, now: datetime) -> dict:
     out = {}
-    for name, step in (("indexnow", indexnow.run_once), ("coverage", coverage.run_once)):
+    steps = (("gsc", searchconsole.refresh), ("indexnow", indexnow.run_once), ("coverage", coverage.run_once),
+             ("targets", targets.run_once), ("doctor", doctor.run_once), ("gaps", gaps.run_once))
+    for name, step in steps:
         try:
             res = await step(store, now)
         except asyncio.CancelledError:

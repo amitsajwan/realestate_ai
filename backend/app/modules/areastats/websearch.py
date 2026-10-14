@@ -14,6 +14,8 @@ Each day (inside the hot-projects refresh):
 4. a MahaRERA number in a result that the register does not have goes to `discovered_projects` with where it was seen, so the
    lookup job can add it (a project like Lodha Camelot reaches us the day marketers start ranking for it).
 Marketer sites go on the project record as `web_marketers`: for agents, never on the public page (pages.view lists its fields).
+5. target checks (docs/plan/rank-loop.md R8): the target search of a page the page doctor changed 14 or 28 days ago, so the
+   owner sees who ranks above us for it (Search Console gives our position, not theirs).
 About 20 searches a day (600 a month). Read-only: it never clicks an ad or visits a result.
 """
 import logging
@@ -38,8 +40,10 @@ DISCOVERED = "discovered_projects"   # {_id: regno, first_seen, last_seen, seen:
 MARK = "web_search"                  # newsroom_status document: where the area searches are in their turn
 AREA_QUERIES = ("new launch projects in {area} Pune", "upcoming residential projects in {area} Pune",
                 "top residential projects in {area} Pune")
-AREA_PER_DAY = 8
-PROJECT_PER_DAY = 12
+AREA_PER_DAY = 6
+PROJECT_PER_DAY = 8
+TARGET_PER_DAY = 6                   # rank checks: the target search of a page the page doctor changed 14 or 28 days ago
+ACTIONS = "seo_actions"              # the page doctor's log (app/modules/seo/doctor.py)
 KEEP_DAYS = 7
 TOP = 10
 KEEP_RESULTS = 40                    # results kept per search: organic, ads, related searches and questions
@@ -111,6 +115,26 @@ def _aware(d: datetime) -> datetime:
     return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
 
 
+async def target_checks(store: Store, now: datetime, taken: set) -> List[dict]:
+    """Up to TARGET_PER_DAY searches: target phrases of pages changed by the page doctor 14 or 28 days ago, not searched lately."""
+    coll, out = store.db.get_collection(RESULTS), []
+    actions = [a for a in await store.db.get_collection(ACTIONS).find({}).to_list(20000) if a.get("phrase")]
+    actions.sort(key=lambda a: _aware(a["at"]) if isinstance(a.get("at"), datetime) else now)
+    for a in actions:
+        if len(out) >= TARGET_PER_DAY:
+            break
+        q = a.get("phrase")
+        age = (now - _aware(a["at"])).days if isinstance(a.get("at"), datetime) else -1
+        if not q or q in taken or age not in (14, 15, 28, 29):
+            continue
+        old = await coll.find_one({"_id": q})
+        if old and isinstance(old.get("at"), datetime) and now - _aware(old["at"]) < timedelta(days=10):
+            continue
+        taken.add(q)
+        out.append({"q": q, "kind": "target", "area": None, "regno": a.get("regno")})
+    return out
+
+
 async def run_searches(store: Store, projects: List[dict], now: datetime, search: Search) -> dict:
     """Today's searches: the next AREA_PER_DAY area searches in turn, then the hottest projects not searched lately."""
     coll = store.db.get_collection(RESULTS)
@@ -128,6 +152,7 @@ async def run_searches(store: Store, projects: List[dict], now: datetime, search
         if old and isinstance(old.get("at"), datetime) and _aware(old["at"]) > fresh:
             continue
         batch.append({"q": q, "kind": "project", "area": d.get("locality"), "regno": d.get("regno") or d["_id"]})
+    batch += await target_checks(store, now, {b["q"] for b in batch})
     done, failed, handled = 0, 0, 0
     for b in batch:
         try:

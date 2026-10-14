@@ -56,9 +56,10 @@ async def test_indexable_needs_a_date_and_a_promoter_or_pincode():
 
 
 async def test_page_updated_is_our_own_change_never_maharera():
+    # a full datetime, not a date: IndexNow must see the hour a page changed, or two edits the same day look identical
     assert pages.page_updated({"last_modified": "2026-09-28"}) is None
-    assert pages.page_updated({**FULL, "enriched_at": datetime(2026, 10, 5, tzinfo=timezone.utc)}) == "2026-10-05"
-    assert pages.page_updated(FULL) == "2026-10-03"
+    assert pages.page_updated({**FULL, "enriched_at": datetime(2026, 10, 5, tzinfo=timezone.utc)}) == "2026-10-05T00:00:00+00:00"
+    assert pages.page_updated(FULL) == "2026-10-03T09:00:00+00:00"
 
 
 async def test_marketed_name_and_aliases():
@@ -141,7 +142,7 @@ async def test_zero_booked_after_completion_means_not_reported_and_the_page_says
 def test_a_page_is_dated_by_its_last_change():
     from datetime import datetime, timezone
     doc = {"last_modified": "2026-09-01", "details_checked_at": datetime(2026, 10, 3, tzinfo=timezone.utc), "details_ok": True}
-    assert pages.page_updated(doc) == "2026-10-03"
-    assert pages.page_updated({**doc, "page_text_at": datetime(2026, 10, 12, tzinfo=timezone.utc)}) == "2026-10-12"
+    assert pages.page_updated(doc) == "2026-10-03T00:00:00+00:00"
+    assert pages.page_updated({**doc, "page_text_at": datetime(2026, 10, 12, tzinfo=timezone.utc)}) == "2026-10-12T00:00:00+00:00"
     assert pages.page_updated({**doc, "details_ok": False}) is None          # a failed read changed nothing; MahaRERA's own date never counts
     assert pages.page_updated({}) is None

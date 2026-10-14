@@ -10,6 +10,8 @@ import { INSIGHT_NOTE, getInsight } from '@/lib/marketing/insights'
 import { LOCALITIES, type Locality, type LocalityTier, getLocality, localitiesByTier, localityNameFromSlug, localitySource, localitySourceFromSlug } from '@/lib/marketing/localities'
 import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/seo'
 import ProjectCard from '@/components/site/ProjectCard'
+import ActiveProjects from '@/components/site/ActiveProjects'
+import { getActive } from '@/lib/site/hubs'
 import AreaLatest from '@/components/localities/AreaLatest'
 import AreaRecords from '@/components/localities/AreaRecords'
 import { getAreaNews, getAreaPosts } from '@/components/localities/areaFeed'
@@ -118,10 +120,11 @@ export default async function LocalityPage({ params }: Props) {
   const slug = (await params).slug
   if (!validSlug(slug)) notFound()
   const l = pageLocality(slug)
-  const [listings, projects, stats, posts, news, hoods] = await Promise.all([
+  const [listings, projects, stats, posts, news, hoods, active] = await Promise.all([
     getLocalityListings(l.listingName), getCatalog(l.listingName), l.fallback ? Promise.resolve(null) : getAreaStats(l.slug),
     l.fallback ? Promise.resolve([]) : getAreaPosts(l, 6), l.fallback ? Promise.resolve([]) : getAreaNews(l, 5),
     l.fallback ? Promise.resolve([]) : getCommunities(l.key),
+    l.fallback ? Promise.resolve([]) : getActive({ area: l.key }),
   ])
   if (l.fallback && listings.length === 0 && projects.length === 0) notFound()
   const sameTier = localitiesByTier(l.tier).filter((o) => o.slug !== l.slug)
@@ -183,6 +186,7 @@ export default async function LocalityPage({ params }: Props) {
             <p className="mt-3"><Link href="/projects" className="font-semibold text-[#0f2340] underline underline-offset-2">All projects</Link></p>
           </section>
         )}
+        <ActiveProjects title={`Most active projects in ${l.name}`} items={active} />
         <AreaLatest name={l.name} posts={posts} news={news} />
 
         <section className="mt-9"><h2 className="text-xl font-semibold text-slate-900">Homes in {l.name}</h2>
