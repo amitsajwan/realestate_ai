@@ -517,7 +517,9 @@ export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
     },
     async askAiCheck(id, text) {
       find(id)
-      return text.split('\n').filter((x) => x.trim()).map((x) => ({ text: x.trim(), source: '', status: 'words' as const, missing: [], keep: x.trim() }))
+      const lines = text.split('\n').map((x) => x.trim()).filter(Boolean)
+        .map((x) => ({ text: x, source: '', status: 'words' as const, missing: [], keep: x }))
+      return { lines, headline: null, captions: [], pictures: [], reel: [], missing: [] }
     },
     async setListingStatus(id, status: ListingStatus) {
       const l = find(id)

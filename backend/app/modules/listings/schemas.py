@@ -132,6 +132,22 @@ class SellingPoint(BaseModel):
         return self
 
 
+PICTURE_TYPES = ("building render", "amenity", "interior", "view", "master plan", "floor plan", "location map", "price card")
+MAX_PLAN = 8
+
+
+class PictureSlot(BaseModel):
+    """One picture of the plan the agent's AI suggested (listings/askai.py): what to find, where, and the photo the team
+    uploaded for it (`url`, also in `media` in plan order)."""
+    model_config = ConfigDict(extra="forbid")
+    type: Literal[PICTURE_TYPES] = "amenity"
+    shows: str = Field(..., min_length=1, max_length=200)
+    where: str = Field("", max_length=200)
+    text: str = Field("", max_length=80)
+    why: str = Field("", max_length=200)
+    url: Optional[str] = Field(None, max_length=2000)
+
+
 class _Fields(BaseModel):
     """Agent-editable fields, shared by create/update/read. Everything optional so drafts can be sparse."""
     model_config = ConfigDict(extra="forbid")
@@ -162,6 +178,7 @@ class _Fields(BaseModel):
     media: List[Media] = Field(default_factory=list, max_length=MAX_PHOTOS)
     about: Optional[About] = None  # project and area knowledge (docs/contracts/engagement.md); optional, never migrated
     selling_points: Optional[List[SellingPoint]] = Field(None, max_length=MAX_SELLING_POINTS)
+    picture_plan: Optional[List[PictureSlot]] = Field(None, max_length=MAX_PLAN)
 
     @field_validator("selling_points")
     @classmethod

@@ -5,7 +5,6 @@ GET "/{listing_id}/ask-ai", POST "/{listing_id}/ask-ai/check".
 None can shadow the ai_listing module's POST /listings/ai/draft (two segments, last is "draft"),
 so mount order does not matter.
 """
-from pathlib import Path
 from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
@@ -73,19 +72,18 @@ async def delete_listing(listing_id: str, user: User = Depends(current_active_us
 
 
 async def _ask_ai_context(listing_id: str, user: User, svc: ListingService):
-    from app.core.config import settings
     try:
         doc = await svc._mine(str(user.id), listing_id)
     except ListingError as e:
         raise _http(e)
-    return doc, await askai.gather(svc.db, doc, Path(settings.upload_directory))
+    return doc, await askai.gather(svc.db, doc)
 
 
 @router.get("/{listing_id}/ask-ai")
 async def ask_ai_prompts(listing_id: str, lang: Literal["en", "mr", "hi"] = "en", user: User = Depends(current_active_user),
                          svc: ListingService = Depends(get_service)):
     """Ready prompts for the agent's own ChatGPT, Gemini or Claude, built from what we know of this listing."""
-    doc, (sheet, web, _) = await _ask_ai_context(listing_id, user, svc)
+    doc, (sheet, web) = await _ask_ai_context(listing_id, user, svc)
     return {"prompts": askai.prompts(doc, sheet, web, lang)}
 
 
@@ -96,9 +94,9 @@ class AskAiAnswer(BaseModel):
 @router.post("/{listing_id}/ask-ai/check")
 async def ask_ai_check(listing_id: str, body: AskAiAnswer, user: User = Depends(current_active_user),
                        svc: ListingService = Depends(get_service)):
-    """Each line of a pasted AI answer, marked by where its numbers are found (askai.check)."""
-    doc, (sheet, web, brochure) = await _ask_ai_context(listing_id, user, svc)
-    return {"lines": askai.check(body.text, askai.known(doc, sheet, web, brochure))}
+    """A pasted AI answer in parts (fact lines, headline, captions, picture plan, reel, still missing), numbers checked."""
+    doc, (sheet, web) = await _ask_ai_context(listing_id, user, svc)
+    return askai.read_answer(body.text, askai.known(doc, sheet, web))
 
 
 @router.post("/{listing_id}/publish", response_model=Listing)

@@ -255,6 +255,7 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
             <LinkBtn variant="secondary" href={`/studio/listings/${posted.id}`}>Add photos</LinkBtn>
           </div>
         )}
+        <LinkBtn variant="secondary" href={`/studio/listings/${posted.id}?tab=ai`}>Ask AI for a picture plan and posts</LinkBtn>
         <LinkBtn href={`/studio/listings/${posted.id}/marketing`}>{t('startMarketing')}</LinkBtn>
         <section className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4">
           <p className="break-all text-sm text-blue-700">{link}</p>

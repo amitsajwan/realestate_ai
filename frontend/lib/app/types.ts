@@ -87,6 +87,8 @@ export interface Listing {
   about?: About | null
   /** Selling points read from the brochure; only confirmed ones are used in posts. */
   selling_points?: SellingPoint[]
+  /** The pictures the agent's AI suggested (Ask AI), each filled with a photo the team found (`url`, also in media in plan order). */
+  picture_plan?: PictureSlot[] | null
   created_at: string
   updated_at: string
   published_at?: string | null
@@ -369,9 +371,22 @@ export interface FollowupDraft {
 export type DraftLanguage = 'en' | 'hi' | 'mr'
 
 export interface AskAiPrompt { id: string; title: string; use: string; text: string }
-/** checked: in our records; builder: some numbers only in the builder's brochure; unchecked: a number found nowhere
- *  (never kept); words: no numbers. `keep` is the text to save as a highlight ('' for unchecked). */
-export interface AskAiLine { text: string; source: string; status: 'checked' | 'builder' | 'unchecked' | 'words'; missing: string[]; keep: string }
+/** checked: every number is in our records; unchecked: a number found nowhere (never kept); words: no numbers. */
+export type AskAiStatus = 'checked' | 'unchecked' | 'words'
+interface Checked { status: AskAiStatus; missing: string[] }
+/** A fact line; `keep` is the text to save as a highlight ('' for unchecked). */
+export interface AskAiLine extends Checked { text: string; source: string; keep: string }
+export type PictureType = 'building render' | 'amenity' | 'interior' | 'view' | 'master plan' | 'floor plan' | 'location map' | 'price card'
+export interface PictureSlot { type: PictureType; shows: string; where: string; text: string; why: string; url?: string | null }
+/** A pasted AI answer read in parts (listings/askai.py read_answer). */
+export interface AskAiAnswer {
+  lines: AskAiLine[]
+  headline: (Checked & { text: string }) | null
+  captions: Array<Checked & { text: string }>
+  pictures: Array<PictureSlot & Checked>
+  reel: Array<Checked & { picture: string; screen: string; spoken: string }>
+  missing: string[]
+}
 
 export interface TodayHotBuyer {
   id: string
@@ -548,7 +563,7 @@ export interface AppApi {
   /** Ready prompts for the agent's own ChatGPT, Gemini or Claude, built from what we know of the listing. */
   askAiPrompts(id: string, lang?: DraftLanguage): Promise<AskAiPrompt[]>
   /** Each line of a pasted AI answer, marked by where its numbers are found. */
-  askAiCheck(id: string, text: string): Promise<AskAiLine[]>
+  askAiCheck(id: string, text: string): Promise<AskAiAnswer>
   aiDraft(req: AIDraftRequest): Promise<AIDraft>
   suggestAbout(req: AboutSuggestRequest): Promise<AboutSuggestion>
   uploadImages(files: File[]): Promise<UploadedFile[]>
