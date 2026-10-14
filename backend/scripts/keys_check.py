@@ -12,6 +12,7 @@ import base64
 import json
 import os
 import sys
+import time
 from typing import Callable, List, Optional, Tuple
 
 import httpx
@@ -86,8 +87,13 @@ def gemini(c: httpx.Client, key: str) -> Result:
 def gemini_brochure(c: httpx.Client, key: str) -> Result:
     """A real call on the brochure model: a key whose project has billing but no credit lists models yet answers 402 here."""
     model = env("BROCHURE_GEMINI_MODEL", "gemini-3.5-flash").split(",")[0].strip()
-    return _ok(c.post(f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
-                      headers={"x-goog-api-key": key}, json={"contents": [{"parts": [{"text": "Say OK"}]}]}), model)
+    for wait in (0, 5, 15):          # 503/429: Gemini is busy, which says nothing about the key
+        time.sleep(wait)
+        r = c.post(f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+                   headers={"x-goog-api-key": key}, json={"contents": [{"parts": [{"text": "Say OK"}]}]})
+        if r.status_code not in (429, 503):
+            return _ok(r, model)
+    return ("SKIP", f"Gemini busy ({r.status_code}) three times: key not judged, try -Verify later")
 
 
 def search_console(c: httpx.Client, raw: str) -> Result:

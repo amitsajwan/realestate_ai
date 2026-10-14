@@ -56,8 +56,13 @@ $Catalog = @(
      Check = { param($v) $null = Invoke-RestMethod -Uri "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1&key=$v" -TimeoutSec 30 } }
   @{ Name = "BROCHURE_GEMINI_KEY"; For = "Brochure reading, one Gemini 3.5 Flash read per PDF (free tier)"
      Get = "https://aistudio.google.com/apikey -> Create API key in a NEW project with no billing (a billed project answers 402 without credit)"
-     Check = { param($v) $null = Invoke-RestMethod -Method POST -Uri "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent" `
-                 -Headers @{ "x-goog-api-key" = $v } -ContentType "application/json" -Body '{"contents":[{"parts":[{"text":"Say OK"}]}]}' -TimeoutSec 60 } }
+     # 503/429 mean Gemini is busy, not that the key is wrong: tried three times, then saved with a note
+     Check = { param($v) foreach ($wait in 0, 5, 15) {
+                 Start-Sleep -Seconds $wait
+                 try { $null = Invoke-RestMethod -Method POST -Uri "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent" `
+                         -Headers @{ "x-goog-api-key" = $v } -ContentType "application/json" -Body '{"contents":[{"parts":[{"text":"Say OK"}]}]}' -TimeoutSec 60; return }
+                 catch { $code = [int]$_.Exception.Response.StatusCode; if ($code -ne 503 -and $code -ne 429) { throw } } }
+               Write-Host "  Gemini was busy (503) three times: the key is saved unchecked; run -Verify later" -ForegroundColor Yellow } }
   # no Check here: the key is restricted to the server's IP, so it is checked on the VM after saving (keys_check.py, free call)
   @{ Name = "GOOGLE_MAPS_API_KEY"; For = "Each project's own pin on Google Maps, so nearby distances are measured from the project"
      Get = "https://console.cloud.google.com/apis/credentials -> API key restricted to 'Places API (New)' and the server's IP" }
