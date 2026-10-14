@@ -329,6 +329,14 @@ XFADE = 0.25
 _REGNO = re.compile(r"\b(?:P\d{11}|P[RPM]\d{13})\b", re.I)
 
 
+def _distance(m: "re.Match") -> str:
+    km = float(m.group(1))
+    if km < 1:
+        return "less than a kilometre"
+    n = round(km)
+    return "about 1 kilometre" if n == 1 else f"about {n} kilometres"
+
+
 def spoken(line: str) -> str:
     """A screen line as the voice says it: no emphasis marks, no 15-character registration number read out, units in words."""
     t = line.replace("*", "").replace("·", ",")
@@ -336,8 +344,9 @@ def spoken(line: str) -> str:
         t = re.sub(r"\(\s*\)", "", _REGNO.sub("", t)).strip(" ,.") or "MahaRERA registered"
     t = t.replace("₹", "rupees ")
     t = re.sub(r"\bsq\.?\s*ft\b", "square feet", t, flags=re.I)
+    t = re.sub(r"(?:\babout\s+)?\b(\d+(?:\.\d+)?)\s*km\b", _distance, t)   # as people say it: "less than a kilometre", "about 4 kilometres"
     t = re.sub(r"\bkm\b", "kilometres", t)
-    t = re.sub(r"^\d\.\s*", "", t)   # "1. The MahaRERA number": the list number is for the eye
+    t = re.sub(r"^\d{1,2}\.\s+(?!\d)", "", t)   # "1. The MahaRERA number": the list number is for the eye ("0.9 km" was said "9 km")
     return " ".join(t.split()).strip(" ,") or "MahaRERA registered"
 
 
