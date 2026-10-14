@@ -24,7 +24,7 @@ from typing import Any, Dict, Iterable, List, Optional
 # confirmed on the listing (points.py); "agent project": the agent's project record that names the towers it sells
 # (agentprojects.groups: "Lodha Camelot" for MahaRERA's "Kharadi New Project - Tower 1")
 OFFICIAL = frozenset({"maharera", "listing", "agent confirmed", "agent project"})
-MEASURED = frozenset({"osm", "calc"})
+MEASURED = frozenset({"osm", "calc", "google"})   # google: the project's own pin, checked (pin.py)
 BUILDER = frozenset({"brochure"})  # the builder's brochure, confirmed by the agent (brochure.py)
 USABLE = ("official", "measured", "corroborated")
 ATTRIBUTED = "builder_claim"

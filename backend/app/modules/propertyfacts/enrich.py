@@ -20,8 +20,10 @@ def _shared_clients(db) -> Clients:
     """One Clients for the process, so its Nominatim throttle and cache span every project."""
     global _clients
     if _clients is None:
+        from app.core.config import settings
         from app.modules.newsroom.store import Store as Register
-        _clients = Clients(register=Register(db), facts_store=FactsStore(db))
+        from .pin import Pins
+        _clients = Clients(register=Register(db), facts_store=FactsStore(db), pins=Pins(db, settings.google_maps_api_key))
     return _clients
 
 

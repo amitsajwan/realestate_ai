@@ -6,6 +6,7 @@ import pytest
 from app.modules.newsroom.sources.maharera import parse_projects
 from app.modules.propertyfacts import gather as gather_mod
 from app.modules.propertyfacts import place, registration, surroundings
+from app.modules.propertyfacts.pin import Pin
 
 # saved from MahaRERA's public search on 2026-10-06: two projects named Gulmohar City (Shirur 412209, Khed 410501)
 SEARCH_PAGE = (Path(__file__).parent / "fixtures" / "maharera_search_gulmohar_city.html").read_text(encoding="utf-8")
@@ -69,9 +70,22 @@ def test_readings_from_card_and_details():
     assert rs["rera_no"].url == "https://maharerait.maharashtra.gov.in/public/project/view/46398"
 
 
+class FakePins:
+    """Google Maps finds the project at the given point (the Overpass distances above are measured from it)."""
+    def __init__(self, at=(18.7536353, 74.2445791)):
+        self.at, self.asked = at, []
+
+    async def find(self, key, project, locality, pincode="", centre=None, now=None):
+        self.asked.append((key, project, locality, pincode))
+        if not self.at:
+            return None, "not found on Google Maps"
+        return Pin(self.at[0], self.at[1], "gp1", project, f"{locality}, Pune", "https://www.google.com/maps/place/?q=place_id:gp1"), "found"
+
+
 class Fakes:
-    def __init__(self, page=SEARCH_PAGE, general=GENERAL, nominatim=NOMINATIM_RANJANGAON):
+    def __init__(self, page=SEARCH_PAGE, general=GENERAL, nominatim=NOMINATIM_RANJANGAON, pins=None):
         self.page, self.general, self.nominatim, self.calls = page, general, nominatim, []
+        self.pins = pins if pins is not None else FakePins()
 
     async def get_text(self, url):
         self.calls.append(url)
@@ -106,7 +120,17 @@ async def test_gather_gulmohar_city():
 async def test_gather_says_what_it_could_not_find():
     s = await gather_mod.gather(LISTING, Fakes(nominatim=None, page=""), NOW)
     assert s.place is None and s.match.project is None
-    assert s.notes[0].startswith("could not place") and s.notes[1].startswith("MahaRERA: ")
+    assert s.notes[0].startswith("could not place") and any(n.startswith("MahaRERA: ") for n in s.notes)
+
+
+async def test_nearby_is_measured_only_from_the_projects_own_pin():
+    f = Fakes(pins=FakePins(at=None))
+    s = await gather_mod.gather(LISTING, f, NOW)
+    assert not any(k.startswith("nearby.") for k in s.facts) and "located_at" not in s.facts
+    assert s.facts["lat"].sources == ["osm"]                      # the locality's centre, for the map only
+    assert any("nearby places are not listed" in n for n in s.notes)
+    s = await gather_mod.gather(LISTING, Fakes(), NOW)
+    assert s.facts["lat"].sources == ["google"] and s.facts["lat"].usable and s.facts["located_at"].value == "project"
 
 
 async def test_gather_with_the_registration_but_no_details():

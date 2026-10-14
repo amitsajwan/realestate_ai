@@ -15,6 +15,7 @@ import httpx
 from app.modules.agentprojects.maharera import make_fetch
 
 from . import brochure, calc, points, registration, surroundings
+from . import pin as pin_mod
 from . import place as place_mod
 from .facts import Fact, Reading, sheet
 
@@ -46,21 +47,29 @@ def listing_readings(doc: Dict[str, Any], now: datetime) -> List[Reading]:
     return out
 
 
-def place_readings(p: place_mod.Place, now: datetime) -> List[Reading]:
-    return [Reading(k, v, "osm", p.url, now) for k, v in
-            (("lat", p.lat), ("lon", p.lon), ("taluka", p.taluka), ("district", p.district)) if v not in (None, "")]
+def place_readings(p: place_mod.Place, now: datetime, position: bool = True) -> List[Reading]:
+    """The locality's taluka and district; its centre too when `position` (no project pin to use instead)."""
+    keys = (("lat", p.lat), ("lon", p.lon)) if position else ()
+    return [Reading(k, v, "osm", p.url, now) for k, v in (*keys, ("taluka", p.taluka), ("district", p.district))
+            if v not in (None, "")]
+
+
+def pin_readings(p: pin_mod.Pin, now: datetime) -> List[Reading]:
+    return [Reading("lat", p.lat, "google", p.url, now), Reading("lon", p.lon, "google", p.url, now),
+            Reading("located_at", "project", "calc", p.url, now)]
 
 
 class Clients:
     """Real network access, polite by default: Nominatim at most 1 request a second, answers cached for the process."""
 
     def __init__(self, timeout: float = 60.0, register: Any = None, facts_store: Any = None, brochures: Any = None,
-                 groups: Any = None):
+                 groups: Any = None, pins: Any = None):
         """`register`: the newsroom Store, read before MahaRERA; `facts_store`: where gathered sheets are kept; `brochures`: the
         listing's brochure kits (brochure.Brochures); `groups`: marketed projects sold under several registrations
-        (agentprojects.groups.Groups). All optional."""
+        (agentprojects.groups.Groups); `pins`: the project's own pin on Google Maps (pin.Pins). All optional."""
         self.timeout = timeout
         self.register, self.facts_store, self.brochures, self.groups = register, facts_store, brochures, groups
+        self.pins = pins
         self._cache: Dict[str, Any] = {}
         self._last_osm = 0.0
         self._osm_lock = asyncio.Lock()
@@ -130,19 +139,36 @@ def disagreements(facts: Dict[str, Fact]) -> List[str]:
     return out
 
 
+async def _project_pin(doc: Dict[str, Any], clients: Any, where: Optional[place_mod.Place], official: List[Reading],
+                       now: datetime) -> tuple:
+    """(readings for the project's own pin, or [], and a note): the pin on Google Maps, checked against the MahaRERA name and
+    pincode and the locality's centre (pin.py)."""
+    pins = getattr(clients, "pins", None)
+    if pins is None:
+        return [], "no Google Maps lookup configured"
+    got = {r.key: r.value for r in official}
+    name = str(got.get("project_name") or doc.get("project_name") or "")
+    regno = str(got.get("rera_no") or doc.get("rera_no") or "")
+    locality = doc.get("locality") or ""
+    key = regno.upper() or "-".join(pin_mod._words(f"{name} {locality}")) or "unknown"
+    try:
+        p, note = await pins.find(key, name, locality, str(got.get("pincode") or ""), (where.lat, where.lon) if where else None, now)
+    except Exception as e:  # a lookup that breaks must not stop the sheet
+        log.exception("pin: lookup failed for %s", key)
+        return [], f"Google Maps lookup failed ({type(e).__name__})"
+    return (pin_readings(p, now), note) if p else ([], note)
+
+
 async def gather(doc: Dict[str, Any], clients: Any, now: Optional[datetime] = None) -> Sheet:
     """`clients` needs get_text(url), get_json(url, params) and fetch_general(maharera_id); tests pass fakes."""
     now = now or datetime.utcnow()
     rs = listing_readings(doc, now)
     notes: List[str] = []
 
+    # the locality's centre tells same-named MahaRERA projects apart (taluka); distances are measured only from the project's
+    # own pin, found after the registration below
     where = await place_mod.locate(clients.get_json, doc.get("locality") or "", doc.get("city") or "Pune")
-    if where:
-        rs += place_readings(where, now)
-        near, missing = await surroundings.around(clients.get_json, where.lat, where.lon, now)
-        rs += near
-        notes += missing
-    else:
+    if not where:
         notes.append(f"could not place locality {doc.get('locality')!r} on the map")
 
     kits = getattr(clients, "brochures", None)
@@ -153,6 +179,16 @@ async def gather(doc: Dict[str, Any], clients: Any, now: Optional[datetime] = No
                                                 doc.get("rera_no") or kit_rera, where, now, getattr(clients, "register", None),
                                                 getattr(clients, "groups", None))
     rs += official
+    rs_pin, note = await _project_pin(doc, clients, where, official, now)
+    if rs_pin:
+        rs += rs_pin
+        near, missing = await surroundings.around(clients.get_json, rs_pin[0].value, rs_pin[1].value, now)
+        rs += near
+        notes += missing
+    else:
+        notes.append(note + "; nearby places are not listed (the locality's centre is not the project)")
+    if where:
+        rs += place_readings(where, now, position=not rs_pin)
     if match.project is None:
         notes.append("MahaRERA: " + match.how)
     elif not any(r.key == "possession_now" for r in official):

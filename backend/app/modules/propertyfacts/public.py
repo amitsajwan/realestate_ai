@@ -46,7 +46,9 @@ def view(doc: Optional[dict]) -> Optional[dict]:
         }
 
     near: List[dict] = []
-    for k, fact in f.items():
+    # only distances measured from the project's own pin (pin.py); a sheet measured from the locality's centre gave every
+    # project in the area the same list
+    for k, fact in (f.items() if _val(f, "located_at") == "project" else ()):
         if k.startswith("nearby.") and isinstance(fact.get("value"), list):
             near += [{"label": label(k), "name": p.get("name"), "km": p.get("km")} for p in fact["value"] if p.get("name")]
     if near:
