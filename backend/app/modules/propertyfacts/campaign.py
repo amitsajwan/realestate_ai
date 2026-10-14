@@ -209,6 +209,8 @@ class Ctx:
         self.kind = "plot" if self.plot else "home"
         bhk = self.v.get("bhk")   # one flat is named as buyers search it ("3 BHK"); a project's many stay "homes"
         self.unit = bhk_label(float(bhk)) if bhk and not self.plot and self.v.get("listing_scope") != "layout" else self.kind
+        # a project's many, named by the listed BHK when there is one: "3 BHK homes from ₹2.24 crore onwards", not "Homes"
+        self.units = f"{bhk_label(float(bhk))} {self.kind}s" if bhk and not self.plot else f"{self.kind.capitalize()}s"
         self.layout = self.v.get("listing_scope") == "layout"   # a whole project: the price is a starting price
         self.registered = self.maharera   # the listing page carries a MahaRERA record (the link line says so)
         if self.plot:  # a plot's size needs a source besides the agent's own entry (a layout's total area once went out as one plot's size)
@@ -266,7 +268,8 @@ class Ctx:
         official = "MahaRERA details and " if self.maharera else ""
         kw.setdefault("writer_note", "\n".join(n for n in (
             f"This post markets {what}. Its listed price, project name, {official}nearby places are facts you "
-            "may use exactly as written; add no other number.", self.readers, previous_note(self.previous)) if n))
+            "may use exactly as written; add no other number. The only ask is a comment (the cards say 'Comment INFO'): "
+            "never ask for a DM, a message or a call.", self.readers, previous_note(self.previous)) if n))
         kw.setdefault("hashtags", self.tags())
         kw.setdefault("photo", self.photo)
         kw.setdefault("link", self.link)
@@ -293,10 +296,10 @@ def price_reveal(c: Ctx) -> Optional[Brief]:
         return None
     price = price_label(c.v["price_inr"])
     if c.layout or not c.sqft:
-        what = f"{c.kind.capitalize()}s at {c.where}" if c.layout else f"This {c.kind} at {c.where}"
+        what = f"{c.units} at {c.where}" if c.layout else f"This {c.kind} at {c.where}"
         line = f"{what}: from {price} onwards."
         c.used.add("price")
-        return c.brief(angle="price_reveal", hook=f"{c.kind.capitalize()}s from {price} onwards in {c.project or c.locality}",
+        return c.brief(angle="price_reveal", hook=f"{c.units if c.layout else c.kind.capitalize() + 's'} from {price} onwards in {c.project or c.locality}",
                        topic=f"Starting price at {c.where}", short="starting price", stat_value=price,
                        stat_label="onwards", facts=[line],   # "from ₹2.24 crore" did not fit the big number; "onwards" says it
                        tip="Ask what the price includes: development charges, stamp duty and registration.", prefer="stat")
@@ -382,14 +385,27 @@ def rate_per_sqft(c: Ctx) -> Optional[Brief]:
                    tip="Compare the rate per sq ft, not the total price.", prefer="stat")
 
 
+def _inr(n: int) -> str:
+    """155514 -> '1,55,514': Indian grouping (a buyer reads ₹155,514 as foreign)."""
+    s = str(int(n))
+    if len(s) <= 3:
+        return s
+    head, tail = s[:-3], s[-3:]
+    parts = []
+    while len(head) > 2:
+        parts.insert(0, head[-2:])
+        head = head[:-2]
+    return ",".join(([head] if head else []) + parts) + "," + tail
+
+
 def emi(c: Ctx) -> Optional[Brief]:
     e = c.v.get("emi")
     if not e or c.layout:  # a starting price: an EMI on it would read as the EMI of every unit
         return None
     loan = price_label(e["loan"])
     rate = f"{e['rate']:g}%"
-    line = f"EMI of ₹{e['emi']:,} a month on a {loan} loan (80% of the price) at {rate} for {e['years']} years."
-    return c.brief(angle="emi", hook=f"₹{e['emi']:,} a month for this {c.kind}", topic=f"Monthly EMI for this {c.kind}", short="monthly EMI", stat_value=f"₹{e['emi']:,}",
+    line = f"EMI of ₹{_inr(e['emi'])} a month on a {loan} loan (80% of the price) at {rate} for {e['years']} years."
+    return c.brief(angle="emi", hook=f"₹{_inr(e['emi'])} a month for this {c.kind}", topic=f"Monthly EMI for this {c.kind}", short="monthly EMI", stat_value=f"₹{_inr(e['emi'])}",
                    stat_label=f"a month EMI for this {c.kind}", facts=[line],
                    tip="Ask your bank for its actual rate before you plan.", prefer="stat")
 
@@ -587,7 +603,7 @@ def overview(c: Ctx) -> Optional[Brief]:
     steps.append("Book a site visit: full details in the caption.")
     # the size leads, not the price: the price_reveal post opens with the price (two "Homes from ₹2.24 crore" covers, Camelot)
     if c.layout:
-        lead = f"{lo:,} to {hi:,} sq ft {c.kind}s" if lo and hi and hi > lo else f"{c.kind.capitalize()}s"
+        lead = f"{lo:,} to {hi:,} sq ft {c.kind}s" if lo and hi and hi > lo else c.units
     else:
         sqft = f"{c.sqft:,} sq ft" if c.sqft else ""
         lead = (f"{c.unit}, {sqft}" if sqft else c.unit) if c.unit != c.kind else " ".join(w for w in ("A", sqft, c.kind) if w)
