@@ -274,3 +274,47 @@ def render(src, out_path, *, title: str, agent_name: str = "", agent_logo: Optio
                 "source_seconds": round(p.duration, 2)}
     finally:
         shutil.rmtree(work, ignore_errors=True)
+
+
+VOICE_START_S = 0.6     # the first spoken line, just after the hook card comes up
+VOICE_MIN_GAP_S = 0.35  # between two spoken lines, at the least
+
+
+def voice_starts(durations: Sequence[float], total: float) -> List[float]:
+    """Where each spoken line starts: spread evenly over the clip before its end card, never overlapping, and only the lines
+    that fit (a long script over a short clip loses its last lines rather than talking over the end card)."""
+    room = max(0.0, total - END_SECONDS - VOICE_START_S)
+    slot = room / max(1, len(durations))
+    out: List[float] = []
+    t = VOICE_START_S
+    for d in durations:
+        if t + d > total - END_SECONDS + 1.0:   # the end card is 3 s: a line may run a second into it
+            break
+        out.append(t)
+        t = max(t + d + VOICE_MIN_GAP_S, VOICE_START_S + slot * len(out))
+    return out
+
+
+def voice_over(path, lines: Sequence[str], lang: str = "en") -> str:
+    """Put a voice-over (the lines, spread over the clip, over our music bed which steps back under it) on a finished video
+    reel in place of its sound: for a video nobody speaks in. "take"|"lines" (how the voice was made), or "off" when no line
+    fits. Raises voice.VoiceError / ffmpeg.FfmpegError on failure, the reel at `path` untouched."""
+    from . import narration
+    from .music import write as write_music
+
+    path = Path(path)
+    total = ffmpeg.probe(path).duration or 0.0
+    work = Path(tempfile.mkdtemp(prefix="video-voice-"))
+    try:
+        clips, how = narration.voice_lines([x for x in lines if x.strip()], lang, work)
+        starts = voice_starts([ffmpeg.probe(c).duration for c in clips], total)
+        if not starts:
+            return "off"
+        audio = narration.mix(work, clips[:len(starts)], starts, total, write_music(work / "bed.wav", seconds=total + 1.0))
+        voiced = work / "voiced.mp4"
+        ffmpeg.run(["-i", str(path), "-i", str(audio), "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy", "-c:a", "aac",
+                    "-b:a", "160k", "-ar", "48000", "-ac", "2", "-t", f"{total:.3f}", "-movflags", "+faststart", str(voiced), "-y"])
+        shutil.move(str(voiced), str(path))
+        return how
+    finally:
+        shutil.rmtree(work, ignore_errors=True)

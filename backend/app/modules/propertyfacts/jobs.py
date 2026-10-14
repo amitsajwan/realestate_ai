@@ -479,7 +479,7 @@ class MarketingRuns:
         reels = await self._ad_reels(job, posts, out, project, pool, facts or {})
         video = self._video(listing)
         if video:
-            reels.append(await self._video_reel(job, listing, video, out, project, link_line))
+            reels.append(await self._video_reel(job, listing, video, out, project, link_line, facts))
         if self.reel_jobs is not None and not video:
             from app.modules.reels.listing_reel import MIN_PHOTOS, listing_photos
             from . import pictures
@@ -524,11 +524,14 @@ class MarketingRuns:
             try:
                 script = await ad_reel.write(fmt, ctx, llm)
                 order = pics[i % len(pics):] + pics[:i % len(pics)] if pics else []
-                await asyncio.to_thread(render, script, order, dest, kicker)
+                made = await asyncio.to_thread(render, script, order, dest, kicker)
+                made = made if isinstance(made, dict) else {}
                 reels.append({"kind": "ad", "angle": p["angle"], "format": fmt, "script": script.out(),
-                              "caption": ad_reel.caption(script, p["caption"]),
+                              "caption": ad_reel.caption(script, p["caption"]), "voice": made.get("voice"),
+                              "seconds": made.get("seconds"),
                               "video": "/uploads/" + dest.resolve().relative_to(self.uploads_dir.resolve()).as_posix()})
-                trace.event(log, "marketing", job["_id"], "ad_reel", trace.OK, angle=p["angle"], format=fmt)
+                trace.event(log, "marketing", job["_id"], "ad_reel", trace.OK, angle=p["angle"], format=fmt,
+                            voice=made.get("voice"), seconds=made.get("seconds"))
             except Exception as e:
                 trace.event(log, "marketing", job["_id"], "ad_reel", trace.FAILED, angle=p["angle"], format=fmt,
                             reason=str(e) or type(e).__name__, exc_info=True)
@@ -683,9 +686,32 @@ class MarketingRuns:
                 return p
         return None
 
-    async def _video_reel(self, job: dict, listing: dict, video: Path, out: Path, project: str, link_line: str) -> dict:
+    async def _voice_video(self, dest: Path, facts: Dict[str, Any], speech: Sequence, ref: str) -> str:
+        """A voice-over on the video reel when nobody speaks in the video (a builder's walkthrough with music or silence): the
+        showcase reel's checked lines, spread over the clip, music under them. "take"|"lines" when added, "kept" when the video
+        has its own speech, "off"/"failed" otherwise. Never raises."""
+        from app.modules.reels import video_reel, voice
+
+        from . import ad_reel
+        if speech:
+            return "kept"
+        if not voice.available():
+            return "off"
+        try:
+            ctx = campaign.Ctx(facts)
+            fmt = "showcase" if "showcase" in ad_reel.eligible(ctx) else "three_reasons"
+            script = await ad_reel.write(fmt, ctx, self.llm_factory() if self.llm_factory else None)
+            how = await asyncio.to_thread(video_reel.voice_over, dest, [ad_reel.spoken(x) for x in script.lines()])
+            trace.event(log, "marketing", ref, "video_voice", trace.OK if how in ("take", "lines") else trace.SKIPPED, voice=how)
+            return how
+        except Exception as e:
+            trace.event(log, "marketing", ref, "video_voice", trace.FAILED, reason=str(e)[:200] or type(e).__name__)
+            return "failed"
+
+    async def _video_reel(self, job: dict, listing: dict, video: Path, out: Path, project: str, link_line: str,
+                          facts: Optional[Dict[str, Any]] = None) -> dict:
         """The reel from the listing's own video, in the agent's brand. Rendered here (a minute or two); a failure is kept as
-        a skipped reel with its reason, the campaign goes on."""
+        a skipped reel with its reason, the campaign goes on. `facts`: for a voice-over when the video has no speech."""
         from app.modules.reels import video_reel
         from app.modules.reels.listing_reel import caption as reel_caption
         prof = await self.profiles.find_one({"agent_id": job["agent_id"]}) or {}
@@ -710,8 +736,10 @@ class MarketingRuns:
         heard = await files.video_claims(edit.speech, self.llm_factory() if self.llm_factory else None)
         if heard:   # what the presenter says, for the assistant (the builder's claims)
             await files.save_claims(self.listings, listing["_id"], video=heard, now=self.now())
+        spoken = await self._voice_video(dest, facts, edit.speech, job["_id"]) if facts else "off"
         caption = (edit.caption + "\n\n" + "\n".join(who.contact)) if edit.caption else reel_caption(listing, "")
         return {"kind": "video", "status": "done", "seconds": res["seconds"], "removed_strip": bool(res["removed_strip"]),
+                "voice": spoken,
                 "edit": {"by": edit.source, "segments": edit.segments, "hook": edit.hook, "notes": edit.notes},
                 "heard": heard,
                 "video": "/uploads/" + dest.resolve().relative_to(self.uploads_dir.resolve()).as_posix(),

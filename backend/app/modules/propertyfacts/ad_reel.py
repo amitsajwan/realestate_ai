@@ -3,12 +3,14 @@
 Why: on the Avasetu page 89.9% of views came from the Reels tab and 0.6% from the feed (Meta insights, 2026-10-10), so a post that
 is only an image reaches almost nobody.
 
-A reel is a `script` in one of FORMATS (price reveal, 3 reasons, POV, myth vs fact, checklist) and is rendered with compose:
+A reel is a `script` in one of FORMATS (showcase, price reveal, 3 reasons, POV, myth vs fact, checklist) and is rendered with compose:
   hook     the best picture at once, its line in big type in the middle third (no fade-in, no brand tag: frame one is content)
   beats    one short line per picture, a cut every ~1.5 s (most people watch muted and read)
   payoff   the fact the hook promised (the price, the RERA number), held back to the end so people watch to it
   cta      one action: a comment keyword, so leads per format are countable (calendar.tags reads "Comment WORD")
   loop     the hook picture again with no text, so the replay runs on without a jump (watch-through counts the replays)
+  voice    every line is also spoken (reels.voice, Chirp 3 HD en-IN) over the music bed, which steps back under it; a scene lasts
+           as long as its line takes to say, so a reel runs 15-20 s. Without a voice (no key, the service down) it is music only.
 The words come from the LLM when it keeps to the facts (every number in a line must be in the facts, guards.problems_in finds
 hype and predictions), else from the code's own template; the facts are always the code's.
 
@@ -27,10 +29,11 @@ from .campaign import Ctx, _near, _numbers
 log = logging.getLogger(__name__)
 
 EXPERIMENT = "ad_reel"
-FORMATS = ("price_reveal", "three_reasons", "pov", "myth_fact", "checklist")
+FORMATS = ("showcase", "price_reveal", "three_reasons", "pov", "myth_fact", "checklist")
 EXPLORE = 0.2
 HOOK_WORDS, LINE_WORDS = 10, 8
-HOOK_S, BEAT_S, PAYOFF_S, CTA_S, LOOP_S = 1.9, 1.5, 2.0, 1.8, 0.7
+HOOK_S, BEAT_S, PAYOFF_S, CTA_S, LOOP_S = 1.9, 1.5, 2.0, 1.8, 0.7   # the least each scene lasts; a spoken line makes it longer
+VOICE_PAD_S = 0.45      # after a spoken line, before the next scene's cut
 CTA_WORD = "VISIT"
 
 
@@ -83,10 +86,34 @@ def _layout(c: Ctx) -> str:
     return f"A {float(acres):g}-acre layout" if c.layout and acres else ""
 
 
+def _bhk(c: Ctx) -> str:
+    b = c.v.get("bhk")
+    return f"{float(b):g} BHK" if b and not c.plot else ""
+
+
+def _amenities(c: Ctx, n: int = 3) -> List[str]:
+    """The amenities the agent listed (the listing's own field, never a brochure claim nobody confirmed)."""
+    a = c.v.get("amenities")
+    return [str(x) for x in a if str(x).strip()][:n] if isinstance(a, list) else []
+
+
+def _homes(c: Ctx) -> str:
+    """"308 homes": MahaRERA's count (all the towers of a marketed project), said with the project's name."""
+    u = c.v.get("units_total")
+    return f"{int(u)} {'plots' if c.plot else 'homes'}" if u and c.project and c.maharera else ""
+
+
+def _completion(c: Ctx) -> str:
+    from .campaign import day, possession_card_ok
+    now = c.v.get("possession_now")
+    return f"Completion {day(now)[3:]} on MahaRERA" if now and possession_card_ok(c) else ""
+
+
 def corpus(c: Ctx) -> str:
     """Every fact a line may state, as text (the guard's corpus: a number not in here is never said)."""
-    bits = [c.where, _price(c), _size(c), _layout(c), *_places(c, 6), str(c.v.get("rera_no") or ""), str(c.v.get("possession_date") or ""),
-            str(c.v.get("units_total") or ""), "1 2 3"]   # list numbers and "3 reasons" are the format's own
+    bits = [c.where, _price(c), _size(c), _layout(c), _bhk(c), *_amenities(c, 8), _homes(c), _completion(c), *_places(c, 6),
+            str(c.v.get("rera_no") or ""), str(c.v.get("possession_date") or ""), str(c.v.get("units_total") or ""),
+            "1 2 3"]   # list numbers and "3 reasons" are the format's own
     return " | ".join(b for b in bits if b)
 
 
@@ -94,6 +121,8 @@ def eligible(c: Ctx) -> List[str]:
     """The formats this property has the facts for."""
     places = _places(c)
     ok = []
+    if c.project and _price(c) and (_amenities(c) or _homes(c) or _bhk(c)):   # the project itself sells first
+        ok.append("showcase")
     if _price(c) and (places or _size(c) or _layout(c) or c.registered):
         ok.append("price_reveal")
     if len([x for x in (_price(c), _size(c), _layout(c), c.registered, *places) if x]) >= 2:
@@ -113,6 +142,14 @@ def template(fmt: str, c: Ctx) -> Script:
     rera = f"MahaRERA {c.v['rera_no']}" if c.registered else ""
     cta = f"Comment {CTA_WORD} for a site visit"
     facts = [x for x in (size, _layout(c), *places, "MahaRERA registered" if c.registered else "") if x]
+    if fmt == "showcase":
+        lead = " ".join(x for x in (_bhk(c), "at" if _bhk(c) else "", c.project) if x)
+        amen = _amenities(c)
+        beats = [x for x in (
+            (", ".join(amen[:-1]) + " and " + amen[-1] if len(amen) > 1 else (amen[0] if amen else "")),
+            (f"{_homes(c)}, MahaRERA registered" if _homes(c) else ("MahaRERA registered" if c.registered else "")),
+            size, _completion(c), *(places[:1])) if x][:4]
+        return Script(fmt, f"{lead}, {place}", beats or facts[:3], f"*{price}*" if price else rera, cta)
     if fmt == "price_reveal":
         return Script(fmt, f"Guess the price of this {what} in {place}", facts[:3], f"*{price}*" if price else rera, cta)
     if fmt == "pov":
@@ -132,10 +169,13 @@ def template(fmt: str, c: Ctx) -> Script:
 
 # ---- the LLM's wording, kept only when it keeps to the facts -------------------------------------------------------------
 SYSTEM = (
-    "You write the on-screen text of a 12-second Instagram/Facebook Reel for an Indian property listing, like a top ad agency. "
+    "You write a 15-20 second Instagram/Facebook Reel for an Indian property listing, like a top ad agency that sells homes. "
+    "Every line is shown on screen AND spoken by a voice-over, so it must sound natural said aloud. "
     "Rules: the hook stops the scroll in under 1 second (at most 10 words: a question, a number, or 'POV: ...'); each beat is "
     "at most 8 words, one idea per picture; the payoff is the fact the hook promised; the cta asks to 'Comment " + CTA_WORD +
-    "'. Use ONLY the facts given: never a number, price, distance or name that is not in them, never a forecast of prices or "
+    "'. Sell the project first: its name, the configuration (BHK), the price, its amenities and its size or number of homes; "
+    "a distance is a supporting beat, never more than one hospital or school line. "
+    "Use ONLY the facts given: never a number, price, distance or name that is not in them, never a forecast of prices or "
     "returns, no hype words (best, luxurious, dream, guaranteed). Plain English a Pune buyer speaks. "
     "Reply with JSON only: {\"hook\": \"...\", \"beats\": [\"...\", \"...\", \"...\"], \"payoff\": \"...\", \"cta\": \"...\"}")
 
@@ -256,9 +296,55 @@ def scenes(s: Script, pictures: Sequence, kicker: Optional[str] = None) -> list:
     return out
 
 
-def render(s: Script, pictures: Sequence, dest: Path, kicker: Optional[str] = None) -> Path:
-    from app.modules.reels.compose import make_reel
-    return make_reel(scenes(s, pictures, kicker), dest, xfade=0.25, progress=False, end_card=False, hook_tag=False)
+XFADE = 0.25
+_REGNO = re.compile(r"\b(?:P\d{11}|P[RPM]\d{13})\b", re.I)
+
+
+def spoken(line: str) -> str:
+    """A screen line as the voice says it: no emphasis marks, no 15-character registration number read out, units in words."""
+    t = line.replace("*", "").replace("·", ",")
+    if _REGNO.search(t):
+        t = re.sub(r"\(\s*\)", "", _REGNO.sub("", t)).strip(" ,.") or "MahaRERA registered"
+    t = t.replace("₹", "rupees ")
+    t = re.sub(r"\bsq\.?\s*ft\b", "square feet", t, flags=re.I)
+    t = re.sub(r"\bkm\b", "kilometres", t)
+    t = re.sub(r"^\d\.\s*", "", t)   # "1. The MahaRERA number": the list number is for the eye
+    return " ".join(t.split()).strip(" ,") or "MahaRERA registered"
+
+
+def render(s: Script, pictures: Sequence, dest: Path, kicker: Optional[str] = None, voiced: bool = True,
+           lang: str = "en") -> Dict[str, Any]:
+    """The reel at `dest`: each line on screen and spoken (when the voice service answers), a scene as long as its line.
+    {"path", "voice": "take"|"lines"|"off"|"failed", "seconds"}."""
+    import shutil
+    import tempfile
+
+    from app.modules.reels import ffmpeg, narration, voice
+    from app.modules.reels.compose import make_reel, plan
+    from app.modules.reels.music import write as write_music
+
+    sc = scenes(s, pictures, kicker)
+    lines = s.lines()   # hook, beats, payoff, cta: scenes 0..len(lines)-1; the last scene (the loop) is silent
+    work = Path(tempfile.mkdtemp(prefix="ad-reel-"))
+    audio, how = None, "off"
+    try:
+        if voiced and voice.available():
+            try:
+                clips, how = narration.voice_lines([spoken(x) for x in lines], lang, work)
+                for i, clip in enumerate(clips):
+                    sc[i].seconds = max(sc[i].seconds or 0.0, ffmpeg.probe(clip).duration + VOICE_PAD_S)
+                tl = plan([x.seconds for x in sc], XFADE)
+                audio = narration.mix(work, clips, tl.starts[:len(clips)], tl.total,
+                                      write_music(work / "bed.wav", seconds=tl.total + 1.0))
+            except voice.VoiceError as e:
+                log.warning("ad reel: no voice-over (%s); music only", e)
+                how, audio = "failed", None
+                for x, d in zip(sc, (HOOK_S, *[BEAT_S] * len(s.beats), PAYOFF_S, CTA_S, LOOP_S)):
+                    x.seconds = d
+        make_reel(sc, dest, music=audio, xfade=XFADE, progress=False, end_card=False, hook_tag=False)
+        return {"path": dest, "voice": how, "seconds": round(plan([x.seconds for x in sc], XFADE).total, 1)}
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
 
 
 def caption(s: Script, post_caption: str) -> str:
