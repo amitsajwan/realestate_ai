@@ -336,8 +336,11 @@ NVIDIA_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
 # More free OpenAI-compatible providers, used when their key is set: (key env, url, model env, default models).
 EXTRA_TEXT_PROVIDERS = (
     ("GITHUB_MODELS_TOKEN", GITHUB_MODELS_URL, "AI_GITHUB_MODEL", "openai/gpt-4.1-mini,openai/gpt-4o-mini"),
-    ("NVIDIA_API_KEY", NVIDIA_URL, "AI_NVIDIA_MODEL", "openai/gpt-oss-20b"),
+    ("SAMBANOVA_API_KEY", "https://api.sambanova.ai/v1/chat/completions", "AI_SAMBANOVA_MODEL", "DeepSeek-V3.2,gpt-oss-120b"),
 )
+# Off unless asked for (owner, 2026-10-14: drop the models that do not work): NVIDIA timed out on every call (20 s lost per
+# failover) and OpenRouter's free preview models were weak and spent their 50 requests a day by noon.
+OPT_IN_TEXT_PROVIDERS = (("NVIDIA_API_KEY", NVIDIA_URL, "AI_NVIDIA_MODEL", "openai/gpt-oss-20b"),)
 # Cloudflare Workers AI (10,000 free neurons a day): the URL carries the account id.
 CLOUDFLARE_URL = "https://api.cloudflare.com/client/v4/accounts/{account}/ai/v1/chat/completions"
 CLOUDFLARE_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
@@ -356,14 +359,15 @@ def text_providers() -> list["GroqLLM"]:
     fallback_model = os.environ.get("AI_LLM_PROVIDER_FALLBACK_MODEL", "openai/gpt-oss-120b")
     if fallback_key and fallback_base:
         providers.append(GroqLLM(fallback_key, model=fallback_model, url=f"{fallback_base}/chat/completions"))
-    providers += [GroqLLM(k, model=fallback_model, url=f"{OPENROUTER_BASE}/chat/completions")
-                  for k in extra_keys("OPENROUTER_API_KEYS") if k != fallback_key]
+    if _on("AI_OPENROUTER_TEXT"):
+        providers += [GroqLLM(k, model=fallback_model, url=f"{OPENROUTER_BASE}/chat/completions")
+                      for k in extra_keys("OPENROUTER_API_KEYS") if k != fallback_key]
 
     gkey = os.environ.get("GEMINI_API_KEY")
     if (os.environ.get("AI_LLM_FALLBACK") or "on").strip().lower() != "off" and gkey:
-        backup = GroqLLM(gkey, model=os.environ.get("AI_LLM_FALLBACK_MODEL", "gemini-3.8-flash,gemini-3.5-flash-lite"), url=GEMINI_OPENAI_URL)
+        backup = GroqLLM(gkey, model=os.environ.get("AI_LLM_FALLBACK_MODEL", "gemini-flash-latest,gemini-flash-lite-latest"), url=GEMINI_OPENAI_URL)
         providers.append(backup)
-    for key_var, url, model_var, model in EXTRA_TEXT_PROVIDERS:
+    for key_var, url, model_var, model in EXTRA_TEXT_PROVIDERS + (OPT_IN_TEXT_PROVIDERS if _on("AI_NVIDIA_TEXT") else ()):
         if os.environ.get(key_var):
             providers.append(GroqLLM(os.environ[key_var], model=os.environ.get(model_var, model), url=url))
     cf_key, cf_account = os.environ.get("CLOUDFLARE_API_TOKEN"), os.environ.get("CLOUDFLARE_ACCOUNT_ID")
@@ -371,6 +375,34 @@ def text_providers() -> list["GroqLLM"]:
         providers.append(GroqLLM(cf_key, model=os.environ.get("AI_CLOUDFLARE_MODEL", CLOUDFLARE_MODEL),
                                  url=CLOUDFLARE_URL.format(account=cf_account)))
     return providers
+
+
+class OrderedLLM(FallbackLLM):
+    """Always the first provider first (a resting one goes last): critical_llm's Gemini, then the rest."""
+
+    def _order(self) -> list:
+        resting = lambda p: bool(getattr(p, "resting", lambda: False)())  # noqa: E731
+        return [p for p in self.providers if not resting(p)] + [p for p in self.providers if resting(p)]
+
+
+def _on(var: str) -> bool:
+    return (os.environ.get(var) or "").strip().lower() in ("1", "on", "true", "yes")
+
+
+GEMINI_CRITICAL_MODEL = "gemini-3-flash-preview,gemini-flash-latest"
+
+
+def critical_llm() -> Optional[LLM]:
+    """For the work that decides what goes out (the creative room): Gemini first when its key is set (AI_CRITICAL_MODEL), then
+    every text provider. A Gemini with no credit answers 402 and the next provider answers at once."""
+    providers = text_providers()
+    gkey = os.environ.get("GEMINI_API_KEY")
+    if gkey:
+        providers = [GroqLLM(gkey, model=os.environ.get("AI_CRITICAL_MODEL", GEMINI_CRITICAL_MODEL), url=GEMINI_OPENAI_URL)] + [
+            p for p in providers if p.url != GEMINI_OPENAI_URL]
+    if not providers:
+        return None
+    return providers[0] if len(providers) == 1 else OrderedLLM(providers)
 
 
 def default_llm() -> Optional[LLM]:

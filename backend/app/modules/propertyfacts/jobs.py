@@ -905,6 +905,9 @@ class MarketingRuns:
                            who.get("names"), who.get("claims") or (), None, images, kit)
         await self._set(job["_id"], step="room")
         try:
+            if getattr(self.llm_factory, "__name__", "") == "default_llm":   # live: Gemini first for the room (llm.critical_llm)
+                from app.platform.llm import critical_llm
+                llm = critical_llm() or llm
             doc = await room.convene(ctx, listing, llm, photos=len(photos), images=images, pick=job.get("pick"),
                                      earlier=job.get("earlier_room"))
         except Exception as e:
