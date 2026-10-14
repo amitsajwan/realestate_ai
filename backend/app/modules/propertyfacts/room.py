@@ -10,10 +10,12 @@ Who is in the room (each one an LLM call with its own brief; JSON in, JSON out):
   strategist          the facts in, the brief out: what this property is (premium brand, family, first home, plot), who buys it
                       and why, the one idea to own, the tone, what to avoid
   copywriter          \
-  art director         } one campaign pitch each, from its own lens (words, pictures, film), in parallel
-  film director       /
-  creative director   scores the pitches against the brief and the facts, picks one, borrows the best of the others, and
-                      writes the campaign: 4-6 pieces, each with a different job in the story, in posting order
+  art director         | one campaign pitch each, from its own lens (words, pictures, film, the feed), one after another
+  film director        | (the free model tiers rate-limit parallel calls)
+  reel creator        /
+  the discussion      each seat builds on someone else's pitch and names a concern; the strongest ideas across the pitches
+  creative director   scores the pitches, then merges the campaign from the strongest pieces of at least two pitches,
+                      following the discussion: 4-6 pieces, each with a different job in the story, in posting order
 
 Code then does what a fact checker and a producer do: every line must be worded from the numbered fact book (a number or a
 claim not in it is cut; a piece whose headline fails is dropped), and each piece becomes a Brief for the existing design desk
@@ -55,13 +57,18 @@ LENSES = {
                      "a calm consistent look across the feed."),
     "film_director": ("Film director", "You think in reels: the opening two seconds, the arc of a 20-second story, pace, what the "
                       "voice says over which picture."),
+    "reel_creator": ("Reel creator", "You are a Pune Instagram creator with a big following, not an ad agency: you know what stops "
+                     "the scroll in the first second, the native formats (POV, a day in the life, 'things nobody tells you', a walk "
+                     "through, this-or-that) and what people send to a friend. You talk like a creator talks."),
 }
-# where each one starts, so the three pitches differ (the first live room: three pitches named after the brief's own line)
+# where each one starts, so the pitches differ (the first live room: three pitches named after the brief's own line)
 LEAD = {
     "copywriter": "Start from one of the brief's buyers: the life this home gives them, told as a story across the posts.",
     "art_director": "Start from the place itself: its design, architecture, landscape and spaces, shown before price or distance.",
     "film_director": "Start from a moment: a morning, a commute, an arrival home; the campaign plays like short scenes.",
+    "reel_creator": "Start from the feed: what a Pune buyer scrolling at night would stop for, save, and send to a friend.",
 }
+SEATS = ("Strategist", *(v[0] for v in LENSES.values()))
 # what the checker cuts whatever the prompt said: registration sold as approval, puffery, a walk to somewhere a car is needed
 OVERCLAIM = re.compile(r"\b(?:approved|trusted|certified|endorsed)\b[^.]{0,30}\b(?:rera|maharera|regulator)|\b(?:rera|maharera|regulator)s?\b"
                        r"[^.]{0,20}\b(?:approved|trusted|certified)\b|\b(?:renowned|world[\s-]*class|iconic|unmatched|unparalleled)\b", re.I)
@@ -164,10 +171,20 @@ def _creative(lens: str) -> str:
 
 # The director assembles by reference (pitch, piece) instead of rewriting every piece: the first live meeting's rewrite was
 # too long an answer and came back empty. A borrowed piece has passed the checker already; only a sharpened headline is new.
+# Before the director decides, the room talks: each seat builds on another's pitch and names one worry, and the room lists
+# the strongest ideas across all pitches (owner: "don't they brainstorm and conclude, take the best, merge").
+DISCUSSION = (
+    "You are running the creative room's discussion after the pitches. Speak for each seat in turn (" + ", ".join(SEATS) +
+    "): what they would take from SOMEONE ELSE's pitch and how they would build on it (one sentence), and one honest concern "
+    "(one sentence). Then list the 3 strongest ideas across all the pitches, each with the pitch it came from. Be specific "
+    "and constructive, like a good agency team. " + RULES + " Reply JSON only (short): {\"talk\": [{\"seat\": \"...\", "
+    "\"builds_on\": 2, \"build\": \"...\", \"concern\": \"...\"}], \"best\": [{\"pitch\": 1, \"idea\": \"...\"}]}")
+
 DIRECTOR = (
-    "You are the creative director. You have the brief, the facts and the pitches, each piece numbered. Score each pitch 1-10 "
-    "for fit with the brief, freshness, and how well it is backed by the facts. Pick the best, then assemble the final "
-    "campaign from the pitches' pieces: 4-6 pieces in posting order, borrowing the strongest from any pitch, each with a "
+    "You are the creative director. You have the brief, the facts, the pitches (each piece numbered) and the room's discussion. "
+    "Score each pitch 1-10 for fit with the brief, freshness, and how well it is backed by the facts. Then MERGE: build the "
+    "final campaign from the strongest pieces of the pitches, following the discussion's builds, taking pieces from at least "
+    "two different pitches when there are two or more: 4-6 pieces in posting order, each with a "
     "different job, never two about the same thing, at most one about distances, and 2-3 of them pieces that have a reel. You "
     "may sharpen a piece's headline (at most 9 words, only from the facts) or leave it empty to keep it. Write each piece's "
     "closing caption question (one line). Give the campaign a name and its idea in one sentence. " + RULES +
@@ -182,7 +199,7 @@ def assemble(refs: Any, pitches: List[Dict[str, Any]], corpus: str) -> List[Dict
     for r in (refs if isinstance(refs, list) else [])[:MAX_PIECES]:
         try:
             i, j = (int(x) for x in r.get("from")[:2])
-            piece = dict(pitches[i - 1]["pieces"][j - 1])
+            piece = dict(pitches[i - 1]["pieces"][j - 1], source={"pitch": i, "by": pitches[i - 1]["by"]})
         except (TypeError, ValueError, IndexError, AttributeError, KeyError):
             continue
         head = _clean(r.get("headline"), 10)
@@ -295,7 +312,7 @@ async def convene(c: Ctx, listing: dict, llm: Any, photos: int = 0, images: Sequ
         f"{photos} photos of the property" if photos else "", f"{kinds.count('render')} builder render(s)" if "render" in kinds else "",
         f"{kinds.count('floor_plan')} floor plan(s)" if "floor_plan" in kinds else "") if x) or "text cards only"}
     if earlier and pick:
-        room.update({k: earlier.get(k) for k in ("brief", "pitches")})
+        room.update({k: earlier.get(k) for k in ("brief", "pitches", "discussion")})
     else:
         brief = await _ask(llm, STRATEGIST, _user(facts, room))
         if not brief.get("idea"):   # a short answer: the positioning is the idea to own
@@ -313,13 +330,20 @@ async def convene(c: Ctx, listing: dict, llm: Any, photos: int = 0, images: Sequ
     listed = "\n\n".join(f"Pitch {i + 1} ({p['by']}): {p['name']}. {p['idea']}\n" + "\n".join(
         f"- piece {j + 1}, {x['role']} / {x['format']}: {x['headline']} | {' / '.join(x['lines'])}" + (" | reel" if x.get("reel") else "")
         for j, x in enumerate(p["pieces"])) for i, p in enumerate(room["pitches"]))
-    steer = f"The agent chose pitch {pick}: assemble the campaign mostly from it." if pick else ""
-    d = await _ask(llm, DIRECTOR, _user(facts, room, "Pitches:\n" + listed + ("\n\n" + steer if steer else "")))
+    if len(room["pitches"]) > 1 and not room.get("discussion"):
+        room["discussion"] = discuss(await _ask(llm, DISCUSSION, _user(facts, room, "Pitches:\n" + listed)), len(room["pitches"]))
+    talk = room.get("discussion") or {}
+    notes = "\n".join([f"- {t['seat']} (on pitch {t['builds_on']}): {t['build']} Concern: {t['concern']}" for t in talk.get("talk") or []]
+                      + [f"- Strongest idea (pitch {b['pitch']}): {b['idea']}" for b in talk.get("best") or []])
+    steer = f"The agent chose pitch {pick}: build the campaign mostly from it." if pick else ""
+    d = await _ask(llm, DIRECTOR, _user(facts, room, "Pitches:\n" + listed + ("\n\nThe room's discussion:\n" + notes if notes else "")
+                                        + ("\n\n" + steer if steer else "")))
     chosen = pick or (int(d["chosen"]) if str(d.get("chosen") or "").isdigit() else 1)
     chosen = chosen if 1 <= chosen <= len(room["pitches"]) else 1
     pieces = _distinct(assemble(d.get("pieces"), room["pitches"], corpus))
     if len(pieces) < MIN_PIECES:   # the director's assembly did not hold: the chosen pitch as pitched
-        pieces = _distinct(room["pitches"][chosen - 1]["pieces"])
+        by = room["pitches"][chosen - 1]["by"]
+        pieces = _distinct([dict(x, source={"pitch": chosen, "by": by}) for x in room["pitches"][chosen - 1]["pieces"]])
     camp = {"name": d.get("name"), "idea": d.get("idea")}
     if len(pieces) < MIN_PIECES:
         log.info("creative room: %d pieces after the director (%d assembled), too few", len(pieces), len(d.get("pieces") or []))
@@ -337,6 +361,23 @@ async def convene(c: Ctx, listing: dict, llm: Any, photos: int = 0, images: Sequ
                      "idea": _clean(camp.get("idea"), 30) or room["pitches"][chosen - 1]["idea"], "pieces": pieces}})
     room.pop("pictures", None)
     return room
+
+
+def discuss(raw: Dict[str, Any], pitches: int) -> Dict[str, Any]:
+    """The discussion as kept on the run and shown in Studio: each seat's build and concern, the strongest ideas. Internal
+    notes (never posted), so only trimmed and bounded, not fact-checked."""
+    def pitch_no(x: Any) -> int:
+        try:
+            n = int(x)
+        except (TypeError, ValueError):
+            return 0
+        return n if 1 <= n <= pitches else 0
+    talk = [{"seat": _clean(t.get("seat"), 4) or "Room", "builds_on": pitch_no(t.get("builds_on")),
+             "build": _clean(t.get("build"), 45), "concern": _clean(t.get("concern"), 40)}
+            for t in (raw.get("talk") or [])[:6] if isinstance(t, dict)]
+    best = [{"pitch": pitch_no(b.get("pitch")), "idea": _clean(b.get("idea"), 30)} for b in (raw.get("best") or [])[:3]
+            if isinstance(b, dict)]
+    return {"talk": [t for t in talk if t["build"] or t["concern"]], "best": [b for b in best if b["idea"]]}
 
 
 # ---- the producer: pieces -> briefs and reel scripts ---------------------------------------------------------------------------

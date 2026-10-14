@@ -655,6 +655,8 @@ export interface RoomPiece {
   visual?: string
   ask?: string
   reel?: { hook: string; beats: string[]; payoff: string; cta: string } | null
+  /** Whose pitch the director took it from. */
+  source?: { pitch: number; by: string } | null
 }
 
 export interface CreativeRoomDoc {
@@ -664,6 +666,8 @@ export interface CreativeRoomDoc {
   why: string
   campaign: { name: string; idea: string; pieces: RoomPiece[] }
   facts: number
+  /** The room talking before the director decides: each seat builds on another pitch and names a concern. */
+  discussion?: { talk: { seat: string; builds_on: number; build: string; concern: string }[]; best: { pitch: number; idea: string }[] } | null
 }
 
 export interface BoostCopy { primary_text: string; headline: string }

@@ -109,7 +109,7 @@ def room_out(r: Optional[dict]) -> Optional[dict]:
     return {"brief": r.get("brief") or {}, "chosen": r.get("chosen"), "why": r.get("why") or "",
             "pitches": [{**p, "score": (scores.get(i + 1) or {}).get("score"), "note": (scores.get(i + 1) or {}).get("note") or ""}
                         for i, p in enumerate(r.get("pitches") or [])],
-            "campaign": r.get("campaign") or {}, "facts": len(r.get("book") or [])}
+            "campaign": r.get("campaign") or {}, "facts": len(r.get("book") or []), "discussion": r.get("discussion") or None}
 
 
 def boost_out(b: Optional[dict], base: str = "") -> Optional[dict]:

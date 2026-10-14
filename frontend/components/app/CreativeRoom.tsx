@@ -7,7 +7,7 @@ const ROLE_NAMES: Record<string, string> = {
   price: 'Price', trust: 'Trust', visit: 'Visit', story: 'Story',
 }
 const roleName = (r: string) => ROLE_NAMES[r] ?? r
-const SEATS = ['Strategist', 'Copywriter', 'Art director', 'Film director', 'Creative director']
+const SEATS = ['Strategist', 'Copywriter', 'Art director', 'Film director', 'Reel creator', 'Creative director']
 
 function Piece({ p, n }: { p: RoomPiece; n: number }) {
   return (
@@ -20,6 +20,7 @@ function Piece({ p, n }: { p: RoomPiece; n: number }) {
         <p className="font-semibold text-gray-900">{p.headline}</p>
         <p className="text-sm text-gray-600">{p.lines.join(' · ')}</p>
         {p.reel && <p className="mt-1 text-xs text-violet-700">Reel: “{p.reel.hook}” → {p.reel.payoff}</p>}
+        {p.source && <p className="mt-1 text-xs text-gray-500">From the {p.source.by.toLowerCase()}’s pitch</p>}
       </div>
     </li>
   )
@@ -36,7 +37,7 @@ export function CreativeRoom({ run, onPick }: { run: MarketingRun; onPick: (n: n
       <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4" role="status">
         <p className="font-bold text-violet-900">The creative room is meeting</p>
         <p className="mt-1 text-sm text-violet-800">
-          {SEATS.join(', ')}: the brief first, then three pitches, then one campaign. About a minute.
+          {SEATS.join(', ')}: the brief, four pitches, a discussion, then one campaign merged from the best. A few minutes.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           {SEATS.map((s) => <span key={s} className="animate-pulse rounded-full bg-white px-3 py-1 text-xs font-semibold text-violet-800">{s}</span>)}
@@ -76,7 +77,7 @@ export function CreativeRoom({ run, onPick }: { run: MarketingRun; onPick: (n: n
 
       <div>
         <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">The pitches</p>
-        <ul className="mt-2 grid list-none gap-3 p-0 sm:grid-cols-3">
+        <ul className="mt-2 grid list-none gap-3 p-0 sm:grid-cols-2">
           {room.pitches.map((p, i) => {
             const chosen = room.chosen === i + 1
             return (
@@ -111,9 +112,29 @@ export function CreativeRoom({ run, onPick }: { run: MarketingRun; onPick: (n: n
         </ul>
       </div>
 
+      {(room.discussion?.talk?.length ?? 0) > 0 && (
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">The discussion</p>
+          <ul className="mt-2 list-none space-y-2 p-0">
+            {room.discussion!.talk.map((x, i) => (
+              <li key={i} className="rounded-xl border border-gray-200 bg-white p-3 text-sm">
+                <p className="font-semibold text-gray-900">{x.seat}{x.builds_on ? ` on pitch ${x.builds_on}` : ''}</p>
+                {x.build && <p className="text-gray-700">💡 {x.build}</p>}
+                {x.concern && <p className="text-gray-500">⚠️ {x.concern}</p>}
+              </li>
+            ))}
+          </ul>
+          {(room.discussion!.best?.length ?? 0) > 0 && (
+            <p className="mt-2 text-sm text-gray-700">
+              <span className="font-semibold">Strongest ideas:</span> {room.discussion!.best.map((b) => b.idea).join(' · ')}
+            </p>
+          )}
+        </div>
+      )}
+
       {camp?.pieces?.length > 0 && (
         <div className="rounded-xl border border-gray-200 bg-white p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">The campaign, in posting order</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">The campaign, merged from the best, in posting order</p>
           <p className="text-base font-bold text-gray-900">{camp.name}</p>
           {camp.idea && <p className="text-sm text-gray-700">{camp.idea}</p>}
           {room.why && <p className="mt-1 text-xs italic text-gray-500">Why this one: {room.why}</p>}
