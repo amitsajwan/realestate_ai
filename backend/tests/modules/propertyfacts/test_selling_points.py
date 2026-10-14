@@ -1,15 +1,11 @@
-"""Brochure selling points: the vision read's structured facts, the AI draft's selling_points and warnings, the listing
-schema, the offer and amenities angles (confirmed points only, never "pre-launch") and the marketing question."""
-import json
+"""Selling points: the facts a brochure left, as printed amounts, the listing schema, the offer and amenities angles
+(confirmed points only, never "pre-launch") and the marketing question."""
 from datetime import date
-from types import SimpleNamespace
 
 import pytest
-from PIL import Image
 
-from app.modules.ai_listing.service import AIListingService
 from app.modules.listings.schemas import ListingCreate, ListingUpdate
-from app.modules.propertyfacts import boost, campaign, files, points, understand
+from app.modules.propertyfacts import boost, campaign, points, understand
 from app.modules.propertyfacts.facts import Reading, sheet
 from app.modules.propertyfacts.gather import listing_readings
 
@@ -37,80 +33,12 @@ def test_clean_facts_parses_and_drops():
     assert bad == {"starting_price_inr": 299000}   # booking above the price, hype, a non-Latin name: all dropped
 
 
-class _Resp:
-    def __init__(self, content):
-        self.content = content
-
-    def raise_for_status(self):
-        pass
-
-    def json(self):
-        return {"choices": [{"message": {"content": self.content}}]}
-
-
-@pytest.mark.asyncio
-async def test_vision_read_merges_facts_across_pages(tmp_path, monkeypatch):
-    pages = []
-    for i in range(2):
-        p = tmp_path / f"page{i}.jpg"
-        Image.new("RGB", (60, 80), "white").save(p)
-        pages.append(str(p))
-    replies = [
-        {"claims": ["Pre-launching offer for early buyers", "Plots in Malthan, Shirur"], "rera_no": "", "project_name": "Gulmohar City",
-         "language": "mr", "facts": {"starting_price_inr": "₹2,99,000/-", "booking_amount_inr": "₹1 लाख", "offer_label": "Pre-launching offer",
-                                     "road_widths_ft": [25, 18, 15], "village": "Malthan"}},
-        {"claims": ["30 acre project"], "language": "en",
-         "facts": {"starting_price_inr": 350000, "total_acres": 30, "water": "24 hours", "vastu": True}},
-    ]
-    calls = iter(replies)
-
-    class FakeClient:
-        def __init__(self, *a, **k):
-            pass
-
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, *a):
-            return False
-
-        async def post(self, url, json=None, headers=None):
-            return _Resp(__import__("json").dumps(next(calls)))
-
-    from app.modules.photoquality import vision_review
-    monkeypatch.setattr(vision_review, "default_clients", lambda: [SimpleNamespace(model="m", url="u", api_key="k", trusted=True)])
-    monkeypatch.setattr(files.httpx, "AsyncClient", FakeClient)
-    out = await files.read_pages(pages)
-    f = out["facts"]
-    assert f["starting_price_inr"] == 299000          # the first trusted page wins
-    assert f["booking_amount_inr"] == 100000 and f["total_acres"] == 30 and f["water"] == "24 hours" and f["vastu"] is True
-    assert out["language"] == "mr"
-    assert not any("pre-launch" in c.lower() for c in files.clean_claims(out["claims"]))
-
-
 class FakeRegister:
     async def all_projects(self):
         return []
 
     async def project(self, regno):
         return None
-
-
-@pytest.mark.asyncio
-async def test_draft_selling_points_price_and_warnings():
-    b = {"text": "", "claims": ["Plots in Malthan, Shirur"], "rera_no": None, "pages": 4, "project_name": "Gulmohar City",
-         "facts": points.clean_facts(GULMOHAR), "language": "mr"}
-    svc = AIListingService(llm=None)
-    d = await svc.from_text("Plots near Ranjangaon", brochure=b, agent_text="")
-    assert d.draft["price_inr"] == 299000 and d.sources["price_inr"] == "brochure"
-    assert d.draft["total_acres"] == 30.0
-    keys = [p["key"] for p in d.selling_points]
-    assert keys == ["starting_price", "booking_amount", "offer", "water", "power", "roads", "vastu", "land_area"]
-    sp = {p["key"]: p for p in d.selling_points}
-    assert sp["starting_price"]["text"] == "Plots from ₹2.99 lakh" and sp["starting_price"]["text_local"] == "₹2.99 लाखांपासून प्लॉट"
-    assert sp["booking_amount"]["value"] == 100000 and sp["roads"]["text"] == "Roads 25, 18 and 15 ft wide"
-    assert all(p["source"] == "brochure" for p in d.selling_points)
-    assert points.WARN_BOOKING in d.warnings and points.WARN_PRELAUNCH in d.warnings
 
 
 def test_no_booking_warning_at_ten_percent():

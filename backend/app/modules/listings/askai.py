@@ -1,8 +1,8 @@
-"""Ask AI: the agent's own ChatGPT, Gemini or Claude, used by hand. Studio shows ready prompts built from what we know of the
-listing; the agent runs one in their AI tab and pastes the answer back. `read_answer` splits it into the parts the prompts
-ask for and checks every number against our records, so only lines they back can be kept (as the listing's highlights); the
-PICTURES part becomes the listing's picture plan, which the team fills with photos. The brochure stays stored on the listing
-but is not used here (owner, 2026-10-14).
+"""Ask AI: the agent's own ChatGPT, Gemini or Claude, used by hand. Studio shows the prompts as steps, in the order
+`prompts` returns them (research first when we hold few facts); the agent runs one in their AI tab and pastes that answer
+back. `read_answer` splits it into the parts the prompts ask for and checks every number against our records, so only lines
+they back can be kept (as the listing's highlights); the PICTURES part becomes the listing's picture plan, which the team
+fills with photos. The brochure stays stored on the listing but is not used here (owner, 2026-10-14).
 
     checked   every number is in our records: the listing, its highlights, the MahaRERA-checked sheet, published web facts
     unchecked a number found nowhere: never kept
@@ -164,10 +164,14 @@ def prompts(listing: dict, sheet: Optional[dict], web: Optional[dict], language:
     who = audience.split(":")[0]
     rera = ("Put the MahaRERA number in every caption." if (listing.get("rera_no") or (sheet or {}).get("rera_no"))
             else "There is no MahaRERA number in the facts: do not invent one.")
-    return [
-        {"id": "plan", "title": "Marketing plan",
-         "use": "The full plan: who buys, why they visit, 5 pictures for your team to find, captions and a reel. Best in ChatGPT "
-                "(thinking on) or Claude. Paste the whole answer back.",
+    # Each prompt is one step the agent does on their own AI: which of theirs works best for it, what to paste back,
+    # and what Studio does with the answer. The panel shows one step at a time, in this order.
+    out = [
+        {"id": "plan", "title": "Marketing plan", "best": "ChatGPT", "best_note": "thinking on",
+         "paste": "the whole answer, with its headings",
+         "after": "Studio reads it in parts: the pictures become your picture plan, and every number is checked against "
+                  "this listing, its MahaRERA record and the facts we checked.",
+         "use": "The full plan: who buys, why they visit, 5 pictures for your team to find, captions and a reel.",
          "text": f"""You are a senior real-estate marketer who has sold homes in {area}, Pune for ten years. I am a MahaRERA-registered agent.
 
 MY GOAL: WhatsApp enquiries from serious buyers for {name} in {place}, from Instagram and Facebook posts. Likes do not matter. A clear, true post makes the right buyer message me; a vague or exaggerated one makes no one message.
@@ -207,9 +211,10 @@ STILL MISSING:
 - <a question buyers will ask that the facts do not answer; I will get it from the builder>
 
 {RULES}"""},
-        {"id": "facts", "title": "Find project facts",
-         "use": "Web research, one fact per line with its source. Best in ChatGPT or Gemini with web search on. Paste the answer "
-                "back: every number is checked.",
+        {"id": "facts", "title": "Find project facts", "best": "Gemini", "best_note": "web search on",
+         "paste": "the whole list of facts",
+         "after": "Every number is looked up in our records. Only the ones it can find can be kept as the listing's highlights.",
+         "use": "Web research, one fact per line with its source. Every number is checked before you can keep it.",
          "text": f"""You are a careful property researcher. I am a MahaRERA-registered agent in Pune and I must not advertise anything I cannot prove. Find the facts of {name} in {place} on the web.
 
 WHAT I ALREADY KNOW:
@@ -233,7 +238,11 @@ ANSWER: one fact per line, exactly like this, and nothing else:
 - <the fact in one short sentence> (source: <website name>)
 
 Mark prices from marketing or channel-partner websites as (indicative). Leave out anything you could not find on a page: never estimate, never round. No links, no phone numbers."""},
-        {"id": "faq", "title": "Buyer questions", "use": "Six questions buyers ask before a site visit, answered from the facts.",
+        {"id": "faq", "title": "Buyer questions", "best": "ChatGPT", "best_note": "",
+         "paste": "the whole list of questions and answers",
+         "after": "Nothing is saved automatically: copy the answers you like into the listing description, or keep them for "
+                  "the WhatsApp chat.",
+         "use": "Six questions buyers ask before a site visit, answered from the facts.",
          "text": f"""You are an experienced property agent in {area}, Pune. Think about what {who} really ask before they visit {name}: money, possession, size, travel, the builder, the society.
 
 LANGUAGE: {lang}.
@@ -248,6 +257,13 @@ A: <answer>
 Answer only from the facts. When the facts do not answer a question, write: "Ask me and I will check with the builder."
 {RULES}"""},
     ]
+    # With little to work on, the research comes first: the plan is only as good as the facts it is given.
+    if len(_facts_lines(sheet)) + len(_web_lines(web)) < 5:
+        facts_step = next(p for p in out if p["id"] == "facts")
+        facts_step["hint"] = "We hold few facts on this property, so do this step first: what you keep here makes the plan better."
+        out.remove(facts_step)
+        out.insert(0, facts_step)
+    return out
 
 
 # ---- reading a pasted answer ---------------------------------------------------------------------------------------------

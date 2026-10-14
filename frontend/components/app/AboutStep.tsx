@@ -22,15 +22,12 @@ export interface AboutStepProps {
   context: { locality?: string; project_name?: string; bhk?: number; description: string }
   onDone: () => void
   onSkip: () => void
-  /** What the builder's brochure claims (the builder's words, not verified): offered as highlights to keep or drop. */
-  brochureClaims?: string[]
 }
 
-type RowSource = AboutSource | 'brochure'
+type RowSource = AboutSource
 const TAG: Record<RowSource, { label: Parameters<typeof t>[0]; tone: string }> = {
   area_guide: { label: 'aboutFromGuide', tone: 'bg-emerald-100 text-emerald-800' },
   agent: { label: 'aboutFromYou', tone: 'bg-blue-100 text-blue-800' },
-  brochure: { label: 'aboutFromBrochure', tone: 'bg-purple-100 text-purple-800' },
 }
 
 function SourceTag({ source }: { source: RowSource }) {
@@ -54,7 +51,7 @@ function Chip({ label, on, onClick }: { label: string; on: boolean; onClick: () 
 const toggle = (list: string[], v: string) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v])
 const sameNearby = (a: AboutNearby, b: AboutNearby) => a.type === b.type && a.name.toLowerCase() === b.name.toLowerCase()
 
-export function AboutStep({ value, onChange, context, onDone, onSkip, brochureClaims = [] }: AboutStepProps) {
+export function AboutStep({ value, onChange, context, onDone, onSkip }: AboutStepProps) {
   const [sugg, setSugg] = useState<AboutSuggestion | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -83,12 +80,9 @@ export function AboutStep({ value, onChange, context, onDone, onSkip, brochureCl
   // ---- keep / remove for suggestions ----
   type Row = { key: string; text: string; source: RowSource; kept: boolean; toggle: () => void }
   const rows: Row[] = []
-  // Brochure claims are there from the start: they need no tap on Suggest.
-  const claims = Array.from(new Set(brochureClaims.map((c) => c.trim()).filter((c) => c && !textProblem(c))))
   const keepHighlight = (text: string) => set({ highlights: highlights.includes(text) ? highlights.filter((x) => x !== text) : [...highlights, text].slice(0, MAX_HIGHLIGHTS) })
-  for (const c of claims) rows.push({ key: `b:${c}`, text: c, source: 'brochure', kept: highlights.includes(c), toggle: () => keepHighlight(c) })
   if (sugg) {
-    for (const h of sugg.highlights) if (!claims.includes(h.text)) rows.push({ key: `h:${h.text}`, text: h.text, source: h.source, kept: highlights.includes(h.text), toggle: () => keepHighlight(h.text) })
+    for (const h of sugg.highlights) rows.push({ key: `h:${h.text}`, text: h.text, source: h.source, kept: highlights.includes(h.text), toggle: () => keepHighlight(h.text) })
     for (const a of sugg.amenities) rows.push({ key: `a:${a.text}`, text: a.text, source: a.source, kept: amenities.includes(a.text), toggle: () => set({ amenities: toggle(amenities, a.text) }) })
     for (const n of sugg.nearby) {
       const item: AboutNearby = { type: n.type, name: n.name, ...(typeof n.minutes === 'number' ? { minutes: n.minutes } : {}) }
@@ -104,7 +98,6 @@ export function AboutStep({ value, onChange, context, onDone, onSkip, brochureCl
   function keepAll() {
     const next: About = { ...value }
     const add = (cur: string[], v: string) => (cur.includes(v) ? cur : [...cur, v])
-    for (const c of claims) next.highlights = add(next.highlights ?? [], c).slice(0, MAX_HIGHLIGHTS)
     for (const h of sugg?.highlights ?? []) next.highlights = add(next.highlights ?? [], h.text).slice(0, MAX_HIGHLIGHTS)
     for (const a of sugg?.amenities ?? []) next.amenities = add(next.amenities ?? [], a.text)
     for (const c of sugg?.connectivity ?? []) next.connectivity = add(next.connectivity ?? [], c.text)

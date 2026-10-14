@@ -10,13 +10,12 @@ import { listingLink } from '@/lib/app/share'
 import { compactAbout } from '@/lib/app/about'
 import { t } from '@/lib/app/strings'
 import { MAX_BROCHURE_MB, MAX_VIDEO_MB, uploadBrochure, uploadVideo } from '@/lib/app/video'
-import type { About, AIDraft, Listing, ListingInput, SellingPoint, UploadedFile } from '@/lib/app/types'
+import type { About, AIDraft, Listing, ListingInput, UploadedFile } from '@/lib/app/types'
 import { qualityFields } from '@/lib/app/quality'
 import { FIELD_LABELS, lowConfidenceFields, missingFields, priceSanity } from '@/lib/app/validate'
 import { AboutStep } from './AboutStep'
 import { PhotoPicker } from './PhotoPicker'
 import { ReviewForm } from './ReviewForm'
-import { SellingPoints, toSellingPoints } from './SellingPoints'
 import { ShareBar } from './ShareBar'
 import { VoiceRecorder } from './VoiceRecorder'
 import { Btn, ErrorBox, LinkBtn, Spinner, inputCls } from './ui'
@@ -34,7 +33,7 @@ function FilePick({ label, empty, file, accept, onPick, testid }: { label: strin
   )
 }
 
-/** The builder's brochure: a first-class input next to voice, text and photos. The draft reads it. */
+/** The builder's brochure: stored with the listing, never read (reading PDFs is heavy). */
 function BrochurePick({ file, onPick }: { file: File | null; onPick: (f: File | null) => void }) {
   return (
     <section className="space-y-1" aria-label={t('brochurePdf')}>
@@ -51,26 +50,6 @@ function ProjectVideo({ video, onVideo }: { video: File | null; onVideo: (f: Fil
       <FilePick label={t('builderVideo')} empty={`+ ${t('builderVideo')} (optional)`} file={video} accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm" onPick={onVideo} testid="pick-video" />
       <p className="text-xs text-gray-500">Video up to {MAX_VIDEO_MB} MB.</p>
     </section>
-  )
-}
-
-type DraftPhase = 'upload' | 'read' | 'fill'
-const PHASES: Array<[DraftPhase, Parameters<typeof t>[0]]> = [['upload', 'brochureStepUpload'], ['read', 'brochureStepRead'], ['fill', 'brochureStepFill']]
-
-function BrochureProgress({ phase }: { phase: DraftPhase }) {
-  const at = PHASES.findIndex(([p]) => p === phase)
-  return (
-    <div className="space-y-4 py-10" role="status" aria-live="polite" data-testid="brochure-progress">
-      <Spinner label={t('brochureReading')} />
-      <ol className="mx-auto max-w-xs space-y-2">
-        {PHASES.map(([p, label], i) => (
-          <li key={p} className={`flex min-h-[44px] items-center gap-3 rounded-xl px-3 text-sm font-semibold ${i === at ? 'bg-blue-50 text-blue-800' : i < at ? 'text-emerald-700' : 'text-gray-400'}`}>
-            <span aria-hidden>{i < at ? '✓' : i === at ? '…' : '○'}</span>
-            {t(label)}
-          </li>
-        ))}
-      </ol>
-    </div>
   )
 }
 
@@ -108,12 +87,8 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
   const [brochure, setBrochure] = useState<File | null>(null)
   const [video, setVideo] = useState<File | null>(null)
   const [draft, setDraft] = useState<AIDraft | null>(null)
-  const [phase, setPhase] = useState<DraftPhase | null>(null)
-  // The brochure the draft read: its claims go with the listing only while that same file is attached.
-  const readBrochure = useRef<File | null>(null)
   const [form, setForm] = useState<ListingInput>({})
   const [about, setAbout] = useState<About>({})
-  const [points, setPoints] = useState<SellingPoint[]>([])
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
   const [posted, setPosted] = useState<Listing | null>(null)
@@ -134,7 +109,7 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
   const [priceAck, setPriceAck] = useState<string | null>(null)
   const priceBlocked = !!priceWarning && priceAck !== priceWarning
   const low = draft ? lowConfidenceFields(draft.confidence) : []
-  const hasInput = text.trim().length > 0 || !!audio || photos.length > 0 || !!brochure
+  const hasInput = text.trim().length > 0 || !!audio || photos.length > 0
   // A brochure means a builder project: no tick needed.
   const projectDefault = newProject || !!brochure
 
@@ -143,33 +118,20 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
     setError(null)
     setStep('drafting')
     try {
-      let brochure_url: string | undefined
-      if (brochure) {
-        setPhase('upload')
-        brochure_url = await uploadOnce(brochure, uploadBrochure)
-        setPhase('read')
-      }
-      const d = await api.aiDraft({ text, audio: audio ?? undefined, image_count: photos.length, brochure_url })
-      if (brochure) setPhase('fill')
-      readBrochure.current = brochure && d.brochure && !d.brochure.error ? brochure : null
+      const d = await api.aiDraft({ text, audio: audio ?? undefined, image_count: photos.length })
       setDraft(d)
       const { about: found, ...rest } = d.draft
       setForm({ visibility: 'network', ...(projectDefault ? { listing_scope: 'layout' as const } : {}), ...rest })
       setAbout(found ?? {})
-      setPoints(toSellingPoints(d.selling_points))
       setStep('about') // quick and skippable: what the assistant uses to answer buyers
     } catch (e) {
       setError(errorMessage(e))
       setStep('capture')
-    } finally {
-      setPhase(null)
     }
   }
 
   function fillManually() {
     setDraft({ draft: {}, confidence: {}, missing: [], warnings: [] })
-    readBrochure.current = null
-    setPoints([])
     setForm({ visibility: 'network', description: { en: text.trim() }, ...(projectDefault ? { listing_scope: 'layout' as const } : {}) })
     setAbout({})
     setStep('review')
@@ -201,11 +163,9 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
       }
       const images = uploaded.current.files.map((f, order) => ({ url: f.url, kind: 'image' as const, order, ...qualityFields(f) }))
       const extra: Array<{ url: string; kind: 'document' | 'video'; order: number }> = []
-      // The brochure was usually uploaded at Draft already: uploadOnce reuses that URL.
       if (brochure) extra.push({ url: await uploadOnce(brochure, uploadBrochure), kind: 'document', order: images.length + extra.length })
       if (isProject && video) extra.push({ url: await uploadOnce(video, uploadVideo), kind: 'video', order: images.length + extra.length })
-      const claims = brochure && readBrochure.current === brochure ? draft?.brochure?.claims ?? [] : []
-      const body = cleanInput({ ...form, about: compactAbout(about), media: [...images, ...extra], ...(claims.length ? { file_claims: { brochure: claims } } : {}), ...(points.length ? { selling_points: points } : {}) })
+      const body = cleanInput({ ...form, about: compactAbout(about), media: [...images, ...extra] })
       // Retry-safe: never create the same draft twice if publish fails.
       const saved = onBehalfOf
         ? createdId.current ? await conciergeApi.updateListing(onBehalfOf.id, createdId.current, body) : await conciergeApi.createListing(onBehalfOf.id, body)
@@ -223,7 +183,7 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
 
   // The capture screen stays mounted (hidden) while other steps show, so a recorded clip survives "Back".
   let overlay: React.ReactNode = null
-  if (step === 'drafting') overlay = phase ? <BrochureProgress phase={phase} /> : <Spinner label={t('reading')} />
+  if (step === 'drafting') overlay = <Spinner label={t('reading')} />
   else if (step === 'posting') overlay = <Spinner label={t('posting')} />
   else if (step === 'done' && posted && onBehalfOf && agentHome) {
     overlay = (
@@ -271,7 +231,6 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
         value={about}
         onChange={setAbout}
         context={{ locality: form.locality ?? undefined, project_name: form.project_name ?? undefined, bhk: form.bhk ?? undefined, description: text || form.description?.en || '' }}
-        brochureClaims={draft.brochure?.error ? [] : draft.brochure?.claims}
         onDone={() => setStep('review')}
         onSkip={() => setStep('review')}
       />
@@ -289,12 +248,6 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
             <p className="text-blue-900">{draft.transcript}</p>
           </div>
         )}
-        {draft.brochure?.error && (
-          <div role="alert" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900" data-testid="brochure-error">
-            <p className="font-semibold">{t('brochureCouldNotRead')}</p>
-            <p>{draft.brochure.error}</p>
-          </div>
-        )}
         {draft.warnings.length > 0 && (
           <div role="alert" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
             <p className="font-semibold">{t('warnings')}</p>
@@ -306,9 +259,7 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
         <BrochurePick file={brochure} onPick={setBrochure} />
         {isProject && <ProjectVideo video={video} onVideo={setVideo} />}
         <ReviewForm value={view} about={about} onEditAbout={() => setStep('about')} onChange={({ media, ...rest }) => setForm(rest)} confidence={draft.confidence} missing={missing} errors={errors}
-          sources={draft.sources} reraCandidates={draft.rera_candidates}
-          priceHint={draft.brochure && !draft.brochure.error && missing.length === 1 && missing[0] === 'price_inr' ? t('brochureNoPrice') : null} />
-        <SellingPoints points={points} onChange={setPoints} />
+          sources={draft.sources} reraCandidates={draft.rera_candidates} />
         {priceWarning && (
           <label className="flex min-h-[44px] items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-semibold text-amber-900">
             <input type="checkbox" className="h-5 w-5" checked={priceAck === priceWarning} onChange={(e) => setPriceAck(e.target.checked ? priceWarning : null)} />

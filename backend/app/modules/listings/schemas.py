@@ -215,7 +215,7 @@ class _Fields(BaseModel):
 
 
 class FileClaims(BaseModel):
-    """The builder's brochure claims the AI draft already read (ai_listing/brochure.py), kept on the listing as `file_claims`
+    """The builder's brochure claims read before 2026-10-14 (brochures are no longer read), kept on the listing as `file_claims`
     so 'Start marketing' does not read the brochure again (propertyfacts/jobs.py _brochure). Claims, not facts."""
     model_config = ConfigDict(extra="forbid")
     brochure: List[str] = Field(default_factory=list, max_length=25)

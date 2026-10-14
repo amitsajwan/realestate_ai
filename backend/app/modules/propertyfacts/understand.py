@@ -114,17 +114,16 @@ def _q(key: str, text: str, options: List[Tuple[str, Any]], free_text: str = "")
 
 
 def decide(listing: dict, seen: Dict[str, Any], registered: bool, units_total: Optional[int] = None,
-           has_files: bool = True, unreadable: bool = False, candidates: Optional[List[dict]] = None,
+           has_files: bool = True, candidates: Optional[List[dict]] = None,
            points: Optional[List[dict]] = None) -> Tuple[Dict[str, Any], List[dict]]:
     """(fields to set now, questions for the agent). `registered`: the facts already hold a usable MahaRERA number;
-    `units_total`: MahaRERA's count of units, when known; `has_files`: a brochure or video is attached; `points`: the
-    brochure's selling points not yet confirmed or dismissed (points.pending). Pure: no I/O."""
+    `units_total`: MahaRERA's count of units, when known; `has_files`: a photo, video or brochure is attached; `points`:
+    the brochure's selling points not yet confirmed or dismissed (points.pending). Pure: no I/O."""
     auto: Dict[str, Any] = {}
     ask: List[dict] = []
-    if not has_files:  # asked first: agents often start before uploading, and the files change everything below
-        lead = "The brochure PDF could not be read and no video is attached." if unreadable else "No brochure or video is attached."
-        ask.append(_q("files", f"{lead} Add them now (the posts get the builder's details and "
-                      "pictures), or go on without?", [("I've added them now", "added"), ("Go on without", "skip")]))
+    if not has_files:  # asked first: agents often start before uploading, and pictures change every card
+        ask.append(_q("files", "No photos, video or brochure are attached. Add them now (the posts get real pictures "
+                      "of the place), or go on without?", [("I've added them now", "added"), ("Go on without", "skip")]))
 
     # what it is
     ptype = listing.get("property_type")

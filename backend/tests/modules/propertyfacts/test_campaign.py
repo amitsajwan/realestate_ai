@@ -1,6 +1,6 @@
 """PF-4 surroundings, PF-7 calculators and CA-1 campaign angles."""
 from app.modules.creative.guards import problems_in
-from app.modules.propertyfacts import calc, campaign, surroundings
+from app.modules.propertyfacts import ad_reel, calc, campaign, surroundings
 from datetime import date
 
 from app.modules.propertyfacts.facts import Reading, sheet
@@ -106,6 +106,38 @@ def test_places_are_named_as_buyers_say_them_and_never_twice():
     assert claimed["near_work"].stat_label == "to Kharadi MIDC"
     assert surroundings.short_name("industry", "MIDC Bhosari") == "Bhosari MIDC"
     assert surroundings.short_name("bus", "Shirur S.T Stand") == "Shirur ST stand"
+
+
+def test_overview_and_reels_do_not_use_thin_nearby_place_names():
+    readings = [r for k, f in flat().items() if k != "nearby.hospital" for r in f.readings]
+    readings += [Reading("nearby.market", [{"name": "More", "km": 0.3}], "osm"),
+                 Reading("nearby.hospital", [{"name": "Shree Hospital", "km": 0.1},
+                                             {"name": "Columbia Asia Hospital", "km": 1.9}], "osm")]
+    facts = sheet(readings)
+    overview = dict(campaign.plan(facts, follow_ups=None, today=TODAY))["overview"]
+    assert not any("More" in s or "Shree Hospital" in s or "Located in" in s for s in overview.steps)
+
+    ctx = campaign.Ctx(facts)
+    places = " ".join(ad_reel._places(ctx, 6))
+    assert "More" not in places and "Shree Hospital" not in places and "Columbia Asia Hospital" in places
+    assert "In Kharadi, 2.4 km from Kharadi MIDC." in overview.steps   # one place people travel to, not a shop
+    assert "POV" not in ad_reel.template("pov", ctx).hook
+    # a hospital the builder names is a place buyers were told about: it may be posted
+    named = campaign.Ctx(facts, claims=["Shree Hospital 2 mins"])
+    assert "Shree Hospital" in " ".join(ad_reel._places(named, 6))
+
+
+def test_bad_copy_is_refused():
+    for bad in ("POV: Kharadi is minutes from your home", "pov - you just found your flat"):
+        assert "POV opener" in problems_in(bad, bad)
+
+
+def test_each_reel_says_what_its_post_says():
+    allowed = ["showcase", "price_reveal", "three_reasons", "pov", "myth_fact", "checklist"]
+    got = ad_reel.for_posts(["overview", "price_reveal", "rera_check", "nearby", "amenities", "emi"], allowed, {})
+    assert got[:4] == ["showcase", "price_reveal", "checklist", "pov"]
+    assert got[4] == "three_reasons" and got[5] in {"myth_fact"}   # taken formats are never repeated
+    assert ad_reel.for_posts(["price_reveal", "offer"], ["price_reveal"], {}) == ["price_reveal", None]
 
 
 def test_one_project_name_and_a_whatsapp_close():

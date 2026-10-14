@@ -27,7 +27,8 @@ export async function uploadVideo(file: File): Promise<UploadedVideo> {
   return postFile<UploadedVideo>('/uploads/videos', file)
 }
 
-/** The builder's brochure (PDF) for a listing: 'Start marketing' reads it into pictures and the builder's claims. */
+/** The builder's brochure (PDF) for a listing: stored as it is. The AI draft and a marketing run never read it (reading PDFs
+ * is heavy); its kit of facts and page pictures is made on the listing's Files screen. */
 export async function uploadBrochure(file: File): Promise<UploadedBrochure> {
   if (isFixtureMode()) return { url: URL.createObjectURL(file), pages: 1 }
   if (file.size > MAX_BROCHURE_MB * 1024 * 1024) throw new ApiError(413, `This PDF is too large. Keep it under ${MAX_BROCHURE_MB} MB.`)

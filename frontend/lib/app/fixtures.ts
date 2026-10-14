@@ -370,51 +370,6 @@ export function fakeDraft(text: string, imageCount: number, hasAudio: boolean): 
 
 const withoutClaims = ({ file_claims: _c, ...rest }: ListingInput) => rest
 
-/** The demo brochure's selling points: the agent ticks the true ones. */
-const GULMOHAR_POINTS: NonNullable<AIDraft['selling_points']> = [
-  { key: 'starting_price', text: 'Plots starting ₹2,99,000', text_local: 'प्लॉट ₹2,99,000 पासून', value: 299000, source: 'brochure' },
-  { key: 'booking_amount', text: 'Book with ₹1,00,000', text_local: '₹1,00,000 मध्ये बुकिंग', value: 100000, source: 'brochure' },
-  { key: 'offer', text: 'Pre-launching offer', text_local: 'प्री-लाँचिंग ऑफर', value: 'Pre-launching offer', source: 'brochure' },
-  { key: 'water', text: '24-hour water', text_local: '24 तास पाणी', value: true, source: 'brochure' },
-  { key: 'power', text: '24-hour power', text_local: '24 तास वीज', value: true, source: 'brochure' },
-  { key: 'roads', text: '25, 18 and 15 ft roads', text_local: '25, 18 आणि 15 फूट रस्ते', value: [25, 18, 15], source: 'brochure' },
-  { key: 'vastu', text: 'Vastu-compliant plots', text_local: 'वास्तुशास्त्रानुसार प्लॉट', value: true, source: 'brochure' },
-  { key: 'land_area', text: '30-acre layout', text_local: '30 एकर प्रकल्प', value: 30, source: 'brochure' },
-]
-
-const GULMOHAR_WARNINGS = [
-  'Under RERA a builder may take at most 10% of the price before the sale agreement is registered. Check the booking amount fits.',
-  'The brochure says "pre-launch". A project must be registered with MahaRERA before it is advertised or sold. Check the RERA number first.',
-]
-
-/** Demo brochure read: fills the project fields the agent did not say, never the price (brochures rarely have one). */
-export function withBrochure(d: AIDraft): AIDraft {
-  const fill: ListingInput = { project_name: 'Gulmohar City', property_type: 'plot', city: 'Pune', locality: 'Shirur', listing_scope: 'layout', amenities: ['Garden', 'Security'] }
-  const draft: ListingInput = { ...d.draft }
-  const sources: Record<string, 'brochure' | 'maharera' | 'agent'> = {}
-  for (const k of Object.keys(d.draft)) sources[k] = 'agent'
-  const confidence = { ...d.confidence }
-  for (const [k, v] of Object.entries(fill)) {
-    const cur = (draft as Record<string, unknown>)[k]
-    // fakeDraft guesses 'apartment' when nothing is said; the brochure knows better.
-    if (cur === undefined || cur === null || (Array.isArray(cur) && !cur.length) || (k === 'property_type' && (d.confidence.property_type ?? 0) < 0.6)) {
-      ;(draft as Record<string, unknown>)[k] = v
-      sources[k] = 'brochure'
-      confidence[k] = 0.85
-    }
-  }
-  if (!draft.title) { draft.title = 'Plots in Gulmohar City, Shirur'; sources.title = 'brochure'; confidence.title = 0.7 }
-  if (!draft.description?.en) { draft.description = { en: 'NA-approved plots in a gated layout at Shirur, Pune.' }; sources['description.en'] = 'brochure' }
-  const missing = d.missing.filter((f) => f === 'price_inr' ? !draft.price_inr : f === 'description.en' ? !draft.description?.en : !(draft as Record<string, unknown>)[f])
-  return {
-    ...d, draft, confidence, missing, sources,
-    rera_candidates: [{ regno: 'P52100076768', name: 'Gulmohar City', taluka: 'Shirur' }],
-    brochure: { claims: ['NA-approved plots with clear title', '30 ft internal roads', 'Gated layout with 24x7 security', '10 minutes from Pune-Ahmednagar highway'], rera_no: null, pages: 12 },
-    selling_points: GULMOHAR_POINTS,
-    warnings: [...d.warnings, ...GULMOHAR_WARNINGS],
-  }
-}
-
 export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
   const store: FixtureStorage | null =
     storage !== undefined ? storage : typeof window !== 'undefined' ? safeLocal() : null
@@ -513,7 +468,21 @@ export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
     },
     async askAiPrompts(id) {
       const l = find(id)
-      return [{ id: 'posts', title: 'Post ideas', use: 'Demo mode', text: `Write social media posts for ${l.title}.` }]
+      // the same three steps the real prompts return (backend listings/askai.py), in demo words
+      return [
+        { id: 'plan', title: 'Marketing plan', use: 'The full plan: who buys, 5 pictures for your team, captions and a reel.',
+          best: 'ChatGPT', best_note: 'thinking on', paste: 'the whole answer, with its headings',
+          after: 'Studio reads it in parts: the pictures become your picture plan, and every number is checked against this listing.',
+          text: `Make a marketing plan for ${l.title}.` },
+        { id: 'facts', title: 'Find project facts', use: 'Web research, one fact per line with its source.',
+          best: 'Gemini', best_note: 'web search on', paste: 'the whole list of facts',
+          after: 'Every number is looked up in our records; only the ones it finds can be kept as highlights.',
+          text: `Find the facts of ${l.title} on the web, one per line with its source.` },
+        { id: 'faq', title: 'Buyer questions', use: 'Six questions buyers ask before a site visit, answered from the facts.',
+          best: 'ChatGPT', best_note: '', paste: 'the whole list of questions and answers',
+          after: 'Copy the answers you like into the listing description or the WhatsApp chat.',
+          text: `List six questions buyers ask about ${l.title}, each answered in two sentences.` },
+      ]
     },
     async askAiCheck(id, text) {
       find(id)
@@ -540,9 +509,8 @@ export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
     },
     async aiDraft(req: AIDraftRequest) {
       await new Promise((r) => setTimeout(r, 600))
-      if (!req.text?.trim() && !req.audio && req.image_count < 1 && !req.brochure_url) throw fixtureError(400, 'Send text, audio, photos or a brochure')
-      const d = fakeDraft(req.text ?? '', req.image_count, !!req.audio)
-      return req.brochure_url ? withBrochure(d) : d
+      if (!req.text?.trim() && !req.audio && req.image_count < 1) throw fixtureError(400, 'Send text, audio or photos')
+      return fakeDraft(req.text ?? '', req.image_count, !!req.audio)
     },
     async suggestAbout(req: AboutSuggestRequest) {
       await new Promise((r) => setTimeout(r, 300))

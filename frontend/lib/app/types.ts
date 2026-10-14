@@ -124,15 +124,6 @@ export type SellingPointKey =
 
 export type SellingPointValue = number | string | number[] | boolean | null
 
-/** A selling point the AI read from the brochure (not yet confirmed). */
-export interface DraftSellingPoint {
-  key: SellingPointKey
-  text: string
-  text_local?: string
-  value?: SellingPointValue
-  source: 'brochure'
-}
-
 /** A selling point on a listing; the agent ticks the true ones. */
 export interface SellingPoint {
   key: SellingPointKey
@@ -144,8 +135,6 @@ export interface SellingPoint {
 
 export interface AIDraft {
   draft: ListingInput
-  /** Builder's selling points from the brochure; compliance notes come in `warnings`. */
-  selling_points?: DraftSellingPoint[]
   confidence: Record<string, number>
   missing: string[]
   transcript?: string | null
@@ -154,11 +143,9 @@ export interface AIDraft {
   sources?: Record<string, DraftSource>
   /** MahaRERA projects that match the name, when the draft has no rera_no. */
   rera_candidates?: ReraCandidate[]
-  /** What was read from the builder's brochure (the builder's words, not verified). */
-  brochure?: { claims: string[]; rera_no?: string | null; pages?: number; error?: string }
 }
 
-export type DraftSource = 'brochure' | 'maharera' | 'agent'
+export type DraftSource = 'maharera' | 'agent'
 
 export interface ReraCandidate {
   regno: string
@@ -169,8 +156,6 @@ export interface ReraCandidate {
 export interface AIDraftRequest {
   text?: string
   audio?: Blob
-  /** From uploadBrochure: the draft reads the PDF too. */
-  brochure_url?: string
   images?: File[]
   image_count: number
 }
@@ -370,7 +355,20 @@ export interface FollowupDraft {
 
 export type DraftLanguage = 'en' | 'hi' | 'mr'
 
-export interface AskAiPrompt { id: string; title: string; use: string; text: string }
+/** One Ask AI step, in the order the agent should do them. `best` is the assistant that handles this prompt well
+ *  (`best_note` what to turn on in it), `paste` what to copy back, `after` what Studio does with the answer. */
+export interface AskAiPrompt {
+  id: string
+  title: string
+  use: string
+  text: string
+  best?: string
+  best_note?: string
+  paste?: string
+  after?: string
+  /** Set when this step should be done before the others; the backend puts it first in the list. */
+  hint?: string
+}
 /** checked: every number is in our records; unchecked: a number found nowhere (never kept); words: no numbers. */
 export type AskAiStatus = 'checked' | 'unchecked' | 'words'
 interface Checked { status: AskAiStatus; missing: string[] }

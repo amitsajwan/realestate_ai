@@ -41,14 +41,9 @@ class AIDraft(BaseModel):
     missing: list[str] = Field(default_factory=list)
     transcript: Optional[str] = None
     warnings: list[str] = Field(default_factory=list)
-    # where each draft field came from: "agent" (their words), "brochure" (the builder's brochure), "maharera" (our register)
+    # where each draft field came from: "agent" (their words) or "maharera" (our register)
     sources: dict[str, str] = Field(default_factory=dict)
-    # register projects the agent can pick with one tap when the brochure's project was matched by name only
+    # register projects the agent can pick with one tap when the project was matched by name only
     rera_candidates: list[dict[str, Any]] = Field(default_factory=list)
-    # what was read from the brochure: {claims: [...], rera_no, pages, error?}; None without one
-    brochure: Optional[dict[str, Any]] = None
     # the register record matched by registration number: {regno, name, locality, taluka, pincode, promoter, completion_*}
     maharera: Optional[dict[str, Any]] = None
-    # the brochure's selling points for the agent to confirm: [{key, text, text_local?, value, source: "brochure"}]
-    # (propertyfacts/points.py); only points the agent saves on the listing with confirmed: true reach the posts
-    selling_points: list[dict[str, Any]] = Field(default_factory=list)

@@ -218,35 +218,6 @@ def page_number(path: Any) -> Optional[int]:
     return int(m.group(1)) if m else None
 
 
-def image_only_share(pdf: Any) -> float:
-    """The share of a PDF's pages without a text layer (brochure_parse.image_only); 1.0 when it cannot be read."""
-    try:
-        import pypdfium2 as pdfium
-
-        from . import brochure_parse as bp
-        from .brochure import _pdfium_lock
-        with _pdfium_lock:
-            doc = pdfium.PdfDocument(str(pdf))
-            try:
-                n = len(doc)
-                if not n:
-                    return 1.0
-                empty = 0
-                for i in range(n):
-                    page = doc[i]
-                    try:
-                        tp = page.get_textpage()
-                        empty += bp.image_only(bp.clean(tp.get_text_range()))
-                        tp.close()
-                    finally:
-                        page.close()
-                return empty / n
-            finally:
-                doc.close()
-    except Exception:
-        return 1.0
-
-
 def brochure_photos(pages: Sequence[Any], triage: Dict[int, dict], image_share: float) -> tuple:
     """(the brochure page pictures that may be card photos, a note for the agent or ""). With triage: only pages it calls
     "photo" (page_use). Without: none from a brochure that is mostly image-only pages (it could not be checked), every page

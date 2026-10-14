@@ -281,8 +281,9 @@ MAX_BROCHURE_SIZE = 30 * 1024 * 1024  # a designed brochure is mostly pictures
 @router.post("/brochures")
 @limiter.limit("5/minute")
 async def upload_brochure(request: Request, file: UploadFile = File(...), agent_id: str = Depends(get_current_user_id)):
-    """The builder's brochure (PDF) for a listing. Stored as it is under /uploads/documents; 'Start marketing' reads it
-    (propertyfacts.files). Response {url, pages}; the client adds {url, kind: 'document'} to the listing's media."""
+    """The builder's brochure (PDF) for a listing: stored as it is under /uploads/documents and never read (reading a PDF is
+    heavy — owner, 2026-10-14). Opening it here only counts the pages and rejects a broken file. Response {url, pages};
+    the client adds {url, kind: 'document'} to the listing's media."""
     if file.content_type != "application/pdf" and Path(file.filename or "").suffix.lower() != ".pdf":
         raise HTTPException(status_code=400, detail="Please choose a PDF.")
     DOCUMENTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -308,8 +309,6 @@ async def upload_brochure(request: Request, file: UploadFile = File(...), agent_
         raise
     base_url = str(request.base_url).rstrip('/')
     logger.info(f"brochure uploaded by {agent_id}: {name} ({size} bytes, {pages} pages)")
-    from app.modules.propertyfacts import brochure_doc
-    brochure_doc.start(dest, DOCUMENTS_DIR.parent)   # read once now: the draft and Start marketing find it ready
     return {"url": f"{base_url}/uploads/documents/{name}", "pages": pages}
 
 

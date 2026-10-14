@@ -291,6 +291,19 @@ kept; campaign posts, their calendar rows and brand calendar rows carry them. Ch
 `tests/modules/creative/test_prompts.py`, `tests/modules/propertyfacts/test_campaign_prompts.py`. Not yet: a reviewed snapshot of
 a real `--llm` run for Gulmohar City in `docs/content/`.
 
+**Ask AI is a sequence, not a menu (owner, 14 Oct 2026).** Three separate prompts stay (marketing plan, project facts, buyer questions) — merging them
+into one mega-prompt would make one bad paste lose the picture plan, the captions and the reel script, and would let the research prompt's outside
+sources bleed numbers into the plan, which is checked only against our own records. What changed is the order and the screen: `askai.prompts` returns
+the steps in the order to do them (research first when the listing holds fewer than 5 checked facts, with the reason said out loud), and each carries
+`best`/`best_note` (which of the agent's own AIs suits it and what to turn on), `paste` (what to bring back) and `after` (what Studio does with it).
+`AskAiPanel` shows one step open at a time, with its own paste box, so the agent does one copy-paste at a time instead of choosing among fifteen
+buttons. Tests: `backend/tests/modules/test_listings_askai.py`, `frontend/__tests__/app/ask-ai-panel.test.tsx`.
+
+**Photos are the listing's job, not marketing's (owner, 14 Oct 2026).** Ask AI runs while the listing is being made, so the picture plan and the
+photos it asks for are filled there; marketing posts and reels use what the listing holds (the agent's own photos plus the pictures the plan asked
+for) and never ask again during the marketing phase. What is left: the add-listing form should ask for the photos the plan names while the agent is
+still in the flow.
+
 ## 7. What good looks like in three months
 Thirty or more reels with results; a Studio table the owner opens each morning; each post's facts traceable to a source; enquiries per
 post known; the first two or three hook patterns that hold attention written down with their counts. Anything beyond that (agents,

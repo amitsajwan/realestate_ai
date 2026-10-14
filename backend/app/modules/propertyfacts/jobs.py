@@ -34,7 +34,6 @@ MARKETABLE = ("live", "under_offer")
 ACTIVE = ("queued", "facts", "asking", "posts")  # asking: waiting for the agent's answers (understand.py)
 AD_REELS = 6  # ad reels per campaign (ad_reel.py): one per post, in campaign order
 WALKTHROUGH_NOTE = "Add 2 photos to get a walkthrough reel with voiceover"
-DOC_WAIT = 300.0  # the brochure document (brochure_doc): usually read since the upload; a run waits for it rather than guess
 # The walkthrough reel's style, split by listing so the two can be compared on real results (schedule.WALKTHROUGH_EXPERIMENT
 # tags the calendar rows; the insights collector reads them back). Fixed per listing: a campaign made again keeps its style.
 
@@ -508,18 +507,20 @@ class MarketingRuns:
 
     async def _ad_reels(self, job: dict, posts: List[dict], out: Path, project: str, pool: Sequence[str],
                         facts: Dict[str, Any]) -> List[dict]:
-        """One ad reel per post (ad_reel.py): formats picked by what brought enquiries before (80/20), the words checked against
-        the facts, each opening on a different one of the best pictures. Own photos first; brochure pages only when none."""
+        """One ad reel per post (ad_reel.py) in the format that says what the post says (ad_reel.for_posts), the words
+        checked against the facts, each opening on a different one of the best pictures. Own photos first."""
         from . import ad_reel
         render = self.ad_renderer or ad_reel.render
         llm = self.llm_factory() if self.llm_factory else None
         ctx = campaign.Ctx(facts)
         todo = posts[:AD_REELS]
-        formats = ad_reel.pick(ad_reel.eligible(ctx), len(todo), await ad_reel.scores(self.db))
+        formats = ad_reel.for_posts([p["angle"] for p in todo], ad_reel.eligible(ctx), await ad_reel.scores(self.db))
         pics = [p for p in pool if Path(p).is_file()]
         kicker = (project or "").upper()[:28] or None
         reels: List[dict] = []
         for i, (p, fmt) in enumerate(zip(todo, formats)):
+            if fmt is None:
+                continue
             dest = out / "reels" / f"ad-{_safe(p['angle'])}.mp4"
             try:
                 script = await ad_reel.write(fmt, ctx, llm)
@@ -586,71 +587,20 @@ class MarketingRuns:
             await self._set(job["_id"], reels_state="failed",
                             reels_error="The reels could not be made again: " + str(getattr(e, "detail", "") or e)[:200])
 
-    async def _brochure(self, job: dict, listing: dict, out: Path) -> Dict[str, Any]:
-        """The listing's brochure PDF, if any: its pages (for the cards) and the builder's claims, kept on the listing for the
-        assistant (files.save_claims) and summarised on the run for Studio. {} without a brochure; never raises.
-        A run resumed after the agent's answers reuses the claims it read before (only the pages are drawn again), and so does
-        a listing whose `file_claims` were read from this same file (by the AI draft at creation, or an earlier run)."""
-        from . import brochure_doc, files
+    def _brochure(self, listing: dict) -> Dict[str, Any]:
+        """What the listing already knows from its brochure: the claims the AI draft read at creation (files.claims_for),
+        never a fresh read. Posts and reels are made from the agent's listing, the gathered facts and the pictures the
+        agent picked from the brochure kit; a run does not wait for, OCR or page through the PDF. {} without claims."""
+        from . import files
         pdf = files.brochure_pdf(listing, self.uploads_dir)
-        if not pdf:
-            return {}
-        before = (job.get("files") or {}).get("brochure") or {}
-        if job.get("understood") and before.get("claims"):
-            try:
-                pages = await asyncio.to_thread(files.pdf_pages, pdf, out / "brochure")
-            except Exception:
-                pages = []
-            return {**before, "pages": pages, **await self._page_photos(listing, pdf, pages, out)}
-        doc = await brochure_doc.get(pdf, self.uploads_dir, wait=DOC_WAIT)
-        kept = files.claims_for(listing, pdf)  # the AI draft (or an earlier run) already read this brochure: draw pages only
-        if kept:
-            try:
-                pages = await asyncio.to_thread(files.pdf_pages, pdf, out / "brochure")
-            except Exception:
-                pages = []
-            info = {**kept, "pages": pages, "kind": (doc or {}).get("kind")}
-        else:
-            info = await files.read_brochure(pdf, out / "brochure", doc)
-            await files.save_claims(self.listings, listing["_id"], brochure=info["claims"], rera_on_brochure=info["rera_no"],
-                                    now=self.now(), brochure_url=files.brochure_url(listing, pdf),
-                                    facts=info.get("facts") or {}, language=info.get("language"))
-        info.update(await self._page_photos(listing, pdf, info["pages"], out))
-        summary = {k: info.get(k) for k in ("claims", "rera_no", "rera_missing", "error", "weak", "facts", "language",
-                                            "photo_note", "kind")}
-        await self._set(job["_id"], files={"brochure": {**summary, "pages": len(info["pages"]),
-                                                        "photo_pages": len(info["photo_pages"])}})
-        return info
+        return (files.claims_for(listing, pdf) or {}) if pdf else {}
 
-    async def _page_photos(self, listing: dict, pdf: Path, pages: Sequence[str], out: Path) -> Dict[str, Any]:
-        """{"photo_pages": the brochure pages that may be card photos, "photo_note"} (pictures.brochure_photos). The triage is
-        read next to the run's pages, else from the listing's brochure kit when the kit is this very file; without one, an
-        image-only brochure gives no pages (its builder's other projects and stock photos cannot be told apart)."""
-        from . import pictures
-        if not pages:
-            return {"photo_pages": [], "photo_note": ""}
-        dirs: List[Any] = [out / "brochure"]
-        try:
-            kits = Brochures(self.db, self.uploads_dir)
-            kit = await kits.current(listing["_id"])
-            if kit and kit.get("sha256") == await asyncio.to_thread(lambda: hashlib.sha256(pdf.read_bytes()).hexdigest()):
-                dirs.append(kits._dir(listing["_id"]) / kit["sha256"])
-        except Exception:
-            log.info("marketing: no brochure kit to match for %s", listing.get("_id"), exc_info=True)
-        triage = await asyncio.to_thread(pictures.load_triage, *dirs)
-        if not triage:  # a resumed run or claims already read: the pages were only drawn, so label them now
-            from . import files
-            triage = await files.page_labels(list(pages), out / "brochure", await asyncio.to_thread(files._file_hash, pdf))
-        share = 0.0 if triage else await asyncio.to_thread(pictures.image_only_share, pdf)
-        kept, note = pictures.brochure_photos(pages, triage, share)
-        return {"photo_pages": kept, "photo_note": note}
-
-    async def _photo_pool(self, listing: dict, out: Path, pages: Sequence = ()) -> List[str]:
-        """The property's own pictures for the post cards, one per post, best first: its photos, the stills of its video and
-        the pages of its brochure (`pages`) ranked together by pictures.rank (clear place shots, sharp and colourful first; a
+    async def _photo_pool(self, listing: dict, out: Path) -> List[str]:
+        """The property's own pictures for the post cards, one per post, best first: its photos and the stills of its video
+        ranked together by pictures.rank (clear place shots, sharp and colourful first; a
         presenter filling the frame, burned-in text and near-duplicates last or left out), so neighbouring cards never show
         the same scene. Never stock photos; [] keeps the plain cards. Ranking never fails the run: its fallback is the
-        upload order (photos and stills alternating, pages last)."""
+        upload order (photos and stills alternating)."""
         from app.modules.reels.listing_reel import listing_photos
 
         from . import pictures
@@ -663,7 +613,6 @@ class MarketingRuns:
         pool: List[str] = []
         for i in range(max(len(own), len(stills))):
             pool += ([own[i]] if i < len(own) else []) + ([stills[i]] if i < len(stills) else [])
-        pool += [str(p) for p in pages if str(p) not in pool]
         try:
             return await asyncio.to_thread(pictures.rank, pool, set(own), pictures.shot_notes(out / "frames"))
         except Exception:
@@ -671,8 +620,12 @@ class MarketingRuns:
             return pool
 
     def _has_files(self, listing: dict) -> bool:
+        """Something to show on the cards: a photo, a video or a brochure (its kit's renders and plans)."""
+        from app.modules.reels.listing_reel import listing_photos
+
         from . import files
-        return files.brochure_pdf(listing, self.uploads_dir) is not None or self._video(listing) is not None
+        return (files.brochure_pdf(listing, self.uploads_dir) is not None or self._video(listing) is not None
+                or any(Path(p).is_file() for p in listing_photos(listing, self.uploads_dir)))
 
     def _video(self, listing: dict) -> Optional[Path]:
         """The listing's first uploaded video (media kind 'video', a file under <uploads>/videos), or None."""
@@ -790,7 +743,7 @@ class MarketingRuns:
             page = project_url or listing_url
             out = self.uploads_dir / "campaigns" / _safe(job["listing_id"]) / jid[:8]
             llm = self.llm_factory() if self.llm_factory else None
-            brochure = await self._brochure(job, listing, out)
+            brochure = self._brochure(listing)
             # what is on offer (one plot or a layout, sizes, MahaRERA): filled in when certain, asked when not
             if not job.get("understood"):
                 questions, changed = await self._understand(listing, sheet, brochure, llm)
@@ -805,9 +758,8 @@ class MarketingRuns:
             # step 2: the posts, only now that the facts are kept
             step = "posts"
             dropped: Dict[str, Any] = {}
-            # only the brochure pages that may be card photos (pictures.brochure_photos): never the builder's other projects,
-            # company or stock pages; renders and plans reach posts only through the kit, labelled (campaign.first_look)
-            photos = await self._photo_pool(listing, out, brochure.get("photo_pages", []))
+            # the agent's photos and video stills; renders and plans reach posts only through the kit (campaign.first_look)
+            photos = await self._photo_pool(listing, out)
             previous = await self._live_posts(job, listing)
             plan_rows: List[dict] = []
 
@@ -836,12 +788,11 @@ class MarketingRuns:
                                         photos=photos, previous=previous, on_plan=on_plan, on_post=on_post, used=used,
                                         images=images, kit=kit, **who)
             keys = {aid: campaign.brief_key(b) for aid, b in campaign.plan(sheet.facts, follow_ups=None, images=images, kit=kit, **who)}
-            pages = {str(x) for x in brochure.get("pages", [])}
             ctx = campaign.Ctx(sheet.facts)
             where = ctx.where or "this property"
             link_line = campaign.link_line_for(where, job.get("language") or "en", ctx.registered)
             posts = await self._keep_edited({**job, "page_url": page, "link_line": link_line},
-                                            [self._post(aid, p, keys.get(aid), used.get(aid, "none"), pages) for aid, p in packs])
+                                            [self._post(aid, p, keys.get(aid), used.get(aid, "none")) for aid, p in packs])
             trace.event(log, "marketing", jid, "posts", trace.OK if posts and not dropped else trace.FALLBACK if posts else trace.FAILED,
                         made=len(posts), by_llm=sum(1 for p in posts if p["used_llm"]), photo="none" if photo == "none" else "listing",
                         dropped="; ".join(f"{k}: {v}" for k, v in dropped.items()) or None)
@@ -854,7 +805,7 @@ class MarketingRuns:
             await self._set(jid, reels=reels)
             # the master boost pair (best effort: a failure is kept as boost.error, the run is done either way)
             step = "boost"
-            await self._make_boost(job, listing, sheet.facts, out, own=[p for p in photos if p not in pages])
+            await self._make_boost(job, listing, sheet.facts, out, own=photos)
             await self._set(jid, status="done", reels=reels, error=None, finished_at=self.now())
             trace.event(log, "marketing", jid, "done", trace.OK, posts=len(posts), reels=len(reels),
                         seconds=time.monotonic() - started)
@@ -874,11 +825,11 @@ class MarketingRuns:
                                        finished_at=self.now())
             await self._set(jid, status="failed", error=msg, finished_at=self.now())
 
-    def _post(self, aid: str, pack, key: Optional[str], photo: str, pages: set) -> dict:
-        """A post as kept on the run; `brief` (what it says) and `photo` (brochure, photo or none) let a later change remake
-        only the posts it touches."""
+    def _post(self, aid: str, pack, key: Optional[str], photo: str) -> dict:
+        """A post as kept on the run; `brief` (what it says) and `photo` (photo or none) let a later change remake only the
+        posts it touches."""
         imgs = ["/uploads/" + Path(i).resolve().relative_to(self.uploads_dir.resolve()).as_posix() for i in pack.images]
-        kind = "none" if photo in ("", "none") else "brochure" if photo in pages else "photo"
+        kind = "none" if photo in ("", "none") else "photo"
         return {"angle": aid, "layout": pack.design.get("layout"), "format": pack.design.get("format"), "images": imgs,
                 "caption": pack.caption, "used_llm": pack.used_llm, "prompts": pack.prompts, "brief": key, "photo": kind}
 
@@ -895,45 +846,31 @@ class MarketingRuns:
         return out + [{**p, "stale": True} for a, p in old.items() if a not in made and (p.get("edited") or a in locked)]
 
     async def _update(self, job: dict, listing: dict) -> None:
-        """An update run: the earlier run's posts, remaking only what changed since its `inputs`. A new brochure is read
-        again (its new questions asked) and remakes the posts on its pages; new photos remake the posts without a photo;
-        changed facts remake the posts whose text they change; a new video makes only the video reel."""
+        """An update run: the earlier run's posts, remaking only what changed since its `inputs`. New photos remake the posts
+        without a photo; changed facts remake the posts whose text they change; a new video makes only the video reel. A new
+        brochure remakes nothing (posts are not made from the PDF)."""
         jid = job["_id"]
         changes = self._changes(job.get("inputs") or {}, self._inputs(listing))
         out = self.uploads_dir / "campaigns" / _safe(job["listing_id"]) / jid[:8]
         posts, reels, redone = [dict(p) for p in job.get("posts") or []], list(job.get("reels") or []), []
         llm = self.llm_factory() if self.llm_factory else None
         sheet = None
-        if set(changes) & {"facts", "brochure", "photos"}:
+        if set(changes) & {"facts", "photos"}:
             clients = self.clients_factory() if self.clients_factory else Clients(facts_store=self.facts_store)
             sheet = await gather({**listing, "id": listing["_id"]}, clients, self.now())
-            brochure: Dict[str, Any] = {}
-            if "brochure" in changes:
-                brochure = await self._brochure(job, listing, out)
-                if not job.get("understood"):
-                    questions, filled = await self._understand(listing, sheet, brochure, llm)
-                    if questions:
-                        return await self._set(jid, status="asking", step="facts", changes=changes, questions=questions)
-                    if filled:
-                        listing = await self.listings.find_one({"_id": job["listing_id"]}) or listing
-                        sheet = await gather({**listing, "id": listing["_id"]}, clients, self.now())
             await self._set(jid, status="posts", step="posts", changes=changes, facts=_summary(sheet), questions=[])
             who = self._who(job, await self._identity(job))
             briefs = dict(campaign.plan(sheet.facts, "none", job.get("page_url") or "", follow_ups=None, **who))
             own = await self._photo_pool(listing, out)
-            pages = [str(x) for x in brochure.get("pages", [])]
-            pool = own + [str(x) for x in brochure.get("photo_pages", [])]
             locked = await self._locked(job)
             for i, p in enumerate(posts):
                 b = briefs.get(p["angle"])
                 key = campaign.brief_key(b) if b else None
                 why = ("facts" if key and (key != p["brief"] if p.get("brief") else "facts" in changes) else
-                       "brochure" if "brochure" in changes and (p.get("photo", "brochure") == "brochure"
-                                                                 or p["photo"] == "none" and pool) else
                        "photos" if "photos" in changes and p.get("photo") == "none" and own else "")
                 if not (why and b):
                     continue
-                photo = own[i % len(own)] if why == "photos" else pool[i % len(pool)] if pool else self._photo(listing)
+                photo = own[i % len(own)] if own else self._photo(listing)
                 b = replace(b, photo=photo)
                 if llm is not None and b.hooks:
                     b = await campaign.sharpen(b, llm)
@@ -942,7 +879,7 @@ class MarketingRuns:
                 if not pack.report.get("ok"):
                     log.info("marketing update %s: %s not remade: %s", jid, p["angle"], pack.report.get("problems"))
                     continue
-                posts[i] = await self._place(job, p, self._post(p["angle"], pack, key, photo, set(pages)), locked)
+                posts[i] = await self._place(job, p, self._post(p["angle"], pack, key, photo), locked)
                 redone.append(p["angle"])
         if "video" in changes:
             video = self._video(listing)
@@ -1108,11 +1045,10 @@ class MarketingRuns:
             listing = await self._selling_points(listing, brochure)
             rera = sheet.facts.get("rera_no")
             units = sheet.facts.get("units_total")
-            readable = bool(brochure.get("pages"))   # a PDF that failed to render does not count as attached
-            files = readable or self._video(listing) is not None
+            files = self._has_files(listing)
             auto, questions = understand.decide(listing, seen, bool(rera and rera.usable),
                                                 units.value if units and units.usable and isinstance(units.value, int) else None,
-                                                has_files=files, unreadable=bool(brochure) and not readable,
+                                                has_files=files,
                                                 candidates=_choices(sheet.match), points=points.pending(listing))
             if auto:
                 await self.listings.update_one({"_id": listing["_id"]}, {"$set": auto})

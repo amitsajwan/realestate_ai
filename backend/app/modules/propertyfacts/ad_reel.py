@@ -3,7 +3,7 @@
 Why: on the Avasetu page 89.9% of views came from the Reels tab and 0.6% from the feed (Meta insights, 2026-10-10), so a post that
 is only an image reaches almost nobody.
 
-A reel is a `script` in one of FORMATS (showcase, price reveal, 3 reasons, POV, myth vs fact, checklist) and is rendered with compose:
+A reel is a `script` in one of FORMATS (showcase, price reveal, 3 reasons, nearby (pov), myth vs fact, checklist) and is rendered with compose:
   hook     the best picture at once, its line in big type in the middle third (no fade-in, no brand tag: frame one is content)
   beats    one short line per picture, a cut every ~1.5 s (most people watch muted and read)
   payoff   the fact the hook promised (the price, the RERA number), held back to the end so people watch to it
@@ -14,8 +14,10 @@ A reel is a `script` in one of FORMATS (showcase, price reveal, 3 reasons, POV, 
 The words come from the LLM when it keeps to the facts (every number in a line must be in the facts, guards.problems_in finds
 hype and predictions), else from the code's own template; the facts are always the code's.
 
-Which formats a campaign makes: `pick` - 80% the formats that brought the most value before (enquiries, then clicks, then
-views, from content_metrics and the interest links of earlier ad reels), 20% another one, so nothing goes stale.
+Which format each reel takes: `for_posts` - the one that says what its post says (a price post is a price reveal, a MahaRERA
+post a checklist, a nearby post the nearby reel). Only when that format is taken or lacks the facts does `pick` choose: 80% the
+formats that brought the most value before (enquiries, then clicks, then views, from content_metrics and the interest links of
+earlier ad reels), 20% another one.
 """
 import logging
 import random
@@ -24,7 +26,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
-from .campaign import Ctx, _near, _numbers
+from .campaign import Ctx, _near, _numbers, buyer_place
 
 log = logging.getLogger(__name__)
 
@@ -67,7 +69,7 @@ def _price(c: Ctx) -> str:
 def _places(c: Ctx, n: int = 3) -> List[str]:
     out, seen = [], set()
     for key, p in _near(c):
-        name = c.place(key, p)
+        name = buyer_place(c, key, p)
         if name and name not in seen and p.get("km") is not None:
             seen.add(name)
             out.append(f"{name}: {p['km']:g} km")
@@ -140,7 +142,7 @@ def template(fmt: str, c: Ctx) -> Script:
     place = (c.locality or c.project or "Pune").split(",")[0].strip()   # "Malthan village", not "..., Shirur taluka"
     what = "plot" if c.plot else "home"
     price, size, places = _price(c), _size(c), _places(c)
-    rera = f"MahaRERA {c.v['rera_no']}" if c.registered else ""
+    rera = f"MahaRERA {c.v['rera_no']}" if c.registered and c.v.get("rera_no") else ""
     cta = f"Comment {CTA_WORD} for a site visit"
     facts = [x for x in (size, _layout(c), *places, "MahaRERA registered" if c.registered else "") if x]
     if fmt == "showcase":
@@ -153,9 +155,8 @@ def template(fmt: str, c: Ctx) -> Script:
         return Script(fmt, f"{lead}, {place}", beats or facts[:3], f"*{price}*" if price else rera, cta)
     if fmt == "price_reveal":
         return Script(fmt, f"Guess the price of this {what} in {place}", facts[:3], f"*{price}*" if price else rera, cta)
-    if fmt == "pov":
-        first = places[0].split(":")[0] if places else place
-        return Script(fmt, f"POV: {first} is minutes from your new {what}", places[:3] or facts[:3], price or rera, cta)
+    if fmt == "pov":   # the nearby reel (the id stays: earlier reels' scores are kept under it)
+        return Script(fmt, f"What is near {c.project or place}?", places[:3] or facts[:3], price or rera, cta)
     if fmt == "myth_fact":
         return Script(fmt, f"Is {place} too far? Check the facts", places[:3], f"*{c.where or place}*", cta)
     if fmt == "checklist":
@@ -172,10 +173,11 @@ def template(fmt: str, c: Ctx) -> Script:
 SYSTEM = (
     "You write a 15-20 second Instagram/Facebook Reel for an Indian property listing, like a top ad agency that sells homes. "
     "Every line is shown on screen AND spoken by a voice-over, so it must sound natural said aloud. "
-    "Rules: the hook stops the scroll in under 1 second (at most 10 words: a question, a number, or 'POV: ...'); each beat is "
+    "Rules: the hook stops the scroll in under 1 second (at most 10 words: a question, a number, or a specific buyer fact); each beat is "
     "at most 8 words, one idea per picture; the payoff is the fact the hook promised; the cta asks to 'Comment " + CTA_WORD +
     "'. Sell the project first: its name, the configuration (BHK), the price, its amenities and its size or number of homes; "
-    "a distance is a supporting beat, never more than one hospital or school line. "
+    "a distance is a supporting beat, and do not use a hospital, school, market, bank or temple as the hook. "
+    "No 'POV:' openers; it should sound like a Pune agent talking, not a list read from a database. "
     "Use ONLY the facts given: never a number, price, distance or name that is not in them, never a forecast of prices or "
     "returns, no hype words (best, luxurious, dream, guaranteed). Plain English a Pune buyer speaks. "
     "Reply with JSON only: {\"hook\": \"...\", \"beats\": [\"...\", \"...\", \"...\"], \"payoff\": \"...\", \"cta\": \"...\"}")
@@ -240,6 +242,29 @@ async def write(fmt: str, c: Ctx, llm: Any = None) -> Script:
 def value(m: Dict[str, Any]) -> float:
     """What one reel brought: an enquiry is worth far more than a view."""
     return 50.0 * m.get("interests", 0) + 5.0 * m.get("clicks", 0) + m.get("views", 0) / 100.0
+
+
+# the reel formats that say what a post of each campaign angle says, best first
+FOR_ANGLE: Dict[str, Sequence[str]] = {
+    "overview": ("showcase", "three_reasons"),
+    "price_reveal": ("price_reveal",), "offer": ("price_reveal",), "emi": ("price_reveal",), "rate_per_sqft": ("price_reveal",),
+    "rera_check": ("checklist",), "possession": ("checklist",), "plot_checklist": ("checklist",),
+    "nearby": ("pov", "myth_fact"), "near_work": ("myth_fact", "pov"),
+    "plot_myth": ("myth_fact",), "plot_or_flat": ("myth_fact",),
+}
+SHOWS_THE_PLACE = ("showcase", "three_reasons")   # amenities, plans, sizes, renders: the project itself
+
+
+def for_posts(angles: Sequence[str], allowed: Sequence[str], scores: Dict[str, float],
+              rng: Optional[random.Random] = None) -> List[Optional[str]]:
+    """A format per post angle, never one twice: the first of FOR_ANGLE[angle] this property has the facts for; else the
+    scored pick among those left; None when none is left (that post gets no ad reel)."""
+    out: List[Optional[str]] = []
+    for a in angles:
+        left = [f for f in allowed if f not in out]
+        fit = next((f for f in FOR_ANGLE.get(a, SHOWS_THE_PLACE) if f in left), None)
+        out.append(fit or (pick(left, 1, scores, rng) or [None])[0])
+    return out
 
 
 def pick(allowed: Sequence[str], n: int, scores: Dict[str, float], rng: Optional[random.Random] = None) -> List[str]:

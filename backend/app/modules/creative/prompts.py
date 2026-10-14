@@ -15,7 +15,7 @@ from .models import Voice
 
 BRAND, LISTING = "brand", "listing"
 MODES = (BRAND, LISTING)
-VERSIONS = {"strategist": 2, "copywriter": 4, "translator": 1, "critic": 3, "card_translator": 3}
+VERSIONS = {"strategist": 2, "copywriter": 5, "translator": 1, "critic": 4, "card_translator": 3}
 LANGUAGE_NAMES = {"mr": "Marathi (Devanagari script)", "hi": "Hindi (Devanagari script)"}
 
 
@@ -37,6 +37,13 @@ _LISTING_FACTS = ("Use ONLY the supplied facts: the price, the project name, the
 _NO_SALES = ("State facts, never sell: no value judgements (affordable, cheap, value for money, without overpaying), no "
              "promises (your new home), no 'only' or 'just', no 'tap' or 'click' (nothing on Instagram is tappable), never "
              "the word 'sample'. ")
+
+# The content director's test for listing posts: facts can all be true and the post still not worth posting.
+_TASTE = ("Content director's test: would a respected Pune property creator post this? Lead with what a buyer decides on: "
+          "the project, its area, the price, the size or BHK, possession and MahaRERA. A nearby place is a supporting detail, "
+          "used only when the facts name it in full and buyers care (a station, the airport, a big employer); never a lone "
+          "shop, clinic or school name, never a name fragment such as 'More'. No 'POV:' openers and no database phrasing "
+          "('Located in X.', 'Nearby: A 0.3 km'): write the way an agent talks. Ask for a visit at most once. ")
 
 
 # The three hats every planning/writing/judging prompt wears: the sales desk decides WHAT to say, the designer decides how
@@ -80,7 +87,7 @@ def copywriter(v: Voice, mode: str = BRAND) -> str:
     if mode == LISTING:
         head = (f"You are the copywriter of {v.name}, an Indian real-estate brand. This post markets one property in "
                 f"{_areas(v)}. Write the post copy for the given angle.\n")
-        facts = _LISTING_FACTS + " No superlatives (best, perfect, dream, guaranteed). " + _NO_SALES + (
+        facts = _LISTING_FACTS + " No superlatives (best, perfect, dream, guaranteed). " + _NO_SALES + _TASTE + (
             "The caption opens with the card's headline as given (code puts it there); your first_line is not used. ")
     else:
         head = (f"You are the copywriter of {v.name}, an Indian real-estate brand (home buyers and property agents in Kharadi, "
@@ -130,7 +137,8 @@ def critic(v: Voice, mode: str = BRAND) -> str:
         what = f"a social post that markets one property in {_areas(v)} for an Indian real-estate brand"
         who = f"a buyer looking for property in {_areas(v)}"
         rules = ("Flag any sales claim (affordable, value for money, without overpaying, only/just, tap/click, a promise "
-                 "such as your new home) and a caption first line that differs from the card headline. ")
+                 "such as your new home) and a caption first line that differs from the card headline. " + _TASTE
+                 + "Flag what fails that test. ")
     else:
         what, who = "a social post for an Indian real-estate brand", "a Pune buyer or property agent"
     return (f"You are a harsh art director and copy chief reviewing {what}. Judge ONLY what you are given. Would {who} stop "

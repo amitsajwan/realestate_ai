@@ -50,16 +50,16 @@ function mediaFor(listing: Listing, plan: PictureSlot[]): ListingInput['media'] 
   return [...first, ...rest].map((m, order) => ({ ...m, order }))
 }
 
-/** Ask AI: the agent's own ChatGPT, Claude or Gemini, used by hand. Our prompts go out with the listing's facts; the answer
- *  is pasted back and read in parts, every number checked against our records. The team then finds a photo for each
- *  picture of the plan; checked lines can be kept as the listing's highlights. */
+/** Ask AI: the agent's own ChatGPT, Claude or Gemini, used by hand. One step at a time: open that step's prompt in your AI,
+ *  paste its answer back, Studio reads it in parts and checks every number against our records. The team then finds a photo
+ *  for each picture of the plan; checked lines can be kept as the listing's highlights. */
 export function AskAiPanel({ listing, onSaved }: { listing: Listing; onSaved: (l: Listing) => void }) {
   const [lang, setLang] = useState<DraftLanguage>('en')
   const prompts = useAsync(() => api.askAiPrompts(listing.id, lang), [listing.id, lang])
-  const [shown, setShown] = useState<string | null>(null)
+  const [active, setActive] = useState<string | null>(null)
   const [note, setNote] = useState<string | null>(null)
-  const [text, setText] = useState('')
-  const [answer, setAnswer] = useState<AskAiAnswer | null>(null)
+  const [drafts, setDrafts] = useState<Record<string, string>>({})
+  const [answers, setAnswers] = useState<Record<string, AskAiAnswer | null>>({})
   const [picked, setPicked] = useState<Set<number>>(new Set())
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
@@ -67,10 +67,12 @@ export function AskAiPanel({ listing, onSaved }: { listing: Listing; onSaved: (l
   const have = listing.about?.highlights ?? []
   const room = MAX_HIGHLIGHTS - have.length
   const plan = listing.picture_plan ?? []
+  const list = prompts.data ?? []
+  const openId = active && list.some((p) => p.id === active) ? active : (list[0]?.id ?? null)
 
   async function open(p: AskAiPrompt, ai: (typeof AIS)[number]) {
-    if (ai.copy) setNote((await copy(p.text)) ? `Prompt copied. Paste it in ${ai.name}.` : 'Copy the prompt below, then paste it in Gemini.')
-    else setNote(`Opened ${ai.name}. When it answers, copy the whole answer and paste it in step 2.`)
+    if (ai.copy) setNote((await copy(p.text)) ? `Prompt copied. Paste it in ${ai.name}, then bring its whole answer back here.` : 'Copy the prompt below, then paste it in Gemini.')
+    else setNote(`Opened ${ai.name}. When it answers, copy the whole answer and paste it below.`)
     window.open(ai.url(p.text), '_blank', 'noopener')
   }
 
@@ -89,11 +91,12 @@ export function AskAiPanel({ listing, onSaved }: { listing: Listing; onSaved: (l
     }
   }
 
-  async function check() {
+  async function check(p: AskAiPrompt) {
     setBusy(true)
     setErr(null)
     try {
-      setAnswer(await api.askAiCheck(listing.id, text))
+      const read = await api.askAiCheck(listing.id, drafts[p.id] ?? '')
+      setAnswers((a) => ({ ...a, [p.id]: read }))
       setPicked(new Set())
     } catch (e) {
       setErr(errorMessage(e))
@@ -102,14 +105,13 @@ export function AskAiPanel({ listing, onSaved }: { listing: Listing; onSaved: (l
     }
   }
 
-  const keepLines = () => {
-    const add = [...picked].map((i) => answer?.lines[i]?.keep ?? '').filter((x) => x && !have.includes(x))
+  const keepLines = (answer: AskAiAnswer) => {
+    const add = [...picked].map((i) => answer.lines[i]?.keep ?? '').filter((x) => x && !have.includes(x))
     void save({ about: { ...(listing.about ?? {}), highlights: [...have, ...add].slice(0, MAX_HIGHLIGHTS) } },
       `Added ${Math.min(add.length, room)} to the listing's highlights.`).then((ok) => ok && setPicked(new Set()))
   }
 
-  const usePlan = () => {
-    if (!answer) return
+  const usePlan = (answer: AskAiAnswer) => {
     // a slot keeps the photo already found for the same kind of picture at the same place
     const next = answer.pictures.map(({ status: _s, missing: _m, ...slot }, i) => ({ ...slot, url: plan[i]?.type === slot.type ? plan[i].url ?? null : null }))
     void save({ picture_plan: next, media: mediaFor(listing, next) }, 'Picture plan saved. Now add a photo for each picture below.')
@@ -139,9 +141,10 @@ export function AskAiPanel({ listing, onSaved }: { listing: Listing; onSaved: (l
 
   return (
     <div className="space-y-4">
-      <section className={card} aria-label="Prompts">
-        <p className="font-semibold">1. Ask your AI</p>
-        <p className="text-sm text-gray-600">Our prompts carry this listing&apos;s checked facts and our rules, and ask the AI to think before it answers. They open in your own ChatGPT or Claude; for Gemini the prompt is copied for you to paste.</p>
+      <section className={card} aria-label="Ask your AI">
+        <p className="font-semibold">Ask your AI, one step at a time</p>
+        <p className="text-sm text-gray-600">Each step is one prompt that carries this listing&apos;s checked facts and our rules, and asks the AI to think
+          before it answers. Open it in your own ChatGPT, Claude or Gemini, then paste what it says back into that step.</p>
         <div className="flex items-center gap-2 text-sm" role="group" aria-label="Language of the posts">
           {LANGS.map(([l, label]) => (
             <button key={l} type="button" aria-pressed={lang === l} onClick={() => setLang(l)}
@@ -150,44 +153,29 @@ export function AskAiPanel({ listing, onSaved }: { listing: Listing; onSaved: (l
         </div>
         {prompts.loading && !prompts.data && <Spinner />}
         {prompts.error && <ErrorBox message={prompts.error} onRetry={prompts.reload} />}
-        {prompts.data?.map((p) => (
-          <div key={p.id} className="space-y-2 rounded-xl border border-gray-100 bg-gray-50 p-3">
-            <p className="font-semibold">{p.title}</p>
-            <p className="text-sm text-gray-600">{p.use}</p>
-            <div className="flex flex-wrap gap-2">
-              {AIS.map((ai) => (
-                <button key={ai.name} type="button" onClick={() => void open(p, ai)}
-                  className={`${small} border border-blue-200 bg-white text-blue-700 active:bg-blue-50`}>
-                  {ai.copy ? `Copy & open ${ai.name}` : `Open in ${ai.name}`}
-                </button>
-              ))}
-              <button type="button" onClick={async () => setNote((await copy(p.text)) ? 'Prompt copied.' : 'Could not copy: select the prompt text instead.')}
-                className={`${small} text-gray-700 active:bg-gray-100`}>Copy</button>
-              <button type="button" onClick={() => setShown(shown === p.id ? null : p.id)} aria-expanded={shown === p.id}
-                className={`${small} text-gray-700 underline`}>{shown === p.id ? 'Hide prompt' : 'See prompt'}</button>
-            </div>
-            {shown === p.id && <pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-white p-3 text-xs text-gray-800">{p.text}</pre>}
-          </div>
-        ))}
-        {note && <p role="status" className="rounded-xl bg-blue-50 p-3 text-sm font-semibold text-blue-900">{note}</p>}
+        <ol className="space-y-2">
+          {list.map((p, i) => (
+            <Step key={p.id} p={p} n={i + 1} nextTitle={list[i + 1]?.title} open={openId === p.id}
+              done={!!answers[p.id]} busy={busy} err={openId === p.id ? err : null} note={openId === p.id ? note : null}
+              text={drafts[p.id] ?? ''} answer={answers[p.id] ?? null} picked={picked} setPicked={setPicked}
+              have={have} room={room} hasPlan={plan.length > 0}
+              onToggle={() => { setActive(openId === p.id ? null : p.id); setPicked(new Set()) }}
+              onOpenAI={(ai) => void open(p, ai)}
+              onCopyPrompt={async () => setNote((await copy(p.text)) ? 'Prompt copied. Paste it in your AI.' : 'Could not copy: select the prompt text instead.')}
+              onText={(t) => setDrafts((d) => ({ ...d, [p.id]: t }))}
+              onCheck={() => void check(p)}
+              onKeep={() => keepLines(answers[p.id]!)}
+              onUsePlan={() => answers[p.id] && usePlan(answers[p.id]!)}
+              onCopyAnswer={async (t) => setNote((await copy(t)) ? 'Copied.' : 'Could not copy.')}
+              onNext={() => { setActive(list[i + 1]?.id ?? null); setNote(null); setErr(null) }}
+            />
+          ))}
+        </ol>
       </section>
-
-      <section className={card} aria-label="Check the answer">
-        <p className="font-semibold">2. Paste the whole answer</p>
-        <p className="text-sm text-gray-600">Every number is looked up in your listing, MahaRERA and the facts we checked on the web. Anything with a number we cannot find cannot be kept.</p>
-        <textarea value={text} onChange={(e) => setText(e.target.value)} rows={8} maxLength={20000}
-          placeholder="Paste the AI's answer here" aria-label="The AI's answer"
-          className="w-full rounded-xl border border-gray-300 p-3 text-sm" />
-        <Btn disabled={busy || !text.trim()} onClick={check}>{busy && !answer ? 'Checking…' : 'Check'}</Btn>
-        {err && <ErrorBox message={err} />}
-      </section>
-
-      {answer && <AnswerView answer={answer} picked={picked} setPicked={setPicked} have={have} room={room} busy={busy}
-        onKeep={keepLines} onUsePlan={usePlan} hasPlan={plan.length > 0} onCopy={async (t) => setNote((await copy(t)) ? 'Copied.' : 'Could not copy.')} />}
 
       {plan.length > 0 && (
         <section className={card} aria-label="Picture plan">
-          <p className="font-semibold">3. Picture plan: find a photo for each</p>
+          <p className="font-semibold">Picture plan: find a photo for each</p>
           <p className="text-sm text-gray-600">Use only pictures the builder allows agents to use. Your posts and reels use these photos; for now marketing picks their order by photo quality.</p>
           <ol className="space-y-3">
             {plan.map((s, i) => (
@@ -234,6 +222,87 @@ export function AskAiPanel({ listing, onSaved }: { listing: Listing; onSaved: (l
   )
 }
 
+/** One Ask AI step, closed except the one being used: open the prompt in your AI, paste its answer, read what it suggests. */
+function Step({ p, n, nextTitle, open, done, busy, err, note, text, answer, picked, setPicked, have, room, onToggle,
+  onOpenAI, onCopyPrompt, onText, onCheck, onKeep, onUsePlan, hasPlan, onCopyAnswer, onNext }: {
+  p: AskAiPrompt; n: number; nextTitle?: string; open: boolean; done: boolean; busy: boolean
+  err: string | null; note: string | null; text: string; answer: AskAiAnswer | null; picked: Set<number>
+  setPicked: (s: Set<number>) => void; have: string[]; room: number
+  onToggle: () => void; onOpenAI: (ai: (typeof AIS)[number]) => void; onCopyPrompt: () => void
+  onText: (t: string) => void; onCheck: () => void; onKeep: () => void; onUsePlan: () => void; hasPlan: boolean
+  onCopyAnswer: (t: string) => void; onNext: () => void
+}) {
+  const [showPrompt, setShowPrompt] = useState(false)
+  const best = p.best ? AIS.find((a) => a.name === p.best) : undefined
+  const rest = AIS.filter((a) => a !== best)
+  return (
+    <li className={`rounded-xl border ${open ? 'border-blue-200 bg-white' : 'border-gray-200 bg-gray-50'}`}>
+      <h3>
+        <button type="button" aria-expanded={open} aria-controls={`step-${p.id}`} onClick={onToggle}
+          className="flex min-h-[44px] w-full items-start gap-3 p-3 text-left">
+          <span aria-hidden className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-sm font-bold ${done ? 'bg-green-600 text-white' : open ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}>
+            {done ? '✓' : n}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-semibold">{p.title}</span>
+            <span className="block text-sm text-gray-600">{p.use}</span>
+            {p.hint && <span className="mt-1 block w-fit rounded-lg bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-800">{p.hint}</span>}
+          </span>
+          <span aria-hidden className="shrink-0 text-gray-500">{open ? '▴' : '▾'}</span>
+        </button>
+      </h3>
+      {open && (
+        <div id={`step-${p.id}`} className="space-y-4 border-t border-gray-100 p-3">
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase text-gray-500">a. Open it in your AI</p>
+            {best && (
+              <button type="button" onClick={() => onOpenAI(best)}
+                className="min-h-[48px] w-full rounded-xl bg-blue-600 px-4 text-left text-white active:bg-blue-700">
+                <span className="block font-semibold">Open in {best.name}</span>
+                {p.best_note && <span className="block text-xs text-blue-100">works best with {p.best_note}</span>}
+              </button>
+            )}
+            <div className="flex flex-wrap gap-2">
+              {!best && AIS.map((ai) => (
+                <button key={ai.name} type="button" onClick={() => onOpenAI(ai)} className={`${small} border border-blue-200 bg-white text-blue-700 active:bg-blue-50`}>
+                  {ai.copy ? `Copy & open ${ai.name}` : `Open in ${ai.name}`}
+                </button>
+              ))}
+              {best && rest.map((ai) => (
+                <button key={ai.name} type="button" onClick={() => onOpenAI(ai)} className={`${small} text-gray-700 active:bg-gray-100`}>
+                  {ai.copy ? `Copy & open ${ai.name}` : `or ${ai.name}`}
+                </button>
+              ))}
+              <button type="button" onClick={onCopyPrompt} className={`${small} text-gray-700 active:bg-gray-100`}>Copy the prompt</button>
+              <button type="button" onClick={() => setShowPrompt((s) => !s)} aria-expanded={showPrompt}
+                className={`${small} text-gray-700 underline`}>{showPrompt ? 'Hide the prompt' : 'See the exact prompt'}</button>
+            </div>
+            {showPrompt && <pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-gray-50 p-3 text-xs text-gray-800">{p.text}</pre>}
+          </div>
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase text-gray-500">b. Paste {p.paste ?? 'the whole answer'}</p>
+            <textarea value={text} onChange={(e) => onText(e.target.value)} rows={6} maxLength={20000}
+              placeholder="Paste your AI's answer here, with its headings" aria-label={`The answer to ${p.title}`}
+              className="w-full rounded-xl border border-gray-300 p-3 text-sm" />
+            <Btn disabled={busy || !text.trim()} onClick={onCheck}>{busy ? 'Checking…' : answer ? 'Check again' : 'Check the answer'}</Btn>
+            {err && <ErrorBox message={err} />}
+            {note && <p role="status" className="rounded-xl bg-blue-50 p-3 text-sm font-semibold text-blue-900">{note}</p>}
+            {p.after && <p className="text-sm text-gray-600">{p.after}</p>}
+          </div>
+          {answer && (
+            <div className="space-y-3">
+              <p className="text-xs font-semibold uppercase text-gray-500">c. What it suggests</p>
+              <AnswerView answer={answer} picked={picked} setPicked={setPicked} have={have} room={room} busy={busy}
+                onKeep={onKeep} onUsePlan={onUsePlan} hasPlan={hasPlan} onCopy={onCopyAnswer} />
+              {nextTitle && <button type="button" onClick={onNext} className={`${small} font-semibold text-blue-700 underline`}>Next step: {nextTitle}</button>}
+            </div>
+          )}
+        </div>
+      )}
+    </li>
+  )
+}
+
 function AnswerView({ answer, picked, setPicked, have, room, busy, onKeep, onUsePlan, hasPlan, onCopy }: {
   answer: AskAiAnswer
   picked: Set<number>
@@ -251,8 +320,7 @@ function AnswerView({ answer, picked, setPicked, have, room, busy, onKeep, onUse
   if (empty) return <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Nothing to read in this answer. Paste the whole answer, with its headings.</p>
   const copyBtn = (t: string) => <button type="button" onClick={() => onCopy(t)} className={`${small} shrink-0 text-blue-700 underline`}>Copy</button>
   return (
-    <section className={card} aria-label="What the AI suggests">
-      <p className="font-semibold">What the AI suggests</p>
+    <div className="space-y-4">
 
       {headline && (
         <div className="space-y-1">
@@ -352,6 +420,6 @@ function AnswerView({ answer, picked, setPicked, have, room, busy, onKeep, onUse
           </Btn>
         </div>
       )}
-    </section>
+    </div>
   )
 }

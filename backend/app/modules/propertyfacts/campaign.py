@@ -48,9 +48,9 @@ PLAN_LABEL = "Floor plan from the builder's brochure"
 # The caption's closing question for each angle, in each post language: one a buyer can answer about THIS subject
 # (a price card does not ask how many site visits they made). Code-written, so a translation never changes it.
 ASKS: Dict[str, Dict[str, str]] = {
-    "overview": {"en": "Would you like to see it on a site visit? Tell us below.",
-                 "mr": "साइट व्हिजिटला येऊन पाहायला आवडेल का? खाली सांगा.",
-                 "hi": "क्या आप साइट विज़िट पर इसे देखना चाहेंगे? नीचे बताइए."},
+    "overview": {"en": "What would you ask first about this project? Tell us below.",   # its last card asks for the visit
+                 "mr": "या प्रकल्पाबद्दल तुम्ही सर्वात आधी काय विचाराल? खाली सांगा.",
+                 "hi": "इस प्रोजेक्ट के बारे में आप सबसे पहले क्या पूछेंगे? नीचे बताइए."},
     "price_reveal": {"en": "What would you ask about this price? Tell us below.",
                      "mr": "या किमतीबद्दल तुम्ही काय विचाराल? खाली सांगा.",
                      "hi": "इस कीमत के बारे में आप क्या पूछेंगे? नीचे बताइए."},
@@ -75,9 +75,9 @@ ASKS: Dict[str, Dict[str, str]] = {
     "plot_checklist": {"en": "Which paper would you check first? Tell us below.",
                        "mr": "तुम्ही सर्वात आधी कोणता कागद तपासाल? खाली सांगा.",
                        "hi": "आप सबसे पहले कौन-सा कागज़ जाँचेंगे? नीचे बताइए."},
-    "rate_per_sqft": {"en": "Do you compare the rate per sq ft before a site visit? Tell us below.",
-                      "mr": "साइट व्हिजिटपूर्वी तुम्ही प्रति sq ft दराची तुलना करता का? खाली सांगा.",
-                      "hi": "साइट विज़िट से पहले क्या आप प्रति sq ft दर की तुलना करते हैं? नीचे बताइए."},
+    "rate_per_sqft": {"en": "Do you compare the rate per sq ft before you book? Tell us below.",
+                      "mr": "बुकिंगपूर्वी तुम्ही प्रति sq ft दराची तुलना करता का? खाली सांगा.",
+                      "hi": "बुकिंग से पहले क्या आप प्रति sq ft दर की तुलना करते हैं? नीचे बताइए."},
     "layout_size": {"en": "Do you prefer a smaller layout or a bigger one? Tell us below.",
                     "mr": "तुम्हाला लहान ले-आउट आवडतो की मोठा? खाली सांगा.",
                     "hi": "आपको छोटा लेआउट पसंद है या बड़ा? नीचे बताइए."},
@@ -440,13 +440,41 @@ def _near(c: Ctx) -> List[Tuple[str, Dict[str, Any]]]:
     return sorted(out, key=lambda kp: kp[1]["km"])
 
 
+# Map data names any clinic, school or shop near a site ("More", "Shree Hospital", "Sai Clinic"): true, but not why anyone
+# buys there, and a fragment such as "More" (a supermarket) reads like a typo. Such a kind is posted when its name has two
+# words of its own ("Columbia Asia Hospital", "Phoenix Marketcity"); a bank or temple only when the builder names it.
+CLAIMED_ONLY = {"bank", "temple"}
+NAMED_ONLY = {"hospital", "school", "college", "market"}
+_PLAIN_WORDS = {"hospital", "hospitals", "clinic", "nursing", "home", "multispeciality", "multispecialty", "school", "high",
+                "public", "english", "medium", "international", "primary", "secondary", "college", "university", "market",
+                "supermarket", "mart", "mall", "store", "bazaar", "shree", "shri", "sri", "sai", "new", "the", "and"}
+
+
+def buyer_place(c: Ctx, key: str, p: Dict[str, Any]) -> str:
+    """A nearby place's name for buyer-facing copy (Ctx.place), or "" when it is not worth a line (CLAIMED_ONLY, NAMED_ONLY).
+    A place the builder's claims name is always worth one."""
+    name = c.place(key, p)
+    kind = key.split(".", 1)[-1]
+    if kind not in CLAIMED_ONLY | NAMED_ONLY:
+        return name
+    mine = _tokens(name)
+    if mine and any(mine <= _tokens(claim) for claim in c.claims):
+        return name
+    own = [w for w in re.findall(r"[a-z0-9]+", name.lower()) if w not in _PLAIN_WORDS]
+    return name if kind in NAMED_ONLY and len(own) >= 2 else ""
+
+
+OVERVIEW_PLACES = {"railway", "airport", "industry"}
+
 # what a buyer asks about first; one place of each kind before a second of any kind
 NEARBY_ORDER = ("bus", "railway", "airport", "hospital", "school", "college", "market", "industry", "temple", "bank")
 
 
 def nearby(c: Ctx) -> Optional[Brief]:
-    """Up to 6 places, one per kind first (bus stand, station, hospital, school...), none that an earlier post headlined."""
-    near = [(k, p, c.place(k, p)) for k, p in _near(c)]
+    """Up to 6 places, one per kind first (bus stand, station, airport...), none that an earlier post headlined; a clinic,
+    school or shop only when the builder names it (buyer_place)."""
+    near = [(k, p, buyer_place(c, k, p)) for k, p in _near(c)]
+    near = [x for x in near if x[2]]
     near = [x for x in near if f"place:{x[2]}" not in c.used]
     rank = {k: i for i, k in enumerate(NEARBY_ORDER)}
     first: Dict[str, Tuple[str, Dict[str, Any], str]] = {}
@@ -467,7 +495,10 @@ def near_work(c: Ctx) -> Optional[Brief]:
     work = (c.v.get("nearby.industry") or [])
     if not work:
         return None
-    named = [(p, c.place("industry", p)) for p in work]
+    named = [(p, buyer_place(c, "industry", p)) for p in work]
+    named = [(p, n) for p, n in named if n]
+    if not named:
+        return None
     w, name = named[0]
     c.used.add(f"place:{name}")
     lines = [f"{n} is about {_km(p['km'])} away (straight line)." for p, n in named]
@@ -541,10 +572,10 @@ def overview(c: Ctx) -> Optional[Brief]:
         steps.append(f"{c.sqft:,} sq ft {c.kind}" + (f", one of {units} {unit}." if units else "."))
     elif units:
         steps.append(f"{units} {unit} in {c.project or c.locality}.")
-    near = _near(c)[:2]
-    if c.locality or near:
-        at = f"In {c.locality}" if c.locality else "Nearby"
-        steps.append(at + ("" if not near else ": " + ", ".join(f"{c.place(k, p)} {_km(p['km'])}" for k, p in near)) + ".")
+    if c.locality:   # the area, and one place buyers travel to (a station, the airport, work), never a shop or clinic
+        far = next(((p, n) for k, p in _near(c) if k.split(".", 1)[-1] in OVERVIEW_PLACES
+                    for n in [buyer_place(c, k, p)] if n), None)
+        steps.append(f"In {c.locality}" + (f", {_km(far[0]['km'])} from {far[1]}." if far else "."))
     now, rera = c.v.get("possession_now"), c.v.get("rera_no")
     now = now if possession_card_ok(c) else None   # a moved or far-off date is not put on a card
     if now or rera:
@@ -762,6 +793,8 @@ SHARPEN_SYSTEM = (
     "(best, perfect, dream, luxury, premium, guaranteed, safe investment, returns), no 'only/just', no emojis, at most 10 "
     "words. Think like the sales lead who knows the buyer's first question (where, how far, what size, ready or not) and "
     "like the designer whose headline must read in one glance in large type: put the key number or place first. "
+    "Like a content director, lead with what a buyer decides on (the project, its area, the price, the size, possession, "
+    "MahaRERA), never with a clinic, school or shop; no 'POV:' openers; it should sound like an agent talking, not a database. "
     'Reply with JSON only: {"headline": "..."}'
 )
 _NUM = re.compile(r"\d[\d,.]*")

@@ -245,7 +245,7 @@ export default function ListingDetailPage() {
 
           <section className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4" aria-label="Project files">
             <p className="font-semibold">Project files</p>
-            <p className="text-sm text-gray-600">The builder&apos;s video and brochure, for this listing only. Buyers never see them as they are: Start marketing makes your reel from the video and reads the brochure (as the builder&apos;s claims).</p>
+            <p className="text-sm text-gray-600">The builder&apos;s video and brochure, for this listing only. Buyers never see them as they are: Start marketing makes your reel from the video. The brochure is kept with the listing for your team; it is not read.</p>
             <p className="text-sm font-semibold text-gray-800">Video</p>
             <p className="text-sm text-gray-600">A site walkthrough (up to 3 minutes, {MAX_VIDEO_MB} MB). A phone-number strip along the bottom is removed and your logo is added.</p>
             {videos.map((v) => (

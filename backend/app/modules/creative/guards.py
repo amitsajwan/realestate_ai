@@ -65,6 +65,8 @@ MINIMISER = re.compile(r"(?<!\bnot )(?<!\bif )\b(?:only|just|merely)\b|" + _dev(
 # Engagement bait, which Meta demotes: asking people to share, tag, vote or react instead of asking a real question.
 BAIT = re.compile(r"\b(?:share (?:this|it|with)|send (?:this|it) to|tag (?:a|your|someone|them)\b|vote (?:in|below|with|for|a or b)|"
                   r"react (?:with|if|below)|like (?:this post|if you)\b|double[- ]tap)", re.I)
+# "POV: ..." is a meme opener: on a property post it reads as a template, not as an agent who knows the place.
+POV = re.compile(r"\bPOV\b", re.I)
 # Real listings are real: never "sample".
 SAMPLE = re.compile(r"\bsamples?\b|" + _dev("नमुना", "सॅम्पल", "सैंपल"), re.I)
 
@@ -163,6 +165,8 @@ def problems_in(text: str, corpus: str, *, allow_url: bool = False) -> List[str]
         out.append("only/just")
     if BAIT.search(t):
         out.append("engagement bait")
+    if POV.search(t):
+        out.append("POV opener")
     if SAMPLE.search(t) and not SAMPLE.search(corpus or ""):  # a project really named "Sample ..." may be named
         out.append("sample")
     claims = [m.group(0) for rx in (CLAIM, MORE_CLAIM) for m in rx.finditer(t)

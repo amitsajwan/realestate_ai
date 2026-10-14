@@ -30,11 +30,11 @@ export interface ReviewFormProps {
   priceHint?: string | null
 }
 
-const SOURCE_LABEL = { brochure: 'srcBrochure', maharera: 'srcMaharera', agent: 'srcAgent' } as const
+const SOURCE_LABEL = { maharera: 'srcMaharera', agent: 'srcAgent' } as const
 
 function SourceBadge({ source }: { source?: DraftSource }) {
   if (!source || !SOURCE_LABEL[source]) return null
-  const tone = source === 'brochure' ? 'bg-purple-100 text-purple-800' : source === 'maharera' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
+  const tone = source === 'maharera' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
   return <span data-source={source} className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${tone}`}>{t(SOURCE_LABEL[source])}</span>
 }
 

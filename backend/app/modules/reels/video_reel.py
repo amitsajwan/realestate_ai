@@ -3,7 +3,7 @@ listing has a video (propertyfacts.jobs).
 
 The clip is fitted to 1080x1920 at 30 fps and its own sound is kept. A contact strip burned in along the bottom (a phone number
 shown for the whole video, as builder videos usually have) is found and removed: the frame is cropped just above it and zoomed
-back to full size. The agent's logo with 'Powered by Avasetu' sits small at the bottom; the clip is cut to `max_seconds`
+back to full size. The agent's logo with 'Powered by Avasetu' sits small at the bottom on a dark glass pill; the clip is cut to `max_seconds`
 (`trim_end` drops a closing card) and an end card with the agent's brand follows. The tracked interest link is in the caption
 (the calendar adds each post's own link when it publishes), so every lead from the reel is counted.
 
@@ -114,28 +114,34 @@ def _agent_logo(path: Optional[str], height: int) -> Optional[Image.Image]:
 
 
 def badge(agent_name: str, agent_logo: Optional[str]) -> Image.Image:
-    """A full-frame RGBA overlay: a small white pill at the bottom with the agent's logo (or name) and 'Powered by Avasetu'."""
+    """A full-frame RGBA overlay: a small dark glass pill at the bottom (the hook box's language: near-black, gold hairline)
+    with the agent's logo on a white chip and 'Powered by Avasetu'. A white pill sat badly on the black letterbox bars of a
+    fitted video and blew out on bright frames; the dark one reads on both, and the chip keeps a dark agent logo visible."""
     img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    logo = _agent_logo(agent_logo, 64)
+    logo = _agent_logo(agent_logo, 56)
     name = latin(agent_name)[:40]
-    name_font = load_font(34, "bold")
+    name_font = load_font(32, "semibold")
     small = load_font(22, "medium")
     powered = f"Powered by {brand.NAME}"
-    top_w = (logo.width if logo else 0) + (16 if logo and name else 0) + (int(d.textlength(name, font=name_font)) if name else 0)
+    top_w = (logo.width + 14 if logo else 0) + (16 if logo and name else 0) + (int(d.textlength(name, font=name_font)) if name else 0)
     inner_w = max(top_w, int(d.textlength(powered, font=small)))
     if inner_w == 0:
         return img
-    pw, ph = inner_w + 56, 64 + 34 + 28
+    chip_h = 70 if logo else 44          # the logo with its white chip's padding, else just the name's line
+    pw, ph = inner_w + 52, 12 + chip_h + 14 + 30 + 24
     x0, y0 = (W - pw) // 2, H - BADGE_BOTTOM - ph
-    d.rounded_rectangle([x0, y0, x0 + pw, y0 + ph], radius=26, fill=(255, 255, 255, 232))
-    x, y = (W - top_w) // 2, y0 + 14
+    d.rounded_rectangle([x0, y0, x0 + pw, y0 + ph], radius=24, fill=(14, 16, 24, 235))
+    d.rounded_rectangle([x0, y0, x0 + pw, y0 + ph], radius=24, outline=(255, 255, 255, 36), width=2)
+    d.rectangle([x0 + 26, y0 + ph - 10, x0 + pw - 26, y0 + ph - 7], fill=GOLD + (255,))
+    x, y = (W - top_w) // 2, y0 + 12
     if logo:
-        img.alpha_composite(logo, (x, y))
-        x += logo.width + 16
+        d.rounded_rectangle([x - 7, y, x + logo.width + 7, y + chip_h], radius=16, fill=(255, 255, 255, 242))
+        img.alpha_composite(logo, (x, y + 7))
+        x += logo.width + 14 + 16
     if name:
-        d.text((x, y + (64 - 34) // 2 - 2), name, font=name_font, fill=(20, 24, 34, 255))
-    d.text(((W - d.textlength(powered, font=small)) / 2, y0 + 14 + 64 + 8), powered, font=small, fill=(90, 96, 110, 255))
+        d.text((x, y + (chip_h - 40) // 2 if logo else y + 2), name, font=name_font, fill=(255, 255, 255, 255))
+    d.text(((W - d.textlength(powered, font=small)) / 2, y0 + 12 + chip_h + 14), powered, font=small, fill=(214, 219, 230, 255))
     return img
 
 

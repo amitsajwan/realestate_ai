@@ -1,14 +1,9 @@
 'use client'
-import type { DraftSellingPoint, SellingPoint } from '@/lib/app/types'
+import type { SellingPoint } from '@/lib/app/types'
 import { t } from '@/lib/app/strings'
 
 /** Points the agent can correct the amount of, right in the row. */
 const AMOUNT_KEYS = new Set(['starting_price', 'booking_amount'])
-
-/** Draft points from the brochure become listing points, all unticked: the agent ticks what is true. */
-export function toSellingPoints(points: DraftSellingPoint[] | undefined): SellingPoint[] {
-  return (points ?? []).map(({ source: _source, ...p }) => ({ ...p, confirmed: false }))
-}
 
 function formatInr(n: number): string {
   return `₹${n.toLocaleString('en-IN')}`

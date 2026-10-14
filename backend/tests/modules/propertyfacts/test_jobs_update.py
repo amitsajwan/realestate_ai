@@ -119,24 +119,16 @@ async def test_a_fact_change_remakes_the_posts_that_say_it_and_spares_approved_o
     assert ok["caption"] == rows[("instagram", "campaign-L1-overview")]["caption"]  # approved row untouched
 
 
-async def test_a_new_brochure_remakes_posts_on_its_pages(tmp_path):
+async def test_a_new_brochure_remakes_no_post(tmp_path):
+    """Posts are made from the listing, the facts and the photos, never from the PDF: a new brochure changes none of them."""
     db, runs, done = await first_run(tmp_path)
     (tmp_path / "documents").mkdir()
     (tmp_path / "documents" / "b.pdf").write_bytes(b"%PDF")
-    page = photo(tmp_path, "page1.jpg")
-    read = []
-
-    async def brochure(job, listing, out):
-        read.append(job["_id"])
-        pages = [str(tmp_path / "images" / "page1.jpg")]
-        return {"pages": pages, "photo_pages": pages, "claims": []}
-    runs._brochure = brochure
     await change(db, media=[{"kind": "document", "url": "/uploads/documents/b.pdf"}])
     run, created = await runs.create("a1", "L1")
     assert created and run["changes"] == ["brochure"]
     d = await finish(runs)
-    assert read and d["status"] == "done" and d["redone"] and all(p["photo"] == "brochure" for p in d["posts"])
-    assert page
+    assert d["status"] == "done" and not d["redone"] and d["posts"] == done["posts"]
 
 
 async def test_again_remakes_everything_but_keeps_an_edited_post(tmp_path):
