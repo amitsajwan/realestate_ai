@@ -76,9 +76,19 @@ WALK = re.compile(r"\bwalk(?:ing|able)?\b", re.I)
 KM = re.compile(r"(\d+(?:\.\d+)?)\s*km\b", re.I)
 
 
-def overclaims(text: str) -> bool:
-    """A registration sold as an approval, puffery, or a walk to a place 1 km or more away (or with no distance at all)."""
-    if OVERCLAIM.search(text):
+# claims the facts never carry (the third live meeting: "ready soon", "registration ensures compliance", "premium finishes")
+UNBACKED = re.compile(r"\bensur\w*|\bguarant\w*|\bcomplian\w*|\btransparen\w*|\bsecure (?:home |your )?(?:purchase|investment)\b"
+                      r"|\blimited (?:units|stock|period)\b|\bfew (?:units|homes) left\b|\bfinish(?:es|ing)\b|\bappreciat\w*"
+                      r"|\b(?:homes?|units?|project|flats?) (?:are |is )?approved\b|\bapproved (?:homes?|units?|project|flats?)\b", re.I)
+READY = re.compile(r"\bready\b", re.I)
+
+
+def overclaims(text: str, corpus: str = "") -> bool:
+    """A registration sold as an approval, puffery, a claim no fact carries, 'ready' for a project the facts do not call
+    ready, or a walk to a place 1 km or more away (or with no distance at all)."""
+    if OVERCLAIM.search(text) or UNBACKED.search(text):
+        return True
+    if READY.search(text) and not READY.search(corpus):
         return True
     if WALK.search(text):
         kms = [float(x) for x in KM.findall(text)]
@@ -203,10 +213,10 @@ def assemble(refs: Any, pitches: List[Dict[str, Any]], corpus: str) -> List[Dict
         except (TypeError, ValueError, IndexError, AttributeError, KeyError):
             continue
         head = _clean(r.get("headline"), 10)
-        if head and not problems_in(head, corpus) and not overclaims(head):
+        if head and not problems_in(head, corpus) and not overclaims(head, corpus):
             piece["headline"] = head
         ask = _clean(r.get("ask"), 16)
-        if ask and not problems_in(ask, corpus) and not overclaims(ask):
+        if ask and not problems_in(ask, corpus) and not overclaims(ask, corpus):
             piece["ask"] = ask
         out.append(piece)
     return out
@@ -227,13 +237,20 @@ def _user(facts, room: Dict[str, Any], extra: str = "") -> str:
 RETRY_WAITS = (20.0, 45.0)   # seconds before asking again: the free model tiers answer 429 for a minute when busy
 
 
-async def _ask(llm: Any, system: str, user: str, waits: Sequence[float] = RETRY_WAITS) -> Dict[str, Any]:
+CREATIVE_HEAT = 0.9   # the pitches: at 0 four seats came back with the same campaign name
+STEADY = 0.2          # the strategist and the director
+
+
+async def _ask(llm: Any, system: str, user: str, waits: Sequence[float] = RETRY_WAITS, heat: float = STEADY) -> Dict[str, Any]:
     """One person's answer as a dict; an empty answer (every provider busy or broken JSON) is asked again after a pause."""
     for wait in (0.0, *waits):
         if wait:
             await asyncio.sleep(wait)
         try:
-            r = await llm.json(system, user)
+            try:
+                r = await llm.json(system, user, temperature=heat)
+            except TypeError:   # a client without the temperature argument
+                r = await llm.json(system, user)
         except Exception:
             log.info("creative room: a call failed", exc_info=True)
             r = None
@@ -252,9 +269,9 @@ def check(piece: Dict[str, Any], corpus: str) -> Optional[Dict[str, Any]]:
     """The piece with only lines the facts back (guards.problems_in against the whole fact book), or None when its headline
     fails or a post is left with nothing to say."""
     head = _clean(piece.get("headline"), 10)
-    if not head or problems_in(head, corpus) or overclaims(head):
+    if not head or problems_in(head, corpus) or overclaims(head, corpus):
         return None
-    lines = [x for x in (_clean(l, 14) for l in (piece.get("lines") or [])[:5]) if x and not problems_in(x, corpus) and not overclaims(x)]
+    lines = [x for x in (_clean(l, 14) for l in (piece.get("lines") or [])[:5]) if x and not problems_in(x, corpus) and not overclaims(x, corpus)]
     if not lines:
         return None
     role = str(piece.get("role") or "").lower().strip()
@@ -268,7 +285,7 @@ def check(piece: Dict[str, Any], corpus: str) -> Optional[Dict[str, Any]]:
     if reel:
         s = ad_reel.Script("story", _clean(reel.get("hook"), 10), [x for x in (_clean(b, 9) for b in reel.get("beats") or []) if x][:5],
                            _clean(reel.get("payoff"), 10), f"Comment {ad_reel.CTA_WORD} for the details", by="room")
-        if s.hook and s.payoff and not ad_reel.check(s, corpus) and not any(overclaims(x) for x in s.lines()):
+        if s.hook and s.payoff and not ad_reel.check(s, corpus) and not any(overclaims(x, corpus) for x in s.lines()):
             out["reel"] = s.out()
     return out
 
@@ -321,7 +338,7 @@ async def convene(c: Ctx, listing: dict, llm: Any, photos: int = 0, images: Sequ
             log.info("creative room: the strategist gave no brief (%s)", list(brief)[:6])
             return None
         room["brief"] = {k: brief.get(k) for k in ("positioning", "tier", "buyers", "idea", "tone", "avoid")}
-        raws = [await _ask(llm, _creative(lens), _user(facts, room)) for lens in LENSES]   # one at a time: the free tiers rate-limit
+        raws = [await _ask(llm, _creative(lens), _user(facts, room), heat=CREATIVE_HEAT) for lens in LENSES]   # one at a time: the free tiers rate-limit
         room["pitches"] = [p for p in (_pitch(r, corpus, LENSES[lens][0]) for lens, r in zip(LENSES, raws)) if p]
         log.info("creative room: pitches %s", [(lens, len((r or {}).get("pieces") or []), bool(p)) for lens, r, p in
                                                zip(LENSES, raws, [_pitch(r, corpus, "x") for r in raws])])
@@ -331,7 +348,8 @@ async def convene(c: Ctx, listing: dict, llm: Any, photos: int = 0, images: Sequ
         f"- piece {j + 1}, {x['role']} / {x['format']}: {x['headline']} | {' / '.join(x['lines'])}" + (" | reel" if x.get("reel") else "")
         for j, x in enumerate(p["pieces"])) for i, p in enumerate(room["pitches"]))
     if len(room["pitches"]) > 1 and not room.get("discussion"):
-        room["discussion"] = discuss(await _ask(llm, DISCUSSION, _user(facts, room, "Pitches:\n" + listed)), len(room["pitches"]))
+        room["discussion"] = discuss(await _ask(llm, DISCUSSION, _user(facts, room, "Pitches:\n" + listed), heat=0.6),
+                                     len(room["pitches"]))
     talk = room.get("discussion") or {}
     notes = "\n".join([f"- {t['seat']} (on pitch {t['builds_on']}): {t['build']} Concern: {t['concern']}" for t in talk.get("talk") or []]
                       + [f"- Strongest idea (pitch {b['pitch']}): {b['idea']}" for b in talk.get("best") or []])
@@ -345,6 +363,12 @@ async def convene(c: Ctx, listing: dict, llm: Any, photos: int = 0, images: Sequ
         by = room["pitches"][chosen - 1]["by"]
         pieces = _distinct([dict(x, source={"pitch": chosen, "by": by}) for x in room["pitches"][chosen - 1]["pieces"]])
     camp = {"name": d.get("name"), "idea": d.get("idea")}
+    scored = {int(s.get("pitch") or 0): int(s.get("score") or 0) for s in d.get("scores") or []
+              if isinstance(s, dict) and str(s.get("score") or "").isdigit() and str(s.get("pitch") or "").isdigit()}
+    liked = [b["pitch"] for b in (room.get("discussion") or {}).get("best") or [] if b.get("pitch")]
+    others = [n for n in dict.fromkeys(liked + sorted(scored, key=lambda n: -scored[n]) + list(range(1, len(room["pitches"]) + 1)))
+              if n != chosen and 1 <= n <= len(room["pitches"])]
+    pieces = _distinct(blend(pieces, room["pitches"], others))
     if len(pieces) < MIN_PIECES:
         log.info("creative room: %d pieces after the director (%d assembled), too few", len(pieces), len(d.get("pieces") or []))
         return None
@@ -361,6 +385,39 @@ async def convene(c: Ctx, listing: dict, llm: Any, photos: int = 0, images: Sequ
                      "idea": _clean(camp.get("idea"), 30) or room["pitches"][chosen - 1]["idea"], "pieces": pieces}})
     room.pop("pictures", None)
     return room
+
+
+REELS_WANTED = 3
+
+
+def blend(pieces: List[Dict[str, Any]], pitches: List[Dict[str, Any]], order: Sequence[int]) -> List[Dict[str, Any]]:
+    """What the director was told and did not do, done by code (the third live meeting: pitch 1 as pitched, one reel): with
+    two or more pitches the campaign carries pieces from at least two (another pitch's piece with a job the campaign lacks,
+    else its version of a job that comes with a reel), and pieces without a reel borrow the reel another pitch wrote for the
+    same job, up to REELS_WANTED. `order`: the other pitches to borrow from, best first (the discussion, then the scores)."""
+    out = [dict(p) for p in pieces]
+    if len(pitches) > 1 and len({(p.get("source") or {}).get("pitch") for p in out}) < 2:
+        for n in order:
+            other = pitches[n - 1]
+            src = {"pitch": n, "by": other["by"]}
+            have = {p["role"] for p in out}
+            new = next((x for x in other["pieces"] if x["role"] not in have), None)
+            if new is not None and len(out) < MAX_PIECES:
+                out.insert(len(out) - 1 if out and out[-1]["role"] in ("price", "visit") else len(out), dict(new, source=src))
+                break
+            swap = next(((i, x) for x in other["pieces"] if x.get("reel") for i, p in enumerate(out)
+                         if p["role"] == x["role"] and not p.get("reel")), None)
+            if swap is not None:
+                out[swap[0]] = dict(swap[1], source=src)
+                break
+    for p in out:
+        if sum(1 for x in out if x.get("reel")) >= REELS_WANTED:
+            break
+        if not p.get("reel"):
+            reel = next((x["reel"] for q in pitches for x in q["pieces"] if x["role"] == p["role"] and x.get("reel")), None)
+            if reel:
+                p["reel"] = dict(reel)
+    return out
 
 
 def discuss(raw: Dict[str, Any], pitches: int) -> Dict[str, Any]:

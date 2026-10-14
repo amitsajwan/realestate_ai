@@ -167,13 +167,13 @@ class GroqLLM:
         """Every model of this provider is resting (retired or rate-limited): a round-robin tries it last."""
         return self.health.resting(self.health_key, list(dict.fromkeys(model_order(self.model))))
 
-    async def _chat(self, system: str, user: str) -> Optional[dict[str, Any]]:
+    async def _chat(self, system: str, user: str, temperature: float = 0) -> Optional[dict[str, Any]]:
         order = model_order(self.model)
         headers = {"Authorization": f"Bearer {self.api_key}"}
 
         async def send(model: str, timeout: float) -> httpx.Response:
             # max_tokens: some providers default to ~256 (Cloudflare), which cut a campaign brief or pitch short
-            body = {"model": model, "temperature": 0, "response_format": {"type": "json_object"}, "max_tokens": JSON_MAX_TOKENS,
+            body = {"model": model, "temperature": temperature, "response_format": {"type": "json_object"}, "max_tokens": JSON_MAX_TOKENS,
                     "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
             if self._client:
                 return await self._client.post(self.url, json=body, headers=headers, timeout=timeout)
@@ -215,9 +215,10 @@ class GroqLLM:
             log.info("LLM text call failed at %s: %s%s", self.host, type(e).__name__, f" (HTTP {status})" if status else "")
             return None
 
-    async def json(self, system: str, user: str) -> Optional[dict[str, Any]]:
-        """Public JSON-mode call (used by the comment assistant). None on any failure."""
-        return await self._chat(system, user)
+    async def json(self, system: str, user: str, temperature: float = 0) -> Optional[dict[str, Any]]:
+        """Public JSON-mode call (used by the comment assistant). None on any failure. `temperature` above 0 for creative work
+        (the creative room's pitches converged on one name at 0)."""
+        return await self._chat(system, user, temperature)
 
 
 class GroqTranscriber:
@@ -322,8 +323,8 @@ class FallbackLLM:
                 return out
         return None
 
-    async def json(self, system: str, user: str):
-        return await self._first("json", system, user)
+    async def json(self, system: str, user: str, temperature: float = 0):
+        return await self._first("json", system, user, temperature=temperature)
 
     async def text(self, system: str, user: str, timeout: Optional[float] = None):
         return await self._first("text", system, user, timeout)

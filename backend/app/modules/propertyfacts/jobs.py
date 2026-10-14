@@ -899,15 +899,15 @@ class MarketingRuns:
         """(the creative room's work, the Ctx its briefs are made with), or (None, None): no model, a Marathi or Hindi run,
         CREATIVE_ROOM=off, or too little surviving the fact check. Kept on the run as `room` (Studio shows the brief, the
         pitches and the chosen campaign). A run made for a pitch the agent picked (`pick`) reuses the earlier brief and pitches."""
-        if llm is None or (job.get("language") or "en") != "en" or os.environ.get("CREATIVE_ROOM", "on").lower() == "off":
+        live = getattr(self.llm_factory, "__name__", "") == "default_llm"   # the room meets on the real models only (tests use the angles)
+        if llm is None or not live or (job.get("language") or "en") != "en" or os.environ.get("CREATIVE_ROOM", "on").lower() == "off":
             return None, None
         ctx = campaign.Ctx(facts, photo, page, who.get("voice"), who.get("card_brand"), who.get("contact") or (), "en", previous,
                            who.get("names"), who.get("claims") or (), None, images, kit)
         await self._set(job["_id"], step="room")
         try:
-            if getattr(self.llm_factory, "__name__", "") == "default_llm":   # live: Gemini first for the room (llm.critical_llm)
-                from app.platform.llm import critical_llm
-                llm = critical_llm() or llm
+            from app.platform.llm import critical_llm   # Gemini first for the room
+            llm = critical_llm() or llm
             doc = await room.convene(ctx, listing, llm, photos=len(photos), images=images, pick=job.get("pick"),
                                      earlier=job.get("earlier_room"))
         except Exception as e:
