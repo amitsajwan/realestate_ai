@@ -162,14 +162,37 @@ def _creative(lens: str) -> str:
             "\"reel\": {\"hook\": \"...\", \"beats\": [\"...\"], \"payoff\": \"...\"} or null}]}")
 
 
+# The director assembles by reference (pitch, piece) instead of rewriting every piece: the first live meeting's rewrite was
+# too long an answer and came back empty. A borrowed piece has passed the checker already; only a sharpened headline is new.
 DIRECTOR = (
-    "You are the creative director. You have the brief, the facts and three pitches. Score each pitch 1-10 for fit with the "
-    "brief, freshness, and how well every piece is backed by the facts. Pick the best, borrow the strongest ideas of the others, "
-    "and write the final campaign: 4-6 pieces in posting order, each with a different job, never two about the same thing, at "
-    "most one about distances, 2-3 reels (the pieces a film carries best). For each piece also write the closing question of its caption (one line). "
-    + RULES + " Reply JSON only: {\"scores\": [{\"pitch\": 1, \"score\": 8, \"note\": \"...\"}], \"chosen\": 1, \"why\": \"...\", "
-    "\"campaign\": {\"name\": \"...\", \"idea\": \"...\", \"pieces\": [{\"role\": \"...\", \"format\": \"...\", \"headline\": \"...\", "
-    "\"lines\": [\"...\"], \"visual\": \"...\", \"facts\": [\"F1\"], \"ask\": \"...\", \"reel\": {...} or null}]}}")
+    "You are the creative director. You have the brief, the facts and the pitches, each piece numbered. Score each pitch 1-10 "
+    "for fit with the brief, freshness, and how well it is backed by the facts. Pick the best, then assemble the final "
+    "campaign from the pitches' pieces: 4-6 pieces in posting order, borrowing the strongest from any pitch, each with a "
+    "different job, never two about the same thing, at most one about distances, and 2-3 of them pieces that have a reel. You "
+    "may sharpen a piece's headline (at most 9 words, only from the facts) or leave it empty to keep it. Write each piece's "
+    "closing caption question (one line). Give the campaign a name and its idea in one sentence. " + RULES +
+    " Reply JSON only (short): {\"scores\": [{\"pitch\": 1, \"score\": 8, \"note\": \"...\"}], \"chosen\": 1, \"why\": \"...\", "
+    "\"name\": \"...\", \"idea\": \"...\", \"pieces\": [{\"from\": [1, 2], \"headline\": \"\", \"ask\": \"...\"}]}")
+
+
+def assemble(refs: Any, pitches: List[Dict[str, Any]], corpus: str) -> List[Dict[str, Any]]:
+    """The director's [{from: [pitch, piece], headline, ask}] as pieces: each a copy of a checked piece, with the director's
+    headline when it passes the same checks and the closing question when it does."""
+    out = []
+    for r in (refs if isinstance(refs, list) else [])[:MAX_PIECES]:
+        try:
+            i, j = (int(x) for x in r.get("from")[:2])
+            piece = dict(pitches[i - 1]["pieces"][j - 1])
+        except (TypeError, ValueError, IndexError, AttributeError, KeyError):
+            continue
+        head = _clean(r.get("headline"), 10)
+        if head and not problems_in(head, corpus) and not overclaims(head):
+            piece["headline"] = head
+        ask = _clean(r.get("ask"), 16)
+        if ask and not problems_in(ask, corpus) and not overclaims(ask):
+            piece["ask"] = ask
+        out.append(piece)
+    return out
 
 
 def _user(facts, room: Dict[str, Any], extra: str = "") -> str:
@@ -256,7 +279,7 @@ async def convene(c: Ctx, listing: dict, llm: Any, photos: int = 0, images: Sequ
     facts = book(c, listing)
     if len(facts) < 4:
         return None
-    corpus = _book_text(facts)
+    corpus = "\n".join(f["text"] for f in facts)   # what the checker reads: the facts without their ids (F12 is not a 12)
     kinds = [str(i.get("kind") or "") for i in images]
     room: Dict[str, Any] = {"book": facts, "pictures": ", ".join(x for x in (
         f"{photos} photos of the property" if photos else "", f"{kinds.count('render')} builder render(s)" if "render" in kinds else "",
@@ -273,16 +296,16 @@ async def convene(c: Ctx, listing: dict, llm: Any, photos: int = 0, images: Sequ
     if not room.get("pitches"):
         return None
     listed = "\n\n".join(f"Pitch {i + 1} ({p['by']}): {p['name']}. {p['idea']}\n" + "\n".join(
-        f"- {x['role']} / {x['format']}: {x['headline']} | {' / '.join(x['lines'])}" + (" | reel" if x.get("reel") else "")
-        for x in p["pieces"]) for i, p in enumerate(room["pitches"]))
-    steer = f"The agent chose pitch {pick}: build the campaign from it." if pick else ""
+        f"- piece {j + 1}, {x['role']} / {x['format']}: {x['headline']} | {' / '.join(x['lines'])}" + (" | reel" if x.get("reel") else "")
+        for j, x in enumerate(p["pieces"])) for i, p in enumerate(room["pitches"]))
+    steer = f"The agent chose pitch {pick}: assemble the campaign mostly from it." if pick else ""
     d = await _ask(llm, DIRECTOR, _user(facts, room, "Pitches:\n" + listed + ("\n\n" + steer if steer else "")))
-    camp = d.get("campaign") if isinstance(d.get("campaign"), dict) else {}
-    pieces = _distinct([p for p in (check(x, corpus) for x in (camp.get("pieces") or [])[:MAX_PIECES] if isinstance(x, dict)) if p])
     chosen = pick or (int(d["chosen"]) if str(d.get("chosen") or "").isdigit() else 1)
     chosen = chosen if 1 <= chosen <= len(room["pitches"]) else 1
-    if len(pieces) < MIN_PIECES:   # the director's rewrite did not survive: the chosen pitch as pitched
+    pieces = _distinct(assemble(d.get("pieces"), room["pitches"], corpus))
+    if len(pieces) < MIN_PIECES:   # the director's assembly did not hold: the chosen pitch as pitched
         pieces = _distinct(room["pitches"][chosen - 1]["pieces"])
+    camp = {"name": d.get("name"), "idea": d.get("idea")}
     if len(pieces) < MIN_PIECES:
         return None
     reels = 0
