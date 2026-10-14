@@ -1,6 +1,5 @@
 """The standard footer of every Avasetu post: the website for Facebook, 'link in our bio' for Instagram (captions cannot hold links).
 `with_footer` is pure and idempotent. The integrator applies it where captions are built; nothing here touches stored captions."""
-import hashlib
 import re
 from typing import Optional
 
@@ -25,15 +24,14 @@ ASK_PARTS = ((re.compile(r"\bcomment", re.I), "💬 Comment INFO for the details
              (re.compile(r"\bfollow\b", re.I), "➕ Follow for daily Pune property updates."))
 
 
-# Buyer posts ask ONE thing (2026-10-11, docs/plan/reach-captions.md): three asks on every post read as engagement bait, which Meta
-# demotes, and bury the post's own action. A send is the strongest reach signal we can ask for; about 1 post in 4 (stable by key)
-# asks for a comment instead, so the comment assistant keeps working and the two can be compared.
+# Buyer posts ask for a send and a comment (owner, 2026-10-14: comments are the action until WhatsApp is set up; it was one ask,
+# a send on 3 posts in 4). Each is left out when the caption already makes it.
 SEND_ASK = {"en": "📤 Send this to someone looking for a home in {place}.",
             "mr": "📤 {place} मध्ये घर शोधणाऱ्या व्यक्तीला हे पाठवा.",
             "hi": "📤 {place} में घर ढूँढ रहे किसी व्यक्ति को यह भेजें."}
 COMMENT_ASK = {"en": "💬 Comment INFO for the details.", "mr": "💬 माहितीसाठी INFO कमेंट करा.", "hi": "💬 जानकारी के लिए INFO कमेंट करें."}
-COMMENT_EVERY = 4
-_OWN_ASK = re.compile(r"\b(comment|share|send)\b|कमेंट|पाठवा|भेजें|शेअर|शेयर", re.I)
+_OWN_SEND = re.compile(r"\b(share|send)\b|पाठवा|भेजें|शेअर|शेयर", re.I)
+_OWN_COMMENT = re.compile(r"\bcomment\b|कमेंट", re.I)
 _ACTION_LINE = re.compile(r"^\s*(👉|💬\s*WhatsApp)", re.M)   # the interest link and the WhatsApp line are actions, not asks
 
 
@@ -43,12 +41,11 @@ def ask_for(body: str, key: Optional[str] = None, place: str = "", language: str
     if key is None:
         return " ".join(line for has, line in ASK_PARTS if not has.search(body or ""))
     own = "\n".join(ln for ln in (body or "").splitlines() if not _ACTION_LINE.match(ln))
-    if _OWN_ASK.search(own):
-        return ""
     lang = language if language in SEND_ASK else "en"
-    if int(hashlib.sha1(key.encode("utf-8")).hexdigest(), 16) % COMMENT_EVERY == 0:
-        return COMMENT_ASK[lang]
-    return SEND_ASK[lang].format(place=(place or "Pune").strip())
+    asks = [] if _OWN_SEND.search(own) else [SEND_ASK[lang].format(place=(place or "Pune").strip())]
+    if not _OWN_COMMENT.search(own):
+        asks.append(COMMENT_ASK[lang])
+    return "\n".join(asks)
 
 
 def footer_for(channel: str) -> str:

@@ -12,10 +12,10 @@ from xml.sax.saxutils import escape
 import httpx
 
 URL = "https://texttospeech.googleapis.com/v1/text:synthesize"
-VOICES = {  # warm, clear voices; override with REEL_VOICE_<LANG>
-    "en": ("en-IN", "en-IN-Chirp3-HD-Aoede"),
-    "hi": ("hi-IN", "hi-IN-Chirp3-HD-Aoede"),
-    "mr": ("mr-IN", "mr-IN-Chirp3-HD-Aoede"),
+VOICES = {  # Charon: a calm male voice, an agent talking (owner, 2026-10-14: Aoede sounded "AI"); override with REEL_VOICE_<LANG>
+    "en": ("en-IN", "en-IN-Chirp3-HD-Charon"),
+    "hi": ("hi-IN", "hi-IN-Chirp3-HD-Charon"),
+    "mr": ("mr-IN", "mr-IN-Chirp3-HD-Charon"),
 }
 
 

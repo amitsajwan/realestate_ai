@@ -37,7 +37,7 @@ HOOK_WORDS, LINE_WORDS = 10, 8
 HOOK_S, BEAT_S, PAYOFF_S, CTA_S, LOOP_S = 1.9, 1.5, 2.0, 1.8, 0.7   # the least each scene lasts; a spoken line makes it longer
 VOICE_PAD_S = 0.45      # after a spoken line, before the next scene's cut
 READY = re.compile(r"\bready\b|\bmove[\s-]*in\b|\bpossession\b|\bhanded\s+over\b|\bcompleted\b", re.I)
-CTA_WORD = "VISIT"
+CTA_WORD = "INFO"   # the comment bot reads it as interest (engage.brain.INTERESTED)
 
 
 @dataclass
@@ -148,7 +148,7 @@ def template(fmt: str, c: Ctx) -> Script:
     what = "plot" if c.plot else "home"
     price, size, places = _price(c), _size(c), _places(c)
     rera = f"MahaRERA {c.v['rera_no']}" if c.registered and c.v.get("rera_no") else ""
-    cta = f"Comment {CTA_WORD} for a site visit"
+    cta = f"Comment {CTA_WORD} for the details"
     facts = [x for x in (size, _layout(c), *places, "MahaRERA registered" if c.registered else "") if x]
     if fmt == "showcase":
         lead = " ".join(x for x in (_bhk(c), "at" if _bhk(c) else "", c.project) if x)

@@ -145,7 +145,7 @@ def test_one_project_name_and_a_whatsapp_close():
     for aid, brief in mr:
         assert brief.kicker == "गुलमोहर सिटी" and brief.names == {"Gulmohar City": "गुलमोहर सिटी"}
         assert "गुलमोहर सिटी, रांजणगाव" in brief.link_line
-        assert brief.cta == "WhatsApp us"
+        assert brief.cta == i18n.WHATSAPP_US
     from app.modules.creative.translate import with_names
     names = {"Gulmohar City": "गुलमोहर सिटी"}
     assert with_names("Gulmohar City मध्ये प्लॉट", "Plots in Gulmohar City", names) == "गुलमोहर सिटी मध्ये प्लॉट"

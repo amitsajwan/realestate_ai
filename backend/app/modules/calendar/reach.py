@@ -39,7 +39,7 @@ FILLER_TAGS = ["#PuneRealEstate"]                      # only when nothing bette
 HOMES_TAG = "#PuneHomes"                               # a filler for anything but plots
 AGENT_SOURCES = ("promo_agents", "promo_agents_v2", "agent_reels")
 PROJECT_SOURCES = ("campaign", "agentprojects")
-PER_CHANNEL = {"instagram": 5, "facebook_page": 3}
+PER_CHANNEL = {"instagram": 5, "facebook_page": 5}   # Instagram allows 5 since Dec 2025
 # The Pune-Nagar road corridor: a post from one town also reaches the next hub buyers search for (a Shirur plot is sold on
 # Ranjangaon MIDC jobs). Locality (lower case, no spaces) -> the corridor tag that goes right after its own.
 CORRIDOR = {"shirur": "#Ranjangaon", "malthan": "#Ranjangaon", "ranjangaon": "#Shirur", "karegaon": "#Ranjangaon",
@@ -164,6 +164,8 @@ def _squash(s: str) -> str:
 # ---- who a buyer post is for: one function feeds both the hashtags and the tags, so what we target and what we measure agree ----
 SEGMENTS = ("renter", "plot", "first_home", "family_home", "premium", "unknown")
 SEGMENT_TAGS = {"renter": "#FlatsForRentPune", "plot": "#NAPlotsPune", "first_home": "#AffordableHomesPune"}
+# who else buys at this price, beside the BHK tag: a ₹1.5 crore+ home is bought by NRIs and senior IT staff as much as locals
+BUYER_TAGS_BY_SEGMENT = {"premium": "#NRIInvestment"}
 # (upper bound in rupees, label); a starting price counts as its band
 PRICE_BANDS = ((30_00_000, "under_30L"), (50_00_000, "30-50L"), (75_00_000, "50-75L"), (1_00_00_000, "75L-1Cr"),
                (1_50_00_000, "1-1.5Cr"), (None, "1.5Cr+"))
@@ -229,8 +231,8 @@ def segment_tag(doc: dict, loc: str) -> str:
 
 def hashtags(doc: dict) -> List[str]:
     n = PER_CHANNEL.get(doc.get("channel", ""), 3)
-    if audience(doc) == "agents":
-        return AGENT_TAGS[:n]
+    if audience(doc) == "agents":   # recruitment keeps 3 on Facebook: its own trial link and keyword do the work
+        return AGENT_TAGS[:3 if doc.get("channel") == "facebook_page" else n]
     caption = doc.get("caption") or ""
     proj, _ = project_and_locality(doc)
     loc, a = locality(doc)
@@ -260,11 +262,12 @@ def hashtags(doc: dict) -> List[str]:
     if corridor and corridor.lower() in {t.lower() for t in loc_tags}:
         corridor = ""
     seg_tag = segment_tag(doc, loc)
+    buyer_tag = BUYER_TAGS_BY_SEGMENT.get(segment(doc), "")
     # 3 tags on Facebook: place, project, audience; and a plot's or rental's audience tag already says the type
     if seg_tag and (doc.get("channel") == "facebook_page" or segment(doc) in ("plot", "renter")):
         type_tag = ""
     # with a corridor tag the narrow #<Locality>RealEstate waits until after #PuneProperty
-    tags = (loc_tags[:1] + [corridor, proj_tag, seg_tag, type_tag] + ([] if corridor else [local_tag])
+    tags = (loc_tags[:1] + [corridor, proj_tag, seg_tag, buyer_tag, type_tag] + ([] if corridor else [local_tag])
             + own_specific + ["#PuneProperty"] + ([local_tag] if corridor else []) + ["#MahaRERA"] * rera + loc_tags[1:] + own_local + own_topical + own_generic
             + ([] if kind == "plot" else [HOMES_TAG]) + FILLER_TAGS + [t for t in own if t.lower() in _BROAD])
     out, seen = [], set()

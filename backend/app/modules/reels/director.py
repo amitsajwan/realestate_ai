@@ -25,8 +25,8 @@ CTA_SCREEN = {"en": "Comment *INTERESTED* for details", "hi": "Details ke liye *
               "mr": "Details sathi *INTERESTED* comment kara"}
 # The same call to action for a reel whose screen text is Devanagari: the keyword stays INTERESTED in Roman capitals.
 CTA_SCREEN_DEVANAGARI = {"hi": "पूरी जानकारी के लिए *INTERESTED* कमेंट करें", "mr": "पूर्ण माहितीसाठी *INTERESTED* कमेंट करा"}
-CTA_VOICE = {"en": "Like it? Comment interested for the details.", "hi": "पसंद आया? पूरी जानकारी के लिए कमेंट में इंटरेस्टेड लिखिए।",
-             "mr": "आवडलं? पूर्ण माहितीसाठी कमेंटमध्ये इंटरेस्टेड लिहा."}
+CTA_VOICE = {"en": "Like it? Comment INFO for the details.", "hi": "पसंद आया? पूरी जानकारी के लिए कमेंट में INFO लिखिए।",
+             "mr": "आवडलं? पूर्ण माहितीसाठी कमेंटमध्ये INFO लिहा."}
 
 SYSTEM = (
     "You direct a 12 to 16 second vertical property reel for Pune home buyers. Write JSON only: "

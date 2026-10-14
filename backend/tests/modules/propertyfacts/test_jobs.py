@@ -225,7 +225,7 @@ async def test_reels_are_made_after_the_posts(tmp_path):
     ads = [r for r in d["reels"] if r["kind"] == "ad"]
     assert len(ads) == min(jobs.AD_REELS, len(d["posts"])) and all(k == "GULMOHAR CITY" for _, _, k in RENDERED)
     assert [r["angle"] for r in ads] == [p["angle"] for p in d["posts"][:len(ads)]]
-    assert ads[0]["script"]["hook"] and "VISIT" in ads[0]["caption"] and ads[0]["format"] in ("price_reveal", "three_reasons", "pov",
+    assert ads[0]["script"]["hook"] and "INFO" in ads[0]["caption"] and ads[0]["format"] in ("price_reveal", "three_reasons", "pov",
                                                                                             "myth_fact", "checklist")
     out = jobs.run_out(d, "https://api.avasetu.in")
     assert out["reels"][0]["video"].startswith("https://api.avasetu.in/uploads/campaigns/L1/")

@@ -10,7 +10,8 @@ from typing import Dict, Optional
 UI: Dict[str, Dict[str, str]] = {
     "swipe": {"en": "Swipe", "mr": "पुढे पाहा", "hi": "आगे देखें"},
     "save_this": {"en": "Save this", "mr": "सेव्ह करा", "hi": "सेव करें"},
-    "whatsapp_us": {"en": "WhatsApp us", "mr": "WhatsApp करा", "hi": "WhatsApp करें"},   # a listing post's last card
+    # a listing post's last card: comments until WhatsApp is set up (owner, 2026-10-14); the comment bot reads INFO as interest
+    "whatsapp_us": {"en": "Comment INFO", "mr": "INFO कमेंट करा", "hi": "INFO कमेंट करें"},
     "myth": {"en": "MYTH", "mr": "गैरसमज", "hi": "मिथक"},
     "fact": {"en": "FACT", "mr": "सत्य", "hi": "सच"},
     "vs": {"en": "VS", "mr": "VS", "hi": "VS"},
@@ -23,12 +24,12 @@ UI: Dict[str, Dict[str, str]] = {
     "ask": {"en": "Ask for details", "mr": "माहितीसाठी संपर्क करा", "hi": "जानकारी के लिए संपर्क करें"},
 }
 
-WHATSAPP_US = "WhatsApp us"   # the call to action on the last card of a listing post (Brief.cta); words only, never a number
+WHATSAPP_US = UI["whatsapp_us"]["en"]   # the call to action on the last card of a listing post (Brief.cta); words only, never a number
 
 # Fixed English strings the copywriter may put on a card (CARD_CTA, KICKER): their translations.
 KNOWN: Dict[str, Dict[str, str]] = {
     "Save this": UI["save_this"],
-    "WhatsApp us": UI["whatsapp_us"],
+    WHATSAPP_US: UI["whatsapp_us"],
     "Save this list": {"en": "Save this list", "mr": "ही यादी सेव्ह करा", "hi": "यह लिस्ट सेव करें"},
     "Share with a buyer": {"en": "Share with a buyer", "mr": "खरेदीदाराला पाठवा", "hi": "खरीदार को भेजें"},
     "Which one, and why?": {"en": "Which one, and why?", "mr": "कोणता, आणि का?", "hi": "कौन-सा, और क्यों?"},
