@@ -71,3 +71,47 @@ def base_name(name: str) -> str:
     s = NOISE.sub("", s).strip()
     s = re.sub(r"\s{2,}", " ", s)
     return s
+
+
+def squash(base: str) -> str:
+    """A base name with its spaces gone, so a spelling with or without a space is one project: "palm nest" = "palmnest"."""
+    return re.sub(r"[^a-z0-9]", "", base or "")
+
+
+# words that only label a tower or phase: never the end of a project's name
+LABEL_WORDS = {"tower", "towers", "wing", "wings", "building", "buildings", "bldg", "phase", "phases", "block", "plot", "sector"}
+ROMAN = re.compile(r"^[ivxlcdm]+$", re.I)
+
+
+def _cased(tokens: list) -> list:
+    """Capitals as people write them when MahaRERA filed in capitals: "ROHAN ABHILASHA" -> "Rohan Abhilasha"; acronyms
+    (no vowel: "VTP", "VNSVL") and roman numerals stay."""
+    if not tokens or not all(t.isupper() or t.isdigit() for t in tokens):
+        return tokens
+    return [t if t.isdigit() or ROMAN.match(t) and len(t) <= 4 or not re.search(r"[AEIOUY]", t) else t.capitalize() for t in tokens]
+
+
+def _tokens(name: str) -> list:
+    return re.findall(r"[A-Za-z0-9]+", unicodedata.normalize("NFKD", name or "").encode("ascii", "ignore").decode())
+
+
+def group_name(names: list) -> str:
+    """The name one project's registrations share, as people write it: the words all of them start with, without a trailing
+    tower or phase label. ["ROHAN ABHILASHA BUILDING A", "Rohan Abhilasha Building C"] -> "Rohan Abhilasha";
+    ["Hinjewadi Phase 3 - Tower 15", "Hinjewadi Phase 3-Tower 1"] -> "Hinjewadi Phase 3". When they share no first word
+    ("PALM NEST PHASE I", "PALMNEST PHASE III") it is the first name without its tower label. The spelling comes from a name
+    in mixed case when there is one (MahaRERA often files in capitals)."""
+    names = [n for n in names if n]
+    lists = [words(n) for n in names]
+    if not lists:
+        return ""
+    k = 0
+    while all(len(w) > k and w[k] == lists[0][k] for w in lists):
+        k += 1
+    while k and lists[0][k - 1] in LABEL_WORDS:
+        k -= 1
+    if not k:   # spelt apart: the first name's own base ("palm nest"), in its own spelling
+        base = base_name(names[0]).split()
+        return " ".join(_cased(_tokens(names[0])[:len(base)])) if base else ""
+    source = next((n for n in names if not n.isupper() and words(n)[:k] == lists[0][:k]), names[0])
+    return " ".join(_cased(_tokens(source)[:k]))

@@ -22,14 +22,14 @@ from typing import Dict, List, Optional, Tuple
 
 from app.core.areas import BY_KEY
 
-from .text import base_name, promoter_key
+from .text import base_name, group_name, promoter_key, squash
 
 def cluster_key(doc: dict) -> Optional[str]:
     """The cluster key for `doc`: promoter_key + base_name + pincode, or None when there is no promoter."""
     pk = promoter_key(doc.get("promoter"))
     if not pk:
         return None
-    bn = base_name(doc.get("name") or "")
+    bn = squash(base_name(doc.get("name") or ""))   # "PALM NEST" and "PALMNEST" are one project
     if not bn:
         return None
     pc = str(doc.get("pincode") or "").strip()
@@ -169,6 +169,7 @@ async def cluster_report(db) -> List[dict]:
         rows.append({
             "cluster_id": cid,
             "primary": primary,
+            "name": group_name([by_id.get(m, {}).get("name") or "" for m in sorted(members, key=lambda r: r != primary)]),
             "hosted": can_host(by_id.get(primary, {})),
             "size": len(members),
             "members": member_rows,
@@ -197,10 +198,13 @@ async def assign_clusters(store, docs: List[dict]) -> int:
     # Build assignment map: regno → (cluster_id, primary_regno). A group of towers whose completion dates are all still
     # unknown clusters too: nothing is indexable yet, and the page is ready when one of them becomes.
     assignment: Dict[str, Tuple[str, str]] = {}
+    shared: Dict[str, str] = {}      # primary -> the name its registrations share (the merged page's name, pages.names)
     for cid, members in clusters.items():
         primary = _primary_for(members, by_id)
         for regno in members:
             assignment[regno] = (cid, primary)
+        if len(members) >= 2:
+            shared[primary] = group_name([by_id[m].get("name") or "" for m in sorted(members, key=lambda r: r != primary)])
 
     n = 0
     for doc in docs:
@@ -210,13 +214,14 @@ async def assign_clusters(store, docs: List[dict]) -> int:
             cid, primary = info
             cluster_primary = None if regno == primary else primary
             # Only update if changed
-            if doc.get("cluster_id") != cid or doc.get("cluster_primary") != cluster_primary:
-                await store.set_project(regno, cluster_id=cid, cluster_primary=cluster_primary)
+            name = shared.get(regno) or None
+            if doc.get("cluster_id") != cid or doc.get("cluster_primary") != cluster_primary or doc.get("group_name") != name:
+                await store.set_project(regno, cluster_id=cid, cluster_primary=cluster_primary, group_name=name)
                 n += 1
         else:
             # Clear stale cluster fields if they exist
-            if doc.get("cluster_id") is not None:
-                await store.set_project(regno, cluster_id=None, cluster_primary=None)
+            if doc.get("cluster_id") is not None or doc.get("group_name"):
+                await store.set_project(regno, cluster_id=None, cluster_primary=None, group_name=None)
                 n += 1
     return n
 
@@ -250,7 +255,7 @@ if __name__ == "__main__":
             pincode = r["members"][0]["pincode"] if r["members"] else ""
             pline = f" | {promoter}" if promoter else " | (no promoter)"
             alone = "" if r["hosted"] else "   → MEMBERS KEEP THEIR OWN PAGES"
-            print(f"[{r['size']}] {r['cluster_id']}  primary={r['primary']}{pline}  pin={pincode}{alone}")
+            print(f"[{r['size']}] \"{r['name']}\"  {r['cluster_id']}  primary={r['primary']}{pline}  pin={pincode}{alone}")
             for m in r["members"]:
                 flag = "*" if m["regno"] == r["primary"] else " "
                 print(f"  {flag} {m['regno']:30s} {m['name']}")

@@ -145,8 +145,10 @@ def names(doc: dict) -> tuple:
     """(marketed_name, aliases): the name buyers google and its variants (base without phase, "Gera's ..." possessive, legal)."""
     legal = " ".join((doc.get("name") or "").split())
     fixed, brand_word = _brand_fix(legal, doc.get("promoter"))
-    marketed = " ".join((doc.get("marketed_name_override") or "").split()) or fixed
-    variants = [marketed, _base(marketed), fixed, _base(fixed)]
+    # a page that stands for several towers or phases is named after the project they share, not after one tower (rank-loop R0)
+    group = _brand_fix(" ".join((doc.get("group_name") or "").split()), doc.get("promoter"))[0] if doc.get("group_name") else ""
+    marketed = " ".join((doc.get("marketed_name_override") or "").split()) or group or fixed
+    variants = [marketed, _base(marketed), group, fixed, _base(fixed)]
     if brand_word:
         variants += [f"{brand_word}'s" + v[len(brand_word):] for v in (fixed, _base(fixed))]
     variants.append(legal)

@@ -433,7 +433,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts }: { p: Register
       <div className="mt-8 grid gap-8 lg:grid-cols-3">
         <div className="min-w-0 space-y-10 lg:col-span-2">
           <section aria-labelledby="about-title">
-            <SectionHead id="about-title" title={`About ${p.name}`} kind={p.text_checked ? 'checked' : 'rera'}
+            <SectionHead id="about-title" title={`About ${shown}`} kind={p.text_checked ? 'checked' : 'rera'}
               tag={p.text_checked ? 'Written from checked facts' : 'From MahaRERA'} />
             <p className="mt-3 text-lg leading-relaxed text-slate-800" data-testid="paragraph">{p.paragraph}</p>
           </section>
