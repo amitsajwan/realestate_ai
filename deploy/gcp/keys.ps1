@@ -58,6 +58,9 @@ $Catalog = @(
      Get = "https://aistudio.google.com/apikey -> Create API key in a NEW project with no billing (a billed project answers 402 without credit)"
      Check = { param($v) $null = Invoke-RestMethod -Method POST -Uri "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent" `
                  -Headers @{ "x-goog-api-key" = $v } -ContentType "application/json" -Body '{"contents":[{"parts":[{"text":"Say OK"}]}]}' -TimeoutSec 60 } }
+  # no Check here: the key is restricted to the server's IP, so it is checked on the VM after saving (keys_check.py, free call)
+  @{ Name = "GOOGLE_MAPS_API_KEY"; For = "Each project's own pin on Google Maps, so nearby distances are measured from the project"
+     Get = "https://console.cloud.google.com/apis/credentials -> API key restricted to 'Places API (New)' and the server's IP" }
   @{ Name = "GSC_SA_KEY_B64"; For = "Search Console reader (which project pages Google shows)"; File = $true
      Get = "Google Cloud -> IAM -> Service accounts -> Keys -> Add key (JSON); add its email in Search Console as a Restricted user"
      Check = { param($v) $j = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($v)) | ConvertFrom-Json

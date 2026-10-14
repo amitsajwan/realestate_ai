@@ -5,7 +5,7 @@
 
 Each key is OK (the service accepted it), FAILED (refused, or the service could not be reached: the reason is shown), EMPTY (not
 set) or SKIP (set, but nothing to check it against, e.g. a base URL is missing). Only the last 4 characters of a key are printed.
-Every check is a cheap read: a model or voice list, one 1-unit YouTube lookup, one Serper search (1 credit), a Google token for the
+Every check is a cheap read: a model or voice list, one 1-unit YouTube lookup, one Serper search (1 credit), one free Places search, a Google token for the
 Search Console key, the Facebook page / WhatsApp number the token belongs to. Exit code 1 when any key FAILED.
 """
 import base64
@@ -62,6 +62,13 @@ def serper(c: httpx.Client, key: str) -> Result:
     r = c.post("https://google.serper.dev/search", headers={"X-API-KEY": key},
                json={"q": "new launch projects in Kharadi Pune", "gl": "in", "num": 1})
     return _ok(r, "1 search credit used")
+
+
+def google_maps(c: httpx.Client, key: str) -> Result:
+    # Text Search asking for place ids only: Google's free SKU, and it proves the key, Places API (New) and billing
+    r = c.post("https://places.googleapis.com/v1/places:searchText", headers={"X-Goog-Api-Key": key, "X-Goog-FieldMask": "places.id"},
+               json={"textQuery": "Kharadi, Pune", "regionCode": "IN", "pageSize": 1})
+    return _ok(r, "free call (place ids only)")
 
 
 def youtube(c: httpx.Client, key: str) -> Result:
@@ -132,6 +139,7 @@ CHECKS: List[Tuple[str, str, Check]] = [
     ("GOOGLE_TTS_API_KEY", "Reel voice-overs", google_tts),
     ("GEMINI_API_KEY", "Gemini (voice, fallback AI)", gemini),
     ("BROCHURE_GEMINI_KEY", "Brochure reading (Gemini, one read per PDF)", gemini_brochure),
+    ("GOOGLE_MAPS_API_KEY", "Project pins on Google Maps", google_maps),
     ("GSC_SA_KEY_B64", "Search Console reader", search_console),
     ("AI_LLM_API_KEY", "Text AI", openai_compatible(("AI_LLM_BASE_URL",), GROQ)),
     ("GROQ_API_KEY", "Text AI (Groq)", openai_compatible((), GROQ)),
