@@ -295,8 +295,8 @@ def price_reveal(c: Ctx) -> Optional[Brief]:
         line = f"{what}: from {price} onwards."
         c.used.add("price")
         return c.brief(angle="price_reveal", hook=f"{c.kind.capitalize()}s from {price} onwards in {c.project or c.locality}",
-                       topic=f"Starting price at {c.where}", short="starting price", stat_value=f"from {price}",
-                       stat_label="onwards", facts=[line],
+                       topic=f"Starting price at {c.where}", short="starting price", stat_value=price,
+                       stat_label="onwards", facts=[line],   # "from ₹2.24 crore" did not fit the big number; "onwards" says it
                        tip="Ask what the price includes: development charges, stamp duty and registration.", prefer="stat")
     line = f"A {c.sqft:,} sq ft {c.kind} at {c.where} is listed at {price}."
     c.used.add("price")
@@ -374,8 +374,8 @@ def rate_per_sqft(c: Ctx) -> Optional[Brief]:
     if not (r and c.sqft and c.v.get("price_inr")):
         return None
     price = price_label(c.v["price_inr"])
-    return c.brief(angle="rate_per_sqft", hook=f"₹{r:,} per sq ft in {c.locality}", topic=f"Rate per sq ft at {c.where}", short="rate per sq ft", stat_value=f"₹{r:,} per sq ft",
-                   stat_label=f"listed rate in {c.locality}",
+    return c.brief(angle="rate_per_sqft", hook=f"₹{r:,} per sq ft in {c.locality}", topic=f"Rate per sq ft at {c.where}", short="rate per sq ft", stat_value=f"₹{r:,}",
+                   stat_label=f"per sq ft, listed rate in {c.locality}",
                    facts=[f"{price} for {c.sqft:,} sq ft works out to ₹{r:,} per sq ft."],
                    tip="Compare the rate per sq ft, not the total price.", prefer="stat")
 

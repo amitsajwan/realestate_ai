@@ -709,9 +709,9 @@ class MarketingRuns:
             return "failed"
 
     async def _video_reel(self, job: dict, listing: dict, video: Path, out: Path, project: str, link_line: str,
-                          facts: Optional[Dict[str, Any]] = None) -> dict:
+                          sheet_facts: Optional[Dict[str, Any]] = None) -> dict:
         """The reel from the listing's own video, in the agent's brand. Rendered here (a minute or two); a failure is kept as
-        a skipped reel with its reason, the campaign goes on. `facts`: for a voice-over when the video has no speech."""
+        a skipped reel with its reason, the campaign goes on. `sheet_facts`: for a voice-over when the video has no speech."""
         from app.modules.reels import video_reel
         from app.modules.reels.listing_reel import caption as reel_caption
         prof = await self.profiles.find_one({"agent_id": job["agent_id"]}) or {}
@@ -736,7 +736,7 @@ class MarketingRuns:
         heard = await files.video_claims(edit.speech, self.llm_factory() if self.llm_factory else None)
         if heard:   # what the presenter says, for the assistant (the builder's claims)
             await files.save_claims(self.listings, listing["_id"], video=heard, now=self.now())
-        spoken = await self._voice_video(dest, facts, edit.speech, job["_id"]) if facts else "off"
+        spoken = await self._voice_video(dest, sheet_facts, edit.speech, job["_id"]) if sheet_facts else "off"
         caption = (edit.caption + "\n\n" + "\n".join(who.contact)) if edit.caption else reel_caption(listing, "")
         return {"kind": "video", "status": "done", "seconds": res["seconds"], "removed_strip": bool(res["removed_strip"]),
                 "voice": spoken,

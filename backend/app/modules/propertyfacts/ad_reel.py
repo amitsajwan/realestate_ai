@@ -34,6 +34,7 @@ EXPLORE = 0.2
 HOOK_WORDS, LINE_WORDS = 10, 8
 HOOK_S, BEAT_S, PAYOFF_S, CTA_S, LOOP_S = 1.9, 1.5, 2.0, 1.8, 0.7   # the least each scene lasts; a spoken line makes it longer
 VOICE_PAD_S = 0.45      # after a spoken line, before the next scene's cut
+READY = re.compile(r"\bready\b|\bmove[\s-]*in\b|\bpossession\b|\bhanded\s+over\b|\bcompleted\b", re.I)
 CTA_WORD = "VISIT"
 
 
@@ -200,9 +201,12 @@ def check(s: Script, facts: str) -> List[str]:
     if any(len(b.replace("*", "").split()) > LINE_WORDS + 2 for b in [*s.beats, s.payoff]):
         out.append("long line")
     known = set(_numbers(facts))
+    ready = bool(READY.search(facts))
     for line in s.lines():
         if set(_numbers(line)) - known:
             out.append(f"number not in facts: {line}")
+        if READY.search(line) and not ready:   # "Your home is ready" for a project completing in 2030
+            out.append(f"ready-to-move not in facts: {line}")
         out += problems_in(line.replace("*", ""), facts)
     return out
 
