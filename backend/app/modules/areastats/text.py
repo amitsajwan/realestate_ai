@@ -67,7 +67,8 @@ def base_name(name: str) -> str:
     "Manhattan H Building"          → "manhattan"        (label comes BEFORE the identifier)
     "Majestique Towers East Phase 1"→ "majestique towers east"   (mid-name 'towers' is preserved)
     """
-    s = BRACKETS.sub(" ", ascii_text(name))
+    # long dashes are separators: dropping them as non-ASCII would glue "C–PHASE" into "cphase"
+    s = BRACKETS.sub(" ", ascii_text(re.sub(r"[‐-―−]", "-", name or "")))
     s = TOWER_LABEL.sub(" ", s)
     s = REVERSE_LABEL.sub(" ", s)
     s = TAIL_ROMAN.sub("", s)
