@@ -17,10 +17,14 @@ LEGAL = re.compile(r"\b(m s|private|pvt|limited|ltd|llp|the|and|co|company|corpo
 # with the identifier that follows (number, roman numeral, or single letter).
 # IMPORTANT: require at least one whitespace OR a dash between the label word and the identifier;
 # this prevents "towers" in a project name from being consumed as "tower" + "s" identifier.
+# The separator may mix spaces and dashes ("WING – N", "PHASE -5"), and one label may name several ("WING- G & H").
+_ID = r"(?:[0-9]+[a-z]?|[ivxlcdm]+|[a-z])"
 TOWER_LABEL = re.compile(
-    r"\b(towers?|wings?|buildings?|phases?)(?:\s+|[-–]\s*)([0-9]+[a-z]?|[ivxlcdm]+|[a-z])\b",
+    r"\b(towers?|wings?|buildings?|phases?)[\s\-–]+" + _ID + r"(?:\s*[&,/]\s*" + _ID + r")*\b",
     re.IGNORECASE,
 )
+# A note in brackets is not part of the name: "(MHADA)", "(Commercial)"
+BRACKETS = re.compile(r"\([^)]*\)")
 # Reverse-order label: single-letter identifier BEFORE the label word, e.g. "H Building", "A Wing"
 REVERSE_LABEL = re.compile(
     r"\b([a-z])\s+(towers|tower|wings|wing|buildings|building)\b",
@@ -63,7 +67,7 @@ def base_name(name: str) -> str:
     "Manhattan H Building"          → "manhattan"        (label comes BEFORE the identifier)
     "Majestique Towers East Phase 1"→ "majestique towers east"   (mid-name 'towers' is preserved)
     """
-    s = ascii_text(name)
+    s = BRACKETS.sub(" ", ascii_text(name))
     s = TOWER_LABEL.sub(" ", s)
     s = REVERSE_LABEL.sub(" ", s)
     s = TAIL_ROMAN.sub("", s)
