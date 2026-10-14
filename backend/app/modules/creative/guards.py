@@ -136,6 +136,11 @@ def filler_hits(text: str) -> List[str]:
     return [f for f in FILLER if f in low]
 
 
+# a ready-home claim: said only when the facts say it (Camelot, 2026-10-14: an under-construction flat went out "Ready for move-in")
+READY_CLAIM = re.compile(r"\bready[\s-]*(?:to|for)[\s-]*(?:move|occupy|occupation)|\bmove[\s-]*in[\s-]*ready\b"
+                         r"|\bready\s+(?:possession|homes?|flats?)\b|\b(?:immediate|instant)\s+possession\b", re.I)
+
+
 def problems_in(text: str, corpus: str, *, allow_url: bool = False) -> List[str]:
     """Reasons a piece of copy must not be used (empty list means clean). The corpus is the brief's facts."""
     out: List[str] = []
@@ -167,6 +172,8 @@ def problems_in(text: str, corpus: str, *, allow_url: bool = False) -> List[str]
         out.append("engagement bait")
     if POV.search(t):
         out.append("POV opener")
+    if READY_CLAIM.search(t) and not READY_CLAIM.search(corpus or ""):  # "Ready for move-in" on an under-construction 3 BHK
+        out.append("ready-to-move not in facts")
     if SAMPLE.search(t) and not SAMPLE.search(corpus or ""):  # a project really named "Sample ..." may be named
         out.append("sample")
     claims = [m.group(0) for rx in (CLAIM, MORE_CLAIM) for m in rx.finditer(t)

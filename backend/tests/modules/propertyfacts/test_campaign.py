@@ -1,4 +1,5 @@
 """PF-4 surroundings, PF-7 calculators and CA-1 campaign angles."""
+from app.modules.creative import i18n
 from app.modules.creative.guards import problems_in
 from app.modules.propertyfacts import ad_reel, calc, campaign, surroundings
 from datetime import date
