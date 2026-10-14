@@ -30,9 +30,13 @@ BIAS_M = 10000.0
 REFRESH_DAYS = 30
 PINCODE = re.compile(r"\b4\d{5}\b")            # Pune district pincodes
 # words that say what a place is, not which one: "Nyati Evoque Phase 2" and "Nyati Evoque" are one project
-GENERIC = frozenset({"phase", "wing", "building", "bldg", "tower", "towers", "project", "the", "by", "and", "of", "at", "in",
-                     "pune", "residency", "residences", "apartment", "apartments", "co", "op", "society", "chs", "sector"})
+# ("tower" is not one: "TITAN TOWER" matched a Titan watch shop on 2026-10-14)
+GENERIC = frozenset({"phase", "wing", "building", "bldg", "project", "the", "by", "and", "of", "at", "in", "pune", "co", "op",
+                     "society", "chs", "sector", "inclusive", "housing"})   # "Atulyam-Inclusive Housing": the main project's share
 OFFICE_TYPES = frozenset({"real_estate_agency", "corporate_office"})   # a sales office can sit kilometres from the site
+# a business with the project's name is not the project: shops, places to eat, hospitals, schools, hotels, banks...
+NOT_A_SITE = re.compile(r"store|shop|mall|restaurant|food|cafe|bakery|bar$|hospital|doctor|clinic|pharmacy|school|university|"
+                        r"lodging|hotel|bank|atm|gym|salon|spa|car_|gas_station|church|hindu_temple|mosque|place_of_worship")
 
 
 @dataclass(frozen=True)
@@ -70,6 +74,9 @@ def check(c: dict, project: str, locality: str, pincode: str, centre: Optional[t
         return "no position"
     if not name_matches(project, name, locality):
         return f"name {name!r} is not {project!r}"
+    business = [t for t in c.get("types") or [] if NOT_A_SITE.search(t)]
+    if business:
+        return f"{name!r} is a {business[0].replace('_', ' ')}, not the site"
     pins = PINCODE.findall(c.get("formattedAddress") or "")
     if pincode and pins and pincode not in pins:
         return f"pincode {pins[-1]}, MahaRERA says {pincode}"
