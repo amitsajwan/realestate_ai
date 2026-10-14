@@ -54,6 +54,11 @@ class Script:
     def lines(self) -> List[str]:
         return [self.hook, *self.beats, self.payoff, self.cta]
 
+    def voice(self) -> List[str]:
+        """What the voice says for each screen line: the model's spoken version (`speak`) where it passed, else `spoken`."""
+        said = self.extra.get("voice") or []
+        return [spoken(said[i] if i < len(said) and said[i] else x) for i, x in enumerate(self.lines())]
+
     def out(self) -> Dict[str, Any]:
         return {"format": self.format, "hook": self.hook, "beats": self.beats, "payoff": self.payoff, "cta": self.cta,
                 "by": self.by, "hook_type": self.hook_type}
@@ -227,15 +232,55 @@ async def write(fmt: str, c: Ctx, llm: Any = None) -> Script:
                    str(r.get("payoff") or "").strip(), str(r.get("cta") or base.cta).strip(), by="llm")
     except Exception:
         log.info("ad reel: LLM script failed for %s", fmt, exc_info=True)
+        await speak(base, llm)
         return base
     if CTA_WORD not in s.cta:
         s.cta = base.cta
     problems = check(s, facts)
     if problems:
         log.info("ad reel: LLM script for %s dropped: %s", fmt, problems[:3])
+        await speak(base, llm)
         return base
     s.hook_type = hook_type(s.hook)
+    await speak(s, llm)
     return s
+
+
+SPEAK_SYSTEM = (
+    "You turn the on-screen lines of a short property reel into what a Pune property agent would SAY over them, one spoken "
+    "line per screen line, in the same order. Say it the way people talk: distances rounded as people say them (0.9 km -> "
+    "'less than a kilometre', 1.9 km -> 'about 2 kilometres', 3.9 km -> 'about 4 kilometres'), units in words (square "
+    "feet, kilometres, rupees), prices as written ('2.24 crore'), no list numbers, no registration numbers (say 'MahaRERA "
+    "registered'). Keep every fact and name of the line; add nothing that is not on it. Short, natural, plain English. "
+    "Reply with JSON only: {\"lines\": [\"...\", ...]}")
+
+
+def said_ok(said: str, screen: str) -> bool:
+    """A spoken line keeps to its screen line: every number in it is one of the line's numbers or one rounded the way people
+    say it (1.9 -> 2, 0.9 -> 'less than 1'), no guard problem, and not much longer."""
+    from app.modules.creative.guards import problems_in
+    shown = [float(n) for n in _numbers(screen) if re.fullmatch(r"\d+(?:\.\d+)?", n)]
+    allowed = set(_numbers(screen)) | {str(round(x)) for x in shown} | {str(int(x) + 1) for x in shown}
+    if set(_numbers(said)) - allowed:
+        return False
+    rounded = {n for n in _numbers(said)} - set(_numbers(screen))   # the guards would call a rounded number new
+    problems = [p for p in problems_in(said, screen) if p.removeprefix("number not in facts: ") not in rounded]
+    return not problems and len(said.split()) <= 2 * len(screen.split()) + 6
+
+
+async def speak(s: Script, llm: Any) -> None:
+    """The model's spoken version of each screen line, kept per line where `said_ok` passes (s.extra["voice"]); the code's
+    `spoken` rules say the rest. A wording change needs a prompt line here, not a new rule."""
+    lines = s.lines()
+    try:
+        r = await llm.json(SPEAK_SYSTEM, "Screen lines:\n" + "\n".join(f"- {x.replace('*', '')}" for x in lines)) or {}
+        said = [str(x).strip() for x in r.get("lines") or []]
+    except Exception:
+        log.info("ad reel: spoken lines failed", exc_info=True)
+        return
+    if len(said) != len(lines):
+        return
+    s.extra["voice"] = [x if said_ok(x, y.replace("*", "")) else "" for x, y in zip(said, lines)]
 
 
 # ---- which formats: 80% what worked, 20% something else ------------------------------------------------------------------
@@ -368,7 +413,7 @@ def render(s: Script, pictures: Sequence, dest: Path, kicker: Optional[str] = No
     try:
         if voiced and voice.available():
             try:
-                clips, how = narration.voice_lines([spoken(x) for x in lines], lang, work)
+                clips, how = narration.voice_lines(s.voice(), lang, work)
                 for i, clip in enumerate(clips):
                     sc[i].seconds = max(sc[i].seconds or 0.0, ffmpeg.probe(clip).duration + VOICE_PAD_S)
                 tl = plan([x.seconds for x in sc], XFADE)

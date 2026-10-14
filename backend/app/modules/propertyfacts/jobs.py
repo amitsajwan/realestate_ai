@@ -656,7 +656,7 @@ class MarketingRuns:
             ctx = campaign.Ctx(facts)
             fmt = "showcase" if "showcase" in ad_reel.eligible(ctx) else "three_reasons"
             script = await ad_reel.write(fmt, ctx, self.llm_factory() if self.llm_factory else None)
-            how = await asyncio.to_thread(video_reel.voice_over, dest, [ad_reel.spoken(x) for x in script.lines()])
+            how = await asyncio.to_thread(video_reel.voice_over, dest, script.voice())
             trace.event(log, "marketing", ref, "video_voice", trace.OK if how in ("take", "lines") else trace.SKIPPED, voice=how)
             return how
         except Exception as e:
