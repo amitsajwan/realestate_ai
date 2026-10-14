@@ -16,7 +16,7 @@ from app.modules.newsroom.store import Store
 
 from . import hot
 from .enrich import km_between
-from .pages import _long, _served, booked, can_host, cluster_updated, indexable, is_old, months_later, names
+from .pages import _long, _served, booked, can_host, cluster_stamps, cluster_updated, indexable, is_old, months_later, names
 from .text import builder_slug
 from .service import _count, _day
 
@@ -140,12 +140,13 @@ def _by_builder(docs: List[dict]) -> dict:
 async def builders(db, only_indexable: bool = True) -> List[dict]:
     """Every builder with projects in the register: [{slug, name, projects, indexable, page_updated}], most projects first."""
     docs = await Store(db).all_projects()
+    by_cluster = cluster_stamps(docs)
     out = []
     for s, mine in _by_builder(docs).items():
         n = sum(1 for d in mine if indexable(d))
         if only_indexable and n < BUILDER_MIN:
             continue
-        stamps = [x for x in (cluster_updated(d, docs) for d in mine) if x]
+        stamps = [x for x in (cluster_updated(d, docs, by_cluster) for d in mine) if x]
         out.append({"slug": s, "name": _builder_name(mine), "projects": len(mine), "indexable": n >= BUILDER_MIN,
                     "page_updated": max(stamps) if stamps else None})
     out.sort(key=lambda r: (-r["projects"], r["slug"]))
@@ -166,6 +167,7 @@ async def builder_page(db, slug: str) -> Optional[dict]:
     """A builder's page: every Pune project of theirs (towers merged) with MahaRERA's dates and bookings, and how often the
     filed completion date moved. None for an unknown builder."""
     docs = await Store(db).all_projects()
+    by_cluster = cluster_stamps(docs)
     mine = _by_builder(docs).get(slug)
     if not mine:
         return None
@@ -176,7 +178,7 @@ async def builder_page(db, slug: str) -> Optional[dict]:
     total = sum(_count(d.get("units_total")) or 0 for d in mine)
     sold = sum(booked(d) or 0 for d in mine)
     areas = sorted({BY_KEY[d["locality"]].name for d in mine if d.get("locality") in BY_KEY})
-    stamps = [x for x in (cluster_updated(d, docs) for d in mine) if x]
+    stamps = [x for x in (cluster_updated(d, docs, by_cluster) for d in mine) if x]
     n_index = sum(1 for d in mine if indexable(d))
     return {
         "slug": slug, "name": _builder_name(mine), "projects_count": len(mine), "areas": areas,

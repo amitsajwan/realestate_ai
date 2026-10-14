@@ -392,12 +392,24 @@ def towers(doc: dict, docs: List[dict]) -> List[dict]:
             for d in mine]
 
 
-def cluster_updated(doc: dict, docs: List[dict]) -> Optional[str]:
-    """A page's own last change; for a primary, the newest of its members' (a tower read changes the merged page too)."""
+def cluster_stamps(docs: List[dict]) -> dict:
+    """{cluster_id: the newest page_updated of its members}, in one pass (lists call cluster_updated thousands of times)."""
+    out: dict = {}
+    for d in docs:
+        cid = d.get("cluster_id")
+        s = page_updated(d) if cid else None
+        if s and (cid not in out or s > out[cid]):
+            out[cid] = s
+    return out
+
+
+def cluster_updated(doc: dict, docs: List[dict], stamps: Optional[dict] = None) -> Optional[str]:
+    """A page's own last change; for a primary, the newest of its members' (a tower read changes the merged page too).
+    Pass `stamps` (cluster_stamps) when calling it for many pages."""
     cid = doc.get("cluster_id")
-    stamps = [page_updated(d) for d in docs if d.get("cluster_id") == cid] if cid else [page_updated(doc)]
-    stamps = [x for x in stamps if x]
-    return max(stamps) if stamps else None
+    if not cid:
+        return page_updated(doc)
+    return (stamps if stamps is not None else cluster_stamps(docs)).get(cid) or page_updated(doc)
 
 
 async def project_page(db, slug: str) -> Optional[dict]:
@@ -454,6 +466,7 @@ async def listing(db, area: Optional[str] = None, only_indexable: bool = True, l
     if only_indexable:
         docs = [d for d in docs if indexable(d)]
     docs.sort(key=lambda d: (_day(d.get("last_modified")) or "", d.get("name", "")), reverse=True)
+    stamps = cluster_stamps(every)
     return [{"slug": d["page_slug"], "regno": d.get("regno") or d["_id"], "name": d.get("name", ""), "marketed_name": names(d)[0],
              "search_name": d.get("search_name") or None,
              "area": d.get("locality"), "units_total": _count(d.get("units_total")), "units_booked": booked(d),
@@ -461,7 +474,7 @@ async def listing(db, area: Optional[str] = None, only_indexable: bool = True, l
              "promoter": d.get("promoter") or None, "completion_now": _day(d.get("completion_now")),
              "checked": checked_count(d), "checks_total": len(CHECK_LABELS), "active": not is_old(d),
              "listed_or_updated": _day(d.get("last_modified")),
-             "page_updated": cluster_updated(d, every),   # our own last change (the sitemap's lastmod; a primary: its newest tower), never MahaRERA's dates
+             "page_updated": cluster_updated(d, every, stamps),   # our own last change (the sitemap's lastmod; a primary: its newest tower), never MahaRERA's dates
              "indexable": indexable(d)} for d in docs[:limit]]
 
 
