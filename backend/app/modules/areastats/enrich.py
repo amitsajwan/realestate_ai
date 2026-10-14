@@ -4,7 +4,8 @@ Each round picks ONE project (`next_project`): an urgent request first (a campai
 selling, in the news, searched for; refreshed every HOT_REFRESH_DAYS), then the pages Google already shows (Search Console
 impressions, when that job has stored them; those just off page one first), then records enriched before the checks below (no
 `enrichment`), then indexable pages never enriched (newest first), then the rest, then the oldest enrichment once it is
-REFRESH_DAYS old. Projects finished more than a year ago are skipped. For that project:
+REFRESH_DAYS old (RETRY_DAYS when MahaRERA or the model did not answer: that is the service, not the project). Projects finished
+more than a year ago are skipped (status "finished"). For that project:
 0. MahaRERA, two open reads one after the other (PAUSE apart): the general record (kept only when its regno is the record's)
    and the building/wing summary (kept only when every row's projectId and regno are the record's) -> `buildings`,
    `building_totals`. A record with no pincode or locality gets them from the project's fact sheet (same regno) first.
@@ -44,6 +45,7 @@ PAUSE = 2.0                           # seconds between our two MahaRERA reads i
 NEAR_KM = 15.0                        # the located place must be this close to the pincode's centre
 STEPS = ("maharera_general", "buildings", "places", "text")
 REFRESH_DAYS = 60
+RETRY_DAYS = 1                        # a round MahaRERA or the model did not answer is tried again after this
 HOT_REFRESH_DAYS = 14                 # a hot project's page is rewritten from fresh facts this often
 POLL_SECONDS = 60
 REQUESTS = "enrich_requests"          # {_id: regno, at, by}: urgent enrichments asked for by campaigns
@@ -86,6 +88,18 @@ def _ours(d: dict) -> bool:
     return bool(d.get("page_slug")) and (d.get("locality") in BY_KEY or bool(d.get("watched_by")))
 
 
+_UNANSWERED = ("did not answer", "model call failed", "no model answer", "no LLM key")
+
+
+def unanswered(d: dict) -> bool:
+    """The last round failed a step because a service did not answer (MahaRERA busy, model down), not because of the project."""
+    for st in ((d.get("enrichment") or {}).get("steps") or {}).values():
+        why = " ".join([str(st.get("checked") or "")] + [str(r) for r in st.get("refused_reasons") or []])
+        if not st.get("ok") and any(w in why for w in _UNANSWERED):
+            return True
+    return False
+
+
 def priority(d: dict, urgent: set, now: datetime) -> Optional[tuple]:
     """Sort key (lower first) for a project that needs enriching, or None when it does not need it now."""
     regno = d.get("regno") or d["_id"]
@@ -97,7 +111,8 @@ def priority(d: dict, urgent: set, now: datetime) -> Optional[tuple]:
     is_hot = heat >= hot.HOT_MIN
     seen = int(d.get("gsc_impressions") or 0)
     legacy = isinstance(done, datetime) and not d.get("enrichment")   # enriched before buildings and checks: redo
-    if not legacy and isinstance(done, datetime) and now - _aware(done) < timedelta(days=HOT_REFRESH_DAYS if is_hot else REFRESH_DAYS):
+    days = HOT_REFRESH_DAYS if is_hot else RETRY_DAYS if unanswered(d) else REFRESH_DAYS
+    if not legacy and isinstance(done, datetime) and now - _aware(done) < timedelta(days=days):
         return None
     if is_hot:
         return (1, -heat)                                       # people are buying, searching or talking about it now: hottest first
@@ -368,13 +383,13 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime) -> dict:
 
 # ---- the owner's view: what is enriched and checked ------------------------------------------------------------------------
 
-STATUSES = ("ok", "partial", "failed", "waiting")
+STATUSES = ("ok", "partial", "failed", "waiting", "finished")
 
 
-def status_of(d: dict) -> str:
+def status_of(d: dict, today=None) -> str:
     e = d.get("enrichment")
     if not e:
-        return "waiting"
+        return "finished" if pages.is_old(d, today) else "waiting"   # finished: never enriched, MahaRERA facts only
     n = sum(1 for k in STEPS if ((e.get("steps") or {}).get(k) or {}).get("ok"))
     return "ok" if n == len(STEPS) else "failed" if n <= 1 else "partial"
 
@@ -384,7 +399,7 @@ def _iso(v: Any) -> Optional[str]:
 
 
 async def status_list(store: Store, status: Optional[str] = None, limit: int = 300) -> dict:
-    """{counts: {ok, partial, failed, waiting}, items: [...]} over the project pages we enrich, newest enrichment first."""
+    """{counts: {ok, partial, failed, waiting, finished}, items: [...]} over the project pages we enrich, newest enrichment first."""
     docs = [d for d in await store.all_projects() if _ours(d)]
     counts = {s: 0 for s in STATUSES}
     items = []

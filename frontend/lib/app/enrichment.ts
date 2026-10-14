@@ -3,7 +3,7 @@ import { API_BASE_URL } from '@/lib/config/api'
 import { ApiError, parseErrorBody } from './api'
 import { getToken } from './session'
 
-export type EnrichStatus = 'ok' | 'partial' | 'failed' | 'waiting'
+export type EnrichStatus = 'ok' | 'partial' | 'failed' | 'waiting' | 'finished'
 
 export interface EnrichItem {
   regno: string
