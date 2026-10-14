@@ -207,13 +207,22 @@ def _user(facts, room: Dict[str, Any], extra: str = "") -> str:
     return "\n\n".join(parts)
 
 
-async def _ask(llm: Any, system: str, user: str) -> Dict[str, Any]:
-    try:
-        r = await llm.json(system, user)
-        return r if isinstance(r, dict) else {}
-    except Exception:
-        log.info("creative room: a call failed", exc_info=True)
-        return {}
+RETRY_WAITS = (20.0, 45.0)   # seconds before asking again: the free model tiers answer 429 for a minute when busy
+
+
+async def _ask(llm: Any, system: str, user: str, waits: Sequence[float] = RETRY_WAITS) -> Dict[str, Any]:
+    """One person's answer as a dict; an empty answer (every provider busy or broken JSON) is asked again after a pause."""
+    for wait in (0.0, *waits):
+        if wait:
+            await asyncio.sleep(wait)
+        try:
+            r = await llm.json(system, user)
+        except Exception:
+            log.info("creative room: a call failed", exc_info=True)
+            r = None
+        if isinstance(r, dict) and r:
+            return r
+    return {}
 
 
 # ---- the fact checker --------------------------------------------------------------------------------------------------------
@@ -278,6 +287,7 @@ async def convene(c: Ctx, listing: dict, llm: Any, photos: int = 0, images: Sequ
         return None
     facts = book(c, listing)
     if len(facts) < 4:
+        log.info("creative room: only %d facts", len(facts))
         return None
     corpus = "\n".join(f["text"] for f in facts)   # what the checker reads: the facts without their ids (F12 is not a 12)
     kinds = [str(i.get("kind") or "") for i in images]
@@ -289,10 +299,13 @@ async def convene(c: Ctx, listing: dict, llm: Any, photos: int = 0, images: Sequ
     else:
         brief = await _ask(llm, STRATEGIST, _user(facts, room))
         if not brief.get("idea"):
+            log.info("creative room: the strategist gave no idea (%s)", list(brief)[:6])
             return None
         room["brief"] = {k: brief.get(k) for k in ("positioning", "tier", "buyers", "idea", "tone", "avoid")}
-        raws = await asyncio.gather(*(_ask(llm, _creative(lens), _user(facts, room)) for lens in LENSES))
+        raws = [await _ask(llm, _creative(lens), _user(facts, room)) for lens in LENSES]   # one at a time: the free tiers rate-limit
         room["pitches"] = [p for p in (_pitch(r, corpus, LENSES[lens][0]) for lens, r in zip(LENSES, raws)) if p]
+        log.info("creative room: pitches %s", [(lens, len((r or {}).get("pieces") or []), bool(p)) for lens, r, p in
+                                               zip(LENSES, raws, [_pitch(r, corpus, "x") for r in raws])])
     if not room.get("pitches"):
         return None
     listed = "\n\n".join(f"Pitch {i + 1} ({p['by']}): {p['name']}. {p['idea']}\n" + "\n".join(
@@ -307,6 +320,7 @@ async def convene(c: Ctx, listing: dict, llm: Any, photos: int = 0, images: Sequ
         pieces = _distinct(room["pitches"][chosen - 1]["pieces"])
     camp = {"name": d.get("name"), "idea": d.get("idea")}
     if len(pieces) < MIN_PIECES:
+        log.info("creative room: %d pieces after the director (%d assembled), too few", len(pieces), len(d.get("pieces") or []))
         return None
     reels = 0
     for p in pieces:   # the director's best few reels, in posting order
