@@ -358,9 +358,9 @@ class MarketingRuns:
             if d.get("resumed"):
                 change = {"status": "failed", "error": "Marketing was interrupted. Please start it again.", "finished_at": self.now()}
             elif d.get("mode") == "update":   # its posts are the earlier run's: kept
-                change = {"status": "queued", "step": "facts", "resumed": True, "started_at": None, "error": None}
+                change = {"status": "queued", "step": "facts", "resumed": True, "started_at": None, "reels": [], "error": None}
             else:
-                change = {"status": "queued", "step": "facts", "resumed": True, "started_at": None, "posts": [], "error": None}
+                change = {"status": "queued", "step": "facts", "resumed": True, "started_at": None, "posts": [], "reels": [], "error": None}
             await self.runs.update_one({"_id": d["_id"], "status": d["status"]}, {"$set": change})
         for d in await self.runs.find({"status": "done", "boost.state": "making", "boost_queued": False}).to_list(100):
             await self.runs.update_one({"_id": d["_id"]}, {"$set": {"boost": {**d["boost"], "state": "failed",
@@ -479,6 +479,7 @@ class MarketingRuns:
         video = self._video(listing)
         if video:
             reels.append(await self._video_reel(job, listing, video, out, project, link_line, facts))
+            await self._set(job["_id"], reels=reels)
         if self.reel_jobs is not None and not video:
             from app.modules.reels.listing_reel import MIN_PHOTOS, listing_photos
             from . import pictures
@@ -533,6 +534,7 @@ class MarketingRuns:
                               "video": "/uploads/" + dest.resolve().relative_to(self.uploads_dir.resolve()).as_posix()})
                 trace.event(log, "marketing", job["_id"], "ad_reel", trace.OK, angle=p["angle"], format=fmt,
                             voice=made.get("voice"), seconds=made.get("seconds"))
+                await self._set(job["_id"], reels=reels)   # Studio shows each reel as it lands; an interrupted run keeps them
             except Exception as e:
                 trace.event(log, "marketing", job["_id"], "ad_reel", trace.FAILED, angle=p["angle"], format=fmt,
                             reason=str(e) or type(e).__name__, exc_info=True)
@@ -1122,11 +1124,13 @@ def default_runs() -> MarketingRuns:
     db = get_database()
     from app.modules.reels.listing_reel import ReelJobs
     from .pin import Pins
+    from .surroundings import Nearby
     uploads = Path(settings.upload_directory)
     return MarketingRuns(db, uploads, settings.public_site_url,
                          clients_factory=lambda: Clients(register=Store(db), facts_store=FactsStore(db),
                                                          brochures=Brochures(db, uploads), groups=Groups(db),
-                                                         pins=Pins(db, settings.google_maps_api_key)),
+                                                         pins=Pins(db, settings.google_maps_api_key),
+                                                         nearby=Nearby(settings.google_maps_api_key)),
                          llm_factory=default_llm,
                          reel_jobs=ReelJobs(db, Path(settings.upload_directory), llm_factory=default_llm))
 

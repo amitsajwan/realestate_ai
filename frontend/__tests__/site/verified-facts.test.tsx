@@ -12,7 +12,7 @@ const FACTS: PropertyFactsView = {
     units_total: 123, read_at: '2026-10-01T00:00:00+00:00',
   },
   nearby: [{ label: 'Hospital', name: 'Narwade Hospital', km: 0.4 }, { label: 'Industrial area', name: 'IndoSpace Industrial Park', km: 3 }],
-  nearby_source: { name: 'OpenStreetMap contributors', url: 'https://www.openstreetmap.org/copyright' },
+  nearby_sources: [{ name: 'Google Maps', url: 'https://maps.google.com/' }, { name: 'OpenStreetMap contributors', url: 'https://www.openstreetmap.org/copyright' }],
   numbers: { price_per_sqft: 1676, plot_guntha: 1.77, plot_sqm: 179, emi: { emi: 22425, loan: 2584000, rate: 8.5, years: 20 } },
 }
 
@@ -35,7 +35,7 @@ describe('VerifiedFacts', () => {
   it('renders nothing without facts, and only the blocks it has', () => {
     const { container } = render(<VerifiedFacts f={null} />)
     expect(container).toBeEmptyDOMElement()
-    render(<VerifiedFacts f={{ nearby: FACTS.nearby, nearby_source: FACTS.nearby_source }} />)
+    render(<VerifiedFacts f={{ nearby: FACTS.nearby, nearby_sources: FACTS.nearby_sources }} />)
     expect(screen.queryByText(/on maharera/i)).not.toBeInTheDocument()
     expect(screen.getByText('Narwade Hospital')).toBeInTheDocument()
   })

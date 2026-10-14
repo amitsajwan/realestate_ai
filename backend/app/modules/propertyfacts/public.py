@@ -7,6 +7,8 @@ from .surroundings import label
 
 NEARBY_MAX = 5
 OSM_COPYRIGHT = "https://www.openstreetmap.org/copyright"
+# where a nearby list came from, for the page to credit: Google's places lead (surroundings.Nearby), OSM fills the rest
+NEARBY_NAMES = {"google": ("Google Maps", "https://maps.google.com/"), "osm": ("OpenStreetMap contributors", OSM_COPYRIGHT)}
 
 
 def _usable(doc: dict) -> Dict[str, dict]:
@@ -46,14 +48,18 @@ def view(doc: Optional[dict]) -> Optional[dict]:
         }
 
     near: List[dict] = []
+    used: List[str] = []
     # only distances measured from the project's own pin (pin.py); a sheet measured from the locality's centre gave every
     # project in the area the same list
     for k, fact in (f.items() if _val(f, "located_at") == "project" else ()):
         if k.startswith("nearby.") and isinstance(fact.get("value"), list):
             near += [{"label": label(k), "name": p.get("name"), "km": p.get("km")} for p in fact["value"] if p.get("name")]
+            src = ((fact.get("readings") or [{}])[0]).get("source") or "osm"
+            if src not in used:
+                used.append(src)
     if near:
         out["nearby"] = sorted(near, key=lambda p: p["km"])[:NEARBY_MAX]
-        out["nearby_source"] = {"name": "OpenStreetMap contributors", "url": OSM_COPYRIGHT}
+        out["nearby_sources"] = [{"name": NEARBY_NAMES[s][0], "url": NEARBY_NAMES[s][1]} for s in ("google", "osm") if s in used]
 
     # the agent's own offer, which posts quote ("₹32.3 lakh for a plot"): shown with its source, never as a project price
     offer = {k: _val(f, k) for k in ("transaction", "property_type", "price_inr", "plot_sqft", "carpet_sqft", "bhk")

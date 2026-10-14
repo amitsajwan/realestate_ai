@@ -1,25 +1,28 @@
-"""PF-4: what is near a place, from OpenStreetMap. Up to 3 nearest named places per category.
+"""PF-4: what is near a place. Up to 3 nearest named places per category.
 
-Overpass answers everything in one query but the public server is often busy (504) or refuses us (406; verified 2026-10-06), so
-when it fails each category is asked of Nominatim instead (one request a second, bounded to the area). Distances are
-straight-line ("about 2.3 km away") for now; road distance (OSRM) can replace `km` later without changing callers. OSM is sparse
-outside the city, so a category with nothing found is noted rather than implied absent. To add a category, add one line to
-CATEGORIES.
+Google's own places lead (Places API (New) searchNearby, `Nearby` below) since 2026-10-14: they carry the project's pin as
+their centre and names a buyer recognises. OpenStreetMap fills the categories Google did not answer: Overpass answers
+everything in one query but the public server is often busy (504) or refuses us (406), so when it fails each category is
+asked of Nominatim instead (one request a second, bounded to the area). Distances are straight-line ("about 2.3 km away")
+for now; road distance (OSRM) can replace `km` later without changing callers. OSM is sparse outside the city, so a
+category with nothing found is noted rather than implied absent. To add a category, add one line to CATEGORIES.
 
-Our own copy comes first: data/pune_places.json.gz, the named places of these categories around Pune from a Geofabrik
-OpenStreetMap extract (scripts/build_osm_places.py, made once). A place inside its box is answered from it with no network;
-Overpass and Nominatim are only asked for places outside it. When no source could be read, the note says so instead of
-claiming there is nothing nearby."""
+`from_local` (our one-off Geofabrik copy) stays for the communities' area pages, which have no project pin to ask Google around."""
 import gzip
 import json
+import logging
 import math
 import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+import httpx
+
 from .facts import Reading
 from .place import NOMINATIM, GetJson
+
+log = logging.getLogger(__name__)
 
 OVERPASS = "https://overpass-api.de/api/interpreter"
 # tried in order when OVERPASS refuses or times out (2026-10-13: overpass-api.de answers our server 406 whatever the agent)
@@ -28,6 +31,13 @@ LOCAL_PLACES = Path(__file__).resolve().parent / "data" / "pune_places.json.gz"
 LOCAL_BOX = (17.85, 19.40, 73.30, 75.20)   # south, north, west, east: where the copy covers a full 10 km radius
 RADIUS_M = 10000
 PER_CATEGORY = 3
+NEARBY_SEARCH = "https://places.googleapis.com/v1/places:searchNearby"
+NEARBY_FIELDS = "places.displayName,places.location,places.googleMapsUri,places.primaryType"
+# Google's primaryType -> our category; 10 types is searchNearby's cap, and work gets its own text query below
+GOOGLE_TYPE = {"hospital": "hospital", "clinic": "hospital", "school": "school", "college": "college",
+               "university": "college", "train_station": "railway", "bus_station": "bus", "hindu_temple": "temple",
+               "shopping_mall": "market", "supermarket": "market"}
+WORK_QUERY = "IT park industrial estate"   # "Near work" wants the places people drive to, not an OSM polygon named "CTR"
 
 # key -> (label for posts, Overpass filters, Nominatim search phrase). Every place needs a name: an unnamed school cannot go on a card.
 CATEGORIES: Dict[str, Tuple[str, Tuple[str, ...], str]] = {
@@ -150,28 +160,90 @@ def from_local(lat: float, lon: float) -> Optional[Dict[str, List[Dict[str, Any]
     return best
 
 
-async def around(get_json: GetJson, lat: float, lon: float, now=None) -> Tuple[List[Reading], List[str]]:
-    """(readings "nearby.<category>" = [{name, km}], notes about categories with nothing found)."""
-    best = from_local(lat, lon)
-    checked = best is not None
-    if best is None:
+def _place(best: Dict[str, List[Dict[str, Any]]], lat: float, lon: float, p: dict, cat: Optional[str]) -> None:
+    """One searchNearby place into the category it belongs to; ignored when it is not one, has no name, or is out of range."""
+    name = ((p.get("displayName") or {}).get("text") or "").strip()
+    loc = p.get("location") or {}
+    if not cat or not name or not isinstance(loc.get("latitude"), (int, float)) or not isinstance(loc.get("longitude"), (int, float)):
+        return
+    d = km(lat, lon, loc["latitude"], loc["longitude"])
+    if d <= RADIUS_M / 1000:
+        _add(best, cat, name, d, p.get("googleMapsUri") or "https://maps.google.com/")
+
+
+class Nearby:
+    """Google's own places around a position (Places API (New) searchNearby): the nearest named hospital, school, ... and,
+    on a separate text query, the work places people drive to. Two calls for a project, 20 places each. `transport` is for
+    tests. No key configured: nothing is asked and the caller falls back to OpenStreetMap."""
+
+    def __init__(self, key: Optional[str], timeout: float = 20.0, transport: Optional[httpx.AsyncBaseTransport] = None):
+        self.key, self.timeout, self.transport = (key or "").strip(), timeout, transport
+
+    async def _call(self, body: dict) -> Optional[List[dict]]:
+        headers = {"X-Goog-Api-Key": self.key, "X-Goog-FieldMask": NEARBY_FIELDS}
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout, transport=self.transport) as c:
+                r = await c.post(NEARBY_SEARCH, json=body, headers=headers)
+        except httpx.HTTPError as e:
+            log.warning("places nearby: %s", type(e).__name__)
+            return None
+        if r.status_code != 200:
+            log.warning("places nearby: answered %s %s", r.status_code, r.text[:200])
+            return None
+        try:
+            data = r.json()
+        except ValueError:
+            return None
+        places = data.get("places")
+        return places if isinstance(places, list) else None
+
+    async def search(self, lat: float, lon: float) -> Tuple[Dict[str, List[Dict[str, Any]]], bool]:
+        """({category: [{name, km, url}]}, whether Google answered at all)."""
+        if not self.key:
+            return {}, False
+        circle = {"center": {"latitude": lat, "longitude": lon}, "radius": RADIUS_M}
+        base = {"locationRestriction": {"circle": circle}, "maxResultCount": 20, "rankPreference": "DISTANCE", "regionCode": "IN"}
+        best: Dict[str, List[Dict[str, Any]]] = {}
+        got = await self._call({**base, "includedPrimaryTypes": list(GOOGLE_TYPE)})
+        answered = got is not None
+        for p in got or []:
+            _place(best, lat, lon, p, GOOGLE_TYPE.get(str(p.get("primaryType") or "").split(".")[-1]))
+        got = await self._call({**base, "textQuery": WORK_QUERY})
+        answered = answered or got is not None
+        for p in got or []:
+            _place(best, lat, lon, p, "industry")
+        return best, answered
+
+
+async def around(get_json: GetJson, lat: float, lon: float, now=None,
+                 nearby: Optional[Nearby] = None) -> Tuple[List[Reading], List[str]]:
+    """(readings "nearby.<category>" = [{name, km}] from Google where it answered and from OSM for the rest, notes about
+    categories with nothing found)."""
+    best, checked = ({}, False)
+    if nearby is not None:
+        best, checked = await nearby.search(lat, lon)
+    from_google = set(best)
+    missing = [k for k in CATEGORIES if k not in best]
+    if missing:
+        osm: Dict[str, List[Dict[str, Any]]] = {}
         data = await get_json(OVERPASS, {"data": query(lat, lon)})
         if isinstance(data, dict) and isinstance(data.get("elements"), list):
-            best, checked = from_overpass(data["elements"], lat, lon), True
+            osm, checked = from_overpass(data["elements"], lat, lon), True
         else:
-            best = {}
             d = RADIUS_M / 111000  # degrees of latitude in the radius; good enough for a search box
-            for cat, (_, _, phrase) in CATEGORIES.items():
+            for cat in missing:
+                phrase = CATEGORIES[cat][2]
                 rows = await get_json(NOMINATIM, {"q": phrase, "format": "jsonv2", "limit": 10, "bounded": 1,
                                                   "viewbox": f"{lon - d},{lat + d},{lon + d},{lat - d}"})
                 checked = checked or isinstance(rows, list)
-                from_nominatim(cat, rows, lat, lon, best)
-    rs = [Reading(f"nearby.{k}", [{"name": i["name"], "km": i["km"]} for i in v], "osm", v[0]["url"], now)
-          for k, v in best.items()]
-    missing = [CATEGORIES[k][0].lower() for k in CATEGORIES if k not in best]
+                from_nominatim(cat, rows, lat, lon, osm)
+        best.update({k: osm[k] for k in missing if k in osm})
+    rs = [Reading(f"nearby.{k}", [{"name": i["name"], "km": i["km"]} for i in v],
+                  "google" if k in from_google else "osm", v[0]["url"], now) for k, v in best.items()]
+    gone = [CATEGORIES[k][0].lower() for k in CATEGORIES if k not in best]
     if not checked:
         return rs, ["nearby places could not be checked right now (the map service did not answer)"]
-    notes = [f"no named {', '.join(missing)} mapped within {RADIUS_M // 1000} km"] if missing else []
+    notes = [f"no named {', '.join(gone)} mapped within {RADIUS_M // 1000} km"] if gone else []
     return rs, notes
 
 

@@ -23,7 +23,9 @@ def _shared_clients(db) -> Clients:
         from app.core.config import settings
         from app.modules.newsroom.store import Store as Register
         from .pin import Pins
-        _clients = Clients(register=Register(db), facts_store=FactsStore(db), pins=Pins(db, settings.google_maps_api_key))
+        from .surroundings import Nearby
+        _clients = Clients(register=Register(db), facts_store=FactsStore(db), pins=Pins(db, settings.google_maps_api_key),
+                           nearby=Nearby(settings.google_maps_api_key))
     return _clients
 
 

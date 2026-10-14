@@ -52,8 +52,14 @@ export default function VerifiedFacts({ f, hideNearby = false }: { f: PropertyFa
             ))}
           </ul>
           <p className="mt-2 text-xs text-emerald-900">
-            Straight-line distance; the drive is longer. Map data ©{' '}
-            <a href={f.nearby_source?.url} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">{f.nearby_source?.name}</a>.
+            Straight-line distance; the drive is longer.{' '}
+            {(f.nearby_sources ?? []).map((s, i) => (
+              <span key={s.url}>
+                {i > 0 && ' and '}
+                {/openstreetmap/i.test(s.name) ? '© ' : ''}
+                <a href={s.url} target="_blank" rel="noopener noreferrer" className="font-semibold underline underline-offset-2">{s.name}</a>
+              </span>
+            ))}.
           </p>
         </div>
       )}

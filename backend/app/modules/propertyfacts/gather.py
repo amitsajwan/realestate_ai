@@ -63,13 +63,14 @@ class Clients:
     """Real network access, polite by default: Nominatim at most 1 request a second, answers cached for the process."""
 
     def __init__(self, timeout: float = 60.0, register: Any = None, facts_store: Any = None, brochures: Any = None,
-                 groups: Any = None, pins: Any = None):
+                 groups: Any = None, pins: Any = None, nearby: Any = None):
         """`register`: the newsroom Store, read before MahaRERA; `facts_store`: where gathered sheets are kept; `brochures`: the
         listing's brochure kits (brochure.Brochures); `groups`: marketed projects sold under several registrations
-        (agentprojects.groups.Groups); `pins`: the project's own pin on Google Maps (pin.Pins). All optional."""
+        (agentprojects.groups.Groups); `pins`: the project's own pin on Google Maps (pin.Pins); `nearby`: Google's places
+        around that pin (surroundings.Nearby). All optional."""
         self.timeout = timeout
         self.register, self.facts_store, self.brochures, self.groups = register, facts_store, brochures, groups
-        self.pins = pins
+        self.pins, self.nearby = pins, nearby
         self._cache: Dict[str, Any] = {}
         self._last_osm = 0.0
         self._osm_lock = asyncio.Lock()
@@ -182,7 +183,8 @@ async def gather(doc: Dict[str, Any], clients: Any, now: Optional[datetime] = No
     rs_pin, note = await _project_pin(doc, clients, where, official, now)
     if rs_pin:
         rs += rs_pin
-        near, missing = await surroundings.around(clients.get_json, rs_pin[0].value, rs_pin[1].value, now)
+        near, missing = await surroundings.around(clients.get_json, rs_pin[0].value, rs_pin[1].value, now,
+                                                  nearby=getattr(clients, "nearby", None))
         rs += near
         notes += missing
     else:

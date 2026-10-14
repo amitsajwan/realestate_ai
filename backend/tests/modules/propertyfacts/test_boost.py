@@ -36,7 +36,7 @@ async def test_the_run_makes_the_boost_pair(tmp_path, monkeypatch):
     # the reel: the hook first (price and place), every beat at most 7 words, no phone number, the WhatsApp end card last
     scenes = test_jobs.BOOSTS[-1]
     hook = texts(scenes[0])[0]
-    assert "₹32.3L" in hook and ("Ranjangaon" in hook or "MIDC" in hook) and len(hook.split()) <= 7
+    assert "₹32.3L" in hook and ("Ranjangaon" in hook or "MIDC" in hook or "IndoSpace" in hook) and len(hook.split()) <= 7
     assert all(len(texts(s)[0].split()) <= 7 for s in scenes[1:] if s.lines)
     assert not any(PHONE_RE.search(t) for s in scenes for t in texts(s))
     assert any("P52100076768" in t for s in scenes for t in texts(s))           # registered: the proof card

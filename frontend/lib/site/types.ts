@@ -224,7 +224,7 @@ export interface PropertyFactsView {
     read_at?: string | null
   }
   nearby?: { label: string; name: string; km: number }[]
-  nearby_source?: { name: string; url: string }
+  nearby_sources?: { name: string; url: string }[]
   numbers?: {
     price_per_sqft?: number
     plot_guntha?: number
