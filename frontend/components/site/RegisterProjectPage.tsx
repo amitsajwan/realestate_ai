@@ -5,6 +5,7 @@ import VerifiedFacts from '@/components/site/VerifiedFacts'
 import { breadcrumbJsonLd, jsonLdString } from '@/lib/marketing/seo'
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
 import type { RegisterProject } from '@/lib/site/register'
+import type { FacetLink } from '@/lib/site/facets'
 import WebFactsBox from '@/components/site/WebFactsBox'
 import { areaName, displayName, longDay, monthYear, otherNames, projectFaq, placePath } from '@/lib/site/register'
 import type { EnrichCheck, Faq } from '@/lib/site/register'
@@ -384,7 +385,7 @@ function FaqBox({ faq }: { faq: Faq[] }) {
 }
 
 /** Avasetu's own page for a MahaRERA project: our facts first (each with source and date), then the official record. */
-export default function RegisterProjectPage({ p, siteUrl, facts }: { p: RegisterProject; siteUrl: string; facts: PropertyFactsView | null }) {
+export default function RegisterProjectPage({ p, siteUrl, facts, lists = [] }: { p: RegisterProject; siteUrl: string; facts: PropertyFactsView | null; lists?: FacetLink[] }) {
   const url = `${siteUrl}/projects/${p.slug}`
   const moved = p.completion_now && p.completion_at_registration && p.completion_now !== p.completion_at_registration
   const shown = displayName(p)
@@ -492,6 +493,12 @@ export default function RegisterProjectPage({ p, siteUrl, facts }: { p: Register
               </ul>
               <div className="mt-3 flex flex-wrap gap-x-5">
                 {placeHref && <Link href={placeHref} className="inline-flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2">All projects in {placeName ?? p.area?.name}</Link>}
+                {/* the place's lists (docs/plan/area-intent-pages.md): links into them from every project page in the place */}
+                {lists.map((f) => (
+                  <Link key={f.path} href={f.path} className="inline-flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2" data-testid="facet-link">
+                    {f.label} in {placeName ?? p.area?.name}
+                  </Link>
+                ))}
                 {p.area && <Link href={`/localities/${p.area.slug}`} className="inline-flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2">{p.area.name} area guide</Link>}
                 {p.near_guide && <Link href={p.near_guide.path} className="inline-flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2" data-testid="near-guide">Near {p.near_guide.name} ({p.near_guide.km} km): neighbourhood guide</Link>}
               </div>

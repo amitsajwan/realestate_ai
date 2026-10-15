@@ -9,10 +9,11 @@ import { errorMessage } from '@/lib/app/client'
 import { getFound, getHot, getSystem, ignoreFound, refreshPage, searchAs } from '@/lib/app/insights'
 import type { FoundItem, FoundState, HotItem, Loop } from '@/lib/app/insights'
 import { useAsync } from '@/lib/app/useAsync'
+import PagesTab from './PagesTab'
 import RankingsTab from './RankingsTab'
 
-const TABS = ['hot', 'rankings', 'found', 'system']
-const TAB_LABEL: Record<string, string> = { hot: 'Hot projects', rankings: 'Rankings', found: 'Found on Google', system: 'System' }
+const TABS = ['hot', 'rankings', 'pages', 'found', 'system']
+const TAB_LABEL: Record<string, string> = { hot: 'Hot projects', rankings: 'Rankings', pages: 'Pages', found: 'Found on Google', system: 'System' }
 const SIGNAL: Record<string, string> = { launch: 'New', bookings: 'Bookings', news: 'News', search: 'Search Console', google: 'Google', youtube: 'YouTube' }
 const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '')
 const card = 'list-none rounded-2xl bg-white p-3'
@@ -201,7 +202,7 @@ export default function InsightsPage() {
         Insights
       </PageTitle>
       <TabBar label="Insights" value={tab} onChange={setTab} tabs={TABS.map((k) => ({ key: k, label: TAB_LABEL[k] }))} />
-      {tab === 'hot' ? <HotTab /> : tab === 'rankings' ? <RankingsTab /> : tab === 'found' ? <FoundTab /> : <SystemTab />}
+      {tab === 'hot' ? <HotTab /> : tab === 'rankings' ? <RankingsTab /> : tab === 'pages' ? <PagesTab /> : tab === 'found' ? <FoundTab /> : <SystemTab />}
     </div>
   )
 }

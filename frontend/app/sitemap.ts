@@ -6,6 +6,7 @@ import { fetchNews } from '@/lib/news/data'
 import { fetchPosts, postPath } from '@/lib/posts/data'
 import { getCommunities } from '@/components/localities/communities'
 import { getCatalog, getSitemapEntries } from '@/lib/site/api'
+import { getFacets } from '@/lib/site/facets'
 import { livePages } from '@/lib/site/filters'
 import { getBuilders } from '@/lib/site/hubs'
 import { getRegisterProjects, getRegisterPlaces, placePath } from '@/lib/site/register'
@@ -25,7 +26,7 @@ const POSTS_MAX = 500 // the API's most per call: every published post for years
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = getMarketingConfig().siteUrl
   const at = (path: string, priority: number, date?: string | null) => ({ url: base + path, lastModified: day(date), priority })
-  const [news, agents, projects, posts, register, places, hoods, builders] = await Promise.all([fetchNews(50), getSitemapEntries(), getCatalog(), fetchPosts(POSTS_MAX), getRegisterProjects(undefined, true), getRegisterPlaces(), getCommunities(), getBuilders()])
+  const [news, agents, projects, posts, register, places, hoods, builders, facets] = await Promise.all([fetchNews(50), getSitemapEntries(), getCatalog(), fetchPosts(POSTS_MAX), getRegisterProjects(undefined, true), getRegisterPlaces(), getCommunities(), getBuilders(), getFacets()])
   const listedRegnos = new Set(projects.map((p) => p.rera_no))   // those redirect to the shared agent page, listed above
   const shared = new Set(projects.flatMap((p) => p.agents.map((a) => a.slug + '/' + a.project_slug)))
   const fallbackLocalities = new Map<string, string | null | undefined>()
@@ -67,6 +68,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // (dated by page_updated, when the page's facts last changed; no date when unknown; finished projects rank lower)
     // one page per Pune area listing its projects, once one of them has real facts
     ...places.filter((p) => p.indexable > 0).map((p) => at(placePath(p.slug), 0.6)),
+    // each place's lists that grew from searches (docs/plan/area-intent-pages.md): live and with 3+ projects; dated by the newest
+    // change among their projects, or the day the page went live
+    ...facets.filter((f) => f.indexable).map((f) => at(f.path, 0.7, f.page_updated)),
     ...register.filter((r) => r.indexable && !listedRegnos.has(r.regno))
       .map((r) => at('/projects/' + r.slug, r.active === false ? 0.4 : 0.7, r.page_updated)),   // our own page date only; MahaRERA's old dates never
     // one page per builder with two or more indexable projects (docs/plan/rank-loop.md R6)

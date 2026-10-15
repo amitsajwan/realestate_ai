@@ -14,6 +14,7 @@ import { localityByName } from '@/lib/marketing/localities'
 import { breadcrumbJsonLd, jsonLdString } from '@/lib/marketing/seo'
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
 import { getCatalog, getCatalogProject, getPropertyFacts } from '@/lib/site/api'
+import { getFacets } from '@/lib/site/facets'
 import RegisterProjectPage from '@/components/site/RegisterProjectPage'
 import { pageMetadata } from '@/lib/marketing/seo'
 import { getRegisterProject, registerDescription, registerTitle } from '@/lib/site/register'
@@ -81,7 +82,8 @@ export default async function SharedProjectPage({ params }: Props) {
     const facts = await getPropertyFacts({ rera: r.regno, project: r.name, locality: r.area?.name }).catch(() => null)
     return (
       <MarketingShell>
-        <RegisterProjectPage p={r} siteUrl={getMarketingConfig().siteUrl} facts={facts} />
+        <RegisterProjectPage p={r} siteUrl={getMarketingConfig().siteUrl} facts={facts}
+          lists={r.pune_place ? (await getFacets()).filter((f) => f.place === r.pune_place?.key && f.indexable && !f.builder) : []} />
       </MarketingShell>
     )
   }

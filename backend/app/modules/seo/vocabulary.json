@@ -1,0 +1,23 @@
+{
+  "_about": "How buyers' search words map to area list pages (app/modules/seo/phrases.py, docs/plan/area-intent-pages.md 11.2). Data, not code: add a word here and the next weekly grow round uses it. Phrases are matched as whole words, longest first.",
+  "intents": {
+    "ready-to-move": ["ready to move", "ready to move in", "ready possession", "ready for possession", "immediate possession",
+                      "completed projects", "completed", "ready flats", "ready flat", "rtm"],
+    "new-launches": ["new launch", "new launches", "newly launched", "new launched", "pre launch", "prelaunch", "pre-launch",
+                     "upcoming", "latest", "new projects", "new project", "new residential projects", "launching", "launched"],
+    "top": ["top", "best", "top 10", "top 5", "popular", "famous", "most booked", "best selling", "best-selling",
+            "highest booked", "good projects"],
+    "all": ["projects", "project", "residential projects", "flats", "flat", "apartments", "apartment", "homes", "housing",
+            "under construction", "societies", "society", "properties", "property"]
+  },
+  "possession_words": ["possession", "completion", "handover", "ready by", "delivery"],
+  "existing_pages": ["bhk", "lakh", "lakhs", "lac", "lacs", "crore", "cr", "budget", "price", "prices", "cost", "rate", "rates"],
+  "unanswerable": ["gated community", "lake view", "river view", "hill view", "luxury", "premium", "villa", "villas", "bungalow",
+                   "bungalows", "row house", "row houses", "plot", "plots", "land", "na plots", "rent", "rental", "resale",
+                   "commercial", "office", "offices", "shop", "shops", "pg", "hostel", "studio", "penthouse", "duplex",
+                   "swimming pool", "senior living"],
+  "stop": ["in", "at", "near", "of", "for", "the", "a", "an", "and", "to", "pune", "maharashtra", "india", "with", "by", "on",
+           "list", "rera", "maharera", "registered", "new", "buy", "sale", "sell", "for sale", "builders", "builder",
+           "developers", "developer", "residential", "area", "location", "east", "west", "north", "south", "city",
+           "2024", "2025", "2026", "2027", "2028", "2029", "2030", "2031", "2032"]
+}

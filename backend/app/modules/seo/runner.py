@@ -1,6 +1,7 @@
 """The seo worker loop (app/worker.py): every INTERVAL_S, the Search Console read (areastats.searchconsole), IndexNow
 (indexnow.py), the daily index coverage read (coverage.py), then the rank loop (docs/plan/rank-loop.md): daily target searches
-and titles (targets.py), the daily page doctor (doctor.py) and the weekly search gaps (gaps.py). Each step does nothing while
+and titles (targets.py), the daily page doctor (doctor.py), the weekly search gaps (gaps.py) and the weekly
+area list pages that grow from searches (grow.py, docs/plan/area-intent-pages.md). Each step does nothing while
 its own setting is unset or nothing is due, and one failing never stops the others.
 
 The read comes FIRST and is ours to make, not the enrichment loop's (docs/plan/seo-review.md D5): targets and the doctor
@@ -14,7 +15,7 @@ from app.modules.areastats import searchconsole
 from app.modules.newsroom.store import Store
 from app.platform import trace
 
-from . import coverage, doctor, gaps, indexnow, targets
+from . import coverage, doctor, gaps, grow, indexnow, targets
 
 log = logging.getLogger(__name__)
 
@@ -28,7 +29,8 @@ def enabled() -> bool:
 async def round_once(store: Store, now: datetime) -> dict:
     out = {}
     steps = (("gsc", searchconsole.refresh), ("indexnow", indexnow.run_once), ("coverage", coverage.run_once),
-             ("targets", targets.run_once), ("doctor", doctor.run_once), ("gaps", gaps.run_once))
+             ("targets", targets.run_once), ("doctor", doctor.run_once), ("gaps", gaps.run_once),
+             ("grow", grow.run_once))
     for name, step in steps:
         try:
             res = await step(store, now)

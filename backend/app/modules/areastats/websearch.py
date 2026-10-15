@@ -39,7 +39,7 @@ RESULTS = "web_search_results"       # {_id: query, kind: "area" | "project", ar
 DISCOVERED = "discovered_projects"   # {_id: regno, first_seen, last_seen, seen: [{query, title, link}]}
 MARK = "web_search"                  # newsroom_status document: where the area searches are in their turn
 AREA_QUERIES = ("new launch projects in {area} Pune", "upcoming residential projects in {area} Pune",
-                "top residential projects in {area} Pune")
+                "top residential projects in {area} Pune", "ready to move flats in {area} Pune")
 AREA_PER_DAY = 6
 PROJECT_PER_DAY = 8
 TARGET_PER_DAY = 6                   # rank checks: the target search of a page the page doctor changed 14 or 28 days ago

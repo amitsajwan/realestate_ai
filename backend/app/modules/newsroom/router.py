@@ -278,6 +278,28 @@ async def insights_rankings_revert(body: RevertBody, user: User = Depends(owner_
     return {"path": body.path, "reverted": await doctor.revert(store, body.path)}
 
 
+class PageStatusBody(BaseModel):
+    key: str
+    status: str
+
+
+@router.get("/insights/pages")
+async def insights_pages(user: User = Depends(owner_only), store: Store = Depends(get_store)) -> dict:
+    """Area list pages the site grew from searches (docs/plan/area-intent-pages.md 11.7): live, waiting and why, unknown words
+    and data gaps."""
+    from app.modules.seo import grow
+    return await grow.owner_view(store)
+
+
+@router.post("/insights/pages/status")
+async def insights_page_status(body: PageStatusBody, user: User = Depends(owner_only), store: Store = Depends(get_store)) -> dict:
+    """Hold a page (noindex now), never make it again, or put it back live."""
+    from app.modules.seo import grow
+    if not await grow.set_status(store, body.key, body.status):
+        raise HTTPException(422, "Unknown page, or status is not one of live, held, never")
+    return {"key": body.key, "status": body.status}
+
+
 @router.post("/insights/found/{regno}/ignore")
 async def insights_ignore(regno: str, user: User = Depends(owner_only), store: Store = Depends(get_store)) -> dict:
     from app.modules.areastats import discover

@@ -5,9 +5,14 @@ import { notFound } from 'next/navigation'
 import MarketingShell from '@/components/marketing/MarketingShell'
 import ActiveProjects from '@/components/site/ActiveProjects'
 import CheckBadge from '@/components/site/CheckBadge'
+import FacetChips from '@/components/site/FacetChips'
+import { getLocality } from '@/lib/marketing/localities'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/seo'
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
+import { getCatalog } from '@/lib/site/api'
+import { getFacets, placeChips } from '@/lib/site/facets'
+import { livePages } from '@/lib/site/filters'
 import { getActive } from '@/lib/site/hubs'
 import { displayName, getRegisterPlaces, getRegisterProjects, placePath, projectSummary } from '@/lib/site/register'
 import type { RegisterListItem, RegisterPlace } from '@/lib/site/register'
@@ -29,8 +34,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const got = await load(slug)
   if (!got) return { title: 'Projects in Pune' }
   const { place } = got
+  // once the place has its own New launches page, that page answers "new projects in <place>" and this one is the full list
+  // (docs/plan/area-intent-pages.md section 5): two of our pages never aim at the same search
+  const launches = (await getFacets()).some((f) => f.place === place.key && f.intent === 'new-launches' && !f.possession && !f.builder && f.indexable)
   const meta = pageMetadata(getMarketingConfig(), {
-    title: `New Projects in ${place.name}, Pune: Price, Possession, MahaRERA (${place.projects})`,
+    title: launches ? `Residential Projects in ${place.name}, Pune: all ${place.projects} on MahaRERA`
+      : `New Projects in ${place.name}, Pune: Price, Possession, MahaRERA (${place.projects})`,
     description: `All ${place.projects} MahaRERA projects in ${place.name}, Pune: builder, possession date filed with MahaRERA, whether it moved, and homes booked, for each project.`,
     path: placePath(place.slug),
   })
@@ -54,7 +63,9 @@ export default async function PlaceProjectsPage({ params }: Props) {
   if (!got) notFound()
   const { place, projects } = got
   const cfg = getMarketingConfig()
-  const active = await getActive({ place: place.key })
+  const [active, facets, catalog] = await Promise.all([getActive({ place: place.key }), getFacets(), getCatalog().catch(() => [])])
+  const chips = placeChips(place, facets, livePages(catalog), getLocality(place.slug) ? `/localities/${place.slug}` : null)
+  const launches = facets.some((f) => f.place === place.key && f.intent === 'new-launches' && !f.possession && !f.builder && f.indexable)
   const building = projects.filter((r) => r.active !== false).sort((a, b) => displayName(a).localeCompare(displayName(b)))
   const finished = projects.filter((r) => r.active === false).sort((a, b) => displayName(a).localeCompare(displayName(b)))
   return (
@@ -67,12 +78,14 @@ export default async function PlaceProjectsPage({ params }: Props) {
           <Link href="/projects" className="text-[#0f2340] underline underline-offset-2">Projects</Link>
           <span aria-hidden className="px-1 text-slate-400">/</span> {place.zone}
         </nav>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">New projects in {place.name}, Pune</h1>
+        <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">{launches ? 'Residential projects' : 'New projects'} in {place.name}, Pune</h1>
         <p className="mt-4 max-w-3xl text-lg leading-relaxed text-slate-800">
           Every project MahaRERA lists in {place.name}: {building.length} being built or recently finished
           {finished.length > 0 ? `, and ${finished.length} older ones` : ''}. Each page shows the completion date the builder filed with
           MahaRERA, whether it has moved, and how many homes are booked, with the date we read the record.
         </p>
+
+        <FacetChips chips={chips} current={placePath(place.slug)} label={`Lists for ${place.name}`} />
 
         <ActiveProjects title={`Most active projects in ${place.name}`} items={active} className="mt-10" />
 

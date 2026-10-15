@@ -139,3 +139,40 @@ export interface Rankings {
 
 export const getRankings = () => call<Rankings>('rankings')
 export const revertPage = (path: string) => call<{ reverted: number }>('rankings/revert', { path })
+
+// ---- Pages that grow from searches (docs/plan/area-intent-pages.md 11.7; backend app/modules/seo/grow.py) ------------------------
+export type GrownStatus = 'candidate' | 'live' | 'held' | 'never'
+
+export interface GrownGate { ok?: boolean; demand?: boolean; supply?: boolean; distinct?: boolean; overlap?: number; overlaps_with?: string | null; projects?: number }
+
+export interface GrownPage {
+  key: string
+  path: string
+  status: GrownStatus
+  source: 'seed' | 'search'
+  kind: string
+  count: number | null
+  phrases: string[]
+  demand: { impressions?: number; sources?: string[] }
+  gate: GrownGate
+  created_at: string | null
+  live_at: string | null
+}
+
+export interface WordCount { word: string; impressions: number; phrases: string[] }
+
+export interface GrownPages {
+  at: string | null
+  enabled: boolean
+  last: { made?: number; waiting?: number; attached?: number; autocomplete?: number; budget?: number }
+  counts: Record<GrownStatus, number>
+  live: GrownPage[]
+  waiting: GrownPage[]
+  never: GrownPage[]
+  unknown: WordCount[]
+  gaps: WordCount[]
+  existing: { path: string; impressions: number; phrases: string[] }[]
+}
+
+export const getGrownPages = () => call<GrownPages>('pages')
+export const setPageStatus = (key: string, status: 'live' | 'held' | 'never') => call<{ status: string }>('pages/status', { key, status })
