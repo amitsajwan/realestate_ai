@@ -1,7 +1,7 @@
 """Area-insight reels: a short slide reel (1080x1920, navy and gold) about one area, made only from MahaRERA public records.
 
 Input is `area_stats(db, key)` (app.modules.areastats, contract in docs/plan/pune-areas.md). Slides, in order:
-  1. "<Area> in MahaRERA records" and the project count
+  1. "How many housing projects does <Area> have on MahaRERA?" and the project count
   2. projects by the year of their filed completion date (when any)
   3. homes booked of homes registered (only when both numbers are known)
   4. projects recently listed or updated on MahaRERA (names only; never "newly registered")
@@ -45,6 +45,7 @@ SOURCE = "MahaRERA public records"
 SUBDIR = "calendar/areareels"
 MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 # Wording the area reels must never use: claims about newness, rank or the future that the records do not make.
+COPY_VARIANT = "v2-hooks"   # the opening asks what the reel answers, and the caption asks for a reply (tags: variant)
 BANNED = re.compile(r"\b(newly registered|new launch\w*|launch\w*|upcoming|hot ?spot|must[- ]buy|invest now|top \d+)\b", re.I)
 
 
@@ -131,7 +132,7 @@ def slides_for(stats: Optional[dict]) -> Optional[List[Slide]]:
     if area is None or projects < MIN_PROJECTS or not as_of:
         return None
     kicker = f"{area.name.upper()} · PUNE"
-    out = [Slide(kicker, f"{area.name} in MahaRERA records", _n(projects), "projects")]
+    out = [Slide(kicker, f"How many housing projects does {area.name} have on MahaRERA?", _n(projects), "projects in MahaRERA records")]
     years = sorted((y for y in stats.get("completing") or [] if int(y.get("projects") or 0) > 0), key=lambda y: int(y["year"]))
     if years:
         top = max(years, key=lambda y: (int(y["projects"]), -int(y["year"])))
@@ -151,19 +152,24 @@ def slides_for(stats: Optional[dict]) -> Optional[List[Slide]]:
 def captions(stats: dict, slides: List[Slide]) -> Dict[str, str]:
     """{'instagram': ..., 'facebook_page': ...}: one plain hook line, the facts, the source, the page link, the area's hashtags."""
     area = _areas.get(stats["area"]["key"])
-    hook = f"{area.name} in MahaRERA records: {_n(stats['projects'])} projects."
-    facts = []
     years = sorted((y for y in stats.get("completing") or [] if int(y.get("projects") or 0) > 0), key=lambda y: int(y["year"]))
+    booked = any(s.kicker == "HOMES BOOKED" for s in slides)
+    # the opening line states the number and asks what the reel answers, so it reads as a reason to watch, not a label
+    ask = ("When are they due, and how many homes are already booked?" if years and booked else
+           "When are they due?" if years else "How many homes are already booked?" if booked else "Here is what the records say.")
+    hook = f"{area.name} has {_n(stats['projects'])} projects on MahaRERA. {ask}"
+    facts = []
     if years:
         facts.append("• Completion dates filed: " + ", ".join(f"{_n(y['projects'])} in {y['year']}" for y in years[:4]) + ".")
-    if any(s.kicker == "HOMES BOOKED" for s in slides):
+    if booked:
         facts.append(f"• Homes booked: {_n(stats['units_booked'])} of {_n(stats['units_total'])}.")
     names = _safe_names(stats.get("recent") or [])
     if names:
         facts.append(f"• Recently {MAHARERA_PHRASE}: " + ", ".join(names) + ".")
     source = f"Source: {SOURCE}, as of {_day(stats['as_of'])}."
     tags = " ".join(list(area.hashtags) + ["#MahaRERA", "#PuneProperty"])
-    body = "\n\n".join([hook, "\n".join(facts), source]).strip()
+    prompt = f"Looking in {area.name}? Comment the year you hope to move in."
+    body = "\n\n".join([hook, "\n".join(facts), source, prompt]).strip()
     return {"instagram": f"{body}\n\nSee every project: {page_link(area)} (link in our bio).\n\n{tags}",
             "facebook_page": f"{body}\n\nSee every project: {brand.SITE}{area.page}\n\n{tags}"}
 

@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
 from . import adapters
-from .library import BY_SLUG
+from .library import BY_SLUG, COPY_VARIANT
 from . import area_reels
 from .config import load as load_config
 from .plan import Item, build_daily_plan, build_plan
@@ -68,6 +68,8 @@ async def build_and_store(store: Store, start: date, weeks: int, uploads: Path, 
     out: List[Dict] = []
     for it in items:  # due order, both channels interleaved; layouts are remembered per channel
         notes: Dict = {"role": it.role, "source": it.source}
+        if it.source == "library":
+            notes["variant"] = COPY_VARIANT
         video = None
         if it.kind == "post":
             folder = uploads / "calendar" / f"w{it.week}"
@@ -139,7 +141,8 @@ async def build_daily_and_store(store: Store, start: date, days: int, uploads: P
                 continue
             images = slides[it.ref]
             caption = r.caption_ig if ig else r.caption_fb
-            notes.update(path="area_insight", area=it.area, slides=images, script=r.script, hook=r.hook, as_of=r.as_of)
+            notes.update(path="area_insight", area=it.area, slides=images, script=r.script, hook=r.hook, as_of=r.as_of,
+                         variant=area_reels.COPY_VARIANT)
         elif it.template == "project":
             p = by_ref[(it.agent_id, it.reel_ref)]
             caption = adapters.project_reel_caption(p["project"], p["agent"], it.channel, p["agent_slug"])

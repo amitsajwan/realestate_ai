@@ -119,3 +119,10 @@ def test_autoplan_plans_next_wednesday_once_as_planned_rows_with_the_reason():
         assert r["slug"] == "number-moved-wagholi-20261021"
         assert r["due_at"].astimezone(IST).weekday() == nr.WEEKDAY
         assert r["creative"]["relate"]["score"] >= nr.MIN_RELATE and r["creative"]["relate"]["reasons"]
+
+
+def test_results_group_number_reels_under_their_own_format():
+    from app.modules.calendar import tags
+    t = tags.derive({"kind": "reel", "slug": "number-moved-wagholi-20261021", "caption": "x",
+                     "creative": {"template": "number", "hook_type": "number", "area": "wagholi"}})
+    assert (t["format"], t["hook_type"], t["area"]) == ("number", "number", "wagholi")
