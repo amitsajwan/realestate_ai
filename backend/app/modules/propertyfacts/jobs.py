@@ -219,11 +219,23 @@ class MarketingRuns:
                         "dropped", "inputs", "facts_done_at", "boost")
                 doc.update({k: done[k] for k in keep if k in done}, mode="update", changes=changes)
         if done and done.get("calendar") and not doc.get("calendar"):
-            doc["calendar"] = done["calendar"]   # the same rows (one per listing and angle): planned ones take the new posts
+            # the rows still waiting for approval take the new posts; removed, skipped and published ones stay with the old
+            # run (2026-10-15: a new run carried yesterday's removed reels, hid "Send to calendar" and showed old links)
+            doc["calendar"] = await self._open_rows(done["calendar"])
         await self.runs.insert_one(doc)
         if again:
             await self._withdraw(flt)
         return doc, True
+
+    async def _open_rows(self, rows: List[dict]) -> List[dict]:
+        """The calendar rows that have not gone out, been skipped or been removed (planned, approved or scheduled)."""
+        from app.modules.calendar.store import OPEN, Store as CalendarStore
+        cal, out = CalendarStore(self.db), []
+        for c in rows:
+            row = await cal.get(c["row_id"])
+            if row and row.get("status") in OPEN:
+                out.append(c)
+        return out
 
     async def _withdraw(self, flt: dict) -> int:
         """Marketing made again: the earlier runs' approved posts and reels that have not gone out yet are skipped, so the old
