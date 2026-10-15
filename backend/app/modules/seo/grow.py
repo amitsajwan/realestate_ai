@@ -222,8 +222,12 @@ async def run_once(store: Store, now: datetime, force: bool = False,
 
     allowed = await budget(store, now) if enabled() else 0
     made = made_focus = waiting = attached = 0
+    # focus-area seeds, then the most searched, then the places with the most to list (never the alphabet: the first round
+    # gave its 10 slots to Airport Road, Akurdi, Ambegaon, Aundh and Baramati)
+    size = {k: len(facets.members(c["facet"], by_place.get(c["facet"].place, []), now)) for k, c in cands.items()}
     order = sorted(cands.values(), key=lambda c: (c["source"] != "seed" or c["facet"].place not in FOCUS,
-                                                 -c["impressions"], -len(c["sources"]), c["source"] != "seed", c["facet"].key))
+                                                 -c["impressions"], -len(c["sources"]), -size[c["facet"].key],
+                                                 c["source"] != "seed", c["facet"].key))
     for c in order:
         f: Facet = c["facet"]
         old = pages.get(f.key)
