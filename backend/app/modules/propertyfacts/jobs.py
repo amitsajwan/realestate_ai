@@ -920,7 +920,10 @@ class MarketingRuns:
         try:
             from app.platform.llm import critical_llm   # Gemini first for the room
             llm = critical_llm() or llm
-            doc = await room.convene(ctx, listing, llm, photos=len(photos), images=images, pick=job.get("pick"),
+            from app.core import brand as brand_mod   # our own campaign (no agent's card, or ours): the Avasetu reasons apply
+            cb = who.get("card_brand")
+            ours = cb is None or brand_mod.NAME.lower() in str(getattr(cb, "name", "")).lower()
+            doc = await room.convene(ctx, listing, llm, photos=len(photos), images=images, ours=ours, pick=job.get("pick"),
                                      earlier=job.get("earlier_room"))
         except Exception as e:
             trace.event(log, "marketing", job["_id"], "room", trace.FAILED, reason=str(e)[:200] or type(e).__name__, exc_info=True)

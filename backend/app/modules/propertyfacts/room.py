@@ -38,7 +38,14 @@ log = logging.getLogger(__name__)
 MIN_PIECES = 3
 MAX_PIECES = 6
 MAX_REELS = 4          # a reel takes minutes to render: the director's best few, not one per post
-ROLES = ("teaser", "brand", "design", "homes", "lifestyle", "location", "price", "trust", "visit")
+ROLES = ("teaser", "brand", "design", "homes", "lifestyle", "location", "price", "trust", "why_us", "visit")
+# why a buyer books through us (owner, 2026-10-15: all four true); our own campaigns only, a partner agent's terms differ
+AGENCY = ("Through Avasetu: no brokerage for buyers; the builder pays us.",
+          "Through Avasetu: the same price as the builder, with the builder's offers.",
+          "Through Avasetu: free site visit help.",
+          "Through Avasetu: we compare nearby projects honestly and help with home-loan and paperwork checks (MahaRERA, agreement).")
+WHY_US = ("Why book through Avasetu?", ["No brokerage for buyers", "Same price as the builder", "Free site visit help",
+                                        "Honest comparison, loan and paperwork help"])
 FORMATS = ("carousel", "stat", "single", "checklist")
 # a brochure or agent line that goes stale or promises stock: never a fact a post may state
 STALE = re.compile(r"\bavailab|\boffer\b|\bdiscount|\blimited\b|\blast few\b|\bhurry|\bany (?:tower|floor)", re.I)   # "bookings open" is a status, kept
@@ -105,7 +112,7 @@ def overclaims(text: str, corpus: str = "") -> bool:
 
 
 # ---- the fact book: every claim a piece may make, numbered --------------------------------------------------------------------
-def book(c: Ctx, listing: dict) -> List[Dict[str, str]]:
+def book(c: Ctx, listing: dict, ours: bool = False) -> List[Dict[str, str]]:
     """[{id, text}] — the property's facts in plain sentences. MahaRERA, the listing and Google Maps first, then the agent's notes
     about the project (listing.about: what the brochure and the agent say), each said as theirs. Nothing stale or promissory."""
     out: List[str] = []
@@ -149,6 +156,7 @@ def book(c: Ctx, listing: dict) -> List[Dict[str, str]]:
             items = [str(x) for x in v if str(x).strip() and not STALE.search(str(x))][:8]
             if items:
                 out.append(f"The builder's brochure ({k.split('.', 1)[1].replace('_', ' ')}): {', '.join(items)}.")
+    out += list(AGENCY) * ours
     return [{"id": f"F{i + 1}", "text": t} for i, t in enumerate(dict.fromkeys(out))]
 
 
@@ -170,7 +178,9 @@ RULES = ("Rules for everyone in the room: use ONLY the numbered facts; never a n
          "welcome when a fact stands behind them; returns, appreciation and 'ready' are not. The project itself is launched "
          "and booking: never 'coming' or 'soon'. Spread the facts across the campaign: each named fact (an architect, a place, "
          "the metro, the price) leads at most one piece and appears in at most two, unless it is the brief's focus (then up "
-         "to three, on purpose).")
+         "to three, on purpose). When the facts say what booking 'Through Avasetu' gives a buyer, one piece (role why_us) "
+         "answers why book through us instead of the builder or another agent, with exactly those points; never 'best deal', "
+         "'lowest price' or 'cheapest'.")
 
 STRATEGIST = (
     "You are the marketing strategist of a Pune property agency. From the numbered facts, write the campaign brief. Decide what "
@@ -327,14 +337,14 @@ def _distinct(pieces: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
 
 # ---- the meeting -------------------------------------------------------------------------------------------------------------
-async def convene(c: Ctx, listing: dict, llm: Any, photos: int = 0, images: Sequence[Dict[str, Any]] = (),
+async def convene(c: Ctx, listing: dict, llm: Any, photos: int = 0, images: Sequence[Dict[str, Any]] = (), ours: bool = False,
                   pick: Optional[int] = None, earlier: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
     """The room's work: {book, brief, pitches, chosen, why, scores, campaign}, or None when there is no model or too little
     survives the fact check. `pick` (1-based) with `earlier` (a previous room): the agent chose that pitch; the director
     writes the campaign from it, the brief and pitches stay as they were."""
     if llm is None:
         return None
-    facts = book(c, listing)
+    facts = book(c, listing, ours)
     if len(facts) < 4:
         log.info("creative room: only %d facts", len(facts))
         return None
@@ -438,7 +448,7 @@ def blend(pieces: List[Dict[str, Any]], pitches: List[Dict[str, Any]], order: Se
 
 
 WANT_PIECES = 5
-STORY = ("teaser", "brand", "design", "homes", "lifestyle", "location", "trust", "price", "visit", "story")   # posting order
+STORY = ("teaser", "brand", "design", "homes", "lifestyle", "location", "trust", "why_us", "price", "visit", "story")   # posting order
 METRO = re.compile(r"\bmetro\b", re.I)
 
 
@@ -469,10 +479,15 @@ def complete(pieces: List[Dict[str, Any]], pitches: List[Dict[str, Any]], order:
         spot = next((p for p in out if p["role"] == "location"), None) or next((p for p in out if p["role"] == "teaser"), None)
         if line and spot is not None:
             spot["lines"] = (spot["lines"] + [line])[-5:] if len(spot["lines"]) < 5 else spot["lines"][:4] + [line]
+    if "Through Avasetu" in corpus and not any(p["role"] == "why_us" for p in out):   # our campaigns say why book with us
+        hit = next(((n, x) for n, x in pool if x["role"] == "why_us"), None)
+        out.append(dict(hit[1], source=src(hit[0])) if hit else
+                   {"role": "why_us", "format": "checklist", "headline": WHY_US[0], "lines": list(WHY_US[1]), "visual": "text",
+                    "facts": [], "ask": "What would you want us to check for you?", "source": {"pitch": 0, "by": "Room"}})
     return sorted(out, key=lambda p: STORY.index(p["role"]) if p["role"] in STORY else len(STORY))
 
 
-FILM_ROLES = ("design", "lifestyle", "homes", "brand", "teaser", "location", "price", "trust", "visit", "story")   # best on film first
+FILM_ROLES = ("design", "lifestyle", "homes", "brand", "teaser", "location", "price", "trust", "why_us", "visit", "story")   # best on film first
 
 
 HERO = re.compile(r"\b(?:[A-Z][a-zA-Z.&'-]+ ){1,4}[A-Z][a-zA-Z.&'-]+\b|\b[A-Z]{3,}\b")
