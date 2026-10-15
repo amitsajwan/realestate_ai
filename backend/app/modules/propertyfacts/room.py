@@ -83,7 +83,7 @@ UNBACKED = re.compile(r"\bensur\w*|\bguarant\w*|\bcomplian\w*|\btransparen\w*|\b
 READY = re.compile(r"\bready\b", re.I)
 # a coming metro sold as running ("take the metro to work"): the future is sold as coming, never as here
 RUNNING = re.compile(r"\b(?:take|ride|catch|by|via) (?:the )?metro\b|\bmetro (?:is |now )?(?:running|operational|open|live)\b"
-                     r"|\bmetro (?:station )?(?:next door|at your doorstep)\b", re.I)
+                     r"|\bmetro (?:station )?(?:next door|at your doorstep)\b|\bmetro\b[^.]{0,25}\bruns\b", re.I)
 
 
 def overclaims(text: str, corpus: str = "") -> bool:
@@ -375,7 +375,7 @@ async def convene(c: Ctx, listing: dict, llm: Any, photos: int = 0, images: Sequ
     liked = [b["pitch"] for b in (room.get("discussion") or {}).get("best") or [] if b.get("pitch")]
     others = [n for n in dict.fromkeys(liked + sorted(scored, key=lambda n: -scored[n]) + list(range(1, len(room["pitches"]) + 1)))
               if n != chosen and 1 <= n <= len(room["pitches"])]
-    pieces = filmed(_distinct(blend(pieces, room["pitches"], others)), corpus)
+    pieces = filmed(complete(_distinct(blend(pieces, room["pitches"], others)), room["pitches"], [chosen, *others], corpus), corpus)
     if len(pieces) < MIN_PIECES:
         log.info("creative room: %d pieces after the director (%d assembled), too few", len(pieces), len(d.get("pieces") or []))
         return None
@@ -425,6 +425,41 @@ def blend(pieces: List[Dict[str, Any]], pitches: List[Dict[str, Any]], order: Se
             if reel:
                 p["reel"] = dict(reel)
     return out
+
+
+WANT_PIECES = 5
+STORY = ("teaser", "brand", "design", "homes", "lifestyle", "location", "trust", "price", "visit", "story")   # posting order
+METRO = re.compile(r"\bmetro\b", re.I)
+
+
+def complete(pieces: List[Dict[str, Any]], pitches: List[Dict[str, Any]], order: Sequence[int], corpus: str) -> List[Dict[str, Any]]:
+    """The campaign a sales team would post (the fifth live meeting: three pieces, no price, no metro, amenities first):
+    topped up to WANT_PIECES from the pitches (the chosen one first) with jobs it lacks, always one piece that states the
+    price, the metro line a pitch wrote carried into the location piece when the facts have a metro and no piece says it,
+    and the pieces in story order (teaser, design, homes, lifestyle, location, price)."""
+    out = [dict(p, lines=list(p["lines"])) for p in pieces]
+    pool = [(n, x) for n in order if 1 <= n <= len(pitches) for x in pitches[n - 1]["pieces"]]
+    src = lambda n: {"pitch": n, "by": pitches[n - 1]["by"]}   # noqa: E731
+
+    def says_price(p: Dict[str, Any]) -> bool:
+        return bool(PRICE.search(" ".join([p["headline"], *p["lines"]])))
+    if PRICE.search(corpus) and not any(says_price(p) for p in out):
+        hit = next(((n, x) for n, x in pool if says_price(x) and x["role"] in ("price", "homes")), None) or \
+              next(((n, x) for n, x in pool if says_price(x)), None)
+        if hit:
+            out = [p for p in out if p["role"] != hit[1]["role"]] + [dict(hit[1], source=src(hit[0]))]
+    for n, x in pool:
+        if len(out) >= WANT_PIECES:
+            break
+        if x["role"] not in {p["role"] for p in out} and not (x["role"] == "location" and any(p["role"] == "location" for p in out)):
+            out.append(dict(x, source=src(n)))
+    if METRO.search(corpus) and not any(METRO.search(" ".join([p["headline"], *p["lines"]])) for p in out):
+        line = next((l for _, x in pool for l in x["lines"] if METRO.search(l) and not overclaims(l, corpus)
+                     and not problems_in(l, corpus)), "")
+        spot = next((p for p in out if p["role"] == "location"), None) or next((p for p in out if p["role"] == "teaser"), None)
+        if line and spot is not None:
+            spot["lines"] = (spot["lines"] + [line])[-5:] if len(spot["lines"]) < 5 else spot["lines"][:4] + [line]
+    return sorted(out, key=lambda p: STORY.index(p["role"]) if p["role"] in STORY else len(STORY))
 
 
 FILM_ROLES = ("design", "lifestyle", "homes", "brand", "teaser", "location", "price", "trust", "visit", "story")   # best on film first
