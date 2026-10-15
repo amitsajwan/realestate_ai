@@ -4,6 +4,7 @@
  */
 import { serverApiBase } from './api'
 import type { WebFacts } from './webfacts'
+import type { ProjectProfile } from './profile'
 
 export interface RegisterProject {
   slug: string
@@ -49,6 +50,8 @@ export interface RegisterProject {
   group?: { name: string; tower: string; towers: number; path: string } | null
   /** what the builder's site and the sites ranking for the project say, checked (backend areastats/webfacts.py) */
   web_facts?: WebFacts | null
+  /** highlights, the builder's pictures and floor plans while the project is being built (backend areastats/profile.py) */
+  profile?: ProjectProfile | null
   /** how people search for the project (backend seo/targets.py, docs/plan/rank-loop.md R1): leads the title and H1 */
   search_name?: string | null
   /** Google's "People also ask" questions about it, answered from our facts (backend seo/questions.py, R4) */

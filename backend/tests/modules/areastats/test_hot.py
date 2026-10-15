@@ -115,6 +115,8 @@ async def test_enrichment_takes_hot_projects_first_and_refreshes_them_sooner():
     await pages.assign_all(store)
     assert (await enrich.next_project(store, NOW))["_id"] == "H"
     await store.set_project("H", enriched_at=days_ago(enrich.HOT_REFRESH_DAYS - 1), enrichment={"score": "4/4"})
+    assert (await enrich.next_project(store, NOW))["_id"] == "H"              # hot, being built, no profile yet: still first
+    await store.set_project("H", profile={"at": NOW})
     assert (await enrich.next_project(store, NOW))["_id"] == "A"              # warm is not hot: Google impressions come next
     await store.set_project("H", enriched_at=days_ago(enrich.HOT_REFRESH_DAYS), enrichment={"score": "4/4"})
     assert (await enrich.next_project(store, NOW))["_id"] == "H"

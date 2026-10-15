@@ -367,6 +367,18 @@ async def web_facts_for(db, regno: str) -> Optional[dict]:
     return web_public(doc.get("web_facts"))
 
 
+async def profile_for(db, regno: str) -> Optional[dict]:
+    """The public profile (highlights, pictures, floor plans) for a registration (its tower group's), or None."""
+    from .profile import public as profile_public
+    store = Store(db)
+    doc = await store.project((regno or "").strip().upper())
+    if doc is None:
+        return None
+    if doc.get("cluster_primary"):
+        doc = await store.project(doc["cluster_primary"]) or doc
+    return profile_public(doc.get("profile"))
+
+
 def primary_of(doc: dict, docs: List[dict]) -> dict:
     """The page a registration is shown on: its cluster's primary when that one is a page search may list (tower and phase
     pages answer 301 to it, docs/plan/rank-loop.md R0), else its own."""
@@ -426,6 +438,8 @@ async def project_page(db, slug: str) -> Optional[dict]:
     out["towers"] = towers(doc, docs)
     out["page_updated"] = cluster_updated(doc, docs)
     out["web_facts"] = web_public(group_primary(doc, docs).get("web_facts"))
+    from .profile import public as profile_public
+    out["profile"] = profile_public(group_primary(doc, docs).get("profile"))
     try:   # the neighbourhood guide nearest the project (rank-loop R5): a link both ways
         from .hubs import near_guide
         out["near_guide"] = await near_guide(db, doc)

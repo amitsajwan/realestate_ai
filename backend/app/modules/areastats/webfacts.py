@@ -76,6 +76,17 @@ async def fetch_page(url: str, transport: Optional[httpx.AsyncBaseTransport] = N
         return None
 
 
+def memo(fetch: Fetch) -> Fetch:
+    """`fetch` that reads each address once (one enrichment round reads the same pages for web facts and the profile)."""
+    got: Dict[str, Optional[str]] = {}
+
+    async def once(url: str) -> Optional[str]:
+        if url not in got:
+            got[url] = await fetch(url)
+        return got[url]
+    return once
+
+
 def page_text(raw: str) -> str:
     """Visible text, one block per line."""
     s = re.sub(r"(?is)<(script|style|noscript|svg|template)\b.*?</\1>", " ", raw or "")

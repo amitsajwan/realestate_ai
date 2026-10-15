@@ -7,6 +7,7 @@ import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
 import type { RegisterProject } from '@/lib/site/register'
 import type { FacetLink } from '@/lib/site/facets'
 import WebFactsBox from '@/components/site/WebFactsBox'
+import ProjectProfile from '@/components/site/ProjectProfile'
 import { areaName, displayName, longDay, monthYear, otherNames, projectFaq, placePath } from '@/lib/site/register'
 import type { EnrichCheck, Faq } from '@/lib/site/register'
 import type { PropertyFactsView } from '@/lib/site/types'
@@ -439,6 +440,8 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [] }: {
               tag={p.text_checked ? 'Written from checked facts' : 'From MahaRERA'} />
             <p className="mt-3 text-lg leading-relaxed text-slate-800" data-testid="paragraph">{p.paragraph}</p>
           </section>
+
+          <ProjectProfile profile={p.profile} name={shown} />
 
           <section aria-labelledby="facts-title">
             <SectionHead id="facts-title" title="The record" kind="rera" tag={p.details_read_at ? `From MahaRERA, read ${longDay(p.details_read_at)}` : 'From MahaRERA'} />

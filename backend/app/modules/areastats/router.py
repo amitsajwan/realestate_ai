@@ -64,6 +64,16 @@ async def public_web_facts(regno: str, response: Response, db=Depends(get_db)) -
     return out
 
 
+@public_router.get("/register/profile/{regno}")
+async def public_profile(regno: str, response: Response, db=Depends(get_db)) -> dict:
+    """Highlights, the builder's pictures and floor plans (areastats.profile): for agent-listed pages."""
+    out = await pages.profile_for(db, regno)
+    if out is None:
+        raise HTTPException(status_code=404, detail="No profile")
+    response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
+    return out
+
+
 @public_router.get("/register/projects")
 async def public_project_list(response: Response, area: Optional[str] = None, all: bool = False, limit: int = 2000,
                               place: Optional[str] = None, db=Depends(get_db)) -> list:

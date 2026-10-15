@@ -105,3 +105,32 @@ Owner, 2026-10-14: Google's AI answer shows more about a project than our page, 
   bookings, size) with FAQ data, and a title aimed at searches: "<name>, <area>: Price <from>, Possession <Mon YYYY>".
 - First trial, Lodha Camelot: 10 acres (lodhagroup.com, nobroker.in, magicbricks.com) and 80% open space (lodhagroup.com)
   published; towers held back (nobroker 6, magicbricks 7). 99acres and housing.com refuse the reader.
+
+## Project profile (2026-10-15, BUILT, deploy pending)
+
+Owner, 2026-10-15: a new enrichment phase: a summary with bullet points, pictures from the builder (or real ones), floor plans;
+read again and again, but only for projects whose completion date is still to come; hot projects first.
+- `areastats/profile.py`, step `steps.profile` of the enrichment loop (not in the score), after the web facts and from the
+  same pages (each page fetched once per round, `webfacts.memo`). Skipped once MahaRERA's filed completion date has passed
+  (the page keeps what it had). Every enrichment round reads it again (60 days, hot 14).
+- Hot first: a hot project (hot_score >= HOT_MIN) still being built with no `profile` is taken right after urgent requests,
+  even when its last enrichment is recent (`enrich.needs_profile`).
+- Highlights: one model call per page over a fixed topic list (homes, amenities, clubhouse, open space, towers, design,
+  specifications, green, parking, security), each with its sentence. Kept when the sentence is on the page, every number of
+  the bullet is in it and it has no sales words. Published from the builder's site, or when two sites state the topic.
+  Never prices, possession dates or travel times. The highlights also go to the page-text model, so the summary names them.
+- Pictures: only the builder's own site, only its page for this project (the path names the project) plus that page's own
+  gallery / plans sub-pages (up to 3). Junk (logos, icons, maps, awards) left out by address; photos >= 800x450 landscape,
+  plans >= 500 px; near-duplicates dropped (dHash); up to 8 photos and 8 plans, saved as WebP <= 1600 px under
+  uploads/project_media/<regno>/ (the new set replaces the old; a round that finds nothing keeps the last good set). Plan
+  captions from the file name ("3 BHK with study floor plan", "master plan").
+- Shown on register pages (`profile` in the page payload) and agent-listed pages (`GET /public/register/profile/{regno}`):
+  "<name> at a glance" bullets with their sources, a picture grid, floor plans; credit "From the builder's website" with the
+  page linked, "renders are artist's impressions; plans indicative, check the sanctioned plans".
+- Not taken: portal pictures (watermarked, theirs). Google Places photos need the owner's OK: Google's terms forbid storing
+  them, so each page view would call (and bill) Google.
+- Trial, Lodha Camelot (lodhagroup.com/.../lodha-camelot-kharadi): 6 photos (gallery renders + banner) and 4 plans (3 BHK,
+  3 BHK with study, 4 BHK with study, master plan).
+
+TARGET: floor plans from an agent's uploaded brochure (brochure_doc pages with plan words); the owner's status list shows the
+profile check but no picture review yet.

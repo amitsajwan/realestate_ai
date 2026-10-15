@@ -22,6 +22,8 @@ import { bhkRange, mainAgent, priceRange, projectWhatsAppMessage } from '@/lib/s
 import { catalogProjectMetadata, projectJsonLd } from '@/lib/site/seo'
 import { agentPath } from '@/lib/site/slug'
 import { catalogFaq, getWebFacts } from '@/lib/site/webfacts'
+import { getProfile } from '@/lib/site/profile'
+import ProjectProfile from '@/components/site/ProjectProfile'
 import type { CatalogProject } from '@/lib/site/types'
 
 // ISR: each project page is rendered on its first visit and kept for an hour (nothing here reads cookies or headers)
@@ -95,7 +97,7 @@ export default async function SharedProjectPage({ params }: Props) {
   const area = localityByName(p.locality)
   const others = (await getCatalog()).filter((x) => x.slug !== p.slug)
   const similar = [...others.filter((x) => x.locality === p.locality), ...others.filter((x) => x.locality !== p.locality)].slice(0, 3)
-  const web = await getWebFacts(p.rera_no)
+  const [web, profile] = await Promise.all([getWebFacts(p.rera_no), getProfile(p.rera_no)])
   const faq = catalogFaq(p, web)
   const ld = [
     projectJsonLd(p, url),
@@ -132,6 +134,8 @@ export default async function SharedProjectPage({ params }: Props) {
             <ContactButtons agentSlug={main.slug} phone={main.phone ?? undefined} waMessage={msg} size="md" />
           </div>
         </header>
+
+        <ProjectProfile profile={profile} name={p.name} />
 
         <ProjectDetails p={p} agentName={main.name} />
 

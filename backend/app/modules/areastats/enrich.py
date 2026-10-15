@@ -15,6 +15,9 @@ more than a year ago are skipped (status "finished"). For that project:
    and anything too long; a refused draft keeps the code-written paragraph.
 2b. web: what the builder's site and the sites ranking for the project say (areastats.webfacts), checked, kept as
    `web_facts` on the group's primary record; the accepted facts are given to the text model too. Not counted in the score.
+2c. profile: highlights, the builder's pictures and floor plans (areastats.profile), only while the filed completion date is to
+   come; read from the same pages (each fetched once per round), kept as `profile`; the highlights go to the text model too. A
+   hot project with no profile yet is enriched at once (after urgent requests). Not counted in the score.
 3. stored on the register record: `page_text` (when accepted), `enriched_at`, `enrich_notes`, `geo` (the gathered position,
    checked to be within NEAR_KM of the pincode's centre) and `enrichment` = {at, steps: {maharera_general, buildings, places,
    text}: each {ok, at, checked...}, score "n/4"}; `status_list` is the owner's view of it (Studio > Newsroom > Project pages).
@@ -35,7 +38,7 @@ from app.modules.newsroom import register
 from app.modules.newsroom.store import Store
 from app.platform import trace
 
-from . import hot, pages, searchconsole, webfacts
+from . import hot, pages, profile, searchconsole, webfacts
 from .service import _day
 
 log = logging.getLogger(__name__)
@@ -111,6 +114,8 @@ def priority(d: dict, urgent: set, now: datetime) -> Optional[tuple]:
     is_hot = heat >= hot.HOT_MIN
     seen = int(d.get("gsc_impressions") or 0)
     legacy = isinstance(done, datetime) and not d.get("enrichment")   # enriched before buildings and checks: redo
+    if is_hot and needs_profile(d, now):
+        return (1, -heat)                                       # hot and still being built, no profile yet: first
     days = HOT_REFRESH_DAYS if is_hot else RETRY_DAYS if unanswered(d) else REFRESH_DAYS
     if not legacy and isinstance(done, datetime) and now - _aware(done) < timedelta(days=days):
         return None
@@ -123,6 +128,11 @@ def priority(d: dict, urgent: set, now: datetime) -> Optional[tuple]:
     if seen:   # Google already shows it: just off page one first, then most impressions first
         return (2, 0 if searchconsole.near_page_one(d.get("gsc_position"), seen) else 1, -seen)
     return (4 if pages.indexable(d) else 5, -pages.recency(d), -(int(d.get("units_total") or 0)))   # newest first, then bigger
+
+
+def needs_profile(d: dict, now: datetime) -> bool:
+    """Still being built and never given a profile round (areastats.profile); towers are read on their group's primary."""
+    return not d.get("profile") and not d.get("cluster_primary") and not pages.completion_passed(d, now.date())
 
 
 async def next_project(store: Store, now: datetime) -> Optional[dict]:
@@ -138,7 +148,7 @@ async def next_project(store: Store, now: datetime) -> Optional[dict]:
     return ranked[0][1] if ranked else None
 
 
-def facts_text(doc: dict, gathered: Optional[dict], web: Optional[dict] = None) -> str:
+def facts_text(doc: dict, gathered: Optional[dict], web: Optional[dict] = None, prof: Optional[dict] = None) -> str:
     """Everything the model may use, as plain labelled lines: the register record (dates spelt out with what they are), then the
     gathered sheet. Nearby places are not given: the page lists them beside the map, measured from the project's own pin."""
     lines = [pages.paragraph(doc)]
@@ -161,6 +171,7 @@ def facts_text(doc: dict, gathered: Optional[dict], web: Optional[dict] = None) 
     if o.get("price_inr"):
         lines.append(f"Price on the agent's listing: Rs {o['price_inr']:,} ({o.get('source') or 'agent listing'})")
     lines += webfacts.lines(web)
+    lines += [f"Highlight, {x}" for x in profile.lines(prof)]
     return "\n".join(lines)
 
 
@@ -188,16 +199,17 @@ def check_text(text: str, facts: str) -> List[str]:
 SYSTEM = ("You write the description on a property website's page about one housing project in Pune. Use ONLY the facts given. "
           "Plain, neutral English, 2 short paragraphs, under 120 words. Say what the project is, where, the completion date filed "
           "with MahaRERA and whether it moved, how many homes are booked (or that bookings were not reported) and whether the completion "
-          "date has passed. Do not list nearby places or distances: the page shows them as a list beside the map. Keep each date with its label. No adjectives "
+          "date has passed. When highlights are given, name the main ones (homes on offer, open space, amenities) in one sentence. "
+          "Do not list nearby places or distances: the page shows them as a list beside the map. Keep each date with its label. No adjectives "
           "of praise, no advice to buy, no prices unless a fact gives one, no numbers that are not in the facts. "
           'Answer as JSON: {"text": "..."}')
 
 
-async def write_text(llm, doc: dict, gathered: Optional[dict], web: Optional[dict] = None) -> tuple:
+async def write_text(llm, doc: dict, gathered: Optional[dict], web: Optional[dict] = None, prof: Optional[dict] = None) -> tuple:
     """(text or None, why it was refused: [] when accepted)."""
     if llm is None:
         return None, ["no LLM key"]
-    facts = facts_text(doc, gathered, web)
+    facts = facts_text(doc, gathered, web, prof)
     try:
         out = await llm.json(SYSTEM, "Facts:\n" + facts)
     except Exception as e:
@@ -354,14 +366,23 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime) -> dict:
     else:
         notes.append("no gatherer configured")
     steps["places"], placed = await check_places(store, doc, await sheet(), located_from, now)
+    fetch = webfacts.memo(webfacts.fetch_page)   # the web facts and the profile read the same pages: each once
     try:
-        steps["web"], web = await webfacts.gather(store, doc, llm, now)
+        steps["web"], web = await webfacts.gather(store, doc, llm, now, fetch=fetch)
     except Exception as e:
         log.exception("enrich: web facts failed for %s", regno)
         steps["web"], web = _step(False, now, checked=f"failed ({type(e).__name__})"), {}
     if web:
         await store.set_project(doc["_id"], **web)
-    text, refused = await write_text(llm, doc, gathered, (web or {}).get("web_facts") or doc.get("web_facts"))
+    try:
+        steps["profile"], prof = await profile.gather(store, doc, llm, now, fetch=fetch)
+    except Exception as e:
+        log.exception("enrich: profile failed for %s", regno)
+        steps["profile"], prof = _step(False, now, checked=f"failed ({type(e).__name__})"), {}
+    if prof:
+        await store.set_project(doc["_id"], **prof)
+    text, refused = await write_text(llm, doc, gathered, (web or {}).get("web_facts") or doc.get("web_facts"),
+                                     (prof or {}).get("profile") or doc.get("profile"))
     steps["text"] = _step(bool(text), now, refused_reasons=refused)
     if text is None:
         notes.extend(refused)
@@ -412,7 +433,7 @@ async def status_list(store: Store, status: Optional[str] = None, limit: int = 3
             "enriched_at": _iso(d.get("enriched_at")), "score": e.get("score"),
             "failed": [k for k in STEPS if not ((e.get("steps") or {}).get(k) or {}).get("ok")] if e else [],
             "checks": {k: ((e.get("steps") or {}).get(k) or {}).get("checked") or (((e.get("steps") or {}).get(k) or {}).get("refused_reasons") or None)
-                       for k in STEPS} if e else {},
+                       for k in STEPS + ("web", "profile")} if e else {},
             "page": f"/projects/{d['page_slug']}" if d.get("page_slug") else None,
         })
     items.sort(key=lambda x: x["enriched_at"] or "", reverse=True)
