@@ -41,7 +41,7 @@ MAX_REELS = 4          # a reel takes minutes to render: the director's best few
 ROLES = ("teaser", "brand", "design", "homes", "lifestyle", "location", "price", "trust", "visit")
 FORMATS = ("carousel", "stat", "single", "checklist")
 # a brochure or agent line that goes stale or promises stock: never a fact a post may state
-STALE = re.compile(r"\bavailab|\bbooking|\boffer\b|\bdiscount|\blimited\b|\blast few\b|\bhurry|\bany (?:tower|floor)", re.I)
+STALE = re.compile(r"\bavailab|\boffer\b|\bdiscount|\blimited\b|\blast few\b|\bhurry|\bany (?:tower|floor)", re.I)   # "bookings open" is a status, kept
 # a stat card's big number: the price when the headline has one, else a number with its unit
 PRICE = re.compile(r"₹\s?[\d.,]+\s*(?:crore|lakh|cr|l)?\b", re.I)
 STAT = re.compile(r"\b\d[\d.,]*\s*(?:km|sq ft|BHK|homes|acres|minutes|min)\b", re.I)
@@ -81,6 +81,9 @@ UNBACKED = re.compile(r"\bensur\w*|\bguarant\w*|\bcomplian\w*|\btransparen\w*|\b
                       r"|\blimited (?:units|stock|period)\b|\bfew (?:units|homes) left\b|\bfinish(?:es|ing)\b|\bappreciat\w*"
                       r"|\b(?:homes?|units?|project|flats?) (?:are |is )?approved\b|\bapproved (?:homes?|units?|project|flats?)\b", re.I)
 READY = re.compile(r"\bready\b", re.I)
+# the future is for infrastructure; the project itself is launched (Camelot reels said "Lodha Camelot is coming")
+NOT_YET = re.compile(r"\bcoming\b|\bsoon\b|\bupcoming\b|\blaunch(?:ing|es)?\b|\bfuture of\b|\bon the way\b", re.I)
+INFRA = re.compile(r"\bmetro\b|\bline \d|\broad\b|\bring road\b|\bexpressway\b|\bairport\b|\bflyover\b|\bbridge\b|\bstation\b", re.I)
 # a coming metro sold as running ("take the metro to work"): the future is sold as coming, never as here
 RUNNING = re.compile(r"\b(?:take|ride|catch|by|via) (?:the )?metro\b|\bmetro (?:is |now )?(?:running|operational|open|live)\b"
                      r"|\bmetro (?:station )?(?:next door|at your doorstep)\b|\bmetro\b[^.]{0,25}\bruns\b", re.I)
@@ -92,6 +95,8 @@ def overclaims(text: str, corpus: str = "") -> bool:
     if OVERCLAIM.search(text) or UNBACKED.search(text) or (RUNNING.search(text) and "not running" in corpus.lower()):
         return True
     if READY.search(text) and not READY.search(corpus):
+        return True
+    if NOT_YET.search(text) and not INFRA.search(text):   # the project is registered and booking: never "coming"
         return True
     if WALK.search(text):
         kms = [float(x) for x in KM.findall(text)]
@@ -162,7 +167,10 @@ RULES = ("Rules for everyone in the room: use ONLY the numbered facts; never a n
          "buyer speaks. You are a sales team: sell the future the facts give you. Approved or planned infrastructure (a metro "
          "line, a road, an IT park) is a selling point to use, worded as coming ('Metro Line 4 is coming to Kharadi', 'on the "
          "approved metro route'), never as running today and never with a date the facts do not give. Aspirational lines are "
-         "welcome when a fact stands behind them; returns, appreciation and 'ready' are not.")
+         "welcome when a fact stands behind them; returns, appreciation and 'ready' are not. The project itself is launched "
+         "and booking: never 'coming' or 'soon'. Spread the facts across the campaign: each named fact (an architect, a place, "
+         "the metro, the price) leads at most one piece and appears in at most two, unless it is the brief's focus (then up "
+         "to three, on purpose).")
 
 STRATEGIST = (
     "You are the marketing strategist of a Pune property agency. From the numbered facts, write the campaign brief. Decide what "
@@ -170,7 +178,7 @@ STRATEGIST = (
     "each with why), the single-minded idea to own, the tone, and what would cheapen it. Upcoming infrastructure in the facts "
     "(a metro line, a road) is part of the story to tell, honestly as coming; never list it under what to avoid. " + RULES +
     " Reply JSON only: {\"positioning\": \"...\", \"tier\": \"premium|family|first_home|plot|rental\", \"buyers\": [{\"who\": \"...\", "
-    "\"why\": \"...\"}], \"idea\": \"...\", \"tone\": \"...\", \"avoid\": [\"...\"]}")
+    "\"why\": \"...\"}], \"idea\": \"...\", \"focus\": \"the one fact worth repeating on purpose, or empty\", \"tone\": \"...\", \"avoid\": [\"...\"]}")
 
 
 def _creative(lens: str) -> str:
@@ -344,7 +352,7 @@ async def convene(c: Ctx, listing: dict, llm: Any, photos: int = 0, images: Sequ
         if not brief.get("idea"):
             log.info("creative room: the strategist gave no brief (%s)", list(brief)[:6])
             return None
-        room["brief"] = {k: brief.get(k) for k in ("positioning", "tier", "buyers", "idea", "tone", "avoid")}
+        room["brief"] = {k: brief.get(k) for k in ("positioning", "tier", "buyers", "idea", "focus", "tone", "avoid")}
         raws = [await _ask(llm, _creative(lens), _user(facts, room), heat=CREATIVE_HEAT) for lens in LENSES]   # one at a time: the free tiers rate-limit
         room["pitches"] = [p for p in (_pitch(r, corpus, LENSES[lens][0]) for lens, r in zip(LENSES, raws)) if p]
         log.info("creative room: pitches %s", [(lens, len((r or {}).get("pieces") or []), bool(p)) for lens, r, p in
@@ -375,7 +383,9 @@ async def convene(c: Ctx, listing: dict, llm: Any, photos: int = 0, images: Sequ
     liked = [b["pitch"] for b in (room.get("discussion") or {}).get("best") or [] if b.get("pitch")]
     others = [n for n in dict.fromkeys(liked + sorted(scored, key=lambda n: -scored[n]) + list(range(1, len(room["pitches"]) + 1)))
               if n != chosen and 1 <= n <= len(room["pitches"])]
-    pieces = filmed(complete(_distinct(blend(pieces, room["pitches"], others)), room["pitches"], [chosen, *others], corpus), corpus)
+    terms = heroes(corpus, (c.project, c.locality))
+    pieces = complete(_distinct(blend(pieces, room["pitches"], others)), room["pitches"], [chosen, *others], corpus)
+    pieces = filmed(spread(pieces, terms, (room.get("brief") or {}).get("focus") or ""), corpus, (c.project, c.locality))
     if len(pieces) < MIN_PIECES:
         log.info("creative room: %d pieces after the director (%d assembled), too few", len(pieces), len(d.get("pieces") or []))
         return None
@@ -465,22 +475,91 @@ def complete(pieces: List[Dict[str, Any]], pitches: List[Dict[str, Any]], order:
 FILM_ROLES = ("design", "lifestyle", "homes", "brand", "teaser", "location", "price", "trust", "visit", "story")   # best on film first
 
 
-def filmed(pieces: List[Dict[str, Any]], corpus: str) -> List[Dict[str, Any]]:
-    """Up to REELS_WANTED reels (the fourth live meeting gave one): pieces with no reel, the ones film carries best first, get
-    one made from their own words (hook = headline, beats = the lines, payoff = the campaign's price line or the last line),
-    kept only when it passes the reel checks."""
+HERO = re.compile(r"\b(?:[A-Z][a-zA-Z.&'-]+ ){1,4}[A-Z][a-zA-Z.&'-]+\b|\b[A-Z]{3,}\b")
+COMMON = {"mahara", "maharera", "pune", "bhk", "info", "rera"}
+
+
+def heroes(corpus: str, own: Sequence[str] = ()) -> List[str]:
+    """The facts a reel can lead with, as words to look for: named people and places in the fact book ("Hafeez Contractor",
+    "SHMA", "International Tech Park Pune"), the metro, the price; never the project's own name or its locality."""
+    skip = {w.lower() for name in own for w in str(name or "").split()} | COMMON
+    out = [t for t in dict.fromkeys(HERO.findall(corpus)) if not {w.lower() for w in t.split()} <= skip]
+    return out + ["metro"] * bool(METRO.search(corpus)) + ["₹"] * bool(PRICE.search(corpus))
+
+
+def _uses(line: str, terms: Sequence[str]) -> set:
+    low = line.lower()
+    return {t for t in terms if t.lower() in low}
+
+
+def spread(pieces: List[Dict[str, Any]], terms: Sequence[str], focus: str = "") -> List[Dict[str, Any]]:
+    """Each named fact in at most two pieces (three for the brief's focus), in posting order (owner, 2026-10-15: "not repeated
+    much; the most important can be the focus, the team decides"): a later piece's line that brings a fact back once it has
+    had its share is dropped; headlines stay, and a piece keeps at least one line."""
+    focus_terms = _uses(focus, terms) if focus else set()
+    seen: Dict[str, int] = {}
+    out = []
+    for p in pieces:
+        p = dict(p, lines=list(p["lines"]))
+        here = _uses(p["headline"], terms)
+        lines = []
+        for line in p["lines"]:
+            over = {t for t in _uses(line, terms) - here if seen.get(t, 0) >= (3 if t in focus_terms else 2)}
+            if not over or (not lines and line is p["lines"][-1]):
+                lines.append(line)
+                here |= _uses(line, terms)
+        p["lines"] = lines or p["lines"][:1]
+        for t in here:
+            seen[t] = seen.get(t, 0) + 1
+        out.append(p)
+    return out
+
+
+def filmed(pieces: List[Dict[str, Any]], corpus: str, own: Sequence[str] = ()) -> List[Dict[str, Any]]:
+    """Up to REELS_WANTED reels, each leading with its own fact (the Camelot reels all said Hafeez Contractor): a reel whose
+    hook repeats a fact an earlier reel used is dropped, and its beats that repeat one are swapped for the piece's other
+    lines; then pieces with no reel, the ones film carries best first, get one made from their own words (hook = headline,
+    beats = the lines, payoff = the price line once, else the piece's last line), kept only when it passes the reel checks."""
     out = [dict(p) for p in pieces]
+    terms = heroes(corpus, own)
+    used: set = set()
+
+    def fresh(lines: Sequence[str]) -> List[str]:
+        return [b for b in (_clean(str(l).rstrip("."), 9) for l in lines)
+                if b and not (_uses(b, terms) & used) and not overclaims(b, corpus)]
+
+    def ending(payoff: str, beats: List[str], p: Dict[str, Any]) -> str:
+        """The reel's last line: its own when it passes and brings nothing back, else a spare line of the piece."""
+        if payoff and not (_uses(payoff, terms) & used) and not overclaims(payoff, corpus):
+            return payoff
+        spare = [b for b in fresh(p["lines"]) if b not in beats]
+        return spare[0] if spare else (beats.pop() if len(beats) > 2 else "")
+
+    def keep(p: Dict[str, Any], s: ad_reel.Script) -> bool:
+        ok = (len(s.beats) >= 2 and bool(s.payoff) and not ad_reel.check(s, corpus)
+              and not any(overclaims(x, corpus) for x in s.lines()))
+        if ok:
+            p["reel"] = s.out()
+            used.update(*(_uses(x, terms) for x in s.lines()))
+        return ok
+
+    for p in out:   # the room's own reels, in posting order
+        r = p.pop("reel", None)
+        if not r or _uses(r["hook"], terms) & used:
+            continue
+        beats = fresh(r["beats"])
+        beats = (beats + [b for b in fresh(p["lines"]) if b not in beats])[:3] if len(beats) < 2 else beats
+        payoff = ending(r["payoff"], beats, p)
+        keep(p, ad_reel.Script("story", r["hook"], beats, payoff, r.get("cta") or f"Comment {ad_reel.CTA_WORD} for the details", by="room"))
     price = next((p["headline"] for p in out if PRICE.search(p["headline"])), "")
     for p in sorted(out, key=lambda p: FILM_ROLES.index(p["role"]) if p["role"] in FILM_ROLES else 99):
         if sum(1 for x in out if x.get("reel")) >= REELS_WANTED:
             break
-        if p.get("reel"):
+        if p.get("reel") or _uses(p["headline"], terms) & used:
             continue
-        beats = [b for b in (_clean(l.rstrip("."), 9) for l in p["lines"]) if b][:3]
-        payoff = price if price and price != p["headline"] else (beats.pop() if len(beats) > 2 else "")
-        s = ad_reel.Script("story", p["headline"], beats, payoff, f"Comment {ad_reel.CTA_WORD} for the details", by="room")
-        if len(beats) >= 2 and payoff and not ad_reel.check(s, corpus) and not any(overclaims(x, corpus) for x in s.lines()):
-            p["reel"] = s.out()
+        beats = fresh(p["lines"])[:3]
+        payoff = ending(price if price != p["headline"] else "", beats, p)
+        keep(p, ad_reel.Script("story", p["headline"], beats, payoff, f"Comment {ad_reel.CTA_WORD} for the details", by="room"))
     return out
 
 
