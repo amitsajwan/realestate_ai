@@ -89,10 +89,18 @@ def gemini_speech(text: str, voice: Optional[str] = None, timeout: float = 120.0
     body = {"contents": [{"parts": [{"text": text}]}],
             "generationConfig": {"responseModalities": ["AUDIO"], "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {
                 "voiceName": voice or os.environ.get("REEL_GEMINI_VOICE") or GEMINI_VOICE}}}}}
-    try:
-        r = httpx.post(GEMINI_TTS_URL.format(model=model), headers={"x-goog-api-key": key}, json=body, timeout=timeout)
-    except Exception as e:
-        raise VoiceError(f"gemini speech unreachable ({type(e).__name__})")
+    import time
+    for wait in (0, 8, 25):   # a busy model (429/5xx) is asked again before Google's voice takes over (two Camelot reels fell back)
+        if wait:
+            time.sleep(wait)
+        try:
+            r = httpx.post(GEMINI_TTS_URL.format(model=model), headers={"x-goog-api-key": key}, json=body, timeout=timeout)
+        except Exception as e:
+            if wait == 25:
+                raise VoiceError(f"gemini speech unreachable ({type(e).__name__})")
+            continue
+        if r.status_code not in (429, 500, 502, 503, 504):
+            break
     if r.status_code >= 400:
         raise VoiceError(f"gemini speech HTTP {r.status_code}: {r.text[:120]}".replace(key, "[redacted]"))
     try:
