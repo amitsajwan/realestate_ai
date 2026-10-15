@@ -81,12 +81,15 @@ UNBACKED = re.compile(r"\bensur\w*|\bguarant\w*|\bcomplian\w*|\btransparen\w*|\b
                       r"|\blimited (?:units|stock|period)\b|\bfew (?:units|homes) left\b|\bfinish(?:es|ing)\b|\bappreciat\w*"
                       r"|\b(?:homes?|units?|project|flats?) (?:are |is )?approved\b|\bapproved (?:homes?|units?|project|flats?)\b", re.I)
 READY = re.compile(r"\bready\b", re.I)
+# a coming metro sold as running ("take the metro to work"): the future is sold as coming, never as here
+RUNNING = re.compile(r"\b(?:take|ride|catch|by|via) (?:the )?metro\b|\bmetro (?:is |now )?(?:running|operational|open|live)\b"
+                     r"|\bmetro (?:station )?(?:next door|at your doorstep)\b", re.I)
 
 
 def overclaims(text: str, corpus: str = "") -> bool:
     """A registration sold as an approval, puffery, a claim no fact carries, 'ready' for a project the facts do not call
     ready, or a walk to a place 1 km or more away (or with no distance at all)."""
-    if OVERCLAIM.search(text) or UNBACKED.search(text):
+    if OVERCLAIM.search(text) or UNBACKED.search(text) or (RUNNING.search(text) and "not running" in corpus.lower()):
         return True
     if READY.search(text) and not READY.search(corpus):
         return True
@@ -156,12 +159,16 @@ RULES = ("Rules for everyone in the room: use ONLY the numbered facts; never a n
          "quarter in the 4 BHK) is never given to another. A MahaRERA registration is a registration: never 'approved', "
          "'trusted' or 'certified'. 'Walk' or 'walking distance' only for a place under 1 km; others are 'X km away'. No "
          "'renowned', 'world-class', 'iconic', 'unmatched'. The only ask is a comment: 'Comment INFO'. Plain English a Pune "
-         "buyer speaks.")
+         "buyer speaks. You are a sales team: sell the future the facts give you. Approved or planned infrastructure (a metro "
+         "line, a road, an IT park) is a selling point to use, worded as coming ('Metro Line 4 is coming to Kharadi', 'on the "
+         "approved metro route'), never as running today and never with a date the facts do not give. Aspirational lines are "
+         "welcome when a fact stands behind them; returns, appreciation and 'ready' are not.")
 
 STRATEGIST = (
     "You are the marketing strategist of a Pune property agency. From the numbered facts, write the campaign brief. Decide what "
     "this property is (premium brand / mid-range family / first home / plot / rental), who really buys it (2-3 buyer types, "
-    "each with why), the single-minded idea to own, the tone, and what would cheapen it. " + RULES +
+    "each with why), the single-minded idea to own, the tone, and what would cheapen it. Upcoming infrastructure in the facts "
+    "(a metro line, a road) is part of the story to tell, honestly as coming; never list it under what to avoid. " + RULES +
     " Reply JSON only: {\"positioning\": \"...\", \"tier\": \"premium|family|first_home|plot|rental\", \"buyers\": [{\"who\": \"...\", "
     "\"why\": \"...\"}], \"idea\": \"...\", \"tone\": \"...\", \"avoid\": [\"...\"]}")
 
