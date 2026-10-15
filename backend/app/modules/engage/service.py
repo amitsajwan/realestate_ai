@@ -15,7 +15,7 @@ from app.modules.knowledge.grounding import Ref, facts_for
 
 from app.platform.text import normalize_indian_mobile
 
-from .brain import Decision, decide, dm_text, render
+from .brain import COMMENT_PHONE, SIGNAL_SCORE, Decision, decide, dm_text, render, want_text
 from .config import EngageConfig
 from .graph import EngageGraphError
 
@@ -46,7 +46,7 @@ def configure(listing_facts: Callable[[dict, dict, str], Any], audience: Optiona
 LEAD_INTENTS = ("interested", "question")
 MAX_COMMENT_AGE = timedelta(days=7)
 UNKNOWN_PER_POST_PER_DAY = 6  # commenters whose identity Meta does not show us
-DM_PHONE = re.compile(r"(?<!\d)(?:\+?91[\s-]?|0)?[6-9](?:[\s-]?\d){9}(?!\d)")  # as people type it: "98765 43210", "+91-98765-43210"
+DM_PHONE = COMMENT_PHONE  # as people type it: "98765 43210", "+91-98765-43210"
 
 
 def with_source(url: str, source: str = "facebook_comment") -> str:
@@ -177,12 +177,15 @@ class EngageService:
         extra = {"channel": channel, "handle": handle} if channel != "facebook" else {}
         d: Decision = await decide(c.get("message") or "", sender.get("name"), ctx["facts"], ctx["link"], self.llm, grounding=ctx.get("grounding"),
                                    audience=ctx.get("audience") or "buyers", **extra)
-        if d.intent == "interested" and d.reply and self.cfg.private_reply and sender.get("id") and hasattr(graph, "private_reply") \
-                and (ctx.get("audience") or "buyers") != "agents":
+        if d.intent == "interested" and d.reply and d.signal in ("", "info") and self.cfg.private_reply and sender.get("id") \
+                and hasattr(graph, "private_reply") and (ctx.get("audience") or "buyers") != "agents":
             # the private message asks for the WhatsApp number; the public reply only says it was sent, so nobody is asked twice
             d.reply = render("interested_dm", d.language, sender.get("name"), ctx["link"], channel)
+        elif d.signal == "requirement" and d.reply and self.cfg.private_reply and sender.get("id") and hasattr(graph, "private_reply"):
+            d.reply = render("requirement_dm", d.language, sender.get("name"), ctx["link"], channel, want=want_text(d.requirement))
         doc = {**base, "audience": ctx.get("audience") or "buyers", "calendar_id": ctx.get("calendar_id"), "intent": d.intent, "language": d.language, "reply": d.reply, "needs_human": d.needs_human, "reason": d.reason, "status": "ignored",
-               "answer_basis": d.basis, "missing": d.missing, "gaps": d.gaps}
+               "answer_basis": d.basis, "missing": d.missing, "gaps": d.gaps, "signal": d.signal, "requirement": d.requirement or None,
+               "phone": d.phone}
         if d.needs_human and not d.reply:
             doc["status"] = "needs_human"
         if not d.reply:
@@ -270,6 +273,9 @@ class EngageService:
         if not self.cfg.private_reply or doc["intent"] not in LEAD_INTENTS or not doc.get("from_id") \
                 or doc["status"] not in ("replied", "needs_human", "dry_run"):
             return
+        if doc.get("phone"):  # they already gave their number in the comment: asking for it again in a message would be a bot's mistake
+            doc["dm_status"] = "skipped"
+            return
         if await self.comments.find_one({"channel": doc["channel"], "from_id": doc["from_id"], "dm_status": {"$in": ["sent", "dry_run"]},
                                          "processed_at": {"$gte": self.now() - MAX_COMMENT_AGE}}):
             doc["dm_status"] = "skipped"
@@ -329,7 +335,9 @@ class EngageService:
         return updated
 
     async def _record_lead(self, doc: dict, post: dict) -> None:
-        """An interested or asking commenter becomes a lead in the agent's inbox (no phone yet: the agent can reply or DM on the platform)."""
+        """An interested or asking commenter becomes a lead in the agent's inbox. Usually without a phone (the agent can reply or DM on the
+        platform); with one when the commenter wrote their number asking to be called. What they said they want becomes the requirement."""
+        from app.modules.tracking import requirement as rq
         agent = doc.get("agent_id") or self.cfg.owner_agent_id
         who = (doc.get("from_name") or "").strip()
         if not agent or not who:
@@ -340,18 +348,31 @@ class EngageService:
         message = f"{doc['channel'].title()} comment: “{doc.get('text', '')[:300]}”" + (f"\nOn the post: {topic}" if topic else "")
         now = self.now()
         dm = {"channel": doc["channel"], "id": doc["dm_recipient"]} if doc.get("dm_recipient") else None
+        phone = doc.get("phone") or ""
+        consent = {"given_at": now, "purpose": "enquiry follow-up", "how": f"wrote their number in a {doc['channel']} comment asking to be contacted"}
+        fields = {k: v for k, v in (doc.get("requirement") or {}).items() if k in ("bhk", "budget_min_inr", "budget_max_inr", "localities", "timeline", "financing")}
+        sources = {("budget" if k.startswith("budget") else k): "stated" for k in fields}
+        score = (10 if doc["intent"] == "interested" else 6) + SIGNAL_SCORE.get(doc.get("signal") or "", 0)
         existing = await contacts.find_one({"agent_id": agent, "anon_ids": key})
+        if existing is None and phone:
+            existing = await contacts.find_one({"agent_id": agent, "phone": phone})
         if existing:
-            await contacts.update_one({"_id": existing["_id"]}, {"$set": {"last_activity_at": now, "last_message": message,
-                                                                         **({"dm": dm} if dm else {})}})
+            changes = {"last_activity_at": now, "last_message": message, **({"dm": dm} if dm else {}),
+                       "score_base": max(int(existing.get("score_base") or 0), score)}
+            if phone and not existing.get("phone"):
+                changes.update(phone=phone, consent=existing.get("consent") or consent)
+            if fields:
+                changes["requirement"] = rq.merge(existing.get("requirement"), fields, sources)
+            await contacts.update_one({"_id": existing["_id"]}, {"$set": changes})
             return
         await contacts.insert_one({
             "_id": uuid.uuid4().hex, "agent_id": agent,
             "name": f"@{who}" if doc["channel"] == "instagram" else who,
-            "phone": "", "message": message, "anon_ids": [key], "stage": "new", "source": f"{doc['channel']}_comment", "utm": {},
-            "first_listing_id": doc.get("listing_id"), "consent": None,
-            "score_base": 10 if doc["intent"] == "interested" else 6, "created_at": now, "last_activity_at": now, "last_message": message,
-            "notes": [], "requirement": None, "social": {"channel": doc["channel"], "handle": who, "comment_link": doc.get("permalink")},
+            "phone": phone, "message": message, "anon_ids": [key], "stage": "new", "source": f"{doc['channel']}_comment", "utm": {},
+            "first_listing_id": doc.get("listing_id"), "consent": consent if phone else None,
+            "score_base": score, "created_at": now, "last_activity_at": now, "last_message": message,
+            "notes": [], "requirement": rq.merge(None, fields, sources) if fields else None,
+            "social": {"channel": doc["channel"], "handle": who, "comment_link": doc.get("permalink")},
             "dm": dm,  # who we privately messaged; their answer (a phone number) is filled in by collect_dm_replies
         })
 

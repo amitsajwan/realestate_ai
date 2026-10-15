@@ -91,7 +91,7 @@ TOPICS: Dict[str, Topic] = {
                       (r"(?!x)x",), "a confirmed answer on negotiation", "मोलभाव", "किंमतीत तडजोडीची माहिती", "price negotiation"),
     "loan": _t(r"\bloan\b|\bemi\b|finance|\bbank\b|mortgage|लोन|कर्ज|ईएमआई", (r"loan",), "loan details", "लोन", "कर्ज", "loan"),
     "furnishing": _t(r"furnish|furniture|फर्निश|फर्निचर", (r"furnish",), "the furnishing details", "फर्निशिंग", "फर्निशिंगची माहिती", "furnishing"),
-    "location": _t(r"\bwhere\b|location|locat|kahan|kahaan|kuthe|kuthhe|कहाँ|कहां|कुठे|लोकेशन|कोठे", (r"located in", r"east Pune|eastern corridor"), "the location", "लोकेशन", "ठिकाण", "location"),
+    "location": _t(r"\bwhere\b|location|locat|kahan|kahaan|\bkaha\b|kuthe|kuthhe|कहाँ|कहां|कुठे|लोकेशन|कोठे", (r"located in", r"east Pune|eastern corridor"), "the location", "लोकेशन", "ठिकाण", "location"),
     "address": _t(r"address|\bpata\b|पता|पत्ता", (r"(?!x)x",), "the exact address", "पूरा पता", "पूर्ण पत्ता", "exact address"),
     "builder": _t(r"builder|developer|who\s*(built|is\s*building)|project\s*name|बिल्डर|डेव्हलपर|डेवलपर", (r"builder", r"project is"), "the builder details", "बिल्डर", "बिल्डरची माहिती", "builder"),
 }

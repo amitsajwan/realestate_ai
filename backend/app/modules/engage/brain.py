@@ -8,8 +8,9 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 
 from app.modules.knowledge import site
-from app.modules.knowledge.reply import answer as grounded_answer, has_topic
-from app.platform.text import HYPE, PHONE
+from app.modules.knowledge.reply import answer as grounded_answer, has_topic, topics_in
+from app.modules.tracking import requirement as rq
+from app.platform.text import HYPE, PHONE, normalize_indian_mobile
 
 INTENTS = ("interested", "question", "praise", "greeting", "complaint", "spam", "other")
 GREETING = re.compile(r"^\W*(hi+|hello+|hey+|hii+|namaste|namaskar|good (morning|afternoon|evening)|hello you there)\W*$", re.I)
@@ -19,6 +20,21 @@ NUM = re.compile(r"\d[\d,]*(?:\.\d+)?")
 INTERESTED = re.compile(r"\b(interested|intrested|info|details|dm|price\??|rate\??|contact|available)\b|इंटरेस्टेड|रुचि|आवड|डिटेल|किंमत|कीमत", re.I)
 SPAM = re.compile(r"(whatsapp me|dm me|click here|earn money|crypto|forex|loan offer|followers|http|www\.|t\.me/|bit\.ly)", re.I)
 ABUSE = re.compile(r"\b(fraud|scam|cheat|fake|liar|stupid|idiot|bloody)\b", re.I)
+# Spam without the "whatsapp me" / "dm me" wording: a buyer writing "whatsapp me on 98765 43210" is a lead, not a spammer
+SPAM_HARD = re.compile(r"(click here|earn money|work from home|crypto|forex|loan offer|followers|http|www\.|t\.me/|bit\.ly)", re.I)
+COMMENT_PHONE = re.compile(r"(?<!\d)(?:\+?91[\s-]?|0)?[6-9](?:[\s-]?\d){9}(?!\d)")  # as people type it: "98765 43210", "+91-98765-43210"
+# Asking for material or a call back, in words the INTERESTED keywords miss ("send brochure", "माहिती पाहिजे", "pls share")
+WANTS_INFO = re.compile(r"\b(brochure|floor\s*plans?|price\s*list|more\s*info|send\s*(me\s*)?(the\s*)?(details|info|pics|photos)|share\s*(the\s*)?(details|info)|"
+                        r"call\s*(me|back)|contact\s*me|details\s*(bhejo|send|pls|please)|bhej\s*do|pathva)\b|"
+                        r"माहिती|जानकारी|ब्रोशर|डिटेल्स", re.I)
+# Short positive comments ("Nice", "Wow 😍", "👍"): thanked, never sent to a person
+PRAISE = re.compile(r"^\W*((very |so |too )?(nice|wow+|superb|beautiful|awesome|amazing|lovely|great|good|excellent|mast|zakkas|sundar|chan|"
+                    r"khoob|badhiya|osm|gorgeous|congrats|congratulations)\b[\s!.]*(flat|home|house|property|one|place|view|work|post)?|"
+                    r"[\U0001F300-\U0001FAFF\u2600-\u27BF\u2764\uFE0F\s]+)[\W\U0001F300-\U0001FAFF]*$", re.I)
+# The price is too high for them: a salesperson asks for their budget instead of letting them go
+OBJECTION = re.compile(r"\b(too\s+(expensive|costly|high)|very\s+(expensive|costly|high)|over\s*priced|expensive|costly|mehenga|mahenga|mehnga|"
+                       r"mahag|out of (my )?budget|not in (my )?budget|budget (se )?(bahar|jyada|zyada))\b|महंगा|महाग", re.I)
+WANT = re.compile(r"\b(interested|intrested|need|want|looking|require|requirement|searching|chahiye|pahije|hava|havay|any|options?|available|suggest|have you)\b|चाहिए|पाहिजे|हवा", re.I)
 
 TEMPLATES = {
     "en": {
@@ -27,6 +43,10 @@ TEMPLATES = {
         "question": "Good question{name}! We will answer here within a few hours. Meanwhile, the full details are here: {link}",
         "praise": "Thank you{name}! Follow the page for more Pune property guides and listings.",
         "greeting": "Hello{name}! Comment INTERESTED on a listing for the details, or ask your question here and our team will help.",
+        "phone": "Thanks{name}! Our team will call you shortly. For your privacy you may delete the number from this comment now.",
+        "requirement": "Thanks{name}! Noted: {want}. Matching homes and prices are here: {link}",
+        "requirement_dm": "Thanks{name}! Noted: {want}. Matching homes and prices are here: {link} . We are also sending you a message with options.",
+        "objection": "Understood{name}. Tell us your budget and preferred area, and we will share homes that fit: {link}",
     },
     "hi": {
         "interested": "धन्यवाद{name}! पूरी जानकारी और कीमत यहाँ है: {link} . वहाँ अपना WhatsApp नंबर दें, हमारी टीम आपको प्राइस लिस्ट और फ्लोर प्लान भेजेगी।",
@@ -34,6 +54,10 @@ TEMPLATES = {
         "question": "अच्छा सवाल{name}! हम कुछ घंटों में यहीं जवाब देंगे। पूरी जानकारी यहाँ है: {link}",
         "praise": "धन्यवाद{name}! पुणे की प्रॉपर्टी गाइड और लिस्टिंग के लिए पेज को फॉलो करें।",
         "greeting": "नमस्ते{name}! विवरण के लिए कमेंट में INTERESTED लिखें, या अपना सवाल यहीं पूछें, हमारी टीम मदद करेगी।",
+        "phone": "धन्यवाद{name}! हमारी टीम आपको जल्द कॉल करेगी। अपनी प्राइवेसी के लिए आप इस कमेंट से नंबर हटा सकते हैं।",
+        "requirement": "धन्यवाद{name}! नोट किया: {want}। मिलते-जुलते घर और कीमतें यहाँ हैं: {link}",
+        "requirement_dm": "धन्यवाद{name}! नोट किया: {want}। मिलते-जुलते घर और कीमतें यहाँ हैं: {link} . हम आपको विकल्पों के साथ मैसेज भी भेज रहे हैं।",
+        "objection": "समझ गए{name}। अपना बजट और पसंदीदा एरिया बताएं, हम आपके बजट के घर भेजेंगे: {link}",
     },
     "mr": {
         "interested": "धन्यवाद{name}! संपूर्ण माहिती आणि किंमत इथे आहे: {link} . तिथे तुमचा WhatsApp नंबर द्या, आमची टीम तुम्हाला प्राइस लिस्ट आणि फ्लोअर प्लॅन पाठवेल.",
@@ -41,6 +65,10 @@ TEMPLATES = {
         "question": "छान प्रश्न{name}! आम्ही काही तासांत इथेच उत्तर देऊ. संपूर्ण माहिती इथे आहे: {link}",
         "praise": "धन्यवाद{name}! पुण्यातील प्रॉपर्टी गाइड आणि लिस्टिंगसाठी पेज फॉलो करा.",
         "greeting": "नमस्कार{name}! तपशीलासाठी कमेंटमध्ये INTERESTED लिहा, किंवा तुमचा प्रश्न इथेच विचारा, आमची टीम मदत करेल.",
+        "phone": "धन्यवाद{name}! आमची टीम तुम्हाला लवकरच कॉल करेल. तुमच्या प्रायव्हसीसाठी तुम्ही या कमेंटमधून नंबर काढू शकता.",
+        "requirement": "धन्यवाद{name}! नोंद केली: {want}. जुळणारी घरे आणि किंमती इथे आहेत: {link}",
+        "requirement_dm": "धन्यवाद{name}! नोंद केली: {want}. जुळणारी घरे आणि किंमती इथे आहेत: {link} . आम्ही तुम्हाला पर्यायांसह मेसेजही पाठवत आहोत.",
+        "objection": "समजले{name}. तुमचे बजेट आणि आवडता एरिया सांगा, आम्ही तुमच्या बजेटमधील घरे पाठवू: {link}",
     },
 }
 
@@ -52,18 +80,27 @@ IG_TEMPLATES = {
         "interested_dm": "Thanks{name}! We have sent you a message with the details and price \U0001F4E9",
         "question": "Good question{name}! We will answer here within a few hours. Meanwhile, the details are at the link in our bio.",
         "praise": "Thank you{name}! Follow this account for more Pune property guides and listings.",
+        "requirement": "Thanks{name}! Noted: {want}. Matching homes and prices are at the link in our bio.",
+        "requirement_dm": "Thanks{name}! Noted: {want}. We are sending you a message with matching homes and prices \U0001F4E9",
+        "objection": "Understood{name}. Tell us your budget and preferred area, and we will share homes that fit. The link in our bio has more.",
     },
     "hi": {
         "interested": "धन्यवाद{name}! पूरी जानकारी हमारे बायो के लिंक पर है। वहाँ अपना WhatsApp नंबर दें, हमारी टीम आपको प्राइस लिस्ट और फ्लोर प्लान भेजेगी।",
         "interested_dm": "धन्यवाद{name}! हमने आपको जानकारी और कीमत के साथ मैसेज भेजा है \U0001F4E9",
         "question": "अच्छा सवाल{name}! हम कुछ घंटों में यहीं जवाब देंगे। पूरी जानकारी हमारे बायो के लिंक पर है।",
         "praise": "धन्यवाद{name}! पुणे की प्रॉपर्टी गाइड और लिस्टिंग के लिए इस अकाउंट को फॉलो करें।",
+        "requirement": "धन्यवाद{name}! नोट किया: {want}। मिलते-जुलते घर और कीमतें हमारे बायो के लिंक पर हैं।",
+        "requirement_dm": "धन्यवाद{name}! नोट किया: {want}। हम आपको मिलते-जुलते घर और कीमतें मैसेज में भेज रहे हैं \U0001F4E9",
+        "objection": "समझ गए{name}। अपना बजट और पसंदीदा एरिया बताएं, हम आपके बजट के घर भेजेंगे। ज़्यादा जानकारी हमारे बायो के लिंक में।",
     },
     "mr": {
         "interested": "धन्यवाद{name}! संपूर्ण माहिती आमच्या बायोमधील लिंकवर आहे. तिथे तुमचा WhatsApp नंबर द्या, आमची टीम तुम्हाला प्राइस लिस्ट आणि फ्लोअर प्लॅन पाठवेल.",
         "interested_dm": "धन्यवाद{name}! आम्ही तुम्हाला माहिती आणि किंमतीसह मेसेज पाठवला आहे \U0001F4E9",
         "question": "छान प्रश्न{name}! आम्ही काही तासांत इथेच उत्तर देऊ. संपूर्ण माहिती आमच्या बायोमधील लिंकवर आहे.",
         "praise": "धन्यवाद{name}! पुण्यातील प्रॉपर्टी गाइड आणि लिस्टिंगसाठी हे अकाउंट फॉलो करा.",
+        "requirement": "धन्यवाद{name}! नोंद केली: {want}. जुळणारी घरे आणि किंमती आमच्या बायोमधील लिंकवर आहेत.",
+        "requirement_dm": "धन्यवाद{name}! नोंद केली: {want}. आम्ही तुम्हाला जुळणारी घरे आणि किंमती मेसेजमध्ये पाठवत आहोत \U0001F4E9",
+        "objection": "समजले{name}. तुमचे बजेट आणि आवडता एरिया सांगा, आम्ही तुमच्या बजेटमधील घरे पाठवू. अधिक माहिती आमच्या बायोमधील लिंकवर.",
     },
 }
 DM_ME = re.compile(r"\bdm\s*(me|us)\b|\b(pls|please)\s+dm\b|\bmessage me\b|\bmsg me\b", re.I)
@@ -76,7 +113,8 @@ SYSTEM = (
     "Rules for reply: same language as the comment (Marathi or Hindi in Devanagari is fine), at most 2 short sentences, friendly, plain. "
     "Use ONLY facts from POST FACTS. If the answer is not in POST FACTS, set answerable=false and reply=''. "
     "Never invent prices, distances, dates, amenities, approvals or RERA details. Never include phone numbers, links, or promises. "
-    "Never use words like best, perfect, guaranteed, dream. 'interested' means the person wants details or to be contacted."
+    "Never use words like best, perfect, guaranteed, dream. 'interested' means the person wants details or to be contacted: that includes "
+    "asking for a brochure, price list, call back or site visit, and stating what they are looking for (BHK, area or budget)."
 )
 
 
@@ -90,6 +128,13 @@ class Decision:
     missing: Optional[str] = None                      # what the grounded reply could not answer (for the owner)
     basis: List[str] = field(default_factory=list)     # the facts the reply rests on (stored as answer_basis)
     gaps: List[str] = field(default_factory=list)      # topics the grounded reply could not answer ('other' = no known topic)
+    phone: Optional[str] = None                        # a mobile number the commenter wrote, asking to be called (never repeated in a reply)
+    requirement: dict = field(default_factory=dict)    # what they said they want (tracking.requirement fields), for the lead
+    signal: str = ""                                   # phone | requirement | objection | visit | info: how warm the lead is
+
+
+# How warm each kind of comment is, added to the lead's base score (EngageService._record_lead)
+SIGNAL_SCORE = {"phone": 15, "requirement": 8, "visit": 8, "objection": 4, "info": 4}
 
 
 def detect_language(text: str) -> str:
@@ -142,7 +187,7 @@ def _pick(options: tuple, name: Optional[str]) -> str:
     return options[zlib.crc32((name or "").encode("utf-8")) % len(options)]
 
 
-def render(kind: str, lang: str, name: Optional[str], link: str, channel: str = "facebook") -> str:
+def render(kind: str, lang: str, name: Optional[str], link: str, channel: str = "facebook", want: str = "") -> str:
     ch = "instagram" if channel == "instagram" else "facebook"
     if ch == "instagram":
         t = IG_TEMPLATES.get(lang, IG_TEMPLATES["en"]).get(kind)
@@ -150,7 +195,7 @@ def render(kind: str, lang: str, name: Optional[str], link: str, channel: str = 
         t = TEMPLATES.get(lang, TEMPLATES["en"])[kind]
     if lang == "en" and kind in EN_VARIANTS[ch]:
         t = _pick((t,) + EN_VARIANTS[ch][kind], name)
-    return t.format(name=first_name(name), link=link)
+    return t.format(name=first_name(name), link=link, want=want)
 
 
 def valid_reply(reply: str, facts: str, link: str) -> bool:
@@ -204,6 +249,32 @@ def asks_about_the_post(text: str) -> bool:
     return has_topic(text) and (bool(ASKING.search(text)) or len(text.split()) <= 4)
 
 
+def phone_in(text: str) -> Optional[str]:
+    """A mobile number written in the comment, normalised (+91...), or None."""
+    m = COMMENT_PHONE.search(text or "")
+    if not m:
+        return None
+    try:
+        return normalize_indian_mobile(m.group(0))
+    except ValueError:
+        return None
+
+
+def requirement_in(text: str) -> dict:
+    """What a commenter says they are looking for ("Need 2bhk in Baner under 80L", "Any 3 BHK?", "budget 70 lakh, any option?"). Empty when the
+    comment only asks about the post ("Is it 2 BHK?", "price 85 lakh?"): two details, or one with a word of wanting."""
+    found = {k: v for k, v in rq.infer_from_message(text).items() if v not in (None, [], "")}
+    named = {("budget" if k.startswith("budget") else k) for k in {"bhk", "budget_min_inr", "budget_max_inr", "localities"} & set(found)}
+    if not {"bhk", "budget"} & named:
+        return {}
+    return found if len(named) >= 2 or WANT.search(text or "") else {}
+
+
+def want_text(req: dict) -> str:
+    bits = [rq.bhk_text(req.get("bhk")), ", ".join(req.get("localities") or []) or None, rq.budget_text(req.get("budget_min_inr"), req.get("budget_max_inr"))]
+    return ", ".join(b for b in bits if b)
+
+
 REPLY_LANG = {"en": "en", "hi": "hi", "hinglish": "hi", "mr": "mr", "mr_latn": "mr"}
 
 
@@ -213,7 +284,7 @@ async def grounded_decision(text: str, grounding, link: str, llm, channel: str) 
     reply = r.text.replace("{interest_url}", link)
     reason = "grounded answer" if r.confident else f"not in our facts: {r.missing}"
     return Decision("question", REPLY_LANG.get(r.language, "en"), reply, needs_human=not r.confident, reason=reason, missing=r.missing, basis=r.basis,
-                    gaps=list(r.gaps))
+                    gaps=list(r.gaps), signal="visit" if "visit" in topics_in(text) else "")
 
 
 async def decide(text: str, from_name: Optional[str], facts: str, link: str, llm, channel: str = "facebook", handle: str = "", grounding=None,
@@ -229,6 +300,25 @@ async def decide(text: str, from_name: Optional[str], facts: str, link: str, llm
                         reason="agent asks about the free trial")
     if ig:
         link = BIO["en"]  # never put a URL in an Instagram reply
+    if audience != "agents" and intent != "complaint" and not SPAM_HARD.search(text or ""):
+        phone = phone_in(text)
+        if phone:
+            # "call me 98765 43210": the warmest comment there is. The reply never repeats the number; the lead gets it
+            return Decision("interested", lang, render("phone", lang, from_name, link, channel), reason="number in the comment", phone=phone,
+                            requirement=requirement_in(text), signal="phone")
+        if intent in (None, "spam"):
+            req = requirement_in(text)
+            if intent == "spam" and not req:  # "whatsapp me for 2bhk wagholi" is a buyer; anything else stays spam
+                return Decision("spam", lang, None, reason="not answered")
+            if req:
+                return Decision("interested", lang, render("requirement", lang, from_name, link, channel, want=want_text(req)),
+                                reason="stated a requirement", requirement=req, signal="requirement")
+            if OBJECTION.search(text or ""):
+                return Decision("interested", lang, render("objection", lang, from_name, link, channel), reason="price objection", signal="objection")
+            if WANTS_INFO.search(text or "") and not asks_about_the_post(text):
+                return Decision("interested", lang, render("interested", lang, from_name, link, channel), reason="asked for details", signal="info")
+            if intent is None and PRAISE.match(text or ""):
+                return Decision("praise", lang, render("praise", lang, from_name, link, channel), reason="short praise")
     about_us = site.best(text, min_score=1) if intent is None and looks_like_question(text) else None
     if about_us is not None and about_us.audience != "buyer":
         # 'what is Avasetu?', 'how much for agents?': the same vetted answer as the website chat

@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from typing import Awaitable, Callable, List, Optional
 
 from app.core import brand
-from app.modules.engage.brain import ABUSE
+from app.modules.engage.brain import ABUSE, OBJECTION
 from app.modules.knowledge import site
 from app.modules.knowledge.reply import answer as grounded_answer, detect_language, has_topic, topics_in
 from app.platform.text import normalize_indian_mobile
@@ -85,7 +85,7 @@ def new_data(localise: bool = False) -> dict:
             # v2
             "localise": localise, "lang": "en", "turn_no": 0, "asks": {}, "phone_asks": 0, "phone_snooze_until": 0, "after_lead": False,
             "name_uses": 0, "value_given": False, "shown_sig": None, "shown_ids": [], "needs_you_sent": False, "phone_asked_turn": 0, "locality_src": None, "bhk_src": None,
-            "page": None}
+            "page": None, "visit_wanted": False}
 
 
 def _upgrade(d: dict) -> dict:
@@ -287,6 +287,8 @@ def summary(d: dict) -> str:
     if d["timeline"]:
         bits.append(f"timeline {d['timeline'].replace('_', '-')}")
     text = ", ".join(bits) + "."
+    if d.get("visit_wanted"):
+        text += " Wants a site visit."
     if d["questions"]:
         text += " Asked: " + " | ".join(q[:120] for q in d["questions"][-2:])
     return text[:900]
@@ -484,6 +486,7 @@ async def turn(d: dict, text: str, llm, grounding=None, finder: Optional[Finder]
     had_name = bool(d["name"])
     was_needed = bool(d["needs_human"])
     asked_before = d["asked"]
+    budget_before = (d["budget_min"], d["budget_max"])
     new = extract(d, text)
     lang = _lang(d)
     parts: List[str] = []
@@ -493,6 +496,9 @@ async def turn(d: dict, text: str, llm, grounding=None, finder: Optional[Finder]
     needs_human = False
     about_us = False   # the answer was about Avasetu or agents: its own next step stands, no buyer question after it
     force_homes = bool(HOMES.search(text))
+    # 'too costly': a salesperson asks for the budget that works instead of losing the buyer (unless they just gave a new one)
+    objection = bool(OBJECTION.search(text)) and (d["budget_min"], d["budget_max"]) == budget_before
+    visit = "visit" in topics_in(text)
 
     if WHATSAPP_RX.match(text):
         parts.append(say("anything_else", lang))
@@ -509,7 +515,12 @@ async def turn(d: dict, text: str, llm, grounding=None, finder: Optional[Finder]
                 d["bhk"] = page["bhk"]
     # 'ready' or 'Kharadi' typed straight after we asked about timeline or area is the answer to that, not a question about the home
     short_reply = bool(d["asked"]) and len(text.split()) <= 3 and "?" not in text and set(topics_in(text)) <= {"possession", "price", "location", "size"}
-    if grounding is not None and ABOUT.match(text) and _about(grounding):
+    if objection:
+        d["budget_min"] = d["budget_max"] = None
+        d.setdefault("asks", {})["budget"] = 0
+        d["declined"] = [f for f in d["declined"] if f != "budget"]
+        parts.append(say("objection", lang))
+    elif grounding is not None and ABOUT.match(text) and _about(grounding):
         parts.append(_about(grounding))
         d["value_given"] = True
     elif force_homes:
@@ -540,6 +551,12 @@ async def turn(d: dict, text: str, llm, grounding=None, finder: Optional[Finder]
             if r is not None:
                 d.setdefault("missing", []).append((r.missing or text)[:100])
                 d["gaps"] = (d.get("gaps") or [])[-19:] + [{"q": text[:200], "topics": list(r.gaps or ["other"])}]
+    if visit and not d["lead_done"]:
+        # the warmest thing a buyer can say: confirm it and go for the number now (the agent fixes the time)
+        d["visit_wanted"] = d["value_given"] = True
+        if "day and time" not in " ".join(parts):
+            parts.append(say("visit_ok", lang))
+        d["want_phone_now"] = True
     ack = _ack(new, d)
     if ack and not parts:
         parts.append(ack)
@@ -584,7 +601,7 @@ async def turn(d: dict, text: str, llm, grounding=None, finder: Optional[Finder]
         return Turn(" ".join(p for p in parts if p), [], None, needs_human, cards, notify)
 
     want_phone = (needs_human or d.pop("want_phone_now", False)) and _can_ask_phone(d)
-    nf = None if want_phone else next_field(d)
+    nf = None if want_phone else ("budget" if objection else next_field(d))
     if nf == "phone" and not _can_ask_phone(d):
         nf = None
     ask = ""

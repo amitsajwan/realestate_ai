@@ -284,3 +284,31 @@ def test_webhook_does_nothing_while_disabled(client, monkeypatch):
     monkeypatch.setenv("MESSENGER_ENABLED", "false")
     r = post(c, {"object": "page", "entry": [{"id": PAGE, "messaging": [event("Hi")]}]})
     assert r.json()["note"] == "disabled" and db.get_collection("contacts").docs == []
+
+
+# ---- selling in the chat: the buyer's name, and the agent's homes --------------------------------------------------------
+async def test_the_name_given_later_replaces_the_placeholder_on_the_lead():
+    svc, db, _, _ = make()
+    await say(svc, "Hi")
+    assert leads(db)[0]["name"] == "Messenger buyer"
+    await say(svc, "my name is Rahul Patil")
+    assert leads(db)[0]["name"] == "Rahul Patil"
+
+
+async def test_matching_homes_are_listed_with_links_once_the_requirement_is_known(monkeypatch):
+    monkeypatch.setenv("PUBLIC_SITE_URL", "https://avasetu.test")
+    svc, db, _, _ = make()
+    await db.get_collection("agent_public_profiles").insert_one({"_id": "p1", "agent_id": "OWNER", "slug": "rahul", "is_public": True})
+    await db.get_collection("listings").insert_one({"_id": "L1", "agent_id": "OWNER", "title": "2 BHK apartment in Kharadi", "transaction": "sale",
+                                                    "price_inr": 7_800_000, "locality": "Kharadi", "city": "Pune", "bhk": 2, "carpet_sqft": 1000,
+                                                    "status": "live", "visibility": "public"})
+    r = await say(svc, "I want to buy a 2 BHK in Kharadi under 80 lakh")
+    assert "• 2 BHK apartment in Kharadi, 1,000 sq ft, ₹78 Lakh: https://avasetu.test/agent/rahul/listings/L1" in r["reply"]
+
+
+async def test_no_homes_are_listed_without_a_site_url(monkeypatch):
+    monkeypatch.delenv("PUBLIC_SITE_URL", raising=False)
+    svc, db, _, _ = make()
+    await db.get_collection("agent_public_profiles").insert_one({"_id": "p1", "agent_id": "OWNER", "slug": "rahul", "is_public": True})
+    r = await say(svc, "I want to buy a 2 BHK in Kharadi under 80 lakh")
+    assert "•" not in r["reply"] and "/listings/" not in r["reply"]

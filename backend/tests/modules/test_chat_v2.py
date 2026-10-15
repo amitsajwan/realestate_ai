@@ -397,3 +397,28 @@ async def test_a_question_with_no_keyword_on_a_listing_page_is_answered_from_tha
     d2 = engine.new_data()
     t2 = await engine.turn(d2, "Is it good for a family?", FakeLLM({"answerable": False, "answer": ""}), g)
     assert t2.needs_human and d2.get("gaps") == [{"q": "Is it good for a family?", "topics": ["other"]}]
+
+
+# ---- selling: a price objection and a visit request -------------------------------------------------------------------
+async def test_a_price_objection_asks_for_the_budget_again_instead_of_guessing():
+    d = engine.new_data()
+    t = await chat(d, ["I want to buy 2 BHK in Kharadi", "1 crore", "too costly, anything cheaper?"])
+    last = t[-1][1]
+    assert phrases.say("objection") in last.reply and ASKS["budget"] in last.reply and not last.needs_human
+    assert d["budget_max"] is None
+    await engine.turn(d, "70 lakh", None)
+    assert d["budget_max"] == 7_000_000
+
+
+async def test_an_objection_with_a_new_budget_takes_the_budget():
+    d = engine.new_data()
+    await chat(d, ["I want to buy 2 BHK in Kharadi", "1 crore", "too expensive, my budget is 70 lakh"])
+    assert d["budget_max"] == 7_000_000
+
+
+async def test_a_visit_request_is_confirmed_noted_on_the_lead_and_asks_for_the_number():
+    d = engine.new_data()
+    t = await chat(d, ["Can I visit this Sunday?"])
+    reply = t[-1][1].reply
+    assert "day and time" in reply and PHONE_ASK.search(reply) and d["visit_wanted"]
+    assert "Wants a site visit." in engine.summary(d)

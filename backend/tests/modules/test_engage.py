@@ -502,3 +502,80 @@ async def test_a_question_without_a_keyword_is_answered_from_the_posts_facts_and
     nothing = ScriptedLLM({"intent": "question", "language": "en"}, {"answerable": False, "answer": ""})
     d2 = await decide("Is it good for a family?", "Asha", FACTS, LINK, nothing, grounding=g)
     assert d2.needs_human and d2.gaps == ["other"] and LINK in d2.reply      # said plainly, with the link; the gap is recorded
+
+
+# ---- turning a comment into a lead: numbers, requirements, objections, praise --------------------------------------------
+@pytest.mark.parametrize("text", ["Call me 9876543210", "my number 98765 43210 pls call", "whatsapp me on +91-98765-43210"])
+async def test_a_number_in_the_comment_is_captured_and_never_repeated_in_the_reply(text):
+    d = await decide(text, "Rohit Patil", FACTS, LINK, None)
+    assert d.intent == "interested" and d.phone == "+919876543210" and d.signal == "phone"
+    assert "98765" not in d.reply and "call you" in d.reply and "delete the number" in d.reply
+
+
+async def test_a_number_in_a_spam_comment_is_still_spam():
+    d = await decide("Earn money from home, whatsapp 9876543210", "x", FACTS, LINK, None)
+    assert d.intent == "spam" and d.reply is None and d.phone is None
+
+
+@pytest.mark.parametrize("text,want", [("Need 2bhk in Baner under 80L", "2 BHK, Baner, under 80L"), ("Any 3 BHK?", "3 BHK"),
+                                       ("Budget 70 lakh, any option?", "under 70L"), ("whatsapp me for 2bhk wagholi", "2 BHK, Wagholi")])
+async def test_a_stated_requirement_is_a_lead_and_the_reply_repeats_it(text, want):
+    d = await decide(text, "Rohit", FACTS, LINK, None)
+    assert d.intent == "interested" and d.signal == "requirement" and f"Noted: {want}." in d.reply and LINK in d.reply
+    assert d.requirement and not d.needs_human
+
+
+async def test_a_question_about_the_post_is_not_mistaken_for_a_requirement():
+    d = await decide("Is it 2 BHK?", "Rohit", FACTS, LINK, None)
+    assert d.signal != "requirement"
+
+
+@pytest.mark.parametrize("text", ["Too expensive", "very costly yaar", "bahut mehenga hai"])
+async def test_a_price_objection_gets_a_reply_asking_for_the_budget(text):
+    d = await decide(text, "Rohit", FACTS, LINK, None)
+    assert d.intent == "interested" and d.signal == "objection" and "budget" in d.reply and not d.needs_human
+
+
+@pytest.mark.parametrize("text", ["Nice flat \U0001F60D", "\U0001F44D", "Wow", "superb view", "\u2764\ufe0f\u2764\ufe0f"])
+async def test_short_praise_is_thanked_without_a_call_to_a_person(text):
+    d = await decide(text, "Rohit", FACTS, LINK, None)
+    assert d.intent == "praise" and d.reply and not d.needs_human
+
+
+@pytest.mark.parametrize("text", ["Send brochure", "pls share details", "माहिती पाहिजे", "send price list"])
+async def test_asking_for_material_is_interest(text):
+    d = await decide(text, "Rohit", FACTS, LINK, None)
+    assert d.intent == "interested" and LINK in d.reply
+
+
+async def test_instagram_requirement_and_objection_replies_carry_no_link():
+    for text in ("Need 2bhk in Baner under 80L", "Too expensive"):
+        d = await decide(text, "Rohit", FACTS, LINK, None, channel="instagram", handle="avasetu")
+        assert d.intent == "interested" and "http" not in d.reply and "bio" in d.reply
+
+
+async def test_a_commenter_who_writes_their_number_becomes_a_callable_lead_and_gets_no_dm_asking_for_it():
+    svc, g, db = make_dm([post([comment("C1", "Interested in 2bhk, call me 98765 43210")])])
+    await svc.run_once()
+    lead = db.get_collection("contacts").docs[0]
+    assert lead["phone"] == "+919876543210" and lead["consent"]["given_at"] == NOW and lead["score_base"] == 25
+    assert lead["requirement"]["bhk"] == 2.0 and g.dms == []
+    assert "98765" not in g.replies[0][1]
+
+
+async def test_a_stated_requirement_goes_onto_the_lead_and_the_reply_mentions_the_message_only_when_one_is_sent():
+    svc, g, db = make_dm([post([comment("C1", "Need 2bhk in Baner under 80L")])])
+    await svc.run_once()
+    lead = db.get_collection("contacts").docs[0]
+    assert lead["requirement"]["localities"] == ["Baner"] and lead["requirement"]["budget_max_inr"] == 8_000_000 and lead["score_base"] == 18
+    assert "sending you a message" in g.replies[0][1] and len(g.dms) == 1
+    svc, g, db = make([post([comment("C1", "Need 2bhk in Baner under 80L")])], owner_agent_id="OWNER")
+    await svc.run_once()
+    assert "sending you a message" not in g.replies[0][1]
+
+
+async def test_praise_never_alerts_the_agent():
+    svc, g, db = make([post([comment("C1", "Nice flat \U0001F60D")])], owner_agent_id="OWNER")
+    await svc.run_once()
+    assert db.get_collection("engage_comments").docs[0]["intent"] == "praise"
+    assert db.get_collection("notifications").docs == [] and db.get_collection("contacts").docs == []

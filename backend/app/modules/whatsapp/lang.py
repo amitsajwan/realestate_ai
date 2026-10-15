@@ -45,6 +45,16 @@ FIXED: List[Tuple[str, Dict[str, str]]] = [
         "hinglish": "Main yeh hamari team tak pahuncha deta hoon. Ghar dhoondhne mein madad chahiye to bas bataiye.",
         "mr": "मी हे आमच्या टीमपर्यंत पोहोचवतो. घर शोधायला मदत हवी असल्यास सांगा.",
         "mr_latn": "Mi he aamchya team paryant pohochavto. Ghar shodhayla madat havi aslyas sanga."}),
+    ("Understood, that is more than you want to spend. Tell me your budget and I will show homes that fit it.", {
+        "hi": "समझ गया, यह आपके बजट से ज़्यादा है। अपना बजट बताइए, मैं उसी रेंज के घर दिखाता हूँ।",
+        "hinglish": "Samajh gaya, yeh aapke budget se zyada hai. Apna budget bataiye, main usi range ke ghar dikhata hoon.",
+        "mr": "समजले, हे तुमच्या बजेटपेक्षा जास्त आहे. तुमचे बजेट सांगा, मी त्या रेंजमधील घरे दाखवतो.",
+        "mr_latn": "Samajle, he tumchya budget peksha jast aahe. Tumche budget sanga, mi tya range madhil ghare dakhavto."}),
+    ("Happy to set up a visit. The agent will confirm a day and time with you.", {
+        "hi": "विज़िट ज़रूर तय करेंगे। एजेंट आपके साथ दिन और समय पक्का करेंगे।",
+        "hinglish": "Visit zaroor arrange karenge. Agent aapke saath din aur time confirm karenge.",
+        "mr": "भेट नक्की ठरवू. एजंट तुमच्याशी दिवस आणि वेळ निश्चित करतील.",
+        "mr_latn": "Bhet nakki tharavu. Agent tumchyashi diwas ani vel nishchit kartil."}),
 ]
 GOT_IT = {"en": "Got it: ", "hi": "ठीक है: ", "hinglish": "Theek hai: ", "mr": "ठीक आहे: ", "mr_latn": "Theek aahe: "}
 OPTIONS = {"en": "Reply with: ", "hi": "जवाब दें: ", "hinglish": "Reply karein: ", "mr": "उत्तर द्या: ", "mr_latn": "Uttar dya: "}

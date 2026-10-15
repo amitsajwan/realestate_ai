@@ -31,8 +31,61 @@ def new_chat_state(phone: str, name: Optional[str]) -> dict:
     return d
 
 
-async def chat_turn(data: dict, text: str, llm, grounding):
-    return await engine.turn(data, text, llm, grounding)
+async def chat_turn(data: dict, text: str, llm, grounding, finder=None):
+    return await engine.turn(data, text, llm, grounding, finder=finder)
+
+
+def _site_url() -> str:
+    import os
+    return (os.environ.get("PUBLIC_SITE_URL") or "").strip().rstrip("/")
+
+
+async def homes_finder(db, agent_id: Optional[str]):
+    """The engine's `finder` for a chat away from the website: up to three of the agent's live public homes that fit what the buyer said,
+    the same matching and cards as the website chat. None (no homes are shown) without an agent, a public profile or PUBLIC_SITE_URL,
+    because a card is only useful with a link the buyer can open."""
+    if not agent_id or not _site_url():
+        return None
+    try:
+        from app.modules.chat.service import CARD_MIN_PCT, MAX_LISTINGS_SCANNED, PUBLIC, card
+        from app.modules.listings.freshness import is_hidden
+        from app.modules.tracking import matching
+        profile = await db.get_collection("agent_public_profiles").find_one({"agent_id": agent_id, "is_public": True})
+    except Exception as e:  # homes are a help, never a reason to drop a buyer's message
+        log.info("homes finder unavailable: %s", type(e).__name__)
+        return None
+    if not profile or not profile.get("slug"):
+        return None
+    slug = profile["slug"]
+
+    async def find(req: dict, exclude: Optional[str]) -> list:
+        try:
+            docs = await db.get_collection("listings").find({"agent_id": agent_id, **PUBLIC}).to_list(MAX_LISTINGS_SCANNED)
+            now = datetime.utcnow()
+            docs = [d for d in docs if d["_id"] != exclude and not is_hidden(d, now)]
+            by_id = {d["_id"]: d for d in docs}
+            tx = req.pop("transaction", "sale")
+            top = matching.top_matches(req, docs, tx, limit=10)
+            return [card(by_id[m["listing_id"]], slug) for m in top if m["match_pct"] >= CARD_MIN_PCT and m["listing_id"] in by_id][:3]
+        except Exception as e:
+            log.info("homes finder failed: %s", type(e).__name__)
+            return []
+    return find
+
+
+def card_lines(cards: list) -> str:
+    """Home cards as message text, one line each with its link: '• 2 BHK in Kharadi, 1,100 sq ft, ₹78 Lakh: https://…'. Samples say so."""
+    site = _site_url()
+    out = []
+    for c in cards or []:
+        bits = [c.get("title") or "Home"]
+        if c.get("carpet_sqft"):
+            bits.append(f"{int(c['carpet_sqft']):,} sq ft")
+        if c.get("price_text"):
+            bits.append(c["price_text"])
+        label = " (sample)" if c.get("sample") else ""
+        out.append(f"• {', '.join(bits)}{label}: {site}{c.get('url') or ''}")
+    return "\n".join(out)
 
 
 def summary(data: dict) -> str:
@@ -299,6 +352,8 @@ async def upsert_dm_lead(db, *, agent_id: str, platform: str, sender: str, data:
             changes.update(phone=phone, score_base=max(int(existing.get("score_base") or 0), 25))
             if not (existing.get("consent") or {}).get("given_at"):
                 changes["consent"] = consent
+        if data.get("name") and (existing.get("name") or "") in ("", f"{DM_LABEL[platform]} buyer"):
+            changes["name"] = data["name"][:100]  # the buyer told us their name after the lead was made
         await contacts.update_one({"_id": existing["_id"]}, {"$set": changes, "$addToSet": {"anon_ids": f"{platform}_dm:{sender}"}})
         return existing["_id"], False
     cid = uuid.uuid4().hex

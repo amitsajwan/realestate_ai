@@ -143,6 +143,20 @@ P: Dict[str, Dict[str, str]] = {
     # ---- the rest (English kept identical to whatsapp.lang.FIXED) -------------------------------------------------
     "anything_else": {"en": "Is there anything else I can help you with?", "hinglish": "Kya main aapki aur koi madad kar sakta hoon?",
                       "hi": "क्या मैं आपकी और कोई मदद कर सकता हूँ?", "mr": "अजून काही मदत हवी आहे का?", "mr_latn": "Ajun kahi madat havi aahe ka?"},
+    "objection": {
+        "en": "Understood, that is more than you want to spend. Tell me your budget and I will show homes that fit it.",
+        "hinglish": "Samajh gaya, yeh aapke budget se zyada hai. Apna budget bataiye, main usi range ke ghar dikhata hoon.",
+        "hi": "समझ गया, यह आपके बजट से ज़्यादा है। अपना बजट बताइए, मैं उसी रेंज के घर दिखाता हूँ।",
+        "mr": "समजले, हे तुमच्या बजेटपेक्षा जास्त आहे. तुमचे बजेट सांगा, मी त्या रेंजमधील घरे दाखवतो.",
+        "mr_latn": "Samajle, he tumchya budget peksha jast aahe. Tumche budget sanga, mi tya range madhil ghare dakhavto.",
+    },
+    "visit_ok": {
+        "en": "Happy to set up a visit. The agent will confirm a day and time with you.",
+        "hinglish": "Visit zaroor arrange karenge. Agent aapke saath din aur time confirm karenge.",
+        "hi": "विज़िट ज़रूर तय करेंगे। एजेंट आपके साथ दिन और समय पक्का करेंगे।",
+        "mr": "भेट नक्की ठरवू. एजंट तुमच्याशी दिवस आणि वेळ निश्चित करतील.",
+        "mr_latn": "Bhet nakki tharavu. Agent tumchyashi diwas ani vel nishchit kartil.",
+    },
     "dont_guess": {
         "en": "I do not want to guess on that one. I will ask our team to confirm it for you.",
         "hinglish": "Is baare mein main andaaza nahi lagana chahta. Hamari team se confirm karwa deta hoon.",

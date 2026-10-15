@@ -190,14 +190,20 @@ class WhatsAppService:
     async def _answer(self, conv: dict, text: str, lang: str) -> str:
         data = conv["data"]
         grounding = await adapters.grounding_for(self.db, conv.get("context"), data.get("locality"))
-        t = await adapters.chat_turn(data, text, self.llm, grounding)
-        reply, english_left = L.localise_fixed(t.reply, lang)
-        if english_left and self.llm is not None:
-            translated = await adapters.translate(t.reply, lang, self.llm)
-            if translated != t.reply:
-                reply = translated
+        t = await adapters.chat_turn(data, text, self.llm, grounding, finder=await adapters.homes_finder(self.db, conv.get("agent_id")))
+        # the homes sit between what we found and what we ask next, as on the website; the links are never translated
+        parts = [await self._say(t.reply, lang), adapters.card_lines(t.cards), await self._say(t.follow_up, lang) if t.follow_up else ""]
+        reply = "\n".join(p for p in parts if p)
         opts = L.options_line(t.quick, lang)
         return f"{reply}\n{opts}" if opts else reply
+
+    async def _say(self, body: str, lang: str) -> str:
+        reply, english_left = L.localise_fixed(body, lang)
+        if english_left and self.llm is not None:
+            translated = await adapters.translate(body, lang, self.llm)
+            if translated != body:
+                reply = translated
+        return reply
 
     async def _lead(self, conv: dict, agent_id: str, wa_id: str, pid: str, text: str, now: datetime) -> None:
         try:
