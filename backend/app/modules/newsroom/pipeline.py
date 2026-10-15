@@ -3,6 +3,7 @@ collect -> new; filter -> relevant|dropped; extract -> extracted|dropped; draft 
 owner approves in the UI; approved -> publish (capped per day) -> scheduled|published. One item failing never stops the rest.
 Alongside: collect also records in-area MahaRERA projects in the project register (before any filter, so age does not matter),
 and filter links each kept news item to the registered projects it clearly names."""
+import functools
 import inspect
 import logging
 from datetime import datetime, timedelta
@@ -272,11 +273,22 @@ async def _publish(store: Store, publisher: Publisher, now: datetime, cfg: Newsr
             await _fail(store, doc, "publish", e)
 
 
+def _at(fn: Callable, now: datetime) -> Callable:
+    """`fn` with `now` bound when it takes one (stages.check does); any other check is used as it is."""
+    try:
+        takes = "now" in inspect.signature(fn).parameters
+    except (TypeError, ValueError):
+        takes = False
+    return functools.partial(fn, now=now) if takes else fn
+
+
 async def run_once(store: Store, sources: list, stages: Optional[Dict[str, Callable]], publisher: Optional[Publisher], llm,
                    now: datetime, cfg: NewsroomConfig) -> dict:
     """Runs every step once and returns counters. `stages` keys: filter, extract, draft, check, and optional `get` (Fetcher for sources).
     Without an `llm` the LLM stages (extract, draft) wait; without a `publisher` nothing is published."""
     stages = stages or default_stages()
+    if "check" in stages:   # the run's own clock decides an item's age, not the wall clock at the moment the check runs
+        stages = {**stages, "check": _at(stages["check"], now)}
     counts = {k: 0 for k in ("collected", "filter", "extract", "draft", "check", "published", "capped", "errors", "projects")}
     if sources:
         await _collect(store, sources, stages["get"] if "get" in stages else _no_fetch, counts, now)

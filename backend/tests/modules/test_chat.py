@@ -327,7 +327,7 @@ async def test_an_agent_hears_the_trial_and_never_a_price_after_it():
     d = engine.new_data()
     await say(d, "hi")
     t = await say(d, "I'm an agent")
-    assert "first 3 properties" in t.reply and "/trial" in t.reply and not t.quick
+    assert "first month is free" in t.reply and "/trial" in t.reply and not t.quick
     t = await say(d, "how much for agents after the trial?")
     assert "small monthly fee" in t.reply and "Rs" not in t.reply and "₹" not in t.reply
 

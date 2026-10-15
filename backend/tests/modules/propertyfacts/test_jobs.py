@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from app.modules.propertyfacts import jobs
+from app.modules.propertyfacts import campaign, jobs
 from app.modules.propertyfacts.store import FactsStore
 
 from ..fakes import FakeDb
@@ -114,7 +114,7 @@ async def test_facts_then_posts(tmp_path):
     assert d["facts"]["maharera"] == "P52100076768" and d["facts"]["usable"] > 10
     assert d["page_url"] == PROJECT_URL                                   # a registered project: its own page is the link
     assert d["listing_url"] == "https://avasetu.in/agent/priya/listings/L1"
-    assert len(d["posts"]) >= 10 and all(i.startswith("/uploads/campaigns/L1/") for p in d["posts"] for i in p["images"])
+    assert len(d["posts"]) == 1 + campaign.FOLLOW_UPS and all(i.startswith("/uploads/campaigns/L1/") for p in d["posts"] for i in p["images"])
     assert (await clients.facts_store.get("P52100076768"))["listing_id"] == "L1"     # the knowledge base is kept
     assert all("Full details of Gulmohar City, Ranjangaon, with its MahaRERA record: link in bio." in p["caption"]
                for p in d["posts"])
@@ -155,12 +155,16 @@ async def test_a_done_run_is_reused_until_the_listing_changes_or_again(tmp_path)
     assert created
 
 
-async def test_an_interrupted_run_is_failed_later(tmp_path):
+async def test_an_interrupted_run_is_retried_once_then_failed(tmp_path):
     db, runs, _, _ = await setup(tmp_path)
     await runs.create("a1", "L1")
     await runs.claim()
     later = jobs.MarketingRuns(db, tmp_path, now=lambda: NOW + timedelta(hours=1))
-    await later.fail_stale()
+    await later.fail_stale()                                   # cut off by a restart (a deploy): queued again, from the start
+    d = await later.latest("a1", "L1")
+    assert d["status"] == "queued" and d["resumed"] and d["posts"] == []
+    await later.claim()
+    await later.fail_stale()                                   # cut off a second time: it fails with a message
     d = await later.latest("a1", "L1")
     assert d["status"] == "failed" and "interrupted" in d["error"]
 
@@ -196,7 +200,8 @@ async def test_send_to_calendar_plans_rows_for_approval(tmp_path):
     assert when == ["10-07 11:00", "10-07 19:00", "10-08 11:00", "10-09 11:00"]
     assert all(not i.startswith("/") and i.startswith("campaigns/L1/") for r in posts for i in r["images"])
     fb = next(r for r in rows if r["channel"] == "facebook_page")
-    assert PROJECT_URL + "?src=fb_" in fb["caption"] and "link in bio" not in fb["caption"]
+    # Facebook links to this listing's own page (its photos, as in the post: jobs._post_page)
+    assert "https://avasetu.in/agent/priya/listings/L1?src=fb_" in fb["caption"] and "link in bio" not in fb["caption"]
     assert "link in bio" in ig[0]["caption"]
     again = await runs.to_calendar("a1", "L1")                # pressing twice adds nothing
     assert len([r for r in await cal.all() if r["slug"].startswith("campaign-L1-")]) == 2 * n + 2
@@ -225,7 +230,7 @@ async def test_reels_are_made_after_the_posts(tmp_path):
     ads = [r for r in d["reels"] if r["kind"] == "ad"]
     assert len(ads) == min(jobs.AD_REELS, len(d["posts"])) and all(k == "GULMOHAR CITY" for _, _, k in RENDERED)
     assert [r["angle"] for r in ads] == [p["angle"] for p in d["posts"][:len(ads)]]
-    assert ads[0]["script"]["hook"] and "VISIT" in ads[0]["caption"] and ads[0]["format"] in ("price_reveal", "three_reasons", "pov",
+    assert ads[0]["script"]["hook"] and "VISIT" in ads[0]["caption"] and ads[0]["format"] in ("showcase", "price_reveal", "three_reasons", "pov",
                                                                                             "myth_fact", "checklist")
     out = jobs.run_out(d, "https://api.avasetu.in")
     assert out["reels"][0]["video"].startswith("https://api.avasetu.in/uploads/campaigns/L1/")
@@ -258,7 +263,7 @@ async def test_a_reel_failure_never_loses_the_posts(tmp_path):
     await runs.create("a1", "L1")
     await runs.run_once()
     d = await runs.latest("a1", "L1")
-    assert d["status"] == "done" and len(d["posts"]) >= 10
+    assert d["status"] == "done" and len(d["posts"]) == 1 + campaign.FOLLOW_UPS
     assert [r["kind"] for r in d["reels"]] == ["walkthrough"]
 
 
@@ -345,7 +350,8 @@ async def test_page_first_asks_for_the_page_text_without_waiting(tmp_path):
     runs.enrich_now = enrich_now
     await runs.create("a1", "L1")
     await runs.run_once()
-    assert asked == [("P52100076768", "campaign")] and (await runs.latest("a1", "L1"))["status"] == "done"
+    # asked on each pass of the facts step (the files question sends the run through it again): never for anything else
+    assert set(asked) == {("P52100076768", "campaign")} and (await runs.latest("a1", "L1"))["status"] == "done"
 
     async def broken(db, regno, by="campaign"):
         raise RuntimeError("loop off")

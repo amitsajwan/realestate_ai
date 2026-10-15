@@ -2,7 +2,7 @@
 from datetime import datetime, timedelta
 
 from app.modules.onboarding.invites import InviteService
-from app.modules.onboarding.trial import TrialService
+from app.modules.onboarding.trial import TRIAL_DAYS, TrialService
 from app.modules.whatsapp.service import TRIAL_RX
 
 from .fakes import FakeDb
@@ -24,7 +24,7 @@ async def test_a_claim_issues_a_working_code_and_records_the_trial():
     assert c.status == "issued" and len(c.code) == 6
     await inv.verify(PHONE, c.code)                       # the normal join flow accepts it
     doc = await db.get_collection("invites").find_one({"_id": PHONE})
-    assert (doc["label"], doc["plan"], doc["trial_properties"], doc["claimed_via"]) == ("trial", "trial", 3, "whatsapp")
+    assert (doc["label"], doc["plan"], doc["trial_days"], doc["claimed_via"]) == ("trial", "trial", TRIAL_DAYS, "whatsapp")
     assert "code" not in doc and c.code not in str(doc)   # only the hash is kept
 
 
@@ -72,7 +72,7 @@ async def test_trial_on_whatsapp_replies_with_the_code_and_makes_no_buyer_lead(m
     r = await say(svc, "TRIAL")
     assert r["status"] == "trial" and r["lead_id"] is None
     reply = r["reply"]
-    assert "free trial is ready" in reply and "first 3 properties" in reply and "/join?phone=9876543210" in reply
+    assert "free trial is ready" in reply and "1 month free" in reply and "/join?phone=9876543210" in reply
     assert await db.get_collection("contacts").count_documents({}) == 0          # an agent, not a buyer lead
     assert (await db.get_collection("invites").find_one({"_id": "+" + BUYER}))["plan"] == "trial"
 

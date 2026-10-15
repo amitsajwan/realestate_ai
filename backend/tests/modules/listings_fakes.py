@@ -37,7 +37,7 @@ class ListingsCollection(FakeCollection):
     async def count_documents(self, flt=None):
         return sum(1 for d in self.docs if match(d, flt or {}))
 
-    def find(self, flt=None):
+    def find(self, flt=None, projection=None):   # projection accepted as Mongo does; whole documents come back
         return _SkipCursor([d for d in self.docs if match(d, flt or {})])
 
     async def update_one(self, flt, update):

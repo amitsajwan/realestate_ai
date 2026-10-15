@@ -52,7 +52,7 @@ def test_display_url(record, shown):
     assert display_url(record) == shown
 
 
-def test_public_media_keeps_only_the_shown_url():
+def test_public_media_keeps_only_the_shown_url_of_each_photo():
     class Model:
         def model_dump(self):
             return {"url": "/uploads/images/m.jpg", "kind": "video", "order": 2}
@@ -61,7 +61,6 @@ def test_public_media_keeps_only_the_shown_url():
              Model(), "junk", {"url": "u"}]
     assert public_media(media) == [
         {"url": ENH, "kind": "image", "order": 1},
-        {"url": "/uploads/images/m.jpg", "kind": "video", "order": 2},
         {"url": "u", "kind": "image", "order": 0},
-    ]
+    ]   # the video is a project file for Studio, never shown on a public page
     assert public_media(None) == []
