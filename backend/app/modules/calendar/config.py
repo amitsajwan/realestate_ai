@@ -38,6 +38,8 @@ class CalendarConfig:
     pace_minutes: int = 0
     # Date-watch reels (delay_reels.autoplan): the loop plans next Monday's board and Thursday's moves as PLANNED rows, once a day
     delay_reels: bool = True
+    # Number of the week (number_reels.autoplan): the loop plans next Wednesday's number reel as a PLANNED row, once a day
+    number_reels: bool = True
     # "Post now" never sends two posts on one channel closer than this: the rest queue a few minutes apart (Meta's limits)
     post_now_gap_minutes: int = 10
 
@@ -52,6 +54,7 @@ def load() -> CalendarConfig:
         daily_reels=_env("CALENDAR_DAILY_REELS").lower() in TRUE,
         daily_per_day=max(1, min(3, _int("CALENDAR_DAILY_REELS_PER_DAY", 2))),
         delay_reels=_env("CALENDAR_DELAY_REELS", "on").lower() in TRUE,
+        number_reels=_env("CALENDAR_NUMBER_REELS", "on").lower() in TRUE,
         pace_minutes=max(0, _int("CALENDAR_PACE_MINUTES", 0)),
         post_now_gap_minutes=max(1, _int("CALENDAR_POST_NOW_GAP_MINUTES", 10)))
 

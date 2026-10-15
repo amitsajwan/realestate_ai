@@ -36,6 +36,8 @@ export interface ContentItem {
   source?: string | null
   /** The property campaign (one per listing, "Start marketing") this post belongs to. */
   campaign?: { id: string; title: string } | null
+  /** Why people will relate to it, for system-picked posts (number of the week): a score and its reasons in words. */
+  relate?: { score: number; reasons: string[] } | null
 }
 
 /** The Instagram and Facebook copies of one post (same slug), shown and handled as one card. */
@@ -73,7 +75,16 @@ export function normalizeItem(raw: unknown): ContentItem {
     group: CONTENT_TYPES.includes(r.group as ContentType) ? (r.group as ContentType) : 'other',
     source: typeof r.source === 'string' ? r.source : null,
     campaign: campaignOf(r.campaign),
+    relate: relateOf(r.relate),
   }
+}
+
+function relateOf(raw: unknown): ContentItem['relate'] {
+  if (!raw || typeof raw !== 'object') return null
+  const r = raw as Record<string, unknown>
+  const reasons = Array.isArray(r.reasons) ? r.reasons.filter((x): x is string => typeof x === 'string' && x.trim() !== '') : []
+  if (typeof r.score !== 'number' || reasons.length === 0) return null
+  return { score: r.score, reasons }
 }
 
 function campaignOf(raw: unknown): ContentItem['campaign'] {

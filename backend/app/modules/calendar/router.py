@@ -38,7 +38,8 @@ def _view(d: dict, rows: Optional[list] = None) -> dict:
             "creative": {k: c.get(k) for k in ("role", "path", "layout", "format", "hook", "template", "area", "ok", "problems") if k in c},
             "attempts": d.get("attempts", 0), "error": d.get("error"), "permalink": d.get("permalink"),
             "published_at": d.get("published_at"), "note": ((d.get("history") or [{}])[-1] or {}).get("note"),
-            "duplicate_of": _dup_view(d, rows), "source": c.get("source") or None, "group": group_of(d), "campaign": _campaign(d)}
+            "duplicate_of": _dup_view(d, rows), "source": c.get("source") or None, "group": group_of(d), "campaign": _campaign(d),
+            "relate": c.get("relate") or None}  # why people will relate (number_reels): shown to the owner before approving
 
 
 def _campaign(d: dict) -> Optional[dict]:

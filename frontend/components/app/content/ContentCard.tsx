@@ -140,6 +140,15 @@ export function ContentCard({ group, open = false, onToggle, onApprove, onSkip, 
             </p>
           )}
 
+          {first.relate && (
+            <div className="rounded-xl bg-[#fbf6ea] p-3 text-sm text-[#0f2340]" data-testid="relate">
+              <p className="font-semibold">Why people will relate to this</p>
+              <ul className="mt-1 list-disc space-y-0.5 pl-5">
+                {first.relate.reasons.map((r) => <li key={r}>{r}</li>)}
+              </ul>
+            </div>
+          )}
+
           {first.image_urls.length > 0 && (
             <div className="-mx-1 snap-x snap-mandatory gap-2 overflow-x-auto px-1 pb-1 [display:flex]" data-testid="carousel" aria-label="Post images">
               {first.image_urls.map((u, i) => (

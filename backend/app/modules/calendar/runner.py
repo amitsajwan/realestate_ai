@@ -189,6 +189,7 @@ async def loop() -> None:
     log.info("calendar: loop started")
     rendering: Optional[asyncio.Task] = None
     planned_on = None  # the IST day the date-watch reels were last planned (once a day is enough)
+    planned_numbers_on = None  # the same for the number of the week
     tagged = False   # rows written before tags existed get them once per start, by the system itself (idempotent)
     while True:
         cfg = load()
@@ -221,6 +222,15 @@ async def loop() -> None:
                                 log.info("calendar: %s date-watch rows planned", n)
                         except Exception:
                             log.exception("calendar: date-watch planning failed")
+                    if cfg.number_reels and planned_numbers_on != today:
+                        planned_numbers_on = today
+                        try:   # the same: planned rows only, never holds up publishing
+                            from . import number_reels
+                            n = await number_reels.autoplan(store.db, store, today, uploads_dir(), say=log.info)
+                            if n:
+                                log.info("calendar: %s number-of-the-week rows planned", n)
+                        except Exception:
+                            log.exception("calendar: number-of-the-week planning failed")
                     counts = await run_once(store, graph_publisher(social), social, cfg, now)
                     if any(counts.values()):
                         log.info("calendar: cycle done %s (dry_run=%s)", counts, social.dry_run)

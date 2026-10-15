@@ -204,6 +204,8 @@ describe('content client', () => {
     expect(n).toMatchObject({ id: '7', kind: 'post', channel: 'facebook_page', image_urls: [], status: 'approved', week: null, video_url: null, group: 'other', campaign: null })
     expect(normalizeItem({ group: 'listings', source: 'campaign', campaign: { id: 'L1', title: ' ' } })).toMatchObject({ group: 'listings', source: 'campaign', campaign: { id: 'L1', title: 'Property campaign' } })
     expect(normalizeItem({ group: 'nope', campaign: { title: 'x' } })).toMatchObject({ group: 'other', campaign: null })
+    expect(normalizeItem({ relate: { score: 5, reasons: ['stake: risk', ''] } }).relate).toEqual({ score: 5, reasons: ['stake: risk'] })
+    expect(normalizeItem({ relate: { score: 5, reasons: [] } }).relate).toBeNull()
   })
 
   it('formats due times in India time and builds media urls', () => {
