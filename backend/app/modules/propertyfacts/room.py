@@ -86,7 +86,8 @@ KM = re.compile(r"(\d+(?:\.\d+)?)\s*km\b", re.I)
 # claims the facts never carry (the third live meeting: "ready soon", "registration ensures compliance", "premium finishes")
 UNBACKED = re.compile(r"\bensur\w*|\bguarant\w*|\bcomplian\w*|\btransparen\w*|\bsecure (?:home |your )?(?:purchase|investment)\b"
                       r"|\blimited (?:units|stock|period)\b|\bfew (?:units|homes) left\b|\bfinish(?:es|ing)\b|\bappreciat\w*"
-                      r"|\b(?:homes?|units?|project|flats?) (?:are |is )?approved\b|\bapproved (?:homes?|units?|project|flats?)\b", re.I)
+                      r"|\b(?:homes?|units?|project|flats?) (?:are |is )?approved\b|\bapproved (?:homes?|units?|project|flats?)\b"
+                      r"|\bawaiting your move\b|\bmove[\s-]*in\b|\bprogress (?:is )?visible\b|\baward[\s-]*winning\b", re.I)
 READY = re.compile(r"\bready\b", re.I)
 # the future is for infrastructure; the project itself is launched (Camelot reels said "Lodha Camelot is coming")
 NOT_YET = re.compile(r"\bcoming\b|\bsoon\b|\bupcoming\b|\blaunch(?:ing|es)?\b|\bfuture of\b|\bon the way\b", re.I)
