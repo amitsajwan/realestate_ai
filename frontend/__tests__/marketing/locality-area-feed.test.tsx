@@ -185,7 +185,7 @@ describe('area page as the hub', () => {
   it('has a title and description buyers search for, and a canonical URL', async () => {
     const m = await generateMetadata({ params: Promise.resolve({ slug: 'keshav-nagar' }) })
     expect(m.title).toBe('Keshav Nagar, Pune: projects, MahaRERA records and buyer guide')
-    expect(String(m.description)).toMatch(/^[^.]+\. Projects, MahaRERA records, getting around and what to check before you buy\.$/)
+    expect(String(m.description)).toMatch(/^[^.]+\. Projects, MahaRERA records and what to check before you buy\.$/)
     expect(String(m.alternates?.canonical)).toMatch(/\/localities\/keshav-nagar$/)
   })
 })

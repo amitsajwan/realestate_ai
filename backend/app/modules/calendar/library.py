@@ -1,4 +1,4 @@
-"""Evergreen library: 40 stable posts for Pune home buyers (Kharadi, Upper Kharadi, Wagholi, east Pune).
+"""Evergreen library: stable posts for Pune home buyers (Kharadi, Upper Kharadi, Wagholi, east Pune).
 
 Rules every entry follows (enforced by tests and `calendar_admin.py --dry-check`):
   * no prices, predictions, statistics, builder names, phone numbers or personal names;

@@ -10,7 +10,7 @@ from unittest import mock
 import pytest
 from PIL import Image
 
-from app.modules.calendar import adapters, builder, library
+from app.modules.calendar import adapters, builder, library, tags
 from app.modules.calendar.plan import build_plan
 from app.modules.calendar.schedule import IST
 from app.modules.calendar.store import Store
@@ -190,7 +190,7 @@ def test_every_planned_row_carries_tags_with_a_known_format_and_hook(built):
     _, rows, _, _ = built
     for r in rows:
         t = r["tags"]
-        assert t["schema"] == 1 and t["kind"] == r["kind"]
+        assert t["schema"] == tags.TAGS_SCHEMA and t["kind"] == r["kind"]
         assert t["format"] != "unknown" and t["hook_type"] != "unknown" and t["hook"], (r["slug"], t)
         assert t["audience"] in ("buyers", "agents") and t["pillar"] != "unknown"
     assert {r["tags"]["format"] for r in rows if r["kind"] == "reel"} <= \

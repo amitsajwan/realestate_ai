@@ -22,7 +22,8 @@ def admin():
 
 def test_dry_check_passes_on_the_library(admin, capsys):
     assert admin.main(["--dry-check"]) == 0
-    assert "39 posts checked, 0 problem(s)" in capsys.readouterr().out
+    from app.modules.calendar.library import ENTRIES
+    assert f"{len(ENTRIES)} posts checked, 0 problem(s)" in capsys.readouterr().out
 
 
 def test_dry_check_fails_on_a_bad_caption(admin, monkeypatch, capsys):

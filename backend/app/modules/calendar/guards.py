@@ -27,6 +27,9 @@ def site_paths(frontend: Optional[Path] = None) -> Optional[Set[str]]:
     if not (root / "lib" / "marketing" / "insights.ts").is_file():
         return None
     paths = {"/", "/localities", "/insights", "/request-invite", "/trial"}
+    app = root / "app"   # every top-level page the frontend has (/go, /news, ...), so a new page needs no edit here
+    if app.is_dir():
+        paths |= {f"/{d.name}" for d in app.iterdir() if (d / "page.tsx").is_file() and not d.name.startswith(("[", "(", "_"))}
     ins = root / "lib" / "marketing" / "insights.ts"
     loc = root / "lib" / "marketing" / "localities.ts"
     if ins.is_file():

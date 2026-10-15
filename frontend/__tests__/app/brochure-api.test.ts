@@ -198,9 +198,10 @@ test('file checks before upload: PDF only, not empty, 30 MB at most', () => {
 test('MahaRERA number format and kit helpers', () => {
   expect(isReraNo('P52100076768')).toBe(true)
   expect(isReraNo('p5210 0076768')).toBe(true)
-  expect(isReraNo('P42100076768')).toBe(false)
+  expect(isReraNo('PR1260002501386')).toBe(true) // the current form: P, a letter, 13 digits (core/rera.py)
+  expect(isReraNo('PR12600025013')).toBe(false) // a letter needs 13 digits after it
   expect(isReraNo('P5')).toBe(false)
-  expect(isReraNo('P5210007676')).toBe(false) // 9 digits: the server wants 10
+  expect(isReraNo('P5210007676')).toBe(false) // 10 digits: the server wants 11
   expect(isReraNo('P521000767680')).toBe(false)
   expect(isReraNo('PR1234567')).toBe(false)
   expect(pendingFacts(kit)).toHaveLength(4)

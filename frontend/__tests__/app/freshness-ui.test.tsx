@@ -37,13 +37,15 @@ jest.mock('@/lib/app/concierge', () => ({
   conciergeApi: { list: (...a: unknown[]) => mockAgents.list(...a), get: (...a: unknown[]) => mockAgents.get(...a) },
 }))
 let routeId = 'l4'
-jest.mock('next/navigation', () => ({ useParams: () => ({ id: routeId }), useSearchParams: () => new URLSearchParams() }))
+let routeTab = ''   // the listing page shows one tab at a time (?tab=status holds the freshness prompt and the status actions)
+jest.mock('next/navigation', () => ({ useParams: () => ({ id: routeId }), useSearchParams: () => new URLSearchParams(routeTab ? { tab: routeTab } : {}) }))
 
 beforeEach(() => {
   fx = createFixtureApi({ getItem: () => null, setItem: () => undefined })
   Object.values(spy).forEach((m) => m.mockClear())
   getToday.mockReset()
   routeId = 'l4'
+  routeTab = ''
   mockAgents.list.mockReset().mockRejectedValue(new Error('The Agents area is only for the owner.'))
   mockAgents.get.mockReset()
   window.history.replaceState(null, '', '/studio/listings')
@@ -181,6 +183,7 @@ describe('Freshness prompts on the Listings screen', () => {
 
 describe('Freshness prompt on the listing screen', () => {
   it('shows the hidden state at the top of a hidden listing and confirming clears it', async () => {
+    routeTab = 'status'
     render(<ListingDetailPage />)
     expect(await screen.findByTestId('freshness-l4')).toHaveAttribute('data-state', 'hidden')
     expect(screen.getByRole('link', { name: 'Activity' })).toHaveAttribute('href', '/studio/listings/l4/activity')
@@ -328,6 +331,7 @@ describe('Listings tabs (shared list pattern)', () => {
 describe('Listing screen actions', () => {
   it('Mark sold and Pause ask first; Cancel changes nothing', async () => {
     routeId = 'l1'
+    routeTab = 'status'
     render(<ListingDetailPage />)
     await screen.findByRole('heading', { level: 1, name: '2 BHK in Baner' })
     expect(screen.getByText('On sale')).toBeInTheDocument()
@@ -346,6 +350,7 @@ describe('Listing screen actions', () => {
 
   it('Under offer does not ask', async () => {
     routeId = 'l1'
+    routeTab = 'status'
     render(<ListingDetailPage />)
     await screen.findByRole('heading', { level: 1, name: '2 BHK in Baner' })
     fireEvent.click(screen.getByRole('button', { name: 'Under offer' }))
@@ -360,6 +365,6 @@ describe('Listing screen actions', () => {
     const btn = await screen.findByTestId('marketing-button')
     expect(btn).toHaveAttribute('href', '/studio/listings/l1/marketing')
     expect(btn.className).toMatch(/0f2340/)
-    await waitFor(() => expect(btn).toHaveTextContent('Marketing3 posts'))
+    await waitFor(() => expect(btn).toHaveTextContent('Start marketing3 posts'))
   })
 })
