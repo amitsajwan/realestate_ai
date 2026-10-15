@@ -90,24 +90,32 @@ def gemini_speech(text: str, voice: Optional[str] = None, timeout: float = 120.0
             "generationConfig": {"responseModalities": ["AUDIO"], "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {
                 "voiceName": voice or os.environ.get("REEL_GEMINI_VOICE") or GEMINI_VOICE}}}}}
     import time
-    for wait in (0, 8, 25):   # a busy model (429/5xx) is asked again before Google's voice takes over (two Camelot reels fell back)
+    why = "no answer"
+    # a busy model (429/5xx) or an answer without audio (live: 200 with no audio part, twice in one remake) is asked again
+    # before Google's voice takes over
+    for wait in (0, 8, 25):
         if wait:
             time.sleep(wait)
         try:
             r = httpx.post(GEMINI_TTS_URL.format(model=model), headers={"x-goog-api-key": key}, json=body, timeout=timeout)
         except Exception as e:
-            if wait == 25:
-                raise VoiceError(f"gemini speech unreachable ({type(e).__name__})")
+            why = f"unreachable ({type(e).__name__})"
             continue
-        if r.status_code not in (429, 500, 502, 503, 504):
-            break
-    if r.status_code >= 400:
-        raise VoiceError(f"gemini speech HTTP {r.status_code}: {r.text[:120]}".replace(key, "[redacted]"))
-    try:
-        part = r.json()["candidates"][0]["content"]["parts"][0]["inlineData"]
-        return base64.b64decode(part["data"])
-    except (KeyError, IndexError, ValueError) as e:
-        raise VoiceError(f"gemini speech: no audio in the answer ({type(e).__name__})")
+        if r.status_code in (429, 500, 502, 503, 504):
+            why = f"HTTP {r.status_code}"
+            continue
+        if r.status_code >= 400:
+            raise VoiceError(f"gemini speech HTTP {r.status_code}: {r.text[:120]}".replace(key, "[redacted]"))
+        try:
+            data = r.json()
+            cand = (data.get("candidates") or [{}])[0]
+            for part in (cand.get("content") or {}).get("parts") or []:
+                if (part.get("inlineData") or {}).get("data"):
+                    return base64.b64decode(part["inlineData"]["data"])
+            why = f"no audio (finish: {cand.get('finishReason') or (data.get('promptFeedback') or {}).get('blockReason') or '?'})"
+        except ValueError:
+            why = "unreadable answer"
+    raise VoiceError(f"gemini speech: {why}")
 
 
 def gemini_script(lines: Sequence[str], direction: str = "") -> str:
