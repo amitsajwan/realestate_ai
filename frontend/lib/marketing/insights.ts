@@ -21,6 +21,103 @@ export const INSIGHT_NOTE = NOTE
 
 export const INSIGHTS: Insight[] = [
   {
+    slug: 'diwali-home-offers-pune-decoded',
+    title: "Diwali home offers in Pune, decoded: what 'zero stamp duty' and 'no EMI' really cost",
+    summary:
+      'Festive offers are real money, but only if the price is not raised to pay for them. A worked example on a ₹75 lakh flat, and what to get in writing before you pay a booking amount.',
+    updated: '2026-10-15',
+    updatedLabel: '15 October 2026',
+    sections: [
+      {
+        heading: 'The short version',
+        bullets: [
+          "Compare the full cost sheet with and without the offer. An offer is worth something only if the flat's price stays the same.",
+          "'Zero stamp duty' can be worth several lakh in Pune city. Check that the agreement value is not quietly higher.",
+          "'No EMI till possession' depends on the possession date holding. Ask what happens if it moves.",
+          'Gold coins and free kitchens are worth what you would pay for them, not what the brochure says. A price cut is usually worth more.',
+          'Under the RERA Act, a builder may not take more than 10% of the cost before a registered agreement for sale.',
+        ],
+      },
+      {
+        heading: 'First: what a flat costs on top of its price',
+        paragraphs: [
+          'An example, not a price we are quoting: a flat with an agreement value of ₹75 lakh in Pune Municipal Corporation limits (Kharadi and Wagholi are both inside them).',
+        ],
+        bullets: [
+          'Stamp duty: about 7% in PMC and PCMC areas, or 6% when the home is registered only in a woman’s name. On ₹75 lakh, about ₹5.25 lakh (₹4.5 lakh).',
+          'Registration fee: 1%, capped at ₹30,000.',
+          'GST, only on a flat still being built: 5% of the agreement value, about ₹3.75 lakh here. 1% for affordable housing (up to ₹45 lakh and 90 sq m carpet area in Pune). No GST on a ready flat that has its occupancy certificate (OC).',
+          'So the same ₹75 lakh flat can cost about ₹84 lakh if it is under construction, and about ₹80.5 lakh if it is ready with an OC, before loan fees, parking, maintenance deposit and society charges.',
+        ],
+      },
+      {
+        heading: "'Zero stamp duty' or 'stamp duty paid by us'",
+        paragraphs: [
+          'The builder pays the stamp duty for you. In the example that is worth about ₹5.25 lakh, which is a real saving, as long as the agreement value has not gone up to cover it.',
+          'Stamp duty is charged on the agreement value or the government ready reckoner value, whichever is higher. A builder cannot make it smaller by writing a lower value.',
+        ],
+        bullets: [
+          'Ask for the cost sheet the project gave a month ago, or ask for the price with the offer and without it.',
+          'Get the offer written into the booking form or allotment letter, not only in the advert.',
+        ],
+      },
+      {
+        heading: "'No EMI till possession' (subvention schemes)",
+        paragraphs: [
+          'Your home loan is sanctioned and paid to the builder in stages. Under the scheme the builder pays the interest (the pre-EMI) until possession, so you pay nothing for a while.',
+          'The catch is the date. The loan is in your name. If possession moves later than the date the scheme covers, or the builder stops paying, the bank will ask you to pay, and a missed payment shows on your credit record.',
+        ],
+        bullets: [
+          'Ask until which date, exactly, the builder pays the interest, and what happens after it.',
+          'Read the tripartite agreement (you, the builder and the bank) before you sign it.',
+          "Check whether the project's completion date on MahaRERA has already moved since it was registered. Our project pages show the date at registration and the date filed now.",
+        ],
+      },
+      {
+        heading: 'Gold coins, free kitchens, free parking',
+        bullets: [
+          'Put a value on each gift: what would you pay for it yourself? Then ask for that amount off the price instead.',
+          'A covered parking space must be written into the agreement, not only promised at the sales desk.',
+          'A discount lowers your stamp duty and GST too. A gift does not.',
+        ],
+      },
+      {
+        heading: 'Booking on Dhanteras or Diwali',
+        paragraphs: [
+          'Dhanteras falls on 6 November 2026 and Diwali on 8 November. A good day to book is not a reason to skip the checks: a booking amount is hard to get back once paid.',
+        ],
+        bullets: [
+          'Under the RERA Act, the builder may not take more than 10% of the cost as an advance before a registered agreement for sale.',
+          'Ask for the refund terms of the booking amount in writing.',
+          'Look the project up on MahaRERA: the registration number, the completion date filed, and the quarterly updates.',
+          'If you want to register the agreement on the day itself, book the sub-registrar appointment early.',
+        ],
+      },
+      {
+        heading: 'Ready, or still being built?',
+        paragraphs: [
+          'A ready flat with an OC saves the GST and the wait, and you can see exactly what you are buying. A flat still being built usually gives more choice of floor and layout, but you take on the risk that the completion date moves.',
+          'Our weekly "Number of the week" reel is drawn from MahaRERA records, for example how many projects in Kharadi, Wagholi or Lohegaon have a completion date filed for the next 12 months.',
+        ],
+      },
+      {
+        heading: 'Ask for these in writing',
+        bullets: [
+          'The full cost sheet, with the offer and without it',
+          'The offer itself, in the booking form or allotment letter',
+          'The possession date in the agreement, compared with the date on MahaRERA',
+          'For subvention: the date until which the builder pays the interest, and what happens after',
+          'The refund terms of the booking amount',
+        ],
+      },
+    ],
+    sources: [
+      { label: 'IGR Maharashtra (stamp duty and registration)', href: 'https://igrmaharashtra.gov.in/' },
+      { label: 'MahaRERA (official portal)', href: 'https://maharera.maharashtra.gov.in/' },
+      { label: 'CBIC GST (rates)', href: 'https://cbic-gst.gov.in/' },
+    ],
+  },
+  {
     slug: 'kharadi-upper-kharadi-wagholi',
     title: 'Kharadi, Upper Kharadi or Wagholi? How to choose in 10 minutes',
     summary: 'Three neighbourhoods on one corridor, very different daily lives. A quick way to decide where to spend your weekends viewing flats.',

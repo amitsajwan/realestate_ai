@@ -3,19 +3,21 @@ import React, { useState } from 'react'
 import {
   POLL_MS,
   REEL_LANGS,
+  REEL_STYLES,
   friendlyReelError,
   isActive,
   reelFilename,
   reelVideoUrl,
   whatsappReelUrl,
 } from '@/lib/app/reels'
-import type { ReelJob, ReelJobs, ReelLang, ReelSource } from '@/lib/app/reels'
+import type { ReelJob, ReelJobs, ReelLang, ReelSource, ReelStyle } from '@/lib/app/reels'
 import { Btn, LinkBtn } from './ui'
 
 /**
  * 'Make my reel': a real video from the listing's photos and facts, voiced in English, Hindi or Marathi. The server renders it
  * (a few minutes); this polls every 5 s, then shows the video with Download and Share on WhatsApp.
- * `source` is the agent's own listing, or the owner acting for an agent (concierge).
+ * `source` is the agent's own listing, or the owner acting for an agent (concierge). When the source takes a style
+ * (`styles: true`), a Tour / Stack picker shows, and each style keeps its own latest reel per language.
  */
 export function ReelMaker({ source, caption, label = 'Make my reel', onDone }: {
   source: ReelSource
@@ -24,11 +26,14 @@ export function ReelMaker({ source, caption, label = 'Make my reel', onDone }: {
   onDone?: (job: ReelJob) => void
 }) {
   const [lang, setLang] = useState<ReelLang>('en')
-  const [jobs, setJobs] = useState<ReelJobs>({})
+  const styled = !!source.styles
+  const [style, setStyle] = useState<ReelStyle>('tour')
+  const [byStyle, setByStyle] = useState<Partial<Record<ReelStyle, ReelJobs>>>({})
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const sourceRef = React.useRef(source)
   sourceRef.current = source
+  const jobs: ReelJobs = byStyle[style] ?? {}
   const job = jobs[lang]
   const active = isActive(job)
   const onDoneRef = React.useRef(onDone)
@@ -36,9 +41,15 @@ export function ReelMaker({ source, caption, label = 'Make my reel', onDone }: {
 
   const refresh = React.useCallback(async () => {
     try {
-      const latest = await sourceRef.current.latest()
-      setJobs(latest)
-      Object.values(latest).forEach((j) => j && j.status === 'done' && onDoneRef.current?.(j))
+      const src = sourceRef.current
+      const got: Partial<Record<ReelStyle, ReelJobs>> = {}
+      if (src.styles) {
+        for (const st of REEL_STYLES) got[st.code] = await src.latest(st.code)
+      } else {
+        got.tour = await src.latest()
+      }
+      setByStyle(got)
+      Object.values(got).forEach((js) => Object.values(js ?? {}).forEach((j) => j && j.status === 'done' && onDoneRef.current?.(j)))
     } catch {
       /* keep what we have; the next poll tries again */
     }
@@ -48,7 +59,7 @@ export function ReelMaker({ source, caption, label = 'Make my reel', onDone }: {
     void refresh()
   }, [refresh])
 
-  const anyActive = Object.values(jobs).some((j) => isActive(j))
+  const anyActive = Object.values(byStyle).some((js) => Object.values(js ?? {}).some((j) => isActive(j)))
   React.useEffect(() => {
     if (!anyActive) return
     const id = setInterval(() => void refresh(), POLL_MS)
@@ -59,8 +70,8 @@ export function ReelMaker({ source, caption, label = 'Make my reel', onDone }: {
     setBusy(true)
     setError(null)
     try {
-      const j = await source.make(lang, again)
-      setJobs((prev) => ({ ...prev, [lang]: j }))
+      const j = styled ? await source.make(lang, again, style) : await source.make(lang, again)
+      setByStyle((prev) => ({ ...prev, [style]: { ...(prev[style] ?? {}), [lang]: j } }))
     } catch (e) {
       setError(friendlyReelError(e))
     } finally {
@@ -80,6 +91,22 @@ export function ReelMaker({ source, caption, label = 'Make my reel', onDone }: {
           </button>
         ))}
       </div>
+
+      {styled && (
+        <div role="radiogroup" aria-label="Reel style" className="grid grid-cols-2 gap-2">
+          {REEL_STYLES.map((st) => {
+            const j = byStyle[st.code]?.[lang]
+            const state = isActive(j) ? 'Making...' : j?.status === 'done' ? 'Ready' : ''
+            return (
+              <button key={st.code} type="button" role="radio" aria-checked={style === st.code} onClick={() => setStyle(st.code)}
+                className={`min-h-[56px] rounded-xl border px-3 py-2 text-left text-sm ${style === st.code ? 'border-blue-600 bg-blue-50 text-blue-900' : 'border-gray-300 text-gray-700'}`}>
+                <span className="block font-semibold">{st.label}{state && <span className="ml-2 text-xs font-medium text-gray-600">{state}</span>}</span>
+                <span className="block text-xs text-gray-600">{st.help}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {active && (
         <div role="status" className="flex items-center gap-3 rounded-xl bg-blue-50 p-3 text-sm text-blue-900" data-testid="reel-progress">

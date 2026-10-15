@@ -7,7 +7,7 @@ scripts); `Store.backfill_tags` adds it to older rows. A value it cannot tell is
   schema       TAGS_SCHEMA (bump when a meaning changes, so old and new rows are not compared blindly)
   audience     buyers | agents
   kind         post | showcase | reel
-  format       reels: tip | tour | pitch | area | project | puzzle | datewatch | trend | agent_ad | listing | slides;
+  format       reels: tip | tour | pitch | area | project | puzzle | datewatch | number | trend | agent_ad | listing | slides;
                posts: carousel | single | checklist | myth-vs-fact | poll | stat | before-after | showcase | unknown
   pillar       the plan's role for the slot (myth, explainer, checklist, local, poll, agent, showcase, listing, ...) or unknown
   hook_type    price_reveal | question | number | myth | mistake | statement | unknown
@@ -28,7 +28,7 @@ from . import reach
 
 TAGS_SCHEMA = 2   # 2: segment fields (2026-10-11)
 UNKNOWN = "unknown"
-REEL_FORMATS = {"tip": "tip", "tour": "tour", "pitch": "pitch", "area": "area", "project": "project", "agent": "agent_ad", "puzzle": "puzzle", "delay": "datewatch"}
+REEL_FORMATS = {"tip": "tip", "tour": "tour", "pitch": "pitch", "area": "area", "project": "project", "agent": "agent_ad", "puzzle": "puzzle", "delay": "datewatch", "number": "number"}
 POST_FORMATS = ("carousel", "single", "checklist", "myth-vs-fact", "poll", "stat", "before-after", "plan")
 PASS_THROUGH = ("experiment", "variant", "engine", "price_band")
 CTA_WORD = re.compile(r"\bcomment\s+\*?([A-Z]{3,})\*?", re.I)

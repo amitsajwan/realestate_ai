@@ -11,7 +11,8 @@ def test_buyer_posts_get_area_and_project_tags_in_one_line():
     out = reach.apply(row(PROJECT))
     body, tags = out["caption"].rsplit("\n\n", 1)
     assert "#" not in body and body.endswith("MahaRERA P52100078796.")
-    assert tags.split() == ["#UpperKharadi", "#GoyalMyHome", "#PuneProperty", "#MahaRERA", "#KharadiPune"]
+    # locality, project, the area's own #<Locality>RealEstate (narrower than #PuneProperty), then the broad ones
+    assert tags.split() == ["#UpperKharadi", "#GoyalMyHome", "#UpperKharadiRealEstate", "#PuneProperty", "#MahaRERA"]
 
 
 def test_agent_promo_gets_agent_tags_and_facebook_gets_three():
@@ -35,7 +36,7 @@ def test_location_uses_the_area_then_pune_and_is_off_when_unset(monkeypatch):
     assert reach.location_id(row(PROJECT)) == "111"
     monkeypatch.setenv("IG_LOCATION_UPPER_KHARADI", "222")
     assert reach.location_id(row(PROJECT)) == "222"
-    assert reach.location_id(row(PROJECT, channel="facebook_page")) is None  # Instagram only
+    assert reach.location_id(row(PROJECT, channel="facebook_page")) == "222"  # Facebook Page posts carry it as `place`
     monkeypatch.setenv("IG_LOCATION_PUNE", "not-a-number")
     assert reach.location_id(row("A news item about Pune metro")) is None
 
@@ -44,8 +45,8 @@ def test_new_areas_get_their_tags_whatever_the_spelling():
     assert reach.hashtags(row("2 BHK in Lohgaon near the airport road"))[:2] == ["#LohegaonPune", "#FlatsInPune"]
     assert "#Lohegaon" in reach.hashtags(row("Homes in Lohgaon near the airport road"))
     assert reach.hashtags(row("Ready flats in Hinjewadi Phase 2"))[:2] == ["#HinjewadiPune", "#FlatsInPune"]
-    assert reach.hashtags(row("Keshav Nagar, Mundhwa: 3 projects"))[:3] == ["#KeshavNagarPune", "#PuneProperty", "#Keshavnagar"]
-    assert reach.hashtags(row("Wakad homes", channel="facebook_page")) == ["#WakadPune", "#PuneProperty", "#Wakad"]
+    assert reach.hashtags(row("Keshav Nagar, Mundhwa: 3 projects"))[:3] == ["#KeshavNagarPune", "#KeshavNagarRealEstate", "#PuneProperty"]
+    assert reach.hashtags(row("Wakad homes", channel="facebook_page")) == ["#WakadPune", "#WakadRealEstate", "#PuneProperty", "#Wakad", "#PuneHomes"]
     assert reach.area(row("Baner")).key == "baner"
 
 
@@ -57,7 +58,7 @@ def test_a_caption_naming_two_areas_picks_the_most_specific():
 def test_an_explicit_area_key_wins_over_the_caption(monkeypatch):
     insight = row("12 projects finish in 2027. Kharadi buyers, look east.", area="wagholi")
     assert reach.area(insight).key == "wagholi"
-    assert reach.hashtags(insight)[:3] == ["#WagholiPune", "#PuneProperty", "#WagholiHomes"]
+    assert reach.hashtags(insight)[:3] == ["#WagholiPune", "#Kharadi", "#PuneProperty"]  # Wagholi's corridor tag is #Kharadi
     assert reach.area(row("Wakad", area="upper-kharadi")).key == "upper_kharadi"  # a slug works too
     assert reach.area(row("Wakad", area="nowhere")).key == "wakad"  # an unknown key falls back to the caption
     monkeypatch.setenv("IG_LOCATION_WAGHOLI", "333")
@@ -99,21 +100,22 @@ def campaign(caption=GULMOHAR, channel="instagram"):
 def test_a_plot_campaign_outside_our_areas_keeps_locality_project_and_plots():
     out = reach.apply(campaign())["caption"]
     body, tags = out.rsplit("\n\n", 1)
-    assert tags.split() == ["#Ranjangaon", "#GulmoharCity", "#PlotsInPune", "#PuneProperty", "#MahaRERA"]
+    # the corridor tag (Ranjangaon plots are sold to Shirur buyers too) and the plot buyers' own tag say "plots" already
+    assert tags.split() == ["#Ranjangaon", "#Shirur", "#GulmoharCity", "#NAPlotsPune", "#PuneProperty"]
     assert "#" not in body and body.endswith("with its MahaRERA record: link in bio.")
     assert reach.locality(campaign()) == ("Ranjangaon", None)
     assert reach.project_and_locality(campaign()) == ("Gulmohar City", "Ranjangaon")
 
 
-def test_facebook_campaign_gets_the_three_most_specific_even_without_the_link_line():
+def test_facebook_campaign_gets_the_most_specific_even_without_the_link_line():
     fb = GULMOHAR.replace("Full details of Gulmohar City, Ranjangaon, with its MahaRERA record: link in bio.",
                           "Full details and the MahaRERA record: https://avasetu.in/p/gulmohar?src=fb_myth")
-    assert reach.hashtags(campaign(fb, "facebook_page")) == ["#Ranjangaon", "#GulmoharCity", "#PlotsInPune"]
+    assert reach.hashtags(campaign(fb, "facebook_page")) == ["#Ranjangaon", "#Shirur", "#GulmoharCity", "#NAPlotsPune", "#PuneProperty"]
 
 
 def test_a_locality_with_two_words_becomes_one_camel_case_tag():
     cap = "A 1,500 sq ft plot.\n\nShree Nisarg, Shirur Pune.\n\n#PuneProperty"
-    assert reach.hashtags(campaign(cap))[:3] == ["#ShirurPune", "#ShreeNisarg", "#PlotsInPune"]
+    assert reach.hashtags(campaign(cap))[:3] == ["#ShirurPune", "#ShreeNisarg", "#NAPlotsPune"]
     assert reach.camel_tag("chakan midc") == "#ChakanMidc"
     assert reach.camel_tag("Hill View, Phase II") == "#HillViewPhaseII"
 
@@ -121,20 +123,21 @@ def test_a_locality_with_two_words_becomes_one_camel_case_tag():
 def test_fields_on_the_row_win_over_the_caption():
     r = row("A new launch near the highway.", creative={"source": "campaign", "project_name": "Green Acres",
                                                         "locality": "Chakan", "property_type": "plot"})
-    assert reach.hashtags(r)[:3] == ["#Chakan", "#GreenAcres", "#PlotsInPune"]
+    assert reach.hashtags(r)[:3] == ["#Chakan", "#GreenAcres", "#NAPlotsPune"]
 
 
-def test_a_wagholi_flat_gets_area_type_and_rera_before_a_second_area_tag():
+def test_a_wagholi_flat_gets_area_corridor_and_type_before_the_broad_tags():
     cap = "2 BHK flats in Wagholi from ₹58 L.\n\nMahaRERA P52100012345.\n\n#Wagholi #PuneHomes"
-    assert reach.hashtags(row(cap)) == ["#WagholiPune", "#FlatsInPune", "#PuneProperty", "#MahaRERA", "#WagholiHomes"]
-    assert reach.hashtags(row(cap, "facebook_page")) == ["#WagholiPune", "#FlatsInPune", "#PuneProperty"]
+    # with a corridor tag, the narrow #WagholiRealEstate waits until after #PuneProperty
+    assert reach.hashtags(row(cap)) == ["#WagholiPune", "#Kharadi", "#FlatsInPune", "#PuneProperty", "#WagholiRealEstate"]
+    assert reach.hashtags(row(cap, "facebook_page")) == reach.hashtags(row(cap))   # Facebook carries 5 tags too (3da9115f)
 
 
 def test_a_daily_project_reel_takes_its_project_from_the_creative():
     p = {"name": "Kolte Patil Ivy", "locality": "Wagholi", "bhk_options": [{"bhk": 2}], "rera_no": "P52100099999"}
     r = row("Kolte Patil Ivy, Wagholi: ₹65 L to 80 L, 2 BHK.\n\n#Pune #Wagholi #MahaRERA", slug="project-x",
             creative={"source": "agentprojects", "template": "project", "project": p}, area="wagholi")
-    assert reach.hashtags(r) == ["#WagholiPune", "#KoltePatilIvy", "#FlatsInPune", "#PuneProperty", "#MahaRERA"]
+    assert reach.hashtags(r) == ["#WagholiPune", "#Kharadi", "#KoltePatilIvy", "#FlatsInPune", "#PuneProperty"]
 
 
 def test_an_agent_reel_keeps_agent_tags():
@@ -148,7 +151,7 @@ def test_a_news_post_keeps_its_topic_tag_and_drops_areas_it_does_not_mention():
     news = row("Metro line 3 reaches Hinjewadi by March.\n\nWhat it means for buyers.\n\n"
                "#Pune #Avasetu #Kharadi #Wagholi #PuneInfrastructure", slug="news-metro")
     tags = reach.hashtags(news)
-    assert tags == ["#HinjewadiPune", "#PuneProperty", "#Hinjawadi", "#PuneInfrastructure", "#PuneHomes"]
+    assert tags == ["#HinjewadiPune", "#HinjawadiRealEstate", "#PuneProperty", "#Hinjawadi", "#PuneInfrastructure"]
     assert not {"#Kharadi", "#Wagholi"} & set(tags)
 
 
@@ -160,7 +163,7 @@ def test_a_guide_keeps_its_own_topic_tags():
 def test_tags_are_deduplicated_whatever_their_case():
     cap = "Gulmohar City, Ranjangaon.\n\n#ranjangaon #GULMOHARCITY #plotsinpune #maharera"
     tags = reach.hashtags(campaign(cap))
-    assert [t.lower() for t in tags] == ["#ranjangaon", "#gulmoharcity", "#plotsinpune", "#puneproperty", "#maharera"]
+    assert [t.lower() for t in tags] == ["#ranjangaon", "#shirur", "#gulmoharcity", "#naplotspune", "#puneproperty"]
 
 
 def test_a_locality_outside_our_areas_has_its_own_location_variable(monkeypatch):

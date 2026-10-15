@@ -81,7 +81,7 @@ class FakeCollection:
     async def count_documents(self, flt=None):
         return sum(1 for d in self.docs if _match(d, flt or {}))
 
-    def find(self, flt=None):
+    def find(self, flt=None, projection=None):
         return _Cursor([d for d in self.docs if _match(d, flt or {})])
 
     @staticmethod

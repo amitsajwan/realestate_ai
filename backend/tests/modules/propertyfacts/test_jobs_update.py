@@ -113,8 +113,10 @@ async def test_a_fact_change_remakes_the_posts_that_say_it_and_spares_approved_o
     assert "35" in posts["overview"]["newer"]["caption"]
     if "plot_checklist" in posts:                                    # says no price: untouched
         assert "plot_checklist" not in d["redone"] and posts["plot_checklist"]["caption"] == before["plot_checklist"]["caption"]
-    ig = await cal.get(rows[("instagram", "campaign-L1-price_reveal")]["_id"])
-    assert ig["caption"] == posts["price_reveal"]["caption"]                       # planned row took the new post
+    # the price post goes to the calendar as its ad reel (schedule.items): its planned row took the new price
+    old = rows[("instagram", "campaign-L1-price_reveal-ad")]
+    ig = await cal.get(old["_id"])
+    assert ig["caption"] != old["caption"] and "35" in ig["caption"]
     ok = await cal.get(rows[("instagram", "campaign-L1-overview")]["_id"])
     assert ok["caption"] == rows[("instagram", "campaign-L1-overview")]["caption"]  # approved row untouched
 

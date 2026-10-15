@@ -136,7 +136,8 @@ def test_area_reel_slides_and_captions_say_only_the_facts():
     assert "41" in text and "2027" in text and "3,100 of 5,210" in text and "Rohan Abhilasha 4" in text
     assert "avasetu.in/localities/wagholi" in r.slides[-1].lines[0]
     for cap in (r.caption_ig, r.caption_fb):
-        assert cap.splitlines()[0] == "Wagholi in MahaRERA records: 41 projects."
+        assert cap.splitlines()[0] == "Wagholi has 41 projects on MahaRERA. When are they due, and how many homes are already booked?"
+        assert "Looking in Wagholi? Comment the year you hope to move in." in cap   # every area reel asks for a reply
         assert "Source: MahaRERA public records, as of 4 Oct 2026." in cap
         assert "localities/wagholi" in cap
         assert area_reels.wording_problems(cap) == []

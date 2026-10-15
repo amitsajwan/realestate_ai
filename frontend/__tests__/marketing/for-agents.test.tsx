@@ -28,7 +28,7 @@ describe('/for-agents brochure', () => {
     expect(steps).toEqual(['Create', 'Attract', 'Qualify', 'Close'])
     const text = container.textContent || ''
     for (const must of [/hindi voice/i, /tap-to-show-interest/i, /BHK, budget, timing/i, /RERA agent number/i, /your own instagram and facebook page/i, /weekly results/i,
-      /your first 3 properties free/i, /tell you the price before anything changes/i, /own WhatsApp number/i, /posts go out in your name/i,
+      /1 month free/i, /tell you the price before anything changes/i, /own WhatsApp number/i, /posts go out in your name/i,
       /nothing is sent to a buyer without you/i, /labelled as samples/i, /no invented AI percentages/i, /consent .* recorded/i]) {
       expect(text).toMatch(must)
     }
@@ -69,7 +69,7 @@ describe('/for-agents brochure', () => {
     const text = (container.textContent || '').split(siteUrl().replace(/^https?:\/\//, '')).join('<site>')
     expect(text).not.toMatch(PHONE)
     expect(container.querySelector('a[href^="tel:"]')).toBeNull()
-    for (const banned of [/testimonial/i, /\brated\b/i, /trusted by/i, /\d+\s*%/, /\d+\s*\+?\s*(agents|customers|users|leads)\b/i, /guarantee/i]) {
+    for (const banned of [/testimonial/i, /\brated\b/i, /trusted by/i, /\d+\s*%/, /(?<!first\s)\b\d+\s*\+?\s*(agents|customers|users|leads)\b/i, /guarantee/i]) {
       expect(text).not.toMatch(banned)
     }
   })

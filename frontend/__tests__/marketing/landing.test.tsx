@@ -36,7 +36,7 @@ describe('landing page', () => {
     for (const banned of [/testimonial/i, /rated/i, /\d+\s*\+?\s*(agents|customers|users|properties)/i, /trusted by/i, /five.star|5.star/i, /\[(confirm|pilot agent|agent name|founder|one line)/i]) {
       expect(text).not.toMatch(banned)
     }
-    expect(text).toMatch(/your first 3 properties free/i)
+    expect(text).toMatch(/1 month free/i)
   })
 
   it('keeps it short: no publishing box, no "what is next" lists', () => {

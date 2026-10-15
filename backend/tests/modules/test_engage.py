@@ -414,7 +414,7 @@ async def test_agents_asking_under_our_promo_get_the_free_trial_message():
                                                       "creative": {"source": "promo_agents_v2"}})
     await svc.run_once()
     text = g.dms[0][1]
-    assert "Claim your free trial" in text and "first 3 properties" in text and "areas you work in" in text and "https://site.test/trial" in text
+    assert "Claim your free trial" in text and "1 month free" in text and "first 20 Pune agents" in text and "areas you work in" in text and "https://site.test/trial" in text
 
 
 def _agent_reel_row(db, pid="PAGE_920", code="C1"):

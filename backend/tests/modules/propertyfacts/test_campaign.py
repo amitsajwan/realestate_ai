@@ -65,7 +65,8 @@ TODAY = date(2026, 10, 10)
 
 def test_plan_puts_the_buyers_questions_first_and_never_a_moved_date():
     ids = [aid for aid, _ in campaign.plan(gulmohar(), today=TODAY)]
-    assert ids == ["overview", "price_reveal", "emi", "size_in_guntha", "near_work"]    # price, EMI, size, distance
+    # price, EMI, distance; no size card: this plot's size is only the agent's own entry, which a plot post never states
+    assert ids == ["overview", "price_reveal", "emi", "near_work", "layout_size"]
     every = dict(campaign.plan(gulmohar(), follow_ups=None, today=TODAY))
     assert "possession" not in every and "plot_or_flat" not in every    # a moved date; the price already headlined
     assert not any("2029" in s for s in every["overview"].steps)

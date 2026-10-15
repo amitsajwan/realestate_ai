@@ -106,7 +106,7 @@ describe('/posts/<slug> page', () => {
     const meta = await generateMetadata({ params: Promise.resolve({ slug: SLUG }) })
     expect(meta.title).toBe('Wagholi: 41 projects in MahaRERA records | Avasetu')
     expect(meta.alternates?.canonical).toBe('https://avasetu.in/posts/' + SLUG)
-    expect(String(meta.description)).toMatch(/^Listed or updated this month\./)
+    expect(String(meta.description)).toMatch(/^Wagholi: 41 projects in MahaRERA records: Listed or updated this month\./)  // the title leads (lib/posts/seo.ts)
     expect(String(meta.description)).not.toContain('http')
   })
 

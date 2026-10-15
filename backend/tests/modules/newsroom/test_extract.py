@@ -101,13 +101,14 @@ async def test_llm_exception_returns_none():
 
 
 async def test_cap_and_dedupe():
-    text = " ".join(f"Sentence number {i} says the fund is {i} crore." for i in range(10))
+    n = MAX_FACTS + 4   # more facts than the cap, so the cap is what stops them
+    text = " ".join(f"Sentence number {i} says the fund is {i} crore." for i in range(n))
     it = RawItem(id="c", source="t", url="u", title="T", text=text, published_at=PUB, fetched_at=NOW)
-    facts = [{"text": f"Fund is {i} crore", "quote": f"Sentence number {i} says the fund is {i} crore."} for i in range(10)]
+    facts = [{"text": f"Fund is {i} crore", "quote": f"Sentence number {i} says the fund is {i} crore."} for i in range(n)]
     facts.insert(1, dict(facts[0]))
     f = await extract(it, FakeLlm({"facts": facts}))
-    assert len(f.facts) == MAX_FACTS == 6
-    assert len({x.quote for x in f.facts}) == 6
+    assert len(f.facts) == MAX_FACTS
+    assert len({x.quote for x in f.facts}) == MAX_FACTS   # the repeated fact counted once
 
 
 async def test_short_quote_rejected():
