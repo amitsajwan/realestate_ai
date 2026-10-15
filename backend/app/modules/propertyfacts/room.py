@@ -72,7 +72,7 @@ SEATS = ("Strategist", *(v[0] for v in LENSES.values()))
 # what the checker cuts whatever the prompt said: registration sold as approval, puffery, a walk to somewhere a car is needed
 OVERCLAIM = re.compile(r"\b(?:approved|trusted|certified|endorsed)\b[^.]{0,30}\b(?:rera|maharera|regulator)|\b(?:rera|maharera|regulator)s?\b"
                        r"[^.]{0,20}\b(?:approved|trusted|certified)\b|\b(?:renowned|world[\s-]*class|iconic|unmatched|unparalleled)\b", re.I)
-WALK = re.compile(r"\bwalk(?:ing|able)?\b", re.I)
+WALK = re.compile(r"\bwalk(?:ing|able)?\b|\bsteps? (?:from|away)\b|\bdoorstep\b", re.I)   # "Steps from IT parks, schools"
 KM = re.compile(r"(\d+(?:\.\d+)?)\s*km\b", re.I)
 
 
@@ -368,7 +368,7 @@ async def convene(c: Ctx, listing: dict, llm: Any, photos: int = 0, images: Sequ
     liked = [b["pitch"] for b in (room.get("discussion") or {}).get("best") or [] if b.get("pitch")]
     others = [n for n in dict.fromkeys(liked + sorted(scored, key=lambda n: -scored[n]) + list(range(1, len(room["pitches"]) + 1)))
               if n != chosen and 1 <= n <= len(room["pitches"])]
-    pieces = _distinct(blend(pieces, room["pitches"], others))
+    pieces = filmed(_distinct(blend(pieces, room["pitches"], others)), corpus)
     if len(pieces) < MIN_PIECES:
         log.info("creative room: %d pieces after the director (%d assembled), too few", len(pieces), len(d.get("pieces") or []))
         return None
@@ -417,6 +417,28 @@ def blend(pieces: List[Dict[str, Any]], pitches: List[Dict[str, Any]], order: Se
             reel = next((x["reel"] for q in pitches for x in q["pieces"] if x["role"] == p["role"] and x.get("reel")), None)
             if reel:
                 p["reel"] = dict(reel)
+    return out
+
+
+FILM_ROLES = ("design", "lifestyle", "homes", "brand", "teaser", "location", "price", "trust", "visit", "story")   # best on film first
+
+
+def filmed(pieces: List[Dict[str, Any]], corpus: str) -> List[Dict[str, Any]]:
+    """Up to REELS_WANTED reels (the fourth live meeting gave one): pieces with no reel, the ones film carries best first, get
+    one made from their own words (hook = headline, beats = the lines, payoff = the campaign's price line or the last line),
+    kept only when it passes the reel checks."""
+    out = [dict(p) for p in pieces]
+    price = next((p["headline"] for p in out if PRICE.search(p["headline"])), "")
+    for p in sorted(out, key=lambda p: FILM_ROLES.index(p["role"]) if p["role"] in FILM_ROLES else 99):
+        if sum(1 for x in out if x.get("reel")) >= REELS_WANTED:
+            break
+        if p.get("reel"):
+            continue
+        beats = [b for b in (_clean(l.rstrip("."), 9) for l in p["lines"]) if b][:3]
+        payoff = price if price and price != p["headline"] else (beats.pop() if len(beats) > 2 else "")
+        s = ad_reel.Script("story", p["headline"], beats, payoff, f"Comment {ad_reel.CTA_WORD} for the details", by="room")
+        if len(beats) >= 2 and payoff and not ad_reel.check(s, corpus) and not any(overclaims(x, corpus) for x in s.lines()):
+            p["reel"] = s.out()
     return out
 
 

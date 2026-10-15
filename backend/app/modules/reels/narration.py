@@ -97,8 +97,42 @@ def per_line(lines: Sequence[str], lang: str, work: Path) -> List[Path]:
     return clips
 
 
-def voice_lines(lines: Sequence[str], lang: str, work: Path) -> Tuple[List[Path], str]:
-    """(one audio file per line, 'take' or 'lines'). Raises voice.VoiceError when no voice could be made."""
+def _upsample(pcm24: bytes) -> np.ndarray:
+    """Gemini's 24 kHz PCM at SR (linear interpolation: enough for a voice under music)."""
+    x = np.frombuffer(pcm24[: len(pcm24) // 2 * 2], dtype="<i2").astype(np.float64)
+    if x.size == 0:
+        return x.astype("<i2")
+    t = np.arange(x.size * SR // voice.GEMINI_SR) * (voice.GEMINI_SR / SR)
+    return np.interp(t, np.arange(x.size), x).astype("<i2")
+
+
+def gemini_lines(lines: Sequence[str], direction: str, work: Path) -> Optional[Tuple[List[Path], str]]:
+    """The lines in Gemini's directed voice: one take cut at its pauses ('gemini'), else each line with the same direction
+    ('gemini-lines'); None when Gemini is not set up or fails (Google's voice then)."""
+    if not voice.gemini_available():
+        return None
+    try:
+        pieces = split(_upsample(voice.gemini_speech(voice.gemini_script(lines, direction))), len(lines)) if len(lines) > 1 else None
+        if pieces is not None:
+            return [_write_wav(work / f"g{i}.wav", p) for i, p in enumerate(pieces)], "gemini"
+        log.info("voice-over: the Gemini take did not cut into %d lines; asking line by line", len(lines))
+        clips = []
+        for i, text in enumerate(lines):
+            line_dir = f"{direction} This is line {i + 1} of {len(lines)} of the reel.".strip()
+            clips.append(_write_wav(work / f"gl{i}.wav", _upsample(voice.gemini_speech(voice.gemini_script([text], line_dir)))))
+        return clips, "gemini-lines"
+    except voice.VoiceError as e:
+        log.warning("voice-over: Gemini voice not used (%s); Google's voice instead", e)
+        return None
+
+
+def voice_lines(lines: Sequence[str], lang: str, work: Path, direction: str = "") -> Tuple[List[Path], str]:
+    """(one audio file per line, how: 'gemini', 'gemini-lines', 'take' or 'lines'). `direction`: how the line writer wants it
+    said (ad_reel.speak), for the Gemini voice. Raises voice.VoiceError when no voice could be made."""
+    if lang == "en":
+        got = gemini_lines(lines, direction, work)
+        if got is not None:
+            return got
     clips = one_take(lines, lang, work)
     if clips is not None:
         return clips, "take"

@@ -251,8 +251,11 @@ SPEAK_SYSTEM = (
     "line per screen line, in the same order. Say it the way people talk: distances rounded as people say them (0.9 km -> "
     "'less than a kilometre', 1.9 km -> 'about 2 kilometres', 3.9 km -> 'about 4 kilometres'), units in words (square "
     "feet, kilometres, rupees), prices as written ('2.24 crore'), no list numbers, no registration numbers (say 'MahaRERA "
-    "registered'). Keep every fact and name of the line; add nothing that is not on it. Short, natural, plain English. "
-    "Reply with JSON only: {\"lines\": [\"...\", ...]}")
+    "registered'). Keep every fact and name of the line; add nothing that is not on it. Short, natural, plain English, the "
+    "way a creator talks: a question can stay a question, a fragment can stay a fragment. Then direct the voice actor: one "
+    "or two sentences on HOW to say the reel, line by line (e.g. 'curious and quick on the opening question, proud on the "
+    "architect, relaxed on the distances, warm and inviting on the last line'). "
+    "Reply with JSON only: {\"lines\": [\"...\", ...], \"direction\": \"...\"}")
 
 
 def said_ok(said: str, screen: str) -> bool:
@@ -275,9 +278,12 @@ async def speak(s: Script, llm: Any) -> None:
     try:
         r = await llm.json(SPEAK_SYSTEM, "Screen lines:\n" + "\n".join(f"- {x.replace('*', '')}" for x in lines)) or {}
         said = [str(x).strip() for x in r.get("lines") or []]
+        direction = " ".join(str(r.get("direction") or "").split())[:400]
     except Exception:
         log.info("ad reel: spoken lines failed", exc_info=True)
         return
+    if direction:   # how to say it (the Gemini voice performs it); not facts, never on screen
+        s.extra["direction"] = direction
     if len(said) != len(lines):
         return
     s.extra["voice"] = [x if said_ok(x, y.replace("*", "")) else "" for x, y in zip(said, lines)]
@@ -388,6 +394,7 @@ def spoken(line: str) -> str:
     if _REGNO.search(t):
         t = re.sub(r"\(\s*\)", "", _REGNO.sub("", t)).strip(" ,.") or "MahaRERA registered"
     t = t.replace("₹", "rupees ")
+    t = re.sub(r"\bINFO\b", "info", t)   # the comment keyword was spelt out, "I-F-O"
     t = re.sub(r"\bsq\.?\s*ft\b", "square feet", t, flags=re.I)
     t = re.sub(r"(?:\babout\s+)?\b(\d+(?:\.\d+)?)\s*km\b", _distance, t)   # as people say it: "less than a kilometre", "about 4 kilometres"
     t = re.sub(r"\bkm\b", "kilometres", t)
@@ -413,7 +420,7 @@ def render(s: Script, pictures: Sequence, dest: Path, kicker: Optional[str] = No
     try:
         if voiced and voice.available():
             try:
-                clips, how = narration.voice_lines(s.voice(), lang, work)
+                clips, how = narration.voice_lines(s.voice(), lang, work, s.extra.get("direction") or "")
                 for i, clip in enumerate(clips):
                     sc[i].seconds = max(sc[i].seconds or 0.0, ffmpeg.probe(clip).duration + VOICE_PAD_S)
                 tl = plan([x.seconds for x in sc], XFADE)

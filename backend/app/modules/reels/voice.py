@@ -53,3 +53,58 @@ def synth(text: str, lang: str = "en", voice: Optional[str] = None, rate: float 
         msg = (r.json().get("error") or {}).get("message", "") if r.headers.get("content-type", "").startswith("application/json") else ""
         raise VoiceError((f"HTTP {r.status_code}" + (f": {msg}" if msg else "")).replace(key, "[redacted]")[:200])
     return base64.b64decode(r.json()["audioContent"])
+
+
+# ---- Gemini speech: a voice that takes directions (owner, 2026-10-14: the Chirp voice said "I-F-O", got Kharadi wrong and
+# kept one flat tone). The line writer (ad_reel.speak) says how each line should sound; Gemini performs it. Google's voice
+# above stays the fallback. Output: 16-bit mono PCM at 24 kHz.
+GEMINI_TTS_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+GEMINI_TTS_MODEL = "gemini-2.5-flash-preview-tts"
+GEMINI_VOICE = "Charon"
+GEMINI_SR = 24000
+# how Pune names are said, for the voice (spelling stays as it is on screen)
+PRONOUNCE = {"Kharadi": "khaa-raa-dee", "Wagholi": "vaa-gho-lee", "Lohegaon": "lo-hay-gaon", "Hinjawadi": "hin-ja-waa-dee",
+             "Hinjewadi": "hin-ja-waa-dee", "Wakad": "vaa-kud", "Baner": "baa-ner", "Keshav Nagar": "kay-shuv nuh-gur",
+             "Ranjangaon": "raan-jun-gaon", "Shirur": "shi-roor", "Viman Nagar": "vi-maan nuh-gur", "Hadapsar": "huh-dup-sur",
+             "Lodha": "lo-dhaa", "Magarpatta": "mug-ur-puttaa", "Kesnand": "kays-nund", "Shikrapur": "shik-raa-pur"}
+STYLE = ("Speak as a warm, confident Pune property creator talking to a friend on Instagram, in natural Indian English, with real "
+         "expression that follows the meaning of each line, never one flat tone.")
+
+
+def gemini_available() -> bool:
+    return bool(os.environ.get("GEMINI_API_KEY")) and (os.environ.get("REEL_VOICE_ENGINE") or "gemini").lower() != "google"
+
+
+def pronunciation(lines: Sequence[str]) -> str:
+    said = [f"'{name}' as '{how}'" for name, how in PRONOUNCE.items() if any(name.lower() in l.lower() for l in lines)]
+    return ("Pronounce " + ", ".join(said) + ".") if said else ""
+
+
+def gemini_speech(text: str, voice: Optional[str] = None, timeout: float = 120.0) -> bytes:
+    """PCM (16-bit mono, 24 kHz) of `text`, which carries its own directions. Raises VoiceError."""
+    key = os.environ.get("GEMINI_API_KEY")
+    if not key:
+        raise VoiceError("GEMINI_API_KEY is not set")
+    model = os.environ.get("REEL_TTS_MODEL") or GEMINI_TTS_MODEL
+    body = {"contents": [{"parts": [{"text": text}]}],
+            "generationConfig": {"responseModalities": ["AUDIO"], "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {
+                "voiceName": voice or os.environ.get("REEL_GEMINI_VOICE") or GEMINI_VOICE}}}}}
+    try:
+        r = httpx.post(GEMINI_TTS_URL.format(model=model), params={"key": key}, json=body, timeout=timeout)
+    except Exception as e:
+        raise VoiceError(f"gemini speech unreachable ({type(e).__name__})")
+    if r.status_code >= 400:
+        raise VoiceError(f"gemini speech HTTP {r.status_code}: {r.text[:120]}".replace(key, "[redacted]"))
+    try:
+        part = r.json()["candidates"][0]["content"]["parts"][0]["inlineData"]
+        return base64.b64decode(part["data"])
+    except (KeyError, IndexError, ValueError) as e:
+        raise VoiceError(f"gemini speech: no audio in the answer ({type(e).__name__})")
+
+
+def gemini_script(lines: Sequence[str], direction: str = "") -> str:
+    """The text Gemini performs: the style, the line writer's direction, the pronunciations, then the lines with a clear pause
+    between them (the take is cut at those pauses)."""
+    head = " ".join(x for x in (STYLE, direction.strip(), pronunciation(lines),
+                                "Leave a pause of about two seconds between lines; read exactly these words.") if x)
+    return head + "\n\n" + "\n".join(" ".join(str(l).split()) for l in lines)
