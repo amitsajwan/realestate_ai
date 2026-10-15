@@ -46,7 +46,7 @@ def synth(text: str, lang: str = "en", voice: Optional[str] = None, rate: float 
     body = {"input": {"ssml" if ssml else "text": text}, "voice": {"languageCode": code, "name": name},
             "audioConfig": {"audioEncoding": "MP3", "speakingRate": rate, "sampleRateHertz": 48000}}
     try:
-        r = httpx.post(URL, params={"key": key}, json=body, timeout=60)
+        r = httpx.post(URL, headers={"X-Goog-Api-Key": key}, json=body, timeout=60)
     except Exception as e:
         raise VoiceError(f"voice service unreachable ({type(e).__name__})")
     if r.status_code >= 400:
@@ -90,7 +90,7 @@ def gemini_speech(text: str, voice: Optional[str] = None, timeout: float = 120.0
             "generationConfig": {"responseModalities": ["AUDIO"], "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {
                 "voiceName": voice or os.environ.get("REEL_GEMINI_VOICE") or GEMINI_VOICE}}}}}
     try:
-        r = httpx.post(GEMINI_TTS_URL.format(model=model), params={"key": key}, json=body, timeout=timeout)
+        r = httpx.post(GEMINI_TTS_URL.format(model=model), headers={"x-goog-api-key": key}, json=body, timeout=timeout)
     except Exception as e:
         raise VoiceError(f"gemini speech unreachable ({type(e).__name__})")
     if r.status_code >= 400:
