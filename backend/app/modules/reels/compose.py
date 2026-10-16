@@ -795,7 +795,8 @@ def finish_scenes(scenes: Sequence[Scene], end_card: bool = False) -> List[Scene
 
 class Renderer:
     def __init__(self, scenes: Sequence[Scene], seconds_per_scene: float = 3.0, transition: str = "fade", xfade: float = 0.45,
-                 progress: bool = True, end_card: bool = False, hook_tag: bool = True, max_seconds: float = MAX_SECONDS):
+                 progress: bool = True, end_card: bool = False, hook_tag: bool = True, max_seconds: float = MAX_SECONDS,
+                 captions: Sequence[Tuple[float, float, str]] = ()):
         """hook_tag=False: no brand tag while the hook (scene 1) is on screen; it fades in with scene 2. The first second belongs to the
         viewer's problem, not to our name."""
         scenes = finish_scenes(scenes, end_card)
@@ -805,6 +806,7 @@ class Renderer:
             raise ReelError("transition must be 'fade' or 'slide'")
         self.transition, self.progress = transition, progress
         self.tl = plan([s.seconds if s.seconds else seconds_per_scene for s in scenes], xfade, max_seconds)
+        self.captions = list(captions)   # (start s, end s, text): the spoken words, drawn over the frames (caption_layer)
         self.prep = [_Prepared(s, i, i == 0) for i, s in enumerate(scenes)]
         for q in self.prep[1:]:   # the incoming text starts a little before the middle of the blend, as the outgoing text leaves
             q.delay = TEXT_HANDOVER[0] * self.tl.xfade
@@ -843,6 +845,10 @@ class Renderer:
             if i == 0 and not self.hook_tag:
                 tag_a = e
         _chrome(img, self.tag, t / self.tl.total if self.progress else 0.0, chrome_a, tag_alpha=tag_a)
+        cap = next((c for a, b, c in self.captions if a <= t < b), None)
+        if cap:
+            layer = caption_layer(cap)
+            img.paste(layer, ((W - layer.width) // 2, int(H * CAPTION_Y) - layer.height // 2), layer)
         return img
 
     def cover(self) -> Image.Image:
@@ -854,6 +860,54 @@ class Renderer:
     def frames(self) -> Iterator[bytes]:
         for k in range(self.tl.frames):
             yield self.frame_at(k / FPS).tobytes()
+
+
+# ---- captions: the spoken words on screen (about 85% watch with the sound off) --------------------------------------
+CAPTION_Y = 0.74          # the caption's middle, as a share of the height: below the scene's own text, above the app's buttons
+CAPTION_SIZE = 62
+
+
+@lru_cache(maxsize=64)
+def caption_layer(text: str) -> Image.Image:
+    """One caption as an RGBA image: bold white words on a dark rounded box, at most two lines, Devanagari shaped (Mukta)."""
+    deva = _devanagari_text(text)
+    text = devanagari_clean(text) if deva else latin(text)
+    font = text_font(CAPTION_SIZE, "bold", devanagari=deva)
+    probe = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
+    width = lambda s: probe.textlength(s, font=font)   # noqa: E731
+    lines, cur = [], ""
+    for word in text.split():
+        nxt = f"{cur} {word}".strip()
+        if cur and width(nxt) > W * 0.84:
+            lines.append(cur)
+            cur = word
+        else:
+            cur = nxt
+    lines = (lines + [cur])[:2]
+    pad, step = 22, line_step(font)
+    w = int(max(width(x) for x in lines)) + 2 * pad
+    h = step * len(lines) + 2 * pad
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.rounded_rectangle((0, 0, w - 1, h - 1), radius=18, fill=(0, 0, 0, 165))
+    for k, line in enumerate(lines):
+        d.text(((w - width(line)) / 2, pad + k * step), line, font=font, fill=(255, 255, 255, 255))
+    return img
+
+
+def chunks(text: str, start: float, end: float, words: int = 4) -> List[Tuple[float, float, str]]:
+    """`text` spoken from `start` to `end` as captions of about `words` words, each on screen for its share of the time."""
+    ws = text.split()
+    if not ws or end <= start:
+        return []
+    parts = [" ".join(ws[i:i + words]) for i in range(0, len(ws), words)]
+    total = sum(len(p) for p in parts)
+    out, t = [], start
+    for p in parts:
+        d = (end - start) * len(p) / total
+        out.append((t, t + d, p))
+        t += d
+    return out
 
 
 def cover_path(video) -> Path:
@@ -907,7 +961,7 @@ def encode(frames: Iterable[bytes], total: float, out_path, music=None, timeout:
 
 def make_reel(scenes: Sequence[Scene], out_path, seconds_per_scene: float = 3.0, music=None, transition: str = "fade",
               xfade: float = 0.45, progress: bool = True, end_card: bool = False, timeout: float = 900.0, hook_tag: bool = True,
-              max_seconds: float = MAX_SECONDS) -> Path:
+              max_seconds: float = MAX_SECONDS, captions: Sequence[Tuple[float, float, str]] = ()) -> Path:
     """Render `scenes` (plus the brand end card only when end_card=True) to an MP4 at `out_path` and return the path. A 1080x1920 cover JPG (the hook
     scene as a still, see `cover_path`) is written next to it, for Instagram's `cover_url`.
 
@@ -916,7 +970,7 @@ def make_reel(scenes: Sequence[Scene], out_path, seconds_per_scene: float = 3.0,
     reel passes its own: its scenes last as long as their lines, and a squeezed scene would speak over the next)."""
     if music and not Path(music).is_file():
         raise ReelError("music file not found")
-    r = Renderer(scenes, seconds_per_scene, transition, xfade, progress, end_card, hook_tag, max_seconds)
+    r = Renderer(scenes, seconds_per_scene, transition, xfade, progress, end_card, hook_tag, max_seconds, captions)
     out = encode(r.frames(), r.tl.total, out_path, music=music, timeout=timeout)
     write_cover(r, out)
     return out

@@ -138,9 +138,12 @@ def test_the_music_is_ducked_under_the_voice_and_comes_back():
     assert "amix=inputs=3:normalize=0,apad=whole_dur=9.00,volume=1.35,asplit=2[voice][key]" in g
     assert f"[3:a]aresample=48000,volume={narration.BED_GAIN:.2f}[bed]" in g
     assert "[bed][key]sidechaincompress=" in g and "release=" in g     # keyed by the voice; released between lines and at the end
-    assert g.endswith("[voice][ducked]amix=inputs=2:normalize=0:duration=first[out]")
+    assert "[voice][ducked]amix=inputs=2:normalize=0:duration=first[mixd]" in g
+    # the reel's loudness and a limiter on what comes out (a voice-over once clipped at +0.1 dBFS)
+    assert g.endswith("[mixd]loudnorm=I=-14.0:TP=-1.5:LRA=11,aresample=48000[out]")
     plain = narration.graph(2, [0.0, 3.0], 6.0, music=False)
-    assert "sidechaincompress" not in plain and "asplit" not in plain and plain.endswith("volume=1.35[out]")
+    assert "sidechaincompress" not in plain and "asplit" not in plain and "volume=1.35[mixd]" in plain
+    assert plain.endswith("loudnorm=I=-14.0:TP=-1.5:LRA=11,aresample=48000[out]")
 
 
 def test_mix_passes_the_lines_then_the_bed_to_ffmpeg(tmp_path, monkeypatch):

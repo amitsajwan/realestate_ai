@@ -26,6 +26,7 @@ MIN_GAP_S = 0.85                  # a pause this long is a line break (voice.LIN
 MIN_PIECE_S = 0.3
 HEAD_S, TAIL_S = 0.04, 0.15       # kept before and after each spoken line
 VOICE_GAIN = 1.35
+OUT_LUFS = -14.0   # Instagram and Facebook play reels at about this loudness
 BED_GAIN = 0.55                   # the music between lines; 0.30 with the hard ducking below left only a faint "tsss" (owner 2026-10-16)
 DUCK = "threshold=0.05:ratio=2:attack=30:release=600:makeup=1"   # under a line the music steps back ~6 dB, it does not vanish
 
@@ -162,13 +163,15 @@ def graph(n: int, starts: Sequence[float], total: float, music: bool = True) -> 
     """The ffmpeg filter graph: inputs 0..n-1 are the lines, input n the music bed (when `music`); the output is [out]."""
     filters = [f"[{i}:a]adelay={ms}|{ms},aresample={SR}[a{i}]" for i, ms in enumerate(delays_ms(starts[:n]))]
     mix = "".join(f"[a{i}]" for i in range(n))
-    voice_out = "[voice][key]" if music else "[out]"
+    voice_out = "[voice][key]" if music else "[mixd]"
     filters.append(f"{mix}amix=inputs={n}:normalize=0,apad=whole_dur={total:.2f},volume={VOICE_GAIN}"
                    + (",asplit=2" if music else "") + voice_out)
     if music:
         filters.append(f"[{n}:a]aresample={SR},volume={BED_GAIN:.2f}[bed]")
         filters.append(f"[bed][key]sidechaincompress={DUCK}[ducked]")
-        filters.append("[voice][ducked]amix=inputs=2:normalize=0:duration=first[out]")
+        filters.append("[voice][ducked]amix=inputs=2:normalize=0:duration=first[mixd]")
+    # a reel's loudness, and a limiter: the voice-over once peaked at +0.1 dBFS and clipped on phones (2026-10-16)
+    filters.append(f"[mixd]loudnorm=I={OUT_LUFS}:TP=-1.5:LRA=11,aresample={SR}[out]")
     return ";".join(filters)
 
 

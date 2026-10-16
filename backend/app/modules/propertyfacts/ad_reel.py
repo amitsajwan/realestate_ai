@@ -22,6 +22,7 @@ formats that brought the most value before (enquiries, then clicks, then views, 
 earlier ad reels), 20% another one.
 """
 import logging
+import os
 import random
 import re
 from dataclasses import dataclass, field
@@ -453,6 +454,12 @@ def spoken(line: str) -> str:
     return " ".join(t.split()).strip(" ,") or "MahaRERA registered"
 
 
+def caption_text(line: str, lang: str) -> str:
+    """A spoken line as its caption: the words said (our names as the voice says them), without pause tags or the «» marks."""
+    from app.modules.reels.voice import for_voice, unpaused
+    return " ".join(for_voice(unpaused(str(line)).replace("«", "").replace("»", ""), lang).split())
+
+
 def render(s: Script, pictures: Sequence, dest: Path, kicker: Optional[str] = None,
            speech: Optional[Tuple[Sequence[str], str, str]] = None, mood: str = "warm") -> Dict[str, Any]:
     """The reel at `dest`, with our music. `speech` (the voice-over step: (one spoken line per `s.lines()`, voice language,
@@ -462,12 +469,12 @@ def render(s: Script, pictures: Sequence, dest: Path, kicker: Optional[str] = No
     import tempfile
 
     from app.modules.reels import ffmpeg, narration
-    from app.modules.reels.compose import MAX_SECONDS, make_reel, plan
+    from app.modules.reels.compose import MAX_SECONDS, chunks, make_reel, plan
     from app.modules.reels.music import write as write_music
 
     sc = scenes(s, pictures, kicker)
     work = Path(tempfile.mkdtemp(prefix="ad-reel-"))
-    audio, how, music_info = None, "off", {}
+    audio, how, music_info, captions = None, "off", {}, []
     try:
         if speech is not None:   # hook, beats, payoff, checked, cta: scenes 0..len(lines)-1; the last scene (the loop) is silent
             lines, lang, gender = speech[:3]
@@ -488,14 +495,23 @@ def render(s: Script, pictures: Sequence, dest: Path, kicker: Optional[str] = No
                 raise ValueError(f"the voice-over is longer than {SPOKEN_MAX_S:g} s; ask for it again")
             sc, first = spread(sc, len(clips), pictures, s.info)
             tl = plan([x.seconds for x in sc], XFADE, SPOKEN_MAX_S)
-            audio = narration.mix(work, clips, [tl.starts[j] for j in first], tl.total,
-                                  write_music(work / "bed.wav", seconds=tl.total + 1.0, mood=mood, info=music_info))
+            starts = [tl.starts[j] for j in first]
+            # the spoken words on screen, in short chunks timed to their line (most people watch with the sound off)
+            for i, clip in enumerate(clips):
+                said = caption_text(lines[i], lang)
+                if said:
+                    captions += chunks(said, starts[i] + 0.1, starts[i] + ffmpeg.probe(clip).duration)
+            # voice only unless REEL_VOICE_MUSIC=on (owner 2026-10-16: the music under the voice sounded wrong; the voice alone)
+            bed = (write_music(work / "bed.wav", seconds=tl.total + 1.0, mood=mood, info=music_info)
+                   if os.environ.get("REEL_VOICE_MUSIC", "off").lower() == "on" else None)
+            audio = narration.mix(work, clips, starts, tl.total, bed)
             how = "spoken"
         most = SPOKEN_MAX_S if speech is not None else MAX_SECONDS
         # the VM draws about one frame a second while the workers run: a 40 s voiced reel needs ~20 min, past the 15 min
         # default (live 2026-10-16: two Lodha reels stopped at 29.8 s and 36.3 s of video); 45 s of drawing per reel second
         length = plan([x.seconds for x in sc], XFADE, most).total
         make_reel(sc, dest, music=audio, xfade=XFADE, progress=False, end_card=False, hook_tag=False, max_seconds=most,
+                  captions=captions,
                   timeout=max(900.0, 45.0 * length))
         return {"path": dest, "voice": how, "seconds": round(plan([x.seconds for x in sc], XFADE, most).total, 1),
                 "music": music_info or None}
