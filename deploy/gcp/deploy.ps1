@@ -101,7 +101,8 @@ Run "gcloud compute ssh $target $common --command `"$remote`""
 
 if (-not $Build) {
   # the Cloud Run Job that draws the reels runs the same backend image: keep it on this commit too (skipped until it exists)
-  $job = gcloud run jobs list --project $Project --region asia-south1 --filter "metadata.name=renderer" --format "value(metadata.name)" 2>$null
+  # a warning on stderr is an error in PowerShell 5.1 (2026-10-16: "filter keys were not present" failed a good deploy)
+  $job = try { gcloud run jobs describe renderer --project $Project --region asia-south1 --format "value(metadata.name)" 2>$null } catch { $null }
   if ($job) {
     Step "Pointing the renderer (Cloud Run Job) at the images of $sha"
     Run "gcloud run jobs update renderer --project $Project --region asia-south1 --image asia-south1-docker.pkg.dev/$Project/avasetu/backend:$sha --quiet"
