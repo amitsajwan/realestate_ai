@@ -47,6 +47,9 @@ INDEXES: Iterable[Tuple[str, list, dict]] = [
     # post results (modules/insights): one snapshot per post and age; read grouped by what the post was
     ("content_metrics", [("post_id", ASC), ("age_label", ASC)], {"unique": True}),
     ("content_metrics", [("tags.format", ASC), ("age_label", ASC), ("at", DESC)], {}),
+    # verified Meta webhook payloads: durable intake and oldest queued work
+    ("conversation_webhook_jobs", [("status", ASC), ("created_at", ASC)], {}),
+    ("conversation_webhook_jobs", [("finished_at", ASC)], {"expireAfterSeconds": 30 * 86400}),  # handled jobs go after 30 days
 ]
 
 

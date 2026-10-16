@@ -1,5 +1,5 @@
 <#
-  Redeploy the pilot to the single GCP VM (Caddy + frontend + backend + worker + MongoDB via docker compose).
+  Redeploy the pilot to the single GCP VM (Caddy + frontend + backend + worker roles + MongoDB via docker compose).
 
   What it does:
     1. Bundles the TRACKED files of deploy/, backend/ and frontend/ from git HEAD (so no .env, node_modules or uploads ever leave your PC).
@@ -61,7 +61,7 @@ if ($ContactEmail) { $setEmail = "sed -i '/^NEXT_PUBLIC_CONTACT_EMAIL=/d' .env; 
 # build). Code files in the code folders that the bundle no longer has are removed; .env files, backups and assets are kept.
 $prune = "cd $RemoteDir; tar tzf ~/pune-property.tgz | sort > /tmp/deploy-new.txt; find backend/app backend/scripts backend/tests frontend/app frontend/components frontend/lib frontend/__tests__ frontend/hooks frontend/store frontend/types frontend/utils frontend/styles frontend/tests -type f \( -name '*.py' -o -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.jsx' -o -name '*.mjs' -o -name '*.css' \) -not -path '*/node_modules/*' -not -path '*/__pycache__/*' 2>/dev/null | sort | comm -23 - /tmp/deploy-new.txt > /tmp/deploy-stale.txt; echo stale code files removed:; wc -l /tmp/deploy-stale.txt; xargs -r -a /tmp/deploy-stale.txt rm -f; cd ~; "
 # a second "up -d" starts any service the first one left stopped (2026-10-15: a deploy left the backend down for ~3 minutes)
-$remote = "set -e; mkdir -p $RemoteDir; tar xzf ~/pune-property.tgz -C $RemoteDir; $prune cd $RemoteDir/deploy/gcp; test -f .env || { echo 'ERROR: deploy/gcp/.env missing on the VM'; exit 1; }; ${setEmail}sudo docker compose up -d --build || { echo first up failed, retrying; sleep 10; sudo docker compose up -d; }; sleep 8; sudo docker compose up -d; sudo docker compose ps; rm -f ~/pune-property.tgz"
+$remote = "set -e; mkdir -p $RemoteDir; tar xzf ~/pune-property.tgz -C $RemoteDir; $prune cd $RemoteDir/deploy/gcp; test -f .env || { echo 'ERROR: deploy/gcp/.env missing on the VM'; exit 1; }; ${setEmail}sudo docker compose up -d --build --remove-orphans || { echo first up failed, retrying; sleep 10; sudo docker compose up -d; }; sleep 8; sudo docker compose up -d; sudo docker compose ps; rm -f ~/pune-property.tgz"
 Run "gcloud compute ssh $target $common --command `"$remote`""
 
 Step "Checking the public health address"

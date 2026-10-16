@@ -1,4 +1,5 @@
 """Webhook verification, signatures, idempotency and the agent-scoped endpoints, through FastAPI's TestClient. No network."""
+import asyncio
 import logging
 from types import SimpleNamespace
 
@@ -42,15 +43,22 @@ def client(db, user_id="OWNER"):
     app.dependency_overrides[wr.get_service_factory] = lambda: factory
     app.dependency_overrides[nr.get_service] = lambda: NotificationService(db, now=lambda: NOW)
     app.dependency_overrides[current_active_user] = lambda: SimpleNamespace(id=user_id)
+    app.state.webhook_db = db
+    app.state.whatsapp_factory = factory
     return TestClient(app), rec
 
 
-def post(c, p, secret=SECRET, header=True):
+def post(c, p, secret=SECRET, header=True, drain=True):
+    from app.modules.whatsapp import jobs
+
     b = body_of(p)
     headers = {"Content-Type": "application/json"}
     if header:
         headers["X-Hub-Signature-256"] = sign(b, secret)
-    return c.post("/whatsapp/webhook", content=b, headers=headers)
+    response = c.post("/whatsapp/webhook", content=b, headers=headers)
+    if drain and response.status_code == 200:
+        asyncio.run(jobs.run_once(c.app.state.webhook_db, whatsapp_factory=c.app.state.whatsapp_factory, now=lambda: NOW))
+    return response
 
 
 def test_webhook_verification(env):
@@ -84,6 +92,19 @@ def test_tampered_body_is_rejected(env):
     sig = sign(good)
     r = c.post("/whatsapp/webhook", content=good.replace(b"Hi", b"Yo"), headers={"X-Hub-Signature-256": sig, "Content-Type": "application/json"})
     assert r.status_code == 403
+
+
+def test_verified_payload_is_durable_before_it_is_processed(env):
+    from app.modules.whatsapp import jobs
+
+    db = FakeDb()
+    c, _ = client(db)
+    assert post(c, payload([message("Hi", mid="wamid.queued")]), drain=False).json()["processed"] == 1
+    assert db.get_collection("whatsapp_messages").docs == []
+    assert db.get_collection(jobs.COLLECTION).docs[0]["status"] == "queued"
+    asyncio.run(jobs.run_once(db, whatsapp_factory=c.app.state.whatsapp_factory, now=lambda: NOW))
+    assert db.get_collection(jobs.COLLECTION).docs[0]["status"] == "done"
+    assert db.get_collection("whatsapp_messages").docs[0]["_id"] == "wamid.queued"
 
 
 def test_meta_retries_are_processed_once(env):

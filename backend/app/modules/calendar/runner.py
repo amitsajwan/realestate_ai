@@ -33,6 +33,7 @@ from .store import Store, aware
 log = logging.getLogger(__name__)
 CHANNELS = ("facebook_page", "instagram")
 PRERENDER_LEAD = timedelta(hours=2)
+PRERENDER_INTERVAL_S = 60.0
 
 
 async def prerender_reels(store: Store, now: datetime, uploads: Optional[Path] = None, render_reel: Callable = adapters.render_reel_for,
@@ -56,6 +57,23 @@ async def prerender_reels(store: Store, now: datetime, uploads: Optional[Path] =
                 await store.set_video(sib["_id"], video, info)
         done += 1
     return done
+
+
+async def render_loop() -> None:
+    log.info("calendar reel renderer: loop started")
+    while True:
+        cfg = load()
+        try:
+            async with heartbeat("calendar_reels", get_database, on=cfg.enabled):
+                if cfg.enabled:
+                    rendered = await prerender_reels(Store(get_database()), datetime.now(timezone.utc))
+                    if rendered:
+                        log.info("calendar: pre-rendered %s reel(s)", rendered)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            log.exception("calendar reel renderer: cycle failed")
+        await asyncio.sleep(PRERENDER_INTERVAL_S)
 
 
 async def run_once(store: Store, publisher, social: SocialConfig, cfg: CalendarConfig, now: datetime, uploads: Optional[Path] = None,
@@ -187,7 +205,6 @@ async def _publish_one(store: Store, publisher, social: SocialConfig, doc: dict,
 
 async def loop() -> None:
     log.info("calendar: loop started")
-    rendering: Optional[asyncio.Task] = None
     planned_on = None  # the IST day the date-watch reels were last planned (once a day is enough)
     planned_numbers_on = None  # the same for the number of the week
     tagged = False   # rows written before tags existed get them once per start, by the system itself (idempotent)
@@ -209,8 +226,6 @@ async def loop() -> None:
                                 log.info("calendar: tagged %s older rows", n)
                         except Exception as e:
                             log.warning("calendar: tagging older rows failed: %s", type(e).__name__)
-                    if rendering is None or rendering.done():  # reels render in the background so a pass is never held up
-                        rendering = asyncio.create_task(prerender_reels(store, now))
                     from .schedule import IST
                     today = now.astimezone(IST).date()
                     if cfg.delay_reels and planned_on != today:
@@ -239,8 +254,6 @@ async def loop() -> None:
                         if live["removed"]:
                             log.info("calendar: %s published posts are gone from the platform, marked removed", live["removed"])
         except asyncio.CancelledError:
-            if rendering and not rendering.done():
-                rendering.cancel()
             raise
         except Exception:  # never let one bad cycle stop the loop
             log.exception("calendar: cycle failed")

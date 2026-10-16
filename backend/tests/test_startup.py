@@ -17,7 +17,6 @@ async def _noop():
 def no_database(monkeypatch):
     monkeypatch.setattr(application, "setup_logging", lambda **_: None)  # the real one reconfigures logging for every later test
     monkeypatch.setattr(application, "init_database", _no_database)
-    monkeypatch.setattr(application, "stop_token_cleanup", _noop)
     monkeypatch.setattr(application, "close_database", _noop)
 
 

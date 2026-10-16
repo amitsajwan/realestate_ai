@@ -1,9 +1,11 @@
 """The worker process: runs the background loops outside the API (docs/ARCHITECTURE.md §1 and §6).
 
-    python -m app.worker           run engage, newsroom, calendar, listing reels, marketing runs, insights, answer gaps, seo (IndexNow, index coverage) and neighbourhood articles until SIGTERM/SIGINT
-    python -m app.worker --check   print one line per loop; exit 1 when an enabled loop's heartbeat is older than twice its
-                                   interval, 2 when the database cannot be read (deploy/gcp/health_check.sh calls this)
-                                   ; then, for information only, whether the MahaRERA register and project enrichment are
+    python -m app.worker                       run every loop until SIGTERM/SIGINT
+    python -m app.worker --role conversations  run one role's loops; --loops accepts an explicit comma-separated subset
+    python -m app.worker --check [selection]   print one line per selected loop; exit 1 when an enabled loop's heartbeat is
+                                               older than twice its interval, 2 when the database cannot be read
+                                               (deploy/gcp/health_check.sh calls this); then, for information only, whether
+                                               the MahaRERA register and project enrichment are
                                    moving (WARN lines; the exit code is the heartbeats' alone)
 
 Same image, same settings as the API. Each loop starts through its runner lease (app/platform/leases.py), so the worker and an
@@ -24,24 +26,57 @@ from app.platform import heartbeats
 from app.platform.leases import run_as_leader
 
 LoopTable = Dict[str, Callable[[], Awaitable[Any]]]
+ALL_LOOP_NAMES = (
+    "engage", "newsroom", "calendar", "calendar_reels", "listing_reels", "marketing_runs", "project_enrich", "insights",
+    "answer_gaps", "inbound_messages", "token_cleanup", "radar", "seo", "communities",
+)
+ROLE_LOOPS = {
+    "conversations": ("engage", "answer_gaps", "inbound_messages"),
+    "newsroom": ("newsroom", "seo", "communities", "project_enrich", "radar", "insights", "calendar", "token_cleanup"),
+    "media": ("calendar_reels", "listing_reels", "marketing_runs"),
+}
 
 
 def loops() -> LoopTable:
     """Lease name -> loop. The names are also the heartbeat names."""
     from app.modules.areastats.enrich import loop as enrich_loop
     from app.modules.calendar.runner import loop as calendar_loop
+    from app.modules.calendar.runner import render_loop as calendar_reels_loop
     from app.modules.engage.runner import loop as engage_loop
     from app.modules.insights.collector import loop as insights_loop
     from app.modules.knowledge.gaps import loop as gaps_loop
     from app.modules.newsroom.runner import loop as newsroom_loop
     from app.modules.propertyfacts.jobs import loop as marketing_loop
+    from app.modules.whatsapp.jobs import loop as inbound_loop
+    from app.services.token_cleanup_service import loop as token_cleanup_loop
     from app.modules.radar import loop as radar_loop
     from app.modules.reels.listing_reel import loop as reels_loop
     from app.modules.communities.runner import loop as communities_loop
     from app.modules.seo.runner import loop as seo_loop
-    return {"engage": engage_loop, "newsroom": newsroom_loop, "calendar": calendar_loop, "listing_reels": reels_loop,
+    return {"engage": engage_loop, "newsroom": newsroom_loop, "calendar": calendar_loop,
+            "calendar_reels": calendar_reels_loop, "listing_reels": reels_loop,
             "marketing_runs": marketing_loop, "project_enrich": enrich_loop, "insights": insights_loop,
-            "answer_gaps": gaps_loop, "radar": radar_loop, "seo": seo_loop, "communities": communities_loop}
+            "answer_gaps": gaps_loop, "inbound_messages": inbound_loop, "token_cleanup": token_cleanup_loop,
+            "radar": radar_loop, "seo": seo_loop,
+            "communities": communities_loop}
+
+
+def requested_loop_names(role: Optional[str] = None, value: Optional[str] = None) -> Tuple[str, ...]:
+    if role:
+        return ROLE_LOOPS[role]
+    if value is None:
+        return ALL_LOOP_NAMES
+    names = tuple(dict.fromkeys(name.strip() for name in value.split(",") if name.strip()))
+    unknown = sorted(set(names) - set(ALL_LOOP_NAMES))
+    if not names:
+        raise ValueError("--loops must name at least one loop")
+    if unknown:
+        raise ValueError(f"unknown loop(s): {', '.join(unknown)}")
+    return names
+
+
+def select_loops(table: LoopTable, names: Tuple[str, ...]) -> LoopTable:
+    return {name: table[name] for name in names}
 
 
 def start_loops(table: LoopTable, get_db: Callable[[], Any] = get_database) -> Dict[str, asyncio.Task]:
@@ -86,10 +121,13 @@ def expected_intervals() -> Dict[str, Optional[float]]:
     from app.modules.areastats.enrich import POLL_SECONDS as ENRICH_POLL_S
     from app.modules.areastats.enrich import load as enrich_cfg
     from app.modules.calendar.config import load as calendar_cfg
+    from app.modules.calendar.runner import PRERENDER_INTERVAL_S
     from app.modules.engage.config import load as engage_cfg
     from app.modules.insights.collector import INTERVAL_S as INSIGHTS_INTERVAL_S
     from app.modules.insights.collector import enabled as insights_on
     from app.modules.knowledge.gaps import INTERVAL_S as GAPS_INTERVAL_S
+    from app.modules.whatsapp.jobs import HEARTBEAT_INTERVAL_S as INBOUND_INTERVAL_S
+    from app.services.token_cleanup_service import INTERVAL_S as TOKEN_CLEANUP_INTERVAL_S
     from app.platform.meta_graph.config import load as social_cfg
     from app.modules.newsroom.config import load as newsroom_cfg
     from app.modules.propertyfacts.jobs import HEARTBEAT_INTERVAL_S as MARKETING_INTERVAL_S
@@ -104,11 +142,14 @@ def expected_intervals() -> Dict[str, Optional[float]]:
         "engage": float(e.interval_s) if (e.enabled and e.page_id and e.page_token) else None,  # as engage/runner.py
         "newsroom": float(n.interval_s) if n.enabled else None,
         "calendar": float(c.interval_s) if c.enabled else None,
+        "calendar_reels": float(PRERENDER_INTERVAL_S) if c.enabled else None,
         "listing_reels": HEARTBEAT_INTERVAL_S,  # always on (polls the reel queue)
         "marketing_runs": MARKETING_INTERVAL_S,  # always on (polls the Start marketing queue)
         "project_enrich": float(ENRICH_POLL_S) if enrich_cfg().enabled else None,  # PROJECT_ENRICH_ENABLED
         "insights": float(INSIGHTS_INTERVAL_S) if insights_on(social_cfg()) else None,  # real posts with a token, not dry run
         "answer_gaps": float(GAPS_INTERVAL_S),  # always on (reads stored replies, notifies agents)
+        "inbound_messages": float(INBOUND_INTERVAL_S),  # always on (durable Meta webhook intake)
+        "token_cleanup": float(TOKEN_CLEANUP_INTERVAL_S),
         "radar": float(radar_cfg().interval_s) if radar_cfg().enabled else None,  # RADAR_ENABLED
         "seo": float(SEO_INTERVAL_S) if seo_on() else None,  # INDEXNOW_KEY or GSC_SA_KEY_B64
         "communities": float(COMMUNITIES_POLL_S) if communities_on() else None,  # COMMUNITY_ARTICLES_ENABLED
@@ -175,21 +216,29 @@ async def _read_heartbeats() -> Dict[str, dict]:
 
 
 # ---- entry point ----------------------------------------------------------------------------------------------------
-async def _main() -> None:
+async def _main(names: Tuple[str, ...]) -> None:
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGTERM, signal.SIGINT):
         loop.add_signal_handler(sig, stop.set)
-    await run(stop)
+    await run(stop, table=select_loops(loops(), names))
 
 
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m app.worker", description="Run the background loops.")
     parser.add_argument("--check", action="store_true", help="report loop heartbeats; exit 1 if one is stale")
+    selection = parser.add_mutually_exclusive_group()
+    selection.add_argument("--role", choices=sorted(ROLE_LOOPS), help="run or check the loops assigned to a worker role")
+    selection.add_argument("--loops", help="comma-separated loop names to run or check")
     args = parser.parse_args(argv)
+    try:
+        names = requested_loop_names(args.role, args.loops)
+    except ValueError as exc:
+        parser.error(str(exc))
     if args.check:
-        return asyncio.run(check())
-    asyncio.run(_main())
+        intervals = expected_intervals()
+        return asyncio.run(check(intervals={name: intervals[name] for name in names}))
+    asyncio.run(_main(names))
     return 0
 
 

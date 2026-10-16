@@ -82,15 +82,12 @@ small pull requests, one step (or part of a step) at a time. Each step has a "do
 - `python -m app.worker` from the same image runs the loops; the api process stops starting them.
 - Heartbeat per loop; `deploy/gcp/health_check.sh` alerts when one is older than twice its interval.
 - **Done when:** restarting the api does not interrupt a loop; stopping the worker raises an alert.
-- **Result:** `python -m app.worker` runs engage, newsroom, calendar and listing reels, each under its runner lease; on
-  SIGTERM it cancels them (releasing the leases), then closes the database. It applies the startup wiring before the loops
-  start (caught in review: without it the comment assistant would crash on listing comments; a test covers it). Production
-  refuses to start without its database. `RUN_BACKGROUND_LOOPS` (default true) decides whether the API also starts them; the
-  GCP compose file sets it false on the backend and adds a `worker` service from the same build. Rollback:
-  `RUN_BACKGROUND_LOOPS=true` in `.env`, then `docker compose up -d backend`. Each loop records start, success and error per
-  cycle in `worker_heartbeats` (`app/platform/heartbeats.py`; never raises). `health_check.sh` checks the worker container and
-  runs `python -m app.worker --check` in the backend container, alerting when a loop switched on in `.env` has had no
-  heartbeat for twice its interval (for reels, twice the 15-minute render limit). Not yet run on the VM.
+- **Result:** `python -m app.worker` runs all 14 loops, each under its runner lease; on SIGTERM it cancels them (releasing the
+  leases), then closes the database. It applies the startup wiring before the loops start. Production refuses to start without
+  its database. `RUN_BACKGROUND_LOOPS` (default true) decides whether the API also starts them. The GCP compose deployment
+  uses the same image for `conversations`, `newsroom` and `media`, with `--role` selecting each loop set and configurable CPU
+  and memory limits. `--loops` selects an operational subset. `--check --role` checks only that role's heartbeats.
+  Rollback: `RUN_BACKGROUND_LOOPS=true` in `.env`, then `docker compose up -d backend`; leases make overlap safe.
 
 ### Step 5: One publishing path (done in code; verify after deploy)
 - Distribution owns the queue and the publication log; newsroom, calendar, showcase and reels hand it posts instead of calling
@@ -117,6 +114,38 @@ small pull requests, one step (or part of a step) at a time. Each step has a "do
     runner checks the pause every cycle). The dry-run replay is not needed for this change: no decision rule moved.
   - **Still outside the ledger:** the operator scripts in `backend/scripts/` (`post_samples.py`, `brand_posts.py`,
     `schedule_text_posts.py`, `post_voiced_reels.py`), run by hand.
+
+### Deployment phase 0: role workers on one VM (done in code; deploy and verify)
+- The same backend image runs three independently restartable roles: conversations, newsroom and media.
+- Each role has configurable CPU and memory limits; the media role can consume resources without killing comment replies.
+- Work that lived only in a process's memory became loops with heartbeats, so a restart loses nothing: Meta webhooks
+  (WhatsApp, Messenger, Instagram) are saved to `conversation_webhook_jobs` before the quick 200 and handled by
+  `inbound_messages` (3 attempts; handled jobs expire after 30 days); calendar reel pre-rendering is `calendar_reels`; token
+  clean-up is `token_cleanup`. With `RUN_BACKGROUND_LOOPS=true` the API starts the worker's whole table, so development and
+  rollback run the same 14 loops.
+- **Done when:** the VM runs all three role containers, each role's health check is green, and stopping media does not interrupt
+  engage or answer gaps. Rollback is the API running all loops or one worker with no role selection.
+
+### Deployment phase 1: move shared state off the VM
+- Put upload reads, writes and public URLs behind `platform.media`; use Cloud Storage in production and keep local storage for
+  development. Preserve old `/uploads/...` URLs with a redirect or proxy.
+- Move MongoDB to a managed replica set and secrets from the VM `.env` to Secret Manager.
+- Replace HTTP-process `BackgroundTasks`, fire-and-forget tasks and standalone cleanup loops with Mongo-backed queued items.
+- Count AI and Meta quotas in Mongo rather than per-process memory.
+- **Done when:** api and each worker role can run on different machines with no shared filesystem, process-local work queue or
+  duplicated quota allowance, and a restart loses no accepted work.
+
+### Deployment phase 2: orchestration
+- Run web and api on Cloud Run. Run one always-on instance of each worker role, with a second lease-protected replica only where
+  failover is needed; use a small compose VM or GKE Autopilot when literal pods justify the operational cost.
+- CI builds one image per commit and deploys each role independently. Centralize logs and add OpenTelemetry across process
+  boundaries; worker heartbeats remain the loop alert.
+
+### Deployment phases 3-4: boundaries, then optional extraction
+- Finish steps 6-8 below. Keep the modular monolith while domains share release pace and ownership.
+- Extract only after a concrete trigger: media first for compute scaling, then conversations for webhook latency, then newsroom.
+  Start with the existing Mongo status machines; add a broker only if they become the bottleneck.
+- Do not add Kafka, Temporal, a database per service, split Next.js apps or rewrite login for this move.
 
 ### Step 6: One writer per collection
 - One collection at a time, starting with `listings` (inventory) and `agent_public_profiles` (identity). The owner gets query
@@ -146,6 +175,7 @@ small pull requests, one step (or part of a step) at a time. Each step has a "do
 
 | Date | Step | Change |
 |---|---|---|
+| 2026-10-16 | Deployment 0 | One backend image split into conversations, newsroom and media roles; role-scoped heartbeat checks and per-role resource limits; Meta webhooks, calendar reel pre-render and token clean-up moved to durable loops; the API's rollback mode runs the worker's full loop table. Built, not yet deployed |
 | 2026-10-07 | 7, 8 (marketing part) | Old posting stack deleted: 6 endpoint groups (`/social-publishing`, `/publishing`, `/publishing-logs`, `/content`, `/enhanced-posts` and `/enhanced-post-management`, `/enhanced-templates`), 13 services, 4 schemas, 3 quarantined tests; the old dashboard's Property Marketing Hub, AI posting hub and publish workflow with the old clients that only they used (27 frontend files). None of it used the ledger. Studio and the public site never called it. The rest of the old app (`/dashboard`, `/login`, old Facebook connect, analytics, branding, ai-unified) is still to do. `docs/MARKETING.md` describes what remains |
 | 2026-10-03 | 5 | Publish ledger (`distribution.send`): every post at most once per key, across all 5 publishing paths; only distribution imports the Graph client (7th import rule); last import-rule exception cleared; rollback `PUBLISH_LEDGER=off` |
 | 2026-10-03 | 3 | No import cycles left: wrong-way imports replaced by callbacks and data passed in by `app/wiring.py`; content and conversations independent (2 new import rules); every module and function-level import checked by a test, which found and removed an unmounted broken router. Exceptions 4 -> 1 |

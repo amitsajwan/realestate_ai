@@ -1,7 +1,7 @@
 """Mounted by the integrator at /whatsapp:
   GET  /whatsapp/webhook         Meta's verification: echoes hub.challenge when hub.verify_token matches (public)
-  POST /whatsapp/webhook         Meta's events: X-Hub-Signature-256 checked with the app secret (403 on mismatch), answered 200 at once,
-                                 each new message handled in a background task (Meta retries anything that is not a quick 200)
+  POST /whatsapp/webhook         Meta's events: X-Hub-Signature-256 checked with the app secret (403 on mismatch), persisted before
+                                 the quick 200; the conversations worker handles each payload once
   GET  /whatsapp/conversations   the signed-in agent's WhatsApp chats (bearer auth, agent scoped)
 """
 import hashlib
@@ -10,7 +10,7 @@ import json
 import logging
 from typing import Callable, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import PlainTextResponse
 
 from app.core.auth_backend import current_active_user
@@ -60,7 +60,9 @@ async def verify(mode: str = Query("", alias="hub.mode"), token: str = Query("",
 
 
 @router.post("/webhook")
-async def receive(request: Request, background: BackgroundTasks, factory: Callable[[], WhatsAppService] = Depends(get_service_factory)):
+async def receive(request: Request, factory: Callable[[], WhatsAppService] = Depends(get_service_factory)):
+    from .jobs import enqueue, message_count
+
     body = await request.body()
     cfg = wa_config.load()
     if not valid_signature(cfg.app_secret, body, request.headers.get("x-hub-signature-256")):
@@ -74,20 +76,8 @@ async def receive(request: Request, background: BackgroundTasks, factory: Callab
         return {"ok": True, "processed": 0}
     if not isinstance(payload, dict) or payload.get("object") != "whatsapp_business_account":
         return {"ok": True, "processed": 0}
-    svc = factory(cfg)
-    queued = 0
-    for entry in payload.get("entry") or []:
-        for change in (entry or {}).get("changes") or []:
-            if (change or {}).get("field") != "messages":
-                continue
-            value = change.get("value") or {}
-            for st in value.get("statuses") or []:
-                background.add_task(svc.status_update, st)
-            for msg in value.get("messages") or []:
-                if await svc.claim(msg, value):
-                    background.add_task(svc.handle, msg, value)
-                    queued += 1
-    return {"ok": True, "processed": queued}
+    accepted = await enqueue(factory(cfg).db, "whatsapp", payload)
+    return {"ok": True, "processed": message_count("whatsapp", payload) if accepted else 0}
 
 
 @router.get("/conversations")

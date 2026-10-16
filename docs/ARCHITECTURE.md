@@ -7,17 +7,24 @@ How content is made, published, measured and learned from, and the work items fo
 
 ## 1. Shape
 
-**One backend app, one database, clear internal modules (a modular monolith).** FastAPI + MongoDB + Next.js on one VM.
-Splitting into services is premature for a 3-10 agent pilot and a small team.
+**One backend app, one database, clear internal modules (a modular monolith).** FastAPI + MongoDB + Next.js. Splitting the code
+into networked services is premature for a 3-10 agent pilot and a small team; deployment roles still get separate failure and
+scaling boundaries.
 
-Two processes run from the same Docker image:
-- **api**: serves HTTP.
-- **worker** (`python -m app.worker`): runs the background loops (newsroom, calendar, comment assistant, listing reels, later
-  freshness and the publish queue). `RUN_BACKGROUND_LOOPS=true` makes the api run them instead (the default where no worker is
-  deployed); runner leases keep one copy of each loop either way.
+Production roles:
+- **web**: Next.js, stateless and suitable for CDN-backed public routes.
+- **api**: FastAPI HTTP only; `RUN_BACKGROUND_LOOPS=false` in production.
+- **conversations**: `engage`, `answer_gaps`, `inbound_messages` (Meta webhooks saved by the api, handled here).
+- **newsroom**: `newsroom`, `seo`, `communities`, `project_enrich`, `radar`, `insights`, `calendar`, `token_cleanup`.
+- **media**: `calendar_reels`, `listing_reels`, `marketing_runs`; the highest CPU and memory allowance.
 
-**Constraints we design for:** MongoDB is a single server (`mongo:7`, no replica set). No multi-document transactions, no change
-streams and no Atlas Vector Search. Nothing in this design may depend on them.
+The three worker roles run the same backend image with different `python -m app.worker --role ...` commands. An explicit `--loops`
+subset is available for operations. `RUN_BACKGROUND_LOOPS=true` makes the api run every loop (the worker's own table) as rollback; runner leases keep one
+copy of each loop either way.
+
+Today these roles share one VM, a local uploads volume and `mongo:7`. Before roles can run on different machines, uploads move
+behind `platform.media` to Cloud Storage and Mongo moves to a managed replica set. The application does not depend on
+multi-document transactions, change streams or Atlas Vector Search.
 
 ## 2. Layers
 
@@ -103,7 +110,8 @@ Enforcement: `import-linter` in CI with today's violations recorded as a baselin
 - The loops are already status machines stored in Mongo (newsroom items, calendar slots, reel jobs). That is our durable workflow.
   We do not add Temporal, Inngest or a general job framework.
 - Each loop records a heartbeat (last cycle start, last success, last error) in `worker_heartbeats`. `deploy/gcp/health_check.sh`
-  alerts when a heartbeat is older than twice the loop's interval (`python -m app.worker --check`).
+  checks each role's owned loops and alerts when a heartbeat is older than twice its interval
+  (`python -m app.worker --check --role <role>`).
 
 ## 7. Publishing
 

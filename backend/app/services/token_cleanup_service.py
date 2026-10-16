@@ -10,8 +10,10 @@ from datetime import datetime, timedelta
 from typing import Dict, Any
 from app.repositories.token_repository import TokenRepository
 from app.core.database import get_database
+from app.platform.heartbeats import heartbeat
 
 logger = logging.getLogger(__name__)
+INTERVAL_S = 3600.0
 
 class TokenCleanupService:
     """Service for automated token cleanup and lifecycle management"""
@@ -171,13 +173,19 @@ class TokenCleanupService:
         self.cleanup_interval = new_interval
         logger.info(f"Token cleanup interval updated to {new_interval} seconds")
 
-# Global instance
-token_cleanup_service = TokenCleanupService()
-
-async def start_token_cleanup():
-    """Start the global token cleanup service"""
-    await token_cleanup_service.start_cleanup_scheduler()
-
-async def stop_token_cleanup():
-    """Stop the global token cleanup service"""
-    await token_cleanup_service.stop_cleanup_scheduler()
+async def loop() -> None:
+    service = TokenCleanupService()
+    if not await service.initialize():
+        raise RuntimeError("token cleanup could not initialize")
+    logger.info("token cleanup: loop started")
+    while True:
+        try:
+            async with heartbeat("token_cleanup", get_database) as hb:
+                result = await service.perform_cleanup()
+                if result.get("error"):
+                    hb.failed(result["error"])
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            logger.error("token cleanup cycle failed: %s", type(exc).__name__)
+        await asyncio.sleep(INTERVAL_S)

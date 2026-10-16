@@ -1,5 +1,5 @@
 # Avasetu on a single GCP VM: Caddy (auto-HTTPS) -> frontend + backend, MongoDB private.
-# Only Caddy publishes ports; Mongo, backend, worker and frontend are reachable only on the internal network.
+# Only Caddy publishes ports; Mongo, backend, the worker roles and frontend are reachable only on the internal network.
 services:
   mongo:
     image: mongo:7
@@ -25,8 +25,8 @@ services:
       DEBUG: "false"
       # the public site in captions, footers and links (app/core/brand.py); follows SITE_HOST unless set in .env
       PUBLIC_SITE_URL: ${PUBLIC_SITE_URL:-https://${SITE_HOST}}
-      # the worker service runs the background loops. Roll back: RUN_BACKGROUND_LOOPS=true in .env, then
-      # `docker compose up -d backend` (the API runs them again; leases keep it safe while the worker also runs)
+      # the worker roles (conversations, newsroom, media) run the background loops. Roll back: RUN_BACKGROUND_LOOPS=true in .env, then
+      # `docker compose up -d backend` (the API runs them again; leases keep it safe while the roles also run)
       RUN_BACKGROUND_LOOPS: ${RUN_BACKGROUND_LOOPS:-false}
     volumes:
       - uploads:/app/uploads
@@ -34,25 +34,63 @@ services:
       mongo:
         condition: service_healthy
 
-  # Background loops (comment assistant, newsroom, calendar, listing reels): same image and settings as the backend, its
-  # own process, so restarting the API does not interrupt them (docs/ARCHITECTURE.md §1). Runner leases keep one copy
-  # of each loop running even if the backend runs them too. Needs the uploads volume to render reels.
-  worker:
+  # Each role uses the same image and settings. Runner leases keep one copy of every loop running during deploys or rollback.
+  conversations:
     build: ../../backend
-    command: ["python", "-m", "app.worker"]
+    command: ["python", "-m", "app.worker", "--role", "conversations"]
     restart: unless-stopped
     env_file: .env
     environment:
       <<: *backend_env
-      RUN_BACKGROUND_LOOPS: "true"  # not read by the worker (it always runs the loops); stated so nobody copies "false"
+      RUN_BACKGROUND_LOOPS: "true"
     volumes:
       - uploads:/app/uploads
     depends_on:
       mongo:
         condition: service_healthy
     healthcheck:
-      disable: true  # the image's check calls the API on :8000; health_check.sh checks the loops' heartbeats instead
-    stop_grace_period: 30s  # time to cancel the loops and release their leases
+      disable: true
+    stop_grace_period: 30s
+    mem_limit: ${CONVERSATIONS_MEMORY_LIMIT:-512m}
+    cpus: ${CONVERSATIONS_CPU_LIMIT:-0.50}
+
+  newsroom:
+    build: ../../backend
+    command: ["python", "-m", "app.worker", "--role", "newsroom"]
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      <<: *backend_env
+      RUN_BACKGROUND_LOOPS: "true"
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      disable: true
+    stop_grace_period: 30s
+    mem_limit: ${NEWSROOM_MEMORY_LIMIT:-1g}
+    cpus: ${NEWSROOM_CPU_LIMIT:-1.00}
+
+  media:
+    build: ../../backend
+    command: ["python", "-m", "app.worker", "--role", "media"]
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      <<: *backend_env
+      RUN_BACKGROUND_LOOPS: "true"
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      disable: true
+    stop_grace_period: 30s
+    mem_limit: ${MEDIA_MEMORY_LIMIT:-2g}
+    cpus: ${MEDIA_CPU_LIMIT:-2.00}
 
   frontend:
     build:

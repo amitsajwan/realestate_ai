@@ -17,7 +17,7 @@ pipeline=reel ref=3f2a9c… step=voice outcome=failed reason="HTTP 403: API key 
 
 ## Where the logs are
 
-- **Docker:** `docker compose logs backend` (and `worker` when `RUN_BACKGROUND_LOOPS=false`). Add `-f` to follow.
+- **Docker:** `docker compose logs backend` (and the worker roles `conversations`, `newsroom`, `media` when `RUN_BACKGROUND_LOOPS=false`). Add `-f` to follow.
 - **Files:** `backend/logs/app.log` (JSON, one object per line; the line above is its `message`), errors also in `logs/error.log`.
 
 ## 1. Start here: what can this server do?

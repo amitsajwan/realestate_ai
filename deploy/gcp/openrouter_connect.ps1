@@ -98,9 +98,9 @@ sed -i -e '$a\' .env
 cat ~/or.env >> .env
 chmod 600 .env
 rm -f ~/or.env
-sudo docker compose up -d backend worker  # the worker reads the same .env (background loops)
+sudo docker compose up -d backend conversations newsroom media  # the worker roles read the same .env (background loops)
 sleep 15
-sudo docker compose ps backend worker --format '{{.Name}} {{.Status}}'
+sudo docker compose ps backend conversations newsroom media --format '{{.Name}} {{.Status}}'
 grep -E '^(AI_STT_PROVIDER|AI_LLM_BASE_URL|AI_LISTING_LLM_MODEL)=' .env
 '@ -replace "__DIR__", $RemoteDir
 $tmpEnv = Join-Path $env:TEMP "or.env"; $tmpSh = Join-Path $env:TEMP "or_apply.sh"

@@ -34,7 +34,9 @@ def events(monkeypatch):
     async def close():
         seen.append("close")
 
+    import app.readiness as readiness
     monkeypatch.setattr(worker, "setup_logging", lambda **_: None)  # the real one reconfigures logging for later tests
+    monkeypatch.setattr(readiness, "log_readiness", lambda *_: None)
     monkeypatch.setattr(worker, "init_database", init)
     monkeypatch.setattr(worker, "close_database", close)
     return seen
@@ -92,8 +94,9 @@ async def test_worker_in_production_refuses_to_start_without_the_database(events
     assert started == []
 
 
-def test_the_worker_runs_the_ten_loops_under_the_api_lease_names():
+def test_the_worker_runs_the_fourteen_loops_under_the_api_lease_names():
     from app.modules.calendar.runner import loop as calendar_loop
+    from app.modules.calendar.runner import render_loop as calendar_reels_loop
     from app.modules.insights.collector import loop as insights_loop
     from app.modules.knowledge.gaps import loop as gaps_loop
     from app.modules.engage.runner import loop as engage_loop
@@ -103,10 +106,30 @@ def test_the_worker_runs_the_ten_loops_under_the_api_lease_names():
     from app.modules.radar import loop as radar_loop
     from app.modules.seo.runner import loop as seo_loop
     from app.modules.communities.runner import loop as communities_loop
+    from app.modules.whatsapp.jobs import loop as inbound_loop
+    from app.services.token_cleanup_service import loop as token_cleanup_loop
     assert worker.loops() == {"engage": engage_loop, "newsroom": newsroom_loop, "calendar": calendar_loop,
-                              "listing_reels": listing_reel.loop, "marketing_runs": marketing_loop,
+                              "calendar_reels": calendar_reels_loop, "listing_reels": listing_reel.loop,
+                              "marketing_runs": marketing_loop,
                               "project_enrich": enrich_loop, "insights": insights_loop,
-                              "answer_gaps": gaps_loop, "radar": radar_loop, "seo": seo_loop, "communities": communities_loop}
+                              "answer_gaps": gaps_loop, "inbound_messages": inbound_loop,
+                              "token_cleanup": token_cleanup_loop, "radar": radar_loop,
+                              "seo": seo_loop, "communities": communities_loop}
+
+
+def test_worker_roles_partition_every_loop_once():
+    assigned = [name for names in worker.ROLE_LOOPS.values() for name in names]
+    assert sorted(assigned) == sorted(worker.ALL_LOOP_NAMES)
+    assert len(assigned) == len(set(assigned))
+    assert worker.requested_loop_names("conversations") == ("engage", "answer_gaps", "inbound_messages")
+
+
+def test_explicit_loop_selection_is_validated_and_deduplicated():
+    assert worker.requested_loop_names(value="seo, calendar,seo") == ("seo", "calendar")
+    with pytest.raises(ValueError, match="unknown loop"):
+        worker.requested_loop_names(value="seo,missing")
+    with pytest.raises(ValueError, match="at least one"):
+        worker.requested_loop_names(value=" , ")
 
 
 # ---- --check ----------------------------------------------------------------------------------------------------------
@@ -177,7 +200,7 @@ async def _noop(*_a, **_k):
 def api_startup(monkeypatch):
     import app.utils.database_init as database_init
     monkeypatch.setattr(application, "setup_logging", lambda **_: None)
-    for name in ("init_database", "close_database", "start_token_cleanup", "stop_token_cleanup"):
+    for name in ("init_database", "close_database"):
         monkeypatch.setattr(application, name, _noop)
     monkeypatch.setattr(database_init, "initialize_database", _noop)
     started = []
@@ -277,6 +300,18 @@ async def test_calendar_runner_records_a_heartbeat_only_while_enabled(monkeypatc
     monkeypatch.setenv("CALENDAR_ENABLED", "true")
     doc = (await _spin(runner, monkeypatch, LoopDb()))["calendar"]
     assert doc["last_start_at"] and doc["last_ok_at"] and "last_error" not in doc
+
+
+async def test_calendar_reel_renderer_has_its_own_heartbeat(monkeypatch):
+    from app.modules.calendar import runner
+
+    monkeypatch.setenv("CALENDAR_ENABLED", "true")
+    async def no_reels(*_a, **_k):
+        return 0
+
+    monkeypatch.setattr(runner, "prerender_reels", no_reels)  # not asyncio.sleep: _spin replaces it
+    doc = (await _spin(runner, monkeypatch, LoopDb(), runner.render_loop))["calendar_reels"]
+    assert doc["last_start_at"] and doc["last_ok_at"]
 
 
 async def test_newsroom_runner_records_a_failed_cycle_as_an_error(monkeypatch):

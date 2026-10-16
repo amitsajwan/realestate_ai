@@ -116,9 +116,9 @@ sed -i -e '$a\' .env
 cat ~/ai.env >> .env
 chmod 600 .env
 rm -f ~/ai.env
-sudo docker compose up -d backend worker  # the worker reads the same .env (background loops)
+sudo docker compose up -d backend conversations newsroom media  # the worker roles read the same .env (background loops)
 sleep 15
-sudo docker compose ps backend worker --format '{{.Name}} {{.Status}}'
+sudo docker compose ps backend conversations newsroom media --format '{{.Name}} {{.Status}}'
 grep -E '^(AI_LLM_BASE_URL|AI_LISTING_LLM_MODEL|AI_LLM_FALLBACK_BASE_URL|AI_LLM_PROVIDER_FALLBACK_MODEL|AI_LLM_FALLBACK|AI_STT_PROVIDER|AI_STT_BASE_URL)=' .env
 '@ -replace "__DIR__", $RemoteDir
 $tmpEnv = Join-Path $env:TEMP "ai.env"; $tmpSh = Join-Path $env:TEMP "ai_apply.sh"

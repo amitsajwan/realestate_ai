@@ -1,7 +1,7 @@
 <#
   One place for the server's service keys: see which are set or empty, then add a missing one or replace an old one.
   No secret passes through chat or git: values are typed hidden here, checked against the service where a check exists, and written
-  only into the VM's private deploy/gcp/.env (a backup is kept as .env.bak-keys), then the backend and worker restart.
+  only into the VM's private deploy/gcp/.env (a backup is kept as .env.bak-keys), then the backend and the worker roles restart.
 
   Run in your own PowerShell, from the repo root:
       .\deploy\gcp\keys.ps1           # shows every key (set: last 4 characters only; or empty), then lets you pick
@@ -168,9 +168,9 @@ sed -i -e '$a\' .env
 cat ~/keys.env >> .env
 chmod 600 .env
 rm -f ~/keys.env
-sudo docker compose up -d backend worker  # both read the same .env
+sudo docker compose up -d backend conversations newsroom media  # all read the same .env
 sleep 15
-sudo docker compose ps backend worker --format '{{.Name}} {{.Status}}'
+sudo docker compose ps backend conversations newsroom media --format '{{.Name}} {{.Status}}'
 '@ -replace "__DIR__", $RemoteDir
 $tmpEnv = Join-Path ([IO.Path]::GetTempPath()) "keys.env"; $tmpSh = Join-Path ([IO.Path]::GetTempPath()) "keys_apply.sh"
 try {

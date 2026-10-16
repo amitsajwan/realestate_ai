@@ -1,5 +1,6 @@
 """Messenger and Instagram DM assistant: parsing, leads (and the comment assistant's leads), the number, a person taking over, STOP, the
 24-hour window, sending, and the webhook. No network."""
+import asyncio
 import json
 from datetime import timedelta
 
@@ -250,13 +251,21 @@ def client(monkeypatch):
     db = FakeDb()
     app = FastAPI()
     app.include_router(dm_router.router, prefix="/messenger")
-    app.dependency_overrides[dm_router.get_service_factory] = lambda: (lambda c=None: dm_router.build_service(c or cfg(), db=db, llm=None))
+    factory = lambda c=None: dm_router.build_service(c or cfg(), db=db, llm=None)
+    app.dependency_overrides[dm_router.get_service_factory] = lambda: factory
+    app.state.webhook_db = db
+    app.state.dm_factory = factory
     return TestClient(app), db
 
 
 def post(c, payload, secret=SECRET):
+    from app.modules.whatsapp import jobs
+
     b = body_of(payload)
-    return c.post("/messenger/webhook", content=b, headers={"x-hub-signature-256": sign(b, secret), "content-type": "application/json"})
+    response = c.post("/messenger/webhook", content=b, headers={"x-hub-signature-256": sign(b, secret), "content-type": "application/json"})
+    if response.status_code == 200:
+        asyncio.run(jobs.run_once(c.app.state.webhook_db, dm_factory=c.app.state.dm_factory, now=lambda: NOW))
+    return response
 
 
 def test_webhook_verification(client):

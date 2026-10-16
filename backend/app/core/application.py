@@ -17,7 +17,6 @@ from app.core.error_handlers import register_error_handlers
 from app.core.logging_config import setup_logging, get_logger
 from app.core.security import SecurityMiddleware, get_security_headers
 from app.api.v1.endpoints.health import router as health_router
-from app.services.token_cleanup_service import start_token_cleanup, stop_token_cleanup
 import asyncio
 import logging
 import json
@@ -89,10 +88,6 @@ async def lifespan(app: FastAPI):
             # Analytics service will be initialized when needed
             logger.info("📈 Analytics service ready")
 
-            # Start token cleanup service
-            await start_token_cleanup()
-            logger.info("🧹 Token cleanup service started")
-
             # Background loops. Each runs in one process only, however many processes start it (app/platform/leases.py).
             # With RUN_BACKGROUND_LOOPS=false the worker process runs them instead (python -m app.worker).
             if settings.run_background_loops:
@@ -105,37 +100,17 @@ async def lifespan(app: FastAPI):
     yield
     
     # Shutdown
-    tasks = [t for t in (getattr(app.state, n, None) for n in ("engage_task", "newsroom_task", "calendar_task", "listing_reel_task")) if t]
-    for task in tasks:
-        task.cancel()
-    await asyncio.gather(*tasks, return_exceptions=True)  # let each loop release its runner lease before the database closes
-    await stop_token_cleanup()
-    logger.info("🧹 Token cleanup service stopped")
-    
+    from app.worker import stop_loops
+    await stop_loops(getattr(app.state, "loop_tasks", None) or {})  # each loop releases its runner lease before the database closes
     await close_database()
     logger.info("📊 Database connection closed")
 
 
 def start_background_loops(app: FastAPI) -> None:
-    """Start the 4 background loops in this (API) process, each under its runner lease."""
-    from app.core.database import get_database
-    from app.platform.leases import run_as_leader
-
-    # Comment assistant (does nothing unless ENGAGE_ENABLED=true)
-    from app.modules.engage.runner import loop as engage_loop
-    app.state.engage_task = asyncio.create_task(run_as_leader("engage", engage_loop, get_database))
-
-    # Newsroom content agent (idle unless NEWSROOM_ENABLED=true)
-    from app.modules.newsroom.runner import loop as newsroom_loop
-    app.state.newsroom_task = asyncio.create_task(run_as_leader("newsroom", newsroom_loop, get_database))
-
-    # Content calendar: evergreen posts for Facebook and Instagram (idle unless CALENDAR_ENABLED=true)
-    from app.modules.calendar.runner import loop as calendar_loop
-    app.state.calendar_task = asyncio.create_task(run_as_leader("calendar", calendar_loop, get_database))
-
-    # Listing reels: renders the reels agents ask for from a listing (idle when the queue is empty)
-    from app.modules.reels import listing_reel
-    app.state.listing_reel_task = listing_reel.ensure_worker()
+    """Start every background loop in this (API) process, each under its runner lease: the worker's own table
+    (app/worker.py), so development and the RUN_BACKGROUND_LOOPS=true rollback run the same loops as the worker roles."""
+    from app.worker import loops, start_loops
+    app.state.loop_tasks = start_loops(loops())
 
 
 def create_application() -> FastAPI:

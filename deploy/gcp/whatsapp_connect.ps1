@@ -112,14 +112,14 @@ cat ~/wa.env >> .env
 cut -d= -f1 ~/wa.env | sed 's/$/=/' > ~/wa.env.keys
 chmod 600 .env
 rm -f ~/wa.env
-sudo docker compose up -d backend worker  # the worker reads the same .env (background loops)
+sudo docker compose up -d backend conversations newsroom media  # the worker roles read the same .env (background loops)
 if grep -q '^NEXT_PUBLIC_WHATSAPP_NUMBER=' ~/wa.env.keys 2>/dev/null; then
   echo "==> Rebuilding the website so its WhatsApp buttons show the number (a few minutes)"
   sudo docker compose up -d --build frontend
 fi
 rm -f ~/wa.env.keys
 sleep 15
-sudo docker compose ps backend worker --format '{{.Name}} {{.Status}}'
+sudo docker compose ps backend conversations newsroom media --format '{{.Name}} {{.Status}}'
 grep -c '^WHATSAPP_ACCESS_TOKEN=' .env | sed 's/^/token lines in .env: /'
 grep '^WHATSAPP_DRY_RUN=' .env
 grep '^WHATSAPP_PUBLIC_NUMBER=' .env >/dev/null && echo 'posts: carry the WhatsApp line (WHATSAPP_PUBLIC_NUMBER set)' || echo 'posts: no WhatsApp line yet (run again with -PublicNumber when the real number is connected)'

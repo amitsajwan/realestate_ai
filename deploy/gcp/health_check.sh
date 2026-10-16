@@ -85,7 +85,7 @@ elif [ "$PCT" -ge "$DISK_FAIL_PCT" ]; then bad disk "root disk is ${PCT}% full (
 else ok disk "${PCT}% used"; fi
 
 PS="$($DC ps --format '{{.Service}} {{.State}} {{.Health}}' 2>/dev/null)"
-for svc in mongo backend worker frontend caddy; do
+for svc in mongo backend conversations newsroom media frontend caddy; do
   line="$(printf '%s\n' "$PS" | awk -v s="$svc" '$1==s{print; exit}')"
   if [ -z "$line" ]; then bad "container $svc" "not found"
   elif [ "$(echo "$line" | awk '{print $2}')" != "running" ]; then bad "container $svc" "state is $(echo "$line" | awk '{print $2}')"
@@ -124,13 +124,17 @@ case "$TOK" in
   *)        bad facebook-token "could not run the check in the backend container" ;;
 esac
 
-# Background loops: each records a heartbeat per cycle in Mongo (worker_heartbeats). Run from the backend container so a
-# stopped or hung worker is caught too; prints one line per loop and exits 1 when one is stale, 2 when it cannot read Mongo.
-HB="$($DC exec -T backend python -m app.worker --check 2>/dev/null)"; HB_RC=$?
-if [ "$HB_RC" -eq 0 ]; then ok loops "$(printf '%s\n' "$HB" | awk '{print $1, $2}' | tr -d ':' | paste -sd, -)"
-elif [ "$HB_RC" -eq 1 ] && printf '%s\n' "$HB" | grep -q '^STALE'; then
-  bad loops "$(printf '%s\n' "$HB" | grep '^STALE' | sed 's/^STALE *//' | paste -sd ';' -) (see: docker compose logs --tail 80 worker)"
-else bad loops "could not check the loop heartbeats in the backend container ($(printf '%s' "$HB" | tail -n1 | cut -c1-120))"; fi
+# Each worker role checks only the heartbeats it owns.
+for role in conversations newsroom media; do
+  HB="$($DC exec -T "$role" python -m app.worker --check --role "$role" 2>/dev/null)"; HB_RC=$?
+  if [ "$HB_RC" -eq 0 ]; then
+    ok "loops $role" "$(printf '%s\n' "$HB" | grep -E '^(OK|OFF)' | awk '{print $1, $2}' | tr -d ':' | paste -sd, -)"
+  elif [ "$HB_RC" -eq 1 ] && printf '%s\n' "$HB" | grep -q '^STALE'; then
+    bad "loops $role" "$(printf '%s\n' "$HB" | grep '^STALE' | sed 's/^STALE *//' | paste -sd ';' -) (see: docker compose logs --tail 80 "$role")"
+  else
+    bad "loops $role" "could not check heartbeats ($(printf '%s' "$HB" | tail -n1 | cut -c1-120))"
+  fi
+done
 
 NEWEST="$(ls -1t "$BACKUP_DIR"/*.archive.gz 2>/dev/null | head -n1)"
 if [ -z "$NEWEST" ]; then bad backup "no backup found in $BACKUP_DIR (is the backup cron installed?)"

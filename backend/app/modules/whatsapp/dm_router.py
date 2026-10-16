@@ -1,7 +1,7 @@
 """Mounted by the integrator at /messenger (Messenger and Instagram DMs; the same assistant as WhatsApp):
   GET  /messenger/webhook         Meta's verification: echoes hub.challenge when hub.verify_token matches (public)
   POST /messenger/webhook         Meta's `page` and `instagram` events: X-Hub-Signature-256 checked with the app secret (403 on mismatch),
-                                  answered 200 at once, each new buyer message handled in a background task
+                                  persisted before the quick 200; the conversations worker handles each payload once
   GET  /messenger/conversations   the signed-in agent's Messenger and Instagram chats (bearer auth, agent scoped)
 """
 import hmac
@@ -9,7 +9,7 @@ import json
 import logging
 from typing import Callable, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import PlainTextResponse
 
 from app.core.auth_backend import current_active_user
@@ -18,7 +18,7 @@ from app.models.user import User
 
 from . import dm_config
 from .dm_graph import DmGraph
-from .dms import DmService, parse, platform_of
+from .dms import DmService, platform_of
 from .router import _llm, valid_signature
 
 log = logging.getLogger(__name__)
@@ -45,7 +45,9 @@ async def verify(mode: str = Query("", alias="hub.mode"), token: str = Query("",
 
 
 @router.post("/webhook")
-async def receive(request: Request, background: BackgroundTasks, factory: Callable[..., DmService] = Depends(get_service_factory)):
+async def receive(request: Request, factory: Callable[..., DmService] = Depends(get_service_factory)):
+    from .jobs import enqueue, message_count
+
     body = await request.body()
     cfg = dm_config.load()
     if not valid_signature(cfg.app_secret, body, request.headers.get("x-hub-signature-256")):
@@ -57,20 +59,10 @@ async def receive(request: Request, background: BackgroundTasks, factory: Callab
         payload = json.loads(body or b"{}")
     except ValueError:
         return {"ok": True, "processed": 0}
-    platform = platform_of(payload.get("object")) if isinstance(payload, dict) else None
-    if not platform:
+    if not isinstance(payload, dict) or not platform_of(payload.get("object")):
         return {"ok": True, "processed": 0}
-    svc = factory(cfg)
-    queued = 0
-    for entry in payload.get("entry") or []:
-        for ev in (entry or {}).get("messaging") or []:
-            m = parse(ev or {})
-            if m["kind"] == "echo":
-                await svc.echo(platform, m)
-            elif await svc.claim(platform, m):
-                background.add_task(svc.handle, platform, m)
-                queued += 1
-    return {"ok": True, "processed": queued}
+    accepted = await enqueue(factory(cfg).db, "dm", payload)
+    return {"ok": True, "processed": message_count("dm", payload) if accepted else 0}
 
 
 @router.get("/conversations")
