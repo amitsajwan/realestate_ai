@@ -130,10 +130,38 @@ small pull requests, one step (or part of a step) at a time. Each step has a "do
 - Put upload reads, writes and public URLs behind `platform.media`; use Cloud Storage in production and keep local storage for
   development. Preserve old `/uploads/...` URLs with a redirect or proxy.
 - Move MongoDB to a managed replica set and secrets from the VM `.env` to Secret Manager.
-- Replace HTTP-process `BackgroundTasks`, fire-and-forget tasks and standalone cleanup loops with Mongo-backed queued items.
+- Replace HTTP-process `BackgroundTasks`, fire-and-forget tasks and standalone cleanup loops with Mongo-backed queued items
+  (done in phase 0 for Meta webhooks, calendar reel pre-render and token clean-up).
 - Count AI and Meta quotas in Mongo rather than per-process memory.
 - **Done when:** api and each worker role can run on different machines with no shared filesystem, process-local work queue or
   duplicated quota allowance, and a restart loses no accepted work.
+- **Status (2026-10-16): TARGET, deferred by the owner.** Start it when a second machine is actually needed. Exception: start
+  the Cloud Storage move earlier if the VM disk fills up.
+
+#### Phase 1 costs (checked 2026-10-16)
+Sizes measured on the VM that day: uploads 2 GB (2,929 files); Mongo data volume 496 MB; a compressed nightly backup 17 MB.
+VM `e2-medium` (4 GB RAM), 30 GB disk at 79% used, mostly uploads.
+
+| Item | Monthly cost | Notes |
+|---|---|---|
+| Cloud Storage (uploads) | ~$0.05 (₹5) now; ~$1 (₹90) at 50 GB | Standard class, asia-south1, $0.023/GB-month. Read and write charges are negligible. Bandwidth for reels and images is already paid from the VM today, so it moves rather than grows. Frees the VM disk. |
+| Secret Manager | ~$1 (₹90) | About 20 keys. |
+| MongoDB Atlas Flex | $8-30 (₹700-2,600) | 5 GB storage and 100 ops/s included, usage-based, capped at $30. Fits today's data. |
+| MongoDB Atlas M10 | ~$57 (₹5,000) plus backups | Dedicated replica set; needed only once traffic grows. |
+| MongoDB Atlas M0 (free) | $0 | 512 MB limit and no backups. Not usable: we are already at that size. |
+
+Plan when phase 1 starts:
+1. Move uploads to Cloud Storage first (cheap, frees the disk).
+2. Keep Mongo on the VM, with the nightly backups, until a container actually runs on a second machine.
+3. Then move Mongo to Atlas Flex in GCP Mumbai (asia-south1), in the same region as the VM. Watch the ops/s for the first
+   week: the worker roles poll often (`inbound_messages` every second, lease renewals). Move to M10 only if Flex keeps
+   reaching its $30 cap.
+
+Phase 1 adds no servers. Phase 2 does: each extra machine the size of today's VM costs roughly ₹2,000-2,500 a month.
+Recheck prices before buying: the Atlas figures come from third-party summaries
+([OneUptime](https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-flex-cluster-pricing-model/markdown),
+[CloudZero](https://www.cloudzero.com/blog/mongodb-pricing), [MongoDB pricing](https://www.mongodb.com/pricing.md)), and the
+storage figure comes from [Google's pricing page](https://cloud.google.com/storage/pricing).
 
 ### Deployment phase 2: orchestration
 - Run web and api on Cloud Run. Run one always-on instance of each worker role, with a second lease-protected replica only where
