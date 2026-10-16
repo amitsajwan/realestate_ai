@@ -481,6 +481,9 @@ async def script(s: ad_reel.Script, c: Ctx, lang: str, n: int = 0, llm: Any = No
         report = {"hook": "none", "model_lines": kept, "lines": len(lines), "complete": kept == len(lines)}
         first = f"{said_open} [pause] {lines[0]}"
     lines[0] = f"«{hello}» {first}"
+    # the model's own "नमस्ते, ..." after our greeting is a second hello (live 2026-10-16): only ours stays
+    lines[0] = re.sub(r"(\[pause\]\s*)(?:नमस्ते|नमस्कार|हैलो|hello|hi|namaste|namaskar)(?:\s*(?:दोस्तों|dosto|friends))?[,!।]\s*", r"\1",
+                      lines[0], flags=re.I)
     s.intro = written_open
     return lines, {"language": lang, "style": style, "by": "llm" if report["model_lines"] else "template",
                    "kept": report["model_lines"], "hook": hook, "mood": mood, "report": report}

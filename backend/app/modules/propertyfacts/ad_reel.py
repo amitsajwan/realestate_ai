@@ -492,9 +492,10 @@ def render(s: Script, pictures: Sequence, dest: Path, kicker: Optional[str] = No
 
 
 def caption(s: Script, post_caption: str) -> str:
-    """The post's caption under the reel's hook (and the host's greeting, once voiced), with what the team checked and the
-    comment keyword asked for (so leads per format are counted)."""
+    """The post's caption: the host's greeting first once voiced (what the viewer hears first; it also keeps a voiced reel from
+    repeating the silent one's first line, which the calendar holds back as a repeat, live 2026-10-16), then the reel's hook,
+    the post, what the team checked and the comment keyword asked for (so leads per format are counted)."""
     body = post_caption.strip()
     ask = f"Comment {CTA_WORD} and we will share the details and a site-visit slot."
     tick = f"✓ Checked by the {s.team or 'team'}: " + ", ".join(s.checked) + "." if s.checked else ""
-    return "\n\n".join(x for x in (s.hook.replace("*", ""), s.intro, body, tick, "" if CTA_WORD in body else ask) if x)
+    return "\n\n".join(x for x in (s.intro, s.hook.replace("*", ""), body, tick, "" if CTA_WORD in body else ask) if x)
