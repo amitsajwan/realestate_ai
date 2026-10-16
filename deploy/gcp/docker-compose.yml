@@ -1,3 +1,5 @@
+# Images: built on GitHub (.github/workflows/images.yml) and pulled by deploy.ps1 (IMAGE_TAG = the commit in .env);
+# deploy.ps1 -Build builds here instead (the fallback).
 # Avasetu on a single GCP VM: Caddy (auto-HTTPS) -> frontend + backend, MongoDB private.
 # Only Caddy publishes ports; Mongo, backend, the worker roles and frontend are reachable only on the internal network.
 services:
@@ -17,6 +19,7 @@ services:
 
   backend:
     build: ../../backend
+    image: ${IMAGE_REGISTRY:-asia-south1-docker.pkg.dev/trader-502012/avasetu}/backend:${IMAGE_TAG:-latest}
     restart: unless-stopped
     env_file: .env
     environment: &backend_env
@@ -37,6 +40,7 @@ services:
   # Each role uses the same image and settings. Runner leases keep one copy of every loop running during deploys or rollback.
   conversations:
     build: ../../backend
+    image: ${IMAGE_REGISTRY:-asia-south1-docker.pkg.dev/trader-502012/avasetu}/backend:${IMAGE_TAG:-latest}
     command: ["python", "-m", "app.worker", "--role", "conversations"]
     restart: unless-stopped
     env_file: .env
@@ -56,6 +60,7 @@ services:
 
   newsroom:
     build: ../../backend
+    image: ${IMAGE_REGISTRY:-asia-south1-docker.pkg.dev/trader-502012/avasetu}/backend:${IMAGE_TAG:-latest}
     command: ["python", "-m", "app.worker", "--role", "newsroom"]
     restart: unless-stopped
     env_file: .env
@@ -75,6 +80,7 @@ services:
 
   media:
     build: ../../backend
+    image: ${IMAGE_REGISTRY:-asia-south1-docker.pkg.dev/trader-502012/avasetu}/backend:${IMAGE_TAG:-latest}
     command: ["python", "-m", "app.worker", "--role", "media"]
     restart: unless-stopped
     env_file: .env
@@ -93,6 +99,7 @@ services:
     cpus: ${MEDIA_CPU_LIMIT:-2.00}
 
   frontend:
+    image: ${IMAGE_REGISTRY:-asia-south1-docker.pkg.dev/trader-502012/avasetu}/frontend:${IMAGE_TAG:-latest}
     build:
       context: ../../frontend
       args:

@@ -1,0 +1,64 @@
+name: Build app images
+
+# Builds the backend image (api and the three worker roles) and the website image on GitHub's machines for every push to the
+# working branch, and stores them in Artifact Registry tagged with the commit. A deploy (deploy/gcp/deploy.ps1) then only
+# pulls the images: the VM never builds (owner, 2026-10-16: a build on the e2-medium took ~20 minutes and slowed the live site).
+# GitHub signs in to Google without a stored key (Workload Identity Federation, limited to this repository).
+on:
+  push:
+    branches: [main, mordenization]   # main is the working branch (2026-10-16); mordenization until the switch is done
+  workflow_dispatch:
+
+concurrency:
+  group: images-${{ github.sha }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  REGISTRY: ${{ vars.IMAGE_REGISTRY }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      matrix:
+        image: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_IMAGE_BUILDER }}
+          token_format: access_token
+
+      - uses: docker/login-action@v3
+        with:
+          registry: asia-south1-docker.pkg.dev
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.image }}
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ matrix.image }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ matrix.image }}:latest
+          # the website's public settings are baked in at build time (Next.js NEXT_PUBLIC_*); repository variables
+          build-args: |
+            NEXT_PUBLIC_BUSINESS_NAME=Avasetu
+            NEXT_PUBLIC_CONTACT_EMAIL=${{ vars.NEXT_PUBLIC_CONTACT_EMAIL }}
+            NEXT_PUBLIC_WHATSAPP_NUMBER=${{ vars.NEXT_PUBLIC_WHATSAPP_NUMBER }}
+            NEXT_PUBLIC_CONTACT_WHATSAPP=${{ vars.NEXT_PUBLIC_CONTACT_WHATSAPP }}
+            NEXT_PUBLIC_SITE_URL=https://${{ vars.SITE_HOST }}
+            NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION=${{ vars.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,scope=${{ matrix.image }},mode=max
