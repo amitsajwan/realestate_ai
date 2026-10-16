@@ -140,7 +140,7 @@ small pull requests, one step (or part of a step) at a time. Each step has a "do
 
 #### Phase 1 costs (checked 2026-10-16)
 Sizes measured on the VM that day: uploads 2 GB (2,929 files); Mongo data volume 496 MB; a compressed nightly backup 17 MB.
-VM `e2-medium` (4 GB RAM), 30 GB disk at 79% used, mostly uploads.
+VM `e2-medium` (4 GB RAM) at the time (resized to e2-standard-4 later that day: phase 1b), 30 GB disk at 79% used, mostly uploads.
 
 | Item | Monthly cost | Notes |
 |---|---|---|
@@ -162,6 +162,21 @@ Recheck prices before buying: the Atlas figures come from third-party summaries
 ([OneUptime](https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-flex-cluster-pricing-model/markdown),
 [CloudZero](https://www.cloudzero.com/blog/mongodb-pricing), [MongoDB pricing](https://www.mongodb.com/pricing.md)), and the
 storage figure comes from [Google's pricing page](https://cloud.google.com/storage/pricing).
+
+### Deployment phase 1b: three machines by job (owner, 2026-10-16)
+Why: on the e2-medium (2 shared vCPUs, 4 GB) a voiced reel took 15-20 minutes to draw (about 1 frame a second, the box
+swapping), and a deploy that touched the frontend took ~20 minutes building Next.js on the same box. The owner chose:
+1. **Main VM resized to e2-standard-4 (4 vCPUs, 16 GB). LIVE 2026-10-16.** Same disk, same reserved IP (`pune-property-ip`,
+   34.180.39.243), ~2.5 minutes down. Runs api, the three worker roles, Mongo and (until step 3) the renders.
+2. **Frontend on its own small machine. TARGET.** The Next.js site (mostly static pages plus Studio) on a small VM or Cloud
+   Run, its image built off the VM (GitHub Actions or Cloud Build), so a deploy pulls an image instead of building on the
+   production box. Caddy (or a load balancer) sends `/api` to the main VM and the rest to the frontend.
+3. **Renderer on a spot machine. TARGET.** A spot (preemptible) VM that starts when reels are queued, draws them, and stops
+   when the queue is empty; a reel cut off by a preemption goes back to the queue (the voice-over and reels-remake queues
+   already work that way). Needs: the pictures and the finished reels where both machines can reach them (Cloud Storage:
+   phase 1 item 1), and Mongo reachable from the renderer over the private network only (firewall: no public port).
+- **Done when:** the main VM never builds the frontend or draws a reel; a reel's time is the renderer's, not the API's.
+- Recheck prices before buying (spot VMs cost a fraction of on-demand but can be stopped at any time).
 
 ### Deployment phase 2: orchestration
 - Run web and api on Cloud Run. Run one always-on instance of each worker role, with a second lease-protected replica only where
