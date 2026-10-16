@@ -80,7 +80,10 @@ Step "Copying the bundle to the VM"
 Run "gcloud compute scp $common `"$bundle`" ${target}:pune-property.tgz"
 
 $setEmail = ""
-if ($ContactEmail) { $setEmail = "sed -i '/^NEXT_PUBLIC_CONTACT_EMAIL=/d' .env; sed -i -e '`$a\' .env; echo 'NEXT_PUBLIC_CONTACT_EMAIL=$ContactEmail' >> .env; " }
+# no "$" in these remote commands: Run() re-reads the string, so PowerShell expands it again ("sed '$a\'" became "sed '\'" and
+# stopped the first image deploy, 2026-10-16). grep -v ends the file with a newline; "cat >" keeps the .env's permissions.
+function SetEnv($name, $value) { "grep -v '^${name}=' .env > /tmp/env.new || true; echo '${name}=${value}' >> /tmp/env.new; cat /tmp/env.new > .env; rm -f /tmp/env.new; " }
+if ($ContactEmail) { $setEmail = SetEnv "NEXT_PUBLIC_CONTACT_EMAIL" $ContactEmail }
 # a second "up -d" starts any service the first one left stopped (2026-10-15: a deploy left the backend down for ~3 minutes)
 if ($Build) {
   Step "Unpacking and rebuilding on the VM (secrets in deploy/gcp/.env are kept)"
@@ -90,7 +93,7 @@ if ($Build) {
   $remote = "set -e; mkdir -p $RemoteDir; tar xzf ~/pune-property.tgz -C $RemoteDir; $prune cd $RemoteDir/deploy/gcp; test -f .env || { echo 'ERROR: deploy/gcp/.env missing on the VM'; exit 1; }; ${setEmail}sudo docker compose up -d --build --remove-orphans || { echo first up failed, retrying; sleep 10; sudo docker compose up -d; }; sleep 8; sudo docker compose up -d; sudo docker compose ps; rm -f ~/pune-property.tgz"
 } else {
   Step "Unpacking deploy/, pulling the images of $sha and restarting (secrets in deploy/gcp/.env are kept)"
-  $setTag = "sed -i '/^IMAGE_TAG=/d' .env; sed -i -e '`$a\' .env; echo 'IMAGE_TAG=$sha' >> .env; "
+  $setTag = SetEnv "IMAGE_TAG" $sha
   $login = "sudo gcloud auth configure-docker asia-south1-docker.pkg.dev --quiet >/dev/null 2>&1; "
   $remote = "set -e; mkdir -p $RemoteDir; tar xzf ~/pune-property.tgz -C $RemoteDir; cd $RemoteDir/deploy/gcp; test -f .env || { echo 'ERROR: deploy/gcp/.env missing on the VM'; exit 1; }; ${setEmail}${setTag}${login}sudo docker compose pull backend conversations newsroom media frontend; sudo docker compose up -d --no-build --remove-orphans || { echo first up failed, retrying; sleep 10; sudo docker compose up -d --no-build; }; sleep 8; sudo docker compose up -d --no-build; sudo docker compose ps; sudo docker image prune -a -f --filter until=72h >/dev/null; rm -f ~/pune-property.tgz"
 }
