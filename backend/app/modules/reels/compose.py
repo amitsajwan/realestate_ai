@@ -558,11 +558,34 @@ def _load(image) -> Optional[Image.Image]:
 IMAGE_BLEND = 0.35   # a photo change behind a stacked list: a quick blend, the text stays still
 
 
+def trim_bars(im: Image.Image, dark: float = 22.0, flat: float = 10.0, keep: float = 0.3) -> Image.Image:
+    """`im` without the flat black bars around it: a still of a vertical video with a landscape clip inside carries black
+    above and below, and covering the frame with it left the photo a band in the middle (owner 2026-10-16: "why not the
+    full vertical space"). A border row or column is a bar when it is dark and flat; at least `keep` of each side stays."""
+    import numpy as np
+    g = np.asarray(im.convert("L"), dtype=np.float32)
+    rows = (g.mean(axis=1) < dark) & (g.std(axis=1) < flat)
+    cols = (g.mean(axis=0) < dark) & (g.std(axis=0) < flat)
+
+    def span(bar):
+        n = len(bar)
+        a = next((i for i in range(n) if not bar[i]), n)
+        b = next((n - i for i in range(n) if not bar[n - 1 - i]), 0)
+        return (a, b) if b - a >= keep * n else (0, n)
+    top, bottom = span(rows)
+    left, right = span(cols)
+    if (top, bottom, left, right) == (0, g.shape[0], 0, g.shape[1]):
+        return im
+    return im.crop((left, top, right, bottom))
+
+
 class _Backdrop:
     """One picture with its own slow motion (zoom, pan, 2.5D parallax), drawn at any point of its time on screen."""
 
     def __init__(self, image, scene: Scene, index: int):
         src = _load(image)
+        if src is not None and not scene.screen:   # a designed frame keeps its edges
+            src = trim_bars(src)
         self.has_photo = src is not None
         if src is None:
             tall = 0.2 if scene.kind == "end" else 0.24
