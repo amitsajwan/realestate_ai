@@ -3,6 +3,30 @@ import React, { useState } from 'react'
 import { api, errorMessage } from '@/lib/app/client'
 import type { MarketingRun, MarketingReel, VoiceChoice, VoiceGender, VoiceLanguage, VoiceStyle } from '@/lib/app/types'
 
+/** "16 Oct, 3:05 pm" in the viewer's time. */
+function when(iso?: string): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })
+}
+
+/** "4 min 10 s", "45 s". */
+function took(s?: number): string {
+  if (s == null) return ''
+  return s >= 60 ? `${Math.floor(s / 60)} min ${s % 60} s` : `${s} s`
+}
+
+/** When the reel was drawn and voiced, how long each took, its length and its music: one small line under it. */
+export function ReelTimes({ reel }: { reel: MarketingReel }) {
+  const parts = [
+    reel.made_at && `made ${when(reel.made_at)}${reel.made_in_s != null ? ` in ${took(reel.made_in_s)}` : ''}`,
+    reel.voiced_at && `voiced ${when(reel.voiced_at)}${reel.voice_took_s != null ? ` in ${took(reel.voice_took_s)}` : ''}`,
+    reel.seconds != null && `${Math.round(reel.seconds)} s long`,
+    reel.music?.title && `music: ${reel.music.title}${reel.music.artist ? ` (${reel.music.artist})` : ''}`,
+  ].filter(Boolean)
+  return parts.length ? <p className="mt-0.5 text-[11px] text-gray-500">{parts.join(' · ')}</p> : null
+}
+
 const GENDERS: { key: VoiceGender; label: string }[] = [
   { key: 'female', label: 'Female' },
   { key: 'male', label: 'Male' },
@@ -40,7 +64,7 @@ export function ReelVoice({ listingId, reel, choices, onRun }: {
     }
   }
 
-  if (busy) return <p className="mt-1 text-xs text-gray-600">Adding the voice…</p>
+  if (busy) return <p className="mt-1 text-xs text-gray-600">Adding the voice…{reel.voice_asked_at ? ` (asked ${when(reel.voice_asked_at)})` : ''}</p>
   return (
     <div className="mt-1 space-y-1">
       {voiced && !open && (

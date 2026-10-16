@@ -7,7 +7,7 @@ import type { CampaignResult, DraftLanguage, MarketingRun, RunQuestion } from '@
 import { BoostStep } from './BoostStep'
 import { CreativeRoom } from './CreativeRoom'
 import { CampaignPostEditor } from './CampaignPostEditor'
-import { ReelVoice } from './ReelVoice'
+import { ReelTimes, ReelVoice } from './ReelVoice'
 import { RunFileUpload } from './RunFileUpload'
 import { Btn, ErrorBox } from './ui'
 
@@ -506,6 +506,7 @@ export function MarketingRunCard({ listingId }: { listingId: string }) {
                           <span className="font-medium">{(r.format || '').replace(/_/g, ' ')}</span>: {r.script.hook.replace(/\*/g, '')}
                         </p>
                       )}
+                      <ReelTimes reel={r} />
                       {run.status === 'done' && run.reels_state !== 'making' && (r.kind === 'ad' || (r.kind === 'video' && !r.heard?.length)) && (
                         <ReelVoice listingId={listingId} reel={r} choices={run.voice_choices ?? []}
                           onRun={(x) => { if (alive.current) setRun(x) }} />

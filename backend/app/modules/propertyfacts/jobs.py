@@ -103,6 +103,11 @@ def run_out(doc: Optional[dict], base_url: str = "") -> Optional[dict]:
             "boost": boost_out(doc.get("boost"), base), "room": room_out(doc.get("room")), "pick": doc.get("pick")}
 
 
+def _stamp(at: datetime) -> str:
+    """A run's time as Studio reads it: UTC, to the second, with its zone."""
+    return at.replace(microsecond=0).isoformat() + ("" if at.tzinfo else "Z")
+
+
 def room_out(r: Optional[dict]) -> Optional[dict]:
     """The creative room for Studio: the brief, every pitch with its score, the chosen campaign (the fact book stays inside)."""
     if not r:
@@ -596,11 +601,14 @@ class MarketingRuns:
                 script = written[p["angle"]] if p["angle"] in written else await ad_reel.write(fmt, ctx, llm)
                 ad_reel.with_checks(script, ctx)
                 order = pics[i % len(pics):] + pics[:i % len(pics)] if pics else []
+                started = time.monotonic()
                 made = await asyncio.to_thread(render, script, order, dest, kicker)   # music only: the voice is asked later
                 made = made if isinstance(made, dict) else {}
+                took = round(time.monotonic() - started)
                 reels.append({"kind": "ad", "angle": p["angle"], "format": fmt, "script": script.out(),
                               "caption": ad_reel.caption(script, p["caption"]), "voice": "off",
                               "seconds": made.get("seconds"), "post_caption": p["caption"], "kicker": kicker,
+                              "made_at": _stamp(self.now()), "made_in_s": took,
                               "pictures": [self._kept_path(x) for x in order],
                               "video": "/uploads/" + dest.resolve().relative_to(self.uploads_dir.resolve()).as_posix()})
                 trace.event(log, "marketing", job["_id"], "ad_reel", trace.OK, angle=p["angle"], format=fmt,
@@ -749,6 +757,7 @@ class MarketingRuns:
         if reels[i]["kind"] == "video" and reels[i].get("heard"):
             raise RunError("Someone already speaks in this video, so it keeps its own sound.", 409)
         reels[i] = {**reels[i], "voice_state": "queued", "voice_ask": {"language": language, "gender": gender, "style": style},
+                    "voice_asked_at": _stamp(self.now()),
                     "voice_error": ""}
         await self._set(run["_id"], reels=reels, voices_queued=True)
         return {**run, "reels": reels}
@@ -799,12 +808,15 @@ class MarketingRuns:
         silent = r.get("silent") or r["video"]
         dest = self._local(silent).with_name(f"{Path(_rel(silent)).stem}-{lang}-{gender}.mp4")
         pictures = [str(self._local(p)) for p in r.get("pictures") or []]
+        started = time.monotonic()
         made = await asyncio.to_thread(render, script, pictures, dest, r.get("kicker"), (lines, voiceover.tts_lang(lang), gender),
                                        how["mood"])
         made = made if isinstance(made, dict) else {}
+        took = round(time.monotonic() - started)
         return {"video": self._kept_path(str(dest)), "silent": silent, "voice": "spoken", "voice_language": lang,
-                "voice_gender": gender, "voice_style": how["style"], "voice_mood": how["mood"], "voice_hook": how["hook"], "voice_lines": lines, "voice_by": how["by"], "voice_report": how.get("report"), "seconds": made.get("seconds"),
-                "script": script.out(), "caption": ad_reel.caption(script, r.get("post_caption") or "")}
+                "voice_gender": gender, "voice_style": how["style"], "voiced_at": _stamp(self.now()), "voice_mood": how["mood"], "voice_hook": how["hook"], "voice_lines": lines, "voice_by": how["by"], "voice_report": how.get("report"), "seconds": made.get("seconds"),
+                "script": script.out(), "caption": ad_reel.caption(script, r.get("post_caption") or ""),
+                "voice_took_s": took, "music": made.get("music")}
 
     async def _voice_video(self, r: dict, ctx: "campaign.Ctx", ask: dict, llm: Any) -> dict:
         """The reel from the agent's video with a voice-over (nobody speaks in it): the showcase reel's lines spread over the
@@ -822,13 +834,15 @@ class MarketingRuns:
         src = self._local(silent)
         dest = src.with_name(f"{src.stem}-{lang}-{gender}.mp4")
         await asyncio.to_thread(shutil.copyfile, src, dest)
+        started = time.monotonic()
         spoken = await asyncio.to_thread(video_reel.voice_over, dest, lines, voiceover.tts_lang(lang), gender, how["mood"])
+        took = round(time.monotonic() - started)
         if spoken == "off":
             raise RunError("The video is too short for a voice-over.")
         caption = r.get("caption") or ""
         return {"video": self._kept_path(str(dest)), "silent": silent, "voice": "spoken", "voice_language": lang,
-                "voice_gender": gender, "voice_style": how["style"], "voice_mood": how["mood"], "voice_hook": how["hook"], "voice_lines": lines, "voice_by": how["by"], "voice_report": how.get("report"),
-                "caption": caption if script.intro in caption else f"{script.intro}\n\n{caption}"}
+                "voice_gender": gender, "voice_style": how["style"], "voiced_at": _stamp(self.now()), "voice_mood": how["mood"], "voice_hook": how["hook"], "voice_lines": lines, "voice_by": how["by"], "voice_report": how.get("report"),
+                "caption": caption if script.intro in caption else f"{script.intro}\n\n{caption}", "voice_took_s": took}
 
     async def _set_reel(self, jid: str, key: str, **fields) -> None:
         """Change one reel of a run in place (an ad reel by its angle, the video reel as "video")."""

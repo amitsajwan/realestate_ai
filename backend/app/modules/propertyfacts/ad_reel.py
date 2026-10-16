@@ -38,7 +38,7 @@ EXPLORE = 0.2
 HOOK_WORDS, LINE_WORDS = 10, 8
 HOOK_S, BEAT_S, PAYOFF_S, CHECKED_S, CTA_S, LOOP_S = 1.9, 1.5, 2.0, 2.2, 1.8, 0.7   # the least each scene lasts; a spoken line makes it longer
 VOICE_PAD_S = 0.6       # after a spoken line, before the next scene's cut: a breath, as a person talking takes
-SPOKEN_MAX_S = 90.0     # a voiced reel lasts as long as its voice (owner 2026-10-16: longer is fine); Instagram's reel limit
+SPOKEN_MAX_S = 30.0     # a guard: the voice-over's word budget (voiceover.BUDGET) keeps a reel ~18-20 s (owner: under 20 s)
 # a long spoken scene is not one picture held for 10 s (owner: "looks stuck"): past LONG_S it cuts to the next picture every
 # ~INFO_S, its line kept on screen with a checked fact or a check under it (`info`)
 LONG_S, INFO_S = 4.6, 3.2
@@ -463,7 +463,7 @@ def render(s: Script, pictures: Sequence, dest: Path, kicker: Optional[str] = No
 
     sc = scenes(s, pictures, kicker)
     work = Path(tempfile.mkdtemp(prefix="ad-reel-"))
-    audio, how = None, "off"
+    audio, how, music_info = None, "off", {}
     try:
         if speech is not None:   # hook, beats, payoff, checked, cta: scenes 0..len(lines)-1; the last scene (the loop) is silent
             lines, lang, gender = speech[:3]
@@ -478,7 +478,7 @@ def render(s: Script, pictures: Sequence, dest: Path, kicker: Optional[str] = No
             sc, first = spread(sc, len(clips), pictures, s.info)
             tl = plan([x.seconds for x in sc], XFADE, SPOKEN_MAX_S)
             audio = narration.mix(work, clips, [tl.starts[j] for j in first], tl.total,
-                                  write_music(work / "bed.wav", seconds=tl.total + 1.0, mood=mood))
+                                  write_music(work / "bed.wav", seconds=tl.total + 1.0, mood=mood, info=music_info))
             how = "spoken"
         most = SPOKEN_MAX_S if speech is not None else MAX_SECONDS
         # the VM draws about one frame a second while the workers run: a 40 s voiced reel needs ~20 min, past the 15 min
@@ -486,7 +486,8 @@ def render(s: Script, pictures: Sequence, dest: Path, kicker: Optional[str] = No
         length = plan([x.seconds for x in sc], XFADE, most).total
         make_reel(sc, dest, music=audio, xfade=XFADE, progress=False, end_card=False, hook_tag=False, max_seconds=most,
                   timeout=max(900.0, 45.0 * length))
-        return {"path": dest, "voice": how, "seconds": round(plan([x.seconds for x in sc], XFADE, most).total, 1)}
+        return {"path": dest, "voice": how, "seconds": round(plan([x.seconds for x in sc], XFADE, most).total, 1),
+                "music": music_info or None}
     finally:
         shutil.rmtree(work, ignore_errors=True)
 

@@ -169,9 +169,9 @@ def synth_spoken(text: str, lang: str = "en", gender: str = "female", rate: Opti
 GEMINI_TTS_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 GEMINI_TTS_MODELS = ("gemini-3.8-flash-tts", "gemini-3.1-flash-tts-preview", "gemini-2.5-flash-preview-tts")
 GEMINI_SR = 24000   # Gemini's audio: 16-bit mono PCM at 24 kHz
-GEMINI_STYLE = ("Read this aloud as a warm, energetic Indian Instagram reel host talking to one friend: a lively pace, natural "
-                "ups and downs, a smiling voice, never slow, never flat. Read only these words, exactly as written:")
-GEMINI_GREETING = "Say this greeting warmly, smiling, a little drawn out, like opening a reel. Only these words:"
+# Only the words go to Gemini: it reads any direction aloud (2026-10-16: "Read this aloud as a warm, energetic..." made a 12-word
+# line 17.9 s instead of 4.8 s; a short "Say warmly:" still 8.3 s), and this model takes no system instruction. Its natural
+# voice is livelier than Chirp's; the words and their punctuation carry the rest.
 
 
 def gemini_on() -> bool:
@@ -194,7 +194,7 @@ def gemini_speech(text: str, lang: str = "en", gender: str = "female", greeting:
     key = os.environ.get("GEMINI_API_KEY")
     if not key:
         raise VoiceError("GEMINI_API_KEY is not set")
-    prompt = f"{GEMINI_GREETING if greeting else GEMINI_STYLE} {gemini_text(text, lang)}"
+    prompt = gemini_text(text, lang)   # `greeting` kept for the caller: the words alone say it (no direction, see above)
     body = {"contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {"responseModalities": ["AUDIO"], "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {
                 "voiceName": SPEAKERS.get(gender, SPEAKERS["female"])}}}}}

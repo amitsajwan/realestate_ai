@@ -47,7 +47,7 @@ LANGS: Dict[str, Dict[str, Any]] = {
     "hinglish": {
         "label": "Hinglish", "tts": "hi",
         "hello": (("नमस्ते दोस्तों!", "Namaste dosto!"), ("नमस्कार दोस्तों!", "Namaskar dosto!"), ("हैलो दोस्तों!", "Hello dosto!")),
-        "open": ("आज {who} की टीम आपको दिखा रही है {what}।", "Aaj {who} ki team aapko dikha rahi hai {what}."),
+        "open": ("{what}।", "Aaj {who} ki team aapko dikha rahi hai {what}."),   # said short: reels under 20 s (owner)
         "talk": ("Hinglish: Hindi in Devanagari script, with the English words Pune buyers use left in English letters (BHK, "
                  "price, MahaRERA, carpet area, possession, amenities, clubhouse, project names)"),
         "words": "देखिए, तो, मतलब, अच्छा, और हाँ",
@@ -65,7 +65,7 @@ LANGS: Dict[str, Dict[str, Any]] = {
     "en": {
         "label": "English", "tts": "en",
         "hello": (("Hello friends!", "Hello friends!"), ("Hello Pune!", "Hello Pune!"), ("Hey friends!", "Hey friends!")),
-        "open": ("Today the {who} team is showing you {what}.", "Today the {who} team is showing you {what}."),
+        "open": ("{what}.", "Today the {who} team is showing you {what}."),
         "talk": "Indian English, the way a Pune property agent talks to friends",
         "words": "so, look, see, and yes",
         "example": ("Screen: 'Gym, Swimming pool and Parking' -> 'And you get a gym, a swimming pool, and parking too.' "
@@ -82,7 +82,7 @@ LANGS: Dict[str, Dict[str, Any]] = {
         "label": "Marathi", "tts": "mr",
         "hello": (("नमस्कार मंडळी!", "नमस्कार मंडळी!"), ("नमस्कार पुणेकरांनो!", "नमस्कार पुणेकरांनो!"),
                   ("नमस्कार मित्रांनो!", "नमस्कार मित्रांनो!")),
-        "open": ("आज {who} टीम तुम्हाला दाखवत आहे {what}.", "आज {who} टीम तुम्हाला दाखवत आहे {what}."),
+        "open": ("{what}.", "आज {who} टीम तुम्हाला दाखवत आहे {what}."),
         "talk": ("Marathi in Devanagari script, with the English property words left in English letters (BHK, MahaRERA, "
                  "carpet area, possession, amenities, project names)"),
         "words": "बघा, म्हणजे, तर, आणि हो",
@@ -131,6 +131,9 @@ STORY_SYSTEM = (
     "project fits, chosen from the facts only (a long commute when an office or IT park is near, a growing family when it "
     "has 3 BHK or more, the search for a first home, a quiet place after work); it may be a question; no number and no "
     "project name in it (the name is said right after it). "
+    "The reel lasts under 20 seconds, so the WHOLE voice-over (hook and lines together) is at most {budget} words: speak "
+    "only the hook, the key facts (the price, the BHK or size, one distance or MahaRERA) and the last line; give an empty "
+    "string \"\" for every other screen line (its text and the music carry it). "
     "lines: one per screen line, in the same order. Tell a small 'imagine...' story of a day living there with the facts of "
     "that line; where a line carries a key fact (price, size, distance, number of homes, MahaRERA), say that fact clearly "
     "and exactly as given. The 'Checked by the X team: ...' line says plainly what that team checked, as trust. The last "
@@ -151,6 +154,7 @@ DIRECTOR_SYSTEM = (
     "clear on first hearing, grammatical, natural spoken {talk}, one or two short sentences, at most 18 words? If yes, "
     "return it UNCHANGED. If not (unclear, a run-on, odd word order, stiff, translated word by word, a fragment, too "
     "long), rewrite it so it is, keeping its facts. The hook: at most 8 words, ONE clear idea, no project name, no number. "
+    "Keep the whole voice-over at most {budget} words (empty strings for the lines left silent are right). "
     "Keep the same number of lines in the same order, keep every fact exactly, add no number, name or claim that "
     "is not in the facts, no quality the facts do not state (airy, spacious, quiet, peaceful), no invented buyers, sales or "
     "urgency, no hype, no only/just/sirf. Pause tags [pause short] and "
@@ -177,6 +181,9 @@ FIXED = {
            "MahaRERA record read": "{team}ने MahaRERA record वाचलं आहे.",
            "distances from Google Maps": "{team}ने अंतर Google Maps वर तपासलं आहे."},
 }
+# words the whole voice-over may have (Hindi/Marathi ~2.5 words a second, English ~2.7): with the greeting and the project's
+# name, a reel stays under 20 seconds (owner 2026-10-16: "ours should be less than 20 s")
+BUDGET = {"hinglish": 30, "en": 34, "mr": 28}
 STYLES = ("story", "facts")
 DEFAULT_STYLE = "story"
 # what nobody may claim in a story: buyers, sales, scarcity, a quote
@@ -407,6 +414,8 @@ async def story(s: ad_reel.Script, c: Ctx, lang: str, llm: Any = None) -> Tuple[
         out, scenes = [], []
         for i in range(len(screens)):
             line, who = next(((d[i], w) for w, _, d in drafts if i < len(d) and line_ok_at(i, d[i])), (None, ""))
+            if line is None and i < len(screens) - 1 and any(i < len(d) and not d[i] for _, _, d in drafts[:1]):
+                line, who = "", "silent"   # the editor (or writer) left this scene to its text and music: the budget
             if line is None:
                 line = fixed(s, lang, i)
                 who = "template" if line else "silent"
@@ -422,7 +431,7 @@ async def story(s: ad_reel.Script, c: Ctx, lang: str, llm: Any = None) -> Tuple[
     spec = LANGS[lang]
     try:   # the writer's draft
         written = ("writer", *take(await llm.json(STORY_SYSTEM.format(talk=spec["talk"], words=spec["words"],
-                                                                      story=spec["story"]),
+                                                                      story=spec["story"], budget=BUDGET[lang]),
                                                   f"Facts: {facts}\n{about}\n{lines_in}")))
     except Exception:
         log.info("voice-over: story failed", exc_info=True)
@@ -430,7 +439,7 @@ async def story(s: ad_reel.Script, c: Ctx, lang: str, llm: Any = None) -> Tuple[
     edited: Tuple[str, str, List[str]] = ("editor", "", [])
     try:   # the editor's pass: each line kept, or rewritten when it is not clear on first hearing
         draft = "Draft:\n" + json.dumps({"hook": written[1], "lines": written[2]}, ensure_ascii=False)
-        r = await llm.json(DIRECTOR_SYSTEM.format(talk=spec["talk"]), f"Facts: {facts}\n{about}\n{lines_in}\n{draft}")
+        r = await llm.json(DIRECTOR_SYSTEM.format(talk=spec["talk"], budget=BUDGET[lang]), f"Facts: {facts}\n{about}\n{lines_in}\n{draft}")
         mood = str((r or {}).get("mood") or "").strip().lower() if isinstance(r, dict) else ""
         mood = mood if mood in MOODS else "warm"
         edited = ("editor", *take(r))
@@ -464,6 +473,28 @@ async def spoken(s: ad_reel.Script, lang: str, llm: Any = None) -> Tuple[List[st
     return out, kept
 
 
+def _words(text: str) -> int:
+    from app.modules.reels.voice import unpaused
+    return len(unpaused(text).split())
+
+
+def trim(s: ad_reel.Script, lines: List[str], budget: int) -> Tuple[List[str], List[int]]:
+    """The lines within `budget` words: scenes fall silent (their text and music carry them), the least needed first: plain
+    scenes (longest first), then the team's checks, then the first scene; the comment ask and the price always stay.
+    (lines, the scenes silenced)."""
+    screens, out, dropped = s.lines(), list(lines), []
+    last = len(screens) - 1
+    price = {i for i, x in enumerate(screens) if "₹" in x}
+    checked = {i for i, x in enumerate(screens) if s.checked and x == s.checked_line()}
+    rank = lambda i: (2 if i == 0 else 1 if i in checked else 0, -_words(out[i]))   # noqa: E731
+    for i in sorted((i for i in range(len(out)) if i != last and i not in price and out[i]), key=rank):
+        if sum(_words(x) for x in out) <= budget:
+            break
+        out[i] = ""
+        dropped.append(i)
+    return out, dropped
+
+
 async def script(s: ad_reel.Script, c: Ctx, lang: str, n: int = 0, llm: Any = None,
                  style: str = DEFAULT_STYLE) -> Tuple[List[str], Dict[str, Any]]:
     """The reel's spoken lines with the host's opening in the first (the greeting marked «...» to be said slower), and
@@ -475,6 +506,9 @@ async def script(s: ad_reel.Script, c: Ctx, lang: str, n: int = 0, llm: Any = No
     hello, said_open, written_open = opening(c, lang, n)
     if style == "story":
         hook, lines, report, mood = await story(s, c, lang, llm)
+        lines, dropped = trim(s, lines, BUDGET[lang] - _words(hook))   # under 20 s whatever the model wrote
+        for i in dropped:
+            report["scenes"][i] = "trimmed"
         first = " [pause] ".join(x for x in (hook, said_open, lines[0]) if x)
     else:
         hook, mood, (lines, kept) = "", "warm", await spoken(s, lang, llm)

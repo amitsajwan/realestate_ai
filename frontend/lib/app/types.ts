@@ -635,6 +635,14 @@ export interface MarketingReel {
   voice_gender?: VoiceGender
   voice_style?: VoiceStyle
   voice_error?: string
+  /** When it was drawn and how long that took; when its voice was asked and done, and how long that took (UTC ISO). */
+  seconds?: number
+  made_at?: string
+  made_in_s?: number
+  voice_asked_at?: string
+  voiced_at?: string
+  voice_took_s?: number
+  music?: { title: string; artist?: string; mood?: string } | null
 }
 
 export interface MarketingRun {

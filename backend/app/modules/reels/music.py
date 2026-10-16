@@ -269,10 +269,13 @@ def pick(mood: str = "warm", rng=None) -> Optional[dict]:
     return (rng or random).choice(mine) if mine else None
 
 
-def write(path: Path, seconds: float = 30.0, logo: bool = True, mood: str = "warm", rng=None) -> Path:
+def write(path: Path, seconds: float = 30.0, logo: bool = True, mood: str = "warm", rng=None, info: Optional[dict] = None) -> Path:
     """The music bed for a reel of `seconds`: a licensed track of the reel's mood (levelled, its quiet intro skipped, looped
     when the reel is longer, faded in and out), else the Avasetu theme."""
     track = pick(mood, rng)
+    if info is not None:   # which music the reel got (Studio shows it)
+        info.update({"title": track["title"], "artist": track["artist"], "mood": track["mood"], "source": track["source"]}
+                    if track else {"title": "Avasetu theme", "mood": mood})
     if track is None:
         return _write_wav(path, render(seconds, logo=logo, mood=mood))
     from . import ffmpeg
