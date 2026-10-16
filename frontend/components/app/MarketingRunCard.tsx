@@ -7,6 +7,7 @@ import type { CampaignResult, DraftLanguage, MarketingRun, RunQuestion } from '@
 import { BoostStep } from './BoostStep'
 import { CreativeRoom } from './CreativeRoom'
 import { CampaignPostEditor } from './CampaignPostEditor'
+import { ReelVoice } from './ReelVoice'
 import { RunFileUpload } from './RunFileUpload'
 import { Btn, ErrorBox } from './ui'
 
@@ -293,7 +294,8 @@ export function MarketingRunCard({ listingId }: { listingId: string }) {
   }, [refresh])
 
   useEffect(() => {
-    if (!run || (!RUNNING.includes(run.status) && run.reels_state !== 'making')) return
+    const voicing = run?.reels?.some((r) => r.voice_state === 'queued' || r.voice_state === 'making')
+    if (!run || (!RUNNING.includes(run.status) && run.reels_state !== 'making' && !voicing)) return
     const id = setTimeout(() => void refresh(), POLL_MS)
     return () => clearTimeout(id)
   }, [run, refresh])
@@ -504,6 +506,10 @@ export function MarketingRunCard({ listingId }: { listingId: string }) {
                           <span className="font-medium">{(r.format || '').replace(/_/g, ' ')}</span>: {r.script.hook.replace(/\*/g, '')}
                         </p>
                       )}
+                      {run.status === 'done' && run.reels_state !== 'making' && (r.kind === 'ad' || (r.kind === 'video' && !r.heard?.length)) && (
+                        <ReelVoice listingId={listingId} reel={r} choices={run.voice_choices ?? []}
+                          onRun={(x) => { if (alive.current) setRun(x) }} />
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -523,8 +529,9 @@ export function MarketingRunCard({ listingId }: { listingId: string }) {
                   {run.reels_state === 'making' ? 'Making the reels…' : 'Make the reels again (ad style)'}
                 </Btn>
                 <p className="text-xs text-gray-500">
-                  Every post becomes a short ad reel (hook, quick cuts, price at the end, "Comment VISIT"). Uses these posts,
-                  facts and photos; waiting calendar posts are swapped for their reels.
+                  Every post becomes a short ad reel (hook, quick cuts, price at the end, "Comment INFO") with our music. Uses
+                  these posts, facts and photos; waiting calendar posts are swapped for their reels. Add a voice to a reel
+                  above when you like it.
                 </p>
                 {run.reels_state === 'failed' && run.reels_error && <p className="text-xs text-red-600">{run.reels_error}</p>}
               </div>

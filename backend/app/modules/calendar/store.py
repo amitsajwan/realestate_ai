@@ -102,9 +102,11 @@ class Store:
             tags["published_as"] = "reel"
         await self.items.update_one({"_id": id}, {"$set": {"video": video, "tags": tags, "updated_at": self.clock()}})
 
-    async def set_planned(self, id: str, caption: Optional[str] = None, images: Optional[List[str]] = None) -> bool:
-        """Change a row's caption or images while it is still planned (an agent edited the post before approval);
-        False for any other status: an approved or published row is never changed behind the owner's back."""
+    async def set_planned(self, id: str, caption: Optional[str] = None, images: Optional[List[str]] = None,
+                          video: Optional[str] = None) -> bool:
+        """Change a row's caption, images or video while it is still planned (an agent edited the post, a reel got its
+        voice-over before approval); False for any other status: an approved or published row is never changed behind the
+        owner's back."""
         doc = await self.get(id)
         if not doc or doc["status"] != "planned":
             return False
@@ -113,6 +115,8 @@ class Store:
             fields["caption"] = caption
         if images:
             fields.update(images=list(images), image_path=images[0])
+        if video:
+            fields["video"] = video
         await self.items.update_one({"_id": id, "status": "planned"}, {"$set": fields})
         return True
 

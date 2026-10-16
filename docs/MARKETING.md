@@ -20,6 +20,7 @@ Every part below carries one status:
 |---|---|---|
 | Approval calendar and its runner | LIVE | Real posting on. Testing pace: approved posts go out 10 minutes apart (`CALENDAR_PACE_MINUTES=10`). Set it to 0 for planned times. |
 | Listing campaign from Studio ("Start marketing") | LIVE | Facts, posts, slides reels, edit and redo, send to calendar. |
+| Campaign reel voice-over, on demand | LIVE | Deployed 2026-10-16. The run makes its ad reels with our music only, plus a "Checked by the team" scene (MahaRERA record read, distances from Google Maps, only when true). Studio's "Add voice" on a reel: Hinglish, English or Marathi, female or male; a code-written greeting ("Namaskar dosto! Aaj Avasetu ki team aapko dikha rahi hai ..."), lines spoken like a person with pauses (`propertyfacts/voiceover.py`), Chirp 3 HD on `GOOGLE_TTS_API_KEY` (no Gemini voice anywhere). "Avasetu" is said a-va-SAY-too (`reels/voice.NAMES`). Waiting calendar rows take the voiced reel. |
 | Agent marketing pack (cards, captions, WhatsApp) | LIVE | One per listing. |
 | Posting a pack straight to the Avasetu Page and Instagram | LIVE | Bypasses the calendar; see §8. |
 | Listing walkthrough reel | LIVE | Voice-over on (Google TTS key set). Two styles: tour and stack (§4). |

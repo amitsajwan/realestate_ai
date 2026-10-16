@@ -185,6 +185,8 @@ class Ctx:
         self.registration = advert.trusted({}, facts, kit)
         # MahaRERA's own record was read (not only a number typed into the listing or printed in a brochure)
         self.maharera = any("maharera" in f.sources for f in facts.values() if f.usable)
+        # the nearby places' distances came from Google Maps (surroundings.Nearby), not only from map data
+        self.mapped = any("google" in f.sources for k, f in facts.items() if k.startswith("nearby.") and f.usable)
         self.used: set = set()   # facts an earlier angle already headlined ("price", "place:Ranjangaon MIDC")
         self.previous = list(previous)   # opening lines of this property's posts that are already live
         self.photo, self.link = photo, link

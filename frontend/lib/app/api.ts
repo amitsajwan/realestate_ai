@@ -245,6 +245,10 @@ export function createApiClient(opts: ClientOptions): AppApi {
       (await request<{ run: MarketingRun }>(`/listings/${listingId}/campaign/boost/remake`, { method: 'POST' })).run,
     remakeReels: async (listingId) =>
       (await request<{ run: MarketingRun }>(`/listings/${listingId}/campaign/reels/remake`, { method: 'POST' })).run,
+    voiceReel: async (listingId, reel, language, gender) =>
+      (await request<{ run: MarketingRun }>(`/listings/${listingId}/campaign/reels/${encodeURIComponent(reel)}/voice`, {
+        method: 'POST', json: { language, gender },
+      })).run,
     getPerformance: async () => (await request<{ items: PerformanceItem[] }>('/inbox/performance')).items ?? [],
 
     getListingActivity: (id, limit) => request<ListingActivity>(`/inbox/listings/${id}/activity${qs({ limit })}`),

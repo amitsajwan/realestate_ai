@@ -6,6 +6,7 @@ Chirp 3 HD voices take plain text or a small part of SSML (<break>, <prosody>, <
 between lines, which reels.narration cuts back into lines (https://cloud.google.com/text-to-speech/docs/chirp3-hd)."""
 import base64
 import os
+import re
 from typing import Optional, Sequence
 from xml.sax.saxutils import escape
 
@@ -55,72 +56,67 @@ def synth(text: str, lang: str = "en", voice: Optional[str] = None, rate: float 
     return base64.b64decode(r.json()["audioContent"])
 
 
-# ---- Gemini speech: a voice that takes directions (owner, 2026-10-14: the Chirp voice said "I-F-O", got Kharadi wrong and
-# kept one flat tone). The line writer (ad_reel.speak) says how each line should sound; Gemini performs it. Google's voice
-# above stays the fallback. Output: 16-bit mono PCM at 24 kHz.
-GEMINI_TTS_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-GEMINI_TTS_MODEL = "gemini-2.5-flash-preview-tts"
-GEMINI_VOICE = "Charon"
-GEMINI_SR = 24000
-# how Pune names are said, for the voice (spelling stays as it is on screen)
-PRONOUNCE = {"Kharadi": "khaa-raa-dee", "Wagholi": "vaa-gho-lee", "Lohegaon": "lo-hay-gaon", "Hinjawadi": "hin-ja-waa-dee",
-             "Hinjewadi": "hin-ja-waa-dee", "Wakad": "vaa-kud", "Baner": "baa-ner", "Keshav Nagar": "kay-shuv nuh-gur",
-             "Ranjangaon": "raan-jun-gaon", "Shirur": "shi-roor", "Viman Nagar": "vi-maan nuh-gur", "Hadapsar": "huh-dup-sur",
-             "Lodha": "lo-dhaa", "Magarpatta": "mug-ur-puttaa", "Kesnand": "kays-nund", "Shikrapur": "shik-raa-pur"}
-STYLE = ("Speak as a warm, confident Pune property creator talking to a friend on Instagram, in natural Indian English, with real "
-         "expression that follows the meaning of each line, never one flat tone.")
+
+# ---- the voice-over step (propertyfacts.voiceover): Chirp 3 HD only, on the server's key, talking like a person ------------
+# Chirp 3 HD reads pause tags ([pause short], [pause], [pause long]) in `markup` only, and takes our names' pronunciations
+# (custom pronunciations; en-IN, hi-IN and mr-IN take them). https://docs.cloud.google.com/text-to-speech/docs/chirp3-hd
+SPEAKERS = {"female": "Kore", "male": "Charon"}
+SPOKEN_RATE = 0.95        # a little slower than a read: a person showing a project, not an ad
+PAUSE_TAG = re.compile(r"(\[pause(?: short| long)?\])")
+# how our names are said (IPA, sent as Chirp's custom pronunciations), and the spelling that says them when the service
+# refuses a pronunciation; a Hindi or Marathi line writes a place in Devanagari, which its voice says right
+NAMES = {   # owner, 2026-10-16: Avasetu is a-va-SAY-too
+    "Avasetu": "əʋəˈseːt̪uː", "Kharadi": "kʰəˈraːɖiː", "Wagholi": "ʋaːˈɡʰoːliː", "Lohegaon": "loːˈɦeːɡaːʋ",
+    "Hinjawadi": "ˈɦɪndʒəʋaːɖiː", "Hinjewadi": "ˈɦɪndʒəʋaːɖiː", "Wakad": "ˈʋaːkəɖ", "Baner": "ˈbaːneːr",
+    "Keshav Nagar": "ˈkeːʃəʋ ˈnəɡər", "Ranjangaon": "ˈraːndʒəɳɡaːʋ", "Shirur": "ʃɪˈruːr", "Viman Nagar": "ʋɪˈmaːn ˈnəɡər",
+    "Hadapsar": "ˈɦəɖəpsər", "Lodha": "ˈloːɖʱaː", "Magarpatta": "ˈməɡərpəʈʈaː", "Kesnand": "ˈkeːsnənd",
+    "Shikrapur": "ˈʃɪkraːpuːr"}
+RESPELL = {"Avasetu": {"en": "Ava-saytoo", "hi": "अवसेतू", "mr": "अवसेतू"}, "Kharadi": {"en": "khaa-raa-dee"},
+           "Wagholi": {"en": "vaa-gho-lee"}, "Lohegaon": {"en": "lo-hay-gaon"}, "Hinjawadi": {"en": "hin-ja-waa-dee"},
+           "Hinjewadi": {"en": "hin-ja-waa-dee"}, "Wakad": {"en": "vaa-kud"}, "Baner": {"en": "baa-ner"},
+           "Keshav Nagar": {"en": "kay-shuv nuh-gur"}, "Ranjangaon": {"en": "raan-jun-gaon"}, "Shirur": {"en": "shi-roor"},
+           "Viman Nagar": {"en": "vi-maan nuh-gur"}, "Hadapsar": {"en": "huh-dup-sur"}, "Lodha": {"en": "lo-dhaa"},
+           "Magarpatta": {"en": "mug-ur-puttaa"}, "Kesnand": {"en": "kays-nund"}, "Shikrapur": {"en": "shik-raa-pur"}}
 
 
-def gemini_available() -> bool:
-    return bool(os.environ.get("GEMINI_API_KEY")) and (os.environ.get("REEL_VOICE_ENGINE") or "gemini").lower() != "google"
+def spoken_markup(text: str) -> str:
+    """`text` as markup: our pause tags kept, any other bracket dropped."""
+    parts = PAUSE_TAG.split(text)   # the tags at the odd places
+    return " ".join(" ".join(p if i % 2 else p.replace("[", "").replace("]", "") for i, p in enumerate(parts)).split())
 
 
-def pronunciation(lines: Sequence[str]) -> str:
-    said = [f"'{name}' as '{how}'" for name, how in PRONOUNCE.items() if any(name.lower() in l.lower() for l in lines)]
-    return ("Pronounce " + ", ".join(said) + ".") if said else ""
+def unpaused(text: str) -> str:
+    """`text` without its pause tags (what the checks read)."""
+    return " ".join(PAUSE_TAG.sub(" ", text).split())
 
 
-def gemini_speech(text: str, voice: Optional[str] = None, timeout: float = 120.0) -> bytes:
-    """PCM (16-bit mono, 24 kHz) of `text`, which carries its own directions. Raises VoiceError."""
-    key = os.environ.get("GEMINI_API_KEY")
+def synth_spoken(text: str, lang: str = "en", gender: str = "female", rate: float = SPOKEN_RATE) -> bytes:
+    """MP3 of one spoken line with its pause tags, in the Chirp 3 HD voice of `gender` for `lang` (en, hi or mr). Our names
+    go as custom pronunciations; when the service refuses them, the name is respelled instead. Raises VoiceError."""
+    key = os.environ.get("GOOGLE_TTS_API_KEY")
     if not key:
-        raise VoiceError("GEMINI_API_KEY is not set")
-    model = os.environ.get("REEL_TTS_MODEL") or GEMINI_TTS_MODEL
-    body = {"contents": [{"parts": [{"text": text}]}],
-            "generationConfig": {"responseModalities": ["AUDIO"], "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {
-                "voiceName": voice or os.environ.get("REEL_GEMINI_VOICE") or GEMINI_VOICE}}}}}
-    import time
-    why = "no answer"
-    # a busy model (429/5xx) or an answer without audio (live: 200 with no audio part, twice in one remake) is asked again
-    # before Google's voice takes over
-    for wait in (0, 8, 25):
-        if wait:
-            time.sleep(wait)
+        raise VoiceError("GOOGLE_TTS_API_KEY is not set")
+    code = VOICES.get(lang, VOICES["en"])[0]
+    name = f"{code}-Chirp3-HD-{SPEAKERS.get(gender, SPEAKERS['female'])}"
+    markup = spoken_markup(text)
+    said = [n for n in NAMES if n in markup]
+
+    def ask(inp: dict):
+        body = {"input": inp, "voice": {"languageCode": code, "name": name},
+                "audioConfig": {"audioEncoding": "MP3", "speakingRate": rate, "sampleRateHertz": 48000}}
         try:
-            r = httpx.post(GEMINI_TTS_URL.format(model=model), headers={"x-goog-api-key": key}, json=body, timeout=timeout)
+            return httpx.post(URL, headers={"X-Goog-Api-Key": key}, json=body, timeout=60)
         except Exception as e:
-            why = f"unreachable ({type(e).__name__})"
-            continue
-        if r.status_code in (429, 500, 502, 503, 504):
-            why = f"HTTP {r.status_code}"
-            continue
-        if r.status_code >= 400:
-            raise VoiceError(f"gemini speech HTTP {r.status_code}: {r.text[:120]}".replace(key, "[redacted]"))
-        try:
-            data = r.json()
-            cand = (data.get("candidates") or [{}])[0]
-            for part in (cand.get("content") or {}).get("parts") or []:
-                if (part.get("inlineData") or {}).get("data"):
-                    return base64.b64decode(part["inlineData"]["data"])
-            why = f"no audio (finish: {cand.get('finishReason') or (data.get('promptFeedback') or {}).get('blockReason') or '?'})"
-        except ValueError:
-            why = "unreadable answer"
-    raise VoiceError(f"gemini speech: {why}")
+            raise VoiceError(f"voice service unreachable ({type(e).__name__})")
 
+    r = ask({"markup": markup, **({"customPronunciations": {"pronunciations": [
+        {"phrase": n, "phoneticEncoding": "PHONETIC_ENCODING_IPA", "pronunciation": NAMES[n]} for n in said]}} if said else {})})
+    if r.status_code == 400 and said:   # pronunciations refused: the names respelled instead
+        for n in said:
+            markup = markup.replace(n, RESPELL.get(n, {}).get(lang, n))
+        r = ask({"markup": markup})
+    if r.status_code >= 400:
+        msg = (r.json().get("error") or {}).get("message", "") if r.headers.get("content-type", "").startswith("application/json") else ""
+        raise VoiceError((f"HTTP {r.status_code}" + (f": {msg}" if msg else "")).replace(key, "[redacted]")[:200])
+    return base64.b64decode(r.json()["audioContent"])
 
-def gemini_script(lines: Sequence[str], direction: str = "") -> str:
-    """The text Gemini performs: the style, the line writer's direction, the pronunciations, then the lines with a clear pause
-    between them (the take is cut at those pauses)."""
-    head = " ".join(x for x in (STYLE, direction.strip(), pronunciation(lines),
-                                "Leave a pause of about two seconds between lines; read exactly these words.") if x)
-    return head + "\n\n" + "\n".join(" ".join(str(l).split()) for l in lines)

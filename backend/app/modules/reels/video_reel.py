@@ -306,10 +306,10 @@ def voice_starts(durations: Sequence[float], total: float) -> List[float]:
     return out
 
 
-def voice_over(path, lines: Sequence[str], lang: str = "en") -> str:
-    """Put a voice-over (the lines, spread over the clip, over our music bed which steps back under it) on a finished video
-    reel in place of its sound: for a video nobody speaks in. "take"|"lines" (how the voice was made), or "off" when no line
-    fits. Raises voice.VoiceError / ffmpeg.FfmpegError on failure, the reel at `path` untouched."""
+def voice_over(path, lines: Sequence[str], lang: str = "en", gender: str = "female") -> str:
+    """Put a voice-over (the lines with their pause tags, voice.synth_spoken, spread over the clip, over our music bed which
+    steps back under it) on a finished video reel in place of its sound: for a video nobody speaks in. "spoken", or "off"
+    when no line fits. Raises voice.VoiceError / ffmpeg.FfmpegError on failure, the reel at `path` untouched."""
     from . import narration
     from .music import write as write_music
 
@@ -317,7 +317,7 @@ def voice_over(path, lines: Sequence[str], lang: str = "en") -> str:
     total = ffmpeg.probe(path).duration or 0.0
     work = Path(tempfile.mkdtemp(prefix="video-voice-"))
     try:
-        clips, how = narration.voice_lines([x for x in lines if x.strip()], lang, work)
+        clips, how = narration.spoken_lines([x for x in lines if x.strip()], lang, gender, work), "spoken"
         starts = voice_starts([ffmpeg.probe(c).duration for c in clips], total)
         if not starts:
             return "off"

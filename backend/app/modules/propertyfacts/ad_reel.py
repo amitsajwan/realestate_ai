@@ -7,10 +7,12 @@ A reel is a `script` in one of FORMATS (showcase, price reveal, 3 reasons, nearb
   hook     the best picture at once, its line in big type in the middle third (no fade-in, no brand tag: frame one is content)
   beats    one short line per picture, a cut every ~1.5 s (most people watch muted and read)
   payoff   the fact the hook promised (the price, the RERA number), held back to the end so people watch to it
+  checked  what the team really checked, as ticks (`checked`: the MahaRERA record read, distances from Google Maps), when any
   cta      one action: a comment keyword, so leads per format are countable (calendar.tags reads "Comment WORD")
   loop     the hook picture again with no text, so the replay runs on without a jump (watch-through counts the replays)
-  voice    every line is also spoken (reels.voice, Chirp 3 HD en-IN) over the music bed, which steps back under it; a scene lasts
-           as long as its line takes to say, so a reel runs 15-20 s. Without a voice (no key, the service down) it is music only.
+  voice    none in the marketing run: the reel is made with our music only. Its voice-over is the last step, asked for one reel
+           at a time (voiceover.py: Hinglish, English or Marathi, like a person talking); the reel is then made again with each
+           line spoken over the music bed, which steps back under it, a scene as long as its line takes to say.
 The words come from the LLM when it keeps to the facts (every number in a line must be in the facts, guards.problems_in finds
 hype and predictions), else from the code's own template; the facts are always the code's.
 
@@ -24,7 +26,7 @@ import random
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from .campaign import Ctx, _near, _numbers, buyer_place
 
@@ -34,8 +36,8 @@ EXPERIMENT = "ad_reel"
 FORMATS = ("showcase", "price_reveal", "three_reasons", "pov", "myth_fact", "checklist")
 EXPLORE = 0.2
 HOOK_WORDS, LINE_WORDS = 10, 8
-HOOK_S, BEAT_S, PAYOFF_S, CTA_S, LOOP_S = 1.9, 1.5, 2.0, 1.8, 0.7   # the least each scene lasts; a spoken line makes it longer
-VOICE_PAD_S = 0.45      # after a spoken line, before the next scene's cut
+HOOK_S, BEAT_S, PAYOFF_S, CHECKED_S, CTA_S, LOOP_S = 1.9, 1.5, 2.0, 2.2, 1.8, 0.7   # the least each scene lasts; a spoken line makes it longer
+VOICE_PAD_S = 0.6       # after a spoken line, before the next scene's cut: a breath, as a person talking takes
 READY = re.compile(r"\bready\b|\bmove[\s-]*in\b|\bpossession\b|\bhanded\s+over\b|\bcompleted\b", re.I)
 CTA_WORD = "INFO"   # the comment bot reads it as interest (engage.brain.INTERESTED)
 
@@ -50,18 +52,26 @@ class Script:
     by: str = "template"   # template | llm
     hook_type: str = "statement"
     extra: Dict[str, Any] = field(default_factory=dict)
+    checked: List[str] = field(default_factory=list)   # what the team checked ("MahaRERA record read"), drawn as ticks
+    team: str = ""                                     # who checked it ("Avasetu team")
+    intro: str = ""                                    # the caption's opening once voiced: the host's greeting in writing
+
+    def checked_line(self) -> str:
+        return f"Checked by the {self.team or 'team'}: " + ", ".join(self.checked) if self.checked else ""
 
     def lines(self) -> List[str]:
-        return [self.hook, *self.beats, self.payoff, self.cta]
-
-    def voice(self) -> List[str]:
-        """What the voice says for each screen line: the model's spoken version (`speak`) where it passed, else `spoken`."""
-        said = self.extra.get("voice") or []
-        return [spoken(said[i] if i < len(said) and said[i] else x) for i, x in enumerate(self.lines())]
+        """One per spoken scene: hook, beats, payoff, the checked ticks (when any), cta."""
+        return [self.hook, *self.beats, self.payoff, *([self.checked_line()] if self.checked else []), self.cta]
 
     def out(self) -> Dict[str, Any]:
         return {"format": self.format, "hook": self.hook, "beats": self.beats, "payoff": self.payoff, "cta": self.cta,
-                "by": self.by, "hook_type": self.hook_type}
+                "by": self.by, "hook_type": self.hook_type, "checked": self.checked, "team": self.team, "intro": self.intro}
+
+    @classmethod
+    def from_out(cls, d: Dict[str, Any]) -> "Script":
+        """The script a run kept (`out`)."""
+        return cls(**{k: d[k] for k in ("format", "hook", "beats", "payoff", "cta")},
+                   **{k: d[k] for k in ("by", "hook_type", "checked", "team", "intro") if d.get(k)})
 
 
 # ---- the facts a reel may say ---------------------------------------------------------------------------------------------
@@ -174,6 +184,22 @@ def template(fmt: str, c: Ctx) -> Script:
                   f"*{c.where or place}*", cta)
 
 
+def checked(c: Ctx) -> List[str]:
+    """What was really checked for this property, read from the facts' sources: never a site visit nobody made."""
+    out = []
+    if c.maharera:
+        out.append("MahaRERA record read")
+    if c.mapped and _places(c):
+        out.append("distances from Google Maps")
+    return out
+
+
+def with_checks(s: Script, c: Ctx) -> Script:
+    """The "checked by" ticks on `s`, by code: the team whose posts these are."""
+    s.checked, s.team = checked(c), c.voice.team
+    return s
+
+
 # ---- the LLM's wording, kept only when it keeps to the facts -------------------------------------------------------------
 SYSTEM = (
     "You write a 15-20 second Instagram/Facebook Reel for an Indian property listing, like a top ad agency that sells homes. "
@@ -232,30 +258,15 @@ async def write(fmt: str, c: Ctx, llm: Any = None) -> Script:
                    str(r.get("payoff") or "").strip(), str(r.get("cta") or base.cta).strip(), by="llm")
     except Exception:
         log.info("ad reel: LLM script failed for %s", fmt, exc_info=True)
-        await speak(base, llm)
         return base
     if CTA_WORD not in s.cta:
         s.cta = base.cta
     problems = check(s, facts)
     if problems:
         log.info("ad reel: LLM script for %s dropped: %s", fmt, problems[:3])
-        await speak(base, llm)
         return base
     s.hook_type = hook_type(s.hook)
-    await speak(s, llm)
     return s
-
-
-SPEAK_SYSTEM = (
-    "You turn the on-screen lines of a short property reel into what a Pune property agent would SAY over them, one spoken "
-    "line per screen line, in the same order. Say it the way people talk: distances rounded as people say them (0.9 km -> "
-    "'less than a kilometre', 1.9 km -> 'about 2 kilometres', 3.9 km -> 'about 4 kilometres'), units in words (square "
-    "feet, kilometres, rupees), prices as written ('2.24 crore'), no list numbers, no registration numbers (say 'MahaRERA "
-    "registered'). Keep every fact and name of the line; add nothing that is not on it. Short, natural, plain English, the "
-    "way a creator talks: a question can stay a question, a fragment can stay a fragment. Then direct the voice actor: one "
-    "or two sentences on HOW to say the reel, line by line (e.g. 'curious and quick on the opening question, proud on the "
-    "architect, relaxed on the distances, warm and inviting on the last line'). "
-    "Reply with JSON only: {\"lines\": [\"...\", ...], \"direction\": \"...\"}")
 
 
 def said_ok(said: str, screen: str) -> bool:
@@ -269,24 +280,6 @@ def said_ok(said: str, screen: str) -> bool:
     rounded = {n for n in _numbers(said)} - set(_numbers(screen))   # the guards would call a rounded number new
     problems = [p for p in problems_in(said, screen) if p.removeprefix("number not in facts: ") not in rounded]
     return not problems and len(said.split()) <= 2 * len(screen.split()) + 6
-
-
-async def speak(s: Script, llm: Any) -> None:
-    """The model's spoken version of each screen line, kept per line where `said_ok` passes (s.extra["voice"]); the code's
-    `spoken` rules say the rest. A wording change needs a prompt line here, not a new rule."""
-    lines = s.lines()
-    try:
-        r = await llm.json(SPEAK_SYSTEM, "Screen lines:\n" + "\n".join(f"- {x.replace('*', '')}" for x in lines)) or {}
-        said = [str(x).strip() for x in r.get("lines") or []]
-        direction = " ".join(str(r.get("direction") or "").split())[:400]
-    except Exception:
-        log.info("ad reel: spoken lines failed", exc_info=True)
-        return
-    if direction:   # how to say it (the Gemini voice performs it); not facts, never on screen
-        s.extra["direction"] = direction
-    if len(said) != len(lines):
-        return
-    s.extra["voice"] = [x if said_ok(x, y.replace("*", "")) else "" for x, y in zip(said, lines)]
 
 
 # ---- which formats: 80% what worked, 20% something else ------------------------------------------------------------------
@@ -371,6 +364,9 @@ def scenes(s: Script, pictures: Sequence, kicker: Optional[str] = None) -> list:
     for i, b in enumerate(s.beats):
         out.append(Scene(image=at(i + 1), lines=[TextLine(b, size=86, max_lines=3)], seconds=BEAT_S, seed=f"ad-beat-{i}"))
     out.append(Scene(image=at(len(s.beats) + 1), lines=[TextLine(s.payoff, size=112, max_lines=3)], seconds=PAYOFF_S, seed="ad-payoff"))
+    if s.checked:   # one scene, as `lines` has one line for it (each scene's voice is its line's)
+        out.append(Scene(image=None, lines=[TextLine(f"✓ {x}", size=74, max_lines=2) for x in s.checked],
+                         kicker=f"CHECKED BY {(s.team or 'our team').upper()}"[:28], seconds=CHECKED_S, seed="ad-checked"))
     out.append(Scene(image=None, lines=[TextLine(s.cta, size=84, max_lines=3)], kicker=kicker, seconds=CTA_S, seed="ad-cta"))
     out.append(Scene(image=at(0), lines=[], seconds=LOOP_S, seed="ad-hook"))
     return out
@@ -402,35 +398,33 @@ def spoken(line: str) -> str:
     return " ".join(t.split()).strip(" ,") or "MahaRERA registered"
 
 
-def render(s: Script, pictures: Sequence, dest: Path, kicker: Optional[str] = None, voiced: bool = True,
-           lang: str = "en") -> Dict[str, Any]:
-    """The reel at `dest`: each line on screen and spoken (when the voice service answers), a scene as long as its line.
-    {"path", "voice": "take"|"lines"|"off"|"failed", "seconds"}."""
+def render(s: Script, pictures: Sequence, dest: Path, kicker: Optional[str] = None,
+           speech: Optional[Tuple[Sequence[str], str, str]] = None) -> Dict[str, Any]:
+    """The reel at `dest`, with our music. `speech` (the voice-over step: (one spoken line per `s.lines()`, voice language,
+    gender)) puts each line's voice on its scene, a scene as long as its line takes to say. {"path", "voice": "spoken"|"off",
+    "seconds"}; raises voice.VoiceError when the voice cannot be made (the reel at `dest` is then untouched)."""
     import shutil
     import tempfile
 
-    from app.modules.reels import ffmpeg, narration, voice
+    from app.modules.reels import ffmpeg, narration
     from app.modules.reels.compose import make_reel, plan
     from app.modules.reels.music import write as write_music
 
     sc = scenes(s, pictures, kicker)
-    lines = s.lines()   # hook, beats, payoff, cta: scenes 0..len(lines)-1; the last scene (the loop) is silent
     work = Path(tempfile.mkdtemp(prefix="ad-reel-"))
     audio, how = None, "off"
     try:
-        if voiced and voice.available():
-            try:
-                clips, how = narration.voice_lines(s.voice(), lang, work, s.extra.get("direction") or "")
-                for i, clip in enumerate(clips):
-                    sc[i].seconds = max(sc[i].seconds or 0.0, ffmpeg.probe(clip).duration + VOICE_PAD_S)
-                tl = plan([x.seconds for x in sc], XFADE)
-                audio = narration.mix(work, clips, tl.starts[:len(clips)], tl.total,
-                                      write_music(work / "bed.wav", seconds=tl.total + 1.0))
-            except voice.VoiceError as e:
-                log.warning("ad reel: no voice-over (%s); music only", e)
-                how, audio = "failed", None
-                for x, d in zip(sc, (HOOK_S, *[BEAT_S] * len(s.beats), PAYOFF_S, CTA_S, LOOP_S)):
-                    x.seconds = d
+        if speech is not None:   # hook, beats, payoff, checked, cta: scenes 0..len(lines)-1; the last scene (the loop) is silent
+            lines, lang, gender = speech
+            if len(lines) != len(s.lines()):
+                raise ValueError("one spoken line per screen line")
+            clips = narration.spoken_lines(lines, lang, gender, work)
+            for i, clip in enumerate(clips):
+                sc[i].seconds = max(sc[i].seconds or 0.0, ffmpeg.probe(clip).duration + VOICE_PAD_S)
+            tl = plan([x.seconds for x in sc], XFADE)
+            audio = narration.mix(work, clips, tl.starts[:len(clips)], tl.total,
+                                  write_music(work / "bed.wav", seconds=tl.total + 1.0))
+            how = "spoken"
         make_reel(sc, dest, music=audio, xfade=XFADE, progress=False, end_card=False, hook_tag=False)
         return {"path": dest, "voice": how, "seconds": round(plan([x.seconds for x in sc], XFADE).total, 1)}
     finally:
@@ -438,7 +432,9 @@ def render(s: Script, pictures: Sequence, dest: Path, kicker: Optional[str] = No
 
 
 def caption(s: Script, post_caption: str) -> str:
-    """The post's caption under the reel's hook, with the comment keyword asked for (so leads per format are counted)."""
+    """The post's caption under the reel's hook (and the host's greeting, once voiced), with what the team checked and the
+    comment keyword asked for (so leads per format are counted)."""
     body = post_caption.strip()
     ask = f"Comment {CTA_WORD} and we will share the details and a site-visit slot."
-    return f"{s.hook.replace('*', '')}\n\n{body}" + ("" if CTA_WORD in body else f"\n\n{ask}")
+    tick = f"✓ Checked by the {s.team or 'team'}: " + ", ".join(s.checked) + "." if s.checked else ""
+    return "\n\n".join(x for x in (s.hook.replace("*", ""), s.intro, body, tick, "" if CTA_WORD in body else ask) if x)

@@ -10,6 +10,8 @@ same for a project's own page.
 `PATCH /{listing_id}/campaign/posts/{angle}` saves an edited caption, `POST .../posts/{angle}/redo` remakes it with a note,
 `POST /{listing_id}/campaign/boost` records that the agent boosted the master boost pair (boost.py) with its daily spend and days,
 `POST /{listing_id}/campaign/boost/remake` makes only the boost pair again (in the background).
+`POST /{listing_id}/campaign/reels/{reel}/voice` asks for one reel's voice-over (voiceover.py: Hinglish, English or Marathi,
+a female or male voice), the last step, made in the background; `reel` is an ad reel's angle or "video".
 The builder's brochure (brochure.py), same auth, the agent's own listing only: `POST /{listing_id}/brochure` (multipart `file`)
 reads it into a kit, `GET /{listing_id}/brochure` the kit (404 when none), `PATCH .../brochure/facts/{fact_id}` confirms, drops
 or edits a fact, `POST .../brochure/registration` keeps the agent's "registered or exempt" answer, `GET .../pages/{n}.jpg` a
@@ -62,6 +64,12 @@ async def public_property_facts_by_regno(regno: str, response: Response, db=Depe
 class EditIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     caption: str
+
+
+class VoiceIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    language: Literal["hinglish", "en", "mr"] = "hinglish"
+    gender: Literal["female", "male"] = "female"
 
 
 class RedoIn(BaseModel):
@@ -173,6 +181,17 @@ async def remake_reels(listing_id: str, request: Request, user: User = Depends(c
     """Make only the ad reels again from the finished run's posts and pictures; the worker does it (reels_state "making")."""
     try:
         doc = await runs.remake_reels(str(user.id), listing_id)
+    except jobs.RunError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
+    return {"run": jobs.run_out(doc, str(request.base_url))}
+
+
+@router.post("/{listing_id}/campaign/reels/{reel}/voice", status_code=202)
+async def voice_reel(listing_id: str, reel: str, body: VoiceIn, request: Request, user: User = Depends(current_active_user),
+                     runs: jobs.MarketingRuns = Depends(get_runs), _w: None = Depends(start_worker)) -> dict:
+    """Ask for one reel's voice-over; the worker makes it (the reel's voice_state "queued", "making", then "done"/"failed")."""
+    try:
+        doc = await runs.ask_voice(str(user.id), listing_id, reel, body.language, body.gender)
     except jobs.RunError as e:
         raise HTTPException(status_code=e.status_code, detail=e.detail)
     return {"run": jobs.run_out(doc, str(request.base_url))}

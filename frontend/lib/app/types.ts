@@ -592,6 +592,8 @@ export interface AppApi {
   /** Make the boost kit again (after a failure). */
   remakeBoost(listingId: string): Promise<MarketingRun>
   remakeReels(listingId: string): Promise<MarketingRun>
+  /** One reel's voice-over (`reel`: an ad reel's angle, or 'video'), made in the background. */
+  voiceReel(listingId: string, reel: string, language: VoiceLanguage, gender: VoiceGender): Promise<MarketingRun>
   getPerformance(): Promise<PerformanceItem[]>
   /** Per-listing activity (views, sources, people, feed). 404 for a listing that is not yours. */
   getListingActivity(id: string, limit?: number): Promise<ListingActivity>
@@ -606,6 +608,30 @@ export interface RunQuestion {
   options: { label: string; value: unknown }[]
   /** When set, the agent may type an answer instead (the placeholder, e.g. a MahaRERA number). */
   free_text?: string
+}
+
+/** A reel's voice-over language: Hinglish, English or Marathi. */
+export type VoiceLanguage = 'hinglish' | 'en' | 'mr'
+export type VoiceGender = 'female' | 'male'
+export interface VoiceChoice { key: VoiceLanguage; label: string; sample: string }
+
+/** A reel of a marketing run. `voice`: 'off' (our music only), 'spoken' (its voice-over, asked from Studio), 'kept' (the
+ *  video's own speech); voice_state while one is asked: queued, making, done or failed (voice_error says why). */
+export interface MarketingReel {
+  kind: 'ad' | 'slides' | 'walkthrough' | 'video'
+  angle?: string
+  format?: string
+  script?: { hook: string; beats: string[]; payoff: string; cta: string; by: string; checked?: string[] }
+  video?: string | null
+  status?: string
+  note?: string
+  caption?: string
+  heard?: string[]
+  voice?: 'off' | 'spoken' | 'kept' | string | null
+  voice_state?: 'queued' | 'making' | 'done' | 'failed' | null
+  voice_language?: VoiceLanguage
+  voice_gender?: VoiceGender
+  voice_error?: string
 }
 
 export interface MarketingRun {
@@ -631,7 +657,9 @@ export interface MarketingRun {
   finished_at?: string | null
   /** An ad reel per post (format: price_reveal, three_reasons, pov, myth_fact, checklist), older runs' slides reels, the video
    *  reel and the walkthrough reel (rendered by its own queue: status may lag). */
-  reels?: { kind: 'ad' | 'slides' | 'walkthrough' | 'video'; angle?: string; format?: string; script?: { hook: string; beats: string[]; payoff: string; cta: string; by: string }; video?: string | null; status?: string; note?: string; caption?: string; heard?: string[] }[]
+  reels?: MarketingReel[]
+  /** The voice-over options, each with how a reel then opens. */
+  voice_choices?: VoiceChoice[]
   /** A reels remake asked from Studio: making, done or failed (reels_error says why). */
   reels_state?: 'making' | 'done' | 'failed' | null
   reels_error?: string

@@ -22,7 +22,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence
 
 from app.platform import trace
 
-from . import campaign, identity, points, room, understand
+from . import campaign, identity, points, room, understand, voiceover
 from .brochure import Brochures, usable_images
 from .facts import USABLE
 from .gather import Clients, gather
@@ -90,8 +90,10 @@ def run_out(doc: Optional[dict], base_url: str = "") -> Optional[dict]:
             "facts": doc.get("facts"), "page_url": doc.get("page_url"), "listing_url": doc.get("listing_url"), "posts": posts, "dropped": doc.get("dropped") or {},
             "error": doc.get("error") or "", "created_at": _iso(doc.get("created_at")),
             "calendar": [{**c, "due_at": _iso(c.get("due_at"))} for c in doc.get("calendar") or []],
-            "reels": [{**r, "video": (base + r["video"] if base and (r.get("video") or "").startswith("/") else r.get("video"))}
+            "reels": [{**{k: v for k, v in r.items() if k != "pictures"},
+                       "video": (base + r["video"] if base and (r.get("video") or "").startswith("/") else r.get("video"))}
                       for r in doc.get("reels") or []],
+            "voice_choices": voiceover.choices(),
             "facts_done_at": _iso(doc.get("facts_done_at")), "finished_at": _iso(doc.get("finished_at")),
             "files": doc.get("files") or {}, "questions": doc.get("questions") or [],
             "plan": doc.get("plan") or [], "skipped": doc.get("skipped") or {},
@@ -337,8 +339,7 @@ class MarketingRuns:
                                                                                      _post_page(run), angle)
                 n += await cal.set_planned(c["row_id"], caption=text, images=[_rel(i) for i in images] if images else None)
             elif ad and c.get("angle") == f"{angle}-ad":
-                text = ad_reel.caption(ad_reel.Script(**{k: ad["script"][k] for k in ("format", "hook", "beats", "payoff", "cta")}),
-                                       caption)
+                text = ad_reel.caption(ad_reel.Script.from_out(ad["script"]), caption)
                 link, page = run.get("link_line") or "", _post_page(run)
                 text = (instagram_caption(text, link, page) if c["channel"] == "instagram"
                         else facebook_caption(text, link, page, c["angle"]))
@@ -540,7 +541,7 @@ class MarketingRuns:
         reels = await self._ad_reels(job, posts, out, project, pool, facts or {})
         video = self._video(listing)
         if video:
-            reels.append(await self._video_reel(job, listing, video, out, project, link_line, facts))
+            reels.append(await self._video_reel(job, listing, video, out, project, link_line))
             await self._set(job["_id"], reels=reels)
         if self.reel_jobs is not None and not video:
             from app.modules.reels.listing_reel import MIN_PHOTOS, listing_photos
@@ -575,7 +576,7 @@ class MarketingRuns:
         from . import ad_reel
         render = self.ad_renderer or ad_reel.render
         llm = self.llm_factory() if self.llm_factory else None
-        ctx = campaign.Ctx(facts)
+        ctx = campaign.Ctx(facts, voice=(await self._identity(job)).voice)
         written = room.scripts(job.get("room"))   # the creative room's reels: the director chose which pieces get one
         if written:
             todo = [p for p in posts if p["angle"] in written][:room.MAX_REELS]
@@ -591,18 +592,15 @@ class MarketingRuns:
                 continue
             dest = out / "reels" / f"ad-{_safe(p['angle'])}.mp4"
             try:
-                if p["angle"] in written:
-                    script = written[p["angle"]]
-                    if llm is not None:
-                        await ad_reel.speak(script, llm)
-                else:
-                    script = await ad_reel.write(fmt, ctx, llm)
+                script = written[p["angle"]] if p["angle"] in written else await ad_reel.write(fmt, ctx, llm)
+                ad_reel.with_checks(script, ctx)
                 order = pics[i % len(pics):] + pics[:i % len(pics)] if pics else []
-                made = await asyncio.to_thread(render, script, order, dest, kicker)
+                made = await asyncio.to_thread(render, script, order, dest, kicker)   # music only: the voice is asked later
                 made = made if isinstance(made, dict) else {}
                 reels.append({"kind": "ad", "angle": p["angle"], "format": fmt, "script": script.out(),
-                              "caption": ad_reel.caption(script, p["caption"]), "voice": made.get("voice"),
-                              "seconds": made.get("seconds"),
+                              "caption": ad_reel.caption(script, p["caption"]), "voice": "off",
+                              "seconds": made.get("seconds"), "post_caption": p["caption"], "kicker": kicker,
+                              "pictures": [self._kept_path(x) for x in order],
                               "video": "/uploads/" + dest.resolve().relative_to(self.uploads_dir.resolve()).as_posix()})
                 trace.event(log, "marketing", job["_id"], "ad_reel", trace.OK, angle=p["angle"], format=fmt,
                             voice=made.get("voice"), seconds=made.get("seconds"))
@@ -640,12 +638,7 @@ class MarketingRuns:
             if not listing:
                 raise RunError("The listing was removed.")
             out = self.uploads_dir / "campaigns" / _safe(job["listing_id"]) / job["_id"][:8]
-            # the project's kept sheet (nearby places, MahaRERA) under this listing's own fields: the sheet is shared by the
-            # project's listings and can hold another one's price (live 2026-10-10: a Ranjangaon plot's ₹30 lakh went into
-            # Gulmohar City's ₹2.99 lakh reels)
-            from .facts import Fact
-            facts = {**await self._facts(job, listing),
-                     **{k: Fact(k, listing[k], "official", [], []) for k in FACT_FIELDS if listing.get(k) not in (None, "", [])}}
+            facts = await self._reel_facts(job, listing)
             ctx = campaign.Ctx(facts)
             pool = await self._photo_pool(listing, out)
             if not pool:   # no photos of its own: the brochure pages the posts used
@@ -660,6 +653,14 @@ class MarketingRuns:
             log.warning("reels remake %s failed", job["_id"], exc_info=True)
             await self._set(job["_id"], reels_state="failed",
                             reels_error="The reels could not be made again: " + str(getattr(e, "detail", "") or e)[:200])
+
+    async def _reel_facts(self, job: dict, listing: dict) -> Dict[str, Any]:
+        """The project's kept sheet (nearby places, MahaRERA) under this listing's own fields: the sheet is shared by the
+        project's listings and can hold another one's price (live 2026-10-10: a Ranjangaon plot's ₹30 lakh went into Gulmohar
+        City's ₹2.99 lakh reels)."""
+        from .facts import Fact
+        return {**await self._facts(job, listing),
+                **{k: Fact(k, listing[k], "official", [], []) for k in FACT_FIELDS if listing.get(k) not in (None, "", [])}}
 
     def _brochure(self, listing: dict) -> Dict[str, Any]:
         """What the listing already knows from its brochure: the claims the AI draft read at creation (files.claims_for),
@@ -713,32 +714,147 @@ class MarketingRuns:
                 return p
         return None
 
-    async def _voice_video(self, dest: Path, facts: Dict[str, Any], speech: Sequence, ref: str) -> str:
-        """A voice-over on the video reel when nobody speaks in the video (a builder's walkthrough with music or silence): the
-        showcase reel's checked lines, spread over the clip, music under them. "take"|"lines" when added, "kept" when the video
-        has its own speech, "off"/"failed" otherwise. Never raises."""
-        from app.modules.reels import video_reel, voice
+    # ---- the voice-over: the last step, one reel at a time (voiceover.py) ----------------------------------------------------
+    def _kept_path(self, p: str) -> str:
+        """A picture's path as a run keeps it: under uploads relative to it (the containers mount it at other places)."""
+        try:
+            return "/uploads/" + Path(p).resolve().relative_to(self.uploads_dir.resolve()).as_posix()
+        except ValueError:
+            return str(p)
+
+    def _local(self, url: str) -> Path:
+        return self.uploads_dir / _rel(url) if url.startswith("/uploads/") else Path(url)
+
+    async def ask_voice(self, agent_id: str, listing_id: str, reel: str, language: Optional[str], gender: Optional[str]) -> dict:
+        """Ask for one reel's voice-over (`reel`: an ad reel's angle, or "video" for the reel from the agent's video); the
+        worker makes it (the reel's voice_state "queued", then "making", "done" or "failed")."""
+        try:
+            language, gender = voiceover.ask_ok(language, gender)
+        except ValueError as e:
+            raise RunError(str(e), 422)
+        run = await self.latest(agent_id, listing_id)
+        if not run or run["status"] != "done":
+            raise RunError("Make the posts and reels first.", 409)
+        if run.get("reels_state") == "making":
+            raise RunError("The reels are being made again; add the voice when they are ready.", 409)
+        reels = run.get("reels") or []
+        i = next((j for j, r in enumerate(reels) if (r.get("angle") if r.get("kind") == "ad" else r.get("kind")) == reel
+                  and r.get("kind") in ("ad", "video") and r.get("video")), None)
+        if i is None:
+            raise RunError("That reel is not in this run.", 404)
+        if reels[i]["kind"] == "ad" and not reels[i].get("pictures"):
+            raise RunError("This reel was made before voice-overs: make the reels again first.", 409)
+        if reels[i]["kind"] == "video" and reels[i].get("heard"):
+            raise RunError("Someone already speaks in this video, so it keeps its own sound.", 409)
+        reels[i] = {**reels[i], "voice_state": "queued", "voice_ask": {"language": language, "gender": gender},
+                    "voice_error": ""}
+        await self._set(run["_id"], reels=reels, voices_queued=True)
+        return {**run, "reels": reels}
+
+    async def claim_voices(self) -> Optional[dict]:
+        doc = await self.runs.find_one({"voices_queued": True})
+        if not doc:
+            return None
+        res = await self.runs.update_one({"_id": doc["_id"], "voices_queued": True}, {"$set": {"voices_queued": False}})
+        if res is not None and getattr(res, "modified_count", 1) == 0:
+            return None
+        return doc
+
+    async def run_voices(self, job: dict) -> None:
+        """Every queued voice-over of a run: each reel made again with its spoken lines (a new file, the silent one kept), its
+        caption opening with the host's greeting, its waiting calendar rows brought up to date. Never raises."""
+        listing = await self.listings.find_one({"_id": job["listing_id"], "agent_id": job["agent_id"]})
+        facts = await self._reel_facts(job, listing) if listing else {}
+        ctx = campaign.Ctx(facts, voice=(await self._identity(job)).voice)
+        llm = self.llm_factory() if self.llm_factory else None
+        for n, r in enumerate(job.get("reels") or []):
+            if r.get("voice_state") != "queued":
+                continue
+            key = r.get("angle") if r["kind"] == "ad" else r["kind"]
+            ask = r.get("voice_ask") or {}
+            await self._set_reel(job["_id"], key, voice_state="making")
+            try:
+                if not listing:
+                    raise RunError("The listing was removed.")
+                done = await (self._voice_ad(r, ctx, n, ask, llm) if r["kind"] == "ad" else self._voice_video(r, ctx, ask, llm))
+                await self._set_reel(job["_id"], key, voice_state="done", voice_error="", **done)
+                trace.event(log, "marketing", job["_id"], "voice_over", trace.OK, reel=key, **ask)
+                await self._sync_reel_rows(job["_id"], key)
+            except Exception as e:
+                trace.event(log, "marketing", job["_id"], "voice_over", trace.FAILED, reel=key, reason=str(e)[:200] or type(e).__name__,
+                            exc_info=True)
+                await self._set_reel(job["_id"], key, voice_state="failed",
+                                     voice_error="The voice-over could not be made: " + (str(getattr(e, "detail", "") or e)[:160] or "try again"))
+
+    async def _voice_ad(self, r: dict, ctx: "campaign.Ctx", n: int, ask: dict, llm: Any) -> dict:
+        from . import ad_reel
+        render = self.ad_renderer or ad_reel.render
+        lang, gender = ask["language"], ask["gender"]
+        script = ad_reel.Script.from_out(r["script"])
+        lines, how = await voiceover.script(script, ctx, lang, n, llm)
+        silent = r.get("silent") or r["video"]
+        dest = self._local(silent).with_name(f"{Path(_rel(silent)).stem}-{lang}-{gender}.mp4")
+        pictures = [str(self._local(p)) for p in r.get("pictures") or []]
+        made = await asyncio.to_thread(render, script, pictures, dest, r.get("kicker"), (lines, voiceover.tts_lang(lang), gender))
+        made = made if isinstance(made, dict) else {}
+        return {"video": self._kept_path(str(dest)), "silent": silent, "voice": "spoken", "voice_language": lang,
+                "voice_gender": gender, "voice_lines": lines, "voice_by": how["by"], "seconds": made.get("seconds"),
+                "script": script.out(), "caption": ad_reel.caption(script, r.get("post_caption") or "")}
+
+    async def _voice_video(self, r: dict, ctx: "campaign.Ctx", ask: dict, llm: Any) -> dict:
+        """The reel from the agent's video with a voice-over (nobody speaks in it): the showcase reel's lines spread over the
+        clip, music under them, on a copy (the voiceless reel kept)."""
+        import shutil
+
+        from app.modules.reels import video_reel
 
         from . import ad_reel
-        if speech:
-            return "kept"
-        if not voice.available():
-            return "off"
-        try:
-            ctx = campaign.Ctx(facts)
-            fmt = "showcase" if "showcase" in ad_reel.eligible(ctx) else "three_reasons"
-            script = await ad_reel.write(fmt, ctx, self.llm_factory() if self.llm_factory else None)
-            how = await asyncio.to_thread(video_reel.voice_over, dest, script.voice())
-            trace.event(log, "marketing", ref, "video_voice", trace.OK if how in ("take", "lines") else trace.SKIPPED, voice=how)
-            return how
-        except Exception as e:
-            trace.event(log, "marketing", ref, "video_voice", trace.FAILED, reason=str(e)[:200] or type(e).__name__)
-            return "failed"
+        lang, gender = ask["language"], ask["gender"]
+        fmt = "showcase" if "showcase" in ad_reel.eligible(ctx) else "three_reasons"
+        script = ad_reel.with_checks(await ad_reel.write(fmt, ctx, llm), ctx)
+        lines, how = await voiceover.script(script, ctx, lang, 0, llm)
+        silent = r.get("silent") or r["video"]
+        src = self._local(silent)
+        dest = src.with_name(f"{src.stem}-{lang}-{gender}.mp4")
+        await asyncio.to_thread(shutil.copyfile, src, dest)
+        spoken = await asyncio.to_thread(video_reel.voice_over, dest, lines, voiceover.tts_lang(lang), gender)
+        if spoken == "off":
+            raise RunError("The video is too short for a voice-over.")
+        caption = r.get("caption") or ""
+        return {"video": self._kept_path(str(dest)), "silent": silent, "voice": "spoken", "voice_language": lang,
+                "voice_gender": gender, "voice_lines": lines, "voice_by": how["by"],
+                "caption": caption if script.intro in caption else f"{script.intro}\n\n{caption}"}
 
-    async def _video_reel(self, job: dict, listing: dict, video: Path, out: Path, project: str, link_line: str,
-                          sheet_facts: Optional[Dict[str, Any]] = None) -> dict:
+    async def _set_reel(self, jid: str, key: str, **fields) -> None:
+        """Change one reel of a run in place (an ad reel by its angle, the video reel as "video")."""
+        doc = await self.runs.find_one({"_id": jid}) or {}
+        reels = [{**r, **fields} if (r.get("angle") if r.get("kind") == "ad" else r.get("kind")) == key
+                 and r.get("kind") in ("ad", "video") else r for r in doc.get("reels") or []]
+        await self._set(jid, reels=reels)
+
+    async def _sync_reel_rows(self, jid: str, key: str) -> int:
+        """The voiced reel's waiting (planned) calendar rows take its new video and caption; approved ones are left alone."""
+        from app.modules.calendar.store import Store as CalendarStore
+
+        from .schedule import _rel as rel, facebook_caption, instagram_caption
+        run = await self.runs.find_one({"_id": jid}) or {}
+        r = next((x for x in run.get("reels") or [] if (x.get("angle") if x.get("kind") == "ad" else x.get("kind")) == key), None)
+        if not r:
+            return 0
+        row_angle = f"{key}-ad" if r["kind"] == "ad" else "video"
+        cal, n, link, page = CalendarStore(self.db), 0, run.get("link_line") or "", _post_page(run)
+        for c in run.get("calendar") or []:
+            if c.get("angle") != row_angle:
+                continue
+            text = r.get("caption") or ""
+            text = instagram_caption(text, link, page) if c["channel"] == "instagram" else facebook_caption(text, link, page, row_angle)
+            n += await cal.set_planned(c["row_id"], caption=text, video=rel(r["video"]))
+        return n
+
+    async def _video_reel(self, job: dict, listing: dict, video: Path, out: Path, project: str, link_line: str) -> dict:
         """The reel from the listing's own video, in the agent's brand. Rendered here (a minute or two); a failure is kept as
-        a skipped reel with its reason, the campaign goes on. `sheet_facts`: for a voice-over when the video has no speech."""
+        a skipped reel with its reason, the campaign goes on. A voice-over, when nobody speaks in it, is asked later
+        (ask_voice)."""
         from app.modules.reels import video_reel
         from app.modules.reels.listing_reel import caption as reel_caption
         prof = await self.profiles.find_one({"agent_id": job["agent_id"]}) or {}
@@ -763,10 +879,9 @@ class MarketingRuns:
         heard = await files.video_claims(edit.speech, self.llm_factory() if self.llm_factory else None)
         if heard:   # what the presenter says, for the assistant (the builder's claims)
             await files.save_claims(self.listings, listing["_id"], video=heard, now=self.now())
-        spoken = await self._voice_video(dest, sheet_facts, edit.speech, job["_id"]) if sheet_facts else "off"
         caption = (edit.caption + "\n\n" + "\n".join(who.contact)) if edit.caption else reel_caption(listing, "")
         return {"kind": "video", "status": "done", "seconds": res["seconds"], "removed_strip": bool(res["removed_strip"]),
-                "voice": spoken,
+                "voice": "kept" if edit.speech else "off",
                 "edit": {"by": edit.source, "segments": edit.segments, "hook": edit.hook, "notes": edit.notes},
                 "heard": heard,
                 "video": "/uploads/" + dest.resolve().relative_to(self.uploads_dir.resolve()).as_posix(),
@@ -1220,6 +1335,10 @@ class MarketingRuns:
         job = await self.claim_reels()   # the ad reels asked again from Studio
         if job:
             await self.run_reels(job)
+            return True
+        job = await self.claim_voices()   # a reel's voice-over asked from Studio
+        if job:
+            await self.run_voices(job)
             return True
         return False
 
