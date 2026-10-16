@@ -481,7 +481,11 @@ def render(s: Script, pictures: Sequence, dest: Path, kicker: Optional[str] = No
                                   write_music(work / "bed.wav", seconds=tl.total + 1.0, mood=mood))
             how = "spoken"
         most = SPOKEN_MAX_S if speech is not None else MAX_SECONDS
-        make_reel(sc, dest, music=audio, xfade=XFADE, progress=False, end_card=False, hook_tag=False, max_seconds=most)
+        # the VM draws about one frame a second while the workers run: a 40 s voiced reel needs ~20 min, past the 15 min
+        # default (live 2026-10-16: two Lodha reels stopped at 29.8 s and 36.3 s of video); 45 s of drawing per reel second
+        length = plan([x.seconds for x in sc], XFADE, most).total
+        make_reel(sc, dest, music=audio, xfade=XFADE, progress=False, end_card=False, hook_tag=False, max_seconds=most,
+                  timeout=max(900.0, 45.0 * length))
         return {"path": dest, "voice": how, "seconds": round(plan([x.seconds for x in sc], XFADE, most).total, 1)}
     finally:
         shutil.rmtree(work, ignore_errors=True)
