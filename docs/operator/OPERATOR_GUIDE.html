@@ -117,7 +117,7 @@ td code,li code{word-break:break-word}
 <p>These steps rebuild what the pilot runs. They were written from the deploy scripts and the pilot's setup, not re-run end to end on a new project.</p>
 <h3 id="2-0-your-pc">2.0 Your PC</h3>
 <ul><li><strong>Google Cloud SDK</strong> (<code>gcloud</code>), logged in: <code>gcloud auth login</code>. Your account needs Compute Admin on the project.</li><li><strong>Git</strong>, and this repository cloned: <code>git clone https://github.com/amitsajwan/realestate_ai.git</code>, then <code>git checkout main</code>.</li></ul>
-<p><code>main</code> is the branch that is released; work happens in pull requests against it (section 5). (Until the planned rename is done in GitHub, the released branch is <code>mordenization</code> (it replaced <code>cursor/analyze-and-fix-styling-issues-cacb</code> on 2026-10-16); use that name wherever this guide says <code>main</code>.)</p>
+<p><code>main</code> is the branch that is released; work happens in pull requests against it (section 5).</p>
 <ul><li><strong>PowerShell</strong> (Windows PowerShell 5.1 or PowerShell 7). Every script in <code>deploy/gcp/*.ps1</code> runs from the repo root.</li><li>Nothing else: Docker, Node and Python are needed only on the VM (installed in 2.3) or for local development.</li></ul>
 <h3 id="2-1-create-the-vm-a-fixed-address-and-th">2.1 Create the VM, a fixed address and the firewall</h3>
 <pre><code>gcloud config set project &lt;PROJECT&gt;

@@ -6,7 +6,7 @@ name: Build app images
 # GitHub signs in to Google without a stored key (Workload Identity Federation, limited to this repository).
 on:
   push:
-    branches: [main, mordenization]   # main is the working branch (2026-10-16); mordenization until the switch is done
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
