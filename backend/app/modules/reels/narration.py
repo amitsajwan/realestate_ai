@@ -104,8 +104,27 @@ GREETING_GAP_S = 0.35   # after the drawn-out greeting, before the voice goes on
 
 def spoken_lines(lines, lang: str, gender: str, work: Path) -> List[Path]:
     """The voice-over step's lines (pause tags in them), one request each: a line is a person's sentence over one picture,
-    its pauses its own. A line opening with «greeting» has it said slower and warmer (voice.synth_greeting), then a breath,
-    then the rest. Raises voice.VoiceError."""
+    its pauses its own. A line opening with «greeting» has it said on its own (warmer, drawn out), then a breath, then the
+    rest. Gemini's directed voice when it is on (voice.gemini_on), else, or when any line fails, the whole reel in Chirp's.
+    Raises voice.VoiceError."""
+    if voice.gemini_on():
+        try:
+            return _spoken(lines, lang, gender, work, "gemini")
+        except voice.VoiceError as e:
+            log.warning("voice-over: Gemini's voice not used (%s); Chirp's for the whole reel", e)
+    return _spoken(lines, lang, gender, work, "chirp")
+
+
+def _spoken(lines, lang: str, gender: str, work: Path, engine: str) -> List[Path]:
+    def say(text: str, name: str, greeting: bool = False) -> Path:
+        if engine == "gemini":
+            out = work / f"{name}.wav"
+            out.write_bytes(voice.gemini_speech(text, lang, gender, greeting=greeting))
+        else:
+            out = work / f"{name}.mp3"
+            out.write_bytes(voice.synth_greeting(text, lang, gender) if greeting else voice.synth_spoken(text, lang, gender))
+        return out
+
     clips = []
     for i, text in enumerate(lines):
         if not text.strip():   # a scene with no words: a breath of silence, its music plays
@@ -114,17 +133,15 @@ def spoken_lines(lines, lang: str, gender: str, work: Path) -> List[Path]:
             clips.append(quiet)
             continue
         m = GREETING.match(text)
-        mp3 = work / f"s{i}.mp3"
-        mp3.write_bytes(voice.synth_spoken(m.group(2) if m else text, lang, gender))
+        clip = say(m.group(2) if m else text, f"s{i}")
         if m:
-            hello = work / f"g{i}.mp3"
-            hello.write_bytes(voice.synth_greeting(m.group(1), lang, gender))
-            joined = work / f"s{i}.wav"
-            ffmpeg.run(["-i", str(hello), "-i", str(mp3), "-filter_complex",
+            hello = say(m.group(1), f"g{i}", greeting=True)
+            joined = work / f"j{i}.wav"
+            ffmpeg.run(["-i", str(hello), "-i", str(clip), "-filter_complex",
                         f"[0:a]aresample={SR},apad=pad_dur={GREETING_GAP_S}[g];[1:a]aresample={SR}[r];[g][r]concat=n=2:v=0:a=1[o]",
                         "-map", "[o]", "-ac", "1", str(joined), "-y"])
-            mp3 = joined
-        clips.append(mp3)
+            clip = joined
+        clips.append(clip)
     return clips
 
 

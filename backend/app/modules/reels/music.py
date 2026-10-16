@@ -11,10 +11,14 @@ The idea, in plain words:
 Rendered to a WAV for each reel (cached per length) and mixed quietly under the voice. REEL_BRAND_MUSIC=off turns it off
 (compose.encode). scripts/brand_music.py writes the theme and the sound logo as files for anyone making a reel by hand."""
 import functools
+import logging
 import wave
 from pathlib import Path
+from typing import Optional
 
 import numpy as np
+
+log = logging.getLogger(__name__)
 
 SR = 48000
 BPM = 84.0
@@ -223,8 +227,64 @@ def _write_wav(path: Path, data: np.ndarray) -> Path:
     return path
 
 
-def write(path: Path, seconds: float = 30.0, logo: bool = True, mood: str = "warm") -> Path:
-    return _write_wav(path, render(seconds, logo=logo, mood=mood))
+# ---- licensed tracks, by mood (owner, 2026-10-16: the santoor theme's "ting-tiding" sounded like an ad between entertainment
+# reels; current-sounding, copyright-safe tracks instead, chosen by the reel's mood and changing from reel to reel).
+# Mixkit Free License: allowed in social media videos and online ads, no credit needed; the files may not be passed on as files,
+# so they live in the uploads volume (uploads/music: the VM and the Cloud Run renderer both see it), never in this public
+# repository. Pixabay (more Indian tracks) blocks scripted downloads: add its tracks by hand to the folder and this list.
+TRACKS = [
+    {"file": "calm-indian-meditations.mp3", "mood": "calm", "title": "Indian Meditations", "artist": "Ahjay Stelino",
+     "source": "https://mixkit.co/free-stock-music/tag/indian/", "start": 0.0},
+    {"file": "calm-lofi-03.mp3", "mood": "calm", "title": "Lo-Fi 03", "artist": "Lily J",
+     "source": "https://mixkit.co/free-stock-music/lo-fi/", "start": 0.0},
+    {"file": "calm-sweet-september.mp3", "mood": "calm", "title": "Sweet September", "artist": "Arulo",
+     "source": "https://mixkit.co/free-stock-music/lo-fi/", "start": 9.5},   # 9.5 s quiet intro
+    {"file": "warm-lofi-05.mp3", "mood": "warm", "title": "Lo-Fi 05", "artist": "Lily J",
+     "source": "https://mixkit.co/free-stock-music/lo-fi/", "start": 0.0},
+    {"file": "warm-pop-07.mp3", "mood": "warm", "title": "Pop 07", "artist": "Grigoriy Nuzhny",
+     "source": "https://mixkit.co/free-stock-music/hip-hop/", "start": 0.0},
+    {"file": "warm-baileys.mp3", "mood": "warm", "title": "Baileys", "artist": "Diego Nava",
+     "source": "https://mixkit.co/free-stock-music/hip-hop/", "start": 0.0},
+    {"file": "lively-india.mp3", "mood": "lively", "title": "India", "artist": "Arulo",
+     "source": "https://mixkit.co/free-stock-music/tag/indian/", "start": 0.0},
+    {"file": "lively-hip-hop-02.mp3", "mood": "lively", "title": "Hip Hop 02", "artist": "Lily J",
+     "source": "https://mixkit.co/free-stock-music/hip-hop/", "start": 0.0},
+    {"file": "lively-like-a-loop-machine.mp3", "mood": "lively", "title": "Like a Loop Machine", "artist": "Michael Ramir C.",
+     "source": "https://mixkit.co/free-stock-music/hip-hop/", "start": 0.0},
+]
+TRACK_LUFS = -14.0   # every track levelled alike; the voice-over mix then lowers the bed under the voice (narration.mix)
+
+
+def library_dir() -> Path:
+    from app.core.config import settings
+    return Path(settings.upload_directory) / "music"
+
+
+def pick(mood: str = "warm", rng=None) -> Optional[dict]:
+    """A track of `mood` whose file is there (any mood when none of that mood is), at random so reels change; None when the
+    library is empty (development, tests): the theme then plays."""
+    import random
+    there = [t for t in TRACKS if (library_dir() / t["file"]).is_file()]
+    mine = [t for t in there if t["mood"] == mood] or there
+    return (rng or random).choice(mine) if mine else None
+
+
+def write(path: Path, seconds: float = 30.0, logo: bool = True, mood: str = "warm", rng=None) -> Path:
+    """The music bed for a reel of `seconds`: a licensed track of the reel's mood (levelled, its quiet intro skipped, looped
+    when the reel is longer, faded in and out), else the Avasetu theme."""
+    track = pick(mood, rng)
+    if track is None:
+        return _write_wav(path, render(seconds, logo=logo, mood=mood))
+    from . import ffmpeg
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fade_out = max(0.0, seconds - 1.5)
+    ffmpeg.run(["-ss", f"{track['start']:.2f}", "-stream_loop", "-1", "-i", str(library_dir() / track["file"]),
+                "-t", f"{seconds:.2f}", "-af",
+                f"loudnorm=I={TRACK_LUFS}:TP=-1.5:LRA=11,afade=t=in:d=0.3,afade=t=out:st={fade_out:.2f}:d=1.5",
+                "-ar", str(SR), "-ac", "2", str(path), "-y"])
+    log.info("music: %s by %s (%s) for %.1f s", track["title"], track["artist"], track["mood"], seconds)
+    return path
 
 
 def write_logo(path: Path) -> Path:

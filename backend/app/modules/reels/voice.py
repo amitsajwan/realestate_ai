@@ -61,8 +61,8 @@ def synth(text: str, lang: str = "en", voice: Optional[str] = None, rate: float 
 # Chirp 3 HD reads pause tags ([pause short], [pause], [pause long]) in `markup` only, and takes our names' pronunciations
 # (custom pronunciations; en-IN, hi-IN and mr-IN take them). https://docs.cloud.google.com/text-to-speech/docs/chirp3-hd
 SPEAKERS = {"female": "Zephyr", "male": "Charon"}   # owner 2026-10-16: Kore sounded dull; Zephyr is the bright one
-SPOKEN_RATE = 0.95        # a little slower than a read: a person showing a project, not an ad
-SPOKEN_RATES = {"hi": 0.88, "mr": 0.88}   # Hindi and Marathi came out too quick at the English pace (owner 2026-10-16)
+SPOKEN_RATE = 1.05        # a reel host's pace, not a read (owner 2026-10-16: the slow voice irritated next to entertainment reels)
+SPOKEN_RATES = {"hi": 1.0, "mr": 1.0}   # 0.88 sounded slow and flat next to entertainment reels (owner 2026-10-16, later)
 PAUSE_TAG = re.compile(r"(\[pause(?: short| long)?\])")
 # how our names are said (IPA, sent as Chirp's custom pronunciations), and the spelling that says them when the service
 # refuses a pronunciation; a Hindi or Marathi line writes a place in Devanagari, which its voice says right
@@ -94,7 +94,7 @@ def unpaused(text: str) -> str:
     return " ".join(PAUSE_TAG.sub(" ", text).split())
 
 
-GREETING_RATE = 0.78      # "Naaamaste dostooo": the greeting drawn out, in the same voice (a raised pitch sounded like another one)
+GREETING_RATE = 0.9       # the greeting a little drawn out, in the same voice (a raised pitch sounded like another one)
 
 
 def synth_greeting(text: str, lang: str = "en", gender: str = "female") -> bytes:
@@ -161,3 +161,66 @@ def synth_spoken(text: str, lang: str = "en", gender: str = "female", rate: Opti
         raise VoiceError((f"HTTP {r.status_code}" + (f": {msg}" if msg else "")).replace(key, "[redacted]")[:200])
     return base64.b64decode(r.json()["audioContent"])
 
+
+
+# ---- Gemini's voice, first choice for the voice-over step (owner, 2026-10-16: the Chirp voice sounded slow and one-toned next
+# to entertainment reels; Gemini, on the paid project key, takes a direction: an energetic, warm reel host). Chirp above stays
+# the fallback, for a whole reel at a time (narration.spoken_lines), so one reel never mixes two voices.
+GEMINI_TTS_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+GEMINI_TTS_MODELS = ("gemini-3.8-flash-tts", "gemini-3.1-flash-tts-preview", "gemini-2.5-flash-preview-tts")
+GEMINI_SR = 24000   # Gemini's audio: 16-bit mono PCM at 24 kHz
+GEMINI_STYLE = ("Read this aloud as a warm, energetic Indian Instagram reel host talking to one friend: a lively pace, natural "
+                "ups and downs, a smiling voice, never slow, never flat. Read only these words, exactly as written:")
+GEMINI_GREETING = "Say this greeting warmly, smiling, a little drawn out, like opening a reel. Only these words:"
+
+
+def gemini_on() -> bool:
+    """Gemini speaks the voice-overs when its key is set, unless REEL_VOICE_ENGINE=chirp."""
+    return bool(os.environ.get("GEMINI_API_KEY")) and (os.environ.get("REEL_VOICE_ENGINE") or "gemini").lower() != "chirp"
+
+
+def gemini_text(text: str, lang: str) -> str:
+    """A line as Gemini reads it: our names in Devanagari for Hindi or Marathi (for_voice), the pause tags as punctuation (it
+    reads no tags), no other brackets."""
+    t = for_voice(text, lang).replace("[pause short]", ",").replace("[pause long]", "...").replace("[pause]", "...")
+    return " ".join(t.replace("[", "").replace("]", "").split())
+
+
+def gemini_speech(text: str, lang: str = "en", gender: str = "female", greeting: bool = False) -> bytes:
+    """A WAV (24 kHz mono) of one line in Gemini's voice of `gender`, directed as a reel host. Raises VoiceError when no model
+    answers with audio."""
+    import io
+    import wave as wav_mod
+    key = os.environ.get("GEMINI_API_KEY")
+    if not key:
+        raise VoiceError("GEMINI_API_KEY is not set")
+    prompt = f"{GEMINI_GREETING if greeting else GEMINI_STYLE} {gemini_text(text, lang)}"
+    body = {"contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"responseModalities": ["AUDIO"], "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {
+                "voiceName": SPEAKERS.get(gender, SPEAKERS["female"])}}}}}
+    why = "no model answered"
+    for model in GEMINI_TTS_MODELS:
+        try:
+            r = httpx.post(GEMINI_TTS_URL.format(model=model), headers={"x-goog-api-key": key}, json=body, timeout=90)
+        except Exception as e:
+            why = f"{model} unreachable ({type(e).__name__})"
+            continue
+        if r.status_code >= 400:
+            why = f"{model} HTTP {r.status_code}"
+            continue
+        try:
+            parts = (r.json().get("candidates") or [{}])[0].get("content", {}).get("parts") or []
+            pcm = b"".join(base64.b64decode(p["inlineData"]["data"]) for p in parts if (p.get("inlineData") or {}).get("data"))
+        except ValueError:
+            pcm = b""
+        if not pcm:
+            why = f"{model} answered without audio"
+            continue
+        out = io.BytesIO()
+        with wav_mod.open(out, "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(GEMINI_SR)
+            w.writeframes(pcm)
+        return out.getvalue()
+    raise VoiceError(f"gemini speech: {why}".replace(key, "[redacted]"))
