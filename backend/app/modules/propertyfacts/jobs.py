@@ -158,7 +158,7 @@ class MarketingRuns:
                  llm_factory: Optional[Callable] = None, now: Callable[[], datetime] = datetime.utcnow,
                  ad_renderer: Optional[Callable] = None, reel_jobs: Any = None, facts_store: Any = None,
                  page_for: Optional[Callable] = None, enrich_now: Optional[Callable] = None,
-                 boost_renderer: Optional[Callable] = None):
+                 boost_renderer: Optional[Callable] = None, voice_llm_factory: Optional[Callable] = None):
         """`ad_renderer(script, pictures, out, kicker)` makes an ad reel (default ad_reel.render);
         `reel_jobs` (reels.listing_reel.ReelJobs) queues the walkthrough reel; None skips it;
         `page_for(db, regno)` finds a project's own page (default areastats.pages.page_for); `enrich_now(db, regno, by=)` asks
@@ -173,6 +173,7 @@ class MarketingRuns:
         self.facts_store = facts_store or FactsStore(db)
         self.page_for, self.enrich_now = page_for, enrich_now
         self.boost_renderer = boost_renderer   # the boost reel's renderer; None: boost.default_reel_renderer
+        self.voice_llm_factory = voice_llm_factory   # the voice-over's writer and director (voiceover.writer_llm); None: llm_factory
 
     async def _listing(self, agent_id: str, listing_id: str) -> dict:
         doc = await self.listings.find_one({"_id": listing_id, "agent_id": agent_id})
@@ -767,7 +768,8 @@ class MarketingRuns:
         listing = await self.listings.find_one({"_id": job["listing_id"], "agent_id": job["agent_id"]})
         facts = await self._reel_facts(job, listing) if listing else {}
         ctx = campaign.Ctx(facts, voice=(await self._identity(job)).voice)
-        llm = self.llm_factory() if self.llm_factory else None
+        factory = self.voice_llm_factory or self.llm_factory
+        llm = factory() if factory else None
         for n, r in enumerate(job.get("reels") or []):
             if r.get("voice_state") != "queued":
                 continue
@@ -792,6 +794,7 @@ class MarketingRuns:
         render = self.ad_renderer or ad_reel.render
         lang, gender = ask["language"], ask["gender"]
         script = ad_reel.Script.from_out(r["script"])
+        script.info = ad_reel.info(ctx, script)   # what a long spoken scene shows under its line
         lines, how = await voiceover.script(script, ctx, lang, n, llm, ask.get("style") or voiceover.DEFAULT_STYLE)
         silent = r.get("silent") or r["video"]
         dest = self._local(silent).with_name(f"{Path(_rel(silent)).stem}-{lang}-{gender}.mp4")
@@ -800,7 +803,7 @@ class MarketingRuns:
                                        how["mood"])
         made = made if isinstance(made, dict) else {}
         return {"video": self._kept_path(str(dest)), "silent": silent, "voice": "spoken", "voice_language": lang,
-                "voice_gender": gender, "voice_style": how["style"], "voice_mood": how["mood"], "voice_hook": how["hook"], "voice_lines": lines, "voice_by": how["by"], "seconds": made.get("seconds"),
+                "voice_gender": gender, "voice_style": how["style"], "voice_mood": how["mood"], "voice_hook": how["hook"], "voice_lines": lines, "voice_by": how["by"], "voice_report": how.get("report"), "seconds": made.get("seconds"),
                 "script": script.out(), "caption": ad_reel.caption(script, r.get("post_caption") or "")}
 
     async def _voice_video(self, r: dict, ctx: "campaign.Ctx", ask: dict, llm: Any) -> dict:
@@ -824,7 +827,7 @@ class MarketingRuns:
             raise RunError("The video is too short for a voice-over.")
         caption = r.get("caption") or ""
         return {"video": self._kept_path(str(dest)), "silent": silent, "voice": "spoken", "voice_language": lang,
-                "voice_gender": gender, "voice_style": how["style"], "voice_mood": how["mood"], "voice_hook": how["hook"], "voice_lines": lines, "voice_by": how["by"],
+                "voice_gender": gender, "voice_style": how["style"], "voice_mood": how["mood"], "voice_hook": how["hook"], "voice_lines": lines, "voice_by": how["by"], "voice_report": how.get("report"),
                 "caption": caption if script.intro in caption else f"{script.intro}\n\n{caption}"}
 
     async def _set_reel(self, jid: str, key: str, **fields) -> None:
@@ -1362,7 +1365,7 @@ def default_runs() -> MarketingRuns:
                                                          brochures=Brochures(db, uploads), groups=Groups(db),
                                                          pins=Pins(db, settings.google_maps_api_key),
                                                          nearby=Nearby(settings.google_maps_api_key)),
-                         llm_factory=default_llm,
+                         llm_factory=default_llm, voice_llm_factory=voiceover.writer_llm,
                          reel_jobs=ReelJobs(db, Path(settings.upload_directory), llm_factory=default_llm))
 
 

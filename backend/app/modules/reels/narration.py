@@ -108,6 +108,11 @@ def spoken_lines(lines, lang: str, gender: str, work: Path) -> List[Path]:
     then the rest. Raises voice.VoiceError."""
     clips = []
     for i, text in enumerate(lines):
+        if not text.strip():   # a scene with no words: a breath of silence, its music plays
+            quiet = work / f"q{i}.wav"
+            ffmpeg.run(["-f", "lavfi", "-i", f"anullsrc=r={SR}:cl=mono", "-t", "0.2", str(quiet), "-y"])
+            clips.append(quiet)
+            continue
         m = GREETING.match(text)
         mp3 = work / f"s{i}.mp3"
         mp3.write_bytes(voice.synth_spoken(m.group(2) if m else text, lang, gender))

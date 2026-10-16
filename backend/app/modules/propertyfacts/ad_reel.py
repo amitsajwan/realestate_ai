@@ -39,6 +39,9 @@ HOOK_WORDS, LINE_WORDS = 10, 8
 HOOK_S, BEAT_S, PAYOFF_S, CHECKED_S, CTA_S, LOOP_S = 1.9, 1.5, 2.0, 2.2, 1.8, 0.7   # the least each scene lasts; a spoken line makes it longer
 VOICE_PAD_S = 0.6       # after a spoken line, before the next scene's cut: a breath, as a person talking takes
 SPOKEN_MAX_S = 90.0     # a voiced reel lasts as long as its voice (owner 2026-10-16: longer is fine); Instagram's reel limit
+# a long spoken scene is not one picture held for 10 s (owner: "looks stuck"): past LONG_S it cuts to the next picture every
+# ~INFO_S, its line kept on screen with a checked fact or a check under it (`info`)
+LONG_S, INFO_S = 4.6, 3.2
 READY = re.compile(r"\bready\b|\bmove[\s-]*in\b|\bpossession\b|\bhanded\s+over\b|\bcompleted\b", re.I)
 CTA_WORD = "INFO"   # the comment bot reads it as interest (engage.brain.INTERESTED)
 
@@ -56,6 +59,7 @@ class Script:
     checked: List[str] = field(default_factory=list)   # what the team checked ("MahaRERA record read"), drawn as ticks
     team: str = ""                                     # who checked it ("Avasetu team")
     intro: str = ""                                    # the caption's opening once voiced: the host's greeting in writing
+    info: List[str] = field(default_factory=list)      # facts and checks shown under a long spoken scene (`info`)
 
     def checked_line(self) -> str:
         return f"Checked by the {self.team or 'team'}: " + ", ".join(self.checked) if self.checked else ""
@@ -66,13 +70,14 @@ class Script:
 
     def out(self) -> Dict[str, Any]:
         return {"format": self.format, "hook": self.hook, "beats": self.beats, "payoff": self.payoff, "cta": self.cta,
-                "by": self.by, "hook_type": self.hook_type, "checked": self.checked, "team": self.team, "intro": self.intro}
+                "by": self.by, "hook_type": self.hook_type, "checked": self.checked, "team": self.team, "intro": self.intro,
+                "info": self.info}
 
     @classmethod
     def from_out(cls, d: Dict[str, Any]) -> "Script":
         """The script a run kept (`out`)."""
         return cls(**{k: d[k] for k in ("format", "hook", "beats", "payoff", "cta")},
-                   **{k: d[k] for k in ("by", "hook_type", "checked", "team", "intro") if d.get(k)})
+                   **{k: d[k] for k in ("by", "hook_type", "checked", "team", "intro", "info") if d.get(k)})
 
 
 # ---- the facts a reel may say ---------------------------------------------------------------------------------------------
@@ -195,6 +200,50 @@ def checked(c: Ctx) -> List[str]:
     return out
 
 
+def info(c: Ctx, s: Optional[Script] = None) -> List[str]:
+    """The checked facts and the team's checks a long scene may show under its line, those the reel's own lines do not say
+    already: the MahaRERA record, homes, completion, distances, amenities. Code's facts only, never a model's."""
+    said = " ".join(s.lines()).lower() if s else ""
+    team = c.voice.team or "our team"
+    out = [*([f"MahaRERA record read by the {team}"] if c.maharera else []), _homes(c), _completion(c), _size(c), _bhk(c),
+           *_places(c, 4), *([f"Distances measured on Google Maps"] if c.mapped and _places(c) else []), *_amenities(c, 6)]
+    seen, keep = set(), []
+    for x in out:
+        k = x.lower()
+        if x and k not in seen and k not in said:
+            seen.add(k)
+            keep.append(x)
+    return keep
+
+
+def spread(sc: list, n_spoken: int, pictures: Sequence, facts: Sequence[str]) -> Tuple[list, List[int]]:
+    """The scenes with each long spoken one cut into shots of about INFO_S, each the next picture, the scene's line kept and a
+    fact under it; (scenes, where each spoken scene now starts). The shots of a scene last as long as it did."""
+    from app.modules.reels.compose import Scene, TextLine
+    pics = [p for p in pictures if p is not None]
+    out, first, nxt, f = [], [], len(sc), 0
+    for i, x in enumerate(sc):
+        first.append(len(out)) if i < n_spoken else None
+        secs = x.seconds or 0.0
+        if i >= n_spoken or secs <= LONG_S or not x.lines:
+            out.append(x)
+            continue
+        k = max(2, round(secs / INFO_S))
+        each = (secs + XFADE * (k - 1)) / k
+        text = x.lines[0].text if hasattr(x.lines[0], "text") else str(x.lines[0])
+        x.seconds = each
+        out.append(x)
+        for j in range(1, k):
+            img = pics[nxt % len(pics)] if pics else x.image
+            nxt += 1
+            lines = [TextLine(text, size=74, max_lines=3)]
+            if f < len(facts):
+                lines.append(TextLine(f"✓ {facts[f]}", size=56, max_lines=2))
+                f += 1
+            out.append(Scene(image=img, lines=lines, seconds=each, seed=f"{x.seed}-{j}"))
+    return out, first
+
+
 def with_checks(s: Script, c: Ctx) -> Script:
     """The "checked by" ticks on `s`, by code: the team whose posts these are."""
     s.checked, s.team = checked(c), c.voice.team
@@ -274,7 +323,8 @@ def said_ok(said: str, screen: str, most: Optional[int] = None) -> bool:
     """A spoken line keeps to its screen line: every number in it is one of the line's numbers or one rounded the way people
     say it (1.9 -> 2, 0.9 -> 'less than 1'), no guard problem, and not much longer (at most `most` words when given)."""
     from app.modules.creative.guards import problems_in
-    shown = [float(n) for n in _numbers(screen) if re.fullmatch(r"\d+(?:\.\d+)?", n)]
+    # only a distance is rounded the way people say it; a price, a size or a count never is (review 2026-10-16)
+    shown = [float(n) for n in re.findall(r"(\d+(?:\.\d+)?)\s*km\b", screen, re.I)]
     allowed = set(_numbers(screen)) | {str(round(x)) for x in shown} | {str(int(x) + 1) for x in shown}
     if set(_numbers(said)) - allowed:
         return False
@@ -425,8 +475,9 @@ def render(s: Script, pictures: Sequence, dest: Path, kicker: Optional[str] = No
                 sc[i].seconds = max(sc[i].seconds or 0.0, ffmpeg.probe(clip).duration + VOICE_PAD_S + XFADE)
             if sum(x.seconds for x in sc) - XFADE * (len(sc) - 1) > SPOKEN_MAX_S:   # squeezed scenes would talk over each other
                 raise ValueError(f"the voice-over is longer than {SPOKEN_MAX_S:g} s; ask for it again")
+            sc, first = spread(sc, len(clips), pictures, s.info)
             tl = plan([x.seconds for x in sc], XFADE, SPOKEN_MAX_S)
-            audio = narration.mix(work, clips, tl.starts[:len(clips)], tl.total,
+            audio = narration.mix(work, clips, [tl.starts[j] for j in first], tl.total,
                                   write_music(work / "bed.wav", seconds=tl.total + 1.0, mood=mood))
             how = "spoken"
         most = SPOKEN_MAX_S if speech is not None else MAX_SECONDS

@@ -7,21 +7,26 @@ It talks like a person showing a project to friends, not like an ad read:
            aapko dikha rahi hai Lodha Camelot, Lohegaon."), the greeting rotated per reel so a campaign's reels do not open
            alike; no time of day (a reel goes out at another hour than it is made). "dikha rahi hai" agrees with "team", so it
            is right whoever speaks.
-  lines    the model says each screen line the way a person talks over that picture: short sentences, the small spoken words
-           of the language ("dekhiye", "matlab", "बघा") and pause tags ([pause short] before a price, [pause] between two
-           thoughts). A line is kept only when it keeps to its screen line's facts (ad_reel.said_ok on the line without its
-           tags); otherwise the screen line itself is read (ad_reel.spoken).
-  voice    each line one Chirp 3 HD request (reels.voice.synth_spoken), a little slower than a read; "Avasetu" is said
-           a-va-SAY-too and Pune's names as Pune says them (voice.NAMES).
+  lines    the model says each screen line the way a person talks over that picture, never the screen text read out or
+           pasted in: short sentences, the small spoken words of the language ("dekhiye", "matlab", "बघा") at a sentence's
+           start, pause tags ([pause short] before a price, [pause] between two thoughts). Every line is checked against the
+           reel's facts (story_ok / line_ok): numbers with their units, only distances rounded, only the checks the team
+           made, no invented buyers, sales or urgency. A scene with no line that passes says the code's sentence (the
+           price, the checks, the comment ask: `fixed`) or nothing (its music plays).
+  voice    each line one Chirp 3 HD request (reels.voice.synth_spoken), Hindi and Marathi slower than English; our names in
+           Devanagari for a Hindi or Marathi voice ("अवास सेतु": AvaS-Setu, "खराडी": khar-aa-di, voice.for_voice).
+  models   DeepSeek V3.2 first, in a fixed order (`writer_llm`): the shared client's round-robin gave weak free models.
 The caption then opens with the same greeting in writing (Script.intro).
 
 Two styles (owner, 2026-10-16: "a story with facts when needed", reels that touch):
-  story    (the default) the voice talks to ONE viewer: a hook that names a feeling or problem the facts answer ("Roz do ghante
-           traffic mein?" when an IT park is near), a small "socho..." day-in-the-life over the pictures, a key fact said
-           plainly where its picture is, what the team checked as trust, a warm invite to comment INFO. Every number, name,
-           distance and amenity must be in the reel's facts (story_ok); never an invented buyer, quote, sale or scarcity.
+  story    (the default) the voice talks to ONE viewer: a hook of one idea (at most 8 words, no number, no project name:
+           "बड़े परिवार के लिए जगह चाहिए?"), a small "socho..." day-in-the-life over the pictures, a key fact said plainly
+           where its picture is, what the team checked as trust, a warm invite to comment INFO. The writer drafts; the
+           editor keeps each line or rewrites it when it is unclear on first hearing, and picks the music's mood; each
+           scene takes the editor's line, else the writer's, when it passes (the report says which).
   facts    each screen line said the way a person says it (line_ok), as before.
-The greeting is said slower and warmer, as its own piece ("Naaamaste dostooo..."), before the rest (reels.voice.synth_greeting)."""
+The greeting is said slower, in the same voice, as its own piece ("Naaamaste dostooo..."), before the rest
+(reels.voice.synth_greeting)."""
 import json
 import logging
 import re
@@ -50,7 +55,7 @@ LANGS: Dict[str, Dict[str, Any]] = {
                     "Screen: 'Airport: 0.9 km' -> 'Airport? [pause short] एक किलोमीटर से भी कम दूर है।' "
                     "Screen: '₹2.24 crore' -> 'अब price की बात करें, [pause short] तो 2.24 करोड़ से शुरू होता है।' "
                     "Screen: 'Designed by Hafeez Contractor' -> 'इसे design किया है Hafeez Contractor ने।'"),
-        "story": ("hook: 'रोज़ ऑफिस के traffic में दो घंटे? [pause short] सोचिए, अगर ऑफिस पास ही हो।' "
+        "story": ("hook: 'ऑफिस के पास घर चाहिए?' "
                   "line 'Gym, Swimming pool and Parking': 'सोचिए, [pause short] सुबह gym, शाम को swimming pool, और parking की कोई टेंशन नहीं।' "
                   "line '₹2.24 crore': 'और price? [pause short] 2.24 करोड़ से शुरू।' "
                   "line 'Checked by the Avasetu team: ...': 'और हाँ, MahaRERA record हमारी टीम ने खुद पढ़ा है, और distances Google Maps से check किए हैं।' "
@@ -66,7 +71,7 @@ LANGS: Dict[str, Dict[str, Any]] = {
         "example": ("Screen: 'Gym, Swimming pool and Parking' -> 'And you get a gym, a swimming pool, and parking too.' "
                     "Screen: 'Airport: 0.9 km' -> 'The airport? [pause short] Less than a kilometre away.' "
                     "Screen: '₹2.24 crore' -> 'Now the price. [pause short] It starts at 2.24 crore.'"),
-        "story": ("hook: 'Two hours in office traffic, every day? [pause short] Imagine your office was right next door.' "
+        "story": ("hook: 'Want a home near your office?' "
                   "line 'Gym, Swimming pool and Parking': 'Imagine it. [pause short] A morning workout, an evening swim, and no parking worries.' "
                   "line '₹2.24 crore': 'And the price? [pause short] It starts at 2.24 crore.' "
                   "line 'Checked by the Avasetu team: ...': 'And yes, our team read the MahaRERA record itself, and checked the distances on Google Maps.' "
@@ -84,7 +89,7 @@ LANGS: Dict[str, Dict[str, Any]] = {
         "example": ("Screen: 'Gym, Swimming pool and Parking' -> 'आणि इथे gym, swimming pool, आणि parking सुद्धा आहे.' "
                     "Screen: 'Airport: 0.9 km' -> 'Airport? [pause short] एक किलोमीटरपेक्षाही कमी अंतरावर.' "
                     "Screen: '₹2.24 crore' -> 'आता किंमत बघा, [pause short] 2.24 कोटींपासून सुरू होते.'"),
-        "story": ("hook: 'रोज ऑफिसच्या traffic मध्ये दोन तास? [pause short] विचार करा, ऑफिस जवळच असेल तर.' "
+        "story": ("hook: 'ऑफिसजवळ घर हवंय?' "
                   "line 'Gym, Swimming pool and Parking': 'विचार करा, [pause short] सकाळी gym, संध्याकाळी swimming pool, आणि parking चं टेन्शन नाही.' "
                   "line '₹2.24 crore': 'आणि किंमत? [pause short] 2.24 कोटींपासून सुरू.' "
                   "line 'Checked by the Avasetu team: ...': 'आणि हो, MahaRERA record आमच्या टीमने स्वतः वाचलं आहे, आणि अंतर Google Maps वर तपासलं आहे.' "
@@ -119,10 +124,13 @@ SYSTEM = (
 STORY_SYSTEM = (
     "You are a warm Pune property creator recording the voice-over of a short reel that touches people: you speak to ONE "
     "viewer as a friend, never to a crowd, never like an ad. The reel's pictures and their screen lines are fixed; you write "
-    "what you SAY, in {talk}. "
-    "hook: one short line (at most 14 words) that names a real feeling or everyday problem of the buyer this project fits, "
-    "chosen from the facts only (a long commute when an office or IT park is near, a growing family when it has 3 BHK or "
-    "more, the search for a first home, a quiet place after work); it may be a question; no number in it. "
+    "what you SAY, in {talk}. The screen text is already on screen for people watching muted: never repeat it, never "
+    "translate it word by word, never paste English slogans into your line; say what it means for the viewer's life in "
+    "fresh words of your own. "
+    "hook: one short, clear line (at most 8 words, ONE idea) that names a real feeling or everyday problem of the buyer this "
+    "project fits, chosen from the facts only (a long commute when an office or IT park is near, a growing family when it "
+    "has 3 BHK or more, the search for a first home, a quiet place after work); it may be a question; no number and no "
+    "project name in it (the name is said right after it). "
     "lines: one per screen line, in the same order. Tell a small 'imagine...' story of a day living there with the facts of "
     "that line; where a line carries a key fact (price, size, distance, number of homes, MahaRERA), say that fact clearly "
     "and exactly as given. The 'Checked by the X team: ...' line says plainly what that team checked, as trust. The last "
@@ -131,28 +139,47 @@ STORY_SYSTEM = (
     "a buyer, a quote, a sale, 'few left' or any urgency; no visit or check except those in the facts; no hype (best, luxury, "
     "dream, perfect, guaranteed), no only/just/sirf/फक्त, no forecast of prices or returns. Complete natural sentences; small "
     "spoken words ({words}) only at the START of a sentence; pause tags [pause short] and [pause] inside a line only, at "
-    "most two in a line; each line at most 25 words. Distances as people say them (3.9 km: about 4 kilometres), prices "
+    "most two in a line; each line one or two short sentences, at most 18 words, each sentence clear on first hearing "
+    "(a listener cannot read it again). Distances as people say them (3.9 km: about 4 kilometres), prices "
     "with Western digits. A greeting and the project's name are said just before your hook's end, so do not greet. "
     "Examples: {story} "
     'Reply with JSON only: {{"hook": "...", "lines": ["...", ...]}}')
 DIRECTOR_SYSTEM = (
-    "You direct voice-overs for Instagram reels of Indian homes; the reels that touch people are your job. You get the "
-    "reel's facts, its screen lines and a draft voice-over (a hook and one line per screen line) in {talk}. Make it touch: "
-    "the hook names a real feeling of THIS reel's viewer in under 2 seconds; the lines flow as one small story spoken to one "
-    "person, each picture adding something; a key fact is said clearly where its picture is; the end is warm, inviting, "
-    "never pushy. Fix what is flat, stiff, translated word by word, a fragment, repeated, or too long (at most 25 words a "
-    "line). Keep the same number of lines in the same order, keep every fact exactly, add no number, name or claim that "
+    "You are the script editor of Instagram reels of Indian homes. You get the reel's facts, its screen lines and a draft "
+    "voice-over (a hook and one line per screen line) in {talk}. Read every line as a listener who hears it once: is it "
+    "clear on first hearing, grammatical, natural spoken {talk}, one or two short sentences, at most 18 words? If yes, "
+    "return it UNCHANGED. If not (unclear, a run-on, odd word order, stiff, translated word by word, a fragment, too "
+    "long), rewrite it so it is, keeping its facts. The hook: at most 8 words, ONE clear idea, no project name, no number. "
+    "Keep the same number of lines in the same order, keep every fact exactly, add no number, name or claim that "
     "is not in the facts, no invented buyers, sales or urgency, no hype, no only/just/sirf. Pause tags [pause short] and "
-    "[pause] inside lines only, at most two a line. The last line asks to comment INFO. "
+    "[pause] inside lines only, at most two a line. The last line asks to comment INFO. Keep the draft's language and "
+    "script; never paste the English screen text into a line, never say a registration number or a list number "
+    "(1, 2, 3), never 'dream home'; say 'check' for what the team did, never 'verify'. "
     "Then pick the background music's mood for this reel: calm (a story that touches, a home for a family), warm (a "
     "friendly showcase), or lively (a launch, a price or an offer). "
     'Reply with JSON only: {{"hook": "...", "lines": ["...", ...], "mood": "calm|warm|lively"}}')
 MOODS = ("calm", "warm", "lively")
+# when a story line fails its checks: the price and the checks are said by code in the language; any other scene is a
+# breath of music (the English screen text read by a Hindi voice sounded wrong, live 2026-10-16)
+FIXED = {
+    "hinglish": {"cta": "Details के लिए comment में INFO लिखिए।", "price": "और price, {price} से शुरू।",
+                 "both": "{team} ने MahaRERA record पढ़ा है, और distances Google Maps से check की हैं।",
+                 "MahaRERA record read": "{team} ने MahaRERA record पढ़ा है।",
+                 "distances from Google Maps": "{team} ने distances Google Maps से check की हैं।"},
+    "en": {"cta": "Comment INFO for the details.", "price": "And the price starts at {price}.",
+           "both": "The {team} has read the MahaRERA record and checked the distances on Google Maps.",
+           "MahaRERA record read": "The {team} has read the MahaRERA record.",
+           "distances from Google Maps": "The {team} has checked the distances on Google Maps."},
+    "mr": {"cta": "माहितीसाठी comment मध्ये INFO लिहा.", "price": "आणि किंमत {price} पासून सुरू.",
+           "both": "{team}ने MahaRERA record वाचलं आहे, आणि अंतर Google Maps वर तपासलं आहे.",
+           "MahaRERA record read": "{team}ने MahaRERA record वाचलं आहे.",
+           "distances from Google Maps": "{team}ने अंतर Google Maps वर तपासलं आहे."},
+}
 STYLES = ("story", "facts")
 DEFAULT_STYLE = "story"
 # what nobody may claim in a story: buyers, sales, scarcity, a quote
-INVENTED = re.compile(r"(?:sold|booked|bookings?|buyers? (?:love|said|have)|famil(?:y|ies) (?:have|already)|clients?|customers?|"
-                      r"few (?:left|units)|limited|hurry|last chance|testimonial)|बिक|बुक|ग्राहक|जल्दी करें|सीमित|"
+INVENTED = re.compile(r"\b(?:sold|booked|bookings?|buyers? (?:love|said|have)|famil(?:y|ies) (?:have|already)|clients?|customers?|"
+                      r"few (?:left|units)|limited|hurry|last chance|testimonial)\b|बिक|बुक|ग्राहक|जल्दी करें|सीमित|"
                       r"विकल|खरेदीदार", re.I)
 
 
@@ -193,6 +220,21 @@ CLAIMED_WORK = re.compile(r"\bvisit|\bverif|\bsite\s+(?:dekh|par\s+gaye)|\bgaye\
                           r"भेट|गए\s+थे|गेलो|वेरिफ|सत्यापि", re.I)
 
 
+# a line that says somebody checked something: it may only name what the team really checked (review 2026-10-16: "team ne
+# price check kiya" passed). The reel's facts say "Checked by the X team: MahaRERA record read, distances from Google Maps".
+CHECK_WORDS = re.compile(r"\bcheck|चेक|जाँच|जांच|तपास|परख", re.I)
+CHECKED_THINGS = {"MahaRERA record read": re.compile(r"maharera|महारेरा", re.I),
+                  "distances from Google Maps": re.compile(r"google\s*maps|गूगल\s*मैप|distance|दूरी|अंतर", re.I)}
+
+
+def checks_ok(said: str, facts: str) -> bool:
+    """A check the line speaks of is one the team made: it names MahaRERA or the Google Maps distances, and only those the
+    facts list as checked."""
+    done = [k for k in CHECKED_THINGS if k in facts and "Checked by" in facts]
+    named = [k for k, rx in CHECKED_THINGS.items() if rx.search(said)]
+    return bool(named) and all(k in done for k in named)
+
+
 def line_ok(said: str, screen: str, last: bool = False) -> bool:
     """A spoken line keeps to its screen line (ad_reel.said_ok, read without its pause tags), claims no visit or
     verification the screen line does not, and the last one still asks for INFO."""
@@ -200,16 +242,53 @@ def line_ok(said: str, screen: str, last: bool = False) -> bool:
     t = unpaused(said)
     if not t or (CLAIMED_WORK.search(t) and not CLAIMED_WORK.search(screen)):
         return False
+    if CHECK_WORDS.search(t) and not checks_ok(t, screen):
+        return False
     if last and ad_reel.CTA_WORD not in t:
         return False
     return ad_reel.said_ok(t, screen, most=max(3 * len(screen.split()) + 8, 18))   # a sentence said, not the caption
 
 
+KM = re.compile(r"(\d+(?:\.\d+)?)\s*km\b", re.I)
+
+
 def _allowed(facts: str) -> set:
-    """The numbers a line may say: those in the facts, and each rounded the way people say it (3.9 -> 4)."""
+    """The numbers a line may say: those in the facts exactly, and a DISTANCE rounded the way people say it (3.9 km -> 4).
+    A price, a size, a BHK count or a number of homes is never rounded (review 2026-10-16: "₹2.24 crore" let "3" through)."""
     from .campaign import _numbers
-    shown = [float(x) for x in _numbers(facts) if re.fullmatch(r"\d+(?:\.\d+)?", x)]
-    return set(_numbers(facts)) | {str(round(x)) for x in shown} | {str(int(x) + 1) for x in shown}
+    km = [float(x) for x in KM.findall(facts)]
+    return set(_numbers(facts)) | {str(round(x)) for x in km} | {str(int(x) + 1) for x in km}
+
+
+# a number said with a unit must be a number the facts give with that unit: "3 crore" is not "3 BHK" (review 2026-10-16)
+PRICE_N = re.compile(r"(\d+(?:\.\d+)?)\s*(?:crore|cr\b|करोड़|कोटी|lakh|लाख)", re.I)
+KM_N = re.compile(r"(\d+(?:\.\d+)?)\s*(?:km\b|kilomet|किलोमीटर)", re.I)
+
+
+def units_ok(said: str, facts: str) -> bool:
+    """Every price in `said` is a price of the facts, every distance one of their distances (or it rounded)."""
+    prices = set(PRICE_N.findall(facts))
+    kms = [float(x) for x in KM_N.findall(facts)]
+    near = {str(round(x)) for x in kms} | {str(int(x) + 1) for x in kms} | {f"{x:g}" for x in kms}
+    return all(p in prices for p in PRICE_N.findall(said)) and all(f"{float(k):g}" in near for k in KM_N.findall(said))
+
+
+LIST_NUMBERS = re.compile(r"\b1\s*,?\s*2\s*,?\s*3\b")
+
+
+def _pasted(said: str, screen: str) -> bool:
+    """`said` carries its English screen line (4 words or more) word for word inside it."""
+    norm = lambda t: " ".join(re.sub(r"[^\w]+", " ", t.lower()).split())   # noqa: E731
+    sc = norm(screen)
+    return len(sc.split()) >= 4 and sc in norm(said)
+
+
+def _same(said: str, screen: str) -> bool:
+    """`said` is its screen line read out (the same words, give or take marks and pause tags)."""
+    from app.modules.reels.voice import unpaused
+    norm = lambda t: re.sub(r"[^\w]+", " ", t.lower()).split()   # noqa: E731
+    a, b = norm(unpaused(said)), norm(screen)
+    return bool(b) and (a == b or (len(set(a) - set(b)) <= 1 and len(a) <= len(b) + 1))
 
 
 def story_ok(said: str, facts: str, last: bool = False, most: int = 30) -> bool:
@@ -220,23 +299,69 @@ def story_ok(said: str, facts: str, last: bool = False, most: int = 30) -> bool:
 
     from .campaign import _numbers
     t = unpaused(said)
-    if not t or len(t.split()) > most or INVENTED.search(t):
+    if not t or len(t.split()) > most or INVENTED.search(t) or ad_reel._REGNO.search(t) or LIST_NUMBERS.search(t):
         return False
     if CLAIMED_WORK.search(t) and not CLAIMED_WORK.search(facts):
+        return False
+    if CHECK_WORDS.search(t) and not checks_ok(t, facts):
         return False
     if last and ad_reel.CTA_WORD not in t:
         return False
     said_n = set(_numbers(t))
-    if said_n - _allowed(facts):
+    if said_n - _allowed(facts) or not units_ok(t, facts):
         return False
     rounded = said_n - set(_numbers(facts))
     return not [p for p in problems_in(t, facts) if p.removeprefix("number not in facts: ") not in rounded]
 
 
-async def story(s: ad_reel.Script, c: Ctx, lang: str, llm: Any = None) -> Tuple[str, List[str], int, str]:
-    """(hook, one spoken line per screen line, how many the model wrote that passed, music mood) in the story style, written
-    like an ad team: the writer drafts, the director makes it touch and picks the music. A line that fails `story_ok` is said
-    as in the facts style (line_ok) when that passes, else as its screen line."""
+def fixed(s: ad_reel.Script, lang: str, i: int) -> str:
+    """What scene `i` says when no model line passed: the comment ask, the team's checks or the price in the language,
+    written by code; any other scene is deliberately silent (its music plays, a breath; "" means silent)."""
+    words, screens = FIXED[lang], s.lines()
+    if i == len(screens) - 1:
+        return words["cta"]
+    if s.checked and screens[i] == s.checked_line():
+        key = "both" if len(s.checked) > 1 else s.checked[0]
+        team = s.team or "team"
+        if lang != "en":   # "Avasetu टीम ने", "Avasetu टीमने": the word as the language says it
+            team = re.sub(r"\bteam\b", "टीम", team, flags=re.I)
+        return words.get(key, words["both"]).format(team=team)
+    price = re.search(r"₹\s?[\d.,]+\s*(?:crore|cr|lakh)", screens[i].replace("*", ""), re.I)
+    if price:
+        said = re.sub(r"\bcr\b", "crore", price.group(0).replace("₹", "").strip(), flags=re.I)   # "2.24 cr" said "2.24 crore"
+        return words["price"].format(price=said)
+    return ""
+
+
+class InOrder:
+    """The text models in a fixed order, the first usable answer wins: a voice-over's writer and director use the best model
+    we have (live 2026-10-16: the shared client's round-robin gave the director a weak free model that pasted the screen text)."""
+
+    def __init__(self, providers, temperature: float = 0.6):
+        self.providers, self.temperature = list(providers), temperature
+
+    async def json(self, system: str, user: str):
+        for p in self.providers:
+            try:
+                r = await p.json(system, user, self.temperature)
+            except Exception:
+                r = None
+            if r:
+                return r
+        return None
+
+
+def writer_llm() -> Optional[InOrder]:
+    """DeepSeek V3.2 (SambaNova) first, then gpt-oss-120b (Groq), then the others; None without a text key."""
+    from app.platform.llm import text_providers
+    providers = text_providers()
+    rank = lambda p: 0 if "sambanova" in (getattr(p, "url", "") or "") else 1 if "groq.com" in (getattr(p, "url", "") or "") else 2  # noqa: E731
+    return InOrder(sorted(providers, key=rank)) if providers else None
+
+
+async def story(s: ad_reel.Script, c: Ctx, lang: str, llm: Any = None) -> Tuple[str, List[str], Dict[str, Any], str]:
+    """(hook, one spoken line per screen line, report, music mood) in the story style, written like an ad team: the writer
+    drafts, the editor keeps or rewrites each line and picks the music (`merge` says what each scene got)."""
     screens = [x.replace("*", "") for x in s.lines()]
     facts = " | ".join([ad_reel.corpus(c), *screens])
     about = f"This reel is about: {screens[0]} ({s.format.replace('_', ' ')})"   # each reel's own subject: its story differs
@@ -247,41 +372,56 @@ async def story(s: ad_reel.Script, c: Ctx, lang: str, llm: Any = None) -> Tuple[
         said = [_tidy(str(x)) for x in r.get("lines") or []]
         return _tidy(str(r.get("hook") or "")), said if len(said) == len(screens) else []
 
-    def judge(hook: str, said: List[str]) -> Tuple[str, List[str], int]:
-        """The draft with every line that fails the checks said plainly instead, and how many of the model's lines stayed."""
-        hook = hook if hook and story_ok(hook, facts, most=18) else ""
-        out, kept = [], 0
-        for i, screen in enumerate(screens):
-            last = i == len(screens) - 1
-            if i < len(said) and (story_ok(said[i], facts, last=last) or line_ok(said[i], screen, last=last)):
-                out.append(said[i])
-                kept += 1
-            else:
-                out.append(ad_reel.spoken(screen))
-        return hook, out, kept + bool(hook)
+    project = (c.project or "").lower()
 
-    best, mood = judge("", []), "warm"
+    def hook_ok(h: str) -> bool:   # one clear idea, the project's name said after it (live: "Lodha Camelot में, परिवार...")
+        return bool(h) and story_ok(h, facts, most=10) and not (project and project in h.lower())
+
+    def line_ok_at(i: int, line: str) -> bool:
+        screen, last = screens[i], i == len(screens) - 1
+        # the screen text read out, or pasted into the line, is not a voice-over (live 2026-10-16)
+        if not line or _same(line, screen) or _pasted(line, screen):
+            return False
+        return story_ok(line, facts, last=last, most=22) or line_ok(line, screen, last=last)
+
+    def merge(*drafts: Tuple[str, str, List[str]]) -> Tuple[str, List[str], Dict[str, Any]]:
+        """Line by line, the first draft's line that passes the checks (the editor's before the writer's), else the line
+        code writes for that scene (`fixed`); (hook, lines, report): where the hook and each scene's line came from
+        ("editor", "writer", "template", "silent") and how many of the model's lines stayed."""
+        hook, hook_from = next(((h, who) for who, h, _ in drafts if hook_ok(h)), ("", "none"))
+        out, scenes = [], []
+        for i in range(len(screens)):
+            line, who = next(((d[i], w) for w, _, d in drafts if i < len(d) and line_ok_at(i, d[i])), (None, ""))
+            if line is None:
+                line = fixed(s, lang, i)
+                who = "template" if line else "silent"
+            out.append(line)
+            scenes.append(who)
+        kept = sum(w in ("editor", "writer") for w in scenes)
+        return hook, out, {"hook": hook_from, "scenes": scenes, "model_lines": kept, "lines": len(screens),
+                           "complete": bool(hook) and kept == len(screens)}
+
+    mood = "warm"
     if llm is None:
-        return (*best, mood)
+        return (*merge(), mood)
     spec = LANGS[lang]
     try:   # the writer's draft
-        hook, said = take(await llm.json(STORY_SYSTEM.format(talk=spec["talk"], words=spec["words"], story=spec["story"]),
-                                         f"Facts: {facts}\n{about}\n{lines_in}"))
-        best = judge(hook, said)
+        written = ("writer", *take(await llm.json(STORY_SYSTEM.format(talk=spec["talk"], words=spec["words"],
+                                                                      story=spec["story"]),
+                                                  f"Facts: {facts}\n{about}\n{lines_in}")))
     except Exception:
         log.info("voice-over: story failed", exc_info=True)
-        return (*best, mood)
-    try:   # the director's pass: kept when as many of its lines pass the checks
-        draft = "Draft:\n" + json.dumps({"hook": hook, "lines": said}, ensure_ascii=False)
+        return (*merge(), mood)
+    edited: Tuple[str, str, List[str]] = ("editor", "", [])
+    try:   # the editor's pass: each line kept, or rewritten when it is not clear on first hearing
+        draft = "Draft:\n" + json.dumps({"hook": written[1], "lines": written[2]}, ensure_ascii=False)
         r = await llm.json(DIRECTOR_SYSTEM.format(talk=spec["talk"]), f"Facts: {facts}\n{about}\n{lines_in}\n{draft}")
         mood = str((r or {}).get("mood") or "").strip().lower() if isinstance(r, dict) else ""
         mood = mood if mood in MOODS else "warm"
-        directed = judge(*take(r))
-        if directed[2] >= best[2]:
-            best = directed
+        edited = ("editor", *take(r))
     except Exception:
-        log.info("voice-over: director pass failed, the draft kept", exc_info=True)
-    return (*best, mood)
+        log.info("voice-over: editor pass failed, the draft kept", exc_info=True)
+    return (*merge(edited, written), mood)
 
 
 async def spoken(s: ad_reel.Script, lang: str, llm: Any = None) -> Tuple[List[str], int]:
@@ -313,19 +453,22 @@ async def script(s: ad_reel.Script, c: Ctx, lang: str, n: int = 0, llm: Any = No
                  style: str = DEFAULT_STYLE) -> Tuple[List[str], Dict[str, Any]]:
     """The reel's spoken lines with the host's opening in the first (the greeting marked «...» to be said slower), and
     `s.intro` set to the written opening. ([lines], {"language", "style", "by": "llm"|"template", "kept", "hook"})."""
-    if lang not in LANGS:
-        raise ValueError(f"unknown voice language {lang!r}")
+    if lang not in LANGS or style not in STYLES:
+        raise ValueError(f"unknown voice language or style: {lang!r}, {style!r}")
+    if not s.lines():
+        raise ValueError("a reel without screen lines has nothing to say")
     hello, said_open, written_open = opening(c, lang, n)
     if style == "story":
-        hook, lines, kept, mood = await story(s, c, lang, llm)
+        hook, lines, report, mood = await story(s, c, lang, llm)
         first = " [pause] ".join(x for x in (hook, said_open, lines[0]) if x)
     else:
         hook, mood, (lines, kept) = "", "warm", await spoken(s, lang, llm)
+        report = {"hook": "none", "model_lines": kept, "lines": len(lines), "complete": kept == len(lines)}
         first = f"{said_open} [pause] {lines[0]}"
     lines[0] = f"«{hello}» {first}"
     s.intro = written_open
-    return lines, {"language": lang, "style": style, "by": "llm" if kept else "template", "kept": kept, "hook": hook,
-                   "mood": mood}
+    return lines, {"language": lang, "style": style, "by": "llm" if report["model_lines"] else "template",
+                   "kept": report["model_lines"], "hook": hook, "mood": mood, "report": report}
 
 
 SAMPLE = {"mr": "लोढा कॅमलॉट, लोहगाव"}   # the sample project of the options, as each language writes it
