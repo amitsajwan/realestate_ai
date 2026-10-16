@@ -805,6 +805,8 @@ class MarketingRuns:
         script = ad_reel.Script.from_out(r["script"])
         script.info = ad_reel.info(ctx, script)   # what a long spoken scene shows under its line
         lines, how = await voiceover.script(script, ctx, lang, n, llm, ask.get("style") or voiceover.DEFAULT_STYLE)
+        if how.get("hook"):
+            script.extra["screen_hook"] = how["hook"]   # second 0 shows the question the voice asks
         silent = r.get("silent") or r["video"]
         dest = self._local(silent).with_name(f"{Path(_rel(silent)).stem}-{lang}-{gender}.mp4")
         pictures = [str(self._local(p)) for p in r.get("pictures") or []]

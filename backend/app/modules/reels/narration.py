@@ -26,8 +26,8 @@ MIN_GAP_S = 0.85                  # a pause this long is a line break (voice.LIN
 MIN_PIECE_S = 0.3
 HEAD_S, TAIL_S = 0.04, 0.15       # kept before and after each spoken line
 VOICE_GAIN = 1.35
-BED_GAIN = 0.30                   # the music between lines and at the end; under a voice line the compressor lowers it by about 10 to 14 dB
-DUCK = "threshold=0.025:ratio=3:attack=20:release=450:makeup=1"
+BED_GAIN = 0.55                   # the music between lines; 0.30 with the hard ducking below left only a faint "tsss" (owner 2026-10-16)
+DUCK = "threshold=0.05:ratio=2:attack=30:release=600:makeup=1"   # under a line the music steps back ~6 dB, it does not vanish
 
 
 def split(pcm: np.ndarray, n: int) -> Optional[List[np.ndarray]]:

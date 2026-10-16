@@ -59,7 +59,7 @@ LANGS: Dict[str, Dict[str, Any]] = {
                   "line 'Gym, Swimming pool and Parking': 'सोचिए, [pause short] सुबह gym, शाम को swimming pool, और parking की कोई टेंशन नहीं।' "
                   "line '₹2.24 crore': 'और price? [pause short] 2.24 करोड़ से शुरू।' "
                   "line 'Checked by the Avasetu team: ...': 'और हाँ, MahaRERA record हमारी टीम ने खुद पढ़ा है, और distances Google Maps से check किए हैं।' "
-                  "last: 'अगर दिल करे, तो comment में INFO लिखिए, हम सारी details भेज देंगे।'"),
+                  "last: 'Price list और floor plans चाहिए? Comment में INFO लिखिए, हम भेज देंगे।'"),
         "place": "hi",
     },
     "en": {
@@ -75,7 +75,7 @@ LANGS: Dict[str, Dict[str, Any]] = {
                   "line 'Gym, Swimming pool and Parking': 'Imagine it. [pause short] A morning workout, an evening swim, and no parking worries.' "
                   "line '₹2.24 crore': 'And the price? [pause short] It starts at 2.24 crore.' "
                   "line 'Checked by the Avasetu team: ...': 'And yes, our team read the MahaRERA record itself, and checked the distances on Google Maps.' "
-                  "last: 'If it feels right, comment INFO, and we will send you every detail.'"),
+                  "last: 'Want the price list and floor plans? Comment INFO and we will send them.'"),
         "place": "",
     },
     "mr": {
@@ -93,7 +93,7 @@ LANGS: Dict[str, Dict[str, Any]] = {
                   "line 'Gym, Swimming pool and Parking': 'विचार करा, [pause short] सकाळी gym, संध्याकाळी swimming pool, आणि parking चं टेन्शन नाही.' "
                   "line '₹2.24 crore': 'आणि किंमत? [pause short] 2.24 कोटींपासून सुरू.' "
                   "line 'Checked by the Avasetu team: ...': 'आणि हो, MahaRERA record आमच्या टीमने स्वतः वाचलं आहे, आणि अंतर Google Maps वर तपासलं आहे.' "
-                  "last: 'मनात आलं तर comment मध्ये INFO लिहा, आम्ही सगळी माहिती पाठवू.'"),
+                  "last: 'Price list आणि floor plans हवेत? Comment मध्ये INFO लिहा, आम्ही पाठवू.'"),
         "place": "mr",
     },
 }
@@ -117,7 +117,7 @@ SYSTEM = (
     "Western digits (2.24 crore), no registration numbers (say MahaRERA registered), no hype (best, luxury, dream, "
     "guaranteed), no only/just/sirf/फक्त, no forecast of prices or returns. "
     "A greeting is said just before the first line, so do not greet. A line 'Checked by the X team: ...' says that X team "
-    "checked those things. The last line asks to comment INFO for the details. "
+    "checked those things. The last line asks to comment INFO for the price list and floor plans. "
     'Reply with JSON only: {{"lines": ["...", ...]}}')
 
 
@@ -137,7 +137,7 @@ STORY_SYSTEM = (
     "lines: one per screen line, in the same order. Tell a small 'imagine...' story of a day living there with the facts of "
     "that line; where a line carries a key fact (price, size, distance, number of homes, MahaRERA), say that fact clearly "
     "and exactly as given. The 'Checked by the X team: ...' line says plainly what that team checked, as trust. The last "
-    "line is a warm personal invite to comment INFO for the details, with no pressure. "
+    "line is a warm personal invite to comment INFO for the price list and floor plans, with no pressure. "
     "Rules: every number, name, distance, price and amenity you say must be in the facts; never invent a person, a family, "
     "a buyer, a quote, a sale, 'few left' or any urgency; no visit or check except those in the facts; describe no quality "
     "the facts do not state (airy, spacious, quiet, peaceful, green, well-lit); no hype (best, luxury, "
@@ -158,7 +158,7 @@ DIRECTOR_SYSTEM = (
     "Keep the same number of lines in the same order, keep every fact exactly, add no number, name or claim that "
     "is not in the facts, no quality the facts do not state (airy, spacious, quiet, peaceful), no invented buyers, sales or "
     "urgency, no hype, no only/just/sirf. Pause tags [pause short] and "
-    "[pause] only after a comma, a question or a sentence, at most two a line. The last line asks to comment INFO. Keep the draft's language and "
+    "[pause] only after a comma, a question or a sentence, at most two a line. The last line asks to comment INFO for the price list and floor plans. Keep the draft's language and "
     "script; never paste the English screen text into a line, never say a registration number or a list number "
     "(1, 2, 3), never 'dream home'; say 'check' for what the team did, never 'verify'. "
     "Then pick the background music's mood for this reel: calm (a story that touches, a home for a family), warm (a "
@@ -168,15 +168,15 @@ MOODS = ("calm", "warm", "lively")
 # when a story line fails its checks: the price and the checks are said by code in the language; any other scene is a
 # breath of music (the English screen text read by a Hindi voice sounded wrong, live 2026-10-16)
 FIXED = {
-    "hinglish": {"cta": "Details के लिए comment में INFO लिखिए।", "price": "और price, {price} से शुरू।",
+    "hinglish": {"cta": "Price list और floor plans के लिए comment में INFO लिखिए।", "price": "और price, {price} से शुरू।",
                  "both": "{team} ने MahaRERA record पढ़ा है, और distances Google Maps से check की हैं।",
                  "MahaRERA record read": "{team} ने MahaRERA record पढ़ा है।",
                  "distances from Google Maps": "{team} ने distances Google Maps से check की हैं।"},
-    "en": {"cta": "Comment INFO for the details.", "price": "And the price starts at {price}.",
+    "en": {"cta": "Comment INFO for the price list and floor plans.", "price": "And the price starts at {price}.",
            "both": "The {team} has read the MahaRERA record and checked the distances on Google Maps.",
            "MahaRERA record read": "The {team} has read the MahaRERA record.",
            "distances from Google Maps": "The {team} has checked the distances on Google Maps."},
-    "mr": {"cta": "माहितीसाठी comment मध्ये INFO लिहा.", "price": "आणि किंमत {price} पासून सुरू.",
+    "mr": {"cta": "Price list आणि floor plans साठी comment मध्ये INFO लिहा.", "price": "आणि किंमत {price} पासून सुरू.",
            "both": "{team}ने MahaRERA record वाचलं आहे, आणि अंतर Google Maps वर तपासलं आहे.",
            "MahaRERA record read": "{team}ने MahaRERA record वाचलं आहे.",
            "distances from Google Maps": "{team}ने अंतर Google Maps वर तपासलं आहे."},

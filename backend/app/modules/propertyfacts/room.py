@@ -310,7 +310,7 @@ def check(piece: Dict[str, Any], corpus: str) -> Optional[Dict[str, Any]]:
     reel = piece.get("reel") if isinstance(piece.get("reel"), dict) else None
     if reel:
         s = ad_reel.Script("story", _clean(reel.get("hook"), 10), [x for x in (_clean(b, 9) for b in reel.get("beats") or []) if x][:5],
-                           _clean(reel.get("payoff"), 10), f"Comment {ad_reel.CTA_WORD} for the details", by="room")
+                           _clean(reel.get("payoff"), 10), ad_reel.CTA_TEXT, by="room")
         if s.hook and s.payoff and not ad_reel.check(s, corpus) and not any(overclaims(x, corpus) for x in s.lines()):
             out["reel"] = s.out()
     return out
@@ -566,7 +566,7 @@ def filmed(pieces: List[Dict[str, Any]], corpus: str, own: Sequence[str] = ()) -
         beats = fresh(r["beats"])
         beats = (beats + [b for b in fresh(p["lines"]) if b not in beats])[:3] if len(beats) < 2 else beats
         payoff = ending(r["payoff"], beats, p)
-        keep(p, ad_reel.Script("story", r["hook"], beats, payoff, r.get("cta") or f"Comment {ad_reel.CTA_WORD} for the details", by="room"))
+        keep(p, ad_reel.Script("story", r["hook"], beats, payoff, r.get("cta") or ad_reel.CTA_TEXT, by="room"))
     price = next((p["headline"] for p in out if PRICE.search(p["headline"])), "")
     for p in sorted(out, key=lambda p: FILM_ROLES.index(p["role"]) if p["role"] in FILM_ROLES else 99):
         if sum(1 for x in out if x.get("reel")) >= REELS_WANTED:
@@ -575,7 +575,7 @@ def filmed(pieces: List[Dict[str, Any]], corpus: str, own: Sequence[str] = ()) -
             continue
         beats = fresh(p["lines"])[:3]
         payoff = ending(price if price != p["headline"] else "", beats, p)
-        keep(p, ad_reel.Script("story", p["headline"], beats, payoff, f"Comment {ad_reel.CTA_WORD} for the details", by="room"))
+        keep(p, ad_reel.Script("story", p["headline"], beats, payoff, ad_reel.CTA_TEXT, by="room"))
     return out
 
 

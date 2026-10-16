@@ -38,12 +38,16 @@ EXPLORE = 0.2
 HOOK_WORDS, LINE_WORDS = 10, 8
 HOOK_S, BEAT_S, PAYOFF_S, CHECKED_S, CTA_S, LOOP_S = 1.9, 1.5, 2.0, 2.2, 1.8, 0.7   # the least each scene lasts; a spoken line makes it longer
 VOICE_PAD_S = 0.6       # after a spoken line, before the next scene's cut: a breath, as a person talking takes
+SILENT_S = 1.2          # a voiced reel's scene with no words: its text read at a glance, then on
 SPOKEN_MAX_S = 30.0     # a guard: the voice-over's word budget (voiceover.BUDGET) keeps a reel ~18-20 s (owner: under 20 s)
 # a long spoken scene is not one picture held for 10 s (owner: "looks stuck"): past LONG_S it cuts to the next picture every
 # ~INFO_S, its line kept on screen with a checked fact or a check under it (`info`)
 LONG_S, INFO_S = 4.6, 3.2
 READY = re.compile(r"\bready\b|\bmove[\s-]*in\b|\bpossession\b|\bhanded\s+over\b|\bcompleted\b", re.I)
 CTA_WORD = "INFO"   # the comment bot reads it as interest (engage.brain.INTERESTED)
+# the ask says what the comment gets (feedback 2026-10-16: a clear value exchange); engage.brain's "interested" reply sends the
+# page link and the team then sends the price list and floor plans, so this promise is kept
+CTA_TEXT = f"Comment {CTA_WORD} for price & floor plans"
 
 
 @dataclass
@@ -164,7 +168,7 @@ def template(fmt: str, c: Ctx) -> Script:
     what = "plot" if c.plot else "home"
     price, size, places = _price(c), _size(c), _places(c)
     rera = f"MahaRERA {c.v['rera_no']}" if c.registered and c.v.get("rera_no") else ""
-    cta = f"Comment {CTA_WORD} for the details"
+    cta = CTA_TEXT
     facts = [x for x in (size, _layout(c), *places, "MahaRERA registered" if c.registered else "") if x]
     if fmt == "showcase":
         lead = " ".join(x for x in (_bhk(c), "at" if _bhk(c) else "", c.project) if x)
@@ -469,10 +473,17 @@ def render(s: Script, pictures: Sequence, dest: Path, kicker: Optional[str] = No
             lines, lang, gender = speech[:3]
             if len(lines) != len(s.lines()):
                 raise ValueError("one spoken line per screen line")
+            hook = (s.extra or {}).get("screen_hook")
+            if hook:   # second 0 shows the question the voice asks, over the best picture, with no label (feedback: a title
+                from app.modules.reels.compose import TextLine   # or logo at second 0 kept watch time at 1-2 s)
+                from app.modules.reels.voice import unpaused
+                sc[0].lines, sc[0].kicker = [TextLine(unpaused(hook), size=104, max_lines=4)], None
             clips = narration.spoken_lines(lines, lang, gender, work)
             for i, clip in enumerate(clips):
                 # the transition overlaps a scene's end: the line and its breath end before the next scene comes in
-                sc[i].seconds = max(sc[i].seconds or 0.0, ffmpeg.probe(clip).duration + VOICE_PAD_S + XFADE)
+                said = ffmpeg.probe(clip).duration + VOICE_PAD_S + XFADE
+                # a scene left to its text and music passes quickly: the reel stays under 20 s (owner)
+                sc[i].seconds = SILENT_S if not str(lines[i]).strip() else max(sc[i].seconds or 0.0, said)
             if sum(x.seconds for x in sc) - XFADE * (len(sc) - 1) > SPOKEN_MAX_S:   # squeezed scenes would talk over each other
                 raise ValueError(f"the voice-over is longer than {SPOKEN_MAX_S:g} s; ask for it again")
             sc, first = spread(sc, len(clips), pictures, s.info)
@@ -497,6 +508,6 @@ def caption(s: Script, post_caption: str) -> str:
     repeating the silent one's first line, which the calendar holds back as a repeat, live 2026-10-16), then the reel's hook,
     the post, what the team checked and the comment keyword asked for (so leads per format are counted)."""
     body = post_caption.strip()
-    ask = f"Comment {CTA_WORD} and we will share the details and a site-visit slot."
+    ask = f"Comment {CTA_WORD} and we will send you the price list and floor plans."
     tick = f"✓ Checked by the {s.team or 'team'}: " + ", ".join(s.checked) + "." if s.checked else ""
     return "\n\n".join(x for x in (s.intro, s.hook.replace("*", ""), body, tick, "" if CTA_WORD in body else ask) if x)
