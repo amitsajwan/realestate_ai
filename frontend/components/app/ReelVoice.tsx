@@ -1,11 +1,15 @@
 'use client'
 import React, { useState } from 'react'
 import { api, errorMessage } from '@/lib/app/client'
-import type { MarketingRun, MarketingReel, VoiceChoice, VoiceGender, VoiceLanguage } from '@/lib/app/types'
+import type { MarketingRun, MarketingReel, VoiceChoice, VoiceGender, VoiceLanguage, VoiceStyle } from '@/lib/app/types'
 
 const GENDERS: { key: VoiceGender; label: string }[] = [
   { key: 'female', label: 'Female' },
   { key: 'male', label: 'Male' },
+]
+const STYLES: { key: VoiceStyle; label: string; hint: string }[] = [
+  { key: 'story', label: 'Story', hint: 'talks to one viewer: a feeling, a small story, the key facts' },
+  { key: 'facts', label: 'Facts', hint: 'says each screen line plainly' },
 ]
 
 /** One reel's voice-over, the last step: pick Hinglish, English or Marathi (each shows how the reel opens) and a female or
@@ -20,6 +24,7 @@ export function ReelVoice({ listingId, reel, choices, onRun }: {
   const [open, setOpen] = useState(false)
   const [language, setLanguage] = useState<VoiceLanguage>(reel.voice_language || 'hinglish')
   const [gender, setGender] = useState<VoiceGender>(reel.voice_gender || 'female')
+  const [style, setStyle] = useState<VoiceStyle>(reel.voice_style || 'story')
   const [error, setError] = useState<string | null>(null)
   const busy = reel.voice_state === 'queued' || reel.voice_state === 'making'
   const voiced = reel.voice === 'spoken'
@@ -28,7 +33,7 @@ export function ReelVoice({ listingId, reel, choices, onRun }: {
   const ask = async () => {
     setError(null)
     try {
-      onRun(await api.voiceReel(listingId, key, language, gender))
+      onRun(await api.voiceReel(listingId, key, language, gender, style))
       setOpen(false)
     } catch (e) {
       setError(errorMessage(e))
@@ -39,7 +44,7 @@ export function ReelVoice({ listingId, reel, choices, onRun }: {
   return (
     <div className="mt-1 space-y-1">
       {voiced && !open && (
-        <p className="text-xs text-gray-600">Voice: {label(reel.voice_language)}, {reel.voice_gender}</p>
+        <p className="text-xs text-gray-600">Voice: {label(reel.voice_language)}, {reel.voice_gender}{reel.voice_style ? `, ${reel.voice_style}` : ''}</p>
       )}
       {reel.voice_state === 'failed' && reel.voice_error && <p className="text-xs text-red-600">{reel.voice_error}</p>}
       {!open ? (
@@ -56,6 +61,14 @@ export function ReelVoice({ listingId, reel, choices, onRun }: {
               <span><span className="font-medium">{c.label}</span>: <span className="text-gray-600">&ldquo;{c.sample}&rdquo;</span></span>
             </label>
           ))}
+          <div className="space-y-1 text-xs" role="radiogroup" aria-label="Style">
+            {STYLES.map((st) => (
+              <label key={st.key} className="flex cursor-pointer items-start gap-2">
+                <input type="radio" name={`voice-style-${key}`} checked={style === st.key} onChange={() => setStyle(st.key)} className="mt-0.5" />
+                <span><span className="font-medium">{st.label}</span>: <span className="text-gray-600">{st.hint}</span></span>
+              </label>
+            ))}
+          </div>
           <div className="flex gap-3 text-xs" role="radiogroup" aria-label="Voice">
             {GENDERS.map((g) => (
               <label key={g.key} className="flex cursor-pointer items-center gap-1">

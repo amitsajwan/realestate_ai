@@ -400,7 +400,7 @@ def spoken(line: str) -> str:
 
 
 def render(s: Script, pictures: Sequence, dest: Path, kicker: Optional[str] = None,
-           speech: Optional[Tuple[Sequence[str], str, str]] = None) -> Dict[str, Any]:
+           speech: Optional[Tuple[Sequence[str], str, str]] = None, mood: str = "warm") -> Dict[str, Any]:
     """The reel at `dest`, with our music. `speech` (the voice-over step: (one spoken line per `s.lines()`, voice language,
     gender)) puts each line's voice on its scene, a scene as long as its line takes to say. {"path", "voice": "spoken"|"off",
     "seconds"}; raises voice.VoiceError when the voice cannot be made (the reel at `dest` is then untouched)."""
@@ -416,7 +416,7 @@ def render(s: Script, pictures: Sequence, dest: Path, kicker: Optional[str] = No
     audio, how = None, "off"
     try:
         if speech is not None:   # hook, beats, payoff, checked, cta: scenes 0..len(lines)-1; the last scene (the loop) is silent
-            lines, lang, gender = speech
+            lines, lang, gender = speech[:3]
             if len(lines) != len(s.lines()):
                 raise ValueError("one spoken line per screen line")
             clips = narration.spoken_lines(lines, lang, gender, work)
@@ -427,7 +427,7 @@ def render(s: Script, pictures: Sequence, dest: Path, kicker: Optional[str] = No
                 raise ValueError(f"the voice-over is longer than {SPOKEN_MAX_S:g} s; ask for it again")
             tl = plan([x.seconds for x in sc], XFADE, SPOKEN_MAX_S)
             audio = narration.mix(work, clips, tl.starts[:len(clips)], tl.total,
-                                  write_music(work / "bed.wav", seconds=tl.total + 1.0))
+                                  write_music(work / "bed.wav", seconds=tl.total + 1.0, mood=mood))
             how = "spoken"
         most = SPOKEN_MAX_S if speech is not None else MAX_SECONDS
         make_reel(sc, dest, music=audio, xfade=XFADE, progress=False, end_card=False, hook_tag=False, max_seconds=most)

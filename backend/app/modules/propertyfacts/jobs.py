@@ -725,11 +725,12 @@ class MarketingRuns:
     def _local(self, url: str) -> Path:
         return self.uploads_dir / _rel(url) if url.startswith("/uploads/") else Path(url)
 
-    async def ask_voice(self, agent_id: str, listing_id: str, reel: str, language: Optional[str], gender: Optional[str]) -> dict:
+    async def ask_voice(self, agent_id: str, listing_id: str, reel: str, language: Optional[str], gender: Optional[str],
+                        style: Optional[str] = None) -> dict:
         """Ask for one reel's voice-over (`reel`: an ad reel's angle, or "video" for the reel from the agent's video); the
         worker makes it (the reel's voice_state "queued", then "making", "done" or "failed")."""
         try:
-            language, gender = voiceover.ask_ok(language, gender)
+            language, gender, style = voiceover.ask_ok(language, gender, style)
         except ValueError as e:
             raise RunError(str(e), 422)
         run = await self.latest(agent_id, listing_id)
@@ -746,7 +747,7 @@ class MarketingRuns:
             raise RunError("This reel was made before voice-overs: make the reels again first.", 409)
         if reels[i]["kind"] == "video" and reels[i].get("heard"):
             raise RunError("Someone already speaks in this video, so it keeps its own sound.", 409)
-        reels[i] = {**reels[i], "voice_state": "queued", "voice_ask": {"language": language, "gender": gender},
+        reels[i] = {**reels[i], "voice_state": "queued", "voice_ask": {"language": language, "gender": gender, "style": style},
                     "voice_error": ""}
         await self._set(run["_id"], reels=reels, voices_queued=True)
         return {**run, "reels": reels}
@@ -791,14 +792,15 @@ class MarketingRuns:
         render = self.ad_renderer or ad_reel.render
         lang, gender = ask["language"], ask["gender"]
         script = ad_reel.Script.from_out(r["script"])
-        lines, how = await voiceover.script(script, ctx, lang, n, llm)
+        lines, how = await voiceover.script(script, ctx, lang, n, llm, ask.get("style") or voiceover.DEFAULT_STYLE)
         silent = r.get("silent") or r["video"]
         dest = self._local(silent).with_name(f"{Path(_rel(silent)).stem}-{lang}-{gender}.mp4")
         pictures = [str(self._local(p)) for p in r.get("pictures") or []]
-        made = await asyncio.to_thread(render, script, pictures, dest, r.get("kicker"), (lines, voiceover.tts_lang(lang), gender))
+        made = await asyncio.to_thread(render, script, pictures, dest, r.get("kicker"), (lines, voiceover.tts_lang(lang), gender),
+                                       how["mood"])
         made = made if isinstance(made, dict) else {}
         return {"video": self._kept_path(str(dest)), "silent": silent, "voice": "spoken", "voice_language": lang,
-                "voice_gender": gender, "voice_lines": lines, "voice_by": how["by"], "seconds": made.get("seconds"),
+                "voice_gender": gender, "voice_style": how["style"], "voice_mood": how["mood"], "voice_hook": how["hook"], "voice_lines": lines, "voice_by": how["by"], "seconds": made.get("seconds"),
                 "script": script.out(), "caption": ad_reel.caption(script, r.get("post_caption") or "")}
 
     async def _voice_video(self, r: dict, ctx: "campaign.Ctx", ask: dict, llm: Any) -> dict:
@@ -812,17 +814,17 @@ class MarketingRuns:
         lang, gender = ask["language"], ask["gender"]
         fmt = "showcase" if "showcase" in ad_reel.eligible(ctx) else "three_reasons"
         script = ad_reel.with_checks(await ad_reel.write(fmt, ctx, llm), ctx)
-        lines, how = await voiceover.script(script, ctx, lang, 0, llm)
+        lines, how = await voiceover.script(script, ctx, lang, 0, llm, ask.get("style") or voiceover.DEFAULT_STYLE)
         silent = r.get("silent") or r["video"]
         src = self._local(silent)
         dest = src.with_name(f"{src.stem}-{lang}-{gender}.mp4")
         await asyncio.to_thread(shutil.copyfile, src, dest)
-        spoken = await asyncio.to_thread(video_reel.voice_over, dest, lines, voiceover.tts_lang(lang), gender)
+        spoken = await asyncio.to_thread(video_reel.voice_over, dest, lines, voiceover.tts_lang(lang), gender, how["mood"])
         if spoken == "off":
             raise RunError("The video is too short for a voice-over.")
         caption = r.get("caption") or ""
         return {"video": self._kept_path(str(dest)), "silent": silent, "voice": "spoken", "voice_language": lang,
-                "voice_gender": gender, "voice_lines": lines, "voice_by": how["by"],
+                "voice_gender": gender, "voice_style": how["style"], "voice_mood": how["mood"], "voice_hook": how["hook"], "voice_lines": lines, "voice_by": how["by"],
                 "caption": caption if script.intro in caption else f"{script.intro}\n\n{caption}"}
 
     async def _set_reel(self, jid: str, key: str, **fields) -> None:

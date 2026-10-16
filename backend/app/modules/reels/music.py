@@ -132,8 +132,13 @@ def signature(n_total: int, at: float) -> np.ndarray:
 
 
 # ---- the theme ----------------------------------------------------------------------------------------------------------------------
+# the theme's moods, the tempo kept (it is the brand): how loud the plucked pattern and the drums are against the pad
+MOODS = {"calm": (0.75, 0.0), "warm": (1.0, 1.0), "lively": (1.2, 1.45)}
+
+
 @functools.lru_cache(maxsize=8)
-def _render(seconds: float, logo: bool) -> np.ndarray:
+def _render(seconds: float, logo: bool, mood: str = "warm") -> np.ndarray:
+    string_gain, drum_gain = MOODS.get(mood, MOODS["warm"])
     n = int(seconds * SR)
     t_all = np.arange(n) / SR
     pad = np.zeros(n, np.float32)
@@ -166,7 +171,7 @@ def _render(seconds: float, logo: bool) -> np.ndarray:
                 _add(drums, t0 + off * BEAT, na(), 0.05)
             _add(drums, t0 + 3.75 * BEAT, na(), 0.03)
         i += 1
-    moving = strings + drums + bass
+    moving = strings * string_gain + drums * drum_gain + bass
     out = pad + moving
     if logo and seconds >= SIGNATURE_LEAD + 3:
         at = seconds - SIGNATURE_LEAD - 0.4
@@ -186,10 +191,11 @@ def _render(seconds: float, logo: bool) -> np.ndarray:
     return out / max(1e-6, np.abs(out).max()) * 0.8
 
 
-def render(seconds: float = 30.0, bpm: float = BPM, logo: bool = True) -> np.ndarray:
+def render(seconds: float = 30.0, bpm: float = BPM, logo: bool = True, mood: str = "warm") -> np.ndarray:
     """The theme for `seconds` (mono), closing with the A-va-se-tu bell motif when `logo` (and the reel is long enough to hear it).
-    `bpm` is kept for callers; the theme's tempo is fixed (it is part of the brand)."""
-    return _render(round(float(seconds), 3), bool(logo)).copy()
+    `bpm` is kept for callers; the theme's tempo is fixed (it is part of the brand). `mood` (MOODS): calm (no drums, for a
+    story that touches), warm (the theme), lively (more drive)."""
+    return _render(round(float(seconds), 3), bool(logo), mood if mood in MOODS else "warm").copy()
 
 
 def sound_logo() -> np.ndarray:
@@ -217,8 +223,8 @@ def _write_wav(path: Path, data: np.ndarray) -> Path:
     return path
 
 
-def write(path: Path, seconds: float = 30.0, logo: bool = True) -> Path:
-    return _write_wav(path, render(seconds, logo=logo))
+def write(path: Path, seconds: float = 30.0, logo: bool = True, mood: str = "warm") -> Path:
+    return _write_wav(path, render(seconds, logo=logo, mood=mood))
 
 
 def write_logo(path: Path) -> Path:

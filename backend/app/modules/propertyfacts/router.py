@@ -70,6 +70,7 @@ class VoiceIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     language: Literal["hinglish", "en", "mr"] = "hinglish"
     gender: Literal["female", "male"] = "female"
+    style: Literal["story", "facts"] = "story"
 
 
 class RedoIn(BaseModel):
@@ -191,7 +192,7 @@ async def voice_reel(listing_id: str, reel: str, body: VoiceIn, request: Request
                      runs: jobs.MarketingRuns = Depends(get_runs), _w: None = Depends(start_worker)) -> dict:
     """Ask for one reel's voice-over; the worker makes it (the reel's voice_state "queued", "making", then "done"/"failed")."""
     try:
-        doc = await runs.ask_voice(str(user.id), listing_id, reel, body.language, body.gender)
+        doc = await runs.ask_voice(str(user.id), listing_id, reel, body.language, body.gender, body.style)
     except jobs.RunError as e:
         raise HTTPException(status_code=e.status_code, detail=e.detail)
     return {"run": jobs.run_out(doc, str(request.base_url))}

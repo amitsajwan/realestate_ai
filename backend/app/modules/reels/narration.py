@@ -8,6 +8,7 @@ own as before; only when that fails too is there no voice (voice.VoiceError).
 Ducking: the music is a little louder than before between lines and at the end, and a compressor keyed by the voice lowers it
 while a line is spoken (ffmpeg sidechaincompress)."""
 import logging
+import re
 import wave
 from pathlib import Path
 from typing import List, Optional, Sequence, Tuple
@@ -97,13 +98,27 @@ def per_line(lines: Sequence[str], lang: str, work: Path) -> List[Path]:
     return clips
 
 
+GREETING = re.compile(r"^\s*«([^»]+)»\s*(.*)$", re.S)
+GREETING_GAP_S = 0.35   # after the drawn-out greeting, before the voice goes on
+
+
 def spoken_lines(lines, lang: str, gender: str, work: Path) -> List[Path]:
     """The voice-over step's lines (pause tags in them), one request each: a line is a person's sentence over one picture,
-    its pauses its own. Raises voice.VoiceError."""
+    its pauses its own. A line opening with «greeting» has it said slower and warmer (voice.synth_greeting), then a breath,
+    then the rest. Raises voice.VoiceError."""
     clips = []
     for i, text in enumerate(lines):
+        m = GREETING.match(text)
         mp3 = work / f"s{i}.mp3"
-        mp3.write_bytes(voice.synth_spoken(text, lang, gender))
+        mp3.write_bytes(voice.synth_spoken(m.group(2) if m else text, lang, gender))
+        if m:
+            hello = work / f"g{i}.mp3"
+            hello.write_bytes(voice.synth_greeting(m.group(1), lang, gender))
+            joined = work / f"s{i}.wav"
+            ffmpeg.run(["-i", str(hello), "-i", str(mp3), "-filter_complex",
+                        f"[0:a]aresample={SR},apad=pad_dur={GREETING_GAP_S}[g];[1:a]aresample={SR}[r];[g][r]concat=n=2:v=0:a=1[o]",
+                        "-map", "[o]", "-ac", "1", str(joined), "-y"])
+            mp3 = joined
         clips.append(mp3)
     return clips
 

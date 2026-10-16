@@ -593,7 +593,7 @@ export interface AppApi {
   remakeBoost(listingId: string): Promise<MarketingRun>
   remakeReels(listingId: string): Promise<MarketingRun>
   /** One reel's voice-over (`reel`: an ad reel's angle, or 'video'), made in the background. */
-  voiceReel(listingId: string, reel: string, language: VoiceLanguage, gender: VoiceGender): Promise<MarketingRun>
+  voiceReel(listingId: string, reel: string, language: VoiceLanguage, gender: VoiceGender, style: VoiceStyle): Promise<MarketingRun>
   getPerformance(): Promise<PerformanceItem[]>
   /** Per-listing activity (views, sources, people, feed). 404 for a listing that is not yours. */
   getListingActivity(id: string, limit?: number): Promise<ListingActivity>
@@ -613,6 +613,8 @@ export interface RunQuestion {
 /** A reel's voice-over language: Hinglish, English or Marathi. */
 export type VoiceLanguage = 'hinglish' | 'en' | 'mr'
 export type VoiceGender = 'female' | 'male'
+/** Story: a small story spoken to one viewer, facts where they matter; Facts: each screen line said plainly. */
+export type VoiceStyle = 'story' | 'facts'
 export interface VoiceChoice { key: VoiceLanguage; label: string; sample: string }
 
 /** A reel of a marketing run. `voice`: 'off' (our music only), 'spoken' (its voice-over, asked from Studio), 'kept' (the
@@ -631,6 +633,7 @@ export interface MarketingReel {
   voice_state?: 'queued' | 'making' | 'done' | 'failed' | null
   voice_language?: VoiceLanguage
   voice_gender?: VoiceGender
+  voice_style?: VoiceStyle
   voice_error?: string
 }
 

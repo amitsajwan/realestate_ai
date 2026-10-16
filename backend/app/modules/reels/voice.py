@@ -90,6 +90,30 @@ def unpaused(text: str) -> str:
     return " ".join(PAUSE_TAG.sub(" ", text).split())
 
 
+GREETING_RATE = 0.72      # "Naaamaste dostooo": the greeting drawn out, warmer, before the voice goes on at its pace
+
+
+def synth_greeting(text: str, lang: str = "en", gender: str = "female") -> bytes:
+    """MP3 of the host's greeting said slowly and a little higher (SSML prosody); when the voice refuses the SSML, the same
+    words slowly as markup. Raises VoiceError."""
+    key = os.environ.get("GOOGLE_TTS_API_KEY")
+    if not key:
+        raise VoiceError("GOOGLE_TTS_API_KEY is not set")
+    code = VOICES.get(lang, VOICES["en"])[0]
+    name = f"{code}-Chirp3-HD-{SPEAKERS.get(gender, SPEAKERS['female'])}"
+    ssml = f'<speak><prosody rate="{int(GREETING_RATE * 100)}%" pitch="+2st">{escape(text)}</prosody></speak>'
+    for inp, rate in (({"ssml": ssml}, 1.0), ({"markup": spoken_markup(text)}, GREETING_RATE)):
+        body = {"input": inp, "voice": {"languageCode": code, "name": name},
+                "audioConfig": {"audioEncoding": "MP3", "speakingRate": rate, "sampleRateHertz": 48000}}
+        try:
+            r = httpx.post(URL, headers={"X-Goog-Api-Key": key}, json=body, timeout=60)
+        except Exception as e:
+            raise VoiceError(f"voice service unreachable ({type(e).__name__})")
+        if r.status_code < 400:
+            return base64.b64decode(r.json()["audioContent"])
+    raise VoiceError(f"greeting HTTP {r.status_code}".replace(key, "[redacted]"))
+
+
 def synth_spoken(text: str, lang: str = "en", gender: str = "female", rate: float = SPOKEN_RATE) -> bytes:
     """MP3 of one spoken line with its pause tags, in the Chirp 3 HD voice of `gender` for `lang` (en, hi or mr). Our names
     go as custom pronunciations; when the service refuses them, the name is respelled instead. Raises VoiceError."""

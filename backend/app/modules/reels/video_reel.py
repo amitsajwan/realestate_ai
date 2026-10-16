@@ -306,7 +306,7 @@ def voice_starts(durations: Sequence[float], total: float) -> List[float]:
     return out
 
 
-def voice_over(path, lines: Sequence[str], lang: str = "en", gender: str = "female") -> str:
+def voice_over(path, lines: Sequence[str], lang: str = "en", gender: str = "female", mood: str = "warm") -> str:
     """Put a voice-over (the lines with their pause tags, voice.synth_spoken, spread over the clip, over our music bed which
     steps back under it) on a finished video reel in place of its sound: for a video nobody speaks in. "spoken", or "off"
     when no line fits. Raises voice.VoiceError / ffmpeg.FfmpegError on failure, the reel at `path` untouched."""
@@ -321,7 +321,7 @@ def voice_over(path, lines: Sequence[str], lang: str = "en", gender: str = "fema
         starts = voice_starts([ffmpeg.probe(c).duration for c in clips], total)
         if not starts:
             return "off"
-        audio = narration.mix(work, clips[:len(starts)], starts, total, write_music(work / "bed.wav", seconds=total + 1.0))
+        audio = narration.mix(work, clips[:len(starts)], starts, total, write_music(work / "bed.wav", seconds=total + 1.0, mood=mood))
         voiced = work / "voiced.mp4"
         ffmpeg.run(["-i", str(path), "-i", str(audio), "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy", "-c:a", "aac",
                     "-b:a", "160k", "-ar", "48000", "-ac", "2", "-t", f"{total:.3f}", "-movflags", "+faststart", str(voiced), "-y"])
