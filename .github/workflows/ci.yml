@@ -6,7 +6,7 @@ name: Frontend tests and build
 on:
   pull_request:
   push:
-    branches: [ main, cursor/analyze-and-fix-styling-issues-cacb ]
+    branches: [ main, mordenization, cursor/analyze-and-fix-styling-issues-cacb ]
 
 jobs:
   frontend:

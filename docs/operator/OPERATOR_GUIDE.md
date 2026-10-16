@@ -150,7 +150,7 @@ project.
 - **Google Cloud SDK** (`gcloud`), logged in: `gcloud auth login`. Your account needs Compute Admin on the project.
 - **Git**, and this repository cloned: `git clone https://github.com/amitsajwan/realestate_ai.git`, then `git checkout main`.
   `main` is the branch that is released; work happens in pull requests against it (section 5). (Until the planned rename is done
-  in GitHub, the released branch is still called `cursor/analyze-and-fix-styling-issues-cacb`; use that name wherever this guide says
+  in GitHub, the released branch is `mordenization` (it replaced `cursor/analyze-and-fix-styling-issues-cacb` on 2026-10-16); use that name wherever this guide says
   `main`.)
 - **PowerShell** (Windows PowerShell 5.1 or PowerShell 7). Every script in `deploy/gcp/*.ps1` runs from the repo root.
 - Nothing else: Docker, Node and Python are needed only on the VM (installed in 2.3) or for local development.

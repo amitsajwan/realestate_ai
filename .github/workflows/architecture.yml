@@ -5,7 +5,7 @@ name: Architecture and backend tests
 on:
   pull_request:
   push:
-    branches: [ main, cursor/analyze-and-fix-styling-issues-cacb, modernization ]
+    branches: [ main, mordenization, cursor/analyze-and-fix-styling-issues-cacb ]
 
 jobs:
   backend:
