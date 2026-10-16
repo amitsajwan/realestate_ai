@@ -65,6 +65,16 @@ class Transcriber(Protocol):
 
 FAILOVER_STATUS = (402, 404, 429, 500, 503)  # out of credit, model retired, daily quota used up, provider error, busy: try the next model
 JSON_MAX_TOKENS = 3000   # room for a whole campaign pitch; a short answer stops early anyway
+GEMINI_MAX_TOKENS = 12000   # Gemini counts its thinking in it too
+
+
+def _json_text(content: str) -> str:
+    """A JSON answer without a ```json fence a model may wrap it in."""
+    t = (content or "").strip()
+    if t.startswith("```"):
+        t = t.split("\n", 1)[1] if "\n" in t else t[3:]
+        t = t.rsplit("```", 1)[0]
+    return t.strip()
 
 
 def model_order(spec: str) -> list[str]:
@@ -175,6 +185,8 @@ class GroqLLM:
             # max_tokens: some providers default to ~256 (Cloudflare), which cut a campaign brief or pitch short
             body = {"model": model, "temperature": temperature, "response_format": {"type": "json_object"}, "max_tokens": JSON_MAX_TOKENS,
                     "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
+            if self.url == GEMINI_OPENAI_URL:   # Gemini's thinking counts in max_tokens: a Hindi script ran out at 3000 and came
+                body.update(max_tokens=GEMINI_MAX_TOKENS, reasoning_effort="low")   # back cut off (JSONDecodeError, 2026-10-16)
             if self._client:
                 return await self._client.post(self.url, json=body, headers=headers, timeout=timeout)
             async with httpx.AsyncClient(timeout=timeout) as c:
@@ -184,7 +196,7 @@ class GroqLLM:
             r = await post_with_failover(order, send, per_attempt=self.timeout / 2 if len(set(order)) > 1 else self.timeout,
                                          budget=self.timeout, health=self.health, url=self.health_key)
             r.raise_for_status()
-            data = json.loads(r.json()["choices"][0]["message"]["content"])
+            data = json.loads(_json_text(r.json()["choices"][0]["message"]["content"]))
             return data if isinstance(data, dict) else None
         except Exception as e:  # timeout, HTTP, bad JSON: caller falls back silently
             status = getattr(getattr(e, "response", None), "status_code", None)

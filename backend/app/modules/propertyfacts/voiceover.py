@@ -136,7 +136,8 @@ STORY_SYSTEM = (
     "and exactly as given. The 'Checked by the X team: ...' line says plainly what that team checked, as trust. The last "
     "line is a warm personal invite to comment INFO for the details, with no pressure. "
     "Rules: every number, name, distance, price and amenity you say must be in the facts; never invent a person, a family, "
-    "a buyer, a quote, a sale, 'few left' or any urgency; no visit or check except those in the facts; no hype (best, luxury, "
+    "a buyer, a quote, a sale, 'few left' or any urgency; no visit or check except those in the facts; describe no quality "
+    "the facts do not state (airy, spacious, quiet, peaceful, green, well-lit); no hype (best, luxury, "
     "dream, perfect, guaranteed), no only/just/sirf/फक्त, no forecast of prices or returns. Complete natural sentences; small "
     "spoken words ({words}) only at the START of a sentence; pause tags [pause short] and [pause] inside a line only, at "
     "most two in a line; each line one or two short sentences, at most 18 words, each sentence clear on first hearing "
@@ -151,8 +152,9 @@ DIRECTOR_SYSTEM = (
     "return it UNCHANGED. If not (unclear, a run-on, odd word order, stiff, translated word by word, a fragment, too "
     "long), rewrite it so it is, keeping its facts. The hook: at most 8 words, ONE clear idea, no project name, no number. "
     "Keep the same number of lines in the same order, keep every fact exactly, add no number, name or claim that "
-    "is not in the facts, no invented buyers, sales or urgency, no hype, no only/just/sirf. Pause tags [pause short] and "
-    "[pause] inside lines only, at most two a line. The last line asks to comment INFO. Keep the draft's language and "
+    "is not in the facts, no quality the facts do not state (airy, spacious, quiet, peaceful), no invented buyers, sales or "
+    "urgency, no hype, no only/just/sirf. Pause tags [pause short] and "
+    "[pause] only after a comma, a question or a sentence, at most two a line. The last line asks to comment INFO. Keep the draft's language and "
     "script; never paste the English screen text into a line, never say a registration number or a list number "
     "(1, 2, 3), never 'dream home'; say 'check' for what the team did, never 'verify'. "
     "Then pick the background music's mood for this reel: calm (a story that touches, a home for a family), warm (a "
@@ -206,6 +208,8 @@ def _tidy(line: str) -> str:
     # a filler left hanging at the end ("... registered [pause] अच्छा") and pause tags at the end go: a person stops there
     t = TRAILING_FILLER.sub("", t).strip()
     t = re.sub(r"(?:\s*\[pause(?: short)?\])+\s*$", "", t).strip()
+    # a person pauses after a comma, a question or a sentence, never inside a phrase ("रिकॉर्ड और [pause] Google Maps")
+    t = re.sub(r"(?<![,?!।.—:])\s*\[pause(?: short)?\]", "", t.replace(" [pause", "[pause")).replace("[pause", " [pause")
     n = 0
 
     def keep(m: "re.Match") -> str:
@@ -339,6 +343,7 @@ class InOrder:
 
     def __init__(self, providers, temperature: float = 0.6):
         self.providers, self.temperature = list(providers), temperature
+        self.answered = ""   # which model gave the last answer (host and models), for the logs
 
     async def json(self, system: str, user: str):
         for p in self.providers:
@@ -347,16 +352,26 @@ class InOrder:
             except Exception:
                 r = None
             if r:
+                self.answered = f"{getattr(p, 'host', '')} {getattr(p, 'model', '')}"
                 return r
         return None
 
 
 def writer_llm() -> Optional[InOrder]:
-    """DeepSeek V3.2 (SambaNova) first, then gpt-oss-120b (Groq), then the others; None without a text key."""
-    from app.platform.llm import text_providers
-    providers = text_providers()
+    """Gemini (our paid key, the creative room's model) first, then DeepSeek V3.2 (SambaNova), then gpt-oss-120b (Groq), then
+    the others; None without a text key. (Live 2026-10-16: SambaNova's free credit ran out, answering 402.)"""
+    import os
+
+    from app.platform.llm import GEMINI_CRITICAL_MODEL, GEMINI_OPENAI_URL, GroqLLM, text_providers
+    providers = [p for p in text_providers() if getattr(p, "url", "") != GEMINI_OPENAI_URL]
     rank = lambda p: 0 if "sambanova" in (getattr(p, "url", "") or "") else 1 if "groq.com" in (getattr(p, "url", "") or "") else 2  # noqa: E731
-    return InOrder(sorted(providers, key=rank)) if providers else None
+    providers = sorted(providers, key=rank)
+    gkey = os.environ.get("GEMINI_API_KEY")
+    if gkey:
+        # Gemini thinks before it writes: a whole script took over the shared 20 s budget (10 s a model) and fell to Groq
+        providers.insert(0, GroqLLM(gkey, model=os.environ.get("AI_CRITICAL_MODEL", GEMINI_CRITICAL_MODEL), url=GEMINI_OPENAI_URL,
+                                    timeout=90.0))
+    return InOrder(providers) if providers else None
 
 
 async def story(s: ad_reel.Script, c: Ctx, lang: str, llm: Any = None) -> Tuple[str, List[str], Dict[str, Any], str]:
