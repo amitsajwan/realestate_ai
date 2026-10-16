@@ -168,15 +168,22 @@ Why: on the e2-medium (2 shared vCPUs, 4 GB) a voiced reel took 15-20 minutes to
 swapping), and a deploy that touched the frontend took ~20 minutes building Next.js on the same box. The owner chose:
 1. **Main VM resized to e2-standard-4 (4 vCPUs, 16 GB). LIVE 2026-10-16.** Same disk, same reserved IP (`pune-property-ip`,
    34.180.39.243), ~2.5 minutes down. Runs api, the three worker roles, Mongo and (until step 3) the renders.
-2. **Frontend on its own small machine. TARGET.** The Next.js site (mostly static pages plus Studio) on a small VM or Cloud
-   Run, its image built off the VM (GitHub Actions or Cloud Build), so a deploy pulls an image instead of building on the
-   production box. Caddy (or a load balancer) sends `/api` to the main VM and the rest to the frontend.
-3. **Renderer on a spot machine. TARGET.** A spot (preemptible) VM that starts when reels are queued, draws them, and stops
-   when the queue is empty; a reel cut off by a preemption goes back to the queue (the voice-over and reels-remake queues
-   already work that way). Needs: the pictures and the finished reels where both machines can reach them (Cloud Storage:
-   phase 1 item 1), and Mongo reachable from the renderer over the private network only (firewall: no public port).
-- **Done when:** the main VM never builds the frontend or draws a reel; a reel's time is the renderer's, not the API's.
-- Recheck prices before buying (spot VMs cost a fraction of on-demand but can be stopped at any time).
+2. **Decided later the same day: main and frontend stay on ONE always-on machine; only rendering moves out.** The owner
+   weighed a separate frontend VM and chose not to (it saves little once the website image is built off the server).
+   Steps, in order:
+   1. **Images built on GitHub, not on the VM. TARGET.** GitHub Actions builds the backend and frontend images per commit into
+      Artifact Registry; a deploy pulls them (about 3 minutes, no Next.js build on the production box).
+   2. **Uploads to Cloud Storage. TARGET.** Phase 1 item 1 (`platform.media`); old `/uploads/...` URLs redirect.
+   3. **Renderer on Cloud Run Jobs. TARGET.** Chosen over a spot VM (same cost at ~5 reels a day, ~$5 a month for ~1 hour of
+      4 vCPU / 8 GB after the free allowance): no preemption, no machine to start, stop or patch, ~30 s start, several reels
+      in parallel. The main VM's media worker queues reels and runs the job; the job reads pictures from and writes reels to
+      Cloud Storage and reaches Mongo through Cloud Run's Direct VPC egress (private network only, no public Mongo port).
+   4. **Main VM back to e2-standard-2 (8 GB)**, then e2-medium (4 GB) if a few days of memory readings allow: on the idle
+      e2-standard-4 everything used ~1.7 GB.
+- **Done when:** the main VM never builds an image or draws a reel.
+- **Cost (Mumbai, third-party rates, recheck before buying):** today e2-standard-4 ~$118 (~₹10,200) a month; target
+  ~$35-65 (~₹3,000-5,600): main VM $29-59, Cloud Run Jobs ~$5, Cloud Storage ~$1. The old e2-medium alone was ~$29 but drew a
+  reel in 15-20 minutes.
 
 ### Deployment phase 2: orchestration
 - Run web and api on Cloud Run. Run one always-on instance of each worker role, with a second lease-protected replica only where
