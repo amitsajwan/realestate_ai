@@ -38,6 +38,7 @@ EXPLORE = 0.2
 HOOK_WORDS, LINE_WORDS = 10, 8
 HOOK_S, BEAT_S, PAYOFF_S, CHECKED_S, CTA_S, LOOP_S = 1.9, 1.5, 2.0, 2.2, 1.8, 0.7   # the least each scene lasts; a spoken line makes it longer
 VOICE_PAD_S = 0.6       # after a spoken line, before the next scene's cut: a breath, as a person talking takes
+SPOKEN_MAX_S = 90.0     # a voiced reel lasts as long as its voice (owner 2026-10-16: longer is fine); Instagram's reel limit
 READY = re.compile(r"\bready\b|\bmove[\s-]*in\b|\bpossession\b|\bhanded\s+over\b|\bcompleted\b", re.I)
 CTA_WORD = "INFO"   # the comment bot reads it as interest (engage.brain.INTERESTED)
 
@@ -407,7 +408,7 @@ def render(s: Script, pictures: Sequence, dest: Path, kicker: Optional[str] = No
     import tempfile
 
     from app.modules.reels import ffmpeg, narration
-    from app.modules.reels.compose import make_reel, plan
+    from app.modules.reels.compose import MAX_SECONDS, make_reel, plan
     from app.modules.reels.music import write as write_music
 
     sc = scenes(s, pictures, kicker)
@@ -420,13 +421,17 @@ def render(s: Script, pictures: Sequence, dest: Path, kicker: Optional[str] = No
                 raise ValueError("one spoken line per screen line")
             clips = narration.spoken_lines(lines, lang, gender, work)
             for i, clip in enumerate(clips):
-                sc[i].seconds = max(sc[i].seconds or 0.0, ffmpeg.probe(clip).duration + VOICE_PAD_S)
-            tl = plan([x.seconds for x in sc], XFADE)
+                # the transition overlaps a scene's end: the line and its breath end before the next scene comes in
+                sc[i].seconds = max(sc[i].seconds or 0.0, ffmpeg.probe(clip).duration + VOICE_PAD_S + XFADE)
+            if sum(x.seconds for x in sc) - XFADE * (len(sc) - 1) > SPOKEN_MAX_S:   # squeezed scenes would talk over each other
+                raise ValueError(f"the voice-over is longer than {SPOKEN_MAX_S:g} s; ask for it again")
+            tl = plan([x.seconds for x in sc], XFADE, SPOKEN_MAX_S)
             audio = narration.mix(work, clips, tl.starts[:len(clips)], tl.total,
                                   write_music(work / "bed.wav", seconds=tl.total + 1.0))
             how = "spoken"
-        make_reel(sc, dest, music=audio, xfade=XFADE, progress=False, end_card=False, hook_tag=False)
-        return {"path": dest, "voice": how, "seconds": round(plan([x.seconds for x in sc], XFADE).total, 1)}
+        most = SPOKEN_MAX_S if speech is not None else MAX_SECONDS
+        make_reel(sc, dest, music=audio, xfade=XFADE, progress=False, end_card=False, hook_tag=False, max_seconds=most)
+        return {"path": dest, "voice": how, "seconds": round(plan([x.seconds for x in sc], XFADE, most).total, 1)}
     finally:
         shutil.rmtree(work, ignore_errors=True)
 

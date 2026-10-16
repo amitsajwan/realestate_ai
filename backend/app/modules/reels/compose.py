@@ -772,7 +772,7 @@ def finish_scenes(scenes: Sequence[Scene], end_card: bool = False) -> List[Scene
 
 class Renderer:
     def __init__(self, scenes: Sequence[Scene], seconds_per_scene: float = 3.0, transition: str = "fade", xfade: float = 0.45,
-                 progress: bool = True, end_card: bool = False, hook_tag: bool = True):
+                 progress: bool = True, end_card: bool = False, hook_tag: bool = True, max_seconds: float = MAX_SECONDS):
         """hook_tag=False: no brand tag while the hook (scene 1) is on screen; it fades in with scene 2. The first second belongs to the
         viewer's problem, not to our name."""
         scenes = finish_scenes(scenes, end_card)
@@ -781,7 +781,7 @@ class Renderer:
         if transition not in ("fade", "slide"):
             raise ReelError("transition must be 'fade' or 'slide'")
         self.transition, self.progress = transition, progress
-        self.tl = plan([s.seconds if s.seconds else seconds_per_scene for s in scenes], xfade)
+        self.tl = plan([s.seconds if s.seconds else seconds_per_scene for s in scenes], xfade, max_seconds)
         self.prep = [_Prepared(s, i, i == 0) for i, s in enumerate(scenes)]
         for q in self.prep[1:]:   # the incoming text starts a little before the middle of the blend, as the outgoing text leaves
             q.delay = TEXT_HANDOVER[0] * self.tl.xfade
@@ -883,15 +883,17 @@ def encode(frames: Iterable[bytes], total: float, out_path, music=None, timeout:
 
 
 def make_reel(scenes: Sequence[Scene], out_path, seconds_per_scene: float = 3.0, music=None, transition: str = "fade",
-              xfade: float = 0.45, progress: bool = True, end_card: bool = False, timeout: float = 900.0, hook_tag: bool = True) -> Path:
+              xfade: float = 0.45, progress: bool = True, end_card: bool = False, timeout: float = 900.0, hook_tag: bool = True,
+              max_seconds: float = MAX_SECONDS) -> Path:
     """Render `scenes` (plus the brand end card only when end_card=True) to an MP4 at `out_path` and return the path. A 1080x1920 cover JPG (the hook
     scene as a still, see `cover_path`) is written next to it, for Instagram's `cover_url`.
 
     `music` is an optional path to an audio file that YOU have the rights to (a voice-over mixed with our bed, say); without it the reel
-    carries the Avasetu signature music (see `encode`)."""
+    carries the Avasetu signature music (see `encode`). `max_seconds`: longer scenes are scaled down together to fit (a voiced
+    reel passes its own: its scenes last as long as their lines, and a squeezed scene would speak over the next)."""
     if music and not Path(music).is_file():
         raise ReelError("music file not found")
-    r = Renderer(scenes, seconds_per_scene, transition, xfade, progress, end_card, hook_tag)
+    r = Renderer(scenes, seconds_per_scene, transition, xfade, progress, end_card, hook_tag, max_seconds)
     out = encode(r.frames(), r.tl.total, out_path, music=music, timeout=timeout)
     write_cover(r, out)
     return out
