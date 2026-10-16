@@ -37,6 +37,10 @@ LANGS: Dict[str, Dict[str, Any]] = {
         "talk": ("Hinglish: Hindi in Devanagari script, with the English words Pune buyers use left in English letters (BHK, "
                  "price, MahaRERA, carpet area, possession, amenities, clubhouse, project names)"),
         "words": "देखिए, तो, मतलब, अच्छा, और हाँ",
+        "example": ("Screen: 'Gym, Swimming pool and Parking' -> 'और यहाँ आपको मिलेगा gym, swimming pool, और parking भी।' "
+                    "Screen: 'Airport: 0.9 km' -> 'Airport? [pause short] एक किलोमीटर से भी कम दूर है।' "
+                    "Screen: '₹2.24 crore' -> 'अब price की बात करें, [pause short] तो 2.24 करोड़ से शुरू होता है।' "
+                    "Screen: 'Designed by Hafeez Contractor' -> 'इसे design किया है Hafeez Contractor ने।'"),
         "place": "hi",
     },
     "en": {
@@ -45,6 +49,9 @@ LANGS: Dict[str, Dict[str, Any]] = {
         "open": ("Today the {who} team is showing you {what}.", "Today the {who} team is showing you {what}."),
         "talk": "Indian English, the way a Pune property agent talks to friends",
         "words": "so, look, see, and yes",
+        "example": ("Screen: 'Gym, Swimming pool and Parking' -> 'And you get a gym, a swimming pool, and parking too.' "
+                    "Screen: 'Airport: 0.9 km' -> 'The airport? [pause short] Less than a kilometre away.' "
+                    "Screen: '₹2.24 crore' -> 'Now the price. [pause short] It starts at 2.24 crore.'"),
         "place": "",
     },
     "mr": {
@@ -55,18 +62,27 @@ LANGS: Dict[str, Dict[str, Any]] = {
         "talk": ("Marathi in Devanagari script, with the English property words left in English letters (BHK, MahaRERA, "
                  "carpet area, possession, amenities, project names)"),
         "words": "बघा, म्हणजे, तर, आणि हो",
+        "example": ("Screen: 'Gym, Swimming pool and Parking' -> 'आणि इथे gym, swimming pool, आणि parking सुद्धा आहे.' "
+                    "Screen: 'Airport: 0.9 km' -> 'Airport? [pause short] एक किलोमीटरपेक्षाही कमी अंतरावर.' "
+                    "Screen: '₹2.24 crore' -> 'आता किंमत बघा, [pause short] 2.24 कोटींपासून सुरू होते.'"),
         "place": "mr",
     },
 }
 DEFAULT_LANG, DEFAULT_GENDER = "hinglish", "female"
+FILLERS = sorted({w.strip() for spec in LANGS.values() for w in spec["words"].split(",")}, key=len, reverse=True)
+TRAILING_FILLER = re.compile(r"(?:\s*\[pause(?: short)?\])*[\s,]*(?<!\S)(?:" + "|".join(re.escape(w) for w in FILLERS)
+                             + r")[\s,.!।?]*$", re.I)
 WRITTEN_BRAND = {"mr": "अवासेतू"}   # the brand as a Marathi caption writes it (said a-va-SAY-too)
 
 SYSTEM = (
     "You are a Pune property creator recording the voice-over of a short reel about one project: you talk to friends, you do "
     "not read an ad. For each screen line, in the same order, write what you SAY over that picture, in {talk}. "
-    "Talk like a person: short sentences, a small spoken word where it fits ({words}), now and then a question to the "
-    "listener. Mark pauses with these tags only: [pause short] for a breath (before a price or a number, after a question), "
-    "[pause] between two thoughts; at most two tags in a line. "
+    "Each line is one or two complete, grammatical sentences a person would really say, in your own words: never a "
+    "word-by-word translation of the screen text, never a slogan or a fragment. Talk like a person: short sentences, "
+    "now and then a small spoken word ({words}) at the START of a sentence (never at its end, never alone), now and then "
+    "a question to the listener. Mark pauses with these tags only, inside a line, never at its end: [pause short] for a "
+    "breath (before a price or a number, after a question), [pause] between two thoughts; at most two tags in a line. "
+    "Examples: {example} "
     "Keep every fact and name of its line and add none: no number, price, distance or name that is not on the line. "
     "Distances as people say them (0.9 km: less than a kilometre; 3.9 km: about 4 kilometres), prices as written with "
     "Western digits (2.24 crore), no registration numbers (say MahaRERA registered), no hype (best, luxury, dream, "
@@ -96,6 +112,9 @@ def _tidy(line: str) -> str:
     """A model's line with only our pause tags ([pause long] made [pause]) and at most two of them."""
     from app.modules.reels.voice import spoken_markup
     t = spoken_markup(line.replace("[pause long]", "[pause]"))
+    # a filler left hanging at the end ("... registered [pause] अच्छा") and pause tags at the end go: a person stops there
+    t = TRAILING_FILLER.sub("", t).strip()
+    t = re.sub(r"(?:\s*\[pause(?: short)?\])+\s*$", "", t).strip()
     n = 0
 
     def keep(m: "re.Match") -> str:
@@ -119,7 +138,7 @@ def line_ok(said: str, screen: str, last: bool = False) -> bool:
         return False
     if last and ad_reel.CTA_WORD not in t:
         return False
-    return ad_reel.said_ok(t, screen)
+    return ad_reel.said_ok(t, screen, most=max(3 * len(screen.split()) + 8, 18))   # a sentence said, not the caption
 
 
 async def spoken(s: ad_reel.Script, lang: str, llm: Any = None) -> Tuple[List[str], int]:
@@ -130,7 +149,7 @@ async def spoken(s: ad_reel.Script, lang: str, llm: Any = None) -> Tuple[List[st
     if llm is not None:
         spec = LANGS[lang]
         try:
-            r = await llm.json(SYSTEM.format(talk=spec["talk"], words=spec["words"]),
+            r = await llm.json(SYSTEM.format(talk=spec["talk"], words=spec["words"], example=spec["example"]),
                                "Screen lines:\n" + "\n".join(f"- {x}" for x in screens)) or {}
             said = [_tidy(str(x)) for x in r.get("lines") or []]
         except Exception:

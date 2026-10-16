@@ -269,9 +269,9 @@ async def write(fmt: str, c: Ctx, llm: Any = None) -> Script:
     return s
 
 
-def said_ok(said: str, screen: str) -> bool:
+def said_ok(said: str, screen: str, most: Optional[int] = None) -> bool:
     """A spoken line keeps to its screen line: every number in it is one of the line's numbers or one rounded the way people
-    say it (1.9 -> 2, 0.9 -> 'less than 1'), no guard problem, and not much longer."""
+    say it (1.9 -> 2, 0.9 -> 'less than 1'), no guard problem, and not much longer (at most `most` words when given)."""
     from app.modules.creative.guards import problems_in
     shown = [float(n) for n in _numbers(screen) if re.fullmatch(r"\d+(?:\.\d+)?", n)]
     allowed = set(_numbers(screen)) | {str(round(x)) for x in shown} | {str(int(x) + 1) for x in shown}
@@ -279,7 +279,7 @@ def said_ok(said: str, screen: str) -> bool:
         return False
     rounded = {n for n in _numbers(said)} - set(_numbers(screen))   # the guards would call a rounded number new
     problems = [p for p in problems_in(said, screen) if p.removeprefix("number not in facts: ") not in rounded]
-    return not problems and len(said.split()) <= 2 * len(screen.split()) + 6
+    return not problems and len(said.split()) <= (most if most is not None else 2 * len(screen.split()) + 6)
 
 
 # ---- which formats: 80% what worked, 20% something else ------------------------------------------------------------------
