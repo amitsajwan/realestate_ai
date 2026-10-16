@@ -171,19 +171,27 @@ swapping), and a deploy that touched the frontend took ~20 minutes building Next
 2. **Decided later the same day: main and frontend stay on ONE always-on machine; only rendering moves out.** The owner
    weighed a separate frontend VM and chose not to (it saves little once the website image is built off the server).
    Steps, in order:
-   1. **Images built on GitHub, not on the VM. TARGET.** GitHub Actions builds the backend and frontend images per commit into
-      Artifact Registry; a deploy pulls them (about 3 minutes, no Next.js build on the production box).
-   2. **Uploads to Cloud Storage. TARGET.** Phase 1 item 1 (`platform.media`); old `/uploads/...` URLs redirect.
+   1. **Images built on GitHub, not on the VM. LIVE 2026-10-16 (fdd45fd4, 78a82912).** `.github/workflows/images.yml` builds
+      the backend and website images on every push to main into Artifact Registry (`asia-south1-docker.pkg.dev/trader-502012/
+      avasetu`, keeps the latest 10 versions); GitHub signs in without a key (Workload Identity Federation, this repository
+      only). `deploy.ps1` waits for that build, then the VM only pulls and restarts: 127 s end to end on the first run.
+      `-Tag <sha>` rolls back; `-Build` is the old build-on-the-VM fallback.
+   2. **Uploads to Cloud Storage: dropped for now (owner).** Uploads stay on the VM; a cleanup removes replaced voice versions
+      and finished reels 60 days after posting (originals are kept).
    3. **Renderer on Cloud Run Jobs. TARGET.** Chosen over a spot VM (same cost at ~5 reels a day, ~$5 a month for ~1 hour of
       4 vCPU / 8 GB after the free allowance): no preemption, no machine to start, stop or patch, ~30 s start, several reels
-      in parallel. The main VM's media worker queues reels and runs the job; the job reads pictures from and writes reels to
-      Cloud Storage and reaches Mongo through Cloud Run's Direct VPC egress (private network only, no public Mongo port).
-   4. **Main VM back to e2-standard-2 (8 GB)**, then e2-medium (4 GB) if a few days of memory readings allow: on the idle
-      e2-standard-4 everything used ~1.7 GB.
+      in parallel. The main VM's media worker queues reels and runs the job; the job downloads its pictures by URL
+      (avasetu.in/uploads/...), uploads the finished reel to a protected API endpoint, and reaches Mongo through Cloud Run's
+      Direct VPC egress (private network only, no public Mongo port). No Cloud Storage for now (owner).
+   4. **Main VM back to e2-standard-2 (8 GB): LIVE 2026-10-16** (owner chose to shrink before the renderer moves: reels draw
+      on it meanwhile, ~8-10 min each). Then e2-medium (4 GB) once the renderer is on Cloud Run, if memory allows: on the
+      idle e2-standard-4 everything used ~1.7 GB, and 1.8 GB on the e2-standard-2.
 - **Done when:** the main VM never builds an image or draws a reel.
-- **Cost (Mumbai, third-party rates, recheck before buying):** today e2-standard-4 ~$118 (~₹10,200) a month; target
-  ~$35-65 (~₹3,000-5,600): main VM $29-59, Cloud Run Jobs ~$5, Cloud Storage ~$1. The old e2-medium alone was ~$29 but drew a
-  reel in 15-20 minutes.
+- **Cost a month (Mumbai, third-party rates, recheck before buying),** each with ~$8 of fixed items (30 GB pd-balanced disk
+  $3.3, the reserved IP in use $3.7, snapshots ~$1): e2-medium until 2026-10-16 ~$37; e2-standard-4 (midday) ~$126;
+  **e2-standard-2 now ~$67 (~₹5,800)**; target e2-medium + Cloud Run Jobs (~$5 for 5 reels a day) + registry (~$0.4)
+  **~$43 (~₹3,700)**. GitHub builds are free (public repository). Uploads stay on the VM disk (no Cloud Storage: the renderer
+  fetches inputs by URL and posts reels back); the disk had 7.3 GB of old build cache cleared the same day.
 
 ### Deployment phase 2: orchestration
 - Run web and api on Cloud Run. Run one always-on instance of each worker role, with a second lease-protected replica only where
