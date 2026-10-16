@@ -11,6 +11,10 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
     volumes:
       - mongo_data:/data/db
+    # MONGO_BIND=<the VM's private IP> (in .env) lets the Cloud Run renderer reach Mongo over Google's private network (password
+    # auth as always; no public port: GCP's firewall only lets the private ranges in). Default: this machine only.
+    ports:
+      - "${MONGO_BIND:-127.0.0.1}:27017:27017"
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
       interval: 15s
@@ -81,7 +85,9 @@ services:
   media:
     build: ../../backend
     image: ${IMAGE_REGISTRY:-asia-south1-docker.pkg.dev/trader-502012/avasetu}/backend:${IMAGE_TAG:-latest}
-    command: ["python", "-m", "app.worker", "--role", "media"]
+    # MEDIA_ROLE=dispatch (in .env) once reels are drawn by the Cloud Run Job "renderer": this container then only starts that
+    # job (reels/render_job.py). MEDIA_ROLE=media (the default) draws here, as before; it is also the rollback.
+    command: ["python", "-m", "app.worker", "--role", "${MEDIA_ROLE:-media}"]
     restart: unless-stopped
     env_file: .env
     environment:

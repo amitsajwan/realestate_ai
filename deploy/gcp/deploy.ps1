@@ -99,6 +99,15 @@ if ($Build) {
 }
 Run "gcloud compute ssh $target $common --command `"$remote`""
 
+if (-not $Build) {
+  # the Cloud Run Job that draws the reels runs the same backend image: keep it on this commit too (skipped until it exists)
+  $job = gcloud run jobs list --project $Project --region asia-south1 --filter "metadata.name=renderer" --format "value(metadata.name)" 2>$null
+  if ($job) {
+    Step "Pointing the renderer (Cloud Run Job) at the images of $sha"
+    Run "gcloud run jobs update renderer --project $Project --region asia-south1 --image asia-south1-docker.pkg.dev/$Project/avasetu/backend:$sha --quiet"
+  }
+}
+
 Step "Checking the public health address"
 if ($DryRun) { Write-Host "[dry-run] curl $HealthUrl" -ForegroundColor Yellow }
 else {

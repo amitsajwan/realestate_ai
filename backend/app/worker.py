@@ -29,11 +29,13 @@ LoopTable = Dict[str, Callable[[], Awaitable[Any]]]
 ALL_LOOP_NAMES = (
     "engage", "newsroom", "calendar", "calendar_reels", "listing_reels", "marketing_runs", "project_enrich", "insights",
     "answer_gaps", "inbound_messages", "token_cleanup", "radar", "seo", "communities",
-)
+)   # render_dispatch is not among them: only the `dispatch` role starts it (it calls Cloud Run; development has none)
 ROLE_LOOPS = {
     "conversations": ("engage", "answer_gaps", "inbound_messages"),
     "newsroom": ("newsroom", "seo", "communities", "project_enrich", "radar", "insights", "calendar", "token_cleanup"),
     "media": ("calendar_reels", "listing_reels", "marketing_runs"),
+    # on the VM in place of media once reels are drawn by the Cloud Run Job (reels.render_job): it only starts that job
+    "dispatch": ("render_dispatch",),
 }
 
 
@@ -53,12 +55,13 @@ def loops() -> LoopTable:
     from app.modules.reels.listing_reel import loop as reels_loop
     from app.modules.communities.runner import loop as communities_loop
     from app.modules.seo.runner import loop as seo_loop
+    from app.modules.reels.render_job import dispatch_loop
     return {"engage": engage_loop, "newsroom": newsroom_loop, "calendar": calendar_loop,
             "calendar_reels": calendar_reels_loop, "listing_reels": reels_loop,
             "marketing_runs": marketing_loop, "project_enrich": enrich_loop, "insights": insights_loop,
             "answer_gaps": gaps_loop, "inbound_messages": inbound_loop, "token_cleanup": token_cleanup_loop,
             "radar": radar_loop, "seo": seo_loop,
-            "communities": communities_loop}
+            "communities": communities_loop, "render_dispatch": dispatch_loop}
 
 
 def requested_loop_names(role: Optional[str] = None, value: Optional[str] = None) -> Tuple[str, ...]:
@@ -137,6 +140,7 @@ def expected_intervals() -> Dict[str, Optional[float]]:
     from app.modules.communities.runner import enabled as communities_on
     from app.modules.seo.runner import INTERVAL_S as SEO_INTERVAL_S
     from app.modules.seo.runner import enabled as seo_on
+    from app.modules.reels.render_job import DISPATCH_EVERY_S
     e, n, c = engage_cfg(), newsroom_cfg(), calendar_cfg()
     return {
         "engage": float(e.interval_s) if (e.enabled and e.page_id and e.page_token) else None,  # as engage/runner.py
@@ -153,6 +157,7 @@ def expected_intervals() -> Dict[str, Optional[float]]:
         "radar": float(radar_cfg().interval_s) if radar_cfg().enabled else None,  # RADAR_ENABLED
         "seo": float(SEO_INTERVAL_S) if seo_on() else None,  # INDEXNOW_KEY or GSC_SA_KEY_B64
         "communities": float(COMMUNITIES_POLL_S) if communities_on() else None,  # COMMUNITY_ARTICLES_ENABLED
+        "render_dispatch": float(DISPATCH_EVERY_S),  # always on where the dispatch role runs
     }
 
 
@@ -224,9 +229,29 @@ async def _main(names: Tuple[str, ...]) -> None:
     await run(stop, table=select_loops(loops(), names))
 
 
+async def _drain() -> int:
+    """`--drain`: the renderer's whole run (reels.render_job.drain), then exit 0; 2 without a database."""
+    setup_logging(environment=settings.environment)
+    try:
+        await init_database()
+    except Exception as e:
+        get_logger("worker").error(f"renderer: failed to connect to MongoDB: {e}")
+        return 2
+    from app.wiring import wire
+    wire()
+    from app.modules.reels.render_job import drain
+    try:
+        await drain(get_database())
+    finally:
+        await close_database()
+    return 0
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m app.worker", description="Run the background loops.")
     parser.add_argument("--check", action="store_true", help="report loop heartbeats; exit 1 if one is stale")
+    parser.add_argument("--drain", action="store_true",
+                        help="the renderer (Cloud Run Job): do the queued media work until the queues stay empty, then exit")
     selection = parser.add_mutually_exclusive_group()
     selection.add_argument("--role", choices=sorted(ROLE_LOOPS), help="run or check the loops assigned to a worker role")
     selection.add_argument("--loops", help="comma-separated loop names to run or check")
@@ -235,6 +260,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         names = requested_loop_names(args.role, args.loops)
     except ValueError as exc:
         parser.error(str(exc))
+    if args.drain:
+        return asyncio.run(_drain())
     if args.check:
         intervals = expected_intervals()
         return asyncio.run(check(intervals={name: intervals[name] for name in names}))
