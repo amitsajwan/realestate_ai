@@ -43,7 +43,13 @@ COMMON |= set("""local nearby recent upcoming major minor big small many several
 future official regular typical early late daily public private general open clear simple useful helpful proposed planned approved
 ongoing existing final first second third last next previous additional further better best common main overall possible likely
 early together meanwhile however also but and yet instead overall besides moreover therefore thus too while since once until""".split())
-GERUND = re.compile(r"^[A-Z][a-z]{2,}ing$")  # sentence-initial 'Having', 'Knowing', 'Checking': ordinary words, not names
+# full articles (2026-10-17) open sentences with pronouns and their "What to check" lines with instructions: "This", "Observe" and
+# "Improved" were taken for names and every rewritten report failed
+COMMON |= set("""this that these those there they them their it its we you your our he she his her one some most much more less
+what when where which who why whether if though although because so then now today still even only just already soon later
+observe verify confirm ask visit track watch monitor compare note look keep consider review contact inspect read see plan expect
+find call request get make take use follow wait choose think talk stay avoid budget factor allow give""".split())
+GERUND = re.compile(r"^[A-Z][a-z]{2,}(ing|ed|ly)$")  # sentence-initial 'Having', 'Improved', 'Currently': ordinary words, not names
 
 # generic hedges that say nothing specific; a 'why it matters' made of these is padding, not information
 FILLER = [re.compile(x, re.I) for x in (
