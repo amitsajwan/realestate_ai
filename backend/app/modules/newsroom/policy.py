@@ -3,7 +3,7 @@ from app.core import brand
 import re
 
 MAX_AGE_DAYS = 14  # news older than this is dropped (evergreen education items are exempt)
-DAILY_CAP = 2  # posts a day at most
+DAILY_CAP = 1  # posts a day at most: one full report beats two headlines (owner, 2026-10-17)
 MAX_QUOTE_WORDS = 15  # longest run of words we may repeat from a source
 POST_MAX_CHARS = 900
 

@@ -117,11 +117,9 @@ def test_area_names_come_from_the_one_area_list():
     assert named_areas("Lohgaon Heights") == ["lohegaon"]
 
 
-def test_a_maharera_item_on_lohegaons_pincode_is_lohegaon_news():
-    from app.modules.newsroom.sources.maharera import to_item
-    from app.modules.newsroom.stages.filter import assess
-    rel = assess(to_item(proj(name="Belmont Skyone", pincode="411047", last_modified="2026-09-28")), NOW)
-    assert rel.keep and rel.areas == ["lohegaon"]
+def test_a_maharera_project_on_lohegaons_pincode_is_a_lohegaon_record():
+    rec = register.records([proj(name="Belmont Skyone", pincode="411047", last_modified="2026-09-28")], NOW)[0]
+    assert rec["locality"] == "lohegaon"
 
 
 async def in_area(store) -> int:
@@ -299,10 +297,10 @@ async def test_the_count_page_gets_late_rounds_too():
     assert await in_area(store) == 3
 
 
-async def test_two_maharera_projects_are_not_the_same_story():
-    """Live on 2026-10-03: 'The Element' and 'Belmont Skyone' were dropped as the same story as another MahaRERA item."""
+async def test_maharera_projects_fill_the_register_and_none_becomes_news():
+    """Owner, 2026-10-17: MahaRERA records go into the register, never out as news items."""
     store = Store(FakeDb())
-    page = PAGE_1291.replace("2026-09-01", "2026-09-28").replace("2026-09-24", "2026-09-29")  # recent enough to be news
+    page = PAGE_1291.replace("2026-09-01", "2026-09-28").replace("2026-09-24", "2026-09-29")  # recent enough to have been news
     await run(store, site({1291: page}))
-    kept = await store.items.find({"status": "relevant"}).to_list(None)
-    assert sorted(d["raw"]["title"].split(": ")[1].split(",")[0] for d in kept) == ["AARAMBH PHASE 1", "Satvam Kharadi Heights", "VIKRAM MARQUEE"]
+    assert await in_area(store) == 3
+    assert await store.items.count_documents({"status": "relevant"}) == 0

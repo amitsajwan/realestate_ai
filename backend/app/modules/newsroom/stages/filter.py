@@ -30,6 +30,9 @@ _MONEY_RE = [_phrase(k) for k in NATIONAL_MONEY]
 _PILLAR_RE: Dict[str, List["re.Pattern[str]"]] = {
     p: [_phrase(k, True) for k in list(ks) + topics.EXTRA_PILLAR_KEYWORDS.get(p, [])] for p, ks in PILLAR_KEYWORDS.items()}
 _PIN = re.compile(r"(?<!\d)(\d{6})(?!\d)")
+# national money news must be India's: home-loan rate stories from Australian, New Zealand and US banks reached the queue (2026-10-17)
+_INDIA = re.compile(r"\b(india|indian|rbi|reserve bank of india|sbi|pnb|hdfc|icici|bank of baroda|canara|axis bank|kotak|lic housing|"
+                    r"rupees?|rs\.?|inr|lakh|crore|maharashtra|mumbai|delhi|bengaluru)\b|₹", re.I)
 _EDU_RE = [_phrase(k, True) for k in topics.EDUCATION_KEYWORDS]
 
 _HOROSCOPE = re.compile(r"\b(horoscope|zodiac|rashifal|astrology|lucky number)\b", re.I)
@@ -97,6 +100,10 @@ def assess(item: RawItem, now: datetime) -> Relevance:
     when = item.published_at or item.fetched_at
     if _aware(now) - _aware(when) > timedelta(days=MAX_AGE_DAYS):
         return _no(f"stale: older than {MAX_AGE_DAYS} days")
+    if (item.source or "").strip().lower() == "maharera":
+        # a MahaRERA record goes into the project register when it is collected (pipeline._collect), never out as news: one
+        # project "listed or updated" is not a story a buyer needs (owner, 2026-10-17)
+        return _no("project register record, not news")
     title, body = item.title or "", item.text or ""
     full = f"{title}\n{body}".lower()
 
@@ -120,7 +127,8 @@ def assess(item: RawItem, now: datetime) -> Relevance:
         # rules, money and market news applies to every buyer in Pune: it needs no area, only a Pune or Maharashtra mention (or, for
         # national money news like the repo rate, the topic itself), and the headline must be about it, not mention it in passing
         lead = _lead_pillar(head)
-        citywide = lead in CITYWIDE_PILLARS and (any(p.search(full) for p in _CITY_RE) or any(p.search(head) for p in _MONEY_RE))
+        citywide = lead in CITYWIDE_PILLARS and (any(p.search(full) for p in _CITY_RE)
+                                                 or (any(p.search(head) for p in _MONEY_RE) and bool(_INDIA.search(full))))
         if not citywide:
             mentioned = any(p.search(full) for pats in _AREA_RE.values() for p in pats)
             return _no("off-topic: area only mentioned in passing" if mentioned else "off-topic: no target area or corridor")

@@ -23,10 +23,12 @@ def load(name):
 
 class ScriptedLlm:
     """Answers the extract prompt with one real quote from the article, and the draft prompt with honest parts."""
-    def __init__(self, good=True):
-        self.good = good
+    def __init__(self, good=True, score=8):
+        self.good, self.score = good, score
 
     async def json(self, system, user):
+        if "news editor" in system:
+            return {"score": self.score, "who": "commuters", "what_changes": "a diversion", "reason": "local works"}
         if "quote" in system:
             return {"facts": [{"text": "Vehicles are diverted on the Kharadi bypass from October 1 to October 20 for flyover girder work",
                                "quote": "Pune traffic police have diverted vehicles on the Kharadi bypass from October 1 to October 20"}]}
@@ -46,12 +48,12 @@ async def run(names, llm):
     return store, pub, counts
 
 
-async def test_a_good_article_reaches_the_review_queue_and_nothing_is_posted():
+async def test_a_story_with_one_fact_is_not_published_as_two_lines():
     store, pub, counts = await run(["kharadi_bypass"], ScriptedLlm())
-    q = await store.queue()
-    assert len(q) == 1 and q[0]["status"] == "pending_review"
-    assert "Kharadi bypass" in q[0]["draft"]["text"] and "?" in q[0]["draft"]["text"]
-    assert pub.calls == [] if hasattr(pub, "calls") else True  # approval is required before anything is sent
+    assert await store.queue() == []
+    doc = (await store.next_batch("dropped", 5))[0]
+    assert "too little reporting" in doc["history"][-1]["note"]
+    assert pub.calls == [] if hasattr(pub, "calls") else True
 
 
 async def test_off_topic_stale_and_hype_items_never_reach_the_queue():
@@ -60,11 +62,11 @@ async def test_off_topic_stale_and_hype_items_never_reach_the_queue():
     assert (await store.counts()).get("dropped", 0) == 6
 
 
-async def test_a_draft_with_invented_facts_is_stopped_by_the_check():
-    store, _, _ = await run(["kharadi_bypass"], ScriptedLlm(good=False))
+async def test_a_story_the_editor_scores_low_is_dropped_before_any_research():
+    store, _, _ = await run(["kharadi_bypass"], ScriptedLlm(score=3))
     assert await store.queue() == []
     doc = (await store.next_batch("dropped", 5))[0]
-    assert "check failed" in doc["history"][-1]["note"]
+    assert "not important for buyers (3/10)" in doc["history"][-1]["note"] and doc["impact"]["score"] == 3
 
 
 async def test_the_same_story_from_two_publishers_is_queued_once():

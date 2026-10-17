@@ -32,19 +32,21 @@ def default_stages() -> Dict[str, Callable]:
     from .stages.extract import extract
     from .stages.filter import assess
     from .stages.filter import same_story
+    from .stages.impact import judge
     from . import adapters  # cards and hub registration live behind the adapters (the only place that touches creative and interest)
     stages = {"filter": assess, "extract": extract, "draft": draft, "check": check, "same_story": same_story, "article": write_article,
-              "cards": adapters.card_stage, "after_publish": adapters.after_publish}
+              "cards": adapters.card_stage, "after_publish": adapters.after_publish, "impact": judge}
     cfg = load()
     if cfg.research:
         from .stages.read import RobotsCache, polite_get
         from .stages.research import research
-        robots, polite = RobotsCache(), {}
+        from app.modules.areastats.websearch import provider as web_search
+        robots, polite, resolve, search = RobotsCache(), {}, adapters.make_google_resolver(), web_search()
 
         async def research_stage(item, rel, candidates, get):
             if polite.get("src") is not get:  # one rate limiter per fetcher, shared across items
                 polite.update(src=get, get=polite_get(get))
-            return await research(item, rel, candidates, polite["get"], robots, same_story)
+            return await research(item, rel, candidates, polite["get"], robots, same_story, resolve=resolve, search=search)
         stages["research"] = research_stage
     elif cfg.read_articles:
         from .stages.read import RobotsCache, polite_get, read
@@ -169,6 +171,14 @@ async def _extract(store, stages, llm, doc):
     raw = codec.raw_item(doc)
     found = None
     maharera = (raw.source or "").strip().lower() == "maharera"  # a register record, not a report: nothing to read or cross-check
+    if stages.get("impact") and not maharera:  # the editor's call before anything is read: only stories a buyer needs get a report
+        verdict = await _call(stages["impact"], raw, codec.relevance(doc), llm)
+        if verdict is None:
+            return  # the model gave no answer: the item stays relevant and is judged on the next run
+        await store.update(doc["_id"], impact=verdict)
+        if not verdict["keep"]:
+            await store.move(doc["_id"], "dropped", f"not important for buyers ({verdict['score']}/10): {verdict['reason']}"[:240])
+            return
     if stages.get("research") and stages.get("get") and not maharera:
         raw, found = await _research(store, stages, doc, raw)
     elif stages.get("read") and stages.get("get"):  # optional: enrich short items with the article body first
@@ -192,11 +202,14 @@ async def _draft(store, stages, llm, doc):
     d = await _call(stages["draft"], codec.raw_item(doc), codec.facts(doc), rel, formats[0], llm, research=codec.research(doc))
     if d is None:
         await store.move(doc["_id"], "dropped", "no draft produced")
+    elif d.format not in ("article", "digest"):
+        # news goes out as a full report with its sources or not at all (owner, 2026-10-17): a headline and a line is not enough
+        await store.move(doc["_id"], "dropped", "too little reporting for a full report (needs 2 readable reports and 3 facts)")
     else:
         await store.move(doc["_id"], "drafted", d.format, draft=codec.to_doc(d))
 
 
-async def _check(store, stages, doc, llm=None):
+async def _check(store, stages, doc, llm=None, auto_approve: bool = False):
     res = await _call(stages["check"], codec.draft(doc), codec.facts(doc), codec.evidence(doc))
     if res.ok:
         await store.move(doc["_id"], "checked", check=codec.to_doc(res))
@@ -217,6 +230,9 @@ async def _check(store, stages, doc, llm=None):
             await store.update(doc["_id"], card=await _call(stages["cards"], {**doc, "status": "pending_review"}))
         except Exception as e:
             log.warning("newsroom: card for %s failed: %s", doc.get("_id"), sanitize(e))
+    if auto_approve and (doc.get("draft") or {}).get("format") == "article":
+        # the owner chose auto-posting (2026-10-17): a full report that passed every check goes out without a review step
+        await store.move(doc["_id"], "approved", "auto-approved: full report passed the checks")
 
 
 async def _publish_item(store: Store, publisher, doc: dict, now: datetime, when, counts: dict, stages: dict) -> None:
@@ -296,7 +312,7 @@ async def run_once(store: Store, sources: list, stages: Optional[Dict[str, Calla
     if llm is not None:
         await _each(store, "relevant", "extract", counts, lambda d: _extract(store, stages, llm, d))
         await _each(store, "extracted", "draft", counts, lambda d: _draft(store, stages, llm, d))
-    await _each(store, "drafted", "check", counts, lambda d: _check(store, stages, d, llm))
+    await _each(store, "drafted", "check", counts, lambda d: _check(store, stages, d, llm, cfg.auto_approve))
     if publisher is not None:
         await _publish(store, publisher, now, cfg, counts, stages)
     return counts

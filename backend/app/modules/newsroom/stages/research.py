@@ -9,18 +9,30 @@ A feed gives a headline and a line. A proper article needs more, so for every ke
    story, never advice lines, so the article can say what the area already has (an approved metro line, the airport) without
    inventing anything.
 
+A Google News link is first swapped for the publisher's own (`resolve`): without that, most stories had only their headline and
+went out as two lines (2026-10-17: 21 of 21 published items). When fewer than MIN_FULL reports could be read, a web search for the
+headline (`search`, Google results for India) finds more publishers' reports of the story, which are read the same way.
+
 Facts are later extracted from the reports only; background is labelled as ours. The stage never raises: a page that cannot be read
 is noted for the owner and the story goes on with what we have.
 """
+import dataclasses
+import hashlib
 import re
-from typing import Iterable, List, Optional, Sequence
+from typing import Awaitable, Callable, Iterable, List, Optional, Sequence
+from urllib.parse import urlsplit
 
 from app.core import brand
 
 from ..types import Fetcher, RawItem, Relevance, Research, SourceDoc
 from .read import RobotsCache, read_page
 
+Resolver = Callable[[str], Awaitable[Optional[str]]]  # news.google.com link -> the publisher's own url, or None
+Search = Callable[[str], Awaitable[List[dict]]]  # query -> results [{"title", "link", "snippet", "type", "ad"}]
+
 MAX_RELATED = 3  # other reports read per story: enough to cross-check, polite to publishers
+MIN_FULL = 2  # full reports wanted before writing; under this the web search looks for more
+MAX_SEARCH_READS = 4  # search results read per story at most
 MIN_SHARED = 4  # shared headline words (plus 2 per shared figure) that make another item a report of the same story
 MAX_BACKGROUND = 3
 SUMMARY_MAX = 600
@@ -120,22 +132,84 @@ async def _read(item: RawItem, role: str, get: Fetcher, robots: RobotsCache, not
     return SourceDoc(name=name, url=item.url, title=item.title, text=text, published_at=item.published_at, role=role, full=full)
 
 
+async def _own_link(item: RawItem, resolve: Optional[Resolver]) -> RawItem:
+    """`item` with the publisher's own url in place of a Google News link, when `resolve` finds it."""
+    if resolve is None or not _is_google(item.url):
+        return item
+    try:
+        real = await resolve(item.url)
+    except Exception:  # the resolver is best effort: the item keeps its Google link and is read as before
+        real = None
+    return dataclasses.replace(item, url=real) if real else item
+
+
+def _host(url: str) -> str:
+    h = (urlsplit(url or "").hostname or "").lower()
+    return h[4:] if h.startswith("www.") else h[2:] if h.startswith("m.") else h
+
+
+def _result_name(title: str, link: str) -> str:
+    """A search result's publisher: the short tail of its title ("... - Hindustan Times"), else its site."""
+    parts = re.split(r"\s+[-|–—]\s+", title or "")
+    tail = parts[-1].strip() if len(parts) > 1 else ""
+    return tail if 2 < len(tail) <= 30 else _host(link)
+
+
+def search_query(title: str) -> str:
+    """The headline as a search: without the " - Publisher" tag, with Pune added when it does not say so."""
+    q = re.split(r"\s+[-|–—]\s+(?=[^-|–—]*$)", (title or "").strip(), maxsplit=1)[0]
+    return q if "pune" in q.lower() else f"{q} Pune"
+
+
+async def _searched(item: RawItem, search: Search, taken: set) -> List[RawItem]:
+    """Other publishers' reports of the story from a web search for its headline: organic results only, on sites not read yet,
+    that pass the same same-story test as the collected items."""
+    try:
+        results = await search(search_query(item.title))
+    except Exception:  # no search, no extra reports: the story goes on with what it has
+        return []
+    out = []
+    for r in results:
+        link = str(r.get("link") or "")
+        if r.get("ad") or r.get("type", "organic") != "organic" or not link.startswith("http") or _host(link) in taken or _is_google(link):
+            continue
+        c = RawItem(id=hashlib.sha1(link.encode()).hexdigest(), source=_result_name(str(r.get("title") or ""), link), url=link,
+                    title=str(r.get("title") or ""), text=str(r.get("snippet") or ""), published_at=None, fetched_at=item.fetched_at)
+        if related_score(item, c) >= MIN_SHARED:
+            taken.add(_host(link))
+            out.append(c)
+    return out
+
+
 async def research(item: RawItem, relevance: Optional[Relevance], candidates: Iterable[RawItem], get: Fetcher,
-                   robots: Optional[RobotsCache] = None, same_story=None) -> Research:
+                   robots: Optional[RobotsCache] = None, same_story=None, resolve: Optional[Resolver] = None,
+                   search: Optional[Search] = None) -> Research:
     """Everything we can find out about `item` before writing (see the module notes). `candidates` are recent items from the store."""
     robots = robots or RobotsCache()
     notes: List[str] = []
-    main = await _read(item, "main", get, robots, notes)
+    main = await _read(await _own_link(item, resolve), "main", get, robots, notes)
     others = pick_related(item, candidates, same_story)
     sources, also = [main], []
     for c in others:
-        doc = await _read(c, "related", get, robots, notes)
+        doc = await _read(await _own_link(c, resolve), "related", get, robots, notes)
         if doc.full or len(doc.text) > len(doc.title) + 40:
             sources.append(doc)
         else:
             also.append(doc.name)  # same story, but nothing to read beyond the headline: credited as also reporting it
     if not others:
         notes.append("No other report of this story found in the last two weeks.")
+    if search is not None and sum(1 for s in sources if s.full) < MIN_FULL:
+        taken = {_host(s.url) for s in sources}
+        found = (await _searched(item, search, taken))[:MAX_SEARCH_READS]
+        notes.append(f"Web search for the headline found {len(found)} other report(s).")
+        names = {s.name.lower() for s in sources}
+        for c in found:
+            doc = await _read(c, "related", get, robots, notes)
+            if doc.full and doc.name.lower() not in names:
+                sources.append(doc)
+                names.add(doc.name.lower())
+            if sum(1 for s in sources if s.full) >= MIN_FULL + 1:
+                break
     story = " ".join(f"{s.title} {s.text[:1500]}" for s in sources)
     background = background_for((relevance.areas if relevance else []) or [], story)
     return Research(sources=sources, background=background, background_name=f"{brand.NAME} area guide" if background else "",

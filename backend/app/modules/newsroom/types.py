@@ -9,6 +9,7 @@ Fetcher = Callable[[str], Awaitable[str]]  # url -> response body text; injected
 STATUSES = (
     "new", "relevant", "extracted", "drafted", "checked", "pending_review",
     "approved", "scheduled", "published", "dropped", "rejected", "failed",
+    "withdrawn",  # was public, taken off the site (its social posts stay up); `merged_into` names the story it repeated
 )
 PILLARS = ("infrastructure", "new_supply", "rules_money", "market", "locality_life", "education", "digest")
 AREAS = ("kharadi", "upper_kharadi", "wagholi")

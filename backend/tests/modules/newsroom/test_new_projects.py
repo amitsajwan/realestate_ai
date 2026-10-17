@@ -32,25 +32,11 @@ def item(title, text, source="t"):
     return RawItem(id="x", source=source, url="https://e.test/x", title=title, text=text, published_at=NOW, fetched_at=NOW)
 
 
-def test_real_last_page_has_no_project_of_ours():
-    for it in fresh(parse_page(LAST)):
+def test_maharera_records_never_go_out_as_news():
+    """Owner, 2026-10-17: one project listed or updated is a register record, not a story (the register test covers where they go)."""
+    for it in fresh(parse_page(IN_AREA)) + fresh(parse_page(LAST)):
         r = assess(it, NOW)
-        assert not r.keep and r.reason.startswith("off-topic"), (it.title, r.reason)
-
-
-def test_in_area_projects_are_kept_and_the_rest_dropped():
-    kept = {}
-    for it in fresh(parse_page(IN_AREA)):
-        r = assess(it, NOW)
-        if r.keep:
-            kept[it.title.split(": ", 1)[1].split(",")[0]] = (r.areas, r.pillar)
-        else:
-            assert r.reason.startswith("off-topic"), (it.title, r.reason)
-    assert kept == {
-        "AARAMBH PHASE 1": (["wagholi"], "new_supply"),
-        "VIKRAM MARQUEE": (["kharadi"], "new_supply"),
-        "Satvam Kharadi Heights": (["kharadi"], "new_supply"),
-    }
+        assert not r.keep and r.reason == "project register record, not news", (it.title, r.reason)
 
 
 def test_maharera_items_say_listed_or_updated():

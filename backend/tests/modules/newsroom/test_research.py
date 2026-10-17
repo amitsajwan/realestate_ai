@@ -218,8 +218,10 @@ def test_a_headline_and_a_line_never_make_an_article():
     facts = Facts([Fact("a", "a"), Fact("b", "b"), Fact("c", "c")], NOW)
     thin = Research(sources=[SourceDoc("Punekar News", MAIN_URL, MAIN.title, MAIN.text, role="main", full=False)])
     assert not can_be_article(MAIN, facts, thin) and not can_be_article(MAIN, facts, None)
-    full = Research(sources=[SourceDoc("Punekar News", MAIN_URL, MAIN.title, " ".join(MAIN_PARAS), role="main", full=True)])
-    assert len(full.sources[0].text) >= ARTICLE_MIN_CHARS
+    one = SourceDoc("Punekar News", MAIN_URL, MAIN.title, " ".join(MAIN_PARAS), role="main", full=True)
+    assert len(one.text) >= ARTICLE_MIN_CHARS
+    assert not can_be_article(MAIN, facts, Research(sources=[one]))  # one publisher alone is not a researched report
+    full = Research(sources=[one, SourceDoc("Hindustan Times", "https://www.hindustantimes.com/x", "t", "u", full=True)])
     assert can_be_article(MAIN, facts, full)
     assert not can_be_article(MAIN, Facts(facts.facts[:2], NOW), full)  # too few facts for an article
 
@@ -271,7 +273,8 @@ async def test_background_from_the_area_guide_is_labelled_and_passes_the_checks(
                  text, NOW - timedelta(hours=3), NOW)
     bg = rs.background_for(["wagholi"], f"{it.title} {text}")
     assert any("approved is not the same as running" in b for b in bg)
-    r = Research([SourceDoc("Punekar News", it.url, it.title, text, role="main", full=True)], bg, "Avasetu area guide")
+    r = Research([SourceDoc("Punekar News", it.url, it.title, text, role="main", full=True),
+                  SourceDoc("Pune Mirror", "https://punemirror.com/w", it.title, text, full=True)], bg, "Avasetu area guide")
     facts = Facts([
         Fact("Maha-Metro has started soil testing for Corridor 2B", "Maha-Metro has started soil testing for Corridor 2B between Ramwadi and Wagholi", "Punekar News"),
         Fact("The work covers 11 planned stations", "The work covers 11 planned stations along Nagar Road", "Punekar News"),

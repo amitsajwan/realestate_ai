@@ -147,17 +147,27 @@ def view(doc: dict, full: bool = True, item_ids: Optional[Dict[str, str]] = None
 
 async def find(store: Store, item_id: str) -> Optional[dict]:
     """The public item at this address: its stored id (old links), else a slug, matched by its last part, the first 6
-    characters of the stored id (the story whose current slug is exactly this address wins when two share those characters)."""
+    characters of the stored id (the story whose current slug is exactly this address wins when two share those characters).
+    A withdrawn story that repeated another (`merged_into`) answers with that story, so the site redirects old links to it."""
     doc = await store.get(item_id)
     if _is_public(doc):
         return doc
-    head, _, tail = item_id.rpartition("-")
-    if not head or not tail or len(tail) > ID_CHARS:
-        return None
-    # ids that start with `tail` sort together from `tail` onwards: one short index range, no regex
-    near = await store.items.find({"_id": {"$gte": tail}}).sort("_id", 1).limit(50).to_list(50)
-    found = [d for d in near if str(d["_id"])[:ID_CHARS].lower() == tail and _is_public(d) and not _is_digest(d)]
-    return next((d for d in found if slug(d) == item_id), found[0] if found else None)
+    if doc is None:
+        head, _, tail = item_id.rpartition("-")
+        if not head or not tail or len(tail) > ID_CHARS:
+            return None
+        # ids that start with `tail` sort together from `tail` onwards: one short index range, no regex
+        near = await store.items.find({"_id": {"$gte": tail}}).sort("_id", 1).limit(50).to_list(50)
+        near = [d for d in near if str(d["_id"])[:ID_CHARS].lower() == tail and not _is_digest(d)]
+        found = [d for d in near if _is_public(d)]
+        hit = next((d for d in found if slug(d) == item_id), found[0] if found else None)
+        if hit is not None:
+            return hit
+        doc = next((d for d in near if d.get("merged_into")), None)
+    if doc is not None and doc.get("status") == "withdrawn" and doc.get("merged_into"):
+        keeper = await store.get(doc["merged_into"])
+        return keeper if _is_public(keeper) else None
+    return None
 
 
 async def _story_ids(store: Store, doc: dict) -> Dict[str, str]:

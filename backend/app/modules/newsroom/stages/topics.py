@@ -30,7 +30,10 @@ DENY_TOPICS = [
     ("air travel", re.compile(
         r"\b(flights?|flyers?|passengers?|passenger traffic|footfall|airlines?|indigo|air india|akasa|spicejet|boarding|baggage|"
         r"check-?in|security check|immigration|parking (fee|fees|charges?|rates?)|cab (fare|fares|pick-?up)|bird hit|runway closure|"
-        r"departures?|arrivals?|domestic terminal|international terminal|terminal building|lounge)\b", re.I)),
+        r"departures?|arrivals?|domestic terminal|international terminal|terminal building|lounge|cargo|freight|tonnes|"
+        r"(full-?)?body scanners?|scanners?|digi ?yatra)\b", re.I)),
+    # school rankings and admission promotions ("School Intelligence 2027"): advertising, not news
+    ("school promotion", re.compile(r"\b(school intelligence|admissions? open|ptm|best schools?|top \d+ schools?)\b", re.I)),
     ("weather", re.compile(r"\b(weather|imd|temperature|heat ?wave|cold wave|rainfall forecast|yellow alert|orange alert)\b", re.I)),
     ("unrelated government talk", re.compile(
         r"\b(maternal|nutrition|anganwadi|vaccination|immuni[sz]ation|blood donation|health camp|child health|"

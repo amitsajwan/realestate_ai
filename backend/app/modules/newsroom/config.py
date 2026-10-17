@@ -28,6 +28,7 @@ class NewsroomConfig:
     owner_ids: Tuple[str, ...] = ()  # user ids allowed to review and approve; empty = superusers only
     read_articles: bool = False  # fetch the article page when a source gives only a headline and a line
     research: bool = True  # before writing: read the full report, other publishers' reports of the story, and our area guide
+    auto_approve: bool = False  # NEWSROOM_AUTO_APPROVE, on unless set false: a full report that passes every check is published without the owner's review (owner, 2026-10-17)
 
 
 def load() -> NewsroomConfig:
@@ -40,4 +41,5 @@ def load() -> NewsroomConfig:
         owner_ids=tuple(s.strip() for s in _env("NEWSROOM_OWNER_IDS").split(",") if s.strip()),
         read_articles=_env("NEWSROOM_READ_ARTICLES").lower() in TRUE,
         research=_env("NEWSROOM_RESEARCH", "true").lower() in TRUE,
+        auto_approve=_env("NEWSROOM_AUTO_APPROVE", "true").lower() in TRUE,
     )
