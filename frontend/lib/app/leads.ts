@@ -75,9 +75,9 @@ export function cameFromLine(lead: Pick<Lead, 'source' | 'first_touch' | 'channe
   return [channelLabel(lead.channel), from, landed, enquired].filter(Boolean).join(' · ')
 }
 
-/** Hottest first; ties keep most recent first. */
+/** Most recent activity first (owner, 2026-10-17: 'not sorted by time'); hotter first only when the time is the same. Hot is a filter. */
 export function sortLeads(leads: Lead[]): Lead[] {
-  return [...leads].sort((a, b) => b.score - a.score || b.last_activity_at.localeCompare(a.last_activity_at))
+  return [...leads].sort((a, b) => b.last_activity_at.localeCompare(a.last_activity_at) || b.score - a.score)
 }
 
 /** "₹80 L - ₹90 L", "Under ₹50 L", "₹2 Cr+", or '' when there is no budget. Money is integer rupees. */

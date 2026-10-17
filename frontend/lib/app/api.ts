@@ -35,6 +35,21 @@ import type {
   WeeklyReport,
 } from './types'
 
+/**
+ * A read that fails before reaching the server (no response at all) is tried once more after a short pause. On phones the first
+ * request after coming back from another app (WhatsApp) often dies on a stale connection, and the screen showed "Try again"
+ * although the server was fine (2026-10-17). Writes are never repeated: they might have gone through.
+ */
+export async function fetchOnceMore(run: () => Promise<Response>, method?: string, waitMs = 700): Promise<Response> {
+  try {
+    return await run()
+  } catch (e) {
+    if ((method ?? 'GET').toUpperCase() !== 'GET') throw e
+    await new Promise((r) => setTimeout(r, waitMs))
+    return run()
+  }
+}
+
 export class ApiError extends Error {
   status: number
   detail: string
@@ -128,7 +143,7 @@ export function createApiClient(opts: ClientOptions): AppApi {
     }
     let res: Response
     try {
-      res = await doFetch(`${base}/api/v1${path}`, { method: init.method ?? 'GET', headers, body })
+      res = await fetchOnceMore(() => doFetch(`${base}/api/v1${path}`, { method: init.method ?? 'GET', headers, body }), init.method)
     } catch {
       throw new ApiError(0, 'Cannot reach the server. Check your internet.')
     }

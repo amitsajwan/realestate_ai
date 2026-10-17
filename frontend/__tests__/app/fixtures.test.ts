@@ -90,9 +90,9 @@ describe('leads helpers', () => {
     expect(eventLabel({ type: 'page_view', source: null, ts: '2026-01-01T11:00:00Z' }, null, now)).toBe('Visited your website - 1h ago')
     expect(sourceLabel('whatsapp')).toBe('WhatsApp')
   })
-  it('sorts hottest first, ties most recent first', () => {
+  it('sorts most recent first, ties hottest first', () => {
     const mk = (id: string, score: number, at: string) => ({ id, score, last_activity_at: at }) as Lead
     const out = sortLeads([mk('a', 10, '2026-01-01'), mk('b', 50, '2026-01-01'), mk('c', 10, '2026-01-02')])
-    expect(out.map((l) => l.id)).toEqual(['b', 'c', 'a'])
+    expect(out.map((l) => l.id)).toEqual(['c', 'b', 'a'])
   })
 })

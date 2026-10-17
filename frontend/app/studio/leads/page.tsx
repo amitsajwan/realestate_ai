@@ -137,7 +137,7 @@ function LeadsList() {
         ]} />
       )}
       <div className="items-center justify-between gap-2 [display:flex]">
-        <p className="text-xs text-gray-600">{hot ? 'Showing hot buyers only.' : 'Hottest first.'}</p>
+        <p className="text-xs text-gray-600">{hot ? 'Showing hot buyers only.' : 'Newest first.'}</p>
         <button type="button" role="switch" aria-checked={hot} onClick={() => setHot(!hot)}
           className={`min-h-[44px] flex-none rounded-full border px-4 text-sm font-semibold ${hot ? 'border-red-600 bg-red-600 text-white' : 'border-gray-300 bg-white text-gray-700'}`}>
           🔥 Hot only

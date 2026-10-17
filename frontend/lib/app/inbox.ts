@@ -1,6 +1,6 @@
 /** Studio Inbox: every conversation (WhatsApp, Messenger/Instagram, website chat) in one list, one thread per person (backend /conversations). */
 import { API_BASE_URL } from '@/lib/config/api'
-import { ApiError, parseErrorBody } from './api'
+import { ApiError, fetchOnceMore, parseErrorBody } from './api'
 import { isFixtureMode } from './client'
 import { getToken } from './session'
 
@@ -72,7 +72,7 @@ async function call<T>(path: string, init: { method?: string; json?: unknown } =
   }
   let res: Response
   try {
-    res = await fetch(`${API_BASE_URL}/api/v1/conversations${path}`, { method: init.method ?? 'GET', headers, body })
+    res = await fetchOnceMore(() => fetch(`${API_BASE_URL}/api/v1/conversations${path}`, { method: init.method ?? 'GET', headers, body }), init.method)
   } catch {
     throw new ApiError(0, 'Cannot reach the server. Check your internet.')
   }
