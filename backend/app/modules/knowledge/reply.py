@@ -398,7 +398,9 @@ async def _llm_answer(question: str, g: Grounding, lang: str, channel: str, llm)
     if raw["answerable"] is False:
         return "no", None
     text = str(raw.get("answer") or "").strip()
-    if not valid_text(text, g.corpus(), channel, MAX_BODY[channel], strict=True) or (g.sample and not SAMPLE_WORD.search(text)):
+    # a guide's sheet is prose written for these answers: numbers and names stay checked, plain words ('resume', 'complete') may be the
+    # model's own; a home's facts keep the word check that catches invented claims
+    if not valid_text(text, g.corpus(), channel, MAX_BODY[channel], strict=not g.guide) or (g.sample and not SAMPLE_WORD.search(text)):
         return "fail", None
     return "ok", text
 
