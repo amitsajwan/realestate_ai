@@ -210,7 +210,19 @@ class TrackingService:
             ft = c.get("first_touch")
             add(key_of(c.get("source"), (ft or {}).get("referrer"), ft is not None), "leads")
         ordered = sorted(rows.values(), key=lambda r: (r["source"] == "unknown", -r["leads"], -r["chats"], -r["visitors"]))
+        for r in ordered:
+            r["posts"] = await self._posts_for_tag(agent_id, r["source"]) if r["source"] not in ("direct", "unknown") else []
         return {"days": days, "rows": ordered}
+
+    async def _posts_for_tag(self, agent_id: str, tag: str) -> list:
+        """The published posts whose caption carries this src= tag (campaign posts link the listing page with ?src=fb_<angle>),
+        newest first: so a row of the origins report opens the post that brought the visitors."""
+        rx = re.compile("src=" + re.escape(tag) + r"(?![\w-])")
+        docs = await self.db.get_collection("content_calendar").find(
+            {"caption": rx, "permalink": {"$nin": [None, ""]}, "agent_id": {"$in": [agent_id, None]}},
+            {"permalink": 1, "kind": 1, "channel": 1, "status": 1, "published_at": 1}).sort("published_at", -1).limit(3).to_list(3)
+        return [{"url": d["permalink"], "kind": d.get("kind") or "post", "channel": d.get("channel"), "published_at": d.get("published_at"),
+                 "removed": d.get("status") == "removed"} for d in docs]
 
     async def _agent_listings(self, agent_id: str) -> list:
         return await self.listings.find({"agent_id": agent_id}).to_list(500)

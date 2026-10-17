@@ -65,6 +65,12 @@ function ByPost({ links }: { links: InterestLinkStats[] }) {
   )
 }
 
+/** "16 Oct" */
+function postDate(iso: string): string {
+  const d = new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? iso : iso + 'Z')
+  return isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' })
+}
+
 function WhereFrom({ days, rows }: { days: number; rows: OriginRow[] }) {
   if (rows.length === 0) return null
   return (
@@ -84,7 +90,15 @@ function WhereFrom({ days, rows }: { days: number; rows: OriginRow[] }) {
           <tbody>
             {rows.map((r) => (
               <tr key={r.source} className={'border-b border-gray-50 last:border-0 ' + (r.source === 'unknown' ? 'text-gray-500' : 'text-gray-900')}>
-                <th scope="row" className="p-3 text-left font-medium">{sourceLabel(r.source)}</th>
+                <th scope="row" className="p-3 text-left font-medium">
+                  {sourceLabel(r.source)}
+                  {(r.posts ?? []).map((p) => (
+                    <a key={p.url} href={p.url} target="_blank" rel="noopener noreferrer"
+                      className="mt-1 block min-h-[32px] text-xs font-semibold text-blue-700 underline">
+                      Open {p.kind === 'reel' ? 'reel' : 'post'}{p.published_at ? ` (${postDate(p.published_at)})` : ''}{p.removed ? ', removed' : ''}
+                    </a>
+                  ))}
+                </th>
                 <td className="p-3 text-right tabular-nums">{r.visitors}</td>
                 <td className="p-3 text-right tabular-nums">{r.chats}</td>
                 <td className="p-3 text-right font-semibold tabular-nums">{r.leads}</td>
