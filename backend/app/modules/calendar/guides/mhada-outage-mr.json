@@ -1,0 +1,114 @@
+{
+  "slug": "mhada-outage-mr-20261018",
+  "title": "MHADA Pune lottery: MahaIT services down until 21 Oct, deadline still 22 Oct",
+  "audience": "Marathi families in Pune and PCMC applying for the MHADA Pune lottery 2026 (EWS/LIG, first home), 22-50",
+  "lang": "mr",
+  "gender": "female",
+  "due": "2026-10-18T19:00:00+05:30",
+  "channels": [
+    "instagram",
+    "facebook_page"
+  ],
+  "as_of": "2026-10-17",
+  "message": "MahaIT services are down until 21 October, the last date is still 22 October and no extension is announced: keep everything ready, and we will tell you if the date changes.",
+  "facts": [
+    "MHADA's notice: MahaIT related portal services remain unavailable from 16 October 2026 (4 pm) to 21 October 2026, for technical maintenance by MahaIT. Source: mhada.gov.in Pune page, read 17 October 2026.",
+    "MahaIT handles the domicile and income certificate checks for the lottery application. Source: Mahaenews, 17 October 2026.",
+    "The last date to apply and pay the deposit online is still 22 October 2026, 11:59 pm (23:59). Source: MHADA Pune board, extension of 14 October 2026.",
+    "Deposit paid by RTGS or NEFT from a bank is accepted until 23 October 2026, 3:59 pm (15:59). Source: MHADA Pune board.",
+    "No further extension has been announced as of 17 October 2026. Source: Mahaenews, 17 October 2026; MHADA's site shows none.",
+    "Applications are made only on MHADA's official site."
+  ],
+  "max_words": 54,
+  "must_say": [
+    "21",
+    "22",
+    "23"
+  ],
+  "never": [
+    "मुदतवाढ झाली",
+    "मुदत वाढली",
+    "पुढे ढकलली"
+  ],
+  "shots": [
+    {
+      "prompt": "A Marathi couple in their early 30s at a simple dining table in a small rented flat in the evening, the wife holding a phone and filling in an online form, the husband leaning in with a hopeful look. A plain wall behind them with nothing on it.",
+      "screen": "MHADA अर्ज *अडकलाय*?",
+      "voice": "MHADA पुणे लॉटरीचा अर्ज अडकलाय? हे आधी ऐका."
+    },
+    {
+      "prompt": "Close-up over the shoulder of a woman's hands holding a phone, about to tap a button, a cup of tea and a small notebook on a wooden table, soft evening light, the phone screen blurred and unreadable.",
+      "screen": "महा-आयटी सेवा *21 ऑक्टोबर*पर्यंत बंद",
+      "voice": "महा-आयटीच्या सेवा 16 ऑक्टोबर दुपारपासून 21 ऑक्टोबरपर्यंत बंद आहेत.",
+      "lock": true
+    },
+    {
+      "prompt": "A quiet dim room of a Pune flat late at night, a phone glowing on a table, a sleeping city seen through the window, a calm but urgent mood. No clock, no calendar.",
+      "screen": "शेवटची तारीख *22 ऑक्टोबर* · रात्री 11:59",
+      "voice": "पण शेवटची तारीख अजूनही 22 ऑक्टोबर, रात्री 11:59 आहे.",
+      "lock": true
+    },
+    {
+      "prompt": "A man in his 30s at the counter of a public sector bank branch in Pune handing a payment slip to the cashier, a simple bank interior, other customers blurred in the background, no signboards.",
+      "screen": "RTGS · *23 ऑक्टोबर* दुपारी 3:59",
+      "voice": "बँकेतून RTGS ने भरणार असाल, तर 23 ऑक्टोबर दुपारी 3:59 पर्यंत.",
+      "lock": true
+    },
+    {
+      "prompt": "New affordable apartment towers, 12 to 14 floors, plain cream and light-orange paint, on the edge of Pune at sunset, a few families walking on the road in front, construction cranes far away, no signboards.",
+      "screen": "मुदतवाढ? *अजून* घोषणा नाही",
+      "voice": "मुदतवाढीची घोषणा अजून नाही. कागदपत्रं आणि पैसे तयार ठेवा.",
+      "lock": true
+    },
+    {
+      "prompt": "The same kind of young Marathi couple standing on a small balcony of a new flat at golden hour, smiling and looking at the view, a few plants in pots, happy and hopeful.",
+      "screen": "तारीख बदलली तर *आम्ही सांगू*",
+      "voice": "तारीख बदलली तर आम्ही लगेच सांगू. फॉलो करा."
+    }
+  ],
+  "hook": "MHADA पुणे लॉटरी: महा-आयटी सेवा 21 ऑक्टोबरपर्यंत बंद, शेवटची तारीख अजून 22 ऑक्टोबर",
+  "hook_type": "update",
+  "caption": "MHADA Pune Lottery 2026 update | म्हाडा पुणे लॉटरी: महा-आयटी सेवा बंद, शेवटची तारीख काय?\n\n⚠️ MHADA च्या सूचनेनुसार महा-आयटीशी संबंधित पोर्टल सेवा 16 ऑक्टोबर (दुपारी 4) ते 21 ऑक्टोबर 2026 पर्यंत बंद आहेत. अधिवास आणि उत्पन्न दाखल्याची पडताळणी याच सेवांमधून होते.\n\n📅 अर्ज आणि ऑनलाइन पेमेंटची शेवटची तारीख अजूनही: 22 ऑक्टोबर, रात्री 11:59\n🏦 RTGS / NEFT: 23 ऑक्टोबर, दुपारी 3:59 पर्यंत\n❓ मुदतवाढ: 17 ऑक्टोबरपर्यंत अधिकृत घोषणा नाही\n\n✅ कागदपत्रं आणि अनामत रक्कम तयार ठेवा. सेवा सुरू होताच अर्ज पूर्ण करा, शेवटच्या दिवसाची वाट पाहू नका.\n\n🔔 तारीख बदलली तर आम्ही लगेच पोस्ट करू. फॉलो करा, अर्ज करणाऱ्या मित्राला पाठवा.\n\n🌐 अधिकृत साइट: https://housing.mhada.gov.in/\n⚠️ अर्ज फक्त अधिकृत साइटवर करा. अर्जासाठी कोणालाही पैसे देऊ नका.\n\nव्हिडिओतील छायाचित्रे प्रतीकात्मक आहेत.\n\n#MHADAPune #MhadaLottery2026 #म्हाडासोडत #PuneHousing #PCMC",
+  "reply_facts": [
+    "MHADA's notice says MahaIT related portal services are unavailable from 16 October 2026, 4 pm, to 21 October 2026, for technical maintenance by MahaIT; MahaIT handles the domicile and income certificate checks.",
+    "The last date to apply and pay the deposit online is still 22 October 2026, 11:59 pm; RTGS/NEFT payment by 23 October 2026, 3:59 pm. No further extension had been announced as of 17 October 2026.",
+    "The draw is planned for 4 December 2026.",
+    "The homes in this lottery are located in Pune city, Pimpri-Chinchwad and the PMRDA area only.",
+    "Applications are made only on MHADA's official site; Avasetu does not take applications or money.",
+    "The pictures in the reel are illustrations, not the lottery's actual buildings."
+  ],
+  "reply_faq": [
+    {
+      "q": "Site is not working, portal down, server down, certificate verification stuck, domicile or income certificate pending?",
+      "a": "MHADA's notice says MahaIT related services are down from 16 October, 4 pm, to 21 October 2026 for maintenance, and the certificate checks go through them. Keep your documents and the deposit ready and finish as soon as the services are back."
+    },
+    {
+      "q": "Will the date be extended, is there an extension, mudatvadh?",
+      "a": "No extension had been announced as of 17 October; the last date is still 22 October 2026, 11:59 pm. If MHADA changes it, we will post it straight away."
+    },
+    {
+      "q": "What is the last date, RTGS NEFT payment last date, was it 15 October?",
+      "a": "Apply and pay the deposit online by 22 October 2026, 11:59 pm (extended on 14 October from 15 October). By RTGS/NEFT from your bank, by 23 October 2026, 3:59 pm."
+    },
+    {
+      "q": "How do I check whether my payment went through, application status, receipt?",
+      "a": "Log in on MHADA's official housing site with the username you made when you registered; your application and its status show on your dashboard. Keep the receipt you got after paying."
+    },
+    {
+      "q": "Where do I apply, which site, apply kahan karna hai?",
+      "a": "Only on MHADA's official housing site (the link is in the caption). Avasetu does not take applications or money, and nobody needs to be paid to apply."
+    },
+    {
+      "q": "When is the draw, result date?",
+      "a": "The draw is planned for 4 December 2026. If MHADA changes the date, we will post it."
+    },
+    {
+      "q": "Where are the homes, is it in Nashik, Sambhajinagar, Nagpur, Wardha or another district?",
+      "a": "The homes in this MHADA Pune board lottery are only in Pune city, Pimpri-Chinchwad and the PMRDA area. Other districts come under other MHADA boards with their own lotteries; we will post about them soon."
+    },
+    {
+      "q": "Are these the actual flats in the video?",
+      "a": "No, the pictures in the video are illustrations. The actual homes, their prices and sizes are listed scheme by scheme on MHADA's official site."
+    }
+  ]
+}

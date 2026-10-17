@@ -12,11 +12,11 @@ off the row). From it:
      SYMBOLIC on screen; a shot with no picture falls back to the branded background;
   3. two rows (Instagram, Facebook), status approved, due at the guide's time, the words, pictures and reply sheet on each;
   4. the renderer (Cloud Run, calendar pre-render) draws the video before the due time: the voice (Gemini, narration.spoken_lines),
-     music of the guide's mood ducked under it, reels.compose (render_row).
+     no music unless the guide names a mood in "music", reels.compose (render_row).
 
-    scripts/guide_reel.py write mhada-deadline-mr      # the team's words only (a minute; nothing drawn or posted)
-    scripts/guide_reel.py plan mhada-deadline-mr       # words + pictures, and the two rows (approved, no video yet)
-    scripts/guide_reel.py render mhada-deadline-mr     # draw the video now (the renderer does it by itself before the due time)
+    scripts/guide_reel.py write mhada-outage-mr      # the team's words only (a minute; nothing drawn or posted)
+    scripts/guide_reel.py plan mhada-outage-mr       # words + pictures, and the two rows (approved, no video yet)
+    scripts/guide_reel.py render mhada-outage-mr     # draw the video now (the renderer does it by itself before the due time)
 """
 import json
 import logging
@@ -154,9 +154,10 @@ def _brief(guide: Guide) -> str:
 
 
 def locked(beats: List[Dict[str, str]], guide: Guide) -> List[Dict[str, str]]:
-    """A shot marked `"lock": true` keeps the guide's own screen line (its date and time exactly as written: most people watch
-    muted, so a deadline must be on screen; 2026-10-17 the editor swapped '22 ऑक्टोबर · रात्री 11:59' for 'फक्त 5 दिवस बाकी')."""
-    return [{**b, "screen": s["screen"]} if s.get("lock") else b for b, s in zip(beats, guide["shots"])]
+    """A shot marked `"lock": true` keeps the guide's own screen and spoken lines, word for word: a date or time is said and shown
+    exactly as checked. Live 2026-10-17 the editor swapped '22 ऑक्टोबर · रात्री 11:59' for 'फक्त 5 दिवस बाकी' on screen, then said
+    'रात्री बारापर्यंत' for 11:59 pm and 'दुपारी ४' for 3:59 pm (the 4 passed the number check: '4 pm' was in another fact)."""
+    return [{"screen": s["screen"], "voice": s["voice"]} if s.get("lock") else b for b, s in zip(beats, guide["shots"])]
 
 
 async def write(guide: Guide, llm: Any = None) -> Tuple[List[Dict[str, str]], Dict[str, Any]]:
@@ -257,10 +258,10 @@ async def prepare(guide: Guide, uploads: Path, llm: Any = None, say=lambda s: No
 
 
 def render(beats: Sequence[Dict[str, str]], photos: Sequence[Optional[Path]], drawn: Sequence[bool], out: Path, lang: str = "mr",
-           gender: str = "female", mood: str = "calm", seed: str = "guide") -> Tuple[Path, float]:
-    """The voiced reel: each scene lasts as long as its spoken line (at least MIN_SCENE), the music ducked under the voice."""
+           gender: str = "female", music: Optional[str] = None, seed: str = "guide") -> Tuple[Path, float]:
+    """The voiced reel: each scene lasts as long as its spoken line (at least MIN_SCENE). Voice only unless `music` names a mood
+    (owner 2026-10-17 on the first guide reel: the music bed sounded like "tisss tisss"; no music)."""
     from app.modules.reels import ffmpeg
-    from app.modules.reels.music import write as write_music
     work = Path(tempfile.mkdtemp(prefix="guide-"))
     clips = narration.spoken_lines([b["voice"] for b in beats], lang, gender, work)
     durs = stretch([max(MIN_SCENE, ffmpeg.probe(c).duration + 0.45) for c in clips], XFADE)
@@ -269,7 +270,10 @@ def render(beats: Sequence[Dict[str, str]], photos: Sequence[Optional[Path]], dr
                     badge=badge if drawn[i] else None, seconds=durs[i], seed=f"{seed}-{i}")
               for i, b in enumerate(beats)]
     tl = plan(durs, XFADE, max_total=60.0)
-    bed = write_music(work / "bed.wav", seconds=tl.total + 1.0, mood=mood)
+    bed = None
+    if music:
+        from app.modules.reels.music import write as write_music
+        bed = write_music(work / "bed.wav", seconds=tl.total + 1.0, mood=music)
     audio = narration.mix(work, clips, tl.starts, tl.total, bed)
     return make_reel(scenes, out, music=audio, transition="fade", xfade=XFADE, max_seconds=60.0), tl.total
 
@@ -283,7 +287,7 @@ def render_row(doc: dict, uploads: Path) -> str:
     if not (dest.is_file() and dest.stat().st_size > 0):
         photos = [Path(uploads) / p if p else None for p in c.get("pictures") or []]
         render(c["beats"], photos, c.get("drawn") or [False] * len(photos), dest, c.get("lang", "mr"), c.get("gender", "female"),
-               c.get("mood", "calm"), seed=slug)
+               c.get("music"), seed=slug)
     return dest.resolve().relative_to(Path(uploads).resolve()).as_posix()
 
 
@@ -300,7 +304,7 @@ async def schedule(store, guide: Guide, prep: Prepared, status: str = "approved"
         creative = {"role": "buyer", "source": "guide_reels", "template": "guide", "reel_key": guide.slug, "ref": guide.name,
                     "path": "guide", "layout": "reel", "ok": True, "hook": guide.get("hook") or prep.beats[0]["voice"],
                     "hook_type": guide.get("hook_type", "guide"), "lang": guide.lang, "gender": guide.get("gender", "female"),
-                    "mood": guide.get("mood", "calm"), "audience": "buyers", "as_of": guide.get("as_of"), "beats": prep.beats,
+                    "music": guide.get("music"), "audience": "buyers", "as_of": guide.get("as_of"), "beats": prep.beats,
                     "script": [b["voice"] for b in prep.beats], "pictures": prep.pictures, "drawn": prep.drawn,
                     "words_by": prep.note.get("made_by")}
         ids.append(await store.add(guide.slug, ch, guide["caption"], cover, due, kind="reel", status=status, images=[cover],

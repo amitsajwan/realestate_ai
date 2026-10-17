@@ -1,12 +1,12 @@
 """Guide reels (app/modules/calendar/guide_reels.py): the team's words, the pictures, the voiced video, and the rows that post it.
 
-  PYTHONPATH=. python scripts/guide_reel.py write mhada-deadline-mr              the team's words only (nothing drawn or posted)
-  PYTHONPATH=. python scripts/guide_reel.py plan mhada-deadline-mr               words + pictures + the Instagram and Facebook rows
+  PYTHONPATH=. python scripts/guide_reel.py write mhada-outage-mr              the team's words only (nothing drawn or posted)
+  PYTHONPATH=. python scripts/guide_reel.py plan mhada-outage-mr               words + pictures + the Instagram and Facebook rows
                                                                                  (approved; the renderer draws the video before they are due)
-  PYTHONPATH=. python scripts/guide_reel.py render mhada-deadline-mr             draw the video now and put it on the rows
+  PYTHONPATH=. python scripts/guide_reel.py render mhada-outage-mr             draw the video now and put it on the rows
 A hand-made picture for shot n goes in uploads/calendar/guides/<slug>/own/<n>.jpg; delete <n>.png there to have a shot drawn again.
-On the server: docker compose exec -T -e PYTHONPATH=. media python scripts/guide_reel.py plan mhada-deadline-mr
-On Cloud Run: gcloud run jobs execute renderer --region asia-south1 --args=scripts/guide_reel.py,render,mhada-deadline-mr
+On the server: docker compose exec -T -e PYTHONPATH=. media python scripts/guide_reel.py plan mhada-outage-mr
+On Cloud Run: gcloud run jobs execute renderer --region asia-south1 --args=scripts/guide_reel.py,render,mhada-outage-mr
 """
 import argparse
 import asyncio
