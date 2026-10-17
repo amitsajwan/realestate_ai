@@ -9,6 +9,8 @@ import type { ChatConversation, FacebookInterest, FacebookStatus } from '@/lib/a
 import { getNotifications, getWhatsAppConversations, markNotificationRead, REPLY_STATUS_LABEL, type WhatsAppConversation } from '@/lib/app/whatsapp'
 import { getInterestReport, type InterestLinkStats } from '@/lib/app/interestReport'
 import { BRAND_NAME } from '@/lib/brand'
+import { sourceLabel } from '@/lib/app/leads'
+import { getOrigins, type OriginRow } from '@/lib/app/origins'
 
 const CHIP: Record<string, string> = {
   interested: 'bg-green-100 text-green-800',
@@ -63,6 +65,49 @@ function ByPost({ links }: { links: InterestLinkStats[] }) {
   )
 }
 
+function WhereFrom({ days, rows }: { days: number; rows: OriginRow[] }) {
+  if (rows.length === 0) return null
+  return (
+    <section aria-label="Where people come from" className="space-y-2">
+      <h2 className="text-lg font-bold">Where people come from</h2>
+      <p className="text-sm text-gray-600">Last {days} days. Visitors = people who opened your site; chats = website chats; leads = people who left their number.</p>
+      <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-100 text-left text-gray-600">
+              <th scope="col" className="p-3 font-semibold">From</th>
+              <th scope="col" className="p-3 text-right font-semibold">Visitors</th>
+              <th scope="col" className="p-3 text-right font-semibold">Chats</th>
+              <th scope="col" className="p-3 text-right font-semibold">Leads</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.source} className={'border-b border-gray-50 last:border-0 ' + (r.source === 'unknown' ? 'text-gray-500' : 'text-gray-900')}>
+                <th scope="row" className="p-3 text-left font-medium">{sourceLabel(r.source)}</th>
+                <td className="p-3 text-right tabular-nums">{r.visitors}</td>
+                <td className="p-3 text-right tabular-nums">{r.chats}</td>
+                <td className="p-3 text-right font-semibold tabular-nums">{r.leads}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-xs text-gray-500">
+        Direct = no referring site: typed, saved, or opened inside an app (Instagram, WhatsApp) that hides it. Use the tagged link of each post to see which post brought them.
+        {rows.some((r) => r.source === 'unknown') ?' Not recorded = before 17 Oct, when pages started being tracked.' : ''}
+      </p>
+    </section>
+  )
+}
+
+/** "From Google · chatted on /projects/x", or '' for chats from before pages were tracked. */
+function chatFromLine(c: ChatConversation): string {
+  if (!c.origin || !c.from) return ''
+  return [`From ${sourceLabel(c.from)}`, c.origin.landing ? `landed on ${c.origin.landing}` : '',
+    c.page_path && c.page_path !== c.origin.landing ? `chatted on ${c.page_path}` : ''].filter(Boolean).join(' · ')
+}
+
 function WhatsAppChats({ chats }: { chats: WhatsAppConversation[] }) {
   const needs = chats.filter((c) => c.needs_human && !c.opted_out).length
   return (
@@ -106,6 +151,7 @@ export default function InterestPage() {
     fb: await api.getFacebookStatus().catch(() => null as FacebookStatus | null),
     whatsapp: await getWhatsAppConversations().catch(() => [] as WhatsAppConversation[]),
     links: await getInterestReport().catch(() => [] as InterestLinkStats[]),
+    origins: await getOrigins(7).catch(() => ({ days: 7, rows: [] as OriginRow[] })),
   }), [])
   const waCount = data?.whatsapp?.length ?? 0
   React.useEffect(() => {
@@ -128,7 +174,8 @@ export default function InterestPage() {
       {(data?.fb?.reconnect || data?.fb?.instagram?.reconnect) && (
         <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-800">The Facebook connection has stopped working, so comments are not being answered right now. Ask your {BRAND_NAME} admin to reconnect it.</p>
       )}
-      <p className="text-sm text-gray-600">People who commented on your posts on the {BRAND_NAME} Page and Instagram. Interested people are answered automatically; questions we cannot answer wait here for you.</p>
+      <p className="text-sm text-gray-600">Everyone who showed interest: where they came from, website and WhatsApp chats, and comments on your posts on the {BRAND_NAME} Page and Instagram. Interested people are answered automatically; questions we cannot answer wait here for you.</p>
+      {data?.origins && <WhereFrom days={data.origins.days} rows={data.origins.rows} />}
       <ByPost links={data?.links ?? []} />
       {whatsapp.length > 0 && <WhatsAppChats chats={whatsapp} />}
       {chats.length > 0 && (
@@ -144,6 +191,7 @@ export default function InterestPage() {
                   </span>
                 </div>
                 <p className="text-sm text-gray-700">{c.summary}</p>
+                {chatFromLine(c) && <p className="break-words text-xs text-gray-500">{chatFromLine(c)}</p>}
                 {c.questions.length > 0 && <p className="text-sm text-gray-600">Asked: {c.questions.map((q) => `"${q}"`).join(' · ')}</p>}
                 {c.needs_human && <p className="text-sm font-semibold text-amber-900">They asked something we could not answer and have not left a number. If they come back and share it, it will appear in Leads.</p>}
               </li>

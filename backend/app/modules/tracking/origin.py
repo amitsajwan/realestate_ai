@@ -37,6 +37,29 @@ def referrer_source(referrer: Optional[str]) -> Optional[str]:
     return host[4:] if host.startswith("www.") else host
 
 
+def source_key(source: Optional[str], referrer: Optional[str]) -> str:
+    """One name to group by: a tagged link (src=) wins, then the referring site, else 'direct' (typed, bookmarked, or an app that hides it)."""
+    return (source or referrer_source(referrer) or "direct").lower()
+
+
+def channel_of(c: dict) -> str:
+    """How a lead reached us: form | chat | whatsapp | dm | comment | post_link. Stored on new leads; worked out for older ones."""
+    if c.get("channel"):
+        return c["channel"]
+    anon = c.get("anon_ids") or []
+    if c.get("interest_code"):
+        return "post_link"
+    if any(a.startswith("whatsapp:") for a in anon):
+        return "whatsapp"
+    if any("_dm:" in a for a in anon):
+        return "dm"
+    if c.get("source") == "chat" or any(a.startswith("chat-") for a in anon):
+        return "chat"
+    if (c.get("source") or "").endswith("_comment") and any(a.startswith(("facebook:", "instagram:")) for a in anon):
+        return "comment"
+    return "form"
+
+
 def touch_fields(e) -> dict:
     """The page fields stored on every event."""
     return {"path": e.path, "landing": e.landing, "referrer": e.referrer}

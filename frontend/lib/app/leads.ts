@@ -1,7 +1,7 @@
 import { formatInr, timeAgo, waDigits } from './format'
 import { whatsappChatUrl } from './share'
 import { t } from './strings'
-import type { Financing, Lead, LeadEvent, NextActionType, Requirement, Timeline } from './types'
+import type { Financing, Lead, LeadChannel, LeadEvent, NextActionType, Requirement, Timeline } from './types'
 
 const VERBS: Record<string, string> = {
   page_view: 'Visited your website',
@@ -12,11 +12,30 @@ const VERBS: Record<string, string> = {
   inquiry: 'Sent an enquiry about',
 }
 
-const SOURCES: Record<string, string> = { whatsapp: 'WhatsApp', instagram: 'Instagram', facebook: 'Facebook', direct: 'Direct', fbgroup: 'Facebook group', facebook_comment: 'Facebook comment', chat: 'Website chat' }
+const SOURCES: Record<string, string> = {
+  whatsapp: 'WhatsApp', instagram: 'Instagram', facebook: 'Facebook', direct: 'Direct', fbgroup: 'Facebook group', facebook_comment: 'Facebook comment',
+  instagram_comment: 'Instagram comment', chat: 'Website chat', google: 'Google', bing: 'Bing', youtube: 'YouTube', chatgpt: 'ChatGPT',
+  twitter: 'X (Twitter)', linkedin: 'LinkedIn', reddit: 'Reddit', perplexity: 'Perplexity', unknown: 'Not recorded',
+}
 
 export function sourceLabel(source?: string | null): string {
   if (!source) return ''
   return SOURCES[source.toLowerCase()] ?? source.charAt(0).toUpperCase() + source.slice(1)
+}
+
+const CHANNELS: Record<LeadChannel, string> = {
+  form: 'Enquiry form', chat: 'Website chat', whatsapp: 'WhatsApp message', dm: 'Direct message', comment: 'Comment on a post', post_link: 'Post link',
+}
+
+/** How they reached us: "Enquiry form", "Website chat", ... */
+export function channelLabel(channel?: LeadChannel | null): string {
+  return channel ? CHANNELS[channel] ?? channel : ''
+}
+
+/** Where they came from, one key per lead: the source (tag or referring site), 'direct' when tracked but no referrer, else 'unknown'. */
+export function originKey(lead: Pick<Lead, 'source' | 'first_touch'>): string {
+  const s = lead.source && lead.source !== 'chat' ? lead.source.toLowerCase() : ''
+  return s || (lead.first_touch ? 'direct' : 'unknown')
 }
 
 /** "Viewed 2 BHK in Baner - Instagram - 2h ago" */
@@ -35,16 +54,18 @@ function referrerHost(url: string): string {
   }
 }
 
-/** "Came from Google (www.google.com) · landed on /projects/x · enquired on /agent/avasetu", or '' when nothing is known. */
-export function cameFromLine(lead: Pick<Lead, 'source' | 'first_touch'>): string {
+/** "Enquiry form · Came from Google (www.google.com) · landed on /projects/x · enquired on /agent/avasetu". */
+export function cameFromLine(lead: Pick<Lead, 'source' | 'first_touch' | 'channel'>): string {
   const ft = lead.first_touch
-  if (!ft) return ''
-  const from = ft.referrer
-    ? `Came from ${sourceLabel(lead.source) || referrerHost(ft.referrer)}${lead.source ? ` (${referrerHost(ft.referrer)})` : ''}`
-    : lead.source ? `Came from ${sourceLabel(lead.source)}` : 'Came directly (no referring site)'
-  const landed = ft.landing ? `landed on ${ft.landing}` : ''
-  const enquired = ft.enquiry_page && ft.enquiry_page !== ft.landing ? `enquired on ${ft.enquiry_page}` : ''
-  return [from, landed, enquired].filter(Boolean).join(' · ')
+  const key = originKey(lead)
+  let from: string
+  if (ft?.referrer) from = `Came from ${key !== 'direct' ? sourceLabel(key) : referrerHost(ft.referrer)} (${referrerHost(ft.referrer)})`
+  else if (key === 'direct') from = 'Came directly (no referring site: typed, saved, or an app that hides it)'
+  else if (key === 'unknown') from = 'Where they came from was not recorded (before 17 Oct)'
+  else from = `Came from ${sourceLabel(key)}`
+  const landed = ft?.landing ? `landed on ${ft.landing}` : ''
+  const enquired = ft?.enquiry_page && ft.enquiry_page !== ft.landing ? `enquired on ${ft.enquiry_page}` : ''
+  return [channelLabel(lead.channel), from, landed, enquired].filter(Boolean).join(' · ')
 }
 
 /** Hottest first; ties keep most recent first. */

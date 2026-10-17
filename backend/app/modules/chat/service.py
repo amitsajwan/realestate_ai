@@ -12,7 +12,7 @@ from app.modules.knowledge.grounding import Ref, facts_for
 from app.modules.listings.freshness import is_hidden
 from app.platform.text import money
 from app.modules.notifications.service import notify
-from app.modules.tracking import matching
+from app.modules.tracking import matching, origin
 from app.modules.tracking import requirement as rq
 from app.modules.tracking.schemas import InquiryIn
 from app.modules.tracking.service import TrackingError
@@ -83,7 +83,9 @@ class ChatService:
         docs = await self.sessions.find({"agent_slug": profile["slug"]}).sort("updated_at", -1).limit(limit).to_list(limit)
         return [{"id": d["_id"][-8:], "updated_at": d.get("updated_at"), "needs_human": bool(d.get("needs_human")) and not d.get("lead_created"),
                  "lead_created": bool(d.get("lead_created")), "summary": engine.summary(d["data"]), "questions": d["data"].get("questions", [])[-3:], "missing": d["data"].get("missing", [])[-3:],
-                 "name": d["data"].get("name"), "messages": len(d.get("messages", []))} for d in docs if d.get("messages")]
+                 "name": d["data"].get("name"), "messages": len(d.get("messages", [])), "origin": d.get("origin"), "page_path": d.get("page_path"),
+                 "from": origin.source_key(d["origin"].get("source"), d["origin"].get("referrer")) if d.get("origin") else None}
+                for d in docs if d.get("messages")]
 
     async def _public_listing(self, lid) -> Optional[dict]:
         if not lid or not ID_RX.match(str(lid)):
@@ -161,7 +163,11 @@ class ChatService:
         doc = await self.db.get_collection("contacts").find_one({"agent_id": agent_id, "phone": phone})
         return doc["_id"] if doc else None
 
-    async def message(self, session_id: str, agent_slug: str, text: str, source: Optional[str] = None, context: Optional[dict] = None) -> dict:
+    async def message(self, session_id: str, agent_slug: str, text: str, source: Optional[str] = None, context: Optional[dict] = None,
+                      visit: Optional[dict] = None) -> dict:
+        """`visit`: {anon_id, path, landing, referrer} from the site's tracking, so a chat lead knows where the visitor came from."""
+        visit = visit or {}
+        tag = source if source and source != "chat" else None  # 'chat' is the old default, not a place they came from
         if not SESSION_RX.match(session_id or ""):
             raise ChatError("Invalid session")
         text = (text or "").strip()
@@ -172,7 +178,10 @@ class ChatService:
             raise ChatError("Unknown site", 404)
         now = self.now()
         s = await self.sessions.find_one({"_id": session_id}) or {
-            "_id": session_id, "agent_slug": agent_slug, "created_at": now, "data": engine.new_data(localise=True), "messages": [], "hits": []}
+            "_id": session_id, "agent_slug": agent_slug, "created_at": now, "data": engine.new_data(localise=True), "messages": [], "hits": [],
+            "origin": {"source": tag, "landing": visit.get("landing"), "referrer": visit.get("referrer")}}
+        if visit.get("path"):
+            s["page_path"] = visit["path"]  # the page of the latest message
         s["hits"] = [h for h in s.get("hits", []) if h > now - timedelta(hours=1)]
         if len(s["hits"]) >= MAX_PER_HOUR:
             return {"reply": "You have sent a lot of messages in a short time. Please try again a little later.", "quick_replies": [], "lead_created": False,
@@ -197,8 +206,10 @@ class ChatService:
         if t.lead:
             try:
                 await self.tracking.capture_inquiry(InquiryIn(
-                    agent_slug=agent_slug, anon_id=("chat-" + session_id)[:64], source=(source or "chat")[:40], consent=True,
-                    listing_id=(page or {}).get("listing_id"), **t.lead))
+                    agent_slug=agent_slug, anon_id=visit.get("anon_id") or ("chat-" + session_id)[:64], source=tag, consent=True, channel="chat",
+                    listing_id=(page or {}).get("listing_id"), path=visit.get("path"),
+                    landing=(s.get("origin") or {}).get("landing") or visit.get("landing"),
+                    referrer=(s.get("origin") or {}).get("referrer") or visit.get("referrer"), **t.lead))
                 lead_created = True
             except TrackingError as e:  # e.g. too many enquiries from this number: keep chatting, tell the visitor kindly
                 log.info("chat lead not stored: %s", e)

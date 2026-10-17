@@ -7,7 +7,7 @@ import { OutcomeBadge } from '@/components/app/OutcomeSheets'
 import { ErrorBox, PageTitle, STAGES, Spinner, TempChip } from '@/components/app/ui'
 import { api } from '@/lib/app/client'
 import { displayPhone, timeAgo } from '@/lib/app/format'
-import { buildWhatsappUrl, sortLeads, sourceLabel } from '@/lib/app/leads'
+import { buildWhatsappUrl, channelLabel, originKey, sortLeads, sourceLabel } from '@/lib/app/leads'
 import { t } from '@/lib/app/strings'
 import { useAsync } from '@/lib/app/useAsync'
 import type { Lead, TodayFollowUp } from '@/lib/app/types'
@@ -52,7 +52,8 @@ function LeadRow({ lead, title, due }: { lead: Lead; title?: string; due?: Today
         <p className="text-sm text-gray-500">{displayPhone(lead.phone)}</p>
         {lead.message && <p className="mt-1 truncate text-sm text-gray-700">“{lead.message}”</p>}
         <p className="mt-1 truncate text-xs text-gray-500">
-          {[sourceLabel(lead.source), title ?? '', timeAgo(lead.last_activity_at)].filter(Boolean).join(' - ')}
+          {[channelLabel(lead.channel), originKey(lead) !== 'unknown' ? `from ${sourceLabel(originKey(lead))}` : '',
+            title ?? lead.first_touch?.enquiry_page ?? '', timeAgo(lead.last_activity_at)].filter(Boolean).join(' · ')}
         </p>
       </Link>
       {lead.phone && (
@@ -100,7 +101,24 @@ function LeadsList() {
   }, [data, initial])
   const [tab, setTab] = useUrlTab('tab', legacy?.tab ?? initial ?? 'all', TABS)
 
-  const leads = (data?.leads ?? []).filter((l) => !hot || (l.temperature === 'hot' && isOpen(l)))
+  const [from, setFrom] = useState<string>(params?.get('from') ?? '')
+  const pickFrom = (k: string) => {
+    const next = from === k ? '' : k
+    setFrom(next)
+    if (typeof window !== 'undefined') {
+      const u = new URL(window.location.href)
+      if (next) u.searchParams.set('from', next)
+      else u.searchParams.delete('from')
+      window.history.replaceState(window.history.state, '', u.toString())
+    }
+  }
+  // where leads came from: counts over every lead, most first, 'not recorded' last
+  const fromCounts = Object.entries((data?.leads ?? []).reduce<Record<string, number>>((m, l) => {
+    const k = originKey(l)
+    m[k] = (m[k] ?? 0) + 1
+    return m
+  }, {})).sort((a, b) => Number(a[0] === 'unknown') - Number(b[0] === 'unknown') || b[1] - a[1])
+  const leads = (data?.leads ?? []).filter((l) => (!hot || (l.temperature === 'hot' && isOpen(l))) && (!from || originKey(l) === from))
   const due = new Map((data?.followUps ?? []).map((f) => [f.id, f]))
   const inTab = (k: string) =>
     k === 'all' ? leads
@@ -125,6 +143,19 @@ function LeadsList() {
           🔥 Hot only
         </button>
       </div>
+      {fromCounts.length > 1 && (
+        <div role="group" aria-label="Where leads came from" className="-mx-1 overflow-x-auto">
+          <div className="gap-2 px-1 [display:flex]">
+            <span className="flex-none self-center text-xs text-gray-600">From:</span>
+            {fromCounts.map(([k, n]) => (
+              <button key={k} type="button" aria-pressed={from === k} onClick={() => pickFrom(k)}
+                className={`min-h-[36px] flex-none rounded-full border px-3 text-sm ${from === k ? 'border-blue-600 bg-blue-600 font-semibold text-white' : 'border-gray-300 bg-white text-gray-700'}`}>
+                {sourceLabel(k)} {n}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       {loading && !data && <Spinner />}
       {error && <ErrorBox message={error} onRetry={reload} />}
       {data && shown.length === 0 && (

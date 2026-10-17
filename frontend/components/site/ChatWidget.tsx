@@ -1,7 +1,7 @@
 'use client'
 import React, { useEffect, useRef, useState } from 'react'
 import { API_BASE_URL } from '@/lib/config/api'
-import { readAttribution } from '@/lib/site/tracking'
+import { getAnonId, readAttribution, readVisitPages } from '@/lib/site/tracking'
 import { chatContextFromPath } from '@/lib/site/chatContext'
 import { cardFacts, parseChatReply, WHATSAPP_QUICK, type ChatCard } from '@/lib/site/chatApi'
 import { BRAND_NAME } from '@/lib/brand'
@@ -102,7 +102,7 @@ export default function ChatWidget({ agentSlug, bottomBar = true }: { agentSlug:
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/chat/message`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_id: sessionId(), agent_slug: agentSlug, message: m, source: readAttribution().source || 'chat', context: chatContextFromPath(window.location.pathname) }),
+        body: JSON.stringify({ session_id: sessionId(), agent_slug: agentSlug, message: m, source: readAttribution().source, context: chatContextFromPath(window.location.pathname), anon_id: getAnonId(), ...readVisitPages() }),
       })
       if (!res.ok) throw new Error(String(res.status))
       const data = parseChatReply(await res.json())

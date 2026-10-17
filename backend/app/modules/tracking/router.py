@@ -54,6 +54,12 @@ async def lead_detail(lead_id: str, user: User = Depends(current_active_user),
         raise _http(e)
 
 
+@inbox_router.get("/origins")
+async def lead_origins(days: int = Query(7, ge=1, le=90), user: User = Depends(current_active_user),
+                       svc: TrackingService = Depends(get_service)):
+    return await svc.origins(str(user.id), days)
+
+
 @inbox_router.get("/today")
 async def business_today(user: User = Depends(current_active_user), svc: TrackingService = Depends(get_service)):
     return await svc.today(str(user.id))

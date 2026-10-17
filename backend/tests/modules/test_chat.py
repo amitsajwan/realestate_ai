@@ -178,7 +178,8 @@ async def test_service_creates_exactly_one_lead_with_consent_and_source():
     r = await s.message(SID, "rahul", "9822012345")
     assert r["lead_created"] and len(tr.inquiries) == 1
     i = tr.inquiries[0]
-    assert i.consent is True and i.source == "chat" and i.agent_slug == "rahul" and i.phone == "+919822012345" and i.name == "Meera Joshi"
+    # 'chat' is how they reached us (channel); source stays for where they came from (no tag here)
+    assert i.consent is True and i.channel == "chat" and i.source is None and i.agent_slug == "rahul" and i.phone == "+919822012345" and i.name == "Meera Joshi"
     assert i.anon_id.startswith("chat-") and len(db.get_collection("chat_sessions").docs) == 1
     r = await s.message(SID, "rahul", "thanks a lot")
     assert not r["lead_created"] and len(tr.inquiries) == 1

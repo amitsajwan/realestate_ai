@@ -3,9 +3,10 @@ import os
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.core.auth_backend import current_active_user
+from app.modules.tracking.origin import clip
 from app.core.database import get_database
 from app.models.user import User
 from app.platform.llm import default_llm
@@ -29,6 +30,19 @@ class MessageIn(BaseModel):
     message: str = Field(..., min_length=1, max_length=500)
     source: Optional[str] = Field(None, max_length=40)
     context: Optional[ChatContext] = None
+    # the site's tracking: the visitor's browser id and pages, so a chat lead knows where they came from
+    anon_id: Optional[str] = Field(None, min_length=8, max_length=64)
+    path: Optional[str] = None
+    landing: Optional[str] = None
+    referrer: Optional[str] = None
+
+    @field_validator("path", "landing", "referrer")
+    @classmethod
+    def _clip(cls, v: Optional[str]) -> Optional[str]:
+        return clip(v)
+
+    def visit(self) -> dict:
+        return {"anon_id": self.anon_id, "path": self.path, "landing": self.landing, "referrer": self.referrer}
 
 
 class HomeCard(BaseModel):
@@ -63,7 +77,8 @@ def get_service() -> ChatService:
 @router.post("/message", response_model=MessageOut)
 async def chat_message(body: MessageIn, svc: ChatService = Depends(get_service)):
     try:
-        return await svc.message(body.session_id, body.agent_slug, body.message, body.source, body.context.model_dump(exclude_none=True) if body.context else None)
+        return await svc.message(body.session_id, body.agent_slug, body.message, body.source, body.context.model_dump(exclude_none=True) if body.context else None,
+                               body.visit())
     except ChatError as e:
         raise HTTPException(status_code=e.status_code, detail=str(e))
 

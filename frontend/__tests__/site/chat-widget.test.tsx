@@ -4,7 +4,9 @@ import ChatWidget, { ChatHomeCard } from '@/components/site/ChatWidget'
 import { cardFacts, parseChatReply } from '@/lib/site/chatApi'
 import { LeadAlertsBadge, alertsLabel } from '@/components/app/LeadAlertsBadge'
 
-jest.mock('@/lib/site/tracking', () => ({ readAttribution: () => ({ source: 'chat' }) }))
+jest.mock('@/lib/site/tracking', () => ({
+  readAttribution: () => ({ source: 'chat' }), getAnonId: () => 'anon12345', readVisitPages: () => ({ path: '/agent/rahul', landing: '/agent/rahul' }),
+}))
 jest.mock('@/lib/app/whatsapp', () => ({ getNotifications: jest.fn() }))
 
 const REAL = { id: 'L2', title: '2 BHK in Kharadi, east facing', locality: 'Kharadi', bhk: 2, carpet_sqft: 810, price_text: '₹76 Lakh', sample: false,

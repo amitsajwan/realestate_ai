@@ -217,6 +217,12 @@ export interface ChatConversation {
   questions: string[]
   name: string | null
   messages: number
+  /** Where the chat's visitor came from; absent on chats from before 2026-10-17. */
+  origin?: { source?: string | null; landing?: string | null; referrer?: string | null } | null
+  /** The page of the latest message */
+  page_path?: string | null
+  /** Source key (google, instagram, direct, a src= tag...) worked out from origin */
+  from?: string | null
 }
 
 export interface WeeklyReport {
@@ -297,6 +303,8 @@ export interface Lead {
   first_listing_id?: string | null
   /** Where the lead first came from; absent on leads from before 2026-10-17. */
   first_touch?: FirstTouch | null
+  /** How they reached us */
+  channel?: LeadChannel
   /** e.g. "2 BHK · 80L-90L · Baner · 1-3 months" (docs/contracts/qualification.md section 3). */
   requirement_line?: string | null
   /** Set when the lead is won or lost; null otherwise. Absent on older backends. */
@@ -453,6 +461,8 @@ export interface LeadEvent {
   path?: string | null
   ts: string
 }
+
+export type LeadChannel = 'form' | 'chat' | 'whatsapp' | 'dm' | 'comment' | 'post_link'
 
 export interface FirstTouch {
   /** First page of the visit that led to the enquiry */
