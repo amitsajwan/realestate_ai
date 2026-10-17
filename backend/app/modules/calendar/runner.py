@@ -26,7 +26,7 @@ from app.modules.social.distribution import graph_publisher, send
 from app.platform.meta_graph.publisher import DryRunPublisher, Post, sanitize
 from app.platform import trace
 
-from . import adapters, liveness, reach
+from . import adapters, liveness, postcap, reach
 from .config import MAX_ATTEMPTS, RETRY_AFTER_S, CalendarConfig, load, uploads_dir
 from .store import Store, aware
 
@@ -81,11 +81,13 @@ async def run_once(store: Store, publisher, social: SocialConfig, cfg: CalendarC
                    render_slides_reel: Callable = adapters.render_slides_reel_for,
                    link_comment: Callable = adapters.link_comment) -> Dict[str, int]:
     """Publish what is due and approved. `publisher` is used only when SOCIAL_DRY_RUN is off. Returns counts and records them in calendar_status."""
-    counts = {"published": 0, "failed": 0, "retry": 0, "skipped": 0, "waiting": 0}
+    counts = {"published": 0, "failed": 0, "retry": 0, "skipped": 0, "waiting": 0, "deferred": 0}
     uploads = uploads or uploads_dir()
     due = await store.due(now)
     rows = await store.all() if due else []
     seen = set()
+    sent_now: set = set()   # (agent_id, slug) published in this run, for the per-agent daily limit
+    owner = adapters._owner_agent()
     for doc in due:
         ch = doc["channel"]
         if doc.get("kind") == "showcase":  # sample homes are retired: never posted
@@ -102,6 +104,11 @@ async def run_once(store: Store, publisher, social: SocialConfig, cfg: CalendarC
             await store.skip(doc["_id"], f"missed its slot by over {cfg.stale_hours}h")
             counts["skipped"] += 1
             continue
+        later = postcap.hold_until(doc, rows, now, owner, sent_now)
+        if later is not None:  # this agent already has its postings for today on the shared Page
+            await store.defer(doc["_id"], later, f"daily limit: {postcap.daily_postings()} postings per agent per day; moved to the next day")
+            counts["deferred"] += 1
+            continue
         if ch in seen:
             counts["waiting"] += 1  # one post per channel per run: the next pass takes it
             continue
@@ -114,6 +121,8 @@ async def run_once(store: Store, publisher, social: SocialConfig, cfg: CalendarC
         outcome = await _publish_one(store, publisher, social, doc, uploads, render_reel, publish_reel,
                                      render_slides_reel if cfg.fb_carousel_as_reel else None, link_comment)
         counts[outcome] += 1
+        if outcome == "published" and doc.get("agent_id"):
+            sent_now.add((doc["agent_id"], doc["slug"]))
     await store.set_run(last_run_at=now, last_counts=counts, last_error=None if not counts["failed"] and not counts["retry"] else "see items")
     return counts
 

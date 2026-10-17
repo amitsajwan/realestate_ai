@@ -2,7 +2,6 @@ import React from 'react'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import ChatWidget, { ChatHomeCard } from '@/components/site/ChatWidget'
 import { cardFacts, parseChatReply } from '@/lib/site/chatApi'
-import { LeadAlertsBadge, alertsLabel } from '@/components/app/LeadAlertsBadge'
 
 jest.mock('@/lib/site/tracking', () => ({
   readAttribution: () => ({ source: 'chat' }), getAnonId: () => 'anon12345', readVisitPages: () => ({ path: '/agent/rahul', landing: '/agent/rahul' }),
@@ -103,27 +102,5 @@ describe('ChatWidget bubble', () => {
     unmount()
     render(<ChatWidget agentSlug="rahul" bottomBar={false} />)
     expect(screen.getByTestId('chat-widget').className).toContain('bottom-[calc(1rem+env(safe-area-inset-bottom,0px))]')
-  })
-})
-
-describe('LeadAlertsBadge', () => {
-  const { getNotifications } = jest.requireMock('@/lib/app/whatsapp') as { getNotifications: jest.Mock }
-  it('counts website chat alerts as well as WhatsApp ones', async () => {
-    getNotifications.mockResolvedValue({ unread: 2, items: [{ id: '1', kind: 'new_chat_lead', summary: '', ref: {}, created_at: '', read: false },
-      { id: '2', kind: 'new_whatsapp_lead', summary: '', ref: {}, created_at: '', read: false }] })
-    render(<LeadAlertsBadge />)
-    await waitFor(() => expect(screen.getByTestId('lead-alerts-badge')).toHaveTextContent('2New leads and chats'))
-  })
-  it('shows website requests to join as their own badge to the admin queue', async () => {
-    getNotifications.mockResolvedValue({ unread: 3, items: [{ id: '1', kind: 'invite_request', summary: '', ref: {}, created_at: '', read: false },
-      { id: '2', kind: 'invite_request', summary: '', ref: {}, created_at: '', read: false },
-      { id: '3', kind: 'new_chat_lead', summary: '', ref: {}, created_at: '', read: false }] })
-    render(<LeadAlertsBadge />)
-    await waitFor(() => expect(screen.getByTestId('invite-alerts-badge')).toHaveTextContent('2New requests to join'))
-    expect(screen.getByTestId('invite-alerts-badge')).toHaveAttribute('href', '/studio/admin')
-    expect(screen.getByTestId('lead-alerts-badge')).toHaveTextContent('1New lead or chat from your website')
-  })
-  it('names the channel when all alerts come from one', () => {
-    expect(alertsLabel([{ id: '1', kind: 'chat_needs_you', summary: '', ref: {}, created_at: '', read: false }], 1)).toBe('New lead or chat from your website')
   })
 })

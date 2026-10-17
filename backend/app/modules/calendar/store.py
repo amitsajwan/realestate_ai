@@ -195,6 +195,12 @@ class Store:
         row's tags so results group by them. Best effort: the caller never lets this hold up publishing."""
         await self.items.update_one({"_id": id}, {"$set": {"tags.hashtags": list(hashtags), "tags.location": bool(location)}})
 
+    async def defer(self, id: str, due_at: datetime, note: str) -> None:
+        """Move a publishable row to a later slot, keeping its status (the per-agent daily limit)."""
+        doc = await self.get(id)
+        if doc:
+            await self._move(id, doc["status"], note, due_at=aware(due_at))
+
     async def published(self, id: str, external_id: str, permalink: Optional[str], note: str = "") -> None:
         await self._move(id, "published", note or "published", external_id=external_id, permalink=permalink, error=None, published_at=self.clock())
 

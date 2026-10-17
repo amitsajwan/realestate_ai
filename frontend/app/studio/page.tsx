@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import React from 'react'
 import { BusinessToday } from '@/components/app/BusinessToday'
-import { LeadAlertsBadge } from '@/components/app/LeadAlertsBadge'
+import { NeedsYouNow } from '@/components/app/NeedsYouNow'
 import { ReraReminder } from '@/components/app/ReraReminder'
 import { WeeklyCard } from '@/components/app/WeeklyCard'
 
@@ -10,7 +10,7 @@ export default function StudioHome() {
   return (
     <div className="space-y-4">
       <ReraReminder />
-      <LeadAlertsBadge />
+      <NeedsYouNow />
       <BusinessToday />
       <WeeklyCard />
       <Link href="/studio/radar" className="flex min-h-[56px] items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 font-semibold text-gray-900">
