@@ -4,8 +4,9 @@ import { useParams } from 'next/navigation'
 import React from 'react'
 import { Btn, ErrorBox, PageTitle, Spinner, inputCls } from '@/components/app/ui'
 import { errorMessage } from '@/lib/app/client'
+import { BRAND_NAME } from '@/lib/brand'
 import { timeAgo } from '@/lib/app/format'
-import { CHANNEL_CHIP, CHANNEL_LABEL, inboxApi, type InboxMessage, type InboxThreadFull } from '@/lib/app/inbox'
+import { CHANNEL_CHIP, CHANNEL_LABEL, inboxApi, type InboxMessage, type InboxThreadFull, type PassAgent, type PassResult } from '@/lib/app/inbox'
 
 const STATUS: Record<string, string> = { failed: 'Not delivered', refused: 'Not sent', dry_run: 'Test mode, not sent' }
 
@@ -24,6 +25,66 @@ function Bubble({ m }: { m: InboxMessage }) {
   )
 }
 
+/**
+ * Owner only: pass this buyer to an agent. The chat and lead move to the agent (he gets an alert in Studio), and the owner gets a
+ * ready WhatsApp message to the agent with the buyer's details, sent from the owner's own WhatsApp.
+ */
+function PassBox({ id, onPassed }: { id: string; onPassed: (r: PassResult) => void }) {
+  const [open, setOpen] = React.useState(false)
+  const [agents, setAgents] = React.useState<PassAgent[] | null>(null)
+  const [pick, setPick] = React.useState('')
+  const [busy, setBusy] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
+  const [done, setDone] = React.useState<PassResult | null>(null)
+
+  React.useEffect(() => {
+    if (open && !agents) inboxApi.agents().then(setAgents).catch((e) => setError(errorMessage(e)))
+  }, [open, agents])
+
+  async function pass() {
+    setBusy(true)
+    setError(null)
+    try {
+      const r = await inboxApi.pass(id, pick)
+      setDone(r)
+      onPassed(r)
+    } catch (e) {
+      setError(errorMessage(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (done) {
+    return (
+      <section aria-label="Passed" className="space-y-2 rounded-2xl border border-sky-200 bg-sky-50 p-3">
+        <p className="text-sm font-semibold text-sky-900">Passed to {done.passed_to}. The chat and lead are now in their Studio.</p>
+        {done.whatsapp_url ? (
+          <a href={done.whatsapp_url} target="_blank" rel="noreferrer"
+            className="flex min-h-[48px] items-center justify-center rounded-xl bg-green-600 px-4 font-semibold text-white">Send the details to {done.passed_to} on WhatsApp</a>
+        ) : (
+          <p className="text-sm text-gray-700">Their site has no mobile number, so call them with the buyer's details.</p>
+        )}
+      </section>
+    )
+  }
+  if (!open) return <Btn variant="secondary" onClick={() => setOpen(true)}>Pass to an agent</Btn>
+  return (
+    <section aria-label="Pass to an agent" className="space-y-2 rounded-2xl border border-gray-200 bg-white p-3">
+      <label htmlFor="pass-agent" className="text-sm font-semibold text-gray-800">Pass this buyer to</label>
+      {!agents && !error ? <Spinner /> : (
+        <select id="pass-agent" className={inputCls} value={pick} onChange={(e) => setPick(e.target.value)}>
+          <option value="">Pick an agent</option>
+          {(agents ?? []).map((a) => <option key={a.agent_id} value={a.agent_id}>{a.name}{a.has_whatsapp ? '' : ' (no mobile on site)'}</option>)}
+        </select>
+      )}
+      {error && <p role="alert" className="text-sm font-semibold text-red-700">{error}</p>}
+      <Btn disabled={busy || !pick} onClick={pass}>{busy ? 'Passing...' : 'Pass'}</Btn>
+      <p className="text-xs text-gray-500">The chat and the lead move to the agent and they get an alert. You then send them the buyer's details on WhatsApp.</p>
+    </section>
+  )
+}
+
 /** One conversation in full, oldest first, with a reply box for WhatsApp while the 24-hour window is open. */
 export default function InboxThreadPage() {
   const { id } = useParams<{ id: string }>()
@@ -31,6 +92,7 @@ export default function InboxThreadPage() {
   const [error, setError] = React.useState<string | null>(null)
   const [text, setText] = React.useState('')
   const [busy, setBusy] = React.useState(false)
+  const [passed, setPassed] = React.useState<PassResult | null>(null)  // keeps the WhatsApp link on screen after the reload
   const end = React.useRef<HTMLDivElement>(null)
 
   const load = React.useCallback(() => {
@@ -68,6 +130,9 @@ export default function InboxThreadPage() {
         {doc.lead_id && <Link href={`/studio/leads/${encodeURIComponent(doc.lead_id)}`} className="font-semibold text-blue-700 underline">Open lead</Link>}
       </div>
       {doc.summary && <p className="text-sm text-gray-700">Wants: {doc.summary}</p>}
+      {doc.passed === 'out' && <p className="rounded-xl bg-gray-50 p-3 text-sm text-gray-700">Passed to {doc.passed_to_name || 'an agent'}{doc.passed_at ? ` ${timeAgo(doc.passed_at)}` : ''}. They handle this buyer now.</p>}
+      {doc.passed === 'in' && <p className="rounded-xl bg-sky-50 p-3 text-sm font-semibold text-sky-900">{BRAND_NAME} passed this buyer to you. Call or message them soon.</p>}
+      {(doc.can_pass || passed) && <PassBox id={id} onPassed={(r) => { setPassed(r); load() }} />}
 
       <ol className="space-y-2" aria-label="Messages">{doc.thread.map((m, i) => <Bubble key={i} m={m} />)}</ol>
       <div ref={end} />

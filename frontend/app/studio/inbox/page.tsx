@@ -25,6 +25,8 @@ function ThreadRow({ t }: { t: InboxThread }) {
           <span className={'rounded-full px-2 py-0.5 text-xs font-semibold ' + (t.role === 'agent' ? 'bg-sky-100 text-sky-800' : 'bg-orange-100 text-orange-800')}>{t.role === 'agent' ? 'Agent' : 'Buyer'}</span>
           {t.needs_you && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">Needs you</span>}
           {t.lead_saved && <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-800">Lead saved</span>}
+          {t.passed === 'out' && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-700">Passed to agent</span>}
+          {t.passed === 'in' && <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800">Passed to you</span>}
           {t.opted_out && <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-800">Said STOP</span>}
         </div>
         {t.summary && <p className="text-sm text-gray-700">{t.summary}</p>}
@@ -44,7 +46,7 @@ export default function InboxPage() {
   React.useEffect(() => {
     if (!data) return
     getNotifications(true)
-      .then((n) => Promise.all(n.items.filter((x) => x.kind.includes('whatsapp') || x.kind.includes('chat')).map((x) => markNotificationRead(x.id))))
+      .then((n) => Promise.all(n.items.filter((x) => x.kind.includes('whatsapp') || x.kind.includes('chat') || x.kind === 'buyer_passed').map((x) => markNotificationRead(x.id))))
       .catch(() => undefined)
   }, [data])
   if (loading && !data) return <Spinner />

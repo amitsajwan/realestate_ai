@@ -27,6 +27,9 @@ export interface InboxThread {
   can_reply: boolean
   summary: string
   messages: number
+  /** out = you passed this buyer to an agent; in = the owner passed this buyer to you. */
+  passed: 'out' | 'in' | null
+  passed_at: string | null
 }
 
 export interface InboxMessage {
@@ -40,6 +43,22 @@ export interface InboxMessage {
 export interface InboxThreadFull extends InboxThread {
   thread: InboxMessage[]
   bot_paused_until: string | null
+  /** The owner may pass this buyer to an agent. */
+  can_pass?: boolean
+  passed_to_name: string | null
+}
+
+export interface PassAgent {
+  agent_id: string
+  name: string
+  has_whatsapp: boolean
+}
+
+export interface PassResult {
+  passed_to: string
+  lead_id: string | null
+  /** wa.me link to the agent with the buyer's details, sent from the owner's own WhatsApp. Null if the agent's site has no mobile. */
+  whatsapp_url: string | null
 }
 
 async function call<T>(path: string, init: { method?: string; json?: unknown } = {}): Promise<T> {
@@ -70,6 +89,8 @@ export const inboxApi = {
   threads: async (): Promise<InboxThread[]> => (isFixtureMode() ? [] : (await call<{ items: InboxThread[] }>('')).items ?? []),
   thread: (id: string) => call<InboxThreadFull>(`/${encodeURIComponent(id)}`),
   reply: (id: string, text: string) => call<InboxThreadFull>(`/${encodeURIComponent(id)}/reply`, { method: 'POST', json: { text } }),
+  agents: async (): Promise<PassAgent[]> => (await call<{ items: PassAgent[] }>('/agents')).items ?? [],
+  pass: (id: string, agentId: string) => call<PassResult>(`/${encodeURIComponent(id)}/pass`, { method: 'POST', json: { agent_id: agentId } }),
 }
 
 export const CHANNEL_LABEL: Record<string, string> = { whatsapp: 'WhatsApp', messenger: 'Messenger', instagram: 'Instagram', website: 'Website chat' }

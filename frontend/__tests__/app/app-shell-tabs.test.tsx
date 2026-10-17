@@ -65,13 +65,13 @@ describe('AppShell tabs', () => {
     await waitFor(() => expect(mockStatus).toHaveBeenCalled())
   })
 
-  it('everyone else keeps the six tabs at the normal size, no More and no badge calls', () => {
+  it('everyone else gets six tabs with Inbox (not Newsroom), normal size, no More, only the Inbox count', () => {
     mockOwner = false
     mockPath = '/studio/listings'
     render(<AppShell><p>x</p></AppShell>)
     const links = nav().getAllByRole('link')
     expect(links.map((l) => l.getAttribute('href'))).toEqual([
-      '/studio', '/studio/listings', '/studio/interest', '/studio/newsroom', '/studio/content', '/studio/leads',
+      '/studio', '/studio/listings', '/studio/inbox', '/studio/interest', '/studio/content', '/studio/leads',
     ])
     expect(links[0].className).toContain('text-xs')
     expect(links[1]).toHaveAttribute('aria-current', 'page')

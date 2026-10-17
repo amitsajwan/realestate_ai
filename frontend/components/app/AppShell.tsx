@@ -25,8 +25,9 @@ const RADAR_TAB: Tab = { href: '/studio/radar', label: 'radar', icon: 'M12 12m-9
 const PROFILE_TAB: Tab = { href: '/studio/profile', label: 'profile', icon: 'M20 21a8 8 0 00-16 0M12 13a4 4 0 100-8 4 4 0 000 8z' }
 const MORE_TAB: Tab = { href: '#more', label: 'more', icon: 'M5 12h.01M12 12h.01M19 12h.01' }
 
-/** Everyone who is not the owner: the six tabs, unchanged. */
-const AGENT_BAR: Tab[] = [HOME_TAB, LISTINGS_TAB, INTEREST_TAB, NEWSROOM_TAB, CONTENT_TAB, LEADS_TAB]
+/** Everyone who is not the owner: six tabs. Inbox took Newsroom's place (2026-10-17): the newsroom is owner-only on the server,
+ * and agents need their own chats and the buyers the owner passes to them. */
+const AGENT_BAR: Tab[] = [HOME_TAB, LISTINGS_TAB, INBOX_TAB, INTEREST_TAB, CONTENT_TAB, LEADS_TAB]
 /**
  * The owner has nine places and a phone bar holds five (UX review, 2026-10-06): the four used daily, then More,
  * a bottom sheet with the rest.
@@ -50,19 +51,20 @@ export function countWaitingPosts(items: { slug: string; id: string; status: str
 }
 
 /**
- * Counts on the owner's tabs: Inbox = conversations waiting for an answer, Content = posts waiting for approval, Newsroom = drafts waiting for review.
+ * Counts on the tabs (agents get only Inbox): Inbox = conversations waiting for an answer, Content = posts waiting for approval, Newsroom = drafts waiting for review.
  * Asked on load and again when the app comes back to the front; never blocks rendering; a failed call shows no badge.
  */
-export function useNavBadges(enabled: boolean): Badges {
+export function useNavBadges(enabled: boolean, owner = true): Badges {
   const [badges, setBadges] = useState<Badges>({})
   useEffect(() => {
     if (!enabled) return
     let alive = true
     const put = (href: string, n: number | undefined) => { if (alive) setBadges((b) => ({ ...b, [href]: n })) }
     const load = () => {
+      inboxApi.threads().then((ts) => put(INBOX_TAB.href, ts.filter((t) => t.needs_you).length), () => put(INBOX_TAB.href, undefined))
+      if (!owner) return  // agents: only the Inbox count (content approval and the newsroom are the owner's)
       contentApi.getUpcoming().then((items) => put(CONTENT_TAB.href, countWaitingPosts(items)), () => put(CONTENT_TAB.href, undefined))
       newsroomApi.getStatus().then((s) => put(NEWSROOM_TAB.href, Number(s?.counts?.pending_review) || 0), () => put(NEWSROOM_TAB.href, undefined))
-      inboxApi.threads().then((ts) => put(INBOX_TAB.href, ts.filter((t) => t.needs_you).length), () => put(INBOX_TAB.href, undefined))
     }
     load()
     const onVisible = () => { if (document.visibilityState === 'visible') load() }
@@ -71,7 +73,7 @@ export function useNavBadges(enabled: boolean): Badges {
       alive = false
       document.removeEventListener('visibilitychange', onVisible)
     }
-  }, [enabled])
+  }, [enabled, owner])
   return enabled ? badges : {}
 }
 
@@ -152,7 +154,7 @@ function MoreSheet({ items, active, onClose }: { items: Tab[]; active: (href: st
 export function AppShell({ children, hideTabs = false }: { children: React.ReactNode; hideTabs?: boolean }) {
   const path = usePathname() || ''
   const owner = useIsOwner()
-  const badges = useNavBadges(owner && !hideTabs)
+  const badges = useNavBadges(!hideTabs, owner)
   const [moreOpen, setMoreOpen] = useState(false)
   const closeMore = useCallback(() => setMoreOpen(false), [])
   useEffect(() => setMoreOpen(false), [path])
