@@ -296,6 +296,9 @@ def render_reel_for(doc: dict, uploads: Path) -> str:
         return _render_daily(doc, Path(uploads))
     if c.get("template") == "agent":
         return render_agent_reel(doc, Path(uploads))
+    if c.get("template") == "guide":
+        from .guide_reels import render_row
+        return render_row(doc, Path(uploads))
     spec = spec_of(doc)
     return render_reel(spec, uploads, BY_SLUG.get(spec.ref))
 

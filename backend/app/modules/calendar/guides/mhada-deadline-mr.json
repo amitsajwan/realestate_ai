@@ -1,0 +1,102 @@
+{
+  "slug": "mhada-deadline-mr-20261018",
+  "title": "MHADA Pune lottery: 5 days left, the deposit decides",
+  "audience": "Marathi families in Pune and PCMC applying for the MHADA Pune lottery 2026 (EWS/LIG, first home), 22-50",
+  "lang": "mr",
+  "gender": "female",
+  "mood": "calm",
+  "due": "2026-10-18T19:00:00+05:30",
+  "channels": [
+    "instagram",
+    "facebook_page"
+  ],
+  "as_of": "2026-10-17",
+  "message": "A form without the deposit is not counted in the draw, and the time is almost up.",
+  "facts": [
+    "Online application and deposit (EMD) payment close on 22 October 2026 at 11:59 pm (23:59). Source: MHADA Pune board, second extension of 14 October 2026.",
+    "Deposit paid by RTGS or NEFT from a bank is accepted until 23 October 2026 at 3:59 pm (15:59). Source: MHADA Pune board, 14 October 2026.",
+    "An application whose deposit is not paid is not counted in the draw. Source: MHADA Pune lottery 2026 advertisement.",
+    "The draw is planned for 4 December 2026. Source: MHADA Pune board.",
+    "Today is 17 October, so 5 days are left to the online deadline of 22 October.",
+    "Applications are made only on MHADA's official site."
+  ],
+  "must_say": [
+    "22",
+    "23",
+    "4"
+  ],
+  "must_words": [
+    "नियोजित"
+  ],
+  "shots": [
+    {
+      "prompt": "A Marathi couple in their early 30s at a simple dining table in a small rented flat in the evening, the wife holding a phone and filling in an online form, the husband leaning in with a hopeful look. A plain wall behind them with nothing on it.",
+      "screen": "फक्त *5 दिवस* उरले",
+      "voice": "MHADA पुणे लॉटरीचा अर्ज भरलाय? मग हे नक्की ऐका."
+    },
+    {
+      "prompt": "Close-up over the shoulder of a woman's hands holding a phone, about to tap a button, a cup of tea and a small notebook on a wooden table, soft evening light, the phone screen blurred and unreadable.",
+      "screen": "पैसे *भरले* का?",
+      "voice": "फक्त फॉर्म भरून चालत नाही. अनामत रक्कम भरली, तरच अर्ज सोडतीत मोजला जातो."
+    },
+    {
+      "prompt": "A quiet dim room of a Pune flat late at night, a phone glowing on a table, a sleeping city seen through the window, a calm but urgent mood. No clock, no calendar.",
+      "screen": "*22 ऑक्टोबर* · रात्री 11:59",
+      "voice": "ऑनलाइन अर्ज आणि पेमेंटची शेवटची तारीख 22 ऑक्टोबर, रात्री 11:59.",
+      "lock": true
+    },
+    {
+      "prompt": "A man in his 30s at the counter of a public sector bank branch in Pune handing a payment slip to the cashier, a simple bank interior, other customers blurred in the background, no signboards.",
+      "screen": "RTGS / NEFT · *23 ऑक्टोबर*",
+      "voice": "बँकेतून RTGS किंवा NEFT ने भरत असाल, तर 23 ऑक्टोबर दुपारी 3:59 पर्यंत.",
+      "lock": true
+    },
+    {
+      "prompt": "New affordable apartment towers, 12 to 14 floors, plain cream and light-orange paint, on the edge of Pune at sunset, a few families walking on the road in front, construction cranes far away, no signboards.",
+      "screen": "सोडत *4 डिसेंबर* (नियोजित)",
+      "voice": "सोडत 4 डिसेंबरला नियोजित आहे.",
+      "lock": true
+    },
+    {
+      "prompt": "The same kind of young Marathi couple standing on a small balcony of a new flat at golden hour, smiling and looking at the view, a few plants in pots, happy and hopeful.",
+      "screen": "अर्ज करणाऱ्या मित्राला *पाठवा*",
+      "voice": "अर्ज करणाऱ्या मित्राला हा व्हिडिओ आत्ताच पाठवा."
+    }
+  ],
+  "hook": "MHADA पुणे लॉटरी: फक्त 5 दिवस, अनामत रक्कम भरली का?",
+  "hook_type": "deadline",
+  "caption": "MHADA Pune Lottery 2026 last date | म्हाडा पुणे लॉटरी शेवटची तारीख\n\n⚠️ फक्त फॉर्म भरून चालत नाही. अनामत रक्कम (EMD) भरल्याशिवाय अर्ज सोडतीत मोजला जात नाही.\n\n⏰ ऑनलाइन अर्ज आणि पेमेंट: २२ ऑक्टोबर, रात्री ११:५९ पर्यंत\n🏦 RTGS / NEFT: २३ ऑक्टोबर, दुपारी ३:५९ पर्यंत\n🗓️ सोडत: ४ डिसेंबर (नियोजित)\n\n🌐 अधिकृत पोर्टल: https://housing.mhada.gov.in/\n⚠️ अर्ज फक्त अधिकृत पोर्टलवर करा. अर्जासाठी कोणालाही पैसे देऊ नका.\n\nफॉर्म भरणाऱ्या मित्राला किंवा नातेवाईकाला हा व्हिडिओ आत्ताच पाठवा 👇\n\nव्हिडिओतील छायाचित्रे प्रतीकात्मक आहेत.\n\n#MHADAPune #MhadaLottery2026 #म्हाडासोडत #PuneHousing #PCMC",
+  "reply_facts": [
+    "The homes in this lottery are located in Pune city, Pimpri-Chinchwad and the PMRDA area only.",
+    "The last date to apply and pay the deposit online is 22 October 2026, 11:59 pm (extended a second time on 14 October from 15 October); RTGS/NEFT payment by 23 October 2026, 3:59 pm; the draw is planned for 4 December 2026.",
+    "An application whose deposit (EMD) is not paid is not counted in the draw.",
+    "Applications are made only on MHADA's official site; Avasetu does not take applications or money.",
+    "The pictures in the reel are illustrations, not the lottery's actual buildings."
+  ],
+  "reply_faq": [
+    {
+      "q": "What is the last date, is the deadline over, was it 15 October, RTGS NEFT payment last date?",
+      "a": "MHADA extended the deadline again on 14 October: apply and pay the deposit online by 22 October 2026, 11:59 pm. If you pay by RTGS/NEFT from your bank, by 23 October 2026, 3:59 pm."
+    },
+    {
+      "q": "How do I check whether my payment went through, application status, receipt?",
+      "a": "Log in on MHADA's official housing site with the username you made when you registered; your application and its status show on your dashboard. Keep the receipt you got after paying."
+    },
+    {
+      "q": "Where do I apply, which site, apply kahan karna hai?",
+      "a": "Only on MHADA's official housing site (the link is in the caption). Avasetu does not take applications or money, and nobody needs to be paid to apply."
+    },
+    {
+      "q": "When is the draw, result date?",
+      "a": "The draw is planned for 4 December 2026. If MHADA changes the date, we will post it."
+    },
+    {
+      "q": "Where are the homes, is it in Nashik, Sambhajinagar, Nagpur, Wardha or another district?",
+      "a": "The homes in this MHADA Pune board lottery are only in Pune city, Pimpri-Chinchwad and the PMRDA area. Other districts come under other MHADA boards with their own lotteries; we will post about them soon."
+    },
+    {
+      "q": "Are these the actual flats in the video?",
+      "a": "No, the pictures in the video are illustrations. The actual homes, their prices and sizes are listed scheme by scheme on MHADA's official site."
+    }
+  ]
+}
