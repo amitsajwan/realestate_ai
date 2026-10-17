@@ -25,46 +25,32 @@ describe('BusinessToday', () => {
     listLeads.mockReset()
   })
 
-  it('shows the headline, count tiles linking to filtered lists, hot buyers and follow-ups', async () => {
+  it('shows the headline and hot buyers only: counts and follow-ups live on Leads, the website on My brand', async () => {
     const fx = createFixtureApi({ getItem: () => null, setItem: () => undefined })
     getToday.mockResolvedValue(await fx.getToday())
     listLeads.mockResolvedValue(await fx.listLeads())
     render(<BusinessToday />)
 
     expect(await screen.findByTestId('headline')).toHaveTextContent("2 buyers haven't been contacted today.")
-    const tile = (label: string) => screen.getAllByText(label).map((e) => e.closest('a')).find(Boolean)!
-    expect(tile('New enquiries')).toHaveAttribute('href', '/studio/leads?tab=new')
-    expect(tile('Hot buyers')).toHaveAttribute('href', '/studio/leads?tab=all&hot=1')
-    expect(tile('Site visits')).toHaveAttribute('href', '/studio/leads?tab=site_visit')
-    expect(tile('Follow-ups due')).toHaveAttribute('href', '/studio/leads?tab=today')
-    expect(within(tile('Hot buyers')).getByText('2')).toBeInTheDocument()
-
     const hot = screen.getByRole('region', { name: 'Hot buyers' })
     expect(within(hot).getByText('Priya Nair')).toBeInTheDocument()
     expect(within(hot).getByText('2 BHK · 70L-95L · Baner · Now')).toBeInTheDocument()
     expect(within(hot).getByRole('link', { name: 'Call Priya Nair' })).toHaveAttribute('href', 'tel:+919811223344')
     expect(within(hot).getByRole('link', { name: 'WhatsApp Rohit Deshmukh' }).getAttribute('href')).toMatch(/^https:\/\/wa\.me\/919822012345\?text=/)
     expect(within(hot).getAllByText(/Best match/)).toHaveLength(2)
+    expect(within(hot).getByRole('link', { name: /All leads/ })).toHaveAttribute('href', '/studio/leads?tab=all&hot=1')
 
-    const fu = screen.getByRole('region', { name: 'Follow-ups due' })
-    const row = within(fu).getByText('Sneha Kulkarni').closest('a')!
-    expect(row).toHaveAttribute('href', '/studio/leads/c2')
-    expect(row).toHaveTextContent(/Overdue/)
-
-    // leads section first, website card + add-listing below
-    expect(hot.compareDocumentPosition(screen.getByText('My website')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(screen.getByRole('link', { name: /add listing/i })).toBeInTheDocument()
-    expect(screen.getByText(siteUrl)).toBeInTheDocument()
+    expect(screen.queryByText('New enquiries')).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Follow-ups due' })).toBeNull()
+    expect(screen.queryByText('My website')).toBeNull()
   })
 
-  it('shows the onboarding empty state for a brand-new agent, site card first', async () => {
+  it('shows the onboarding empty state for a brand-new agent with the add-listing button', async () => {
     getToday.mockResolvedValue(empty)
     listLeads.mockResolvedValue([])
     render(<BusinessToday />)
     expect(await screen.findByText('Get your first enquiry')).toBeInTheDocument()
     expect(screen.queryByTestId('headline')).toBeNull()
-    expect(screen.queryByText('New enquiries')).toBeNull()
-    expect(screen.getByText('My website')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /add listing/i })).toHaveAttribute('href', '/studio/listings/new')
   })
 

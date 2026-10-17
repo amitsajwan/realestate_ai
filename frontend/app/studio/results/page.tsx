@@ -1,5 +1,6 @@
 'use client'
 import React from 'react'
+import { ResultsCard } from '@/components/app/BusinessToday'
 import { ErrorBox, PageTitle, Spinner } from '@/components/app/ui'
 import { api } from '@/lib/app/client'
 import { getInterestReport, type InterestLinkStats } from '@/lib/app/interestReport'
@@ -105,13 +106,14 @@ function BestPosts({ links }: { links: InterestLinkStats[] }) {
 
 export default function ResultsPage() {
   const { data, error, loading, reload } = useAsync(async () => {
-    const [week, fortnight, links, fb] = await Promise.all([
+    const [week, fortnight, links, fb, month] = await Promise.all([
       getOrigins(7),
       getOrigins(14).catch(() => null),
       getInterestReport().catch(() => [] as InterestLinkStats[]),
       api.getFacebookStatus().catch(() => null as FacebookStatus | null),
+      api.getToday().then((d) => d?.results, () => undefined),
     ])
-    return { week, fortnight, links, fb }
+    return { week, fortnight, links, fb, month }
   }, [])
   if (loading && !data) return <Spinner />
   if (error && !data) return <ErrorBox message={error} onRetry={reload} />
@@ -135,6 +137,7 @@ export default function ResultsPage() {
       </section>
       <WhereFrom rows={data.week.rows} />
       <BestPosts links={data.links} />
+      <ResultsCard results={data.month} />
     </div>
   )
 }

@@ -10,7 +10,6 @@ import { dueLabel, sourceLabel } from '@/lib/app/leads'
 import { actionHref } from '@/lib/app/marketing'
 import { lostHint, resultsEmpty } from '@/lib/app/outcomes'
 import { whatsappChatUrl } from '@/lib/app/share'
-import { useSession } from '@/lib/app/session'
 import { t } from '@/lib/app/strings'
 import { useAsync } from '@/lib/app/useAsync'
 import type { BusinessToday as Today, RecommendedAction, RecommendedActionType, TodayFollowUp, TodayHotBuyer, TodayResults } from '@/lib/app/types'
@@ -151,7 +150,7 @@ export function ResultsCard({ results }: { results?: TodayResults }) {
   )
 }
 
-function SiteCard({ siteUrl }: { siteUrl: string }) {
+export function SiteCard({ siteUrl }: { siteUrl: string }) {
   return (
     <section className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4">
       <h2 className="font-semibold">{t('mySite')}</h2>
@@ -163,9 +162,11 @@ function SiteCard({ siteUrl }: { siteUrl: string }) {
   )
 }
 
-/** /studio home: "Your business today". */
+/**
+ * /studio home, below "Needs you now": what the AI recommends, then the hot buyers to call. Lead counts and follow-ups live on Leads,
+ * "This month" on Results, the website link and log out on My brand (2026-10-18: each thing on the tab it belongs to).
+ */
 export function BusinessToday() {
-  const { siteUrl, logout } = useSession(false)
   const state = useAsync(async () => {
     // Listings are only needed for "Listings that need your confirmation"; the home screen works without them.
     const listings = async () => {
@@ -184,22 +185,9 @@ export function BusinessToday() {
     return { today, hasLeads }
   })
   const data = state.data
-  const addBtn = (
-    <LinkBtn href="/studio/listings/new" className="!min-h-[64px] text-lg">
-      {t('addListing')}
-    </LinkBtn>
-  )
-  const site = siteUrl ? <SiteCard siteUrl={siteUrl} /> : null
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t('todayTitle')}</h1>
-        <button type="button" onClick={logout} className="min-h-[44px] px-2 text-sm text-gray-500 underline">
-          {t('logout')}
-        </button>
-      </div>
-
       {state.loading && !data && <Spinner />}
       {state.error && <ErrorBox message={state.error} onRetry={state.reload} />}
 
@@ -211,8 +199,9 @@ export function BusinessToday() {
             <h2 className="text-lg font-bold text-blue-900">{t('newAgentTitle')}</h2>
             <p className="mt-1 text-sm text-blue-900">{t('newAgentBody')}</p>
           </section>
-          {site}
-          {addBtn}
+          <LinkBtn href="/studio/listings/new" className="!min-h-[64px] text-lg">
+            {t('addListing')}
+          </LinkBtn>
         </>
       )}
 
@@ -221,11 +210,11 @@ export function BusinessToday() {
           <p className="text-lg font-semibold text-gray-900" data-testid="headline">
             {data.today.headline}
           </p>
-          <CountTiles counts={data.today.counts} />
-          <ResultsCard results={data.today.results} />
-
           <section className="space-y-3" aria-label={t('hotBuyers')}>
-            <h2 className="font-bold text-gray-900">{t('hotBuyers')}</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="font-bold text-gray-900">{t('hotBuyers')}</h2>
+              <Link href="/studio/leads?tab=all&hot=1" className="text-sm font-semibold text-blue-700">All leads &rsaquo;</Link>
+            </div>
             {data.today.hot_buyers.length === 0 ? (
               <p className="text-sm text-gray-500">{t('noHotBuyers')}</p>
             ) : (
@@ -236,20 +225,6 @@ export function BusinessToday() {
               </ul>
             )}
           </section>
-
-          {data.today.follow_ups.length > 0 && (
-            <section className="space-y-3" aria-label={t('followUpsDue')}>
-              <h2 className="font-bold text-gray-900">{t('followUpsDue')}</h2>
-              <ul className="space-y-2">
-                {data.today.follow_ups.map((f) => (
-                  <FollowUpRow key={f.id} item={f} />
-                ))}
-              </ul>
-            </section>
-          )}
-
-          {site}
-          {addBtn}
         </>
       )}
     </div>

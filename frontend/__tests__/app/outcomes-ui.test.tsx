@@ -353,30 +353,6 @@ describe('This month card on Home', () => {
     expect(screen.getByTestId('lost-hint')).toHaveTextContent('Most lost on changed mind')
   })
 
-  it('appears on Home from getToday().results, and stays off for the seeded fixture agent', async () => {
-    getToday.mockResolvedValue(await fx.getToday())
-    const { unmount } = render(<BusinessToday />)
-    await screen.findByTestId('headline')
-    expect(screen.queryByRole('region', { name: 'This month' })).toBeNull()
-    unmount()
-
-    await fx.updateLead('c1', { stage: 'won', outcome: { deal_price_inr: 8_500_000, listing_id: 'l1' } })
-    getToday.mockResolvedValue(await fx.getToday())
-    render(<BusinessToday />)
-    const card = within(await screen.findByRole('region', { name: 'This month' }))
-    expect(card.getByTestId('deals-won')).toHaveTextContent('1')
-    expect(card.getByTestId('deal-value')).toHaveTextContent('₹85 L')
-    expect(card.getByText('Best channel: Instagram')).toBeInTheDocument()
-  })
-
-  it('an older backend without results simply shows no card', async () => {
-    const t: Today = { ...(await fx.getToday()) }
-    delete t.results
-    getToday.mockResolvedValue(t)
-    render(<BusinessToday />)
-    await screen.findByTestId('headline')
-    expect(screen.queryByRole('region', { name: 'This month' })).toBeNull()
-  })
 })
 
 describe('deals on listing cards', () => {

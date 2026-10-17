@@ -18,11 +18,18 @@ export const TRIAL_KIND = 'trial_claimed'
 
 export interface NeedsRow { key: string; href: string; n: number; one: string; many: string }
 
-export function needsRows(c: { inbox: number; passed: number; calls: number; posts: number; invites: number; trials: number }): NeedsRow[] {
+/** The weekly report's to-dos that are jobs (its 'answer' is the Inbox row already): they show here, not on the This week card. */
+export interface WeekTodos { followup: number; photos: number; freshness: number; firstListing: boolean }
+
+export function needsRows(c: { inbox: number; passed: number; calls: number; posts: number; invites: number; trials: number }, w?: WeekTodos): NeedsRow[] {
   return [
     { key: 'passed', href: '/studio/inbox', n: c.passed, one: 'buyer was passed to you', many: 'buyers were passed to you' },
     { key: 'inbox', href: '/studio/inbox?tab=needs', n: c.inbox, one: 'chat or comment waiting for an answer', many: 'chats and comments waiting for an answer' },
     { key: 'calls', href: '/studio/leads?tab=today', n: c.calls, one: 'buyer to call today', many: 'buyers to call today' },
+    { key: 'uncontacted', href: '/studio/leads?tab=new', n: w?.followup ?? 0, one: 'enquiry not contacted for over a day', many: 'enquiries not contacted for over a day' },
+    { key: 'first', href: '/studio/listings/new', n: w?.firstListing ? 1 : 0, one: 'first listing to post: it takes a minute', many: '' },
+    { key: 'freshness', href: '/studio/listings', n: w?.freshness ?? 0, one: 'listing to confirm as still available', many: 'listings to confirm as still available' },
+    { key: 'photos', href: '/studio/listings', n: w?.photos ?? 0, one: 'live listing without photos', many: 'live listings without photos' },
     { key: 'posts', href: '/studio/content', n: c.posts, one: 'post waiting for your OK', many: 'posts waiting for your OK' },
     { key: 'invites', href: '/studio/admin', n: c.invites, one: 'request to join', many: 'requests to join' },
     { key: 'trials', href: '/studio/agents?tab=signedup', n: c.trials, one: 'agent took the free trial', many: 'agents took the free trial' },
@@ -42,9 +49,12 @@ export function NeedsYouNow() {
       unread,
       api.getToday().then((d) => d?.follow_ups?.length ?? 0, zero),
       owner ? contentApi.getUpcoming().then(countWaitingPosts, zero) : Promise.resolve(0),
-    ]).then(([inbox, items, calls, posts]) => {
+      Promise.resolve().then(() => api.getWeeklyReport()).then((r) => r.todo, () => []),
+    ]).then(([inbox, items, calls, posts, todo]) => {
+      const left = (k: string) => todo.find((x) => x.kind === k)
+      const week: WeekTodos = { followup: left('followup')?.count ?? 0, photos: left('photos')?.count ?? 0, freshness: left('freshness')?.count ?? 0, firstListing: !!left('post') }
       const kind = (k: string) => items.filter((x) => x.kind === k).length
-      if (live) setRows(needsRows({ inbox, passed: kind(PASSED_KIND), calls, posts, invites: kind(INVITE_KIND), trials: kind(TRIAL_KIND) }))
+      if (live) setRows(needsRows({ inbox, passed: kind(PASSED_KIND), calls, posts, invites: kind(INVITE_KIND), trials: kind(TRIAL_KIND) }, week))
     })
     return () => {
       live = false

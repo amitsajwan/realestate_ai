@@ -9,13 +9,7 @@ function origin(): string {
   try { return new URL(getSiteUrl() || '').origin } catch { return typeof window !== 'undefined' ? window.location.origin : '' }
 }
 
-/** Where each to-do line takes the agent. */
-const TODO_HREF: Record<string, string> = {
-  photos: '/studio/listings', freshness: '/studio/listings', followup: '/studio/leads?tab=new',
-  answer: '/studio/inbox?tab=needs', post: '/studio/listings/new', share: '/studio/listings',
-}
-
-/** "This week" on the agent's home screen: real counts, up to four concrete next steps, and a message they can share on WhatsApp. Every number and line opens the screen behind it. */
+/** "This week" on the agent's home screen: real counts, the most viewed listing and a message they can share on WhatsApp. Every number opens the screen behind it; the to-dos are rows in Needs you now. */
 export function WeeklyCard() {
   const { data } = useAsync(() => api.getWeeklyReport(), [])
   if (!data) return null
@@ -43,17 +37,6 @@ export function WeeklyCard() {
         <Link href={`/studio/listings/${data.top_listing.listing_id}`} className="block text-sm text-gray-700 no-underline">
           Most viewed: <b className="text-blue-700 underline">{data.top_listing.title}</b> ({data.top_listing.views} views)
         </Link>
-      )}
-      {data.todo.length > 0 && (
-        <ul className="space-y-1 text-sm">
-          {data.todo.map((t) => (
-            <li key={t.kind}>
-              <Link href={TODO_HREF[t.kind] ?? '/studio'} className="flex min-h-[44px] items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-amber-900 no-underline active:bg-amber-100">
-                <span className="flex-1">{t.text}</span><span aria-hidden="true" className="text-lg">›</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
       )}
       {text && (
         <a href={`https://wa.me/?text=${encodeURIComponent(text)}`} target="_blank" rel="noopener noreferrer"

@@ -22,6 +22,17 @@ const EMPTY: Record<string, string> = { today: 'No follow-ups due today.', all: 
 
 const isOpen = (l: Lead) => l.stage !== 'won' && l.stage !== 'lost'
 
+/** "Instagram comment: “Dhanori maghe…”" -> "Dhanori maghe…": the channel is already on the row's last line. */
+function plainMessage(m: string): string {
+  return m.replace(/^(instagram|facebook|messenger|whatsapp|website chat)( comment| dm| message)?:\s*/i, '').replace(/^[“"]|[”"]$/g, '')
+}
+
+/**
+ * Someone who only commented or said hello in a DM, with no phone and nothing they want yet, is a conversation, not a lead:
+ * they live in the Inbox (2026-10-18) and join this list once they leave a number or a requirement.
+ */
+const isConversationOnly = (l: Lead) => !l.phone && !l.requirement_line && (l.stage ?? 'new') === 'new'
+
 function setHotInUrl(on: boolean) {
   if (typeof window === 'undefined') return
   const u = new URL(window.location.href)
@@ -50,9 +61,9 @@ function LeadRow({ lead, title, due }: { lead: Lead; title?: string; due?: Today
         )}
         {lead.requirement_line && <p className="truncate text-sm font-medium text-gray-800">{lead.requirement_line}</p>}
         <p className="text-sm text-gray-500">{displayPhone(lead.phone)}</p>
-        {lead.message && <p className="mt-1 truncate text-sm text-gray-700">“{lead.message}”</p>}
+        {lead.message && <p className="mt-1 truncate text-sm text-gray-700">“{plainMessage(lead.message)}”</p>}
         <p className="mt-1 truncate text-xs text-gray-500">
-          {[channelLabel(lead.channel), originKey(lead) !== 'unknown' ? `from ${sourceLabel(originKey(lead))}` : '',
+          {[originKey(lead) !== 'unknown' ? sourceLabel(originKey(lead)) : channelLabel(lead.channel),
             title ?? lead.first_touch?.enquiry_page ?? '', timeAgo(lead.last_activity_at)].filter(Boolean).join(' · ')}
         </p>
       </Link>
@@ -88,7 +99,8 @@ function LeadsList() {
       Promise.resolve().then(() => api.getToday()).then((d) => d?.follow_ups ?? [], () => [] as TodayFollowUp[]),
     ])
     return {
-      leads: sortLeads(leads),
+      leads: sortLeads(leads.filter((l) => !isConversationOnly(l))),
+      inInbox: leads.filter(isConversationOnly).length,
       titles: Object.fromEntries(listings.map((l) => [l.id, l.title])) as Record<string, string>,
       followUps: today,
     }
@@ -144,7 +156,7 @@ function LeadsList() {
         </button>
       </div>
       {fromCounts.length > 1 && (
-        <div role="group" aria-label="Where leads came from" className="-mx-1 overflow-x-auto">
+        <div role="group" aria-label="Where leads came from" className="-mx-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div className="gap-2 px-1 [display:flex]">
             <span className="flex-none self-center text-xs text-gray-600">From:</span>
             {fromCounts.map(([k, n]) => (
@@ -155,6 +167,11 @@ function LeadsList() {
             ))}
           </div>
         </div>
+      )}
+      {data && data.inInbox > 0 && !from && !hot && (
+        <Link href="/studio/inbox?tab=all" className="block rounded-xl bg-blue-50 px-3 py-2 text-sm text-blue-900 no-underline">
+          {data.inInbox} {data.inInbox === 1 ? 'person has' : 'people have'} only commented or messaged, with no number yet: they are in the Inbox &rsaquo;
+        </Link>
       )}
       {loading && !data && <Spinner />}
       {error && <ErrorBox message={error} onRetry={reload} />}
