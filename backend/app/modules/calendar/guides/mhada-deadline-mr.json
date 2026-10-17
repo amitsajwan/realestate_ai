@@ -32,23 +32,23 @@
     {
       "prompt": "A Marathi couple in their early 30s at a simple dining table in a small rented flat in the evening, the wife holding a phone and filling in an online form, the husband leaning in with a hopeful look. A plain wall behind them with nothing on it.",
       "screen": "फक्त *5 दिवस* उरले",
-      "voice": "MHADA पुणे लॉटरीचा अर्ज भरलाय? मग हे नक्की ऐका."
+      "voice": "MHADA पुणे लॉटरीचा अर्ज भरलाय? हे नक्की ऐका."
     },
     {
       "prompt": "Close-up over the shoulder of a woman's hands holding a phone, about to tap a button, a cup of tea and a small notebook on a wooden table, soft evening light, the phone screen blurred and unreadable.",
       "screen": "पैसे *भरले* का?",
-      "voice": "फक्त फॉर्म भरून चालत नाही. अनामत रक्कम भरली, तरच अर्ज सोडतीत मोजला जातो."
+      "voice": "अनामत रक्कम भरली, तरच अर्ज सोडतीत मोजला जातो."
     },
     {
       "prompt": "A quiet dim room of a Pune flat late at night, a phone glowing on a table, a sleeping city seen through the window, a calm but urgent mood. No clock, no calendar.",
       "screen": "*22 ऑक्टोबर* · रात्री 11:59",
-      "voice": "ऑनलाइन अर्ज आणि पेमेंटची शेवटची तारीख 22 ऑक्टोबर, रात्री 11:59.",
+      "voice": "ऑनलाइन अर्ज आणि पेमेंट: 22 ऑक्टोबर, रात्री 11:59 पर्यंत.",
       "lock": true
     },
     {
       "prompt": "A man in his 30s at the counter of a public sector bank branch in Pune handing a payment slip to the cashier, a simple bank interior, other customers blurred in the background, no signboards.",
-      "screen": "RTGS / NEFT · *23 ऑक्टोबर*",
-      "voice": "बँकेतून RTGS किंवा NEFT ने भरत असाल, तर 23 ऑक्टोबर दुपारी 3:59 पर्यंत.",
+      "screen": "RTGS · *23 ऑक्टोबर*",
+      "voice": "RTGS किंवा NEFT ने: 23 ऑक्टोबर, दुपारी 3:59 पर्यंत.",
       "lock": true
     },
     {
@@ -60,7 +60,7 @@
     {
       "prompt": "The same kind of young Marathi couple standing on a small balcony of a new flat at golden hour, smiling and looking at the view, a few plants in pots, happy and hopeful.",
       "screen": "अर्ज करणाऱ्या मित्राला *पाठवा*",
-      "voice": "अर्ज करणाऱ्या मित्राला हा व्हिडिओ आत्ताच पाठवा."
+      "voice": "अर्ज करणाऱ्या मित्राला हा व्हिडिओ पाठवा."
     }
   ],
   "hook": "MHADA पुणे लॉटरी: फक्त 5 दिवस, अनामत रक्कम भरली का?",

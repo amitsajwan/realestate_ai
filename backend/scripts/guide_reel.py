@@ -40,6 +40,7 @@ async def _run(a) -> int:
         if a.replace:   # rows not posted yet are planned again (new words, same pictures)
             gone = await store.items.delete_many({"slug": guide.slug, "external_id": None, "status": {"$in": ["approved", "planned"]}})
             print(f"{gone.deleted_count} unposted rows removed")
+            (gr.folder_of(guide.slug, uploads_dir()) / "reel.mp4").unlink(missing_ok=True)   # drawn again from the new words
         prep = await gr.prepare(guide, uploads_dir(), say=print)
         for b in prep.beats:
             print(f"  [{b['screen']}]  {b['voice']}")

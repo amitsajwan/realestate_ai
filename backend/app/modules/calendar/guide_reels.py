@@ -40,15 +40,19 @@ XFADE = 0.4
 MIN_SCENE = 2.4          # a screen line needs this long to be read, even under a short spoken line
 MAX_SCREEN_WORDS = 6
 MAX_VOICE_WORDS = 16     # one breath
-MAX_TOTAL_WORDS = 62     # about 25 s of Marathi at a reel host's pace
+MAX_TOTAL_WORDS = 46     # about 22 s: Marathi runs ~2.1 words a second with the pauses (62 words made a 29.4 s reel, 2026-10-17)
 LANGS = {"mr": "Marathi", "hi": "Hindi", "en": "English"}
+# Never a promise of a home or of better odds (a lottery is a draw). Live 2026-10-17 the editor wrote "पैसे भरले तरच घर मिळेल"
+# ("pay and only then you get a home"): any of these in a screen or spoken line refuses the beats. A guide adds its own in "never".
+NEVER = ("घर मिळेल", "घर मिळणार", "घर नक्की", "नक्की मिळ", "मिळेलच", "घर मिलेगा", "पक्का घर", "गॅरंटी", "guarantee",
+         "100%", "you will get a home", "sure shot")
 
 WRITER = (
     "You are the writer on a small creative team that makes short vertical reels for ordinary families in Pune about government "
     "housing (MHADA, PMAY). The viewer scrolls past in one second unless the first line touches something they care about. "
     "Write three different versions of the reel's beats, one beat per shot, in the order of the shots. Each beat: "
     "'screen' = the big words on screen, at most 5 words, wrap ONE key word or date in *stars*; "
-    "'voice' = one natural spoken sentence of at most 14 words, the way a friendly elder sister from Pune would say it, not a "
+    "'voice' = one natural spoken sentence of at most {line} words, the way a friendly elder sister from Pune would say it, not a "
     "news reader. The language is given; Marathi and Hindi in Devanagari, numbers as digits. Use ONLY the facts given: every date, "
     "time and number must come from them; never promise a home, better odds or help with the application; never mention a phone "
     "number or a website; a date the facts call planned stays planned (Marathi नियोजित). The guide may name words that must stay. Beat 1 is the hook (a question or a sharp truth); the last beat asks the viewer to send this to a friend "
@@ -58,7 +62,7 @@ WRITER = (
 EDITOR = (
     "You are the editor on the same team. You get the facts, the shots and the writer's versions. Pick the strongest hook, take the "
     "best beat for each shot from any version, and tighten: shorter is better, spoken words, no repeated idea, every date exactly as "
-    "in the facts. Same rules as the writer (screen at most 5 words with one *starred* word; voice at most 14 words; the language "
+    "in the facts. Same rules as the writer (screen at most 5 words with one *starred* word; voice at most {line} words; the language "
     "given; facts only). All spoken lines together at most {budget} words: the reel lasts about 20 seconds. "
     'Answer JSON only: {"beats": [{"screen": "...", "voice": "..."}], "why": "one line on the hook you chose"}'
 )
@@ -123,9 +127,14 @@ def problems(beats: Any, guide: Guide) -> List[str]:
             out.append(f"beat {i} has numbers not in the facts: {sorted(nums - allowed)}")
         if re.search(r"\b[6-9]\d{9}\b", _director.western_digits(screen + voice_)) or "http" in voice_ + screen:
             out.append(f"beat {i} has a phone number or a link")
-        said |= nums
-    if sum(_words(b.get("voice", "")) for b in beats if isinstance(b, dict)) > MAX_TOTAL_WORDS:
-        out.append("too many words for the reel's length")
+        said |= _director.numbers_in(voice_)   # must-say numbers are spoken as digits: a number spelt out in words ("बावीस") cannot be checked
+    total, most = sum(_words(b.get("voice", "")) for b in beats if isinstance(b, dict)), guide.get("max_words", MAX_TOTAL_WORDS)
+    if total > most:   # the count goes back to the editor: 'too long' alone did not get a shorter answer
+        out.append(f"too many words for the reel's length: {total} spoken words, at most {most}")
+    said_text = " ".join(f"{b.get('screen', '')} {b.get('voice', '')}" for b in beats if isinstance(b, dict)).lower()
+    banned = [w for w in list(NEVER) + list(guide.get("never", [])) if w.lower() in said_text]
+    if banned:
+        out.append(f"promises a home or odds: {banned}")
     missing = [n for n in guide.get("must_say", []) if n not in said]
     if missing:
         out.append(f"must-say numbers missing: {missing}")
@@ -194,14 +203,16 @@ async def _write(guide: Guide, llm: Any = None) -> Tuple[List[Dict[str, str]], D
     if llm is None:
         return guide.own_beats, note
     brief = _brief(guide)
-    drafts = await llm.json(WRITER, brief)
+    # the line limit follows the reel's budget: 14 words a line for 6 shots asked for 84, so no answer fitted 46 (2026-10-17)
+    line = str(max(5, guide.get("max_words", MAX_TOTAL_WORDS) // len(guide["shots"])))
+    drafts = await llm.json(WRITER.replace("{line}", line), brief)
     versions = [v.get("beats") for v in (drafts or {}).get("versions") or [] if isinstance(v, dict)]
     good = [v for v in versions if not problems(v, guide)]
     note["refused"] += [f"writer v{i + 1}: {'; '.join(problems(v, guide))}" for i, v in enumerate(versions) if problems(v, guide)]
     if versions:
         ask = f"{brief}\n\nWriter's versions:\n{json.dumps(versions, ensure_ascii=False)}"
-        system = EDITOR.replace("{budget}", str(MAX_TOTAL_WORDS - 8))
-        for _ in range(2):   # one more go with what was wrong (live 2026-10-17: the editor's first cut ran long)
+        system = EDITOR.replace("{budget}", str(guide.get("max_words", MAX_TOTAL_WORDS) - 4)).replace("{line}", line)
+        for _ in range(3):   # more goes with what was wrong and the word count (live 2026-10-17: 64, then 55 words for 46)
             edited = await llm.json(system, ask)
             beats = (edited or {}).get("beats")
             found = problems(beats, guide)
