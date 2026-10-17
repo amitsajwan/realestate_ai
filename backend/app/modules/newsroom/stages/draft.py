@@ -110,7 +110,7 @@ def _question(rel: Relevance) -> str:
     return f"Does this change how you look at homes in {where}? Tell us in the comments."
 
 
-def _safe_title(title, item: RawItem, facts: Facts) -> Optional[str]:
+def _safe_title(title, item: RawItem, facts: Facts, research: Optional[Research] = None) -> Optional[str]:
     """A headline for the website and the cards: the model's own title when it is short, is not the source headline and adds no
     capitalised word that the source or the facts lack; else None (the card then uses the first fact, already in our wording)."""
     t = _clean(title).rstrip(".")
@@ -118,12 +118,14 @@ def _safe_title(title, item: RawItem, facts: Facts) -> Optional[str]:
     if not t or len(ws) < 3 or len(ws) > 14:
         return None
     flat = lambda x: re.sub(r"\W+", " ", x or "").lower()  # noqa: E731
-    src = " ".join(flat(x) for x in [item.title, item.text] + [f.text for f in facts.facts])
+    src = " ".join(flat(x) for x in [item.title, item.text] + [f.text for f in facts.facts]
+                   + [f"{s.title} {s.text}" for s in (research.sources if research else [])])
+    from .check import COMMON, GERUND  # Title Case headlines ("Gets", "Approval") are ordinary words, not names
     if flat(t) == flat(item.title):
         return None
     for w in ws[1:]:
         core = re.sub(r"[^\w₹]", "", w)
-        if core[:1].isupper() and not core.isupper() and core.lower() not in src:
+        if core[:1].isupper() and not core.isupper() and core.lower() not in src and core.lower() not in COMMON and not GERUND.match(core):
             return None
     return t
 
@@ -172,7 +174,7 @@ def _article(item: RawItem, facts: Facts, rel: Relevance, parts: dict, research:
     paras += [f"What to check: {' '.join(c if c.endswith(('.', '?')) else c + '.' for c in checks)}"] if checks else []
     paras += [_source_line(sources, _as_of(facts, item)), policy.DISCLAIMER]
     link = next((u for _, u in sources if _readable(u)), item.url)
-    return Draft("article", "\n\n".join(p for p in paras if p), _safe_title(parts.get("title"), item, facts), link,
+    return Draft("article", "\n\n".join(p for p in paras if p), _safe_title(parts.get("title"), item, facts, research), link,
                  [n for n, _ in sources], [u for _, u in sources])
 
 

@@ -164,6 +164,10 @@ async def _research(store, stages, doc, raw):
     if main is not None and main.full and main.text != raw.text:
         await store.update_raw(doc["_id"], main.text)
         raw = codec.raw_item({"raw": {**codec.to_doc(raw), "text": main.text}})
+    if main is not None and main.url and main.url != raw.url and "news.google.com" not in main.url:
+        # the publisher's own address (resolved from a Google News link): the article's source line links to it, not to Google
+        await store.update_raw(doc["_id"], raw.text, main.url)
+        raw = codec.raw_item({"raw": {**codec.to_doc(raw), "url": main.url}})
     return raw, found
 
 

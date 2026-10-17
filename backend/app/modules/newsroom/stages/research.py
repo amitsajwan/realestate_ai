@@ -148,11 +148,33 @@ def _host(url: str) -> str:
     return h[4:] if h.startswith("www.") else h[2:] if h.startswith("m.") else h
 
 
+# the names readers know for the sites a web search brings back most often; any other site is shown by its address
+PUBLISHERS = {
+    "hindustantimes.com": "Hindustan Times", "timesofindia.indiatimes.com": "The Times of India", "indianexpress.com": "The Indian Express",
+    "punemirror.com": "Pune Mirror", "punekarnews.in": "Punekar News", "thebridgechronicle.com": "The Bridge Chronicle",
+    "economictimes.indiatimes.com": "The Economic Times", "livemint.com": "Mint", "moneycontrol.com": "Moneycontrol",
+    "freepressjournal.in": "Free Press Journal", "magicbricks.com": "Magicbricks", "99acres.com": "99acres", "lokmat.com": "Lokmat",
+    "loksatta.com": "Loksatta", "maharashtratimes.com": "Maharashtra Times", "punepulse.in": "Pune Pulse", "urbanacres.in": "Urban Acres",
+    "propnewstime.com": "Prop News Time", "ndtv.com": "NDTV", "ndtvprofit.com": "NDTV Profit", "business-standard.com": "Business Standard",
+    "thehindu.com": "The Hindu", "financialexpress.com": "Financial Express", "news18.com": "News18", "swarajyamag.com": "Swarajya",
+}
+
+
+def _key(name: str) -> str:
+    """A publisher name or site reduced to its letters: "The Bridge Chronicle" and "thebridgechronicle.com" give the same key."""
+    n = re.sub(r"\.(com|in|co\.in|net|org|news)$", "", (name or "").lower().strip())
+    return re.sub(r"[^a-z]", "", n[3:] if n.startswith("the") else n)
+
+
 def _result_name(title: str, link: str) -> str:
-    """A search result's publisher: the short tail of its title ("... - Hindustan Times"), else its site."""
+    """A search result's publisher: the name readers know for its site, else the short tail of its title ("... - Hindustan
+    Times"), else its address."""
+    host = _host(link)
+    if host in PUBLISHERS:
+        return PUBLISHERS[host]
     parts = re.split(r"\s+[-|–—]\s+", title or "")
     tail = parts[-1].strip() if len(parts) > 1 else ""
-    return tail if 2 < len(tail) <= 30 else _host(link)
+    return tail if 2 < len(tail) <= 30 else host
 
 
 def search_query(title: str) -> str:
@@ -203,12 +225,16 @@ async def research(item: RawItem, relevance: Optional[Relevance], candidates: It
         taken = {_host(s.url) for s in sources} | {_host(brand.site()), _host(brand.DEFAULT_SITE)}
         found = (await _searched(item, search, taken))[:MAX_SEARCH_READS]
         notes.append(f"Web search for the headline found {len(found)} other report(s).")
-        names = {s.name.lower() for s in sources}
+        names = {_key(s.name) for s in sources}
         for c in found:
             doc = await _read(c, "related", get, robots, notes)
-            if doc.full and doc.name.lower() not in names:
+            same_as_main = _key(doc.name) in (_key(main.name), _key(_host(main.url)))
+            if doc.full and same_as_main and not sources[0].full:
+                # the item's own report, found again at an address we could read (its Google link could not be): it becomes the main
+                sources[0] = dataclasses.replace(doc, name=main.name, role="main", published_at=main.published_at)
+            elif doc.full and not same_as_main and _key(doc.name) not in names:
                 sources.append(doc)
-                names.add(doc.name.lower())
+                names.add(_key(doc.name))
             if sum(1 for s in sources if s.full) >= MIN_FULL + 1:
                 break
     story = " ".join(f"{s.title} {s.text[:1500]}" for s in sources)
