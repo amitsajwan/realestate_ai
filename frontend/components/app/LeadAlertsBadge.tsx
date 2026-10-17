@@ -63,7 +63,7 @@ export function LeadAlertsBadge() {
         </Link>
       )}
       {leads > 0 && (
-        <Link href="/studio/interest" data-testid="lead-alerts-badge"
+        <Link href="/studio/inbox" data-testid="lead-alerts-badge"
           className="flex min-h-[56px] items-center justify-between rounded-2xl border border-green-300 bg-green-50 px-4 font-semibold text-green-900">
           <span>
             <span aria-label={`${leads} new`} className="mr-2 inline-flex h-6 min-w-[24px] items-center justify-center rounded-full bg-green-700 px-2 text-sm text-white">{leads}</span>

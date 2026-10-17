@@ -11,6 +11,7 @@ jest.mock('@/lib/app/client', () => ({ isFixtureMode: () => false }))
 jest.mock('@/components/app/agents/useIsOwner', () => ({ useIsOwner: () => mockOwner }))
 jest.mock('@/lib/app/content', () => ({ contentApi: { getUpcoming: (...a: unknown[]) => mockUpcoming(...a) } }))
 jest.mock('@/lib/app/newsroom', () => ({ newsroomApi: { getStatus: (...a: unknown[]) => mockStatus(...a) } }))
+jest.mock('@/lib/app/inbox', () => ({ inboxApi: { threads: async () => [] } }))
 
 const planned = (slug: string, channel = 'instagram') => ({ id: `${slug}-${channel}`, slug, channel, status: 'planned' })
 const nav = () => within(screen.getByRole('navigation', { name: 'Main' }))
@@ -25,10 +26,10 @@ beforeEach(() => {
 })
 
 describe('AppShell tabs', () => {
-  it('owners get five items: Home, Content, Newsroom, Leads, More, with 12 px labels', async () => {
+  it('owners get five items: Home, Inbox, Content, Newsroom, More, with 12 px labels', async () => {
     render(<AppShell><p>x</p></AppShell>)
     const links = nav().getAllByRole('link')
-    expect(links.map((l) => l.getAttribute('href'))).toEqual(['/studio', '/studio/content', '/studio/newsroom', '/studio/leads'])
+    expect(links.map((l) => l.getAttribute('href'))).toEqual(['/studio', '/studio/inbox', '/studio/content', '/studio/newsroom'])
     const more = nav().getByRole('button', { name: 'More' })
     expect(nav().getAllByRole('listitem')).toHaveLength(5)
     for (const el of [...links, more]) {
@@ -48,8 +49,8 @@ describe('AppShell tabs', () => {
     fireEvent.click(more)
     const sheet = screen.getByRole('dialog', { name: 'More' })
     const rows = within(sheet).getAllByRole('link')
-    expect(rows.map((l) => l.getAttribute('href'))).toEqual(['/studio/listings', '/studio/interest', '/studio/radar', '/studio/agents', '/studio/admin', '/studio/profile'])
-    expect(rows[4]).toHaveAttribute('aria-current', 'page')
+    expect(rows.map((l) => l.getAttribute('href'))).toEqual(['/studio/leads', '/studio/listings', '/studio/interest', '/studio/radar', '/studio/agents', '/studio/admin', '/studio/profile'])
+    expect(rows[5]).toHaveAttribute('aria-current', 'page')
     expect(rows[0].className).toContain('min-h-[56px]')
     fireEvent.click(within(sheet).getByRole('button', { name: 'Close' }))
     expect(screen.queryByRole('dialog')).toBeNull()

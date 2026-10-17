@@ -55,6 +55,7 @@ const en = {
   describe: 'Describe the property - e.g. 2 BHK in Baner, 85 lakh, ready possession',
   speak: 'Tap to speak',
   interest: 'Interest',
+  inbox: 'Inbox',
   newsroom: 'Newsroom',
   content: 'Content',
   agents: 'Agents',

@@ -10,6 +10,7 @@ Rules
   - The buyer started the chat, so we may reply and keep a lead: consent is recorded as that, and they are told once how to stop (STOP).
   - An agent (an account, or a sign-up code sent to this number) is never a buyer: no lead, no buyer greeting; the owner is told and
     the agent gets one 'our team will reply here' every 12 hours. TRIAL claims tell the owner too.
+  - After a person replies from the Studio inbox (human_until), the bot stays quiet in that chat and the person is told of each message.
   - STOP / UNSUBSCRIBE: opted out, one confirmation, then silence until START.
   - Replies only inside 24 hours of the buyer's last message; otherwise refused and logged (no paid templates yet).
   - Dry run records the reply and sends nothing. Tokens never reach logs or stored errors.
@@ -179,6 +180,12 @@ class WhatsAppService:
                                       f"{who} claimed the free trial on WhatsApp" + ("" if status == "issued" else " (today's trials are full, request saved)"),
                                       {"conversation_id": cid, "screen": "/studio/agents?tab=signedup"}, now)
             return await self._finish(conv, mid, reply, "trial", now, text, mtype)
+        if conv.get("human_until") and conv["human_until"] > now:   # a person on our side answered here (Studio inbox): the bot stays quiet
+            to = conv.get("agent_id") or self.cfg.owner_agent_id
+            if to:
+                await adapters.notify(self.db, to, "whatsapp_reply", f"{conv.get('name') or 'Someone'} replied on WhatsApp: \"{(text or f'[{mtype}]')[:120]}\"",
+                                      {"conversation_id": cid, "screen": "/studio/inbox"}, now)
+            return await self._finish(conv, mid, None, "held", now, text, mtype)
         agent = await adapters.agent_for_phone(self.db, "+" + wa_id, exclude=self.cfg.owner_agent_id)
         if agent:
             return await self._agent_chat(conv, mid, agent, text, lang, now, mtype)
@@ -208,7 +215,7 @@ class WhatsAppService:
         if self.cfg.owner_agent_id:
             said = (text or f"[{mtype}]")[:120]
             await adapters.notify(self.db, self.cfg.owner_agent_id, "agent_whatsapp", f"{agent.get('name') or 'An agent'} (agent) wrote on WhatsApp: \"{said}\"",
-                                  {"conversation_id": conv["_id"], "screen": "/studio/interest"}, now)
+                                  {"conversation_id": conv["_id"], "screen": "/studio/inbox"}, now)
         reply = None
         last = conv.get("agent_ack_at")
         if not last or now - last >= AGENT_ACK_EVERY:

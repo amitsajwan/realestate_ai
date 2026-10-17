@@ -45,6 +45,7 @@ from app.modules.calendar.router import router as calendar_router
 from app.modules.calendar.public import router as calendar_public_router
 from app.modules.interest.router import router as interest_router, public_router as interest_public_router
 from app.modules.chat.router import router as chat_router
+from app.modules.inbox.router import router as conversations_router
 from app.modules.report.router import router as report_router
 from app.modules.waitlist.router import router as waitlist_router
 from app.modules.admin.router import router as admin_router
@@ -106,6 +107,7 @@ api_router.include_router(interest_router, prefix="/interest", tags=["interest"]
 api_router.include_router(interest_public_router, prefix="/public", tags=["public"])
 api_router.include_router(calendar_public_router, prefix="/public", tags=["public"])
 api_router.include_router(chat_router, prefix="/chat", tags=["chat"])
+api_router.include_router(conversations_router, prefix="/conversations", tags=["conversations"])
 api_router.include_router(report_router, prefix="/report", tags=["report"])
 api_router.include_router(listings_public_router, prefix="/public", tags=["public"])
 api_router.include_router(listing_reels_router, prefix="/listings", tags=["listing-reels"])
