@@ -352,6 +352,10 @@ def calendar_grounding(doc: dict) -> Optional[Grounding]:
     # the row's own reply sheet (reply_facts, reply_faq) comes first: what the post covers and what it does not ('homes only in Pune, PCMC, PMRDA')
     g.facts = [f for f in (_clean(x) for x in doc.get("reply_facts") or []) if f] + [f for f in g.facts if f not in (doc.get("reply_facts") or [])]
     g.faq, g.guide = _faq(doc.get("reply_faq")), True
+    if doc.get("reply_facts") or doc.get("reply_faq"):
+        # a guide's sheet is the whole truth for it: the home-buying lines (visit, loan, RERA) once answered 'certificate pending, can I
+        # apply?' on the MHADA reel with the RERA sentence, because a misread topic found them before the sheet's own answer
+        g.general = []
     return g if g.facts or g.faq else None
 
 
