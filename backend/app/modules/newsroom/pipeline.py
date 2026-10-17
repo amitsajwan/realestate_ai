@@ -211,6 +211,20 @@ async def _draft(store, stages, llm, doc):
 
 async def _check(store, stages, doc, llm=None, auto_approve: bool = False):
     res = await _call(stages["check"], codec.draft(doc), codec.facts(doc), codec.evidence(doc))
+    if not res.ok and llm is not None and (doc.get("draft") or {}).get("format") == "article" and stages.get("draft"):
+        # one rewrite with the problems named before a researched story is given up (copied wording, a stray unit)
+        try:
+            again = await _call(stages["draft"], codec.raw_item(doc), codec.facts(doc), codec.relevance(doc), "article", llm,
+                                research=codec.research(doc), problems=res.problems)
+        except Exception as e:
+            log.warning("newsroom: redraft of %s failed: %s", doc.get("_id"), sanitize(e))
+            again = None
+        if again is not None and again.format == "article":
+            doc = {**doc, "draft": codec.to_doc(again)}
+            res2 = await _call(stages["check"], again, codec.facts(doc), codec.evidence(doc))
+            if res2.ok:
+                await store.update(doc["_id"], draft=doc["draft"])
+                res = res2
     if res.ok:
         await store.move(doc["_id"], "checked", check=codec.to_doc(res))
         await store.move(doc["_id"], "pending_review", "awaiting owner", check=codec.to_doc(res))

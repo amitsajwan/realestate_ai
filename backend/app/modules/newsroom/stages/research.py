@@ -199,7 +199,8 @@ async def research(item: RawItem, relevance: Optional[Relevance], candidates: It
     if not others:
         notes.append("No other report of this story found in the last two weeks.")
     if search is not None and sum(1 for s in sources if s.full) < MIN_FULL:
-        taken = {_host(s.url) for s in sources}
+        # our own site is never a source: its news page repeats the stories we wrote (2026-10-17, avasetu.in came back as a "report")
+        taken = {_host(s.url) for s in sources} | {_host(brand.site()), _host(brand.DEFAULT_SITE)}
         found = (await _searched(item, search, taken))[:MAX_SEARCH_READS]
         notes.append(f"Web search for the headline found {len(found)} other report(s).")
         names = {s.name.lower() for s in sources}

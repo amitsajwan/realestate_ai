@@ -263,7 +263,8 @@ async def _ask(llm: Llm, system: str, user: str, ok) -> Optional[dict]:
     return None
 
 
-async def write_article(item: RawItem, facts: Facts, relevance: Relevance, llm: Optional[Llm], research: Optional[Research]) -> Optional[Draft]:
+async def write_article(item: RawItem, facts: Facts, relevance: Relevance, llm: Optional[Llm], research: Optional[Research],
+                        problems: Optional[List[str]] = None) -> Optional[Draft]:
     """The researched article (see SYSTEM_ARTICLE); the deterministic one when the model fails or returns too little."""
     if llm is None:
         return template_article(item, facts, relevance, research)
@@ -272,7 +273,8 @@ async def write_article(item: RawItem, facts: Facts, relevance: Relevance, llm: 
     user = (f"Area: {where}\nTopic: {relevance.pillar or 'general'}\nAs of: {_as_of(facts, item) or 'unknown'}\n"
             f"Sources read: {', '.join(n for n, _ in _sources(item, facts, research))}\n"
             + "Facts (each with its source):\n" + _facts_block(facts)
-            + ("\nBackground (our own verified area guide; context only, never news):\n" + "\n".join(f"- {b}" for b in bg) if bg else ""))
+            + ("\nBackground (our own verified area guide; context only, never news):\n" + "\n".join(f"- {b}" for b in bg) if bg else "")
+            + ("\nThe last version failed our checks. Fix these problems: " + "; ".join(problems) if problems else ""))
     body_ok = lambda p: isinstance(p.get("body"), list) and sum(1 for x in p["body"] if isinstance(x, str) and _clean(x)) >= 2  # noqa: E731
     parts = await _ask(llm, SYSTEM_ARTICLE, user, lambda p: bool(_clean(p.get("standfirst"))) and body_ok(p) and bool(_clean(p.get("why"))))
     if parts is None:
@@ -281,11 +283,11 @@ async def write_article(item: RawItem, facts: Facts, relevance: Relevance, llm: 
 
 
 async def draft(item: RawItem, facts: Facts, relevance: Relevance, fmt: str, llm: Optional[Llm],
-                research: Optional[Research] = None) -> Optional[Draft]:
+                research: Optional[Research] = None, problems: Optional[List[str]] = None) -> Optional[Draft]:
     if not facts.facts:
         return None
     if fmt == "article" and can_be_article(item, facts, research):
-        return await write_article(item, facts, relevance, llm, research)
+        return await write_article(item, facts, relevance, llm, research, problems)
     if fmt == "article":
         fmt = "post"  # too little reporting behind it for an honest article
     if llm is None:
