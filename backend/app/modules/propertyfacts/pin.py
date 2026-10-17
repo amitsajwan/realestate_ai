@@ -11,7 +11,7 @@ location only) once it is REFRESH_DAYS old; a project not found is searched agai
 import logging
 import re
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, List, Optional
 
 import httpx
@@ -140,7 +140,10 @@ class Pins:
             return None, "no project name to find on Google Maps"
         now = now or datetime.utcnow()
         kept = await self.col.find_one({"_id": key})
-        fresh = kept and isinstance(kept.get("at"), datetime) and now - kept["at"] < timedelta(days=REFRESH_DAYS)
+        at = kept.get("at") if kept else None
+        if isinstance(at, datetime):   # Mongo hands dates back naive (UTC); callers pass naive or aware
+            at, ref = at.replace(tzinfo=None), (now.astimezone(timezone.utc).replace(tzinfo=None) if now.tzinfo else now)
+        fresh = kept and isinstance(at, datetime) and ref - at < timedelta(days=REFRESH_DAYS)
         if fresh:
             return (_pin(kept), kept.get("checked", "")) if kept.get("place_id") else (None, kept.get("checked", ""))
         if kept and kept.get("place_id"):          # found before: re-read only its position

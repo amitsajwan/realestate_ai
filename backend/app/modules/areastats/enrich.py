@@ -59,7 +59,8 @@ MAX_SUMMARY = 160                     # the one-line summary search results may 
 TEXT_VERSION = 2
 SECTIONS = ("The homes and the building", "Location", "Amenities and features")
 BACKFILL = 7                          # priority group of a rewrite for a newer writer: after everything else
-BACKFILL_EVERY = timedelta(minutes=30)   # such rewrites: ~48 a day, on the free model tiers, beside chat and content
+BACKFILL_EVERY = timedelta(minutes=30)   # a rewrite that reads the web pages again (~9 model calls): ~48 a day on the free tiers
+# a rewrite whose web pages were read within REFRESH_DAYS only writes (one model call, ~2K tokens): at the loop's own pace
 BANNED = re.compile(r"\b(best|luxur\w*|premium|world[- ]class|guaranteed?|assured|dream|unmatched|perfect|exclusive|hurry|limited time)\b", re.I)
 NUM = re.compile(r"\d[\d,]*(?:\.\d+)?")
 
@@ -133,12 +134,18 @@ def priority(d: dict, urgent: set, now: datetime) -> Optional[tuple]:
     if legacy:
         return (3, -seen, _aware(done).timestamp())             # after Google's pages, before the never-enriched ones
     if old_writer and now - _aware(done) < timedelta(days=days):
-        return (BACKFILL, -seen, _aware(done).timestamp())     # fresh facts, older text: Google's pages first
+        return (BACKFILL, 0 if sources_fresh(d, now) else 1, -seen, _aware(done).timestamp())   # cheap rewrites first
     if isinstance(done, datetime):
         return (6, _aware(done).timestamp())                   # due for a refresh, oldest first
     if seen:   # Google already shows it: just off page one first, then most impressions first
         return (2, 0 if searchconsole.near_page_one(d.get("gsc_position"), seen) else 1, -seen)
     return (4 if pages.indexable(d) else 5, -pages.recency(d), -(int(d.get("units_total") or 0)))   # newest first, then bigger
+
+
+def sources_fresh(d: dict, now: datetime) -> bool:
+    """The web facts and profile were read within REFRESH_DAYS: a rewrite for a newer writer uses what they found."""
+    at = (((d.get("enrichment") or {}).get("steps") or {}).get("web") or {}).get("at")
+    return isinstance(at, datetime) and now - _aware(at) < timedelta(days=REFRESH_DAYS)
 
 
 def needs_profile(d: dict, now: datetime) -> bool:
@@ -365,7 +372,9 @@ def score(steps: dict) -> str:
     return f"{sum(1 for k in STEPS if (steps.get(k) or {}).get('ok'))}/{len(STEPS)}"
 
 
-async def enrich_one(store: Store, doc: dict, llm, now: datetime) -> dict:
+async def enrich_one(store: Store, doc: dict, llm, now: datetime, reread: bool = True) -> dict:
+    """One round for one project. `reread=False` (a rewrite for a newer writer, sources_fresh): the web facts and profile kept
+    from the last round are used as they are, and their steps are carried over."""
     regno = doc.get("regno") or doc["_id"]
     gather = _deps["gather"]
     gathered, notes, steps = None, [], {}
@@ -411,20 +420,25 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime) -> dict:
         notes.append("no gatherer configured")
     steps["places"], placed = await check_places(store, doc, await sheet(), located_from, now)
     fetch = webfacts.memo(webfacts.fetch_page)   # the web facts and the profile read the same pages: each once
-    try:
-        steps["web"], web = await webfacts.gather(store, doc, llm, now, fetch=fetch)
-    except Exception as e:
-        log.exception("enrich: web facts failed for %s", regno)
-        steps["web"], web = _step(False, now, checked=f"failed ({type(e).__name__})"), {}
-    if web:
-        await store.set_project(doc["_id"], **web)
-    try:
-        steps["profile"], prof = await profile.gather(store, doc, llm, now, fetch=fetch)
-    except Exception as e:
-        log.exception("enrich: profile failed for %s", regno)
-        steps["profile"], prof = _step(False, now, checked=f"failed ({type(e).__name__})"), {}
-    if prof:
-        await store.set_project(doc["_id"], **prof)
+    kept_steps = (doc.get("enrichment") or {}).get("steps") or {}
+    web, prof = {}, {}
+    if not reread:
+        steps["web"], steps["profile"] = kept_steps.get("web") or {}, kept_steps.get("profile") or {}
+    else:
+        try:
+            steps["web"], web = await webfacts.gather(store, doc, llm, now, fetch=fetch)
+        except Exception as e:
+            log.exception("enrich: web facts failed for %s", regno)
+            steps["web"], web = _step(False, now, checked=f"failed ({type(e).__name__})"), {}
+        if web:
+            await store.set_project(doc["_id"], **web)
+        try:
+            steps["profile"], prof = await profile.gather(store, doc, llm, now, fetch=fetch)
+        except Exception as e:
+            log.exception("enrich: profile failed for %s", regno)
+            steps["profile"], prof = _step(False, now, checked=f"failed ({type(e).__name__})"), {}
+        if prof:
+            await store.set_project(doc["_id"], **prof)
     pinned = ((placed or {}).get("geo") or {}).get("located_from") == "google"
     draft, refused = await write_text(llm, doc, gathered, (web or {}).get("web_facts") or doc.get("web_facts"),
                                       (prof or {}).get("profile") or doc.get("profile"), pinned)
@@ -518,13 +532,15 @@ async def step(store: Store, llm, now: datetime, last_regular: Optional[datetime
     doc = await next_project(store, now)
     if doc is None:
         return None
+    reread = True
     if not urgent and (priority(doc, set(), now) or (0,))[0] == BACKFILL:
-        if last_regular is not None and now - _aware(last_regular) < BACKFILL_EVERY:
+        reread = not sources_fresh(doc, now)
+        if reread and last_regular is not None and now - _aware(last_regular) < BACKFILL_EVERY:
             return None
         if busy(llm):
             log.info("enrich: rewrite for %s waits: most free model tiers are resting", doc.get("_id"))
             return None
-    out = await enrich_one(store, doc, llm, now)
+    out = await enrich_one(store, doc, llm, now, reread=reread)
     out["urgent"] = bool(urgent)
     return out
 
