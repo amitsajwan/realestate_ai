@@ -3,6 +3,13 @@
 Replies to buyers now answer the enquiry from what we know about THAT home, post or area. Only a detail we truly do not have is handed to a person, and the reply says so plainly
 ("I do not have the maintenance figure for this home, but the agent can tell you: <link>"). Never "we will forward your query".
 
+## Educational posts (LIVE 2026-10-17): schemes, how-tos, MHADA
+A calendar post that is not a home or builder project (`Grounding.guide`) never sends a buyer to an agent. What it covers is answered from its caption plus the row's own
+reply sheet; what it does not cover gets "this post does not cover X; we will post about it soon, follow the page" and lands in Needs you, so the owner sees the gap and either replies or makes the post.
+- Every educational row gets a reply sheet when it is made: `content_calendar.reply_faq` `[{q, a}]` (the questions buyers will ask, scope first: WHERE it applies and where it does not)
+  and optionally `reply_facts` (plain sentences, read before the caption). Example: the MHADA Pune rows answer "is it in Nashik?" with "only Pune city, PCMC, PMRDA; other boards later".
+- Manual replies: the owner replies on Instagram, or we post from the conversations container with `IgGraph.reply` and set `manual_reply`/`manual_reply_id` on the `engage_comments` row.
+
 ## What was built (`backend/app/modules/knowledge/`, loosely coupled)
 - `areas.py`: curated `AreaFacts` for kharadi, upper_kharadi, wagholi. Every statement restates our own pages (localities.ts, insights.ts), which cite PIB and MahaRERA. No prices, no predictions, no
   distances, no school or hospital names (unsourced, so left out on purpose). Metro is "approved is not the same as running". `tests/modules/knowledge/test_areas.py` parses the two TS files and fails

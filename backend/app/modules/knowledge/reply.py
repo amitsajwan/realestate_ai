@@ -190,6 +190,19 @@ UNKNOWN = {
                 "instagram": "{what} chi mahiti majhyakade nahi, pan agent sangu shaktat; link in our bio baha.",
                 "chat": "{what} chi mahiti majhyakade nahi; aamhi aamchya team kadun khatri karun gheu."},
 }
+# Our educational posts (a scheme, a how-to): what the post does not cover is promised as a later post; no agent is involved
+UNKNOWN_GUIDE = {
+    "en": {"facebook": "This post does not cover {what}; we will post about it soon. Follow the page to see it.",
+           "instagram": "This post does not cover {what}; we will post about it soon. Follow the page to see it."},
+    "hinglish": {"facebook": "{what} is post mein nahi hai; is par hum jald post karenge, page follow karein.",
+                 "instagram": "{what} is post mein nahi hai; is par hum jald post karenge, page follow karein."},
+    "hi": {"facebook": "{what} की जानकारी इस पोस्ट में नहीं है; इस पर हम जल्द पोस्ट करेंगे, पेज फॉलो करें।",
+           "instagram": "{what} की जानकारी इस पोस्ट में नहीं है; इस पर हम जल्द पोस्ट करेंगे, पेज फॉलो करें।"},
+    "mr": {"facebook": "{what} या पोस्टमध्ये नाही; यावर आम्ही लवकरच पोस्ट करू, पेजला फॉलो करून ठेवा.",
+           "instagram": "{what} या पोस्टमध्ये नाही; यावर आम्ही लवकरच पोस्ट करू, पेजला फॉलो करून ठेवा."},
+    "mr_latn": {"facebook": "{what} ya post madhe nahi; yavar aamhi lavkarach post karu, page follow kara.",
+                "instagram": "{what} ya post madhe nahi; yavar aamhi lavkarach post karu, page follow kara."},
+}
 TAIL = {
     "en": {"facebook": "More details: {interest_url}", "instagram": "More details at the link in our bio.", "chat": ""},
     "hinglish": {"facebook": "Poori jaankari: {interest_url}", "instagram": "Poori jaankari link in our bio par hai.", "chat": ""},
@@ -522,7 +535,8 @@ async def answer(question: str, grounding: Grounding, channel: str = "facebook",
 
     # something is not covered: say what we can, then say plainly what we do not have
     labels = [UNKNOWN_DETAIL[lang] if m == "other" else OVERRIDE[pl.over[m]][lang] if m in pl.over else _label(m, lang) for m in pl.missing]
-    unknown = UNKNOWN[lang][ch].format(what=_join_labels(labels, lang), for_=FOR[g.noun] if lang == "en" else "", interest_url=INTEREST)
+    sheet = UNKNOWN_GUIDE if g.guide and ch != "chat" else UNKNOWN
+    unknown = sheet[lang][ch].format(what=_join_labels(labels, lang), for_=FOR[g.noun] if lang == "en" else "", interest_url=INTEREST)
     found = _body(pl.found, ch, MAX_FOUND[ch] - 1 if ch != "chat" else 2)
     text = " ".join(found)
     if found and lang != "en":

@@ -70,6 +70,7 @@ class Grounding:
     advice: List[str] = field(default_factory=list)
     sources: List[str] = field(default_factory=list)   # audit only: where the statements come from
     locality: Optional[str] = None
+    guide: bool = False            # our own educational post (a scheme, a how-to): what it does not cover is promised as a later post, not sent to an agent
 
     @property
     def noun(self) -> str:
@@ -348,8 +349,10 @@ def calendar_grounding(doc: dict) -> Optional[Grounding]:
     if e:
         body, subject, review = e.body, e.title, e.review
     g = post_grounding(subject, body, review)
-    g.facts = g.facts or []
-    return g if g.facts else None
+    # the row's own reply sheet (reply_facts, reply_faq) comes first: what the post covers and what it does not ('homes only in Pune, PCMC, PMRDA')
+    g.facts = [f for f in (_clean(x) for x in doc.get("reply_facts") or []) if f] + [f for f in g.facts if f not in (doc.get("reply_facts") or [])]
+    g.faq, g.guide = _faq(doc.get("reply_faq")), True
+    return g if g.facts or g.faq else None
 
 
 # ---- entry point ----------------------------------------------------------------------------------------------------
