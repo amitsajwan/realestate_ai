@@ -1,6 +1,6 @@
 {
   "slug": "mhada-outage-mr-20261018",
-  "title": "MHADA Pune lottery: MahaIT services down until 21 Oct, deadline still 22 Oct",
+  "title": "MHADA Pune lottery: certificate approval paused until 20 Oct, what applicants can still do",
   "audience": "Marathi families in Pune and PCMC applying for the MHADA Pune lottery 2026 (EWS/LIG, first home), 22-50",
   "lang": "mr",
   "gender": "female",
@@ -10,18 +10,19 @@
     "facebook_page"
   ],
   "as_of": "2026-10-17",
-  "message": "MahaIT services are down until 21 October, the last date is still 22 October and no extension is announced: keep everything ready, and we will tell you if the date changes.",
+  "message": "Domicile and income certificates are not approved until 20 October; if yours are approved, finish the application and payment now; the last date is still 22 October and no extension is announced; we will tell you if it changes.",
   "facts": [
-    "MHADA's notice: MahaIT related portal services remain unavailable from 16 October 2026 (4 pm) to 21 October 2026, for technical maintenance by MahaIT. Source: mhada.gov.in Pune page, read 17 October 2026.",
-    "MahaIT handles the domicile and income certificate checks for the lottery application. Source: Mahaenews, 17 October 2026.",
+    "Notice on MHADA's lottery portal (seen 17 October 2026): MAHA IT services will remain unavailable from Friday, 16 October 2026, at 4:00 PM until 20 October 2026; domicile and income certificates will not get approved in that time.",
+    "MHADA's main site notice gives the end of the MahaIT maintenance as 21 October 2026. Source: mhada.gov.in Pune page, read 17 October 2026.",
+    "After the certificates are approved, the applicant pays the deposit and submits the application. Source: Mahaenews, 17 October 2026.",
     "The last date to apply and pay the deposit online is still 22 October 2026, 11:59 pm (23:59). Source: MHADA Pune board, extension of 14 October 2026.",
     "Deposit paid by RTGS or NEFT from a bank is accepted until 23 October 2026, 3:59 pm (15:59). Source: MHADA Pune board.",
-    "No further extension has been announced as of 17 October 2026. Source: Mahaenews, 17 October 2026; MHADA's site shows none.",
+    "No further extension has been announced as of 17 October 2026.",
     "Applications are made only on MHADA's official site."
   ],
-  "max_words": 54,
+  "max_words": 56,
   "must_say": [
-    "21",
+    "20",
     "22",
     "23"
   ],
@@ -34,30 +35,30 @@
     {
       "prompt": "A Marathi couple in their early 30s at a simple dining table in a small rented flat in the evening, the wife holding a phone and filling in an online form, the husband leaning in with a hopeful look. A plain wall behind them with nothing on it.",
       "screen": "MHADA अर्ज *अडकलाय*?",
-      "voice": "MHADA पुणे लॉटरीचा अर्ज अडकलाय? हे आधी ऐका."
+      "voice": "MHADA पुणे लॉटरीचा अर्ज अडकलाय? हे ऐका."
     },
     {
       "prompt": "Close-up over the shoulder of a woman's hands holding a phone, about to tap a button, a cup of tea and a small notebook on a wooden table, soft evening light, the phone screen blurred and unreadable.",
-      "screen": "महा-आयटी सेवा *21 ऑक्टोबर*पर्यंत बंद",
-      "voice": "महा-आयटीच्या सेवा 16 ऑक्टोबर दुपारपासून 21 ऑक्टोबरपर्यंत बंद आहेत.",
+      "screen": "दाखले मंजुरी *20 ऑक्टोबर*पर्यंत बंद",
+      "voice": "अधिवास आणि उत्पन्न दाखल्यांची मंजुरी 20 ऑक्टोबरपर्यंत थांबली आहे.",
       "lock": true
     },
     {
       "prompt": "A quiet dim room of a Pune flat late at night, a phone glowing on a table, a sleeping city seen through the window, a calm but urgent mood. No clock, no calendar.",
-      "screen": "शेवटची तारीख *22 ऑक्टोबर* · रात्री 11:59",
-      "voice": "पण शेवटची तारीख अजूनही 22 ऑक्टोबर, रात्री 11:59 आहे.",
+      "screen": "दाखले मंजूर? अर्ज *आत्ताच* पूर्ण करा",
+      "voice": "दाखले मंजूर असतील, तर अर्ज आणि पेमेंट आत्ताच पूर्ण करा.",
       "lock": true
     },
     {
       "prompt": "A man in his 30s at the counter of a public sector bank branch in Pune handing a payment slip to the cashier, a simple bank interior, other customers blurred in the background, no signboards.",
-      "screen": "RTGS · *23 ऑक्टोबर* दुपारी 3:59",
-      "voice": "बँकेतून RTGS ने भरणार असाल, तर 23 ऑक्टोबर दुपारी 3:59 पर्यंत.",
+      "screen": "शेवटची तारीख *22 ऑक्टोबर* · रात्री 11:59",
+      "voice": "शेवटची तारीख अजूनही 22 ऑक्टोबर रात्री 11:59, RTGS ने 23 ऑक्टोबर दुपारी 3:59.",
       "lock": true
     },
     {
       "prompt": "New affordable apartment towers, 12 to 14 floors, plain cream and light-orange paint, on the edge of Pune at sunset, a few families walking on the road in front, construction cranes far away, no signboards.",
       "screen": "मुदतवाढ? *अजून* घोषणा नाही",
-      "voice": "मुदतवाढीची घोषणा अजून नाही. कागदपत्रं आणि पैसे तयार ठेवा.",
+      "voice": "मुदतवाढीची घोषणा अजून नाही. शेवटच्या दिवसाची वाट पाहू नका.",
       "lock": true
     },
     {
@@ -66,11 +67,11 @@
       "voice": "तारीख बदलली तर आम्ही लगेच सांगू. फॉलो करा."
     }
   ],
-  "hook": "MHADA पुणे लॉटरी: महा-आयटी सेवा 21 ऑक्टोबरपर्यंत बंद, शेवटची तारीख अजून 22 ऑक्टोबर",
+  "hook": "MHADA पुणे लॉटरी: दाखले मंजुरी 20 ऑक्टोबरपर्यंत बंद, तरीही काय करता येईल",
   "hook_type": "update",
-  "caption": "MHADA Pune Lottery 2026 update | म्हाडा पुणे लॉटरी: महा-आयटी सेवा बंद, शेवटची तारीख काय?\n\n⚠️ MHADA च्या सूचनेनुसार महा-आयटीशी संबंधित पोर्टल सेवा 16 ऑक्टोबर (दुपारी 4) ते 21 ऑक्टोबर 2026 पर्यंत बंद आहेत. अधिवास आणि उत्पन्न दाखल्याची पडताळणी याच सेवांमधून होते.\n\n📅 अर्ज आणि ऑनलाइन पेमेंटची शेवटची तारीख अजूनही: 22 ऑक्टोबर, रात्री 11:59\n🏦 RTGS / NEFT: 23 ऑक्टोबर, दुपारी 3:59 पर्यंत\n❓ मुदतवाढ: 17 ऑक्टोबरपर्यंत अधिकृत घोषणा नाही\n\n✅ कागदपत्रं आणि अनामत रक्कम तयार ठेवा. सेवा सुरू होताच अर्ज पूर्ण करा, शेवटच्या दिवसाची वाट पाहू नका.\n\n🔔 तारीख बदलली तर आम्ही लगेच पोस्ट करू. फॉलो करा, अर्ज करणाऱ्या मित्राला पाठवा.\n\n🌐 अधिकृत साइट: https://housing.mhada.gov.in/\n⚠️ अर्ज फक्त अधिकृत साइटवर करा. अर्जासाठी कोणालाही पैसे देऊ नका.\n\nव्हिडिओतील छायाचित्रे प्रतीकात्मक आहेत.\n\n#MHADAPune #MhadaLottery2026 #म्हाडासोडत #PuneHousing #PCMC",
+  "caption": "MHADA Pune Lottery 2026 update | म्हाडा पुणे लॉटरी: दाखले मंजुरी बंद, आता काय करायचं?\n\n⚠️ MHADA च्या लॉटरी पोर्टलवरील सूचना: महा-आयटी सेवा 16 ऑक्टोबर (दुपारी 4) ते 20 ऑक्टोबर 2026 पर्यंत बंद. या काळात अधिवास आणि उत्पन्न दाखले मंजूर होणार नाहीत.\n\n✅ दाखले आधीच मंजूर असतील, तर अर्ज आणि अनामत रक्कम (EMD) आत्ताच पूर्ण करा.\n⏳ दाखले बाकी असतील, तर कागदपत्रं आणि पैसे तयार ठेवा; सेवा सुरू होताच पूर्ण करा.\n\n📅 शेवटची तारीख अजूनही: 22 ऑक्टोबर, रात्री 11:59\n🏦 RTGS / NEFT: 23 ऑक्टोबर, दुपारी 3:59 पर्यंत\n❓ मुदतवाढ: 17 ऑक्टोबरपर्यंत अधिकृत घोषणा नाही\n\n🔔 तारीख बदलली तर आम्ही लगेच पोस्ट करू. फॉलो करा, अर्ज करणाऱ्या मित्राला पाठवा.\n\n🌐 अधिकृत साइट: https://housing.mhada.gov.in/\n⚠️ अर्ज फक्त अधिकृत साइटवर करा. अर्जासाठी कोणालाही पैसे देऊ नका.\n\nव्हिडिओतील छायाचित्रे प्रतीकात्मक आहेत.\n\n#MHADAPune #MhadaLottery2026 #म्हाडासोडत #PuneHousing #PCMC",
   "reply_facts": [
-    "MHADA's notice says MahaIT related portal services are unavailable from 16 October 2026, 4 pm, to 21 October 2026, for technical maintenance by MahaIT; MahaIT handles the domicile and income certificate checks.",
+    "The notice on MHADA's lottery portal says MAHA IT services are unavailable from 16 October 2026, 4 pm, until 20 October 2026, and domicile and income certificates will not get approved in that time (MHADA's main site gives 21 October as the end). Applicants whose certificates are already approved can finish the application and the deposit payment.",
     "The last date to apply and pay the deposit online is still 22 October 2026, 11:59 pm; RTGS/NEFT payment by 23 October 2026, 3:59 pm. No further extension had been announced as of 17 October 2026.",
     "The draw is planned for 4 December 2026.",
     "The homes in this lottery are located in Pune city, Pimpri-Chinchwad and the PMRDA area only.",
@@ -79,8 +80,8 @@
   ],
   "reply_faq": [
     {
-      "q": "Site is not working, portal down, server down, certificate verification stuck, domicile or income certificate pending?",
-      "a": "MHADA's notice says MahaIT related services are down from 16 October, 4 pm, to 21 October 2026 for maintenance, and the certificate checks go through them. Keep your documents and the deposit ready and finish as soon as the services are back."
+      "q": "Site is not working, portal down, server down, certificate verification stuck, domicile or income certificate pending, can I still apply?",
+      "a": "The notice on MHADA's lottery portal says domicile and income certificates will not be approved from 16 October, 4 pm, until 20 October 2026 (MahaIT maintenance). If your certificates are already approved, finish the application and payment now; if they are pending, keep your documents and deposit ready and finish as soon as approvals restart."
     },
     {
       "q": "Will the date be extended, is there an extension, mudatvadh?",

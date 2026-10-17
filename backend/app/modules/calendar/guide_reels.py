@@ -110,6 +110,7 @@ def problems(beats: Any, guide: Guide) -> List[str]:
     shots = guide["shots"]
     if not isinstance(beats, list) or len(beats) != len(shots):
         return [f"{len(beats) if isinstance(beats, list) else 0} beats for {len(shots)} shots"]
+    beats = locked([b if isinstance(b, dict) else {} for b in beats], guide)   # judged as they will go out: locked lines are the guide's
     out: List[str] = []
     allowed = _director.numbers_in(guide.facts_text())
     said = set()
