@@ -18,9 +18,16 @@ const SOURCES: Record<string, string> = {
   twitter: 'X (Twitter)', linkedin: 'LinkedIn', reddit: 'Reddit', perplexity: 'Perplexity', unknown: 'Not recorded',
 }
 
+const TAG_PREFIX: Record<string, string> = { fb: 'Facebook', ig: 'Instagram', wa: 'WhatsApp', yt: 'YouTube' }
+
+/** "google" -> "Google"; a post/ad tag "fb_room2_brand-ad" -> "Facebook · room2 brand (ad)". */
 export function sourceLabel(source?: string | null): string {
   if (!source) return ''
-  return SOURCES[source.toLowerCase()] ?? source.charAt(0).toUpperCase() + source.slice(1)
+  const known = SOURCES[source.toLowerCase()]
+  if (known) return known
+  const m = /^(fb|ig|wa|yt)_(.+?)(-ad)?$/i.exec(source)
+  if (m) return `${TAG_PREFIX[m[1].toLowerCase()]} · ${m[2].replace(/[_-]+/g, ' ')}${m[3] ? ' (ad)' : ''}`
+  return source.charAt(0).toUpperCase() + source.slice(1)
 }
 
 const CHANNELS: Record<LeadChannel, string> = {
