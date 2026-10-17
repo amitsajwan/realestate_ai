@@ -57,6 +57,7 @@ def card(doc: dict, slug: str) -> dict:
     price = doc.get("price_inr")
     return {"id": str(doc["_id"]), "title": title[:90], "locality": doc.get("locality"), "bhk": doc.get("bhk"), "carpet_sqft": doc.get("carpet_sqft"),
             "price_text": None if sample or not isinstance(price, int) else money(price, rent), "sample": sample,
+            "price_inr": None if sample or not isinstance(price, int) else price,
             "url": f"/agent/{slug}/listings/{doc['_id']}", "image_url": imgs[0]["url"] if imgs else None}
 
 

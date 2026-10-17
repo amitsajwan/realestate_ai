@@ -55,13 +55,18 @@ HOMES = re.compile(r"\b(similar|show (me )?(some |the |more )?(homes|options|fla
                    r"घर दिखाइए|ऐसे और घर|असेच घर|घरे दाखवा", re.I)
 SIMILAR = re.compile(r"\b(similar|aise aur|asech)\b|ऐसे और|असेच", re.I)
 WHATSAPP_RX = re.compile(r"^\W*continue on whatsapp\W*$", re.I)
+# 'not sure', 'you tell', 'how much will I get?' in answer to the budget question: we tell them what homes cost instead of asking again
+UNSURE_BUDGET = re.compile(r"not sure|no idea|don'?t know|dont know|you (tell|suggest|say)|tell me|how much|what('?s| is) the (price|rate|cost)|"
+                           r"\b(price|prices|rate|rates|depends|flexible|any budget|koi bhi|pata nahi|kitna|kitne|mahit nahi|kiti)\b|पता नहीं|माहित नाही|कितने|किती", re.I)
+# 'how much is a 3 BHK in Kharadi?' off a listing page: the prices of what we have, not a general answer
+PRICE_Q = re.compile(r"\b(how much|price|prices|rate|rates|cost|kitne|kitna|kiti)\b|कितने|किती", re.I)
 _RENT_AMT = re.compile(r"(\d[\d,]*(?:\.\d+)?)\s*(k|thousand|hazaar|hazar|hajar)?\b", re.I)
 
 PROMPTS = {
     "tx": (say("ask_tx"), ["Buy", "Rent", "Just exploring"]),
     "locality": (say("ask_locality"), ["Kharadi", "Upper Kharadi", "Wagholi", "Somewhere else"]),
     "bhk": (say("ask_bhk"), ["1 BHK", "2 BHK", "3 BHK", "4 BHK"]),
-    "budget": (say("ask_budget"), ["Under 50 lakh", "50-80 lakh", "80 lakh to 1.2 crore", "1.2 to 2 crore", "Above 2 crore"]),
+    "budget": (say("ask_budget"), ["Under 50 lakh", "50-80 lakh", "80 lakh to 1.2 crore", "1.2 to 2 crore", "Above 2 crore", "Not sure"]),
     "timeline": (say("ask_timeline"), ["Right now", "In 1-3 months", "In 3-6 months", "Just looking"]),
     "name": (say("ask_name"), []),
     "phone": (f"{say('ask_phone')} {CONSENT}", ["Not now"]),
@@ -213,7 +218,7 @@ def extract(d: dict, text: str) -> List[str]:
             d["tx"] = "exploring"
 
     # a statement ('actually 3 BHK', 'make it Wagholi') replaces what we had; a question ('is the metro in Wagholi?') only fills a gap
-    stating = not is_question(t)
+    stating = not is_question(t) or bool(PRICE_Q.search(t))   # 'how much for a 2 BHK?' asks about 2 BHK now
     if found.get("localities"):
         if not d["locality"] or (stating and found["localities"][0] != d["locality"]):
             d["locality"], d["locality_src"] = found["localities"][0], "buyer"
@@ -255,9 +260,18 @@ def extract(d: dict, text: str) -> List[str]:
     if not d["name"]:
         d["name"] = _name_in(t, asked)
     newly = [f for f in ORDER if filled(d, f) and not before[f]]
-    if asked and asked != "phone" and not filled(d, asked) and newly and not is_question(t):
+    if asked == "budget" and not filled(d, "budget") and UNSURE_BUDGET.search(t):
+        d.setdefault("asks", {})["budget"] = MAX_ASKS
+        d["price_hint"] = "skip"
+    elif asked and asked != "phone" and not filled(d, asked) and newly and not is_question(t):
         # they told us something else instead (their name, another detail): move on rather than ask the same thing twice in a row
         d.setdefault("asks", {})[asked] = MAX_ASKS
+    elif asked and asked != "phone" and not filled(d, asked) and not is_question(t) and not GREETING.match(t) and not YES.match(t):
+        # an answer we cannot read ('no name', 'maybe later', 'big one'): take it as a skip, never ask the same question twice in a row
+        d.setdefault("asks", {})[asked] = MAX_ASKS
+        d["skipped"] = asked
+        if asked == "budget":
+            d["price_hint"] = "skip"
     return newly
 
 
@@ -442,6 +456,22 @@ def _about(g) -> Optional[str]:
     return " ".join(picked) or None
 
 
+def _price_line(d: dict, cards: List[dict], lang: str) -> str:
+    """'3 BHK homes in Kharadi on our list start at ₹2.24Cr.' from the cards' own prices (never a market figure we do not have)."""
+    prices = sorted(c["price_inr"] for c in cards if isinstance(c.get("price_inr"), int) and not c.get("sample"))
+    if not prices:
+        return ""
+    what = " ".join(x for x in (rq.bhk_text(d["bhk"]), say("homes_word", lang)) if x)
+    if d["locality"] and d["locality"] != "Other":
+        what = say("in_area", lang, what=what, area=d["locality"])
+    if d.get("tx") == "rent":
+        f = lambda n: f"₹{n:,}/month"  # noqa: E731
+    else:
+        f = lambda n: "₹" + rq.fmt_inr(n)  # noqa: E731
+    kw = {"what": what, "What": what[:1].upper() + what[1:], "low": f(prices[0]), "high": f(prices[-1])}
+    return say("price_from" if prices[0] == prices[-1] else "price_range", lang, **kw)
+
+
 async def _show_homes(d: dict, finder: Optional[Finder], force: bool) -> tuple:
     """-> (text, cards, shown). Calls the finder at most once per requirement (or when the buyer asks)."""
     if finder is None:
@@ -460,6 +490,13 @@ async def _show_homes(d: dict, finder: Optional[Finder], force: bool) -> tuple:
         return say("no_other_match" if exclude else "no_match", lang), [], True
     d["shown_ids"] = list(dict.fromkeys((d.get("shown_ids") or []) + [c.get("id") for c in cards if c.get("id")]))[-12:]
     samples = [c for c in cards if c.get("sample")]
+    hint = d.pop("price_hint", None)
+    price_line = _price_line(d, cards, lang) if hint else ""
+    if price_line and hint == "skip":  # they could not name a budget: no pressure, here is what homes cost
+        price_line = f"{say('not_now_ok', lang)} {price_line}"
+    if price_line:
+        head = say("cards", lang, n=len(cards)) if len(cards) > 1 else say("cards_one", lang)
+        return f"{price_line} {head}" + (" " + say("sample_note", lang) if samples else ""), cards, True
     if len(samples) == len(cards):
         return say("cards_samples", lang), cards, True
     head = say("cards", lang, n=len(cards)) if len(cards) > 1 else say("cards_one", lang)
@@ -495,7 +532,11 @@ async def turn(d: dict, text: str, llm, grounding=None, finder: Optional[Finder]
     lead = None
     needs_human = False
     about_us = False   # the answer was about Avasetu or agents: its own next step stands, no buyer question after it
-    force_homes = bool(HOMES.search(text))
+    price_hint = bool(d.get("price_hint"))
+    if not price_hint and grounding is None and not filled(d, "budget") and PRICE_Q.search(text) and (d["locality"] or d["bhk"]):
+        d["price_hint"] = price_hint = True   # 'how much for a 3 BHK in Kharadi?': show what we have and what it costs
+    skipped = d.pop("skipped", None)
+    force_homes = bool(HOMES.search(text)) or price_hint
     # 'too costly': a salesperson asks for the budget that works instead of losing the buyer (unless they just gave a new one)
     objection = bool(OBJECTION.search(text)) and (d["budget_min"], d["budget_max"]) == budget_before
     visit = "visit" in topics_in(text)
@@ -562,7 +603,7 @@ async def turn(d: dict, text: str, llm, grounding=None, finder: Optional[Finder]
         parts.append(ack)
     if d["name"] and not had_name:
         parts.insert(0, say("thanks_name", lang, name=_use_name(d) or _first_name(d)))
-    if NO.match(text) and asked_before in ("phone", None) and not parts:
+    if (skipped and skipped != "budget" and not parts) or (NO.match(text) and asked_before in ("phone", None) and not parts):
         parts.append(say("not_now_ok", lang))
     notify = bool(d["needs_human"]) and not was_needed and not d.get("needs_you_sent")
     if notify:

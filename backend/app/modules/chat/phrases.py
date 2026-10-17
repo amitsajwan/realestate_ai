@@ -172,6 +172,24 @@ P: Dict[str, Dict[str, str]] = {
         "mr": "मी हे आमच्या टीमपर्यंत पोहोचवतो. घर शोधायला मदत हवी असल्यास सांगा.",
         "mr_latn": "Mi he aamchya team paryant pohochavto. Ghar shodhayla madat havi aslyas sanga."},
     "got_it": {"en": "Got it: ", "hinglish": "Theek hai: ", "hi": "ठीक है: ", "mr": "ठीक आहे: ", "mr_latn": "Theek aahe: "},
+    # 'not sure, how much will I get?' in answer to the budget question: the prices of what we have, then the homes
+    "price_from": {
+        "en": "{What} on our list start at {low}.",
+        "hinglish": "Hamari list mein {what} {low} se shuru hote hain.",
+        "hi": "हमारी सूची में {what} {low} से शुरू होते हैं।",
+        "mr": "आमच्या यादीत {what} {low} पासून सुरू होतात.",
+        "mr_latn": "Aamchya yadit {what} {low} pasun suru hotat.",
+    },
+    "price_range": {
+        "en": "{What} on our list cost {low} to {high}.",
+        "hinglish": "Hamari list mein {what} {low} se {high} tak ke hain.",
+        "hi": "हमारी सूची में {what} {low} से {high} तक के हैं।",
+        "mr": "आमच्या यादीत {what} {low} ते {high} पर्यंत आहेत.",
+        "mr_latn": "Aamchya yadit {what} {low} te {high} paryant aahet.",
+    },
+    "homes_word": {"en": "homes", "hinglish": "ghar", "hi": "घर", "mr": "घरे", "mr_latn": "ghare"},
+    "in_area": {"en": "{what} in {area}", "hinglish": "{area} mein {what}", "hi": "{area} में {what}", "mr": "{area} मधील {what}",
+                "mr_latn": "{area} madhil {what}"},
 }
 
 # the words inside 'Got it: buy, Kharadi, 2 BHK, under 80L.' (so an acknowledgement is one language, not English in a Hinglish frame)

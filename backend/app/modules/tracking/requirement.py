@@ -135,8 +135,11 @@ _NOW = re.compile(r"\b(asap|immediate(?:ly)?|urgent(?:ly)?|right away|right now|
                   r"this month|this week|next week|within a week|few days|\d+ weeks?)\b", re.I)
 
 
+_YEARS = re.compile(r"\b\d{1,2}\s*(?:years?|yrs?|saal|varsh[ae]?|वर्ष|साल)(?!\w)|\b(?:a|one|few|couple of)\s+years?\b|\bnext year\b", re.I)
+
+
 def parse_timeline(text: str) -> Optional[str]:
-    if _EXPLORING.search(text):
+    if _EXPLORING.search(text) or _YEARS.search(text):  # a year or more away is not a move we can plan for yet
         return "exploring"
     if _NOW.search(text):
         return "now"
