@@ -14,6 +14,8 @@ export interface BrandingDoc {
   agent_name: string
   photo?: string
   branding_data: AgentBranding
+  /** When his MahaRERA agent number is due (ISO), while he has not given it; null once given. */
+  rera_due_at?: string | null
 }
 
 export type BrandingPatch = Pick<SiteUpdateInput, 'business_name' | 'tagline' | 'about' | 'banner' | 'logo' | 'preset' | 'custom_primary' | 'rera_agent_no' | 'areas' | 'languages' | 'years_experience'>

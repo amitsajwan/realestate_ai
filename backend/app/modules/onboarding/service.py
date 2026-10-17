@@ -2,7 +2,7 @@
 import asyncio
 import logging
 import secrets
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Awaitable, Callable, Protocol
 
 from . import branding as bd
@@ -56,6 +56,18 @@ class OnboardingError(Exception):
     def __init__(self, message: str, status_code: int = 400):
         super().__init__(message)
         self.status_code = status_code
+
+
+# Every agent must give his MahaRERA agent number within RERA_GRACE of making his site, or his account may be paused (owner, 2026-10-17)
+RERA_GRACE = timedelta(days=7)
+
+
+def rera_due_at(profile: dict):
+    """When the agent's MahaRERA number is due (ISO, UTC), or None once he has given it."""
+    if (profile.get("branding_data") or {}).get("rera_agent_no"):
+        return None
+    made = profile.get("created_at")
+    return (made + RERA_GRACE).isoformat() + "Z" if isinstance(made, datetime) else None
 
 
 class OnboardingService:
@@ -213,7 +225,8 @@ class OnboardingService:
     def _site_view(doc: dict) -> dict:
         branding = doc.get("branding_data") or {}
         return {"slug": doc["slug"], "agent_name": doc.get("agent_name", ""), "photo": doc.get("photo", ""),
-                "logo": branding.get("logo"), "social": branding.get("social") or {}, "branding_data": branding}
+                "logo": branding.get("logo"), "social": branding.get("social") or {}, "branding_data": branding,
+                "rera_due_at": rera_due_at(doc)}
 
     def _result(self, doc: dict, created: bool) -> dict:
         return {

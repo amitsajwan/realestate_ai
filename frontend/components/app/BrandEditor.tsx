@@ -173,6 +173,15 @@ export function BrandEditor({ agentId, loadBranding, saveBranding, uploadImage, 
     return () => { alive = false }
   }, [agentId, loadBranding])
 
+  // the Studio home reminder links to #brand-rera: once the form is up, bring the RERA box into view and put the cursor in it
+  const ready = Boolean(draft && doc)
+  useEffect(() => {
+    if (!ready || window.location.hash !== '#brand-rera') return
+    const el = document.getElementById('brand-rera')
+    el?.scrollIntoView({ block: 'center' })
+    el?.focus()
+  }, [ready])
+
   if (error && !draft) return <ErrorBox message={error} />
   if (!draft || !doc) return <Spinner />
   const set = (patch: Partial<Draft>) => { setSaved(false); setDraft({ ...draft, ...patch }) }
@@ -290,7 +299,7 @@ export function BrandEditor({ agentId, loadBranding, saveBranding, uploadImage, 
         </div>
         <Chips label="Languages you speak" options={LANGUAGES} value={draft.languages} onChange={(v) => set({ languages: v })} max={6} />
         <Field label="Years in property (optional)" htmlFor="brand-years"><input id="brand-years" inputMode="numeric" className={inputCls} value={draft.years_experience} onChange={(e) => set({ years_experience: e.target.value.replace(/\D/g, '').slice(0, 2) })} placeholder="9" /></Field>
-        <Field label="MahaRERA agent registration number (optional)" htmlFor="brand-rera">
+        <Field label="MahaRERA agent registration number (needed to keep your account active)" htmlFor="brand-rera">
           <input id="brand-rera" className={inputCls} value={draft.rera_agent_no} maxLength={20} autoCapitalize="characters" onChange={(e) => set({ rera_agent_no: e.target.value.toUpperCase() })} placeholder="A52100012345" />
         </Field>
         <p className="text-xs text-gray-500">Shown on your page as stated by you. {BRAND_NAME} does not verify it and does not call you &quot;verified&quot;.</p>

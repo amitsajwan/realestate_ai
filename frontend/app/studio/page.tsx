@@ -3,11 +3,13 @@ import Link from 'next/link'
 import React from 'react'
 import { BusinessToday } from '@/components/app/BusinessToday'
 import { LeadAlertsBadge } from '@/components/app/LeadAlertsBadge'
+import { ReraReminder } from '@/components/app/ReraReminder'
 import { WeeklyCard } from '@/components/app/WeeklyCard'
 
 export default function StudioHome() {
   return (
     <div className="space-y-4">
+      <ReraReminder />
       <LeadAlertsBadge />
       <BusinessToday />
       <WeeklyCard />

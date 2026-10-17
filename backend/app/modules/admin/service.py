@@ -11,6 +11,7 @@ from typing import Callable, Dict, List, Optional
 from bson import ObjectId
 
 from app.modules.concierge.service import mask_phone
+from app.modules.onboarding.service import rera_due_at
 
 from app.platform import controls
 
@@ -129,6 +130,7 @@ class AdminService:
             out.append({"id": uid or str(inv["_id"]), "name": name or "", "mobile": mask_phone(inv["_id"]), "via": inv.get("claimed_via") or "",
                         "claimed_at": _iso(inv.get("claimed_at") or inv.get("created_at")), "last_login_at": _iso(inv.get("last_login_at")),
                         "signed_up": bool(user), "slug": (prof or {}).get("slug"),
+                        "rera": ((prof or {}).get("branding_data") or {}).get("rera_agent_no") or None, "rera_due_at": rera_due_at(prof) if prof else None,
                         "listings": await self.c("listings").count_documents({"agent_id": uid}) if uid else 0})
         return out
 

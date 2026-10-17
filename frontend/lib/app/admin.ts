@@ -38,6 +38,10 @@ export interface TrialSignup {
   signed_up: boolean
   slug: string | null
   listings: number
+  /** His MahaRERA agent number as he typed it (not checked yet), or null. */
+  rera: string | null
+  /** When the number is due (7 days after his site was made) while he has not given it. */
+  rera_due_at: string | null
 }
 export type HealthStatus = 'ok' | 'warn' | 'bad'
 export interface HealthRow {

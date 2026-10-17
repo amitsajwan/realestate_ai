@@ -18,6 +18,8 @@ import { BRAND_NAME } from '@/lib/brand'
 const TABS = ['setup', 'active', 'all', 'signedup', 'asked']
 const settingUp = (a: AgentSummary) => a.progress.done < a.progress.total
 
+const shortDate = (iso: string) => new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+
 /** An agent who took the free trial himself: not one you set up, so no checklist; how far he got and his page. */
 function SignupRow({ s }: { s: TrialSignup }) {
   const step = !s.signed_up ? 'Code sent, not signed in yet' : s.listings ? `${s.listings} listing${s.listings === 1 ? '' : 's'}` : 'Signed in, no listing yet'
@@ -26,6 +28,8 @@ function SignupRow({ s }: { s: TrialSignup }) {
       <p className="truncate font-semibold text-gray-900">{s.name || 'Name not given yet'}</p>
       <p className="truncate text-sm text-gray-600">{s.mobile}{s.via ? ` · trial on ${s.via === 'whatsapp' ? 'WhatsApp' : s.via}` : ''}</p>
       <p className="truncate text-xs text-gray-500">{step}{s.claimed_at ? ` · claimed ${timeAgo(s.claimed_at)}` : ''}</p>
+      {s.signed_up && (s.rera ? <p className="truncate text-xs text-gray-700">RERA {s.rera} (check on MahaRERA)</p>
+        : <p className="truncate text-xs font-semibold text-amber-800">No RERA number yet{s.rera_due_at ? `, due ${shortDate(s.rera_due_at)}` : ''}</p>)}
     </div>
   )
   const cls = 'min-h-[72px] items-center gap-3 rounded-2xl border border-gray-200 bg-white p-3 [display:flex]'
