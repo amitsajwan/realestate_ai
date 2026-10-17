@@ -56,8 +56,10 @@ export interface RegisterProject {
   search_name?: string | null
   /** Google's "People also ask" questions about it, answered from our facts (backend seo/questions.py, R4) */
   faq?: { q: string; a: string; source: string; topic?: string }[]
-  /** a search description from the facts, set by the page doctor when the page was seen but not clicked (R3) */
+  /** a search description from the facts: the page doctor's (R3) when it wrote one, else the page writer's one-line summary */
   search_description?: string | null
+  /** the page writer's sections under the paragraph (backend areastats/enrich.py SECTIONS), checked with it */
+  sections?: { heading: string; text: string }[]
   /** every MahaRERA registration of the project (towers, phases) when this page stands for several (R0) */
   towers?: RegisterTower[]
   /** the nearest neighbourhood guide (R5) */

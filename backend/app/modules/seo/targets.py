@@ -19,6 +19,7 @@ import re
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 
+from app.core.areas import BY_KEY
 from app.modules.areastats import hot, searchconsole
 from app.modules.areastats.pages import _served, can_host, names
 from app.modules.areastats.websearch import mentions
@@ -56,12 +57,23 @@ def aliases(doc: dict) -> List[str]:
     return [a for a in dict.fromkeys(names(doc)[1] + [hot.search_name(doc.get("name", ""))]) if a]
 
 
+def own_words(doc: dict) -> set:
+    """Words the record itself calls the project by: its names, its area and its builder. A search that adds any other word
+    names something else too ("la belle vue vj indilife wakad" is an Airbnb studio inside the tower), not the project."""
+    area = BY_KEY.get(doc.get("locality") or "")
+    texts = aliases(doc) + [area.name if area else "", doc.get("pune_place_name") or "", doc.get("promoter") or ""]
+    return set(re.findall(r"[a-z0-9']+", " ".join(texts).lower()))
+
+
 def readable(phrase: str, doc: dict) -> Optional[str]:
     """The target as a name for the title: generic words dropped, each word capitalised; None when the project's name is not in
-    it any more (a target like "rera pune" never becomes a title) or it is too long."""
+    it any more (a target like "rera pune" never becomes a title), it carries a word the record does not call the project by,
+    or it is too long."""
     words = [w for w in re.findall(r"[a-z0-9']+", (phrase or "").lower()) if w not in GENERIC]
     text = " ".join(w.upper() if w in KEEP_UPPER else w.capitalize() for w in words)
     if not text or len(text) > MAX_NAME or not any(mentions(a, text) for a in aliases(doc)):
+        return None
+    if set(words) - own_words(doc):
         return None
     return text
 
@@ -100,6 +112,12 @@ async def run_once(store: Store, now: datetime, force: bool = False) -> Optional
     for doc in docs:
         if not _served(doc) or doc.get("cluster_primary") in hosted:
             continue
+        if doc.get("search_name") and readable(doc["search_name"], doc) is None:
+            # a title written before the own-words rule that names something else: the page goes back to its marketed name
+            await log_fix(store, doc, "title", now, old=doc["search_name"], new=None, phrase=doc["search_name"],
+                          note="names something else: words the record does not call the project by")
+            await store.set_project(doc["_id"], search_name=None, search_name_at=now)
+            doc = {**doc, "search_name": None}
         best = pick(doc, by_path.get(f"/projects/{doc['page_slug']}", []))
         if best is None:
             continue

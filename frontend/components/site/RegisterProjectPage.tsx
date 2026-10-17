@@ -439,6 +439,12 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [] }: {
             <SectionHead id="about-title" title={`About ${shown}`} kind={p.text_checked ? 'checked' : 'rera'}
               tag={p.text_checked ? 'Written from checked facts' : 'From MahaRERA'} />
             <p className="mt-3 text-lg leading-relaxed text-slate-800" data-testid="paragraph">{p.paragraph}</p>
+            {(p.sections ?? []).map((x) => (
+              <div key={x.heading} className="mt-5">
+                <h3 className="text-base font-semibold text-slate-900">{x.heading}</h3>
+                <p className="mt-1.5 leading-relaxed text-slate-800">{x.text}</p>
+              </div>
+            ))}
           </section>
 
           <ProjectProfile profile={p.profile} name={shown} />

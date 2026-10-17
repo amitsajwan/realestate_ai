@@ -52,7 +52,14 @@ RETRY_DAYS = 1                        # a round MahaRERA or the model did not an
 HOT_REFRESH_DAYS = 14                 # a hot project's page is rewritten from fresh facts this often
 POLL_SECONDS = 60
 REQUESTS = "enrich_requests"          # {_id: regno, at, by}: urgent enrichments asked for by campaigns
-MAX_TEXT = 900                        # characters
+MAX_TEXT = 2600                       # characters, the summary and its sections together
+MAX_SUMMARY = 160                     # the one-line summary search results may show
+# 2 (owner 2026-10-17, "more content, good summary, good SEO"): a summary, then sections under fixed headings, then a one-line
+# summary for search results. A page whose text an older writer wrote is due for a round again (`priority`).
+TEXT_VERSION = 2
+SECTIONS = ("The homes and the building", "Location", "Amenities and features")
+BACKFILL = 7                          # priority group of a rewrite for a newer writer: after everything else
+BACKFILL_EVERY = timedelta(minutes=30)   # such rewrites: ~48 a day, on the free model tiers, beside chat and content
 BANNED = re.compile(r"\b(best|luxur\w*|premium|world[- ]class|guaranteed?|assured|dream|unmatched|perfect|exclusive|hurry|limited time)\b", re.I)
 NUM = re.compile(r"\d[\d,]*(?:\.\d+)?")
 
@@ -114,15 +121,19 @@ def priority(d: dict, urgent: set, now: datetime) -> Optional[tuple]:
     is_hot = heat >= hot.HOT_MIN
     seen = int(d.get("gsc_impressions") or 0)
     legacy = isinstance(done, datetime) and not d.get("enrichment")   # enriched before buildings and checks: redo
+    # hot pages are rewritten every HOT_REFRESH_DAYS anyway
+    old_writer = not is_hot and isinstance(done, datetime) and int(d.get("page_text_version") or 1) < TEXT_VERSION
     if is_hot and needs_profile(d, now):
         return (1, -heat)                                       # hot and still being built, no profile yet: first
     days = HOT_REFRESH_DAYS if is_hot else RETRY_DAYS if unanswered(d) else REFRESH_DAYS
-    if not legacy and isinstance(done, datetime) and now - _aware(done) < timedelta(days=days):
+    if not legacy and not old_writer and isinstance(done, datetime) and now - _aware(done) < timedelta(days=days):
         return None
     if is_hot:
         return (1, -heat)                                       # people are buying, searching or talking about it now: hottest first
     if legacy:
         return (3, -seen, _aware(done).timestamp())             # after Google's pages, before the never-enriched ones
+    if old_writer and now - _aware(done) < timedelta(days=days):
+        return (BACKFILL, -seen, _aware(done).timestamp())     # fresh facts, older text: Google's pages first
     if isinstance(done, datetime):
         return (6, _aware(done).timestamp())                   # due for a refresh, oldest first
     if seen:   # Google already shows it: just off page one first, then most impressions first
@@ -148,9 +159,11 @@ async def next_project(store: Store, now: datetime) -> Optional[dict]:
     return ranked[0][1] if ranked else None
 
 
-def facts_text(doc: dict, gathered: Optional[dict], web: Optional[dict] = None, prof: Optional[dict] = None) -> str:
+def facts_text(doc: dict, gathered: Optional[dict], web: Optional[dict] = None, prof: Optional[dict] = None,
+               pinned: bool = False) -> str:
     """Everything the model may use, as plain labelled lines: the register record (dates spelt out with what they are), then the
-    gathered sheet. Nearby places are not given: the page lists them beside the map, measured from the project's own pin."""
+    gathered sheet. Nearby places only when they were measured from the project's own Google pin (`pinned`): from a locality's
+    centre they would put the project somewhere it is not."""
     lines = [pages.paragraph(doc)]
     now, first = _day(doc.get("completion_now")), _day(doc.get("completion_at_registration"))
     if now:
@@ -172,6 +185,9 @@ def facts_text(doc: dict, gathered: Optional[dict], web: Optional[dict] = None, 
         lines.append(f"Price on the agent's listing: Rs {o['price_inr']:,} ({o.get('source') or 'agent listing'})")
     lines += webfacts.lines(web)
     lines += [f"Highlight, {x}" for x in profile.lines(prof)]
+    if pinned:
+        lines += [f"Nearby {str(x.get('label') or 'place').lower()}: {x['name']}, {x['km']} km in a straight line from the project's pin"
+                  for x in (g.get("nearby") or [])[:10] if x.get("name") and isinstance(x.get("km"), (int, float))]
     return "\n".join(lines)
 
 
@@ -196,31 +212,59 @@ def check_text(text: str, facts: str) -> List[str]:
     return problems
 
 
-SYSTEM = ("You write the description on a property website's page about one housing project in Pune. Use ONLY the facts given. "
-          "Plain, neutral English, 2 short paragraphs, under 120 words. Say what the project is, where, the completion date filed "
-          "with MahaRERA and whether it moved, how many homes are booked (or that bookings were not reported) and whether the completion "
-          "date has passed. When highlights are given, name the main ones (homes on offer, open space, amenities) in one sentence. "
-          "Do not list nearby places or distances: the page shows them as a list beside the map. Keep each date with its label. No adjectives "
-          "of praise, no advice to buy, no prices unless a fact gives one, no numbers that are not in the facts. "
-          'Answer as JSON: {"text": "..."}')
+SYSTEM = ("You write the description on a property website's page about one housing project in Pune, for home buyers and for "
+          "Google. Use ONLY the facts given. Plain, neutral English. "
+          "1) summary: one paragraph of 50 to 90 words: what the project is and who builds it, where it is, what kind of homes when the "
+          "facts say, the completion date filed with MahaRERA and whether it moved, how many homes are booked (or that bookings were "
+          "not reported) and whether the completion date has passed. Use the project's name in the first sentence. "
+          "2) sections: up to three, each with one of these headings exactly and 2 to 4 sentences, only when the facts have something "
+          "for it: " + "; ".join(f'"{h}"' for h in SECTIONS) + ". Homes: towers, floors, homes, BHK types, sizes, land, open space. "
+          "Location: the area and the nearby places given, with their distances as given (straight line); none given: leave it out. "
+          "Amenities: the clubhouse, amenities, specifications and features given. Never repeat a sentence of the summary. "
+          f"3) search_summary: one line under {MAX_SUMMARY} characters for search results: name, area, what is on offer, completion. "
+          "Keep each date with its label. No adjectives of praise, no advice to buy, no prices unless a fact gives one, no numbers "
+          "that are not in the facts, no facts about other projects. "
+          'Answer as JSON: {"summary": "...", "sections": [{"heading": "...", "text": "..."}], "search_summary": "..."}')
 
 
-async def write_text(llm, doc: dict, gathered: Optional[dict], web: Optional[dict] = None, prof: Optional[dict] = None) -> tuple:
-    """(text or None, why it was refused: [] when accepted)."""
+def draft_of(out: Any) -> dict:
+    """{text, sections, summary} from the model's answer; an answer in the first writer's shape ({"text"}) is a summary alone."""
+    out = out if isinstance(out, dict) else {}
+
+    def tidy(v: Any) -> str:   # one line, plain hyphens (models write U+2011 "MahaRERA‑filed")
+        return " ".join(str(v or "").replace("‑", "-").replace("‐", "-").split())
+
+    raw = str(out.get("summary") or out.get("text") or "")
+    text = "\n\n".join(tidy(para) for para in re.split(r"\n\s*\n", raw) if para.strip())
+    sections: List[dict] = []
+    for sec in out.get("sections") or []:
+        if isinstance(sec, dict) and sec.get("heading") in SECTIONS and tidy(sec.get("text")) \
+                and sec["heading"] not in {x["heading"] for x in sections}:
+            sections.append({"heading": sec["heading"], "text": tidy(sec["text"])})
+    summary = tidy(out.get("search_summary"))
+    return {"text": text, "sections": sections, "summary": summary if 40 <= len(summary) <= MAX_SUMMARY else None}
+
+
+async def write_text(llm, doc: dict, gathered: Optional[dict], web: Optional[dict] = None, prof: Optional[dict] = None,
+                     pinned: bool = False) -> tuple:
+    """({text, sections, summary} or None, why it was refused: [] when accepted). The whole draft is checked as one text."""
     if llm is None:
         return None, ["no LLM key"]
-    facts = facts_text(doc, gathered, web, prof)
+    facts = facts_text(doc, gathered, web, prof, pinned)
     try:
         out = await llm.json(SYSTEM, "Facts:\n" + facts)
     except Exception as e:
         log.exception("enrich: model call failed for %s", doc.get("_id"))
         return None, [f"model call failed ({type(e).__name__})"]
-    text = str((out or {}).get("text") or "").strip()
-    problems = check_text(text, facts) if out is not None else ["no model answer"]
+    if out is None:
+        return None, ["no model answer"]
+    draft = draft_of(out)
+    whole = "\n\n".join([draft["text"]] + [x["text"] for x in draft["sections"]] + [draft["summary"] or ""])
+    problems = list(dict.fromkeys(check_text(draft["text"], facts) + [p for p in check_text(whole, facts) if p != "too short"]))
     if problems:
         log.info("enrich: draft for %s refused: %s", doc.get("_id"), "; ".join(problems))
         return None, problems
-    return text, []
+    return draft, []
 
 
 def sheet_value(sheet: Optional[dict], key: str) -> Any:
@@ -381,8 +425,10 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime) -> dict:
         steps["profile"], prof = _step(False, now, checked=f"failed ({type(e).__name__})"), {}
     if prof:
         await store.set_project(doc["_id"], **prof)
-    text, refused = await write_text(llm, doc, gathered, (web or {}).get("web_facts") or doc.get("web_facts"),
-                                     (prof or {}).get("profile") or doc.get("profile"))
+    pinned = ((placed or {}).get("geo") or {}).get("located_from") == "google"
+    draft, refused = await write_text(llm, doc, gathered, (web or {}).get("web_facts") or doc.get("web_facts"),
+                                      (prof or {}).get("profile") or doc.get("profile"), pinned)
+    text = (draft or {}).get("text")
     steps["text"] = _step(bool(text), now, refused_reasons=refused)
     if text is None:
         notes.extend(refused)
@@ -392,7 +438,8 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime) -> dict:
                 facts="gathered" if gathered else "none", score=enrichment["score"], notes="; ".join(notes) or None)
     fields = {"enriched_at": now, "enrich_notes": notes, "enrich_gathered": bool(gathered), "enrichment": enrichment, **placed}
     if text:
-        fields.update(page_text=text, page_text_at=now)
+        fields.update(page_text=text, page_text_at=now, page_text_version=TEXT_VERSION, page_sections=draft["sections"],
+                      page_summary=draft["summary"])
     await store.set_project(doc["_id"], **fields)
     await store.db.get_collection(REQUESTS).delete_one({"_id": regno})
     return {"regno": regno, "text": bool(text), "gathered": bool(gathered), "notes": notes, "score": enrichment["score"]}
@@ -455,6 +502,14 @@ async def enrich_now(db, regno: str, by: str = "campaign") -> bool:
     return True
 
 
+def busy(llm) -> bool:
+    """More than half the text providers are resting after a 429 or a timeout (platform.llm.ModelHealth): a rewrite that can
+    wait does, so the free tiers keep room for chat and content and the page is not rewritten from half-read sources."""
+    providers = getattr(llm, "providers", None) or ([llm] if llm is not None else [])
+    resting = sum(1 for p in providers if getattr(p, "resting", lambda: False)())
+    return bool(providers) and resting * 2 > len(providers)
+
+
 async def step(store: Store, llm, now: datetime, last_regular: Optional[datetime], every: timedelta) -> Optional[dict]:
     """Urgent requests always; otherwise one project when `every` has passed since the last regular one."""
     urgent = await store.db.get_collection(REQUESTS).count_documents({})
@@ -463,6 +518,12 @@ async def step(store: Store, llm, now: datetime, last_regular: Optional[datetime
     doc = await next_project(store, now)
     if doc is None:
         return None
+    if not urgent and (priority(doc, set(), now) or (0,))[0] == BACKFILL:
+        if last_regular is not None and now - _aware(last_regular) < BACKFILL_EVERY:
+            return None
+        if busy(llm):
+            log.info("enrich: rewrite for %s waits: most free model tiers are resting", doc.get("_id"))
+            return None
     out = await enrich_one(store, doc, llm, now)
     out["urgent"] = bool(urgent)
     return out

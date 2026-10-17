@@ -304,8 +304,11 @@ def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None) ->
         # "People also ask" questions answered from our facts (seo.questions, R4), each with its source and its topic:
         # the topic is what lets the page drop its own question on a topic a real one already covers
         "faq": [{k: f.get(k) for k in ("q", "a", "source", "topic")} for f in doc.get("seo_faq") or []],
-        # a search description from facts, written by the page doctor when the page was seen but not clicked (R3)
-        "search_description": doc.get("seo_description") or None,
+        # a search description from facts: the page doctor's (R3, when the page was seen but not clicked) first, measured;
+        # else the page writer's one-line summary (enrich.TEXT_VERSION 2)
+        "search_description": doc.get("seo_description") or doc.get("page_summary") or None,
+        # the writer's sections under the paragraph: {heading, text}, checked with it (enrich.SECTIONS)
+        "sections": (doc.get("page_sections") or []) if doc.get("page_text") else [],
         "same_promoter": same_promoter(doc, docs) if docs is not None else [],
         "enriched_at": doc["enriched_at"].date().isoformat() if isinstance(doc.get("enriched_at"), datetime) else None,
         # links into other pages say how people search for them (rank-loop R5): search_name, else the marketed name

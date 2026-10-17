@@ -61,12 +61,13 @@ async def test_urgent_first_then_google_then_indexable_then_bigger():
                             ("B", "Bravo", "wagholi", {**FULL, "gsc_impressions": 40}),
                             ("C", "Charlie", "wagholi", {}),
                             ("D", "Delta", "wagholi", {**FULL, "units_total": 900, "units_booked": 10}),
-                            ("E", "Echo", "wagholi", {**FULL, "enriched_at": NOW - timedelta(days=5), "enrichment": {"score": "4/4"}}))
+                            ("E", "Echo", "wagholi", {**FULL, "enriched_at": NOW - timedelta(days=5), "enrichment": {"score": "4/4"},
+                                                         "page_text_version": enrich.TEXT_VERSION}))
     order = []
     for _ in range(4):
         d = await enrich.next_project(store, NOW)
         order.append(d["_id"])
-        await store.set_project(d["_id"], enriched_at=NOW, enrichment={"score": "4/4"})
+        await store.set_project(d["_id"], enriched_at=NOW, enrichment={"score": "4/4"}, page_text_version=enrich.TEXT_VERSION)
     assert order == ["B", "D", "A", "C"]          # Google impressions, then indexable (bigger first), then thin; E is fresh
     assert await enrich.next_project(store, NOW) is None
     await enrich.enrich_now(db, "e")
@@ -212,7 +213,8 @@ def test_records_enriched_before_the_checks_are_redone_after_googles_new_pages()
     new = {"_id": "N", "page_slug": "n", "locality": "wagholi", **FULL}
     keys = sorted([(enrich.priority(d, set(), NOW), d["_id"]) for d in (old, seen, new)])
     assert [k[1] for k in keys] == ["S", "O", "N"]
-    assert enrich.priority({**old, "enrichment": {"score": "4/4"}}, set(), NOW) is None
+    assert enrich.priority({**old, "enrichment": {"score": "4/4"}, "page_text_version": enrich.TEXT_VERSION}, set(), NOW) is None
+    assert enrich.priority({**old, "enrichment": {"score": "4/4"}}, set(), NOW)[0] == enrich.BACKFILL   # an older writer's text
 
 
 def test_builder_track_record_from_the_register():
