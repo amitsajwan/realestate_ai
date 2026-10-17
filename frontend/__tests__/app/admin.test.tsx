@@ -58,7 +58,7 @@ describe('Admin home', () => {
     expect(leads).toHaveAttribute('href', '/studio/leads')
     expect(within(leads).getByText('3')).toBeInTheDocument()
     expect(within(leads).getByText(/15 in 7 days/)).toBeInTheDocument()
-    expect(screen.getByTestId('tile-interest')).toHaveAttribute('href', '/studio/interest')
+    expect(screen.getByTestId('tile-interest')).toHaveAttribute('href', '/studio/results')
     expect(screen.getByTestId('tile-posts')).toHaveAttribute('href', '/studio/content')
     expect(within(screen.getByTestId('tile-posts')).getByText('2')).toBeInTheDocument()
     expect(screen.getByTestId('tile-news')).toHaveAttribute('href', '/studio/newsroom')

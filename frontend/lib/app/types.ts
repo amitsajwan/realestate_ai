@@ -190,24 +190,6 @@ export interface SiteCreateInput {
   preset?: string
 }
 
-export interface FacebookInterest {
-  id: string
-  /** Where the comment was made. Older rows have no channel and mean Facebook. */
-  channel?: 'facebook' | 'instagram' | null
-  post_id: string
-  listing_id: string | null
-  from_name: string | null
-  text: string
-  intent: 'interested' | 'question' | 'praise' | 'complaint' | 'spam' | 'other'
-  language: string
-  status: 'replied' | 'dry_run' | 'needs_human' | 'ignored' | 'capped' | 'failed'
-  reply: string | null
-  needs_human: boolean
-  reason: string
-  created_time: string | null
-  permalink: string | null
-}
-
 export interface ChatConversation {
   id: string
   updated_at: string | null
@@ -569,7 +551,6 @@ export interface AppApi {
   verifyOtp(phone: string, code: string): Promise<LoginResult>
   createSite(input: SiteCreateInput): Promise<SiteResult>
   updateSite(input: SiteUpdateInput): Promise<unknown>
-  getFacebookInterest(): Promise<FacebookInterest[]>
   getChatConversations(): Promise<ChatConversation[]>
   getFacebookStatus(): Promise<FacebookStatus>
   getWeeklyReport(): Promise<WeeklyReport>

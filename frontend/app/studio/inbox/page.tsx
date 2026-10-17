@@ -4,11 +4,11 @@ import React from 'react'
 import { TabBar, useUrlTab } from '@/components/app/list'
 import { ErrorBox, PageTitle, Spinner } from '@/components/app/ui'
 import { timeAgo } from '@/lib/app/format'
-import { CHANNEL_CHIP, CHANNEL_LABEL, inboxApi, type InboxThread } from '@/lib/app/inbox'
+import { CHANNEL_CHIP, CHANNEL_LABEL, inboxApi, isComment, type InboxThread } from '@/lib/app/inbox'
 import { useAsync } from '@/lib/app/useAsync'
 import { getNotifications, markNotificationRead } from '@/lib/app/whatsapp'
 
-const TABS = ['needs', 'all', 'agents', 'buyers']
+const TABS = ['needs', 'all', 'buyers', 'comments', 'agents']
 const FROM: Record<string, string> = { them: 'They wrote', bot: 'Bot', you: 'You' }
 
 function ThreadRow({ t }: { t: InboxThread }) {
@@ -46,21 +46,25 @@ export default function InboxPage() {
   React.useEffect(() => {
     if (!data) return
     getNotifications(true)
-      .then((n) => Promise.all(n.items.filter((x) => x.kind.includes('whatsapp') || x.kind.includes('chat') || x.kind === 'buyer_passed').map((x) => markNotificationRead(x.id))))
+      .then((n) => Promise.all(n.items.filter((x) => x.kind.includes('whatsapp') || x.kind.includes('chat') || x.kind.includes('comment') || x.kind === 'buyer_passed').map((x) => markNotificationRead(x.id))))
       .catch(() => undefined)
   }, [data])
   if (loading && !data) return <Spinner />
   if (error && !data) return <ErrorBox message={error} onRetry={reload} />
-  const shown = tab === 'needs' ? needs : tab === 'agents' ? all.filter((t) => t.role === 'agent') : tab === 'buyers' ? all.filter((t) => t.role !== 'agent') : all
+  const comments = all.filter((t) => isComment(t.channel))
+  const buyers = all.filter((t) => t.role !== 'agent' && !isComment(t.channel))
+  const agents = all.filter((t) => t.role === 'agent')
+  const shown = tab === 'needs' ? needs : tab === 'agents' ? agents : tab === 'buyers' ? buyers : tab === 'comments' ? comments : all
   return (
     <div className="space-y-4">
       <PageTitle>Inbox</PageTitle>
-      <p className="text-sm text-gray-600">Every conversation in one place: WhatsApp, Facebook and Instagram messages, and your website chat. Tap one to read it all and reply.</p>
+      <p className="text-sm text-gray-600">Everyone who wrote to you, newest first: WhatsApp, Facebook and Instagram messages and comments, and your website chat.</p>
       <TabBar label="Inbox" value={tab} onChange={setTab} tabs={[
         { key: 'needs', label: 'Needs you', count: needs.length, tone: 'urgent' },
         { key: 'all', label: 'All', count: all.length },
-        { key: 'agents', label: 'Agents', count: all.filter((t) => t.role === 'agent').length },
-        { key: 'buyers', label: 'Buyers', count: all.filter((t) => t.role !== 'agent').length },
+        { key: 'buyers', label: 'Chats', count: buyers.length },
+        { key: 'comments', label: 'Comments', count: comments.length },
+        ...(agents.length ? [{ key: 'agents', label: 'Agents', count: agents.length }] : []),
       ]} />
       {shown.length === 0 ? (
         <p className="rounded-2xl bg-white p-6 text-center text-gray-600">{tab === 'needs' ? 'Nothing waiting for you.' : 'No conversations yet.'}</p>

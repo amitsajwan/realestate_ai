@@ -1,12 +1,10 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import React from 'react'
-import InterestPage from '@/app/studio/interest/page'
 import StudioHome from '@/app/studio/page'
 import type { WhatsAppConversation } from '@/lib/app/whatsapp'
 
 jest.mock('@/lib/app/client', () => ({
   api: {
-    getFacebookInterest: async () => [],
     getChatConversations: async () => [],
     getFacebookStatus: async () => ({ ok: true, reconnect: false, checked_at: null }),
   },
@@ -40,15 +38,6 @@ beforeEach(() => {
   getWhatsAppConversations.mockReset()
   getNotifications.mockReset().mockResolvedValue({ items: [], unread: 0 })
   markNotificationRead.mockReset().mockResolvedValue(undefined)
-})
-
-describe('Interest tab', () => {
-  it('sends people to the Inbox for chats instead of listing them', async () => {
-    render(<InterestPage />)
-    const link = await screen.findByRole('link', { name: /chats are in inbox/i })
-    expect(link).toHaveAttribute('href', '/studio/inbox')
-    expect(getWhatsAppConversations).not.toHaveBeenCalled()
-  })
 })
 
 describe('Studio home WhatsApp badge', () => {

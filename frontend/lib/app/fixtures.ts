@@ -400,7 +400,6 @@ export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
   return {
     async requestOtp() { return { sent: true, dev_code: FIXTURE_OTP } },
     async updateSite() { return {} },
-    async getFacebookInterest() { return [] },
     async getChatConversations() { return [] },
     async getFacebookStatus() { return { ok: true, reconnect: false, checked_at: null } },
     async getWeeklyReport() {

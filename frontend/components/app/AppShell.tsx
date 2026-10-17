@@ -13,7 +13,8 @@ interface Tab { href: string; label: StringKey; icon: string }
 
 const HOME_TAB: Tab = { href: '/studio', label: 'home', icon: 'M3 11l9-8 9 8v9a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1z' }
 const LISTINGS_TAB: Tab = { href: '/studio/listings', label: 'listings', icon: 'M4 6h16M4 12h16M4 18h16' }
-const INTEREST_TAB: Tab = { href: '/studio/interest', label: 'interest', icon: 'M21 11.5a8.4 8.4 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.4 8.4 0 01-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.4 8.4 0 013.8-.9h.5a8.5 8.5 0 018 8v.5z' }
+/** Results replaced Interest (2026-10-17): numbers only; comments moved to the Inbox. */
+const RESULTS_TAB: Tab = { href: '/studio/results', label: 'results', icon: 'M3 3v18h18M7 16v-4M12 16V8M17 16v-7' }
 const INBOX_TAB: Tab = { href: '/studio/inbox', label: 'inbox', icon: 'M22 12h-6l-2 3h-4l-2-3H2M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z' }
 const NEWSROOM_TAB: Tab = { href: '/studio/newsroom', label: 'newsroom', icon: 'M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h11a2 2 0 012 2v3h3v9a2 2 0 01-2 2zM7 8h7M7 12h7M7 16h4' }
 const CONTENT_TAB: Tab = { href: '/studio/content', label: 'content', icon: 'M4 5h16v14H4zM4 15l4-4 4 4 3-3 5 5M9 9h.01' }
@@ -27,13 +28,13 @@ const MORE_TAB: Tab = { href: '#more', label: 'more', icon: 'M5 12h.01M12 12h.01
 
 /** Everyone who is not the owner: six tabs. Inbox took Newsroom's place (2026-10-17): the newsroom is owner-only on the server,
  * and agents need their own chats and the buyers the owner passes to them. */
-const AGENT_BAR: Tab[] = [HOME_TAB, LISTINGS_TAB, INBOX_TAB, INTEREST_TAB, CONTENT_TAB, LEADS_TAB]
+const AGENT_BAR: Tab[] = [HOME_TAB, INBOX_TAB, LEADS_TAB, LISTINGS_TAB, RESULTS_TAB, CONTENT_TAB]
 /**
  * The owner has nine places and a phone bar holds five (UX review, 2026-10-06): the four used daily, then More,
  * a bottom sheet with the rest.
  */
 const OWNER_BAR: Tab[] = [HOME_TAB, INBOX_TAB, CONTENT_TAB, NEWSROOM_TAB]
-const OWNER_MORE: Tab[] = [LEADS_TAB, LISTINGS_TAB, INTEREST_TAB, RADAR_TAB, AGENTS_TAB, ADMIN_TAB, PROFILE_TAB]
+const OWNER_MORE: Tab[] = [LEADS_TAB, LISTINGS_TAB, RESULTS_TAB, RADAR_TAB, AGENTS_TAB, ADMIN_TAB, PROFILE_TAB]
 
 export function FixtureBanner() {
   const [on, setOn] = useState(false)

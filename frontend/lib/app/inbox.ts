@@ -4,7 +4,7 @@ import { ApiError, fetchOnceMore, parseErrorBody } from './api'
 import { isFixtureMode } from './client'
 import { getToken } from './session'
 
-export type InboxChannel = 'whatsapp' | 'messenger' | 'instagram' | 'website'
+export type InboxChannel = 'whatsapp' | 'messenger' | 'instagram' | 'website' | 'facebook_comment' | 'instagram_comment'
 /** them = the person who wrote to us; bot = our assistant; you = a person on our side (sent from the inbox). */
 export type InboxFrom = 'them' | 'bot' | 'you'
 
@@ -30,6 +30,9 @@ export interface InboxThread {
   /** out = you passed this buyer to an agent; in = the owner passed this buyer to you. */
   passed: 'out' | 'in' | null
   passed_at: string | null
+  /** Comments: the post they commented on, and why it needs you. */
+  post_url?: string | null
+  reason?: string | null
 }
 
 export interface InboxMessage {
@@ -89,11 +92,18 @@ export const inboxApi = {
   threads: async (): Promise<InboxThread[]> => (isFixtureMode() ? [] : (await call<{ items: InboxThread[] }>('')).items ?? []),
   thread: (id: string) => call<InboxThreadFull>(`/${encodeURIComponent(id)}`),
   reply: (id: string, text: string) => call<InboxThreadFull>(`/${encodeURIComponent(id)}/reply`, { method: 'POST', json: { text } }),
+  /** A comment thread was answered on Facebook/Instagram (or needs no answer). */
+  done: (id: string) => call<InboxThreadFull>(`/${encodeURIComponent(id)}/done`, { method: 'POST' }),
   agents: async (): Promise<PassAgent[]> => (await call<{ items: PassAgent[] }>('/agents')).items ?? [],
   pass: (id: string, agentId: string) => call<PassResult>(`/${encodeURIComponent(id)}/pass`, { method: 'POST', json: { agent_id: agentId } }),
 }
 
-export const CHANNEL_LABEL: Record<string, string> = { whatsapp: 'WhatsApp', messenger: 'Messenger', instagram: 'Instagram', website: 'Website chat' }
+export const CHANNEL_LABEL: Record<string, string> = {
+  whatsapp: 'WhatsApp', messenger: 'Messenger', instagram: 'Instagram', website: 'Website chat',
+  facebook_comment: 'Facebook comment', instagram_comment: 'Instagram comment',
+}
+export const isComment = (channel: string) => channel.endsWith('_comment')
 export const CHANNEL_CHIP: Record<string, string> = {
   whatsapp: 'bg-green-100 text-green-800', messenger: 'bg-blue-100 text-blue-800', instagram: 'bg-purple-100 text-purple-800', website: 'bg-gray-100 text-gray-700',
+  facebook_comment: 'bg-blue-50 text-blue-800 ring-1 ring-blue-200', instagram_comment: 'bg-purple-50 text-purple-800 ring-1 ring-purple-200',
 }

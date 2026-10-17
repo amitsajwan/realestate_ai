@@ -49,7 +49,7 @@ describe('AppShell tabs', () => {
     fireEvent.click(more)
     const sheet = screen.getByRole('dialog', { name: 'More' })
     const rows = within(sheet).getAllByRole('link')
-    expect(rows.map((l) => l.getAttribute('href'))).toEqual(['/studio/leads', '/studio/listings', '/studio/interest', '/studio/radar', '/studio/agents', '/studio/admin', '/studio/profile'])
+    expect(rows.map((l) => l.getAttribute('href'))).toEqual(['/studio/leads', '/studio/listings', '/studio/results', '/studio/radar', '/studio/agents', '/studio/admin', '/studio/profile'])
     expect(rows[5]).toHaveAttribute('aria-current', 'page')
     expect(rows[0].className).toContain('min-h-[56px]')
     fireEvent.click(within(sheet).getByRole('button', { name: 'Close' }))
@@ -65,16 +65,16 @@ describe('AppShell tabs', () => {
     await waitFor(() => expect(mockStatus).toHaveBeenCalled())
   })
 
-  it('everyone else gets six tabs with Inbox (not Newsroom), normal size, no More, only the Inbox count', () => {
+  it('everyone else gets six tabs: Home, Inbox, Leads, Listings, Results, Content; normal size, no More, only the Inbox count', () => {
     mockOwner = false
     mockPath = '/studio/listings'
     render(<AppShell><p>x</p></AppShell>)
     const links = nav().getAllByRole('link')
     expect(links.map((l) => l.getAttribute('href'))).toEqual([
-      '/studio', '/studio/listings', '/studio/inbox', '/studio/interest', '/studio/content', '/studio/leads',
+      '/studio', '/studio/inbox', '/studio/leads', '/studio/listings', '/studio/results', '/studio/content',
     ])
     expect(links[0].className).toContain('text-xs')
-    expect(links[1]).toHaveAttribute('aria-current', 'page')
+    expect(links[3]).toHaveAttribute('aria-current', 'page')
     expect(nav().queryByRole('button', { name: 'More' })).toBeNull()
     expect(mockUpcoming).not.toHaveBeenCalled()
     expect(mockStatus).not.toHaveBeenCalled()

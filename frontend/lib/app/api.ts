@@ -13,7 +13,6 @@ import type {
   CampaignReport,
   CampaignResult,
   ChatConversation,
-  FacebookInterest,
   FacebookStatus,
   FollowupDraft,
   Lead,
@@ -220,7 +219,6 @@ export function createApiClient(opts: ClientOptions): AppApi {
       return request<LeadDetail>(`/inbox/leads/${id}`, { method: 'PATCH', json: patch })
     },
     getToday: () => request<BusinessToday>('/inbox/today'),
-    getFacebookInterest: () => request<FacebookInterest[]>('/engage/comments'),
     getChatConversations: () => request<ChatConversation[]>('/chat/conversations'),
     getFacebookStatus: () => request<FacebookStatus>('/engage/status'),
     getWeeklyReport: () => request<WeeklyReport>('/report/weekly'),

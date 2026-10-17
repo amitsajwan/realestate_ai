@@ -144,10 +144,10 @@ export function AdminScreen() {
       <Section title="Today" id="today">
         <div className="grid grid-cols-2 gap-2">
           <Tile testId="tile-leads" href="/studio/leads" label="New leads" today={t.leads} week={w.leads} />
-          <Tile testId="tile-interest" href="/studio/interest" label="Interest taps" today={t.interest_taps} week={w.interest_taps} />
-          <Tile testId="tile-chats" href="/studio/interest" label="Chat leads" today={t.chat_leads} week={w.chat_leads} />
+          <Tile testId="tile-interest" href="/studio/results" label="Interest taps" today={t.interest_taps} week={w.interest_taps} />
+          <Tile testId="tile-chats" href="/studio/inbox?tab=buyers" label="Chat leads" today={t.chat_leads} week={w.chat_leads} />
           <Tile testId="tile-whatsapp" href="/studio/leads" label="WhatsApp leads" today={t.whatsapp_leads} week={w.whatsapp_leads} />
-          <Tile testId="tile-comments" href="/studio/interest" label="Comments answered" today={t.comments_answered} week={w.comments_answered} />
+          <Tile testId="tile-comments" href="/studio/inbox?tab=comments" label="Comments answered" today={t.comments_answered} week={w.comments_answered} />
           <Tile testId="tile-posts" href="/studio/content" label="Posts published" today={posts(t)} week={posts(w)} />
           <Tile testId="tile-news" href="/studio/newsroom" label="News published" today={t.news_published} week={w.news_published} />
         </div>

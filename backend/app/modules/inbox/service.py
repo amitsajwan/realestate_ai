@@ -5,8 +5,10 @@ Sources (read only, except the WhatsApp reply)
   whatsapp_conversations + whatsapp_messages   WhatsApp on our number; the full thread comes from whatsapp_messages (both directions)
   dm_conversations                             Facebook Messenger / Instagram DMs (last messages kept on the conversation)
   chat_sessions                                website chat on the agent's pages (by agent_slug)
+  engage_comments                              comments on our Facebook/Instagram posts, one thread per commenter (2026-10-17: they moved here
+                                               from the Interest screen); 'ignored' ones (emoji, tags) and our own are left out
 
-A thread id is "<kind>-<base64url of the stored _id>" (kind: wa, dm, web), so ids never carry a raw phone number.
+A thread id is "<kind>-<base64url of the stored _id>" (kind: wa, dm, web; cm: "<channel>|<commenter id>"), so ids never carry a raw phone number.
 "Needs you" = the last message is theirs: nobody (bot or person) has answered it.
 A person's reply goes out only on WhatsApp, only inside the 24-hour window, through WhatsAppService._send (same caps, dry run and
 records); the bot then stays quiet in that chat for HUMAN_HOLD, so it does not talk over the person.
@@ -25,6 +27,9 @@ HUMAN_HOLD = timedelta(hours=12)
 MAX_THREADS = 100
 MAX_MESSAGES = 200
 MAX_REPLY = 1000
+MAX_COMMENTS = 300
+COMMENT_CHANNEL = {"facebook": "facebook_comment", "instagram": "instagram_comment"}
+COMMENT_TROUBLE = ("capped", "failed")   # the bot could not answer: a person should
 
 
 class InboxError(Exception):
@@ -39,7 +44,7 @@ def _enc(kind: str, raw: str) -> str:
 
 def _dec(tid: str):
     kind, _, b = (tid or "").partition("-")
-    if kind not in ("wa", "dm", "web") or not b or len(b) > 200:
+    if kind not in ("wa", "dm", "web", "cm") or not b or len(b) > 200:
         raise InboxError("Conversation not found", 404)
     try:
         return kind, base64.urlsafe_b64decode(b + "=" * (-len(b) % 4)).decode()
@@ -86,8 +91,76 @@ class InboxService:
         for d in await self.c("chat_sessions").find(web).sort("updated_at", -1).limit(MAX_THREADS).to_list(MAX_THREADS):
             if d.get("messages"):
                 out.append(self._row("web", d, "website", (d.get("data") or {}).get("name"), "", "buyer", viewer=agent_id))
+        out += self._comment_rows(await self._comments(agent_id))
         out.sort(key=lambda r: r["last_at"] or "", reverse=True)
         return out[:MAX_THREADS]
+
+    # ---- comments on our posts ------------------------------------------------------------------------------------
+    async def _comments(self, agent_id: str, key: Optional[str] = None) -> List[dict]:
+        flt = {"agent_id": agent_id, "status": {"$ne": "ignored"}}
+        if key:
+            channel, _, sender = key.partition("|")
+            flt.update({"channel": channel, "from_id": sender} if channel != "facebook" else
+                       {"$or": [{"channel": "facebook"}, {"channel": None}], "from_id": sender})
+        docs = await self.c("engage_comments").find(flt).sort("processed_at", -1).limit(MAX_COMMENTS).to_list(MAX_COMMENTS)
+        return [d for d in docs if not str(d.get("reason") or "").startswith("own comment") and d.get("from_id")]
+
+    @staticmethod
+    def _comment_key(d: dict) -> str:
+        return f"{d.get('channel') or 'facebook'}|{d['from_id']}"
+
+    @staticmethod
+    def _comment_needs(d: dict) -> bool:
+        return not d.get("done_at") and (bool(d.get("needs_human")) or d.get("status") in COMMENT_TROUBLE)
+
+    def _comment_rows(self, docs: List[dict]) -> List[dict]:
+        groups: dict = {}
+        for d in docs:  # newest first, so the first of each group is the latest comment
+            groups.setdefault(self._comment_key(d), []).append(d)
+        return [self._comment_head(key, ds) for key, ds in groups.items()]
+
+    def _comment_head(self, key: str, docs: List[dict]) -> dict:
+        last = docs[0]
+        channel = key.partition("|")[0]
+        replied = last.get("status") == "replied" and last.get("reply")
+        return {"id": _enc("cm", key), "channel": COMMENT_CHANNEL.get(channel, "facebook_comment"), "name": (last.get("from_name") or "").strip() or None,
+                "phone": "", "role": "buyer", "last_text": ((last.get("reply") if replied else last.get("text")) or "")[:160],
+                "last_from": "bot" if replied else "them", "last_at": _iso(last.get("replied_at") if replied else last.get("processed_at")),
+                "needs_you": any(self._comment_needs(d) for d in docs), "passed": None, "passed_at": None,
+                "lead_id": None, "lead_saved": any(d.get("phone") for d in docs), "window_open": False, "opted_out": False, "can_reply": False,
+                "summary": "", "messages": len(docs), "post_url": last.get("permalink"),
+                "reason": next((self._comment_why(d) for d in docs if self._comment_needs(d)), None)}
+
+    @staticmethod
+    def _comment_why(d: dict) -> str:
+        if d.get("status") == "capped":
+            return "The bot already answered this person enough times today"
+        if d.get("status") == "failed":
+            return "The bot's reply did not go out"
+        return d.get("reason") or "Please answer this one"
+
+    def _comment_thread(self, docs: List[dict]) -> List[dict]:
+        msgs = []
+        for d in reversed(docs):  # oldest first
+            msgs.append({"from": "them", "text": d.get("text") or "", "at": _iso(d.get("processed_at")), "status": None, "error": None})
+            if d.get("reply") and d.get("status") in ("replied", "dry_run"):
+                msgs.append({"from": "bot", "text": d["reply"], "at": _iso(d.get("replied_at") or d.get("processed_at")),
+                             "status": "dry_run" if d["status"] == "dry_run" else None, "error": None})
+        return msgs[-MAX_MESSAGES:]
+
+    async def done(self, agent_id: str, tid: str) -> dict:
+        """'Done' on a comment thread: the person answered it on Facebook/Instagram (or it needs no answer); it stops needing you."""
+        kind, raw = _dec(tid)
+        if kind != "cm":
+            raise InboxError("Only comments can be marked done; answer chats by replying", 409)
+        docs = await self._comments(agent_id, raw)
+        if not docs:
+            raise InboxError("Conversation not found", 404)
+        now = self.now()
+        for d in docs:
+            if self._comment_needs(d):
+                await self.c("engage_comments").update_one({"_id": d["_id"]}, {"$set": {"done_at": now, "done_by": agent_id}})
+        return await self.thread(agent_id, tid)
 
     def _window(self, conv: dict) -> bool:
         last = conv.get("last_inbound_at")
@@ -123,6 +196,8 @@ class InboxService:
     # ---- one thread -------------------------------------------------------------------------------------------------
     async def _own(self, agent_id: str, tid: str):
         kind, raw = _dec(tid)
+        if kind == "cm":
+            raise InboxError("Comments are answered on Facebook or Instagram", 409)
         if kind == "wa":
             doc = await self.c("whatsapp_conversations").find_one({"_id": raw})
             ok = doc is not None and agent_id in (doc.get("agent_id"), doc.get("passed_by"))
@@ -137,6 +212,12 @@ class InboxService:
         return kind, doc
 
     async def thread(self, agent_id: str, tid: str) -> dict:
+        if tid.startswith("cm-"):
+            docs = await self._comments(agent_id, _dec(tid)[1])
+            if not docs:
+                raise InboxError("Conversation not found", 404)
+            return {**self._comment_head(self._comment_key(docs[0]), docs), "thread": self._comment_thread(docs), "bot_paused_until": None,
+                    "passed_to_name": None}
         kind, doc = await self._own(agent_id, tid)
         if kind == "wa":
             head = self._row("wa", doc, "whatsapp", doc.get("name"), mask(doc.get("wa_id", "")), doc.get("role") or "buyer",

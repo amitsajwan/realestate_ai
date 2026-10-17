@@ -6,7 +6,7 @@ import { Btn, ErrorBox, PageTitle, Spinner, inputCls } from '@/components/app/ui
 import { errorMessage } from '@/lib/app/client'
 import { BRAND_NAME } from '@/lib/brand'
 import { timeAgo } from '@/lib/app/format'
-import { CHANNEL_CHIP, CHANNEL_LABEL, inboxApi, type InboxMessage, type InboxThreadFull, type PassAgent, type PassResult } from '@/lib/app/inbox'
+import { CHANNEL_CHIP, CHANNEL_LABEL, inboxApi, isComment, type InboxMessage, type InboxThreadFull, type PassAgent, type PassResult } from '@/lib/app/inbox'
 
 const STATUS: Record<string, string> = { failed: 'Not delivered', refused: 'Not sent', dry_run: 'Test mode, not sent' }
 
@@ -102,6 +102,18 @@ export default function InboxThreadPage() {
   React.useEffect(load, [load])
   React.useEffect(() => end.current?.scrollIntoView({ block: 'end' }), [doc?.thread.length])
 
+  async function markDone() {
+    setBusy(true)
+    setError(null)
+    try {
+      setDoc(await inboxApi.done(id))
+    } catch (e) {
+      setError(errorMessage(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function send() {
     if (!text.trim()) return
     setBusy(true)
@@ -130,6 +142,11 @@ export default function InboxThreadPage() {
         {doc.lead_id && <Link href={`/studio/leads/${encodeURIComponent(doc.lead_id)}`} className="font-semibold text-blue-700 underline">Open lead</Link>}
       </div>
       {doc.summary && <p className="text-sm text-gray-700">Wants: {doc.summary}</p>}
+      {doc.post_url && (
+        <a href={doc.post_url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-[44px] items-center font-semibold text-blue-700 underline">
+          Open the post on {doc.channel === 'instagram_comment' ? 'Instagram' : 'Facebook'}
+        </a>
+      )}
       {doc.passed === 'out' && <p className="rounded-xl bg-gray-50 p-3 text-sm text-gray-700">Passed to {doc.passed_to_name || 'an agent'}{doc.passed_at ? ` ${timeAgo(doc.passed_at)}` : ''}. They handle this buyer now.</p>}
       {doc.passed === 'in' && <p className="rounded-xl bg-sky-50 p-3 text-sm font-semibold text-sky-900">{BRAND_NAME} passed this buyer to you. Call or message them soon.</p>}
       {(doc.can_pass || passed) && <PassBox id={id} onPassed={(r) => { setPassed(r); load() }} />}
@@ -137,7 +154,18 @@ export default function InboxThreadPage() {
       <ol className="space-y-2" aria-label="Messages">{doc.thread.map((m, i) => <Bubble key={i} m={m} />)}</ol>
       <div ref={end} />
 
-      {doc.opted_out ? (
+      {isComment(doc.channel) ? (
+        doc.needs_you ? (
+          <section aria-label="Needs you" className="space-y-2 rounded-2xl border border-amber-300 bg-amber-50 p-3">
+            <p className="text-sm font-semibold text-amber-900">Needs you: {doc.reason || 'please answer this one'}</p>
+            <p className="text-sm text-amber-900">Answer under the post on {doc.channel === 'instagram_comment' ? 'Instagram' : 'Facebook'}, then tap Done.</p>
+            {error && <p role="alert" className="text-sm font-semibold text-red-700">{error}</p>}
+            <Btn disabled={busy} onClick={markDone}>{busy ? 'Saving...' : 'Done'}</Btn>
+          </section>
+        ) : (
+          <p className="rounded-xl bg-gray-50 p-3 text-sm text-gray-700">Comments are answered by the bot. To add something, reply under the post itself.</p>
+        )
+      ) : doc.opted_out ? (
         <p className="rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-800">They replied STOP. Do not message them on WhatsApp.</p>
       ) : doc.can_reply ? (
         <section aria-label="Reply" className="space-y-2 rounded-2xl border border-gray-200 bg-white p-3">
