@@ -1,4 +1,5 @@
 """POST /chat/message (public): one visitor message in, one reply out. The rate limit is per browser session; leads go through the tracking module."""
+import os
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -56,7 +57,7 @@ class MessageOut(BaseModel):
 
 def get_service() -> ChatService:
     db = get_database()
-    return ChatService(db, TrackingService(db), default_llm())
+    return ChatService(db, TrackingService(db), default_llm(), agent=os.environ.get("CHAT_AGENT", "on").strip().lower() != "off")
 
 
 @router.post("/message", response_model=MessageOut)

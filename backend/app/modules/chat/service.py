@@ -17,7 +17,7 @@ from app.modules.tracking import requirement as rq
 from app.modules.tracking.schemas import InquiryIn
 from app.modules.tracking.service import TrackingError
 
-from . import engine
+from . import agent as chat_agent, engine
 
 log = logging.getLogger(__name__)
 SESSION_RX = re.compile(r"^[A-Za-z0-9_-]{12,64}$")
@@ -68,11 +68,12 @@ class ChatError(Exception):
 
 
 class ChatService:
-    def __init__(self, db, tracking, llm=None, now: Callable[[], datetime] = datetime.utcnow):
+    def __init__(self, db, tracking, llm=None, now: Callable[[], datetime] = datetime.utcnow, agent: bool = False):
         self.sessions = db.get_collection("chat_sessions")
         self.profiles = db.get_collection("agent_public_profiles")
         self.db, self.listings, self.calendar = db, db.get_collection("listings"), db.get_collection("content_calendar")
         self.tracking, self.llm, self.now = tracking, llm, now
+        self.agent = agent   # the LLM leads the conversation (chat/agent.py); off: the rules engine alone
 
     async def conversations(self, agent_id: str, limit: int = 30) -> list:
         """The agent's recent website chats: which need a person, which became leads. Never includes phone numbers (leads hold those)."""
@@ -185,7 +186,11 @@ class ChatService:
         homes_agent, homes_slug = await self.homes_agent(profile, page)
         wa_number = platform_whatsapp_number()
         had_name = bool(data.get("name"))
-        t = await engine.turn(data, text, self.llm, grounding, finder=self.finder(homes_agent, homes_slug), whatsapp=bool(wa_number))
+        finder = self.finder(homes_agent, homes_slug)
+        if self.agent:
+            t = await chat_agent.turn(data, text, self.llm, grounding, finder=finder, whatsapp=bool(wa_number), history=s.get("messages") or [])
+        else:
+            t = await engine.turn(data, text, self.llm, grounding, finder=finder, whatsapp=bool(wa_number))
         agent_id = profile.get("agent_id")
         ref = {"conversation_id": session_id[-8:], "channel": "chat"}
         lead_created = False
