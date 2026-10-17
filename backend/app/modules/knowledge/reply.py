@@ -533,6 +533,11 @@ async def answer(question: str, grounding: Grounding, channel: str = "facebook",
         text, done = await _localise(" ".join(_body(pl.found, ch, MAX_FOUND[ch])), lang, ch, llm)
         return Reply(f"{text} {tail}".strip(), True, None, basis, lang, "llm" if done else "rules")
 
+    if g.guide:  # an educational post's facts are short prose ('draw on 4 Dec'): a topic the keywords misfile may still be answered there
+        got = (await _reasoned(q_en, g, lang, ch, llm)) if q_en else None
+        if got:
+            return Reply(f"{got[0]} {tail}".strip(), True, None, _basis_for(got[0], g), lang, "llm")
+
     # something is not covered: say what we can, then say plainly what we do not have
     labels = [UNKNOWN_DETAIL[lang] if m == "other" else OVERRIDE[pl.over[m]][lang] if m in pl.over else _label(m, lang) for m in pl.missing]
     sheet = UNKNOWN_GUIDE if g.guide and ch != "chat" else UNKNOWN
