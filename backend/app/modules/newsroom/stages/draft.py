@@ -60,6 +60,7 @@ SYSTEM_ARTICLE = (
 ARTICLE_MIN_FACTS = 3  # fewer than this is a post, not an article
 ARTICLE_MIN_CHARS = 800  # real article text the research must have read (full reports, not feed summaries)
 ARTICLE_MIN_REPORTS = 2  # full reports read: two publishers cross-check each other (owner, 2026-10-17: "researched, with sources")
+ARTICLE_MIN_FACTS_ONE_REPORT = 5  # or one full report with this many facts: local news often has a single good reporter
 # MahaRERA cards carry only a "Last Modified" date, so we cannot say when a project was registered or launched
 MAHARERA_RULE = (f"This is a MahaRERA record. Say the project was '{policy.MAHARERA_PHRASE}'. Never say it was newly registered, "
                  "just registered, launched or a new launch.")
@@ -179,7 +180,9 @@ def can_be_article(item: RawItem, facts: Facts, research: Optional[Research]) ->
     """An article needs real reporting to stand on: enough facts, and full article text that the research actually read. A headline
     and a line make a post, however important the story."""
     full = sum(1 for s in (research.sources if research else []) if s.full)
-    return len(facts.facts) >= ARTICLE_MIN_FACTS and readable_chars(research) >= ARTICLE_MIN_CHARS and full >= ARTICLE_MIN_REPORTS
+    n = len(facts.facts)
+    return n >= ARTICLE_MIN_FACTS and readable_chars(research) >= ARTICLE_MIN_CHARS and (
+        full >= ARTICLE_MIN_REPORTS or (full >= 1 and n >= ARTICLE_MIN_FACTS_ONE_REPORT))
 
 
 def template_article(item: RawItem, facts: Facts, rel: Relevance, research: Optional[Research]) -> Optional[Draft]:

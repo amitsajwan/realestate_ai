@@ -204,7 +204,7 @@ async def _draft(store, stages, llm, doc):
         await store.move(doc["_id"], "dropped", "no draft produced")
     elif d.format not in ("article", "digest"):
         # news goes out as a full report with its sources or not at all (owner, 2026-10-17): a headline and a line is not enough
-        await store.move(doc["_id"], "dropped", "too little reporting for a full report (needs 2 readable reports and 3 facts)")
+        await store.move(doc["_id"], "dropped", "too little reporting for a full report (needs 2 readable reports, or 1 with 5 facts)")
     else:
         await store.move(doc["_id"], "drafted", d.format, draft=codec.to_doc(d))
 
