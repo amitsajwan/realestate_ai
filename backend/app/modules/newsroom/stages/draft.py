@@ -51,7 +51,7 @@ SYSTEM_ARTICLE = (
     "different figures, say so and give both. Do not copy wording word for word; say it in your own words. No hype or superlatives, "
     "no phone numbers, no predictions about prices, no praise or criticism of any builder. If something is only approved or planned, "
     "say 'approved' or 'planned', never that it is running or open unless a fact says so. Reply with JSON only, with these keys: "
-    '"title" (a plain, specific headline of 6 to 12 words, no hype), "standfirst" (one sentence: the news in brief), "body" (a list '
+    '"title" (a plain, specific headline of 6 to 12 words in sentence case: capitalise only the first word and names, no hype), "standfirst" (one sentence: the news in brief), "body" (a list '
     "of 3 to 6 paragraphs, each 2 to 4 sentences: what happened, the key figures and dates, who decided or said what, what happens "
     'next as reported), "background" (1 to 2 sentences built only from the background lines, or "" when they do not help), "why" '
     "(2 to 3 sentences: why it may matter to someone buying or renting, hedged with may or could, concrete, no generic filler), "
@@ -123,10 +123,14 @@ def _safe_title(title, item: RawItem, facts: Facts, research: Optional[Research]
     from .check import COMMON, GERUND  # Title Case headlines ("Gets", "Approval") are ordinary words, not names
     if flat(t) == flat(item.title):
         return None
+    def ordinary(word: str) -> bool:  # a Title Case word that is not a name: in the reports, a common word, or an inflection of one
+        low = word.lower()
+        return (low in src or low in COMMON or bool(GERUND.match(word))
+                or (len(low) > 3 and low.endswith("s") and (low[:-1] in src or low[:-1] in COMMON or low.endswith(("ies", "es", "ts", "ds")))))
     for w in ws[1:]:
-        core = re.sub(r"[^\w₹]", "", w)
-        if core[:1].isupper() and not core.isupper() and core.lower() not in src and core.lower() not in COMMON and not GERUND.match(core):
-            return None
+        for core in (re.sub(r"[^\w₹]", "", p) for p in re.split(r"[-–]", w)):  # "Sub-District": each part on its own
+            if core[:1].isupper() and not core.isupper() and not ordinary(core):
+                return None
     return t
 
 
