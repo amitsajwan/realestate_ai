@@ -940,7 +940,8 @@ def encode(frames: Iterable[bytes], total: float, out_path, music=None, timeout:
         if music:
             if not Path(music).is_file():
                 raise ReelError("music file not found")
-            vol = 0.5 if brand_bed else 0.7   # the bed alone (no voice over it) sits quieter than a supplied mix
+            # the bed alone sits quieter; a supplied mix is a voice-over already levelled and limited (narration.mix): as it is
+            vol = 0.5 if brand_bed else 1.0
             args += ["-stream_loop", "-1", "-i", str(music), "-af", f"afade=t=in:d=0.6,afade=t=out:st={max(0.0, total - 1.4):.2f}:d=1.4,volume={vol}"]
         else:
             args += ["-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo"]

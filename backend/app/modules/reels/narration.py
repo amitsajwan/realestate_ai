@@ -171,7 +171,8 @@ def graph(n: int, starts: Sequence[float], total: float, music: bool = True) -> 
         filters.append(f"[bed][key]sidechaincompress={DUCK}[ducked]")
         filters.append("[voice][ducked]amix=inputs=2:normalize=0:duration=first[mixd]")
     # a reel's loudness, and a limiter: the voice-over once peaked at +0.1 dBFS and clipped on phones (2026-10-16)
-    filters.append(f"[mixd]loudnorm=I={OUT_LUFS}:TP=-1.5:LRA=11,aresample={SR}[out]")
+    # loudnorm alone let a short clip peak at +0.4 dBFS (2026-10-17): a hard limiter at about -1.9 dBFS after it
+    filters.append(f"[mixd]loudnorm=I={OUT_LUFS}:TP=-1.5:LRA=11,alimiter=limit=0.8:level=false,aresample={SR}[out]")
     return ";".join(filters)
 
 
