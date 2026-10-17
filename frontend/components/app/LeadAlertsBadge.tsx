@@ -20,6 +20,8 @@ export function alertsLabel(items: AppNotification[], count: number): string {
  * server's `unread`, so a new kind of alert shows without a change here.
  */
 export const INVITE_KIND = 'invite_request'
+/** An agent claimed the free trial himself (TRIAL on WhatsApp): opens Agents > Signed up. */
+export const TRIAL_KIND = 'trial_claimed'
 
 export function LeadAlertsBadge() {
   const [state, setState] = React.useState<{ count: number; items: AppNotification[] }>({ count: 0, items: [] })
@@ -36,7 +38,8 @@ export function LeadAlertsBadge() {
   if (!count) return null
   // website requests to join (owner only) open the admin queue; everything else is a lead or chat
   const invites = items.filter((n) => n.kind === INVITE_KIND).length
-  const leads = Math.max(0, count - invites)
+  const trials = items.filter((n) => n.kind === TRIAL_KIND).length
+  const leads = Math.max(0, count - invites - trials)
   return (
     <>
       {invites > 0 && (
@@ -49,12 +52,22 @@ export function LeadAlertsBadge() {
           <span aria-hidden>&rsaquo;</span>
         </Link>
       )}
+      {trials > 0 && (
+        <Link href="/studio/agents?tab=signedup" data-testid="trial-alerts-badge"
+          className="flex min-h-[56px] items-center justify-between rounded-2xl border border-sky-300 bg-sky-50 px-4 font-semibold text-sky-900">
+          <span>
+            <span aria-label={`${trials} new`} className="mr-2 inline-flex h-6 min-w-[24px] items-center justify-center rounded-full bg-sky-700 px-2 text-sm text-white">{trials}</span>
+            {trials === 1 ? 'New agent took the free trial' : 'New agents took the free trial'}
+          </span>
+          <span aria-hidden>&rsaquo;</span>
+        </Link>
+      )}
       {leads > 0 && (
         <Link href="/studio/interest" data-testid="lead-alerts-badge"
           className="flex min-h-[56px] items-center justify-between rounded-2xl border border-green-300 bg-green-50 px-4 font-semibold text-green-900">
           <span>
             <span aria-label={`${leads} new`} className="mr-2 inline-flex h-6 min-w-[24px] items-center justify-center rounded-full bg-green-700 px-2 text-sm text-white">{leads}</span>
-            {alertsLabel(items.filter((n) => n.kind !== INVITE_KIND), leads)}
+            {alertsLabel(items.filter((n) => n.kind !== INVITE_KIND && n.kind !== TRIAL_KIND), leads)}
           </span>
           <span aria-hidden>&rsaquo;</span>
         </Link>

@@ -295,8 +295,9 @@ TRIAL_TEXT = {
 }
 
 
-async def claim_trial(db, phone: str, lang: str, now: Optional[datetime] = None) -> str:
-    """An agent sent TRIAL: issue (or re-issue) his sign-up code and say how to use it. Never a lead: he is not a buyer."""
+async def claim_trial(db, phone: str, lang: str, now: Optional[datetime] = None) -> tuple:
+    """An agent sent TRIAL: issue (or re-issue) his sign-up code and say how to use it. Never a lead: he is not a buyer.
+    Returns (reply, claim status)."""
     from app.core import brand
     from app.core.config import settings
     from app.modules.onboarding.invites import InviteService
@@ -306,7 +307,43 @@ async def claim_trial(db, phone: str, lang: str, now: Optional[datetime] = None)
     lang = lang if lang in ("en", "hi", "mr") else "en"
     join = f"{settings.public_site_url.rstrip('/')}/join?phone={phone[3:]}"
     return TRIAL_TEXT[claim.status if claim.status in TRIAL_TEXT else "issued"][lang].format(
-        brand=brand.NAME, code=claim.code or "", join=join)
+        brand=brand.NAME, code=claim.code or "", join=join), claim.status
+
+
+# An agent writing to our number after his trial (or any agent with an account): a person on our team answers him, the bot only says so
+AGENT_TEXT = {
+    "en": "Hi {name}, thanks for writing. Our team reads every message here and will reply soon.\nTo add a property now: {studio}",
+    "hi": "नमस्ते {name}, मैसेज के लिए धन्यवाद। हमारी टीम यहाँ हर मैसेज पढ़ती है और जल्दी जवाब देगी।\nअभी प्रॉपर्टी जोड़ने के लिए: {studio}",
+    "mr": "नमस्कार {name}, मेसेजसाठी धन्यवाद. आमची टीम इथे प्रत्येक मेसेज वाचते आणि लवकरच उत्तर देईल.\nआता प्रॉपर्टी जोडण्यासाठी: {studio}",
+}
+AGENT_TEXT_NOT_SIGNED_IN = {
+    "en": "Hi, thanks for writing. Our team will reply here soon.\nYour sign-up code is in the message above. Sign in here: {join}",
+    "hi": "नमस्ते, मैसेज के लिए धन्यवाद। हमारी टीम जल्दी यहीं जवाब देगी।\nआपका साइन-अप कोड ऊपर वाले मैसेज में है। यहाँ साइन इन करें: {join}",
+    "mr": "नमस्कार, मेसेजसाठी धन्यवाद. आमची टीम लवकरच इथे उत्तर देईल.\nतुमचा साइन-अप कोड वरच्या मेसेजमध्ये आहे. इथे साइन इन करा: {join}",
+}
+
+
+async def agent_for_phone(db, phone: str, exclude: str = "") -> Optional[dict]:
+    """The agent behind this WhatsApp number: an account with this phone, or a live sign-up code sent to it. None for a buyer.
+    `exclude` (the owner's own account) stays a buyer, so the owner can still try the buyer chat from his phone."""
+    user = await db.get_collection("users").find_one({"phone": phone})
+    if user and str(user["_id"]) == exclude:
+        return None
+    inv = await db.get_collection("invites").find_one({"_id": phone})
+    if not user and not (inv and not inv.get("revoked")):
+        return None
+    name = " ".join(p for p in ((user or {}).get("first_name"), (user or {}).get("last_name")) if p).strip()
+    return {"user_id": str(user["_id"]) if user else None, "name": name or None, "signed_up": bool(user)}
+
+
+def agent_ack(agent: dict, phone: str, lang: str) -> str:
+    from app.core.config import settings
+    site = settings.public_site_url.rstrip("/")
+    lang = lang if lang in ("en", "hi", "mr") else "en"
+    if not agent.get("signed_up"):
+        return AGENT_TEXT_NOT_SIGNED_IN[lang].format(join=f"{site}/join?phone={phone[3:]}")
+    first = (agent.get("name") or "").split(" ")[0]
+    return AGENT_TEXT[lang].format(name=first, studio=f"{site}/studio/listings/new").replace(" ,", ",")  # no name: "Hi, thanks"
 
 
 def trial_claims_on() -> bool:

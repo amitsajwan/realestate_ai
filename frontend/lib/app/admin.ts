@@ -26,6 +26,19 @@ export interface InviteRequest {
   created_at: string | null
   status: string
 }
+/** An agent who claimed the free trial himself (TRIAL on WhatsApp): signed in or not, his page, his listings. */
+export interface TrialSignup {
+  id: string
+  name: string
+  /** Masked by the server, like 99******83. */
+  mobile: string
+  via: string
+  claimed_at: string | null
+  last_login_at: string | null
+  signed_up: boolean
+  slug: string | null
+  listings: number
+}
 export type HealthStatus = 'ok' | 'warn' | 'bad'
 export interface HealthRow {
   key: string
@@ -58,6 +71,7 @@ export interface AdminApi {
   overview(): Promise<AdminOverview>
   setControls(changes: Partial<Record<ControlFlag, boolean>>): Promise<AdminControls>
   inviteRequests(): Promise<InviteRequest[]>
+  trialSignups(): Promise<TrialSignup[]>
   invite(id: string): Promise<InvitedRequest>
   dismiss(id: string): Promise<InviteRequest>
 }
@@ -124,6 +138,7 @@ export function createAdminApi(opts: { getToken: () => string | null; baseUrl?: 
     overview: () => request<AdminOverview>('/overview'),
     setControls: (changes) => request<AdminControls>('/controls', { method: 'POST', json: changes }),
     inviteRequests: async () => (await request<{ items: InviteRequest[] }>('/invite-requests')).items ?? [],
+    trialSignups: async () => (await request<{ items: TrialSignup[] }>('/trial-signups')).items ?? [],
     invite: (id) => request<InvitedRequest>(`${r(id)}/invite`, { method: 'POST' }),
     dismiss: (id) => request<InviteRequest>(`${r(id)}/dismiss`, { method: 'POST' }),
   }
@@ -181,6 +196,7 @@ export function createFixtureAdminApi(): AdminApi {
       return { ...state.controls }
     },
     inviteRequests: async () => [...state.invite_requests],
+    trialSignups: async () => [],
     invite: async (id) => {
       const req = find(id)
       const created = await concierge.create({ name: req.name, mobile: '9876500021', label: `${req.name}, website request` })
@@ -204,6 +220,7 @@ export const adminApi: AdminApi = {
   overview: () => impl().overview(),
   setControls: (c) => impl().setControls(c),
   inviteRequests: () => impl().inviteRequests(),
+  trialSignups: () => impl().trialSignups(),
   invite: (id) => impl().invite(id),
   dismiss: (id) => impl().dismiss(id),
 }

@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import React, { useState } from 'react'
 import { adminApi } from '@/lib/app/admin'
-import type { InviteRequest, InvitedRequest } from '@/lib/app/admin'
+import type { InviteRequest, InvitedRequest, TrialSignup } from '@/lib/app/admin'
 import { conciergeApi } from '@/lib/app/concierge'
 import type { AgentSummary } from '@/lib/app/concierge'
 import { timeAgo } from '@/lib/app/format'
@@ -15,8 +15,27 @@ import { CodeSheet, InviteRow } from './InviteRequests'
 import { ProgressRing } from './ProgressRing'
 import { BRAND_NAME } from '@/lib/brand'
 
-const TABS = ['setup', 'active', 'all', 'asked']
+const TABS = ['setup', 'active', 'all', 'signedup', 'asked']
 const settingUp = (a: AgentSummary) => a.progress.done < a.progress.total
+
+/** An agent who took the free trial himself: not one you set up, so no checklist; how far he got and his page. */
+function SignupRow({ s }: { s: TrialSignup }) {
+  const step = !s.signed_up ? 'Code sent, not signed in yet' : s.listings ? `${s.listings} listing${s.listings === 1 ? '' : 's'}` : 'Signed in, no listing yet'
+  const body = (
+    <div className="min-w-0 flex-1">
+      <p className="truncate font-semibold text-gray-900">{s.name || 'Name not given yet'}</p>
+      <p className="truncate text-sm text-gray-600">{s.mobile}{s.via ? ` · trial on ${s.via === 'whatsapp' ? 'WhatsApp' : s.via}` : ''}</p>
+      <p className="truncate text-xs text-gray-500">{step}{s.claimed_at ? ` · claimed ${timeAgo(s.claimed_at)}` : ''}</p>
+    </div>
+  )
+  const cls = 'min-h-[72px] items-center gap-3 rounded-2xl border border-gray-200 bg-white p-3 [display:flex]'
+  return (
+    <li data-testid="signup-row">
+      {s.slug ? <a href={`/agent/${encodeURIComponent(s.slug)}`} target="_blank" rel="noopener noreferrer" className={`${cls} active:bg-gray-50`}>{body}<span className="text-sm text-gray-500">Page &rsaquo;</span></a>
+        : <div className={cls}>{body}</div>}
+    </li>
+  )
+}
 
 function AgentRow({ a }: { a: AgentSummary }) {
   const next = a.checklist.find((c) => !c.done)
@@ -45,6 +64,7 @@ function AgentRow({ a }: { a: AgentSummary }) {
 export function AgentsScreen() {
   const { data, error, loading, reload } = useAsync(() => conciergeApi.list(), [])
   const requests = useAsync<InviteRequest[]>(() => adminApi.inviteRequests().catch(() => []), [])
+  const signups = useAsync<TrialSignup[]>(() => adminApi.trialSignups().catch(() => []), [])
   const [adding, setAdding] = useState(false)
   const [invited, setInvited] = useState<InvitedRequest | null>(null)
 
@@ -54,11 +74,12 @@ export function AgentsScreen() {
   const active = agents.filter((a) => !settingUp(a))
   const [tab, setTab] = useUrlTab('tab', setup.length ? 'setup' : 'all', TABS)
 
-  // opening Asked to join is seeing the requests: the 'new request to join' alerts on Studio home are cleared
+  // opening Asked to join (Signed up) is seeing the requests (trial claims): their alerts on Studio home are cleared
   React.useEffect(() => {
-    if (tab !== 'asked') return
+    const kind = tab === 'asked' ? 'invite_request' : tab === 'signedup' ? 'trial_claimed' : null
+    if (!kind) return
     getNotifications(true)
-      .then((n) => Promise.all(n.items.filter((x) => x.kind === 'invite_request').map((x) => markNotificationRead(x.id))))
+      .then((n) => Promise.all(n.items.filter((x) => x.kind === kind).map((x) => markNotificationRead(x.id))))
       .catch(() => undefined)
   }, [tab])
 
@@ -80,10 +101,20 @@ export function AgentsScreen() {
         { key: 'setup', label: 'Setting up', count: setup.length },
         { key: 'active', label: 'Active', count: active.length },
         { key: 'all', label: 'All', count: agents.length },
+        { key: 'signedup', label: 'Signed up', count: (signups.data ?? []).length },
         { key: 'asked', label: 'Asked to join', count: asked.length, tone: 'urgent' },
       ]} />
       {error && <ErrorBox message={error} onRetry={reload} />}
-      {tab === 'asked' ? (
+      {tab === 'signedup' ? (
+        <>
+          <p className="text-sm text-gray-600">Agents who took the free trial themselves (TRIAL on WhatsApp). Reach out on WhatsApp and help with the first property.</p>
+          {signups.loading && !signups.data ? <Spinner /> : (signups.data ?? []).length === 0 ? (
+            <p className="rounded-2xl bg-white p-6 text-center text-gray-600">Nobody has taken the trial yet.</p>
+          ) : (
+            <ul className="space-y-2">{(signups.data ?? []).map((s) => <SignupRow key={s.id} s={s} />)}</ul>
+          )}
+        </>
+      ) : tab === 'asked' ? (
         <>
           <p className="text-sm text-gray-600">People who asked to join on the website. Invite makes the agent and gives you his code to send.</p>
           {requests.loading && !requests.data ? <Spinner /> : asked.length === 0 ? (

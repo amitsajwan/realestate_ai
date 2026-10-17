@@ -116,6 +116,22 @@ class AdminService:
         rows = await self.c("invite_requests").find({"status": "new"}).sort("created_at", 1).limit(limit).to_list(limit)
         return [self._request_view(r) for r in rows]
 
+    async def trial_signups(self, limit: int = 100) -> List[dict]:
+        """Agents who claimed the free trial themselves (TRIAL on WhatsApp): never in concierge_agents, so listed from their invite,
+        with whether they signed in, their page and how many listings they have."""
+        rows = await self.c("invites").find({"label": "trial"}).sort("created_at", -1).limit(limit).to_list(limit)
+        out = []
+        for inv in rows:
+            user = await self.c("users").find_one({"phone": inv["_id"]})
+            uid = str(user["_id"]) if user else None
+            prof = await self.c("agent_public_profiles").find_one({"_id": uid}) if uid else None
+            name = (prof or {}).get("agent_name") or " ".join(p for p in ((user or {}).get("first_name"), (user or {}).get("last_name")) if p)
+            out.append({"id": uid or str(inv["_id"]), "name": name or "", "mobile": mask_phone(inv["_id"]), "via": inv.get("claimed_via") or "",
+                        "claimed_at": _iso(inv.get("claimed_at") or inv.get("created_at")), "last_login_at": _iso(inv.get("last_login_at")),
+                        "signed_up": bool(user), "slug": (prof or {}).get("slug"),
+                        "listings": await self.c("listings").count_documents({"agent_id": uid}) if uid else 0})
+        return out
+
     async def _new_request(self, id: str) -> dict:
         doc = await self.c("invite_requests").find_one({"_id": _oid(id)})
         if not doc:

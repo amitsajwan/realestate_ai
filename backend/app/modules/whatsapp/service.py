@@ -8,6 +8,8 @@ Rules
   - Routing: the receiving number's agent (WHATSAPP_NUMBER_AGENTS) > the agent behind an interest code in the text > the owner agent.
   - Answers come from the website chat engine and grounded knowledge (no invented facts or prices, sample homes labelled), in the buyer's language.
   - The buyer started the chat, so we may reply and keep a lead: consent is recorded as that, and they are told once how to stop (STOP).
+  - An agent (an account, or a sign-up code sent to this number) is never a buyer: no lead, no buyer greeting; the owner is told and
+    the agent gets one 'our team will reply here' every 12 hours. TRIAL claims tell the owner too.
   - STOP / UNSUBSCRIBE: opted out, one confirmation, then silence until START.
   - Replies only inside 24 hours of the buyer's last message; otherwise refused and logged (no paid templates yet).
   - Dry run records the reply and sends nothing. Tokens never reach logs or stored errors.
@@ -28,6 +30,7 @@ WINDOW = timedelta(hours=24)
 MAX_KEPT = 20
 MAX_TEXT = 500
 MAX_REPLIES_PER_HOUR = 30
+AGENT_ACK_EVERY = timedelta(hours=12)
 STOP_RX = re.compile(r"^\W*(stop|stop all|unsubscribe|opt ?out|cancel|end|quit|band karo|बंद करो|बंद|थांबवा)\W*$", re.I)
 START_RX = re.compile(r"^\W*(start|unstop|resume|subscribe)\W*$", re.I)
 # An agent claiming the free trial ("TRIAL", "free trial", "claim my free trial", ट्रायल): answered with his sign-up code, never as a buyer
@@ -169,7 +172,16 @@ class WhatsAppService:
         await self._mark_read(pid, mid)
         if text and TRIAL_RX.match(text) and adapters.trial_claims_on():
             conv["trial_claimed_at"] = now   # an agent, not a buyer: no lead, no buyer notice
-            return await self._finish(conv, mid, await adapters.claim_trial(self.db, "+" + wa_id, lang, now), "trial", now, text, mtype)
+            reply, status = await adapters.claim_trial(self.db, "+" + wa_id, lang, now)
+            if status in ("issued", "full") and self.cfg.owner_agent_id:
+                who = conv.get("name") or "An agent"
+                await adapters.notify(self.db, self.cfg.owner_agent_id, "trial_claimed",
+                                      f"{who} claimed the free trial on WhatsApp" + ("" if status == "issued" else " (today's trials are full, request saved)"),
+                                      {"conversation_id": cid, "screen": "/studio/agents?tab=signedup"}, now)
+            return await self._finish(conv, mid, reply, "trial", now, text, mtype)
+        agent = await adapters.agent_for_phone(self.db, "+" + wa_id, exclude=self.cfg.owner_agent_id)
+        if agent:
+            return await self._agent_chat(conv, mid, agent, text, lang, now, mtype)
         agent_id = conv.get("agent_id")
         if mtype == "location":
             reply = L.pick(L.LOCATION, lang)
@@ -186,6 +198,22 @@ class WhatsAppService:
             reply = f"{reply}\n\n{L.pick(L.NOTICE, lang, agent=await adapters.agent_name(self.db, agent_id) or L.pick(L.TEAM, lang))}"
             conv["notice_sent_at"] = now
         return await self._finish(conv, mid, reply, "answered", now, text, mtype)
+
+    async def _agent_chat(self, conv: dict, mid: str, agent: dict, text: str, lang: str, now: datetime, mtype: str) -> dict:
+        """An agent wrote (an account or a sign-up code on this number): never a buyer lead or the buyer greeting. The owner is told
+        every message; the agent gets one short 'our team will reply here' at most every AGENT_ACK_EVERY, so a person answers him."""
+        conv["role"], conv["agent_user_id"] = "agent", agent.get("user_id")
+        if agent.get("name"):
+            conv["name"] = agent["name"]
+        if self.cfg.owner_agent_id:
+            said = (text or f"[{mtype}]")[:120]
+            await adapters.notify(self.db, self.cfg.owner_agent_id, "agent_whatsapp", f"{agent.get('name') or 'An agent'} (agent) wrote on WhatsApp: \"{said}\"",
+                                  {"conversation_id": conv["_id"], "screen": "/studio/interest"}, now)
+        reply = None
+        last = conv.get("agent_ack_at")
+        if not last or now - last >= AGENT_ACK_EVERY:
+            reply, conv["agent_ack_at"] = adapters.agent_ack(agent, "+" + conv["wa_id"], lang), now
+        return await self._finish(conv, mid, reply, "agent", now, text, mtype)
 
     async def _answer(self, conv: dict, text: str, lang: str) -> str:
         data = conv["data"]
@@ -295,7 +323,7 @@ class WhatsAppService:
                 "summary": adapters.summary(d["data"]), "needs_human": bool(d.get("needs_human")), "opted_out": bool(d.get("opted_out")),
                 "updated_at": d.get("updated_at"), "language": d.get("language") or "en",
                 "interest_title": (d.get("context") or {}).get("title") or None,
-                "window_open": self.in_window(d, self.now()),
+                "window_open": self.in_window(d, self.now()), "role": d.get("role") or "buyer",
                 "messages": [{"role": m["role"], "text": m["text"][:600], "ts": m["ts"], "status": m.get("status")} for m in msgs[-6:]],
             })
         return out

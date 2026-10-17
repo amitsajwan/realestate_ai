@@ -106,6 +106,11 @@ async def invite_requests(user: User = Depends(owner_only), svc: AdminService = 
     return {"items": await svc.invite_requests()}
 
 
+@router.get("/trial-signups")
+async def trial_signups(user: User = Depends(owner_only), svc: AdminService = Depends(get_service)) -> dict:
+    return {"items": await svc.trial_signups()}
+
+
 async def _run(coro):
     try:
         return await coro
