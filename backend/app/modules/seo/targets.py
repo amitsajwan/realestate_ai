@@ -61,7 +61,8 @@ def own_words(doc: dict) -> set:
     """Words the record itself calls the project by: its names, its area and its builder. A search that adds any other word
     names something else too ("la belle vue vj indilife wakad" is an Airbnb studio inside the tower), not the project."""
     area = BY_KEY.get(doc.get("locality") or "")
-    texts = aliases(doc) + [area.name if area else "", doc.get("pune_place_name") or "", doc.get("promoter") or ""]
+    texts = aliases(doc) + [area.name if area else "", *(area.aliases if area else ()), doc.get("pune_place_name") or "",
+                            doc.get("promoter") or ""]
     return set(re.findall(r"[a-z0-9']+", " ".join(texts).lower()))
 
 
