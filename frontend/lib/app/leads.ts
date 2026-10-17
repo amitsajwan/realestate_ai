@@ -21,9 +21,30 @@ export function sourceLabel(source?: string | null): string {
 
 /** "Viewed 2 BHK in Baner - Instagram - 2h ago" */
 export function eventLabel(ev: LeadEvent, listingTitle?: string | null, now?: Date): string {
-  const verb = VERBS[ev.type] ?? ev.type.replace(/_/g, ' ')
-  const what = ev.type === 'page_view' ? '' : ` ${listingTitle || (ev.listing_id ? 'a listing' : 'your site')}`
+  const verb = ev.type === 'page_view' && ev.path ? 'Opened' : VERBS[ev.type] ?? ev.type.replace(/_/g, ' ')
+  const what = ev.type === 'page_view' ? (ev.path ? ` ${ev.path}` : '') : ` ${listingTitle || (ev.listing_id ? 'a listing' : ev.path || 'your site')}`
   return [`${verb}${what}`, sourceLabel(ev.source), timeAgo(ev.ts, now)].filter(Boolean).join(' - ')
+}
+
+/** "https://www.google.com/" -> "www.google.com"; anything unparsable comes back as given. */
+function referrerHost(url: string): string {
+  try {
+    return new URL(url).host
+  } catch {
+    return url
+  }
+}
+
+/** "Came from Google (www.google.com) · landed on /projects/x · enquired on /agent/avasetu", or '' when nothing is known. */
+export function cameFromLine(lead: Pick<Lead, 'source' | 'first_touch'>): string {
+  const ft = lead.first_touch
+  if (!ft) return ''
+  const from = ft.referrer
+    ? `Came from ${sourceLabel(lead.source) || referrerHost(ft.referrer)}${lead.source ? ` (${referrerHost(ft.referrer)})` : ''}`
+    : lead.source ? `Came from ${sourceLabel(lead.source)}` : 'Came directly (no referring site)'
+  const landed = ft.landing ? `landed on ${ft.landing}` : ''
+  const enquired = ft.enquiry_page && ft.enquiry_page !== ft.landing ? `enquired on ${ft.enquiry_page}` : ''
+  return [from, landed, enquired].filter(Boolean).join(' · ')
 }
 
 /** Hottest first; ties keep most recent first. */

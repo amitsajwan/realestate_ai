@@ -57,7 +57,40 @@ export function readAttribution(search?: string): Attribution {
   return { source, utm }
 }
 
-export interface TouchBody {
+const VISIT_KEY = 'site_visit'
+
+export interface VisitPages {
+  path?: string
+  landing?: string
+  referrer?: string
+}
+
+/** The current page, plus the first page of this tab session and the outside site that sent the visitor there. */
+export function readVisitPages(): VisitPages {
+  try {
+    const path = window.location.pathname + window.location.search
+    const saved = window.sessionStorage.getItem(VISIT_KEY)
+    if (saved) return { path, ...(JSON.parse(saved) as VisitPages) }
+    let referrer: string | undefined
+    try {
+      // our own pages are not a source; only an outside site is
+      if (document.referrer && new URL(document.referrer).host !== window.location.host) referrer = document.referrer
+    } catch {
+      /* ignore */
+    }
+    const first: VisitPages = { landing: path, ...(referrer ? { referrer } : {}) }
+    try {
+      window.sessionStorage.setItem(VISIT_KEY, JSON.stringify(first))
+    } catch {
+      /* ignore */
+    }
+    return { path, ...first }
+  } catch {
+    return {}
+  }
+}
+
+export interface TouchBody extends VisitPages {
   agent_slug: string
   anon_id: string
   listing_id?: string
@@ -67,7 +100,7 @@ export interface TouchBody {
 
 export function buildTouch(agentSlug: string, listingId?: string): TouchBody {
   const a = readAttribution()
-  const body: TouchBody = { agent_slug: agentSlug, anon_id: getAnonId(), utm: a.utm }
+  const body: TouchBody = { agent_slug: agentSlug, anon_id: getAnonId(), utm: a.utm, ...readVisitPages() }
   if (listingId) body.listing_id = listingId
   if (a.source) body.source = a.source
   return body

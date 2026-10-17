@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.platform.text import normalize_indian_mobile
 
+from .origin import clip
 from .requirement import Financing, Timeline
 
 EventType = Literal["page_view", "listing_view", "share", "call_click", "whatsapp_click"]
@@ -16,6 +17,14 @@ class TrackedTouch(BaseModel):
     listing_id: Optional[str] = None
     source: Optional[str] = Field(None, max_length=40)  # whatsapp, instagram, facebook, direct, ...
     utm: Dict[str, str] = Field(default_factory=dict)
+    path: Optional[str] = None      # the page this happened on, e.g. /agent/avasetu
+    landing: Optional[str] = None   # the first page of this visit
+    referrer: Optional[str] = None  # the outside site that sent the visitor (document.referrer), first page of the visit
+
+    @field_validator("path", "landing", "referrer")
+    @classmethod
+    def _clip(cls, v: Optional[str]) -> Optional[str]:
+        return clip(v)
 
 
 class EventIn(TrackedTouch):

@@ -6,7 +6,7 @@ import { DealClosedSheet, LostReasonSheet, MarkSoldPrompt, OutcomeSummary } from
 import { Btn, ErrorBox, LinkBtn, STAGES, Spinner, TempChip, inputCls } from '@/components/app/ui'
 import { api, errorMessage } from '@/lib/app/client'
 import { displayPhone, timeAgo, waDigits } from '@/lib/app/format'
-import { eventLabel } from '@/lib/app/leads'
+import { cameFromLine, eventLabel } from '@/lib/app/leads'
 import { dealListings } from '@/lib/app/outcomes'
 import { whatsappChatUrl } from '@/lib/app/share'
 import { t } from '@/lib/app/strings'
@@ -98,6 +98,7 @@ export function LeadDetailView({ id }: { id: string }) {
         <TempChip temperature={lead.temperature} score={lead.score} />
       </div>
       <p className="text-gray-600">{displayPhone(lead.phone)}</p>
+      {cameFromLine(lead) && <p className="break-words text-sm text-gray-600">{cameFromLine(lead)}</p>}
 
       {lead.outcome && (lead.stage === 'won' || lead.stage === 'lost') && (
         <OutcomeSummary

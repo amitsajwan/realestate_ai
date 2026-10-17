@@ -295,6 +295,8 @@ export interface Lead {
   score: number
   temperature: Temperature
   first_listing_id?: string | null
+  /** Where the lead first came from; absent on leads from before 2026-10-17. */
+  first_touch?: FirstTouch | null
   /** e.g. "2 BHK · 80L-90L · Baner · 1-3 months" (docs/contracts/qualification.md section 3). */
   requirement_line?: string | null
   /** Set when the lead is won or lost; null otherwise. Absent on older backends. */
@@ -447,7 +449,18 @@ export interface LeadEvent {
   type: string // page_view | listing_view | share | call_click | whatsapp_click | inquiry
   listing_id?: string | null
   source?: string | null
+  /** The page it happened on, e.g. /agent/avasetu */
+  path?: string | null
   ts: string
+}
+
+export interface FirstTouch {
+  /** First page of the visit that led to the enquiry */
+  landing?: string | null
+  /** The outside site that sent them (full URL as the browser gave it) */
+  referrer?: string | null
+  /** The page the enquiry form was sent from */
+  enquiry_page?: string | null
 }
 
 export interface LeadNote {

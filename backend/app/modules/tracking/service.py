@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Callable, Optional
 
-from . import limits, matching, outcomes, requirement as reqmod, scoring, summary
+from . import limits, matching, origin, outcomes, requirement as reqmod, scoring, summary
 from .followup import Polish, build_draft, listing_label, polish_safely, whatsapp_url
 from .schemas import DraftIn, EventIn, InquiryIn, StageUpdate
 
@@ -52,7 +52,7 @@ class TrackingService:
                 {"agent_id": agent_id, "anon_id": e.anon_id, "type": "listing_view", "listing_id": e.listing_id})
         await self.events.insert_one({
             "agent_id": agent_id, "anon_id": e.anon_id, "contact_id": contact_id, "type": type_,
-            "listing_id": e.listing_id, "source": e.source, "utm": e.utm, "ts": self.now(),
+            "listing_id": e.listing_id, "source": e.source, "utm": e.utm, **origin.touch_fields(e), "ts": self.now(),
         })
         return scoring.event_points(type_, prior)
 
@@ -96,10 +96,14 @@ class TrackingService:
                 base += scoring.event_points(ev["type"], prior)
                 if ev["type"] == "listing_view":
                     seen[lid] = prior + 1
+            came_from = origin.first_touch(history, i)
             res = await self.contacts.insert_one({
                 "_id": uuid.uuid4().hex,
                 "agent_id": agent_id, "name": i.name, "phone": i.phone, "message": i.message,
-                "anon_ids": [i.anon_id], "stage": "new", "source": i.source, "utm": i.utm,
+                "anon_ids": [i.anon_id], "stage": "new",
+                # a tagged link (src=) wins; else the outside site that sent them (google, instagram, ...)
+                "source": i.source or origin.referrer_source(came_from["referrer"]), "utm": i.utm,
+                "first_touch": came_from,
                 "first_listing_id": i.listing_id,
                 "consent": {"given_at": now, "purpose": "enquiry follow-up", "agent_slug": i.agent_slug},
                 "score_base": base, "created_at": now, "last_activity_at": now, "notes": [],
@@ -111,6 +115,8 @@ class TrackingService:
         else:
             contact_id = contact["_id"]
             await self.contacts.update_one({"_id": contact_id}, {"$addToSet": {"anon_ids": i.anon_id}})
+            if not contact.get("first_touch"):  # leads from before page tracking learn where they came from now
+                await self.contacts.update_one({"_id": contact_id}, {"$set": {"first_touch": origin.first_touch([], i)}})
             if fields:
                 merged = reqmod.merge(contact.get("requirement"), fields, sources)
                 await self.contacts.update_one({"_id": contact_id}, {"$set": {"requirement": merged}})
@@ -159,6 +165,7 @@ class TrackingService:
             "source": c.get("source"), "message": c.get("last_message") or c.get("message"),
             "score": value, "temperature": scoring.temperature(value),
             "first_listing_id": c.get("first_listing_id"),
+            "first_touch": c.get("first_touch"),
             "requirement_line": reqmod.requirement_line(reqmod.public(c.get("requirement"))),
             "outcome": outcomes.public(c.get("outcome")),
             "created_at": c["created_at"], "last_activity_at": c["last_activity_at"],
@@ -196,7 +203,8 @@ class TrackingService:
         return {
             **view, "notes": contact.get("notes", []),
             "consent": contact.get("consent"),
-            "timeline": [{"type": e["type"], "listing_id": e.get("listing_id"), "source": e.get("source"), "ts": e["ts"]}
+            "timeline": [{"type": e["type"], "listing_id": e.get("listing_id"), "source": e.get("source"),
+                          "path": e.get("path"), "ts": e["ts"]}
                          for e in events],
             "requirement": req,
             "ai_summary": summary.ai_summary(req, counts, contact.get("source"), contact["stage"], view["temperature"]),
