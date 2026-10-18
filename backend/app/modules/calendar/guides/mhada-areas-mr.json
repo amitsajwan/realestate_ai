@@ -1,0 +1,114 @@
+{
+  "slug": "mhada-areas-mr-20261019",
+  "topic": "mhada-pune-lottery",
+  "title": "MHADA Pune lottery 2026: homes in Lohegaon, Kharadi, Keshav Nagar-Mundhwa and Dhanori (20% scheme), apply by 22 October",
+  "audience": "Marathi families in east Pune (Lohegaon, Kharadi, Keshav Nagar, Mundhwa, Dhanori, Viman Nagar) with family income up to 9 lakh, first home, 22-45",
+  "lang": "mr",
+  "gender": "female",
+  "due": "2026-10-19T19:00:00+05:30",
+  "channels": [
+    "instagram",
+    "facebook_page"
+  ],
+  "as_of": "2026-10-18",
+  "message": "This MHADA Pune lottery has homes in our own areas: Lohegaon from 21.70 lakh, Kharadi 13.89 lakh, Keshav Nagar-Mundhwa from 16.79 lakh, Dhanori from 13.91 lakh; apply only on MHADA's site by 22 October and check the price there.",
+  "facts": [
+    "The MHADA Pune board lottery 2026 has 4,462 homes; the 20% inclusive housing scheme part has homes inside private projects. Source: Lokmat Times, Free Press Journal.",
+    "Lohegaon, as listed: Mindspace Residency Phase 1, 1 BHK 21.70 lakh and 2 BHK 25.46 lakh; Prasun Elara, 2 BHK 28.46 lakh; Maitri Meadows, 2 BHK 28.88 lakh. Source: the 20% scheme list published on sarkariproperty.com, read 18 October 2026.",
+    "Kharadi, as listed: Zen Elite, 1 BHK 13.89 lakh. Same source.",
+    "Keshav Nagar and Mundhwa, as listed: Amara Keshavnagar, 2 BHK 26.92 lakh; Atulyam Inclusive Housing, 1 BHK from 16.79 lakh and 1.5 BHK 23.62 lakh; Uni 89 Wing C, 1 BHK 17.81 lakh and 2 BHK 21.63 lakh. Same source.",
+    "Dhanori, as listed: Kohinoor Viva Pixel Phase II, 1 RK 13.91 lakh and 1 BHK 20.29 lakh; Nyati Era II, 1 BHK 18.06 lakh; Aaiji Crystal Phase 1, 2 BHK 20.84 lakh. Same source.",
+    "No home in Wagholi was found in this list.",
+    "These are the listed prices; the exact price, size and conditions are on MHADA's official site, scheme by scheme.",
+    "The last date to apply and pay the deposit online is 22 October 2026, 11:59 pm. Source: MHADA Pune board, extension of 14 October 2026.",
+    "Applications are made only on MHADA's official site."
+  ],
+  "max_words": 56,
+  "must_say": [
+    "22"
+  ],
+  "must_words": [
+    "MHADA"
+  ],
+  "never": [
+    "मुदतवाढ झाली",
+    "मुदत वाढली",
+    "स्वस्त घर नक्की"
+  ],
+  "shots": [
+    {
+      "prompt": "A young Marathi couple in their late 20s on a scooter stopped at a quiet lane in east Pune in the evening, looking up at a new residential tower, curious and hopeful. No signboards, no text.",
+      "screen": "MHADA घर *तुमच्या भागात*?",
+      "voice": "MHADA पुणे लॉटरीत आपल्या पूर्व पुण्यातही घरं आहेत."
+    },
+    {
+      "prompt": "New 14-storey residential towers in Lohegaon, Pune, near open land, with an aircraft high in the evening sky, families walking on a new road, warm sunset light, no signboards.",
+      "screen": "लोहगाव · *₹21.70 लाख*पासून",
+      "voice": "लोहगावात माइंडस्पेस रेसिडेन्सी, प्रसून एलारा, 21.70 लाखांपासून.",
+      "lock": true
+    },
+    {
+      "prompt": "Modern glass office towers of Kharadi, Pune, at dusk with residential buildings in front, people walking home from work, no logos or signboards.",
+      "screen": "खराडी · 1 BHK *₹13.89 लाख*",
+      "voice": "खराडीत झेन एलिट, 1 BHK, 13.89 लाख.",
+      "lock": true
+    },
+    {
+      "prompt": "A busy but clean residential street in Keshav Nagar, Mundhwa, Pune, with new 12-storey apartment buildings, a vegetable cart and a few two-wheelers, morning light, no signboards.",
+      "screen": "केशवनगर-मुंढवा · *₹16.79 लाख*पासून",
+      "voice": "केशवनगर, मुंढव्यात अमारा, अतुल्यम, युनी 89, 16.79 लाखांपासून.",
+      "lock": true
+    },
+    {
+      "prompt": "Mid-rise residential buildings in Dhanori, Pune, with children playing in a small society garden in the evening, parents watching, soft light, no signboards.",
+      "screen": "धानोरी · *₹13.91 लाख*पासून",
+      "voice": "धानोरीत कोहिनूर विवा पिक्सेल, न्याती एरा, 13.91 लाखांपासून.",
+      "lock": true
+    },
+    {
+      "prompt": "The same young Marathi couple at home at a dining table, the wife holding a phone, the husband pointing at it, both smiling, a plain wall behind them, the phone screen blurred and unreadable.",
+      "screen": "अर्ज *22 ऑक्टोबर*पर्यंत · MHADA साइटवरच",
+      "voice": "अर्ज 22 ऑक्टोबरपर्यंत, फक्त MHADA साइटवर. किंमत तिथे तपासा, मित्राला पाठवा.",
+      "lock": true
+    }
+  ],
+  "hook": "MHADA पुणे लॉटरी: लोहगाव, खराडी, केशवनगर, धानोरीत घरं",
+  "hook_type": "list",
+  "caption": "MHADA Pune Lottery 2026 Lohegaon Kharadi Keshav Nagar Dhanori | म्हाडा पुणे सोडत: आपल्या भागात घरं\n\n20% योजनेच्या यादीत (प्रसिद्ध झालेल्या यादीनुसार):\n\n📍 लोहगाव: माइंडस्पेस रेसिडेन्सी फेज 1 (1 BHK ₹21.70 लाख, 2 BHK ₹25.46 लाख), प्रसून एलारा (2 BHK ₹28.46 लाख), मैत्री मेडोज (2 BHK ₹28.88 लाख)\n📍 खराडी: झेन एलिट (1 BHK ₹13.89 लाख)\n📍 केशवनगर / मुंढवा: अमारा केशवनगर (2 BHK ₹26.92 लाख), अतुल्यम इन्क्लुझिव्ह हाउसिंग (1 BHK ₹16.79 लाखांपासून), युनी 89 विंग C (1 BHK ₹17.81 लाख, 2 BHK ₹21.63 लाख)\n📍 धानोरी: कोहिनूर विवा पिक्सेल फेज II (1 RK ₹13.91 लाख, 1 BHK ₹20.29 लाख), न्याती एरा II (1 BHK ₹18.06 लाख), आईजी क्रिस्टल फेज 1 (2 BHK ₹20.84 लाख)\n\n⚠️ किंमत, आकार आणि अटी MHADA च्या अधिकृत साइटवर योजनेनुसार नक्की तपासा. वाघोलीतील घर या यादीत आम्हाला दिसले नाही.\n\n📅 शेवटची तारीख: 22 ऑक्टोबर, रात्री 11:59\n🌐 अधिकृत साइट: https://housing.mhada.gov.in/\n⚠️ अर्ज फक्त अधिकृत साइटवर करा. अर्जासाठी कोणालाही पैसे देऊ नका.\n\nतुमच्या भागात घर शोधताय? कमेंटमध्ये तुमचा भाग लिहा.\n\nव्हिडिओतील छायाचित्रे प्रतीकात्मक आहेत.\n\n#MHADAPune #MhadaLottery2026 #म्हाडासोडत #Lohegaon #Kharadi #KeshavNagar #Dhanori",
+  "reply_facts": [
+    "This MHADA Pune lottery's 20% inclusive housing scheme has homes in our areas. As listed in the published scheme list (read 18 October 2026; check the exact price on MHADA's official site): Lohegaon - Mindspace Residency Phase 1 (1 BHK 21.70 lakh, 2 BHK 25.46 lakh), Prasun Elara (2 BHK 28.46 lakh), Maitri Meadows (2 BHK 28.88 lakh).",
+    "Kharadi - Zen Elite (1 BHK 13.89 lakh). Keshav Nagar / Mundhwa - Amara Keshavnagar (2 BHK 26.92 lakh), Atulyam Inclusive Housing (1 BHK from 16.79 lakh, 1.5 BHK 23.62 lakh), Uni 89 Wing C (1 BHK 17.81 lakh, 2 BHK 21.63 lakh).",
+    "Dhanori - Kohinoor Viva Pixel Phase II (1 RK 13.91 lakh, 1 BHK 20.29 lakh), Nyati Era II (1 BHK 18.06 lakh), Aaiji Crystal Phase 1 (2 BHK 20.84 lakh). No home in Wagholi was found in this list.",
+    "Other parts of Pune and PCMC also have homes in this lottery (for example Hadapsar, Charholi, Undri, Kondhwa); MHADA's official site lists every scheme with its price and size.",
+    "The last date to apply and pay the deposit online is 22 October 2026, 11:59 pm; RTGS/NEFT payment by 23 October 2026, 3:59 pm. The draw is planned for 4 December 2026.",
+    "Family income limits: EWS up to 6 lakh a year, LIG 6 to 9 lakh (applicant plus spouse). Deposit (EMD): 15,000 for EWS, 20,000 for LIG, plus the 708 application fee.",
+    "Applications are made only on MHADA's official site; Avasetu does not take applications or money and cannot improve anyone's chances in the draw.",
+    "The pictures in the reel are illustrations, not the actual buildings."
+  ],
+  "reply_faq": [
+    {
+      "q": "Is there a MHADA home in Wagholi?",
+      "a": "We did not find a home in Wagholi in this lottery's 20% scheme list. Lohegaon, Kharadi, Keshav Nagar-Mundhwa and Dhanori are nearby and do have homes; MHADA's official site lists every scheme."
+    },
+    {
+      "q": "Lohegaon madhe MHADA ghar aahe ka, which projects in Lohegaon, price?",
+      "a": "Yes, as listed: Mindspace Residency Phase 1 (1 BHK 21.70 lakh, 2 BHK 25.46 lakh), Prasun Elara (2 BHK 28.46 lakh) and Maitri Meadows (2 BHK 28.88 lakh). Check the exact price on MHADA's official site."
+    },
+    {
+      "q": "Kharadi or Keshav Nagar or Mundhwa or Dhanori MHADA homes, which projects, price?",
+      "a": "As listed: Kharadi - Zen Elite (1 BHK 13.89 lakh); Keshav Nagar/Mundhwa - Amara (2 BHK 26.92 lakh), Atulyam (1 BHK from 16.79 lakh), Uni 89 Wing C (from 17.81 lakh); Dhanori - Kohinoor Viva Pixel (1 RK 13.91 lakh), Nyati Era II (1 BHK 18.06 lakh), Aaiji Crystal (2 BHK 20.84 lakh). Check the exact price on MHADA's official site."
+    },
+    {
+      "q": "Can I choose which project or area I apply for?",
+      "a": "Yes, on MHADA's official site you pick the scheme (project and flat type) when you apply, and you pay that scheme's deposit. The draw is held scheme by scheme."
+    },
+    {
+      "q": "When is the last date and the draw?",
+      "a": "Apply and pay the deposit online by 22 October 2026, 11:59 pm (RTGS/NEFT by 23 October, 3:59 pm). The draw is planned for 4 December 2026."
+    },
+    {
+      "q": "Are these the actual flats in the video?",
+      "a": "No, the pictures in the video are illustrations. The actual homes, their prices and sizes are on MHADA's official site."
+    }
+  ]
+}

@@ -1,0 +1,89 @@
+{
+  "slug": "mhada-lastday-mr-20261021",
+  "topic": "mhada-pune-lottery",
+  "title": "MHADA Pune lottery: tomorrow, 22 October, is the last day to apply and pay the deposit",
+  "audience": "Marathi families in Pune and PCMC applying for the MHADA Pune lottery 2026 (EWS/LIG, first home) who have not finished the application, 22-50",
+  "lang": "mr",
+  "gender": "female",
+  "due": "2026-10-21T19:00:00+05:30",
+  "status": "planned",
+  "channels": [
+    "instagram",
+    "facebook_page"
+  ],
+  "as_of": "2026-10-18",
+  "message": "Tomorrow, 22 October 11:59 pm, is the last date to apply and pay the deposit online (RTGS/NEFT by 23 October 3:59 pm); finish today, the site gets slow on the last night; apply only on MHADA's official site.",
+  "facts": [
+    "The last date to apply and pay the deposit online is 22 October 2026, 11:59 pm (23:59). Source: MHADA Pune board, extension of 14 October 2026.",
+    "Deposit paid by RTGS or NEFT from a bank is accepted until 23 October 2026, 3:59 pm (15:59). Source: MHADA Pune board.",
+    "The application is complete only after the deposit (EMD) is paid: 15,000 for EWS, 20,000 for LIG, plus the 708 application fee.",
+    "Keep the payment receipt; the application status shows on the applicant's dashboard on MHADA's official site.",
+    "The draw is planned for 4 December 2026.",
+    "Applications are made only on MHADA's official site; nobody needs to be paid to apply."
+  ],
+  "max_words": 50,
+  "must_say": [
+    "22",
+    "23"
+  ],
+  "never": [
+    "मुदतवाढ झाली",
+    "मुदत वाढली",
+    "पुढे ढकलली"
+  ],
+  "shots": [
+    {
+      "prompt": "A Marathi woman in her early 30s at a small kitchen table at night, phone in hand, looking up with sudden realisation, a cup of tea beside her, a plain wall behind her, the phone screen blurred and unreadable.",
+      "screen": "MHADA अर्ज *उद्या* शेवटचा दिवस",
+      "voice": "MHADA पुणे लॉटरी: उद्या शेवटचा दिवस."
+    },
+    {
+      "prompt": "Close-up of a hand holding a phone above a wooden table with a folder of documents, soft lamp light, the phone screen blurred and unreadable, no calendar or clock.",
+      "screen": "*22 ऑक्टोबर* · रात्री 11:59",
+      "voice": "अर्ज आणि अनामत रक्कम 22 ऑक्टोबर रात्री 11:59 पर्यंत.",
+      "lock": true
+    },
+    {
+      "prompt": "A man in his 30s at the counter of a public sector bank branch in Pune handing a payment slip to the cashier, a simple bank interior, other customers blurred, no signboards.",
+      "screen": "RTGS/NEFT · *23 ऑक्टोबर* दुपारी 3:59",
+      "voice": "बँकेतून RTGS ने भरत असाल, तर 23 ऑक्टोबर दुपारी 3:59 पर्यंत.",
+      "lock": true
+    },
+    {
+      "prompt": "A young couple on a sofa at night, the husband stretching tiredly, the wife pointing at a phone, the phone screen blurred and unreadable, a slightly tense but determined mood.",
+      "screen": "पेमेंट झालं तरच *अर्ज पूर्ण*",
+      "voice": "पेमेंट केल्याशिवाय अर्ज पूर्ण होत नाही. पावती जपून ठेवा.",
+      "lock": true
+    },
+    {
+      "prompt": "The same young Marathi couple standing on a small balcony of a flat at golden hour, smiling, a few plants in pots, hopeful.",
+      "screen": "आजच पूर्ण करा · *मित्राला* पाठवा",
+      "voice": "शेवटच्या रात्रीची वाट पाहू नका, आजच पूर्ण करा. मित्राला पाठवा."
+    }
+  ],
+  "hook": "MHADA पुणे लॉटरी: उद्या, 22 ऑक्टोबर, शेवटचा दिवस",
+  "hook_type": "deadline",
+  "caption": "MHADA Pune Lottery 2026 last date tomorrow | म्हाडा पुणे सोडत: उद्या शेवटचा दिवस\n\n📅 अर्ज आणि अनामत रक्कम (EMD): 22 ऑक्टोबर, रात्री 11:59 पर्यंत\n🏦 RTGS / NEFT ने: 23 ऑक्टोबर, दुपारी 3:59 पर्यंत\n💰 EMD: EWS ₹15,000 · LIG ₹20,000 (+ ₹708 अर्ज शुल्क)\n✅ पेमेंट झाल्यावरच अर्ज पूर्ण होतो. पावती जपून ठेवा.\n🎯 सोडत: 4 डिसेंबर (नियोजित)\n\nशेवटच्या रात्री साइट हळू चालू शकते, आजच पूर्ण करा. अर्ज करणाऱ्या मित्राला पाठवा.\n\n🌐 अधिकृत साइट: https://housing.mhada.gov.in/\n⚠️ अर्ज फक्त अधिकृत साइटवर करा. अर्जासाठी कोणालाही पैसे देऊ नका.\n\nव्हिडिओतील छायाचित्रे प्रतीकात्मक आहेत.\n\n#MHADAPune #MhadaLottery2026 #म्हाडासोडत #PuneHousing #PCMC",
+  "reply_facts": [
+    "The last date to apply and pay the deposit online is 22 October 2026, 11:59 pm; RTGS/NEFT payment by 23 October 2026, 3:59 pm.",
+    "The application is complete only after the deposit (EMD) is paid: 15,000 for EWS, 20,000 for LIG, plus the 708 application fee. Keep the receipt; the status shows on your dashboard on MHADA's official site.",
+    "The draw is planned for 4 December 2026.",
+    "The homes in this lottery are located in Pune city, Pimpri-Chinchwad and the PMRDA area only.",
+    "Applications are made only on MHADA's official site; Avasetu does not take applications or money.",
+    "The pictures in the reel are illustrations."
+  ],
+  "reply_faq": [
+    {
+      "q": "Will the date be extended again, mudatvadh?",
+      "a": "No further extension had been announced when this was posted; the last date is 22 October 2026, 11:59 pm. If MHADA changes it, we will post it straight away."
+    },
+    {
+      "q": "I applied but did not pay, is my application valid?",
+      "a": "The application is complete only after the deposit (EMD) is paid. Pay by 22 October 2026, 11:59 pm online, or by RTGS/NEFT so that it reaches by 23 October 2026, 3:59 pm."
+    },
+    {
+      "q": "How do I check my application status or payment?",
+      "a": "Log in on MHADA's official housing site with the username you made when you registered; your application and its status show on your dashboard. Keep the receipt you got after paying."
+    }
+  ]
+}

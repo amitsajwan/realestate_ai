@@ -44,7 +44,9 @@ async def _run(a) -> int:
         prep = await gr.prepare(guide, uploads_dir(), say=print)
         for b in prep.beats:
             print(f"  [{b['screen']}]  {b['voice']}")
-        ids = await gr.schedule(store, guide, prep)
+        # a guide whose facts may still change before it is due (a deadline that could be extended) says "status": "planned":
+        # its rows wait for the owner's OK in Studio instead of posting on their own
+        ids = await gr.schedule(store, guide, prep, status=guide.get("status", "approved"))
         print(f"{len(ids)} rows added, due {guide['due']}" if ids else "rows were already there; nothing added")
         return 0
     rows = [d for d in await store.all() if d["slug"] == guide.slug and d.get("kind") == "reel"]
