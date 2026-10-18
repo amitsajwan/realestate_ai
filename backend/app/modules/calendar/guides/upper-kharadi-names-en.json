@@ -1,0 +1,44 @@
+{
+  "slug": "upper-kharadi-names-en-20261019",
+  "topic": "upper-kharadi",
+  "title": "Upper Kharadi, Kharadi Annex, New Kharadi: what the address on MahaRERA really says",
+  "audience": "IT professionals and families, 28-45, working in Kharadi, Viman Nagar or Kalyani Nagar, budget ₹1.5-4 crore for a 2-4 BHK, comparing Kharadi with Upper Kharadi; English",
+  "lang": "en",
+  "gender": "male",
+  "voice": "charon",
+  "due": "2026-10-19T19:30:00+05:30",
+  "channels": ["instagram", "facebook_page"],
+  "as_of": "2026-10-18",
+  "message": "Upper Kharadi, Kharadi Annex and New Kharadi are sales names; most Upper Kharadi projects carry Wagholi's PIN 412207 on MahaRERA, New Kharadi (VTP Pegasus) is on the Manjari side (PIN 412307); check the village and survey number on the 7/12 before any token.",
+  "facts": [
+    "Upper Kharadi is a market name, not a village in the land records: the stretch along Upper Kharadi Main Road, north-east of EON IT Park, towards Ubale Nagar and Wagholi. Source: Avasetu guide /guides/upper-kharadi, 18 October 2026.",
+    "Most projects sold as Upper Kharadi (Lodha Giardino, Lodha Estilo, Lodha Camelot, Gera's Island of Joy, My Home Upper Kharadi, Mahindra IvyLush) carry PIN 412207, which is Wagholi's PIN, on MahaRERA. Kharadi proper is PIN 411014. Source: MahaRERA register read by Avasetu on 18 October 2026.",
+    "Mahindra calls its project Kharadi Annex (press release, 30 December 2024); it also carries PIN 412207.",
+    "VTP's Pegasus township, often sold as New Kharadi, is on the Manjari side, PIN 412307 (VTP Dolce Vita on MahaRERA).",
+    "Wagholi came into Pune Municipal Corporation limits in 2021.",
+    "Buyers should read the village and survey number on the 7/12 extract and the sale agreement before paying any token."
+  ],
+  "max_words": 95,
+  "must_say": ["412207"],
+  "must_words": ["MahaRERA"],
+  "never": ["cheaper", "will rise", "appreciation", "investment opportunity"],
+  "shots": [
+    {"prompt": "(own picture: Avasetu guide page header, Upper Kharadi)", "screen": "Upper Kharadi? *Read the address*", "voice": "Buying a flat in Upper Kharadi? Read the address before you read the brochure.", "lock": true},
+    {"prompt": "(own picture: Avasetu project page of Lodha Giardino showing PIN 412207)", "screen": "PIN *412207* = Wagholi", "voice": "Most Upper Kharadi projects carry Wagholi's PIN, 412207, on MahaRERA. Kharadi proper is 411014.", "lock": true},
+    {"prompt": "(own picture: guide section 'Where is Upper Kharadi?')", "screen": "One belt, *three names*", "voice": "Builders sell this belt as Upper Kharadi, Kharadi Annex, or New Kharadi.", "lock": true},
+    {"prompt": "(own picture: guide bullets on New Kharadi and Manjari)", "screen": "New Kharadi? *Manjari side*", "voice": "And VTP's Pegasus, sold as New Kharadi, is on the Manjari side, PIN 412307.", "lock": true},
+    {"prompt": "(own picture: guide projects table)", "screen": "Legal. Just *compare right*", "voice": "That is normal and legal. Just compare prices with the right neighbours.", "lock": true},
+    {"prompt": "(own picture: guide section 'Seven questions to ask')", "screen": "Check the *7/12* first", "voice": "Before any token, read the village and survey number on the 7/12 and the agreement.", "lock": true},
+    {"prompt": "(own picture: guide warning box)", "screen": "Send to a *Kharadi buyer*", "voice": "Know someone buying in Kharadi? Send them this.", "lock": true}
+  ],
+  "hook": "Upper Kharadi? Read the address first",
+  "hook_type": "sharp truth",
+  "caption": "Upper Kharadi vs Kharadi Annex vs New Kharadi: what the address really says\n\nThree sales names, one question: where is the flat on paper?\n\n📍 Most Upper Kharadi projects (Lodha Giardino, Estilo, Camelot, Gera Island of Joy, Mahindra IvyLush \"Kharadi Annex\") carry PIN 412207 on MahaRERA. That is Wagholi's PIN. Kharadi proper is 411014.\n📍 \"New Kharadi\" is often VTP's Pegasus township, on the Manjari side (PIN 412307).\n\nNothing wrong with that. Just compare prices with the right neighbours, and read the village and survey number on the 7/12 before you pay a token.\n\nFull Upper Kharadi guide with every project, how much is already booked, prices and the metro: avasetu.in/guides/upper-kharadi\n\nSave this for your next site visit.\n\n#UpperKharadi #Kharadi #Wagholi #PuneRealEstate #EastPune #PuneHomes #MahaRERA #HomeBuyers",
+  "reply_facts": [
+    "Upper Kharadi is a market name for the stretch along Upper Kharadi Main Road towards Wagholi. Most projects sold under it (Lodha Giardino, Estilo, Camelot, Gera Island of Joy, Mahindra IvyLush) carry PIN 412207 on MahaRERA, Wagholi's PIN; Kharadi proper is 411014. New Kharadi (VTP Pegasus) is on the Manjari side, PIN 412307. Full guide: avasetu.in/guides/upper-kharadi"
+  ],
+  "reply_faq": [
+    {"q": "Is Upper Kharadi in Kharadi or Wagholi?", "a": "On paper most Upper Kharadi projects carry Wagholi's PIN, 412207, on MahaRERA; Kharadi proper is 411014. Check the village and survey number on the 7/12 and the agreement. Guide: avasetu.in/guides/upper-kharadi"},
+    {"q": "Is Upper Kharadi under PMC?", "a": "Yes. Wagholi came into Pune Municipal Corporation limits in 2021. Ask each project where its water comes from today."}
+  ]
+}

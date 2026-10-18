@@ -1,0 +1,42 @@
+{
+  "slug": "upper-kharadi-godrej-en-20261024",
+  "topic": "upper-kharadi",
+  "title": "Godrej's ₹3,100 crore in Upper Kharadi: revenue potential, not investment, and not on MahaRERA yet",
+  "audience": "Buyers, 28-50, budget ₹2-4 crore, waiting for the Godrej Upper Kharadi launch or being offered an early 'EOI'; English",
+  "lang": "en",
+  "gender": "male",
+  "voice": "charon",
+  "due": "2026-10-24T19:30:00+05:30",
+  "channels": ["instagram", "facebook_page"],
+  "as_of": "2026-10-18",
+  "message": "Godrej's ₹3,100 crore Upper Kharadi figure (June 2025) is revenue potential from 16 acres and about 2.5 million sq ft, not money invested; we found no MahaRERA registration on 18 October 2026, and a project without one cannot legally advertise or take bookings.",
+  "facts": [
+    "On 17 June 2025 Godrej Properties told the stock exchange it will develop a 16-acre land parcel in Upper Kharadi, Pune: premium group housing and high-street retail, about 2.5 million sq ft, estimated revenue potential about ₹3,100 crore. Source: NSE filing, 17 June 2025.",
+    "Revenue potential is what the company expects to sell, not the money it has invested.",
+    "On 2 June 2025 Godrej announced a separate 14-acre parcel in the Kharadi-Wagholi area with about ₹4,200 crore revenue potential.",
+    "Avasetu found no MahaRERA registration for Godrej in Kharadi or Wagholi when it read the register on 18 October 2026.",
+    "Under the RERA Act, a project must be registered with MahaRERA before it is advertised, marketed, booked or sold."
+  ],
+  "max_words": 95,
+  "must_say": ["16"],
+  "must_words": ["MahaRERA"],
+  "never": ["fraud", "scam", "cheating", "will rise", "appreciation"],
+  "shots": [
+    {"prompt": "(own picture: guide Godrej row in projects table)", "screen": "Godrej *₹3,100 crore*: read it right", "voice": "You have heard Godrej put 3,100 crore into Upper Kharadi. That is not what the filing says.", "lock": true},
+    {"prompt": "(own picture: guide bullet on revenue potential)", "screen": "*Revenue potential*, not investment", "voice": "3,100 crore is revenue potential: what Godrej expects to sell from 16 acres.", "lock": true},
+    {"prompt": "(own picture: guide key dates, June 2025)", "screen": "*2.5 million* sq ft planned", "voice": "The plan is about 2.5 million square feet of premium flats and high-street retail.", "lock": true},
+    {"prompt": "(own picture: guide FAQ, Has Godrej launched)", "screen": "On MahaRERA? *Not yet*", "voice": "We found no MahaRERA registration for it when we checked on 18 October 2026.", "lock": true},
+    {"prompt": "(own picture: guide warning box)", "screen": "No RERA number, *no booking*", "voice": "Without a MahaRERA number, a project cannot legally advertise or take bookings.", "lock": true},
+    {"prompt": "(own picture: MahaRERA search page)", "screen": "Token asked? *Ask the number*", "voice": "If anyone asks for a token for Godrej Upper Kharadi, ask for the MahaRERA number first.", "lock": true},
+    {"prompt": "(own picture: guide page header)", "screen": "Send to a *Godrej waiter*", "voice": "Send this to someone waiting for the Godrej launch.", "lock": true}
+  ],
+  "hook": "Godrej did not invest ₹3,100 crore in Upper Kharadi",
+  "hook_type": "sharp truth",
+  "caption": "Godrej Upper Kharadi project: what the ₹3,100 crore really means\n\n📄 Godrej Properties' filing (17 June 2025): 16 acres in Upper Kharadi, premium flats + high-street retail, ~2.5 million sq ft, revenue potential ~₹3,100 crore\n💡 Revenue potential = what they expect to sell. Not money invested.\n🔎 MahaRERA on 18 Oct 2026: no Godrej registration in Kharadi or Wagholi yet\n⚖️ Under RERA, a project can't be advertised, booked or sold before it's registered\n\nAsked for a token or \"EOI\" for Godrej Upper Kharadi? Ask for the MahaRERA number first.\n\nEvery Upper Kharadi project with booking numbers: avasetu.in/guides/upper-kharadi\n\n#GodrejProperties #UpperKharadi #Kharadi #PuneRealEstate #MahaRERA #EastPune #HomeBuyers",
+  "reply_facts": [
+    "Godrej Properties' 17 June 2025 filing: 16 acres in Upper Kharadi, premium housing and high-street retail, about 2.5 million sq ft, revenue potential about ₹3,100 crore (what it expects to sell, not investment). No Godrej MahaRERA registration in Kharadi or Wagholi on 18 Oct 2026. Under RERA a project must be registered before it is advertised or booked. Guide: avasetu.in/guides/upper-kharadi"
+  ],
+  "reply_faq": [
+    {"q": "When is Godrej Upper Kharadi launching? Price?", "a": "Godrej has not announced a launch date or price that we could find, and the project was not on MahaRERA on 18 Oct 2026. Until it has a MahaRERA number it cannot legally take bookings."}
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "slug": "upper-kharadi-booked-en-20261020",
+  "topic": "upper-kharadi",
+  "title": "Upper Kharadi is 85% booked: MahaRERA numbers for the 8 big projects",
+  "audience": "IT professionals and families, 28-45, working in Kharadi, Viman Nagar or Kalyani Nagar, budget ₹1.5-4 crore for a 2-4 BHK, planning to buy in Upper Kharadi in the next year; English",
+  "lang": "en",
+  "gender": "male",
+  "voice": "charon",
+  "due": "2026-10-20T19:30:00+05:30",
+  "channels": ["instagram", "facebook_page"],
+  "as_of": "2026-10-18",
+  "message": "The 8 big projects sold as Upper Kharadi or Kharadi Annex have 3,876 homes on MahaRERA and 3,305 (85%) are booked; the towers finishing in 2027-28 are 92-100% booked, so what is open is mostly in 2029-2031 towers, and a flat to move into soon usually means resale.",
+  "facts": [
+    "MahaRERA register read by Avasetu on 18 October 2026: the 8 big projects sold as Upper Kharadi or Kharadi Annex have 3,876 homes registered and 3,305 booked, which is 85 percent.",
+    "Lodha Giardino towers 1-4: 611 homes, 588 booked (96 percent), completion filed February 2027. Towers 5-8: 509 homes, 482 booked (95 percent).",
+    "Lodha Estilo: 212 homes, 195 booked (92 percent), completion 2028. Gera's Island of Joy: 620 homes, 600 booked (97 percent), September 2028. Gera's World of Joy tower M: 320 homes, all booked (100 percent), December 2027.",
+    "Lodha Camelot: 308 homes, 145 booked (47 percent), completion 2030-2031. Mahindra IvyLush (Kharadi Annex): 1,075 homes, 827 booked (77 percent), 2030. My Home Upper Kharadi: 143 homes, 102 booked (71 percent), April 2029. Lodha Kharadi Pune P1: 78 homes, 46 booked, October 2029.",
+    "The towers finishing in 2027 and 2028 are 92 to 100 percent booked; what is open is mostly in towers due between 2029 and 2031.",
+    "Godrej's 16-acre Upper Kharadi land had no MahaRERA registration on 18 October 2026."
+  ],
+  "max_words": 95,
+  "must_say": ["85"],
+  "must_words": ["MahaRERA"],
+  "never": ["hurry", "last chance", "final window", "will rise", "appreciation"],
+  "shots": [
+    {"prompt": "(own picture: guide status line, 85% booked)", "screen": "Upper Kharadi: *85% booked*", "voice": "In Upper Kharadi's eight big projects, 85 percent of homes are already booked.", "lock": true},
+    {"prompt": "(own picture: guide projects table, top rows)", "screen": "*3,876* homes · *3,305* booked", "voice": "MahaRERA shows 3,876 homes registered and 3,305 booked, as of 18 October.", "lock": true},
+    {"prompt": "(own picture: guide table, Lodha Giardino and Gera rows)", "screen": "Ready by 2028? *Nearly all gone*", "voice": "The towers finishing in 2027 and 2028 are 92 to 100 percent booked.", "lock": true},
+    {"prompt": "(own picture: guide table, Camelot and Mahindra rows)", "screen": "Still open: *2029-2031*", "voice": "What is still open is mostly in towers due between 2029 and 2031.", "lock": true},
+    {"prompt": "(own picture: Avasetu project page, Lodha Camelot)", "screen": "Camelot *47%* · IvyLush *77%*", "voice": "Lodha Camelot is 47 percent booked. Mahindra IvyLush, 77 percent.", "lock": true},
+    {"prompt": "(own picture: guide FAQ, ready-to-move answer)", "screen": "Need it soon? *Think resale*", "voice": "Need to move in soon? You are probably looking at resale, not a builder's price list.", "lock": true},
+    {"prompt": "(own picture: guide seven questions)", "screen": "*Save* before your site visit", "voice": "Save this before your next site visit.", "lock": true}
+  ],
+  "hook": "Upper Kharadi is already 85% booked",
+  "hook_type": "number",
+  "caption": "Upper Kharadi projects 2026: how many homes are already booked (MahaRERA)\n\nWe read MahaRERA on 18 Oct 2026 for the 8 big projects sold as Upper Kharadi / Kharadi Annex:\n\n🏢 3,876 homes registered, 3,305 booked (85%)\n✅ Lodha Giardino T1-4: 96% booked, completion Feb 2027\n✅ Gera's Island of Joy: 97%, Sep 2028\n✅ Lodha Estilo: 92%, 2028\n🟡 Mahindra IvyLush (Kharadi Annex): 77%, 2030\n🟡 My Home Upper Kharadi: 71%, Apr 2029\n🟢 Lodha Camelot: 47%, 2030-31\n\nWhat it means: the towers you could move into by 2028 are almost sold. What's open is mostly due 2029-2031. Need a home soon? Look at resale.\n\nEvery tower with its MahaRERA number: avasetu.in/guides/upper-kharadi\n\nSave this before your next site visit.\n\n#UpperKharadi #Kharadi #Wagholi #PuneRealEstate #LodhaCamelot #EastPune #MahaRERA #PuneHomes",
+  "reply_facts": [
+    "MahaRERA, read 18 Oct 2026: 8 big Upper Kharadi / Kharadi Annex projects, 3,876 homes, 3,305 booked (85%). Lodha Giardino T1-4 96% (Feb 2027), T5-8 95%; Estilo 92% (2028); Gera Island of Joy 97% (Sep 2028); World of Joy M 100%; My Home Upper Kharadi 71% (Apr 2029); Mahindra IvyLush 77% (2030); Lodha Camelot 47% (2030-31). Godrej's Upper Kharadi land not on MahaRERA yet. Guide: avasetu.in/guides/upper-kharadi"
+  ],
+  "reply_faq": [
+    {"q": "Which Upper Kharadi project still has flats?", "a": "On MahaRERA (18 Oct 2026) the most unbooked homes are in Lodha Camelot (47% booked, 2030-31), Mahindra IvyLush (77%, 2030) and My Home Upper Kharadi (71%, 2029). Ask the builder for the current price sheet. Full list: avasetu.in/guides/upper-kharadi"},
+    {"q": "Ready possession flat in Upper Kharadi?", "a": "Few from builders: the towers finishing in 2027-28 are 92-100% booked on MahaRERA. A home to move into soon usually means resale."}
+  ]
+}

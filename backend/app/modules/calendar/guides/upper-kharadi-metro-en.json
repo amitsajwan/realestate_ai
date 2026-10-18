@@ -1,0 +1,42 @@
+{
+  "slug": "upper-kharadi-metro-en-20261022",
+  "topic": "upper-kharadi",
+  "title": "There is a metro station called Upper Kharadi Road: where the Ramwadi-Wagholi metro really stands",
+  "audience": "IT professionals and families, 28-45, in east Pune (Kharadi, Viman Nagar, Wagholi), budget ₹1.5-4 crore, hearing 'metro is coming' in sales pitches; English",
+  "lang": "en",
+  "gender": "male",
+  "voice": "charon",
+  "due": "2026-10-22T19:30:00+05:30",
+  "channels": ["instagram", "facebook_page"],
+  "as_of": "2026-10-18",
+  "message": "Metro Line 2B (Ramwadi to Wagholi/Vitthalwadi, 11.63 km, 11 stations) has a station called Upper Kharadi Road; it was approved in June 2025, work began at Ramwadi in September 2026, the first phase stops at Tulja Bhavani Chowk, and no opening date is announced for Ubale Nagar or Upper Kharadi Road.",
+  "facts": [
+    "Pune Metro Line 2B, Ramwadi to Wagholi/Vitthalwadi, is 11.63 km with 11 stations: Viman Nagar, Somnath Nagar, Kharadi Bypass, Tulaja Bhavani, Ubale Nagar, Upper Kharadi Road, Wagheshwar Temple, Wagholi, Siddharth Nagar, Bakori Phata, Vitthalwadi. Source: punemetrorail.org, read 18 October 2026.",
+    "The Union Cabinet approved Phase 2 (lines 2A and 2B, ₹3,626 crore) in June 2025 and gave it four years.",
+    "Maha Metro invited bids for the Ramwadi-Wagholi viaduct and a six-lane elevated road in February 2026.",
+    "In September 2026 preparatory work began at Ramwadi: barricading and soil tests. The first phase being built is about 4.7 km, from Ramwadi to Tulja Bhavani Chowk. Source: Punekar News, 5 September 2026.",
+    "Ubale Nagar and Upper Kharadi Road stations come after the first phase; no opening date has been announced."
+  ],
+  "max_words": 95,
+  "must_say": ["11"],
+  "must_words": ["Upper Kharadi Road"],
+  "never": ["will open in", "opening soon", "prices will", "will rise", "appreciation"],
+  "shots": [
+    {"prompt": "(own picture: punemetrorail.org Line 2B station list)", "screen": "Station: *Upper Kharadi Road*", "voice": "Pune's metro plan has a station called Upper Kharadi Road. So when does it come?", "lock": true},
+    {"prompt": "(own picture: punemetrorail.org Line 2A and 2B page)", "screen": "Line 2B · *11 stations*", "voice": "Line 2B, Ramwadi to Wagholi, was approved in June 2025: 11.63 kilometres, 11 stations.", "lock": true},
+    {"prompt": "(own picture: guide key dates, September 2026)", "screen": "Today: *barricades at Ramwadi*", "voice": "In September 2026, work started at the Ramwadi end: barricades and soil tests.", "lock": true},
+    {"prompt": "(own picture: guide metro section)", "screen": "First phase ends: *Tulja Bhavani*", "voice": "The first phase being built is about 4.7 kilometres, up to Tulja Bhavani Chowk.", "lock": true},
+    {"prompt": "(own picture: guide key dates, no date announced)", "screen": "Upper Kharadi Road: *no date*", "voice": "Ubale Nagar and Upper Kharadi Road come after that. No opening date is announced.", "lock": true},
+    {"prompt": "(own picture: guide FAQ on metro)", "screen": "Paying for metro? *Ask which year*", "voice": "If a price already counts the metro, ask the builder which year they mean.", "lock": true},
+    {"prompt": "(own picture: guide warning box)", "screen": "Send to an *east Pune buyer*", "voice": "Send this to someone buying in east Pune.", "lock": true}
+  ],
+  "hook": "There is a metro station called Upper Kharadi Road",
+  "hook_type": "question",
+  "caption": "Ramwadi-Wagholi metro 2026: when does Upper Kharadi Road station actually come?\n\n🚇 Line 2B: Ramwadi to Wagholi/Vitthalwadi, 11.63 km, 11 stations (approved June 2025)\nStations: Viman Nagar · Somnath Nagar · Kharadi Bypass · Tulaja Bhavani · Ubale Nagar · Upper Kharadi Road · Wagheshwar Temple · Wagholi · Siddharth Nagar · Bakori Phata · Vitthalwadi\n\n🚧 Sep 2026: barricading and soil tests at Ramwadi\n📏 First phase being built: ~4.7 km, Ramwadi to Tulja Bhavani Chowk\n❓ Ubale Nagar and Upper Kharadi Road: no opening date announced\n\nIf a flat's price already counts the metro, ask which year they mean.\n\nFull Upper Kharadi guide: avasetu.in/guides/upper-kharadi\n\n#PuneMetro #UpperKharadi #Wagholi #Kharadi #NagarRoad #PuneRealEstate #EastPune",
+  "reply_facts": [
+    "Pune Metro Line 2B (Ramwadi to Wagholi/Vitthalwadi): 11.63 km, 11 stations including Ubale Nagar and Upper Kharadi Road; approved June 2025; bids February 2026; preparatory work at Ramwadi September 2026; first phase about 4.7 km to Tulja Bhavani Chowk; no opening date announced for Upper Kharadi Road. Guide: avasetu.in/guides/upper-kharadi"
+  ],
+  "reply_faq": [
+    {"q": "When will Wagholi metro start?", "a": "No opening date has been announced. Work began at Ramwadi in September 2026 and the first phase stops at Tulja Bhavani Chowk; Ubale Nagar, Upper Kharadi Road and Wagholi come after that."}
+  ]
+}
