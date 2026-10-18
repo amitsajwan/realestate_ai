@@ -131,8 +131,19 @@ async def grounding_for(db, context: Optional[dict], locality: Optional[str]):
                 g = await facts_for(Ref.listing(ref), db) if doc else None
             if g:
                 return g
-        if kind == "post" and ref:
-            g = await facts_for(Ref.calendar(ref), db)
+        if kind in ("post", "calendar") and ref:
+            doc = await db.get_collection("content_calendar").find_one({"_id": ref}) or \
+                await db.get_collection("content_calendar").find_one({"slug": ref})   # interest links name a post by its slug
+            g = await facts_for(Ref.calendar(doc["_id"]), db) if doc else None
+            if g:
+                return g
+            found = await project_for(db, ctx.get("title") or "")   # a campaign post about a project: the project's own facts
+            if found:
+                g = await project_grounding_for(db, found["ref"])
+                if g:
+                    return g
+        if kind == "project" and ref:
+            g = await project_grounding_for(db, ref)
             if g:
                 return g
         if locality and locality != "Other":
@@ -158,9 +169,13 @@ CODE_PATTERNS = [re.compile(r"/i/" + CODE + r"\b", re.I), re.compile(r"\bref\.?\
                  re.compile(r"\binterested in\s+" + CODE + r"\b", re.I)]
 
 
+# a code typed on its own ("about zy4wad2"): seven code letters with at least one digit, so ordinary words never match
+BARE_CODE = re.compile(r"\b(?=[a-hj-km-np-z2-9]*[2-9])" + CODE + r"\b", re.I)
+
+
 def codes_in(text: str) -> list:
     out = []
-    for rx in CODE_PATTERNS:
+    for rx in CODE_PATTERNS + [BARE_CODE]:
         for m in rx.finditer(text or ""):
             c = m.group(1).lower()
             if c not in out:
@@ -421,3 +436,245 @@ async def mark_dm_opt_out(db, contact_id: Optional[str], opted_out: bool, now: d
     if opted_out and doc.get("consent"):
         changes["consent"] = {**doc["consent"], "withdrawn_at": now}
     await contacts.update_one({"_id": contact_id}, {"$set": changes})
+
+
+# ---- where a Messenger / Instagram chat came from, and what we know about it (2026-10-18) ---------------------------
+# A DM is answered from what the person was looking at: the post they commented on (our private reply opened the chat), a reel, post
+# or story they shared or replied to, the link or ad they opened, a project they name, or one of our guide posts on what they ask.
+
+def _first_line(text: str, limit: int = 90) -> str:
+    line = ((text or "").strip().splitlines() or [""])[0].strip()
+    return line if len(line) <= limit else line[:limit].rsplit(" ", 1)[0] + "…"
+
+
+def _calendar_context(doc: dict, how: str) -> dict:
+    title = _first_line(doc.get("title") or doc.get("caption") or doc.get("slug") or "our post")
+    return {"kind": "calendar", "ref": doc["_id"], "slug": doc.get("slug"), "title": title, "listing_id": None, "sample": False, "code": None,
+            "came_from": f"{how} our post “{title}”", "audience": (doc.get("creative") or {}).get("audience") or "buyers"}
+
+
+def _listing_context(listing_id: str, listing: dict, came_from: str) -> dict:
+    return {"kind": "listing", "ref": listing_id, "title": _first_line(listing.get("title") or "our listing"), "listing_id": listing_id,
+            "sample": False, "code": None, "came_from": came_from}
+
+
+async def _post_context(db, ids: list, urls: list, how: str) -> Optional[dict]:
+    """A post of ours by its Meta id (a shared reel, a story reply) or its permalink: the calendar row (guides, projects, evergreen posts)
+    or the listing it was made from."""
+    cal, pubs = db.get_collection("content_calendar"), db.get_collection("publications")
+    found = None
+    for mid in [str(i) for i in ids if i]:
+        found = await cal.find_one({"external_id": mid}) or await pubs.find_one({"external_id": mid})
+        if found:
+            break
+    for url in [u for u in urls if u] if not found else []:
+        short = re.search(r"/(?:reel|reels|p|tv)/([A-Za-z0-9_-]+)", url)
+        if short:
+            found = await cal.find_one({"permalink": {"$regex": re.escape(short.group(1))}}) or \
+                await pubs.find_one({"permalink": {"$regex": re.escape(short.group(1))}})
+            if found:
+                break
+    if not found:
+        return None
+    if found.get("listing_id"):  # a publication of a listing
+        listing = await db.get_collection("listings").find_one({"_id": found["listing_id"]}) or {}
+        return _listing_context(found["listing_id"], listing, f"{how} our post about “{_first_line(listing.get('title') or 'a home')}”")
+    if found.get("calendar_id"):
+        found = await cal.find_one({"_id": found["calendar_id"]}) or found
+    return _calendar_context(found, how)
+
+
+def link_context(link: dict, how: str) -> dict:
+    title = (link.get("title") or "")[:140]
+    return {"kind": link.get("kind"), "ref": link.get("ref"), "sample": bool(link.get("sample")), "code": link.get("code"), "title": title,
+            "listing_id": link.get("ref") if link.get("kind") == "listing" and not link.get("sample") else None,
+            "came_from": f"{how} “{title}”" if title else how}
+
+
+async def dm_origin(db, platform: str, sender: str, refs: Optional[dict]) -> Optional[dict]:
+    """Where this person came from, best evidence first: the link or ad they opened (its ref is an interest code), the post they shared or
+    replied to, the comment that made us message them. None when the chat simply started."""
+    refs = refs or {}
+    try:
+        ref = str(refs.get("ref") or "").strip().lower()
+        if ref:
+            link = await db.get_collection("interest_links").find_one({"code": ref})
+            if link:
+                return link_context(link, "opened our link for")
+        ctx = await _post_context(db, refs.get("media_ids") or [], refs.get("urls") or [],
+                                  "replied to" if refs.get("reply_to_story") else "shared")
+        if ctx:
+            return ctx
+        c = await db.get_collection("engage_comments").find_one({"dm_recipient": sender}, sort=[("processed_at", -1)])
+        if c:
+            said = (c.get("text") or "")[:160]
+            if c.get("calendar_id"):
+                doc = await db.get_collection("content_calendar").find_one({"_id": c["calendar_id"]})
+                if doc:
+                    out = _calendar_context(doc, "commented on")
+                    out["came_from"] += f": “{said}”"
+                    return out
+            if c.get("listing_id"):
+                listing = await db.get_collection("listings").find_one({"_id": c["listing_id"]}) or {}
+                return _listing_context(c["listing_id"], listing,
+                                        f"commented on our post about “{_first_line(listing.get('title') or 'a home')}”: “{said}”")
+            return {"kind": None, "ref": None, "title": "", "listing_id": None, "sample": False, "code": None,
+                    "came_from": f"commented on one of our {platform} posts: “{said}”"}
+    except Exception as e:  # where they came from is a help, never a reason to drop the message
+        log.info("dm origin failed: %s", type(e).__name__)
+    return None
+
+
+# words that say nothing about a topic, in the languages people write to us in
+_STOP = set("""what when where which this that have with from your about there their will would could should please tell know want need
+ does into they them then than also just only very more some much many like here kasa kashi kase kuthe kiti kadhi aahe ahet aahet madhe
+ sathi karaycha karayche kitna kitni kahan kaise hain hoga milega chahiye mujhe aapka hamara kripya batao bataiye home homes pune""".split())
+_WORDS = re.compile(r"[a-z][a-z0-9]{3,}|[ऀ-ॿ]{3,}", re.I)
+
+
+def _topic_words(text: str) -> set:
+    return {w.lower() for w in _WORDS.findall(text or "")} - _STOP
+
+
+async def guide_for(db, text: str, earlier: str = "", exclude=()) -> Optional[dict]:
+    """One of our own guide posts (MHADA, how-to reels: rows with a reply sheet) on what the person asks, by the words they share with it;
+    the post's title words count double. None when nothing clearly fits."""
+    asked = _topic_words(f"{text} {earlier}")
+    if not asked:
+        return None
+    best, best_score = None, 0
+    for doc in await db.get_collection("content_calendar").find({"reply_facts": {"$exists": True, "$ne": []}}).to_list(300):
+        title = _topic_words(f"{doc.get('title') or ''} {(doc.get('slug') or '').replace('-', ' ')} {_first_line(doc.get('caption') or '', 200)}")
+        body = _topic_words(" ".join(list(doc.get("reply_facts") or []) + [f"{x.get('q', '')} {x.get('a', '')}" for x in doc.get("reply_faq") or []]))
+        score = 0 if doc["_id"] in exclude or doc.get("slug") in exclude else 2 * len(asked & title) + len(asked & body)
+        newer = best is not None and str(doc.get("due_at") or "") > str(best.get("due_at") or "")
+        if score > best_score or (score == best_score and score and newer):
+            best, best_score = doc, score
+    if best is None or best_score < 3:
+        return None
+    return _calendar_context(best, "asked about the topic of")
+
+
+async def project_for(db, text: str) -> Optional[dict]:
+    """A builder project one of our agents sells (agent_projects), named in the message: 'Lodha Camelot possession date?'."""
+    low = (text or "").lower()
+    best = None
+    for p in await db.get_collection("agent_projects").find({}).to_list(500):
+        name = (p.get("name") or "").lower().strip()
+        words = [w for w in re.findall(r"[a-z0-9]+", name) if len(w) >= 5]  # 'camelot', 'abhilasha': the distinctive word is enough
+        if name and (name in low or any(re.search(rf"\b{re.escape(w)}\b", low) for w in words[-1:])):
+            if best is None or len(name) > len(best.get("name") or ""):
+                best = p
+    if not best:
+        return None
+    return {"kind": "project", "ref": best["_id"], "title": best.get("name"), "listing_id": None, "sample": False, "code": None,
+            "came_from": f"asked about the project “{best.get('name')}”", "agent_id": best.get("agent_id")}
+
+
+async def project_grounding_for(db, project_id: str):
+    from app.modules.agentprojects.service import public_view
+    from app.modules.knowledge.grounding import project_grounding
+    proj = await db.get_collection("agent_projects").find_one({"_id": project_id})
+    if not proj:
+        return None
+    prof = await db.get_collection("agent_public_profiles").find_one({"agent_id": proj.get("agent_id")}) or {}
+    name = (prof.get("branding_data") or {}).get("business_name") or prof.get("agent_name") or "the agent"
+    site = _site_url()
+    page = f"{site}/agent/{prof['slug']}/projects/{proj['slug']}" if site and prof.get("slug") and proj.get("slug") else ""
+    return project_grounding(public_view(proj), name, page)
+
+
+def agents_grounding():
+    """What we tell an agent about our service: the vetted 'about us' answers that are not for buyers only (knowledge/site.py)."""
+    from app.modules.knowledge import site
+    from app.modules.knowledge.grounding import Grounding
+    g = Grounding(subject="our service for real estate agents", kind="post")
+    g.facts = [e.answer for e in site.ENTRIES if getattr(e, "audience", "") != "buyer"]
+    g.general = []
+    return g
+
+
+async def listing_state(db, listing_id: str) -> Optional[dict]:
+    """The listing behind a link or post, for the chat: what it is (from our record) and whether it is still for sale or rent."""
+    doc = await db.get_collection("listings").find_one({"_id": listing_id})
+    if not doc:
+        return {"live": False}
+    return {"live": doc.get("status") in ("live", "under_offer"), "tx": "rent" if doc.get("transaction") == "rent" else "buy",
+            "locality": doc.get("locality"), "bhk": doc.get("bhk")}
+
+
+def trial_url() -> str:
+    return f"{_site_url()}/trial" if _site_url() else ""
+
+
+def brand_name() -> str:
+    from app.core import brand
+    return brand.NAME
+
+
+async def listing_agent(db, listing_id: str) -> Optional[str]:
+    doc = await db.get_collection("listings").find_one({"_id": listing_id})
+    return (doc or {}).get("agent_id")
+
+
+async def grounded_answer(text: str, grounding, llm):
+    """The comment assistant's checked answer (knowledge/reply.py) for a 1:1 chat: facts only, in the person's language, and plainly what is
+    not known."""
+    from app.modules.knowledge.reply import answer
+    return await answer(text, grounding, "chat", llm)
+
+
+FACTS_REPLY = """You answer someone who wrote to {brand} on Facebook Messenger or Instagram. Use ONLY the FACTS (about {subject}); the
+CONVERSATION tells you what short questions refer to. Answer exactly what they asked, like a helpful local advisor: 1 to 4 short sentences,
+in {lang}. If the FACTS do not answer it, return "reply": "" (never guess, never answer from general knowledge). No links, phone numbers,
+or any number, date, name or promise that the FACTS do not contain; we do not give loans or arrange services the FACTS do not describe.
+Return ONE JSON object: {{"reply": "..."}}"""
+
+
+def _facts_text(grounding) -> str:
+    lines = [f"- {f}" for f in list(grounding.facts) + list(getattr(grounding, "area_facts", []) or [])]
+    lines += [f"- Q: {x.get('q')} A: {x.get('a')}" for x in list(grounding.faq or []) + list(getattr(grounding, "area_faq", []) or [])]
+    return "\n".join(lines)
+
+
+async def facts_reply(text: str, grounding, lang: str, llm, history: str = "") -> Optional[str]:
+    """A DM question answered by the model from one post's (or project's, or our agent service's) facts only, with the conversation for
+    meaning, and checked like every reply (no number, name or link the facts do not contain). None when the facts do not answer it."""
+    if llm is None or not hasattr(llm, "json") or grounding is None:
+        return None
+    from app.modules.knowledge.reply import LANG_NAME, valid_text
+    facts = _facts_text(grounding)
+    if not facts:
+        return None
+    try:
+        raw = await llm.json(FACTS_REPLY.format(brand=brand_name(), subject=grounding.subject, lang=LANG_NAME.get(lang, "English")),
+                             f"FACTS:\n{facts}\n\nCONVERSATION:\n{history or '(first message)'}\n\nTHEY ASK NOW:\n{(text or '')[:500]}")
+    except Exception as e:
+        log.info("facts reply failed: %s", type(e).__name__)
+        return None
+    reply = " ".join(str((raw or {}).get("reply") or "").split()) if isinstance(raw, dict) else ""
+    source = f"{facts} {grounding.subject} {brand_name()}"
+    if lang in ("hinglish", "mr_latn"):
+        source += " " + " ".join(re.findall(r"[A-Za-z][A-Za-z']+", reply))
+    if not reply or not valid_text(reply, source, "chat", 700):
+        return None
+    return reply
+
+
+async def prefill_from_title(data: dict, title: str) -> None:
+    """A listing that is gone still says what they wanted ('2 BHK for sale in Kharadi'): the chat starts from that, not from 'buy or rent?'."""
+    from app.modules.chat import engine as _engine
+    work = dict(data)
+    try:
+        _engine.extract(work, title or "")
+    except Exception:
+        return
+    for k in ("tx", "locality", "bhk", "budget_min", "budget_max"):
+        if work.get(k) and not data.get(k):
+            data[k] = work[k]
+    if data.get("locality"):
+        data.setdefault("locality_src", "listing")
+    if data.get("bhk"):
+        data.setdefault("bhk_src", "listing")
+    if "for sale" in (title or "").lower() and not data.get("tx"):
+        data["tx"] = "buy"

@@ -27,10 +27,14 @@ from .grounding import INTEREST, URL, Grounding
 
 # ---- language -------------------------------------------------------------------------------------------------------
 DEV = re.compile(r"[ऀ-ॿ]")
-MR_DEV = re.compile(r"आहे|आहेत|किती|कुठे|कधी|मिळेल|पाहिजे|हवे|तुम्ही|जवळ|माहिती|काय|आम्ही|किंमत|आहे का|करता")
+MR_DEV = re.compile(r"आहे|आहेत|किती|कुठे|कधी|मिळेल|पाहिजे|हवे|तुम्ही|जवळ|माहिती|काय|आम्ही|किंमत|आहे का|करता|कसा|कशी|कसे|करायचा|करायचे|"
+                    r"करायची|साठी|मध्ये|नाही|मला|माझा|माझे|माझी|तुमचा|तुमचे|कोणत्या|कोणती|कोणता|लागतात|शेवटची|झाले|होईल|आणि")
 HI_DEV = re.compile(r"है|हैं|कितना|कितनी|कितने|कब|कहाँ|कहां|क्या|मिलेगा|मिलेगी|में|नहीं|चाहिए|करें|कीमत|दाम")
-MR_LAT = re.compile(r"\b(kiti|kuthe|kadhi|aahe|ahe|aahet|milel|pahije|hava|havi|kay|jawal|asel|aahe ka|ahe ka)\b", re.I)
+MR_LAT = re.compile(r"\b(kiti|kuthe|kadhi|aahe|ahe|aahet|ahet|milel|pahije|hava|havi|kay|jawal|asel|madhe|madhye|sathi|kasa|kashi|kase|"
+                    r"karaycha|karayche|karaychi|tumhi|tumhala|tumcha|mala|majha|aamhi|amhi|naahi|nako|shakto|shakte|shakta|karu|ka\s*re)\b", re.I)
 HI_LAT = re.compile(r"\b(kitna|kitni|kitne|kab|kahan|kya|hai|hain|milega|milegi|nahi|nahin|hoga|hogi|chahiye|paas|door|sakta|sakte|batao|bataiye|bataye|dikhao|kaise|mein|wala|wali|ka|ki|ke|kar|aap|mujhe)\b", re.I)
+# short words both languages use ("Mumbai aahe ka", "apply kar"): they count half, so one Marathi word outweighs one of them
+HI_WEAK = {"ka", "ki", "ke", "kar", "nahi", "nahin", "door", "paas"}
 
 
 def detect_language(text: str) -> str:
@@ -38,10 +42,12 @@ def detect_language(text: str) -> str:
     t = text or ""
     if DEV.search(t):
         return "mr" if len(MR_DEV.findall(t)) > len(HI_DEV.findall(t)) else "hi"
-    mr, hi = len(MR_LAT.findall(t)), len(HI_LAT.findall(t))
-    if mr > hi:
+    hi_words = [w.lower() for w in HI_LAT.findall(t)]
+    mr = len(MR_LAT.findall(t))
+    hi = sum(0.5 if w in HI_WEAK else 1 for w in hi_words)
+    if mr and mr > hi:
         return "mr_latn"
-    return "hinglish" if hi else "en"
+    return "hinglish" if hi_words else "en"
 
 
 LANG_NAME = {"en": "English", "hi": "Hindi in Devanagari script", "mr": "Marathi in Devanagari script",

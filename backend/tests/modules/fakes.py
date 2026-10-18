@@ -1,5 +1,6 @@
 """Minimal in-memory stand-ins for Motor collections, enough for service-level tests."""
 import copy
+import re
 import itertools
 
 from pymongo.errors import DuplicateKeyError
@@ -29,6 +30,12 @@ def _match(doc, flt):
                 if op == "$in" and val not in arg:
                     return False
                 if op == "$nin" and val in arg:
+                    return False
+                if op == "$exists" and (val is not None) != bool(arg):
+                    return False
+                if op == "$ne" and val == arg:
+                    return False
+                if op == "$regex" and not (isinstance(val, str) and re.search(arg, val)):
                     return False
         elif isinstance(val, list) and not isinstance(cond, list):
             if cond not in val:  # Mongo array-membership semantics

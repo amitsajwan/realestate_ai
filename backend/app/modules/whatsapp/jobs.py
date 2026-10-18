@@ -86,6 +86,8 @@ async def _process_dm(payload: dict, factory=None) -> None:
             message = parse(event or {})
             if message["kind"] == "echo":
                 await service.echo(platform, message)
+            elif message["kind"] == "referral":
+                await service.remember_referral(platform, message)
             elif await service.claim(platform, message):
                 await service.handle(platform, message)
 
