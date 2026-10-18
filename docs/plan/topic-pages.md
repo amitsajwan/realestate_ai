@@ -14,6 +14,13 @@ sign-up, no selling ("this is information to public, they will never buy our fla
   `"topic": "<slug>"` (copied onto the row's creative).
 - Sitemap lists every topic.
 - First topic: `mhada-pune-lottery`.
+- Second (2026-10-18): `upper-kharadi`, an English area research page for ₹1.5-4 crore buyers: MahaRERA booking table (read
+  18 Oct, static in the file), prices with their source, metro status, a checklist. Sections may carry `text` (lead paragraph)
+  and `table` ({columns, rows: [{cells, href}], note}); a row's `href` links to our project page. Four English reels
+  (`guides/upper-kharadi-*-en.json`, 19/20/22/24 Oct 19:30) use screenshots of the page, every line locked.
+- Own screenshot frames: put the picture BELOW y=370 of the 1080x1920 canvas. The renderer draws its progress bar and logo row
+  across the top, which looked like a strike-through on a page title.
+- Our register has no village field: "Wagholi" on a project page is from the PIN (412207). Say "Wagholi PIN", not "Wagholi village".
 
 ## Next (TARGET)
 
