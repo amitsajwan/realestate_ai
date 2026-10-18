@@ -194,7 +194,8 @@ class DmService:
     async def _answer(self, conv: dict, text: str, lang: str) -> str:
         data = conv["data"]
         grounding = await adapters.grounding_for(self.db, conv.get("context"), data.get("locality"))
-        t = await adapters.chat_turn(data, text, self.llm, grounding, finder=await adapters.homes_finder(self.db, conv.get("agent_id")))
+        t = await adapters.chat_turn(data, text, self.llm, grounding, finder=await adapters.homes_finder(self.db, conv.get("agent_id")),
+                                    history=conv.get("messages") or [])
         # the homes sit between what we found and what we ask next, as on the website; the links are never translated
         parts = [await self._say(t.reply, lang), adapters.card_lines(t.cards), await self._say(t.follow_up, lang) if t.follow_up else ""]
         reply = "\n".join(p for p in parts if p)

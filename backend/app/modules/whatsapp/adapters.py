@@ -31,7 +31,13 @@ def new_chat_state(phone: str, name: Optional[str]) -> dict:
     return d
 
 
-async def chat_turn(data: dict, text: str, llm, grounding, finder=None):
+async def chat_turn(data: dict, text: str, llm, grounding, finder=None, history=None):
+    """The website chat's brain (2026-10-18): the LLM leads (chat/agent.py) with the rules engine as its fallback; CHAT_AGENT=off on the
+    server goes back to the rules alone, for every channel at once. `history` is the chat so far (role user/bot, text), oldest first."""
+    import os
+    if os.environ.get("CHAT_AGENT", "on").strip().lower() != "off":
+        from app.modules.chat import agent as chat_agent
+        return await chat_agent.turn(data, text, llm, grounding, finder=finder, history=history or [])
     return await engine.turn(data, text, llm, grounding, finder=finder)
 
 
