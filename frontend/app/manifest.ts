@@ -1,14 +1,17 @@
 import type { MetadataRoute } from 'next'
-import { BRAND_NAME, DEFAULT_DESCRIPTION, LOGO, NAVY } from '@/lib/brand'
+import { BRAND_NAME, LOGO, NAVY } from '@/lib/brand'
 
-/** Web app manifest (served at /manifest.webmanifest and linked from every page by Next). */
+/** Web app manifest (served at /manifest.webmanifest and linked from every page by Next). "Add to Home Screen" installs the
+ *  project check (docs/plan/project-check.md): it opens on /check, without the browser bar. */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: BRAND_NAME,
+    id: '/check',
+    name: `${BRAND_NAME}: check your project on MahaRERA`,
     short_name: BRAND_NAME,
-    description: DEFAULT_DESCRIPTION,
-    start_url: '/',
-    display: 'browser',
+    description: 'Search your Pune project and see its possession date on MahaRERA, whether it moved, and how many homes are booked.',
+    start_url: '/check?src=app',
+    scope: '/',
+    display: 'standalone',
     background_color: NAVY,
     theme_color: NAVY,
     icons: [

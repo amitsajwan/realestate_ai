@@ -350,6 +350,8 @@ export interface RegisterSearchHit {
   checked?: number | null
   checks_total?: number
   active?: boolean
+  /** months the possession date moved later since registration (0: not moved; null: unknown): the project check's pill */
+  months_later?: number | null
 }
 
 /** Search the register by name (marketed, legal or alias), builder or MahaRERA number. Works in the browser (the public API base,

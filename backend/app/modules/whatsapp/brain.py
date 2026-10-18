@@ -6,7 +6,7 @@ import logging
 import re
 from typing import Optional
 
-from . import adapters, lang as L
+from . import adapters, check_flow, lang as L
 
 log = logging.getLogger(__name__)
 
@@ -88,6 +88,9 @@ class ChatBrain:
         an agent gets our service for agents, a question about a post, guide or project gets that post's own answer sheet (as a comment
         would), and only someone looking for a home goes through the buyer conversation."""
         data = conv["data"]
+        checked = await check_flow.turn(self.db, conv, text, lang)   # "check my project's status" (docs/plan/project-check.md)
+        if checked is not None:
+            return checked
         u = await self._understand(conv, text)
         who, need = (u or {}).get("who"), (u or {}).get("need")
         if who in ("agent", "seller") and not conv.get("role"):

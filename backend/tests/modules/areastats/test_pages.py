@@ -94,7 +94,7 @@ async def test_search_ranking_and_same_promoter():
     assert get("j") == [] and get("  ") == []
     row = c.get("/public/register/search", params={"q": "World of Joy"}).json()[0]
     assert set(row) == {"slug", "name", "marketed_name", "regno", "promoter", "area", "place_name", "completion_now",
-                        "units_total", "units_booked", "checked", "checks_total", "active"}
+                        "units_total", "units_booked", "checked", "checks_total", "active", "months_later"}
     assert row["marketed_name"] == "Gera World of Joy M" and row["area"] == "wagholi"
     page = c.get(f"/public/register/projects/{row['slug']}").json()
     assert [s["name"] for s in page["same_promoter"]] == ["Geras Island of Joy"] and "Gera's World of Joy" in page["aliases"]

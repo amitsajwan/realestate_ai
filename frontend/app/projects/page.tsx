@@ -69,6 +69,10 @@ export default async function ProjectsPage({ searchParams }: Props) {
         </p>
 
         <ProjectSearch initialQ={q} initialHits={hits} />
+        <p className="mt-3 text-slate-700">
+          Already bought?{' '}
+          <Link href="/check" className="inline-flex min-h-[44px] items-center font-semibold text-[#0f2340] underline underline-offset-2">Check your project&apos;s possession date on MahaRERA</Link>
+        </p>
 
         {groups.length === 0 ? (
           <p className="mt-8 rounded-xl bg-slate-50 p-4 text-slate-700">

@@ -523,7 +523,8 @@ async def _search_rows(db) -> List[dict]:
                              "area": d.get("locality") if d.get("locality") in BY_KEY else None,
                              "place_name": d.get("pune_place_name"), "completion_now": _day(d.get("completion_now")),
                              "units_total": _count(d.get("units_total")), "units_booked": booked(d),
-                             "checked": checked_count(d), "checks_total": len(CHECK_LABELS), "active": not is_old(d)},
+                             "checked": checked_count(d), "checks_total": len(CHECK_LABELS), "active": not is_old(d),
+                             "months_later": months_later(d)},
                      "regno": _norm(regno).replace(" ", ""),
                      "names": [n for n in dict.fromkeys(_norm(x) for x in [d.get("name"), marketed, *aliases]) if n],
                      "hay": " ".join(_norm(x) for x in [d.get("name"), marketed, *aliases, d.get("promoter"),
@@ -546,7 +547,8 @@ def _score(row: dict, q: str) -> int:
 
 
 async def search(db, q: str, limit: int = 20) -> List[dict]:
-    """Projects matching what a buyer typed (registration number, name, marketed name, alias, promoter, place), best first."""
+    """Projects matching what a buyer typed (registration number, name, marketed name, alias, promoter, place), best first.
+    Each hit carries months_later (the project check's pill: areastats/check.py)."""
     qn = _norm(q)
     if len(qn.replace(" ", "")) < 2:
         return []
