@@ -50,6 +50,8 @@ services:
     restart: unless-stopped
     volumes:
       - qdrant_data:/qdrant/storage
+    environment:
+      QDRANT__TELEMETRY_DISABLED: "true"
     mem_limit: ${QDRANT_MEMORY_LIMIT:-384m}
 
   # The meaning model, loaded once for the API and every role (knowledge/embedder.py); downloaded into the uploads volume.
@@ -63,7 +65,7 @@ services:
       - uploads:/app/uploads
     healthcheck:
       disable: true
-    mem_limit: ${EMBEDDER_MEMORY_LIMIT:-768m}
+    mem_limit: ${EMBEDDER_MEMORY_LIMIT:-1g}
     cpus: ${EMBEDDER_CPU_LIMIT:-1.0}
 
   # Each role uses the same image and settings. Runner leases keep one copy of every loop running during deploys or rollback.

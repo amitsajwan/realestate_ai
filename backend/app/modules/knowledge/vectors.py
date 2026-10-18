@@ -71,8 +71,12 @@ async def ensure_collection() -> None:
         body = {"vectors": {"dense": {"size": DIM, "distance": "Cosine", "on_disk": True}},
                 "sparse_vectors": {"bm25": {"modifier": "idf"}}, "on_disk_payload": True}
         (await c.put(f"{_qdrant()}/collections/{COLLECTION}", json=body)).raise_for_status()
-        for field in ("kind", "area", "regno"):
-            await c.put(f"{_qdrant()}/collections/{COLLECTION}/index", json={"field_name": field, "field_schema": "keyword"})
+    for field in ("kind", "area", "regno"):   # speeds filters up; search works without them, so a failure here is only logged
+        try:
+            async with httpx.AsyncClient(timeout=30) as c:
+                await c.put(f"{_qdrant()}/collections/{COLLECTION}/index?wait=true", json={"field_name": field, "field_schema": "keyword"})
+        except httpx.HTTPError as e:
+            log.warning("knowledge index: payload index %s not created (%s)", field, type(e).__name__)
 
 
 async def stored() -> Dict[str, str]:

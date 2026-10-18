@@ -56,6 +56,7 @@ def _load() -> dict:
     tok.enable_padding()
     opts = ort.SessionOptions()
     opts.intra_op_num_threads = 2
+    opts.enable_cpu_mem_arena = False   # the arena kept ~400 MB after the first batch; the container has 1 GB
     _m["session"] = ort.InferenceSession(str(d / "model.onnx"), opts, providers=["CPUExecutionProvider"])
     _m["tok"] = tok
     _m["inputs"] = {i.name for i in _m["session"].get_inputs()}
