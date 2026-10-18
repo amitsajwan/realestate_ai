@@ -49,11 +49,11 @@
     {
       "id": "where",
       "heading": {"en": "Where is Upper Kharadi?"},
-      "text": {"en": "Upper Kharadi is a market name, not a village in the land records. It is the stretch along Upper Kharadi Main Road, north-east of EON IT Park, running towards Ubale Nagar and Wagholi. Most projects sold under this name are registered on MahaRERA in Wagholi village, PIN 412207."},
+      "text": {"en": "Upper Kharadi is a market name, not a village in the land records. It is the stretch along Upper Kharadi Main Road, north-east of EON IT Park, running towards Ubale Nagar and Wagholi. Most projects sold under this name carry Wagholi's PIN, 412207, on MahaRERA, and their builders' addresses say Wagholi."},
       "items": {
         "en": [
-          "Builders use three names for this side of Kharadi: \"Upper Kharadi\" (Lodha, Gera), \"Kharadi Annex\" (Mahindra) and \"New Kharadi\". VTP's Pegasus township, often sold as New Kharadi, is registered in Manjari, south of Kharadi, not in Upper Kharadi.",
-          "Your sale agreement and the 7/12 extract will name the village, usually Wagholi. That is normal, but know it before you compare a project with flats in Kharadi proper (PIN 411014).",
+          "Builders use three names for this side of Kharadi: \"Upper Kharadi\" (Lodha, Gera), \"Kharadi Annex\" (Mahindra) and \"New Kharadi\". VTP's Pegasus township, often sold as New Kharadi, is on the Manjari side (PIN 412307), south of Kharadi, not in Upper Kharadi.",
+          "Your sale agreement and the 7/12 extract name the village and survey number. Read them: a Wagholi address is normal here, but know it before you compare a project with flats in Kharadi proper (PIN 411014).",
           "Wagholi came into Pune Municipal Corporation limits in 2021 with 22 other villages. Civic services (water, roads, drainage) are still catching up, which is why the water question below matters.",
           "Gera Avive Towers is sometimes listed as Upper Kharadi, but its MahaRERA PIN is 412307, which is the Manjari side. Check the map pin of any project before you believe the locality name."
         ]
@@ -171,7 +171,7 @@
   "faq": [
     {
       "q": {"en": "Is Upper Kharadi part of Kharadi?"},
-      "a": {"en": "Not on paper. Upper Kharadi is a name builders use for the stretch along Upper Kharadi Main Road towards Wagholi. Most projects sold under it are registered in Wagholi village (PIN 412207). Kharadi proper is PIN 411014."}
+      "a": {"en": "Not on paper. Upper Kharadi is a name builders use for the stretch along Upper Kharadi Main Road towards Wagholi. Most projects sold under it carry Wagholi's PIN, 412207, on MahaRERA. Kharadi proper is PIN 411014."}
     },
     {
       "q": {"en": "Is Upper Kharadi under PMC?"},
@@ -195,7 +195,7 @@
     },
     {
       "q": {"en": "Is Upper Kharadi the same as Kharadi Annex or New Kharadi?"},
-      "a": {"en": "Kharadi Annex (Mahindra's name) is on the same Wagholi side, PIN 412207. New Kharadi is often used for VTP's Pegasus township, which is registered in Manjari, south of Kharadi. They are different places."}
+      "a": {"en": "Kharadi Annex (Mahindra's name) is on the same Wagholi side, PIN 412207. New Kharadi is often used for VTP's Pegasus township, which is on the Manjari side (PIN 412307), south of Kharadi. They are different places."}
     },
     {
       "q": {"en": "Will prices rise when the metro opens?"},
