@@ -207,16 +207,16 @@ export interface RegisterListItem {
 type Got<T> = { ok: true; data: T } | { ok: false; notFound: boolean }
 
 /** One retry half a second later when the API failed (see getJson in ./api): a deploy's restart gives a slow page, not a 5xx. */
-async function get<T>(path: string): Promise<Got<T>> {
-  const first = await getOnce<T>(path)
+async function get<T>(path: string, ms = 5000): Promise<Got<T>> {
+  const first = await getOnce<T>(path, ms)
   if (first.ok || first.notFound) return first
   await new Promise((r) => setTimeout(r, 500))
-  return getOnce<T>(path)
+  return getOnce<T>(path, ms)
 }
 
-async function getOnce<T>(path: string): Promise<Got<T>> {
+async function getOnce<T>(path: string, ms: number): Promise<Got<T>> {
   const ctrl = new AbortController()
-  const timer = setTimeout(() => ctrl.abort(), 5000)
+  const timer = setTimeout(() => ctrl.abort(), ms)
   try {
     const res = await fetch(serverApiBase() + path, { headers: { Accept: 'application/json' }, next: { revalidate: 300 }, signal: ctrl.signal })
     if (res.status === 404) return { ok: false, notFound: true }
@@ -244,7 +244,8 @@ export async function getRegisterProject(slug: string): Promise<RegisterProject 
 export async function getRegisterProjects(area?: string, all = false, place?: string): Promise<RegisterListItem[]> {
   const q = [area ? 'area=' + encodeURIComponent(area) : '', all ? 'all=true' : '', place ? 'place=' + encodeURIComponent(place) : '',
     'limit=20000'].filter(Boolean).join('&')
-  const r = await get<RegisterListItem[]>('/api/v1/public/register/projects' + (q ? '?' + q : ''))
+  // the whole register (11,000+ projects, ~5 MB) takes several seconds: a 5 s cut left the sitemap without project pages
+  const r = await get<RegisterListItem[]>('/api/v1/public/register/projects' + (q ? '?' + q : ''), 30000)
   return r.ok && Array.isArray(r.data) ? r.data : []
 }
 

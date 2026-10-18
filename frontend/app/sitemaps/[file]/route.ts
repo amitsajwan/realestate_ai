@@ -9,5 +9,5 @@ export async function GET(_req: Request, { params }: { params: Promise<{ file: s
   const name = NAME.exec((await params).file)?.[1]
   const entries = name ? (await sitemapGroups()).get(name) : undefined
   if (!entries) return new Response('Not found', { status: 404 })
-  return new Response(urlsetXml(entries), { headers: { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=600' } })
+  return new Response(urlsetXml(entries), { headers: { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=300' } })
 }

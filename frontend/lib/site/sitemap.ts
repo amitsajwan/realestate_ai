@@ -109,22 +109,30 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 }
 
 const FRESH_MS = 10 * 60 * 1000   // the index and its sitemaps are read together; build the list once for all of them
-const THIN_MS = 60 * 1000         // a list without register projects is an API outage: try again soon
-type Cached = { at: number; ttl: number; groups: Promise<Map<string, SitemapEntry[]>> }
-const holder = globalThis as unknown as { __avasetuSitemap?: Cached }
+const THIN_MS = 60 * 1000         // a list without any area sitemap means the API did not answer: try again soon
+type Groups = Map<string, SitemapEntry[]>
+type Cached = { at: number; ttl: number; groups: Promise<Groups> }
+const holder = globalThis as unknown as { __avasetuSitemap?: Cached; __avasetuSitemapGood?: Groups }
 
-/** The pages per sitemap, shared by /sitemap.xml and /sitemaps/<name>.xml (one build per 10 minutes per server). */
-export function sitemapGroups(now = Date.now()): Promise<Map<string, SitemapEntry[]>> {
+/** The pages per sitemap, shared by /sitemap.xml and /sitemaps/<name>.xml (one build per 10 minutes per server). A build that
+ *  comes back without area sitemaps (the API was slow or restarting) never replaces the last good one: Google keeps seeing
+ *  every page, and the build is tried again a minute later. */
+export function sitemapGroups(now = Date.now()): Promise<Groups> {
   const c = holder.__avasetuSitemap
   if (c && now - c.at < c.ttl) return c.groups
   const next: Cached = { at: now, ttl: FRESH_MS, groups: Promise.resolve(new Map()) }
   next.groups = buildSitemap().then((all) => {
-    const m = new Map<string, SitemapEntry[]>()
+    const m: Groups = new Map()
     for (const { group, entry } of all) m.set(group, [...(m.get(group) ?? []), entry])
-    if (![...m.keys()].some((k) => k.startsWith('area-'))) next.ttl = THIN_MS
-    return m
+    if ([...m.keys()].some((k) => k.startsWith('area-'))) {
+      holder.__avasetuSitemapGood = m
+      return m
+    }
+    next.ttl = THIN_MS
+    return holder.__avasetuSitemapGood ?? m
   }, (e) => {
     holder.__avasetuSitemap = undefined
+    if (holder.__avasetuSitemapGood) return holder.__avasetuSitemapGood
     throw e
   })
   holder.__avasetuSitemap = next

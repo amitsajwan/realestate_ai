@@ -7,5 +7,5 @@ export const dynamic = 'force-dynamic'
 /** The sitemap index robots.txt names: core pages, agents, builders, and one sitemap per Pune place (/sitemaps/<name>.xml). */
 export async function GET(): Promise<Response> {
   const xml = indexXml(getMarketingConfig().siteUrl, await sitemapGroups())
-  return new Response(xml, { headers: { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=600' } })
+  return new Response(xml, { headers: { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=300' } })
 }
