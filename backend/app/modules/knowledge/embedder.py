@@ -2,7 +2,7 @@
 free and three Python containers that search).
 
     uvicorn app.modules.knowledge.embedder:app --port 8090      (compose service `embedder`, internal network only)
-    POST /embed {"texts": [...]}  ->  {"dense": [[384 floats], ...]}
+    POST /embed {"texts": [...], "query": false}  ->  {"dense": [[384 floats], ...]}
     GET  /health
 
 Model: paraphrase-multilingual-MiniLM-L12-v2 (Apache-2.0), Qdrant's quantized ONNX build, run with onnxruntime + tokenizers (both
@@ -29,11 +29,12 @@ BATCH = 16
 
 app = FastAPI(title="embedder")
 _m: dict = {}
-_lock = asyncio.Lock()   # one batch at a time on two CPUs
+_lock = asyncio.Lock()   # index batches one at a time; a question ({"query": true}) never waits behind them
 
 
 class Req(BaseModel):
     texts: List[str]
+    query: bool = False
 
 
 def _dir() -> Path:
@@ -94,6 +95,10 @@ async def health() -> dict:
 async def embed(req: Req) -> dict:
     if not req.texts or len(req.texts) > MAX_TEXTS:
         raise HTTPException(400, f"1 to {MAX_TEXTS} texts")
-    async with _lock:
-        v = await asyncio.to_thread(embed_texts, [t[:2000] for t in req.texts])
+    texts = [t[:2000] for t in req.texts]
+    if req.query:   # a chat question: a few milliseconds, run beside an index batch (onnxruntime sessions are thread-safe)
+        v = await asyncio.to_thread(embed_texts, texts)
+    else:
+        async with _lock:
+            v = await asyncio.to_thread(embed_texts, texts)
     return {"dense": [[round(float(x), 6) for x in row] for row in v]}

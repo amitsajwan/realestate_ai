@@ -25,7 +25,7 @@ from .areas import AREAS
 log = logging.getLogger(__name__)
 
 INTERVAL_S = 900
-BATCH = 64
+BATCH = 16   # ~4 s of embedder time per batch
 MAX_PER_CYCLE = 2500
 MAX_TEXT = 1500
 PROJECT_FIELDS = {"_id": 1, "regno": 1, "name": 1, "promoter": 1, "pincode": 1, "taluka": 1, "locality": 1, "pune_place": 1,
@@ -157,8 +157,11 @@ async def build(db) -> List[dict]:
     chunks += await post_chunks(db)
     chunks += await project_all(db)
     seen: Dict[str, dict] = {}
+    same = set()   # one passage per wording: a post published on Facebook and Instagram is one caption
     for c in chunks:
-        if c["text"]:
+        key = (c["title"], c["text"])
+        if c["text"] and key not in same:
+            same.add(key)
             seen[c["id"]] = c
     return list(seen.values())
 

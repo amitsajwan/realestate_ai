@@ -57,7 +57,7 @@ def point_id(chunk_id: str) -> str:
 async def embed(texts: List[str], query: bool = False, timeout: float = 120.0) -> dict:
     """{"dense": meaning vectors from the embedder service, "sparse": BM25 word vectors (knowledge/sparse.py, computed here)}."""
     async with httpx.AsyncClient(timeout=timeout) as c:
-        r = await c.post(f"{_embedder()}/embed", json={"texts": texts})
+        r = await c.post(f"{_embedder()}/embed", json={"texts": texts, "query": query})
         r.raise_for_status()
     make = sparse.query_vector if query else sparse.doc_vector
     return {"dense": r.json()["dense"], "sparse": [make(t) for t in texts]}
