@@ -1,89 +1,97 @@
 {
   "slug": "mhada-boards-mr-20261019",
   "topic": "mhada-pune-lottery",
-  "title": "MHADA Pune lottery is only for Pune, PCMC and PMRDA: your district has its own MHADA board (Nashik, Sambhajinagar, Nagpur...)",
-  "audience": "Marathi families outside Pune (Nashik, Chhatrapati Sambhajinagar, Nagpur, Wardha, Amravati) who saw our MHADA Pune reels and asked about their district, 22-50",
+  "title": "MHADA outside Pune: the Chhatrapati Sambhajinagar lottery is open until 23 October (97 flats in the 20% scheme from 10.82 lakh); Nashik, Nagpur and Amravati are not open now",
+  "audience": "Marathi families outside Pune (Chhatrapati Sambhajinagar, Waluj, Nashik, Nagpur, Wardha, Amravati) who saw our MHADA Pune reels and asked about their district, 22-50",
   "lang": "mr",
-  "gender": "female",
+  "gender": "male",
+  "voice": "charon",
   "due": "2026-10-19T10:00:00+05:30",
   "channels": [
     "instagram",
     "facebook_page"
   ],
   "as_of": "2026-10-18",
-  "message": "The MHADA Pune lottery's homes are only in Pune city, PCMC and PMRDA; Nashik, Chhatrapati Sambhajinagar, Nagpur (Wardha too), Amravati, Konkan and Mumbai have their own MHADA boards and their own lotteries; all of them come on MHADA's one official site; follow us and we will post when one opens.",
+  "message": "On MHADA's lottery portal the live boards are Pune and Chhatrapati Sambhajinagar: Sambhajinagar's lottery is open until 23 October, with 97 flats in the 20 percent scheme from 10.82 lakh; Waluj comes under the Sambhajinagar board; Nashik, Nagpur (Wardha) and Amravati have no lottery open now; the Pune lottery is only for Pune, PCMC and PMRDA, until 22 October.",
   "facts": [
-    "The homes in the MHADA Pune board lottery 2026 are only in Pune city, Pimpri-Chinchwad and the PMRDA area. Source: MHADA Pune board lottery advertisement, as reported by Lokmat Times.",
-    "MHADA works through regional boards: Mumbai, Konkan, Pune, Nashik, Chhatrapati Sambhajinagar, Nagpur and Amravati; each board holds its own lottery for homes in its region. Source: MHADA.",
-    "Wardha district comes under the Nagpur board; Waluj (Chhatrapati Sambhajinagar) under the Chhatrapati Sambhajinagar board.",
-    "Every board's lottery is announced and applied for on MHADA's one official housing site.",
-    "As of 18 October 2026 we did not find an open lottery announced by the Nashik, Chhatrapati Sambhajinagar, Nagpur or Amravati boards.",
-    "Applications are made only on MHADA's official site; nobody needs to be paid to apply."
+    "MHADA's lottery portal (housing.mhada.gov.in, View Live Schemes, read 18 October 2026) lists live lotteries for the Pune board and the Chhatrapati Sambhajinagar board only (and MHADA CDP).",
+    "Chhatrapati Sambhajinagar board, application and payment from 28 August to 23 October 2026: CSNB_02 20 percent scheme with 97 flats in 5 schemes, 10.82 to 17.98 lakh (Bramha Park in Satara, Param Suvarn Vastu in Itkheda, Trilok Heights in Shahanurwadi, Tuljai Park in Nakshatrawadi). Source: MHADA lottery portal, 18 October 2026.",
+    "The same board's CSNB_01 MHADA scheme has 73 MIG plots in Murtijapur (31.13 to 65.36 lakh) and 2 row houses; CSNB_03 OMR scheme has 32 EWS plots in Nilanga, Latur (2.33 lakh). Source: MHADA lottery portal, 18 October 2026.",
+    "Waluj comes under the Chhatrapati Sambhajinagar board; Wardha under the Nagpur board.",
+    "No lottery of the Nashik, Nagpur or Amravati boards was live on MHADA's portal on 18 October 2026; Nashik's July 2026 lottery result is already published.",
+    "The MHADA Pune lottery's homes are only in Pune city, Pimpri-Chinchwad and PMRDA; its last date is 22 October 2026, 11:59 pm.",
+    "Applications are made only on MHADA's official site; MHADA has appointed no agent."
   ],
-  "max_words": 52,
-  "must_say": [],
+  "max_words": 56,
+  "must_say": [
+    "23",
+    "97"
+  ],
   "never": [
-    "लॉटरी सुरू आहे",
-    "अर्ज सुरू"
+    "नाशिकची लॉटरी सुरू",
+    "नागपूरची लॉटरी सुरू"
   ],
   "shots": [
     {
-      "prompt": "A Marathi woman in her 30s in a small town home outside Pune, sitting on a sofa watching a reel on her phone with a puzzled, hopeful look, a plain wall behind her, the phone screen blurred and unreadable.",
-      "screen": "नाशिक, नागपूरमध्ये *MHADA* घर?",
-      "voice": "नाशिक, वर्धा, संभाजीनगरमध्ये MHADA घरं आहेत का?"
-    },
-    {
-      "prompt": "A wide view of Pune city's new residential towers and a flyover at sunset, seen from a hill, no signboards, no text.",
-      "screen": "ही लॉटरी फक्त *पुणे, PCMC, PMRDA*",
-      "voice": "या पुणे लॉटरीतली घरं फक्त पुणे, PCMC आणि PMRDA भागात.",
+      "prompt": "(own picture: MHADA lottery portal screenshot, live boards: Pune, Chhatrapati Sambhajinagar, MHADA CDP)",
+      "screen": "संभाजीनगर MHADA लॉटरी *सुरू*",
+      "voice": "संभाजीनगरची MHADA लॉटरी सुरू आहे, 23 ऑक्टोबरपर्यंत.",
       "lock": true
     },
     {
-      "prompt": "A simple illustrated-looking but realistic scene of several Maharashtra towns: a temple riverbank like Nashik, old city gates like Sambhajinagar, wide roads like Nagpur, shown as three side-by-side photographs on a table, no text or labels.",
-      "screen": "प्रत्येक विभागाचं *वेगळं* MHADA मंडळ",
-      "voice": "नाशिक, संभाजीनगर, नागपूर, अमरावतीचं स्वतःचं MHADA मंडळ आहे, स्वतःची लॉटरी.",
+      "prompt": "(own picture: MHADA lottery portal screenshot, Sambhajinagar's three lotteries with dates)",
+      "screen": "अर्ज आणि पेमेंट · *23 ऑक्टोबर*",
+      "voice": "अर्ज आणि पेमेंट 23 ऑक्टोबरपर्यंत, फक्त MHADA साइटवर.",
       "lock": true
     },
     {
-      "prompt": "A man in his 40s in a town outside Pune reading a newspaper at a tea stall in the morning, calm, no readable text on the paper.",
-      "screen": "वर्धा = *नागपूर* मंडळ",
-      "voice": "वर्धा नागपूर मंडळात, वाळूज संभाजीनगर मंडळात येतं.",
+      "prompt": "(own picture: MHADA lottery portal screenshot, Sambhajinagar 20 percent scheme list)",
+      "screen": "20% योजना · *97* फ्लॅट",
+      "voice": "20% योजनेत 97 फ्लॅट, 10.82 लाखांपासून: सातारा, इटखेडा, शहानूरवाडी, नक्षत्रवाडी.",
       "lock": true
     },
     {
-      "prompt": "A young couple at home at night looking at a phone together with a calm, patient expression, a plain wall behind them, the phone screen blurred and unreadable.",
-      "screen": "सध्या *नवी लॉटरी* जाहीर नाही",
-      "voice": "18 ऑक्टोबरपर्यंत या मंडळांची नवी लॉटरी आम्हाला दिसली नाही.",
+      "prompt": "(own picture: MHADA lottery portal screenshot, live boards close-up)",
+      "screen": "वाळूज = *संभाजीनगर* मंडळ",
+      "voice": "वाळूज संभाजीनगर मंडळात. नाशिक, नागपूर, अमरावतीची लॉटरी सध्या सुरू नाही.",
       "lock": true
     },
     {
-      "prompt": "The same woman from the first shot smiling at her phone on a balcony at golden hour, a few plants in pots, hopeful.",
-      "screen": "लॉटरी आली की *आम्ही सांगू*",
-      "voice": "लॉटरी आली की आम्ही सांगू. फॉलो करा, मित्रांना पाठवा."
+      "prompt": "(own picture: MHADA lottery portal screenshot, Pune lottery card)",
+      "screen": "पुणे लॉटरी · फक्त *पुणे, PCMC, PMRDA*",
+      "voice": "पुणे लॉटरी फक्त पुणे, PCMC, PMRDA साठी, 22 ऑक्टोबरपर्यंत.",
+      "lock": true
+    },
+    {
+      "prompt": "(own picture: MHADA lottery portal screenshot, documents to keep ready)",
+      "screen": "संभाजीनगरमधल्या *मित्राला* पाठवा",
+      "voice": "संभाजीनगरमधल्या मित्राला नक्की पाठवा."
     }
   ],
-  "hook": "MHADA: नाशिक, संभाजीनगर, नागपूरमध्ये घरं? उत्तर इथे",
+  "hook": "MHADA: संभाजीनगरची लॉटरी सुरू, 23 ऑक्टोबरपर्यंत",
   "hook_type": "answer",
-  "caption": "MHADA lottery Nashik Sambhajinagar Nagpur Amravati | म्हाडा: तुमच्या जिल्ह्याची लॉटरी कुठे?\n\nआमच्या MHADA पुणे व्हिडिओवर अनेकांनी विचारलं: नाशिक, वर्धा, संभाजीनगर, वाळूजमध्ये घरं आहेत का?\n\n📍 MHADA पुणे लॉटरी 2026 मधील घरं फक्त पुणे शहर, पिंपरी-चिंचवड आणि PMRDA भागात आहेत.\n🏛️ नाशिक, छत्रपती संभाजीनगर, नागपूर, अमरावती, कोकण आणि मुंबई यांचं स्वतःचं MHADA मंडळ आहे आणि स्वतःची लॉटरी.\n🗺️ वर्धा: नागपूर मंडळ · वाळूज: छत्रपती संभाजीनगर मंडळ\n📅 18 ऑक्टोबरपर्यंत या मंडळांची नवी लॉटरी आम्हाला दिसली नाही.\n\n🔔 तुमच्या मंडळाची लॉटरी जाहीर झाली की आम्ही लगेच पोस्ट करू. फॉलो करा आणि तुमचा जिल्हा कमेंटमध्ये लिहा.\n\n🌐 सर्व मंडळांच्या लॉटरी MHADA च्या अधिकृत साइटवर: https://housing.mhada.gov.in/\n⚠️ अर्जासाठी कोणालाही पैसे देऊ नका.\n\nव्हिडिओतील छायाचित्रे प्रतीकात्मक आहेत.\n\n#MHADA #MhadaLottery #म्हाडा #Nashik #Sambhajinagar #Nagpur #Amravati",
+  "caption": "MHADA Chhatrapati Sambhajinagar Lottery 2026 | म्हाडा: संभाजीनगर लॉटरी सुरू, नाशिक-नागपूरचे काय?\n\nआमच्या MHADA पुणे व्हिडिओवर अनेकांनी विचारलं: वाळूज, संभाजीनगर, नाशिक, वर्धामध्ये घरं आहेत का? MHADA च्या लॉटरी पोर्टलवर (18 ऑक्टोबरला पाहिलेलं):\n\n✅ छत्रपती संभाजीनगर मंडळ: लॉटरी सुरू, अर्ज आणि पेमेंट 23 ऑक्टोबरपर्यंत\n  • 20% योजना: 97 फ्लॅट, ₹10.82-17.98 लाख (ब्रह्मा पार्क-सातारा, परम सुवर्ण वास्तू-इटखेडा, त्रिलोक हाइट्स-शहानूरवाडी, तुळजाई पार्क-नक्षत्रवाडी)\n  • MHADA योजना: मुर्तिजापूर येथे 73 MIG प्लॉट (₹31.13-65.36 लाख) आणि 2 रो-हाउस\n  • OMR योजना: निलंगा, लातूर येथे 32 EWS प्लॉट (₹2.33 लाख)\n🗺️ वाळूज: संभाजीनगर मंडळ · वर्धा: नागपूर मंडळ\n⏸️ नाशिक, नागपूर, अमरावती: सध्या लॉटरी सुरू नाही (नाशिकचा जुलैचा निकाल आधीच जाहीर)\n📍 पुणे लॉटरी: फक्त पुणे, PCMC, PMRDA साठी, 22 ऑक्टोबरपर्यंत\n\n🔔 तुमच्या मंडळाची लॉटरी जाहीर झाली की आम्ही पोस्ट करू. फॉलो करा आणि तुमचा जिल्हा कमेंटमध्ये लिहा.\n\n🌐 अधिकृत साइट: https://housing.mhada.gov.in/ (View Live Schemes)\n⚠️ MHADA ने कोणताही एजंट नेमलेला नाही. अर्जासाठी कोणालाही पैसे देऊ नका.\n\nव्हिडिओतील चित्रे MHADA लॉटरी पोर्टलवरील आहेत.\n\n#MHADA #MhadaLottery2026 #म्हाडा #Sambhajinagar #Aurangabad #Waluj #Nashik #Nagpur",
   "reply_facts": [
-    "The homes in the MHADA Pune board lottery 2026 are only in Pune city, Pimpri-Chinchwad and the PMRDA area.",
-    "MHADA has regional boards - Mumbai, Konkan, Pune, Nashik, Chhatrapati Sambhajinagar, Nagpur and Amravati - and each holds its own lottery for homes in its region. Wardha comes under the Nagpur board; Waluj under the Chhatrapati Sambhajinagar board.",
-    "As of 18 October 2026 we did not find an open lottery announced by the Nashik, Chhatrapati Sambhajinagar, Nagpur or Amravati boards; when one is announced we will post it.",
-    "Every board's lottery is announced and applied for on MHADA's one official housing site; nobody needs to be paid to apply.",
-    "The pictures in the reel are illustrations."
+    "On MHADA's lottery portal (View Live Schemes, 18 October 2026) the live lotteries are of the Pune board and the Chhatrapati Sambhajinagar board (and MHADA CDP).",
+    "Chhatrapati Sambhajinagar board: application and payment 28 August to 23 October 2026. 20 percent scheme: 97 flats, 10.82 to 17.98 lakh (Bramha Park in Satara, Param Suvarn Vastu in Itkheda, Trilok Heights in Shahanurwadi, Tuljai Park in Nakshatrawadi). MHADA scheme: 73 MIG plots in Murtijapur (31.13 to 65.36 lakh) and 2 row houses. OMR scheme: 32 EWS plots in Nilanga, Latur (2.33 lakh).",
+    "Waluj comes under the Chhatrapati Sambhajinagar board; Wardha under the Nagpur board.",
+    "No lottery of the Nashik, Nagpur or Amravati boards is live on MHADA's portal as of 18 October 2026; Nashik's July 2026 lottery result is already published. We will post when a board announces a new lottery.",
+    "The MHADA Pune lottery's homes are only in Pune city, Pimpri-Chinchwad and PMRDA; its last date is 22 October 2026, 11:59 pm.",
+    "Every board's lottery is applied for on MHADA's one official housing site; MHADA has appointed no agent and nobody needs to be paid to apply.",
+    "The pictures in the reel are screenshots of MHADA's lottery portal."
   ],
   "reply_faq": [
     {
-      "q": "Is there a MHADA lottery in Nashik, Sambhajinagar, Nagpur, Wardha, Amravati, Waluj or my district now?",
-      "a": "The current MHADA Pune lottery is only for Pune city, PCMC and PMRDA. Your district comes under its own MHADA board (Wardha: Nagpur board; Waluj: Chhatrapati Sambhajinagar board). As of 18 October we did not find an open lottery on those boards; we will post when one is announced."
+      "q": "Is there a MHADA lottery in Sambhajinagar, Aurangabad or Waluj now?",
+      "a": "Yes. The Chhatrapati Sambhajinagar board's lottery is open on MHADA's portal until 23 October 2026: 97 flats in the 20 percent scheme (10.82 to 17.98 lakh), 73 MIG plots in Murtijapur and 2 row houses, and 32 EWS plots in Nilanga, Latur. Waluj comes under this board."
     },
     {
-      "q": "Can someone from another district apply in the Pune lottery?",
-      "a": "The homes are in Pune, PCMC and PMRDA. Anyone with a Maharashtra domicile certificate (15 years' residence) who meets the income limit can apply, but the home will be in the Pune area."
+      "q": "Is there a MHADA lottery in Nashik, Nagpur, Wardha or Amravati now?",
+      "a": "Not as of 18 October 2026: MHADA's portal shows live lotteries only for the Pune and Chhatrapati Sambhajinagar boards. Wardha comes under the Nagpur board. We will post when your board announces one."
     },
     {
-      "q": "Where will the lottery for my board be announced?",
-      "a": "On MHADA's official housing site, the same site for every board. Follow us too: we will post when your board announces one."
+      "q": "Can someone from another district apply in the Pune or Sambhajinagar lottery?",
+      "a": "Anyone with a Maharashtra domicile certificate who meets the income limit can apply, but the homes are where the lottery is: the Pune lottery in Pune, PCMC and PMRDA, the Sambhajinagar lottery in its region."
     }
   ]
 }

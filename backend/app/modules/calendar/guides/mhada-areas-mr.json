@@ -38,7 +38,8 @@
     {
       "prompt": "(own picture: MHADA lottery portal screenshot, Pune lottery card)",
       "screen": "MHADA घर *तुमच्या भागात*?",
-      "voice": "MHADA पुणे लॉटरीत आपल्या पूर्व पुण्यातही घरं आहेत."
+      "voice": "MHADA पुणे लॉटरीत आपल्या पूर्व पुण्यातही घरं आहेत.",
+      "lock": true
     },
     {
       "prompt": "(own picture: MHADA lottery portal screenshot, Prasun Elara, Lohegaon)",
