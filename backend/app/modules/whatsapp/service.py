@@ -11,6 +11,8 @@ Rules
   - An agent (an account, or a sign-up code sent to this number) is never a buyer: no lead, no buyer greeting; the owner is told and
     the agent gets one 'our team will reply here' every 12 hours. TRIAL claims tell the owner too.
   - After a person replies from the Studio inbox (human_until), the bot stays quiet in that chat and the person is told of each message.
+  - Another business's auto-reply bot (the same text again and again, or a burst of messages) gets no more replies for a day, so two bots
+    never talk to each other (2026-10-18: 84 messages in 6 minutes); the owner is told once.
   - STOP / UNSUBSCRIBE: opted out, one confirmation, then silence until START.
   - Replies only inside 24 hours of the buyer's last message; otherwise refused and logged (no paid templates yet).
   - Dry run records the reply and sends nothing. Tokens never reach logs or stored errors.
@@ -33,6 +35,12 @@ MAX_KEPT = 20
 MAX_TEXT = 500
 MAX_REPLIES_PER_HOUR = 30
 AGENT_ACK_EVERY = timedelta(hours=12)
+AUTO_QUIET = timedelta(hours=24)      # how long the bot stays quiet in a chat with an auto-reply bot
+AUTO_SAME = 3                         # the same text (AUTO_MIN_CHARS or longer) this many times within AUTO_SPAN ...
+AUTO_MIN_CHARS = 12                   # "ok" three times is a person
+AUTO_BURST = 8                        # ... or this many messages within BURST_SPAN: a bot, not a person
+AUTO_SPAN = timedelta(minutes=15)
+BURST_SPAN = timedelta(minutes=1)
 STOP_RX = re.compile(r"^\W*(stop|stop all|unsubscribe|opt ?out|cancel|end|quit|band karo|बंद करो|बंद|थांबवा)\W*$", re.I)
 START_RX = re.compile(r"^\W*(start|unstop|resume|subscribe)\W*$", re.I)
 # An agent claiming the free trial ("TRIAL", "free trial", "claim my free trial", ट्रायल): answered with his sign-up code, never as a buyer
@@ -201,6 +209,16 @@ class WhatsAppService(ChatBrain):
                 await adapters.notify(self.db, to, "whatsapp_reply", f"{conv.get('name') or 'Someone'} replied on WhatsApp: \"{(text or f'[{mtype}]')[:120]}\"",
                                       {"conversation_id": cid, "screen": "/studio/inbox"}, now)
             return await self._finish(conv, mid, None, "held", now, text, mtype)
+        if conv.get("auto_until") and conv["auto_until"] > now:
+            return await self._finish(conv, mid, None, "auto_sender", now, text, mtype)
+        if self._auto_sender(conv, text, now):
+            conv["auto_until"] = now + AUTO_QUIET
+            if self.cfg.owner_agent_id:
+                await adapters.notify(self.db, self.cfg.owner_agent_id, "whatsapp_auto_sender",
+                                      f"{conv.get('name') or mask(wa_id)} looks like an auto-reply bot (\"{(text or '')[:80]}\"): the bot stopped replying for a day",
+                                      {"conversation_id": cid, "screen": "/studio/inbox"}, now)
+            log.warning("whatsapp: %s looks like an auto-reply bot; quiet for a day", mask(wa_id))
+            return await self._finish(conv, mid, None, "auto_sender", now, text, mtype)
         agent = await adapters.agent_for_phone(self.db, "+" + wa_id, exclude=self.cfg.owner_agent_id)
         if agent:
             return await self._agent_chat(conv, mid, agent, text, lang, now, mtype)
@@ -226,6 +244,16 @@ class WhatsAppService(ChatBrain):
             reply = f"{reply}\n\n{L.pick(L.NOTICE, lang, agent=await adapters.agent_name(self.db, agent_id) or L.pick(L.TEAM, lang))}"
             conv["notice_sent_at"] = now
         return await self._finish(conv, mid, reply, "answered", now, text, mtype)
+
+    @staticmethod
+    def _auto_sender(conv: dict, text: str, now: datetime) -> bool:
+        """True when this message (with the kept history) reads like another business's auto-reply bot: the same text AUTO_SAME times
+        within AUTO_SPAN, or AUTO_BURST messages within BURST_SPAN. A person saying 'ok' again and again is not one."""
+        said = [m for m in conv.get("messages") or [] if m.get("role") == "user" and m.get("ts") and m["ts"] > now - AUTO_SPAN]
+        norm = lambda t: re.sub(r"\W+", " ", (t or "").lower()).strip()
+        if len(norm(text)) >= AUTO_MIN_CHARS and sum(1 for m in said if norm(m.get("text")) == norm(text)) + 1 >= AUTO_SAME:
+            return True
+        return sum(1 for m in said if m["ts"] > now - BURST_SPAN) + 1 >= AUTO_BURST
 
     async def _agent_chat(self, conv: dict, mid: str, agent: dict, text: str, lang: str, now: datetime, mtype: str) -> dict:
         """An agent wrote (an account or a sign-up code on this number): never a buyer lead or the buyer greeting. The owner is told
