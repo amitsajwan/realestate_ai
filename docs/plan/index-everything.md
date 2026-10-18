@@ -67,14 +67,12 @@ the index and follow it into the children. Submit each child in Search Console o
 - The coverage loop already re-inspects; any page still 5xx after a recrawl is listed in the Admin health row (LIVE).
 - Owner: in Search Console, "Validate fix" on the Server error group.
 
-### I3. Every page reachable in three clicks | NEW, the main lever for "discovered, not indexed"
-Today most of the 7,700 register pages are linked only from the sitemap. Google crawls linked pages first.
-- Each place page (`/projects/area/<place>`) lists **all** its projects, paginated (`?page=2` with its own canonical), not
-  only the top ones.
-- Each project page links to 6 nearby projects in the same area (by pin distance, LIVE in project_pins) and to its builder page.
-- Each builder page links to all of the builder's projects.
-- Home: the "New launches by area" strip (offered on 2026-10-15, not built) links to the 8 area pages.
-- `/projects` links to every place page.
+### I3. Every page reachable in three clicks | LIVE already (measured 2026-10-18), nothing to build
+Checked on the live site: home links the area pages and `/projects`; `/projects` links all 97 place pages; a place page links
+every one of its projects (Kharadi: 283 of the 287 in its sitemap, no noindex pages); each project page links 6 projects nearby,
+its builder page and its place page. So "discovered, not indexed" (797 of 815 on 2026-10-12 in Search Console) is Google's crawl
+budget for a new domain, not missing links. Uncached project pages answer in 0.45 to 0.8 s (0.1 s cached); the Baner place page
+is 0.9 MB. The levers left are outside links (I5) and fuller pages (I4).
 
 ### I4. Thin pages get one real fact before they are listed | change
 Pages already noindex while thin (`indexable`, LIVE). Raise the rate of filling: the page writer (LIVE, every 5 min) works
@@ -95,10 +93,10 @@ Insights → Pages shows "above MagicBricks: n of m", weekly.
 
 ## 4. Order
 
-1. I2 + owner "Validate fix" (same day)
-2. I1 sitemap index (day 1-2), owner submits the children
-3. I3 internal links (days 2-4)
-4. I4 writer order (day 4)
+1. I2 + owner "Validate fix": LIVE 0b602943 (2026-10-18)
+2. I1 sitemap index: LIVE 0b602943, 99 sitemaps, 8,659 pages; owner resubmitted /sitemap.xml
+3. I3: already in place (see I3)
+4. I4 writer order (next)
 5. I6 scoreboard (days 5-6), baseline written into section 2
 6. I5 runs alongside, every day
 
