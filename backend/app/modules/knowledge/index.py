@@ -74,9 +74,12 @@ def topic_chunks() -> Iterable[dict]:
                      f"{_both(t.get('summary'))} {_both(t.get('status_line'))} Key dates: {dates}. {dates_mr}. "
                      f"Checked on {t.get('checked_on')}.", url)
         for s in t.get("sections", []):
-            items = s.get("items") or {}
+            items, table = s.get("items") or {}, s.get("table") or {}
+            rows = " ".join("; ".join(f"{c}: {v}" for c, v in zip(table.get("columns", []), r["cells"])) + "."
+                            for r in table.get("rows", []))
             yield _chunk(f"topic:{slug}:{s['id']}", "topic", f"{title}: {s['heading'].get('en')}",
-                         f"{' '.join(items.get('en', []))} {s['heading'].get('mr', '')}: {' '.join(items.get('mr', []))}", url)
+                         f"{_both(s.get('text'))} {rows} {_both(table.get('note'))} {' '.join(items.get('en', []))} "
+                         f"{s['heading'].get('mr', '')}: {' '.join(items.get('mr', []))}", url)
         for i, f in enumerate(t.get("faq", [])):
             yield _chunk(f"topic:{slug}:faq{i}", "topic", f"{title}: {f['q'].get('en')}",
                          f"{f['a'].get('en')} {f['q'].get('mr', '')} {f['a'].get('mr', '')}", url)

@@ -13,6 +13,12 @@ import { serverApiBase } from './api'
 export type Text = { mr?: string; hi?: string; en: string }
 export type TextList = { mr?: string[]; hi?: string[]; en: string[] }
 
+export interface TopicTable {
+  columns: string[]
+  rows: Array<{ cells: string[]; href?: string }>
+  note?: Text
+}
+
 export interface TopicSummary {
   slug: string
   title: Text
@@ -25,7 +31,8 @@ export interface TopicSummary {
 export interface Topic extends TopicSummary {
   status_line: Text
   dates: Array<{ label: Text; value: Text; state: 'confirmed' | 'planned' | 'unconfirmed' }>
-  sections: Array<{ id: string; heading: Text; items: TextList }>
+  /** `text` is a lead paragraph; `table` rows are facts (numbers, names) in one language, `href` links a row to our own page. */
+  sections: Array<{ id: string; heading: Text; text?: Text; items: TextList; table?: TopicTable }>
   results: { heading: Text; text: Text; links: Array<{ label: Text; url: string }> } | null
   faq: Array<{ q: Text; a: Text }>
   links: Array<{ label: Text; url: string }>

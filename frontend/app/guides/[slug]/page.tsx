@@ -5,7 +5,8 @@ import MarketingShell from '@/components/marketing/MarketingShell'
 import PostsGrid from '@/components/site/PostsGrid'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { articleJsonLd, breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/seo'
-import { fetchTopic, say, sayList, topicPath, type Text, type Topic } from '@/lib/site/topics'
+import Link from 'next/link'
+import { fetchTopic, say, sayList, topicPath, type Text, type Topic, type TopicTable } from '@/lib/site/topics'
 
 export const revalidate = 60
 
@@ -41,6 +42,33 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return pageMetadata(getMarketingConfig(), { title: t.title.en, description: `${say(t.summary, t.lang)} ${t.summary.en}`.slice(0, 300), path: topicPath(t.slug) })
 }
 
+/** A section's facts table; scrolls sideways on a phone instead of squeezing. A row with `href` links its first cell to our page. */
+function FactTable({ table, lang }: { table: TopicTable; lang: Topic['lang'] }) {
+  return (
+    <div className="mt-3">
+      <div className="overflow-x-auto rounded-xl border border-slate-200">
+        <table className="min-w-full text-left text-sm">
+          <thead className="bg-slate-50 text-slate-700">
+            <tr>{table.columns.map((c) => <th key={c} scope="col" className="whitespace-nowrap px-3 py-2 font-semibold">{c}</th>)}</tr>
+          </thead>
+          <tbody className="divide-y divide-slate-200 text-slate-800">
+            {table.rows.map((r, i) => (
+              <tr key={i}>
+                {r.cells.map((c, j) => (
+                  <td key={j} className={`px-3 py-2 ${j === 0 ? 'font-semibold' : ''} ${j > 1 ? 'whitespace-nowrap' : ''}`}>
+                    {j === 0 && r.href ? <Link href={r.href} className="text-[#0f2340] underline underline-offset-2">{c}</Link> : c}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {table.note && <p className="mt-2 text-sm text-slate-600">{say(table.note, lang)}</p>}
+    </div>
+  )
+}
+
 /** One language's whole body: status, dates, sections, results, FAQ, links, warning. The page shows its own language; the English
  *  copy sits folded under it (Google reads both). */
 function Body({ t, lang }: { t: Topic; lang: Topic['lang'] }) {
@@ -65,6 +93,8 @@ function Body({ t, lang }: { t: Topic; lang: Topic['lang'] }) {
       {t.sections.map((sec) => (
         <section key={sec.id} className="mt-8">
           <h2 className="text-xl font-bold text-[#0f2340]">{s(sec.heading)}</h2>
+          {sec.text && <p className="mt-3 text-slate-800">{s(sec.text)}</p>}
+          {sec.table && <FactTable table={sec.table} lang={lang} />}
           <ul className="mt-3 list-disc space-y-2 pl-5 text-slate-800">
             {sayList(sec.items, lang).map((x, i) => <li key={i}>{x}</li>)}
           </ul>

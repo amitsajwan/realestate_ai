@@ -1,0 +1,231 @@
+{
+  "slug": "upper-kharadi",
+  "row_prefixes": ["upper-kharadi-"],
+  "lang": "en",
+  "checked_on": "2026-10-18",
+  "status": null,
+  "title": {
+    "en": "Upper Kharadi, Pune (2026): projects, booking numbers, prices, metro and what to check before you buy"
+  },
+  "summary": {
+    "en": "Upper Kharadi is the newer stretch between Kharadi's IT parks and Wagholi, where Lodha, Gera, Mahindra and Godrej are building. Here is every big project from the MahaRERA register with how many homes are already booked, what portals say about prices, where the metro really stands, and the questions a buyer should ask."
+  },
+  "status_line": {
+    "en": "MahaRERA register, read 18 Oct 2026: the 8 big projects sold as Upper Kharadi or Kharadi Annex have 3,876 homes registered and 3,305 (85%) already booked. The towers finishing first, in 2027 and 2028, are 92-100% booked. The metro station named \"Upper Kharadi Road\" is approved but not yet under construction, and no opening date has been announced."
+  },
+  "dates": [
+    {
+      "label": {"en": "Godrej Properties announces two land parcels in the Kharadi-Wagholi belt (14 acres, then 16 acres in Upper Kharadi)"},
+      "value": {"en": "2 and 17 June 2025"},
+      "state": "confirmed"
+    },
+    {
+      "label": {"en": "Union Cabinet approves Metro Line 2B, Ramwadi to Wagholi/Vitthalwadi (11.63 km, 11 stations)"},
+      "value": {"en": "25 June 2025"},
+      "state": "confirmed"
+    },
+    {
+      "label": {"en": "Maha Metro invites bids for the Ramwadi-Wagholi viaduct and six-lane elevated road"},
+      "value": {"en": "February 2026"},
+      "state": "confirmed"
+    },
+    {
+      "label": {"en": "Preparatory work starts at Ramwadi (barricading, soil tests); first phase runs about 4.7 km to Tulja Bhavani Chowk"},
+      "value": {"en": "September 2026"},
+      "state": "confirmed"
+    },
+    {
+      "label": {"en": "Lodha's first Upper Kharadi towers (Kharadi Pune Phase I, towers 1-4) completion date filed on MahaRERA"},
+      "value": {"en": "28 February 2027"},
+      "state": "planned"
+    },
+    {
+      "label": {"en": "Metro opening at Ubale Nagar and Upper Kharadi Road stations"},
+      "value": {"en": "No date announced. The Cabinet approval gave the whole corridor four years."},
+      "state": "unconfirmed"
+    }
+  ],
+  "sections": [
+    {
+      "id": "where",
+      "heading": {"en": "Where is Upper Kharadi?"},
+      "text": {"en": "Upper Kharadi is a market name, not a village in the land records. It is the stretch along Upper Kharadi Main Road, north-east of EON IT Park, running towards Ubale Nagar and Wagholi. Most projects sold under this name are registered on MahaRERA in Wagholi village, PIN 412207."},
+      "items": {
+        "en": [
+          "Builders use three names for this side of Kharadi: \"Upper Kharadi\" (Lodha, Gera), \"Kharadi Annex\" (Mahindra) and \"New Kharadi\". VTP's Pegasus township, often sold as New Kharadi, is registered in Manjari, south of Kharadi, not in Upper Kharadi.",
+          "Your sale agreement and the 7/12 extract will name the village, usually Wagholi. That is normal, but know it before you compare a project with flats in Kharadi proper (PIN 411014).",
+          "Wagholi came into Pune Municipal Corporation limits in 2021 with 22 other villages. Civic services (water, roads, drainage) are still catching up, which is why the water question below matters.",
+          "Gera Avive Towers is sometimes listed as Upper Kharadi, but its MahaRERA PIN is 412307, which is the Manjari side. Check the map pin of any project before you believe the locality name."
+        ]
+      }
+    },
+    {
+      "id": "projects",
+      "heading": {"en": "The big projects and how much is already booked"},
+      "text": {"en": "Every row is from the MahaRERA register as we read it on 18 October 2026. \"Booked\" is what the builder last filed with MahaRERA, so the real number may be a little higher. Brand names are what the builder or portals call the project; the register often uses a working name."},
+      "table": {
+        "columns": ["Project (builder)", "MahaRERA name", "Homes", "Booked", "Completion filed"],
+        "rows": [
+          {"cells": ["Lodha Giardino (Lodha)", "Kharadi Pune Phase I, towers 1-4", "611", "588 (96%)", "Feb 2027"], "href": "/projects/kharadi-pune-phase-i-tower-1-to-4-wagholi"},
+          {"cells": ["Lodha Giardino (Lodha)", "Kharadi Pune, towers 5-8", "509", "482 (95%)", "Sep 2027 to Oct 2029"], "href": "/projects/kharadi-pune-phase-i-tower-5-wagholi"},
+          {"cells": ["Lodha Estilo (Lodha)", "Kharadi Pune P2 and P3", "212", "195 (92%)", "Feb and Sep 2028"], "href": "/projects/kharadi-pune-p2-wagholi"},
+          {"cells": ["Lodha (newer phase)", "Kharadi Pune P1", "78", "46 (59%)", "Oct 2029"], "href": "/projects/kharadi-pune-p1-wagholi"},
+          {"cells": ["Lodha Camelot (Lodha)", "Kharadi New Project, towers 1-4 and 11", "308", "145 (47%)", "Jul 2030 to Mar 2031"], "href": "/projects/lodha-camelot"},
+          {"cells": ["Gera's Island of Joy (Gera)", "Gera Island of Joy Project", "620", "600 (97%)", "Sep 2028"], "href": "/projects/geras-island-of-joy-project-a-wagholi"},
+          {"cells": ["Gera's World of Joy, tower M (Gera)", "Gera's World of Joy M", "320", "320 (100%)", "Dec 2027"], "href": "/projects/geras-world-of-joy-m-wagholi"},
+          {"cells": ["My Home Upper Kharadi (Godiva Promoters)", "My Home Upper Kharadi", "143", "102 (71%)", "Apr 2029"], "href": "/projects/my-home-upper-kharadi"},
+          {"cells": ["Mahindra IvyLush, Kharadi Annex (Mahindra)", "Codename Crown towers A, B, E and IvyLush C, D", "1,075", "827 (77%)", "Jul to Dec 2030"], "href": "/projects/mahindra-ivylush-tower-c-and-tower-d-wagholi"},
+          {"cells": ["Godrej, 16 acres in Upper Kharadi", "Not on MahaRERA yet (none found 18 Oct 2026)", "-", "-", "-"]}
+        ],
+        "note": {"en": "Total: 3,876 homes registered, 3,305 booked (85%). Builders' own names for towers change; search the MahaRERA number, not the brochure name."}
+      },
+      "items": {
+        "en": [
+          "The flats finishing first (Lodha Giardino, Gera Island of Joy, Gera World of Joy M) are 95-100% booked. If you want a home ready by 2027-28, expect to buy resale or one of the last few units, not to pick from a full price list.",
+          "What is still open is mostly in towers due in 2029-2031: Lodha Camelot, Lodha's P1 phase, Mahindra IvyLush and, once it registers, Godrej. Buying there means a 3-5 year wait.",
+          "Godrej's announcement was revenue potential (what it expects to sell, about ₹3,100 crore here and ₹4,200 crore on its 14-acre Kharadi-Wagholi land), not money already invested. The Upper Kharadi land is planned as premium flats plus high-street retail, about 2.5 million sq ft."
+        ]
+      }
+    },
+    {
+      "id": "prices",
+      "heading": {"en": "What does it cost?"},
+      "text": {"en": "There is no official price index for Upper Kharadi. Portals disagree, and most quote asking prices, not what buyers actually paid. These are the numbers we found, with where they come from."},
+      "table": {
+        "columns": ["What", "Figure", "Source"],
+        "rows": [
+          {"cells": ["Upper Kharadi Main Road, average asking rate", "about ₹10,350-10,400 per sq ft", "Homebazaar, 2025 series"]},
+          {"cells": ["Upper Kharadi, rate timeline", "about ₹12,260 per sq ft", "Aurum PropTech, 2026"]},
+          {"cells": ["Kharadi as a whole, asking", "₹14,199 per sq ft (Mar 2026), up from ₹13,515 (Jun 2025)", "Square Yards"]},
+          {"cells": ["Kharadi as a whole, apartments", "₹11,500 per sq ft, +7% in a year", "99acres"]},
+          {"cells": ["Lodha Camelot 3 BHK", "about 1,200-1,270 sq ft carpet, ₹2.21-2.34 crore", "Homebazaar, Houssed listings"]},
+          {"cells": ["Lodha Camelot 4 / 4.5 BHK", "about 2,150-2,244 sq ft carpet, ₹3.99-4.23 crore", "Homebazaar, Houssed listings"]},
+          {"cells": ["Gera's World of Joy, tower M (Gera)", "Gera's World of Joy M", "320", "320 (100%)", "Dec 2027"], "href": "/projects/geras-world-of-joy-m-wagholi"},
+          {"cells": ["My Home Upper Kharadi 2-3 BHK", "about 740-957 sq ft carpet, ₹72 lakh-1.05 crore", "PropertyPistol, 360 Realtors listings"]}
+        ],
+        "note": {"en": "Portal prices lag the builder's price sheet and mix carpet and saleable area. Ask for the all-in cost: agreement value, GST (5% on under-construction homes), stamp duty (7% in Pune city, including metro cess and LBT), registration (1%, capped at ₹30,000), parking, club and maintenance deposits."}
+      },
+      "items": {
+        "en": [
+          "A claim like \"Upper Kharadi is 15-20% cheaper than Kharadi\" depends on which two projects you compare. Compare the same size, same age and the all-in cost, not the per sq ft headline.",
+          "Some posts promise that prices will \"jump\" at possession or when the metro opens. Nobody knows that. Prices can also stay flat for years."
+        ]
+      }
+    },
+    {
+      "id": "metro-roads",
+      "heading": {"en": "Metro and roads: what is real today"},
+      "items": {
+        "en": [
+          "Metro Line 2B (Ramwadi to Wagholi/Vitthalwadi) is approved: 11.63 km, 11 stations, part of a ₹3,626 crore Phase 2 sanctioned in June 2025.",
+          "Its stations, in order: Viman Nagar, Somnath Nagar, Kharadi Bypass, Tulaja Bhavani, Ubale Nagar, Upper Kharadi Road, Wagheshwar Temple, Wagholi, Siddharth Nagar, Bakori Phata, Vitthalwadi.",
+          "Work so far (September 2026): barricading and soil tests near Ramwadi. The first phase being built stops at Tulja Bhavani Chowk, about 4.7 km. Ubale Nagar and Upper Kharadi Road come after that.",
+          "A six-lane elevated road is planned under the metro along Nagar Road, which matters more for daily traffic than the metro itself.",
+          "Pune Municipal Corporation approved a \"model road\" upgrade for Kesnand Phata to Dube Nagar Phata in Wagholi in April 2026.",
+          "Pune's Ring Road and \"DP roads\" to EON Phase 2 are often mentioned in sales pitches. We have not confirmed distances or dates for them, so do not count on them."
+        ]
+      }
+    },
+    {
+      "id": "daily-life",
+      "heading": {"en": "Work, schools and hospitals nearby"},
+      "items": {
+        "en": [
+          "Jobs: EON IT Park, Commerzone and World Trade Center Pune in Kharadi are the reason this belt grew. Lodha says EON is 5 minutes and Commerzone 3 minutes by two-wheeler from Estilo in normal traffic. Drive it yourself at 9:30 am before you trust any minute count.",
+          "Airport: Lodha's figure is 20 minutes from Estilo by two-wheeler in normal traffic.",
+          "Schools named by builders here: Podar International School (on the Kharadi-Wagholi road), EuroSchool Kharadi, Oxford World School, Wellington College International, Dhole Patil institutes.",
+          "Hospitals: Motherhood and Manipal in Kharadi (about 10 minutes, builder's figure), EON Hospital.",
+          "Malls: Phoenix Marketcity (Viman Nagar) is the nearest big mall; Amanora and Seasons in Hadapsar are further."
+        ]
+      }
+    },
+    {
+      "id": "fit",
+      "heading": {"en": "Who it suits, and who should look elsewhere"},
+      "items": {
+        "en": [
+          "Suits: families working in Kharadi who want a newer tower, a bigger carpet area and a full clubhouse, and can wait for possession or pay for a resale.",
+          "Suits: buyers comparing a ₹2-4 crore 3 or 4 BHK in Kharadi proper with the same money here: you usually get more space and newer amenities, with Wagholi on the papers.",
+          "Look elsewhere if you need to move in within a year and want to pick from many ready flats: the ready and nearly ready towers are almost sold out.",
+          "Look elsewhere if your office is in Hinjewadi or Baner: there is no fast road across the city from here today."
+        ]
+      }
+    },
+    {
+      "id": "check",
+      "heading": {"en": "Seven questions to ask before you pay a token"},
+      "items": {
+        "en": [
+          "What is the MahaRERA number of my tower, and what completion date is filed there? (Not the brochure date.)",
+          "How many homes in my tower are already booked? Look it up on MahaRERA or on our project pages.",
+          "Which village and survey number are on the agreement? Is the land in Wagholi or Kharadi?",
+          "Where does the society's water come from today: a PMC connection, a borewell or tankers? What did residents of the builder's finished towers pay for tankers last summer?",
+          "What is the carpet area as filed on MahaRERA, and what is the all-in cost (GST, stamp duty, parking, deposits)?",
+          "Has the builder's earlier tower on this road got its occupancy certificate (OC), and how late was it?",
+          "How far is the gate from the planned Ubale Nagar or Upper Kharadi Road metro station, walking?"
+        ]
+      }
+    }
+  ],
+  "results": null,
+  "faq": [
+    {
+      "q": {"en": "Is Upper Kharadi part of Kharadi?"},
+      "a": {"en": "Not on paper. Upper Kharadi is a name builders use for the stretch along Upper Kharadi Main Road towards Wagholi. Most projects sold under it are registered in Wagholi village (PIN 412207). Kharadi proper is PIN 411014."}
+    },
+    {
+      "q": {"en": "Is Upper Kharadi under PMC?"},
+      "a": {"en": "Yes. Wagholi, where most Upper Kharadi projects sit, came into Pune Municipal Corporation limits in 2021 along with 22 other villages. Residents' groups have complained about water supply since then, so ask each project where its water comes from."}
+    },
+    {
+      "q": {"en": "When will the metro reach Upper Kharadi?"},
+      "a": {"en": "No date has been announced. Line 2B is approved and has a station called Upper Kharadi Road, but work started only at the Ramwadi end in September 2026, and the first phase being built stops at Tulja Bhavani Chowk."}
+    },
+    {
+      "q": {"en": "What does a 3 BHK cost in Upper Kharadi?"},
+      "a": {"en": "Portal listings in 2026 put a Lodha Camelot 3 BHK of about 1,200-1,270 sq ft carpet at ₹2.2-2.3 crore, and 4 BHKs around ₹4 crore. Smaller projects start well below that. Ask the builder for the current price sheet and the all-in cost."}
+    },
+    {
+      "q": {"en": "Can I get a ready-to-move flat in Upper Kharadi?"},
+      "a": {"en": "Few from builders. The towers finishing in 2027-28 were 92-100% booked on MahaRERA in October 2026. Most new stock is in towers due in 2029-2031, so a ready flat usually means resale."}
+    },
+    {
+      "q": {"en": "Has Godrej launched its Upper Kharadi project?"},
+      "a": {"en": "Godrej announced the 16-acre land in June 2025. We found no MahaRERA registration for it in Kharadi or Wagholi when we read the register on 18 October 2026. Until a project has a MahaRERA number, it cannot legally take bookings."}
+    },
+    {
+      "q": {"en": "Is Upper Kharadi the same as Kharadi Annex or New Kharadi?"},
+      "a": {"en": "Kharadi Annex (Mahindra's name) is on the same Wagholi side, PIN 412207. New Kharadi is often used for VTP's Pegasus township, which is registered in Manjari, south of Kharadi. They are different places."}
+    },
+    {
+      "q": {"en": "Will prices rise when the metro opens?"},
+      "a": {"en": "Nobody can promise that. Metro lines have lifted prices near stations in other cities, but the timing is uncertain and prices here already include some of that hope. Buy for the home and the commute you have today."}
+    }
+  ],
+  "links": [
+    {"label": {"en": "MahaRERA: search any project by its registration number"}, "url": "https://maharera.maharashtra.gov.in/"},
+    {"label": {"en": "Pune Metro: Line 2A and 2B stations"}, "url": "https://punemetrorail.org/Line_2a_b.aspx"},
+    {"label": {"en": "Godrej Properties: Upper Kharadi land announcement (NSE filing, 17 June 2025)"}, "url": "https://nsearchives.nseindia.com/corporate/GODREJPROP_17062025063619_SEIntimationpressrelease17062025.pdf"}
+  ],
+  "warning": {
+    "en": "\"Upper Kharadi\", \"Kharadi Annex\" and \"New Kharadi\" are sales names. Check the village, survey number and MahaRERA number on the agreement, and never pay a token for a project that has no MahaRERA registration."
+  },
+  "sources": [
+    {"name": "MahaRERA project register, read by Avasetu", "read_on": "2026-10-18"},
+    {"name": "Pune Metro Rail: Line 2A and 2B", "url": "https://punemetrorail.org/Line_2a_b.aspx", "read_on": "2026-10-18"},
+    {"name": "Business Standard: Pune Metro Phase 2 approved (25 June 2025)", "url": "https://www.business-standard.com/india-news/pune-metro-phase-2-approved-it-hubs-chandani-kharadi-wagholi-125062500727_1.html"},
+    {"name": "The Bridge Chronicle: Ramwadi-Wagholi metro extension tenders", "url": "https://www.thebridgechronicle.com/pune/ramwadi-wagholi-metro-extension-tenders-eastern-pune-agn97"},
+    {"name": "Punekar News: work begins on Ramwadi-Wagholi stretch (5 Sep 2026)", "url": "https://www.punekarnews.in/pune-work-begins-on-ramwadi-wagholi-metro-stretch-traffic-management-emerges-as-key-concern/"},
+    {"name": "Punekar News: PMC approves Wagholi model road (April 2026)", "url": "https://www.punekarnews.in/?p=233610"},
+    {"name": "Godrej Properties NSE filing, 17 June 2025", "url": "https://nsearchives.nseindia.com/corporate/GODREJPROP_17062025063619_SEIntimationpressrelease17062025.pdf"},
+    {"name": "The Week (PTI): Godrej 14-acre Kharadi-Wagholi land, 2 June 2025", "url": "https://www.theweek.in/wire-updates/business/2025/06/02/dcm13-biz-realty-godrej.html"},
+    {"name": "Mahindra Lifespaces: IvyLush in Kharadi Annex (30 Dec 2024)", "url": "https://www.mahindra.com/news-room/press-release/en/mahindra-lifespaces-launches-mahindra-ivylush-in-kharadi-annex"},
+    {"name": "Lodha: Estilo, Kharadi (distances are the builder's)", "url": "https://www.lodhagroup.com/projects/residential-property-in-pune/lodha-estilo-kharadi", "read_on": "2026-10-18"},
+    {"name": "Pune Pulse: Wagholi residents on PMC services", "url": "https://www.mypunepulse.com/pune-pmc-under-fire-wagholi-residents-take-legal-action-over-alleged-corruption-and-poor-services/"},
+    {"name": "Homebazaar: Upper Kharadi Main Road rates and Lodha Camelot listing", "url": "https://www.homebazaar.com/under-construction-projects-in-upper-kharadi-main-rd-kharadi-pune"},
+    {"name": "Aurum PropTech: Upper Kharadi Main Road", "url": "https://www.aurumproptech.in/pulse/localities/pune/upper-kharadi-main-rd-wagholi-pune"},
+    {"name": "Square Yards: Kharadi property rates", "url": "https://www.squareyards.com/property-rates/kharadi-pune"},
+    {"name": "99acres: Kharadi overview", "url": "https://www.99acres.com/kharadi-pune-overview-piffid"},
+    {"name": "PropertyPistol: My Home Upper Kharadi", "url": "https://www.propertypistol.com/projects/goyal-my-home-upper-kharadi-kharadi-pid-19350"}
+  ]
+}
