@@ -4,7 +4,7 @@ text, proper images"; topic reels post without an approval step).
 
 A guide is a file in guides/<name>.json: the facts with their sources, the shots (a picture prompt, a short screen line and a
 spoken line each), the caption and the comment assistant's reply sheet (reply_facts, reply_faq: knowledge.grounding reads them
-off the row). From it:
+off the row; "topic" names the topics/<slug>.json page the reel is listed on). From it:
   1. the team writes: a writer offers three versions of the beats from the facts, an editor picks the strongest hook and tightens
      it; code keeps only words that pass `problems` (no number outside the facts, every must-say number said, short lines), else
      the guide's own lines are used as written;
@@ -307,7 +307,7 @@ async def schedule(store, guide: Guide, prep: Prepared, status: str = "approved"
                     "hook_type": guide.get("hook_type", "guide"), "lang": guide.lang, "gender": guide.get("gender", "female"),
                     "music": guide.get("music"), "audience": "buyers", "as_of": guide.get("as_of"), "beats": prep.beats,
                     "script": [b["voice"] for b in prep.beats], "pictures": prep.pictures, "drawn": prep.drawn,
-                    "words_by": prep.note.get("made_by")}
+                    "words_by": prep.note.get("made_by"), "topic": guide.get("topic")}
         ids.append(await store.add(guide.slug, ch, guide["caption"], cover, due, kind="reel", status=status, images=[cover],
                                    creative=creative,
                                    extra={"reply_facts": guide.get("reply_facts", []), "reply_faq": guide.get("reply_faq", [])}))
