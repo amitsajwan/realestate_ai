@@ -58,29 +58,14 @@ def synth(text: str, lang: str = "en", voice: Optional[str] = None, rate: float 
 
 
 # ---- the voice-over step (propertyfacts.voiceover): Chirp 3 HD only, on the server's key, talking like a person ------------
-# Chirp 3 HD reads pause tags ([pause short], [pause], [pause long]) in `markup` only, and takes our names' pronunciations
-# (custom pronunciations; en-IN, hi-IN and mr-IN take them). https://docs.cloud.google.com/text-to-speech/docs/chirp3-hd
+# Chirp 3 HD reads pause tags ([pause short], [pause], [pause long]) in `markup` only
+# https://docs.cloud.google.com/text-to-speech/docs/chirp3-hd
 SPEAKERS = {"female": "Zephyr", "male": "Charon"}   # owner 2026-10-16: Kore sounded dull; Zephyr is the bright one
 SPOKEN_RATE = 1.05        # a reel host's pace, not a read (owner 2026-10-16: the slow voice irritated next to entertainment reels)
 SPOKEN_RATES = {"hi": 1.0, "mr": 1.0}   # 0.88 sounded slow and flat next to entertainment reels (owner 2026-10-16, later)
 PAUSE_TAG = re.compile(r"(\[pause(?: short| long)?\])")
-# how our names are said (IPA, sent as Chirp's custom pronunciations), and the spelling that says them when the service
-# refuses a pronunciation; a Hindi or Marathi line writes a place in Devanagari, which its voice says right
-NAMES = {   # owner, 2026-10-16: Avasetu is "AvaS-Setu" (not "Av-setu"), Kharadi is "khar-aa-di" (not "kardi")
-    "Avasetu": "əʋaːs seːt̪uː", "Kharadi": "kʰəˈraːɖiː", "Wagholi": "ʋaːˈɡʰoːliː", "Lohegaon": "loːˈɦeːɡaːʋ",
-    "Hinjawadi": "ˈɦɪndʒəʋaːɖiː", "Hinjewadi": "ˈɦɪndʒəʋaːɖiː", "Wakad": "ˈʋaːkəɖ", "Baner": "ˈbaːneːr",
-    "Keshav Nagar": "ˈkeːʃəʋ ˈnəɡər", "Ranjangaon": "ˈraːndʒəɳɡaːʋ", "Shirur": "ʃɪˈruːr", "Viman Nagar": "ʋɪˈmaːn ˈnəɡər",
-    "Hadapsar": "ˈɦəɖəpsər", "Lodha": "ˈloːɖʱaː", "Magarpatta": "ˈməɡərpəʈʈaː", "Kesnand": "ˈkeːsnənd",
-    "Shikrapur": "ˈʃɪkraːpuːr"}
-# a Hindi or Marathi voice reads a Latin name the English way ("Kharadi" came out "kardi"): its lines always get the name in
-# Devanagari before they are said (`for_voice`), pronunciations or not
-DEVANAGARI = {"Avasetu": "अवास सेतु"}
-RESPELL = {"Avasetu": {"en": "Avaas Setu", "hi": "अवास सेतु", "mr": "अवास सेतु"}, "Kharadi": {"en": "khaa-raa-dee"},
-           "Wagholi": {"en": "vaa-gho-lee"}, "Lohegaon": {"en": "lo-hay-gaon"}, "Hinjawadi": {"en": "hin-ja-waa-dee"},
-           "Hinjewadi": {"en": "hin-ja-waa-dee"}, "Wakad": {"en": "vaa-kud"}, "Baner": {"en": "baa-ner"},
-           "Keshav Nagar": {"en": "kay-shuv nuh-gur"}, "Ranjangaon": {"en": "raan-jun-gaon"}, "Shirur": {"en": "shi-roor"},
-           "Viman Nagar": {"en": "vi-maan nuh-gur"}, "Hadapsar": {"en": "huh-dup-sur"}, "Lodha": {"en": "lo-dhaa"},
-           "Magarpatta": {"en": "mug-ur-puttaa"}, "Kesnand": {"en": "kays-nund"}, "Shikrapur": {"en": "shik-raa-pur"}}
+# how our names are said: in Devanagari (spoken_names), the one form every Indian voice says right; en-IN takes no custom
+# pronunciations (all refused, 2026-10-19), so there is no IPA list
 
 
 def spoken_markup(text: str) -> str:
@@ -104,7 +89,7 @@ def synth_greeting(text: str, lang: str = "en", gender: str = "female") -> bytes
         raise VoiceError("GOOGLE_TTS_API_KEY is not set")
     code = VOICES.get(lang, VOICES["en"])[0]
     name = f"{code}-Chirp3-HD-{SPEAKERS.get(gender, SPEAKERS['female'])}"
-    for inp, rate in (({"markup": spoken_markup(text)}, GREETING_RATE),):
+    for inp, rate in (({"markup": spoken_markup(spoken(text, lang))}, GREETING_RATE),):
         body = {"input": inp, "voice": {"languageCode": code, "name": name},
                 "audioConfig": {"audioEncoding": "MP3", "speakingRate": rate, "sampleRateHertz": 48000}}
         try:
@@ -123,11 +108,26 @@ def for_voice(text: str, lang: str) -> str:
     text = re.sub(r"\bsq\.?\s*ft\b|\bsqft\b", units.get(lang, units["en"]), text, flags=re.I)
     if lang not in ("hi", "mr"):
         return text
+    return _names_in_devanagari(text, lang)
+
+
+def _names_in_devanagari(text: str, lang: str) -> str:
+    """`text` with our names (spoken_names, creative.i18n's spelling for `lang` where it has one) in Devanagari."""
     from app.modules.creative.i18n import PLACES
-    names = {**{k: v[lang] for k, v in PLACES.items() if v.get(lang)}, **DEVANAGARI}
+    from .spoken_names import SPOKEN
+    names = {**SPOKEN, **{k: v[lang] for k, v in PLACES.items() if v.get(lang)}}
     for name in sorted(names, key=len, reverse=True):   # "Upper Kharadi" before "Kharadi"
         text = re.sub(rf"(?<![A-Za-z]){re.escape(name)}(?![A-Za-z])", names[name], text)
     return text
+
+
+def spoken(text: str, lang: str) -> str:
+    """`text` as it goes to a voice: units in words and our names in Devanagari for every language, English too (an Indian
+    English voice says "अपर खराड़ी" right and guesses "Upper Kharadi"; owner 2026-10-19 on the Upper Kharadi reels). English
+    takes the Hindi spellings. Captions keep `for_voice` (an English caption shows the Latin name)."""
+    if lang in ("hi", "mr"):
+        return for_voice(text, lang)
+    return _names_in_devanagari(for_voice(text, lang), "hi")
 
 
 def synth_spoken(text: str, lang: str = "en", gender: str = "female", rate: Optional[float] = None) -> bytes:
@@ -139,8 +139,7 @@ def synth_spoken(text: str, lang: str = "en", gender: str = "female", rate: Opti
     rate = rate or SPOKEN_RATES.get(lang, SPOKEN_RATE)
     code = VOICES.get(lang, VOICES["en"])[0]
     name = f"{code}-Chirp3-HD-{SPEAKERS.get(gender, SPEAKERS['female'])}"
-    markup = spoken_markup(for_voice(text, lang))
-    said = [n for n in NAMES if n in markup] if lang == "en" else []   # Hindi/Marathi lines carry the names in Devanagari
+    markup = spoken_markup(spoken(text, lang))
 
     def ask(inp: dict):
         body = {"input": inp, "voice": {"languageCode": code, "name": name},
@@ -150,12 +149,7 @@ def synth_spoken(text: str, lang: str = "en", gender: str = "female", rate: Opti
         except Exception as e:
             raise VoiceError(f"voice service unreachable ({type(e).__name__})")
 
-    r = ask({"markup": markup, **({"customPronunciations": {"pronunciations": [
-        {"phrase": n, "phoneticEncoding": "PHONETIC_ENCODING_IPA", "pronunciation": NAMES[n]} for n in said]}} if said else {})})
-    if r.status_code == 400 and said:   # pronunciations refused: the names respelled instead
-        for n in said:
-            markup = markup.replace(n, RESPELL.get(n, {}).get(lang, n))
-        r = ask({"markup": markup})
+    r = ask({"markup": markup})
     if r.status_code >= 400:
         msg = (r.json().get("error") or {}).get("message", "") if r.headers.get("content-type", "").startswith("application/json") else ""
         raise VoiceError((f"HTTP {r.status_code}" + (f": {msg}" if msg else "")).replace(key, "[redacted]")[:200])
@@ -182,7 +176,7 @@ def gemini_on() -> bool:
 def gemini_text(text: str, lang: str) -> str:
     """A line as Gemini reads it: our names in Devanagari for Hindi or Marathi (for_voice), the pause tags as punctuation (it
     reads no tags), no other brackets."""
-    t = for_voice(text, lang).replace("[pause short]", ",").replace("[pause long]", "...").replace("[pause]", "...")
+    t = spoken(text, lang).replace("[pause short]", ",").replace("[pause long]", "...").replace("[pause]", "...")
     return " ".join(t.replace("[", "").replace("]", "").split())
 
 

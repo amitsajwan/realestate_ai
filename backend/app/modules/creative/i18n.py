@@ -76,8 +76,8 @@ def known(text: str, lang: str) -> Optional[str]:
 # Place names as Marathi and Hindi write them. Every area in app/core/areas.py has an entry (a test checks it).
 PLACES: Dict[str, Dict[str, str]] = {
     "Pune": {"mr": "पुणे", "hi": "पुणे"},
-    "Kharadi": {"mr": "खराडी", "hi": "खराडी"},
-    "Upper Kharadi": {"mr": "अप्पर खराडी", "hi": "अपर खराडी"},
+    "Kharadi": {"mr": "खराडी", "hi": "खराड़ी"},   # Hindi: retroflex ड़ (owner 2026-10-19)
+    "Upper Kharadi": {"mr": "अप्पर खराडी", "hi": "अपर खराड़ी"},
     "Wagholi": {"mr": "वाघोली", "hi": "वाघोली"},
     "Lohegaon": {"mr": "लोहगाव", "hi": "लोहगांव"},
     "Keshav Nagar": {"mr": "केशवनगर", "hi": "केशव नगर"},

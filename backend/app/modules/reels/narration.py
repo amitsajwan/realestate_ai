@@ -78,7 +78,8 @@ def one_take(lines: Sequence[str], lang: str, work: Path) -> Optional[List[Path]
         return None
     try:
         mp3 = work / "take.mp3"
-        mp3.write_bytes(voice.synth(voice.take_ssml(lines), lang, ssml=True))
+        # our names in Devanagari for every voice (voice.spoken): an Indian voice says them right that way
+        mp3.write_bytes(voice.synth(voice.take_ssml([voice.spoken(x, lang) for x in lines]), lang, ssml=True))
         pieces = split(_decode(mp3), len(lines))
     except Exception as e:  # the service refused the script, ffmpeg could not decode it...: the lines one by one instead
         reason = str(e) if isinstance(e, voice.VoiceError) else type(e).__name__   # a VoiceError's message is already redacted
@@ -94,7 +95,7 @@ def per_line(lines: Sequence[str], lang: str, work: Path) -> List[Path]:
     clips = []
     for i, text in enumerate(lines):
         mp3 = work / f"b{i}.mp3"
-        mp3.write_bytes(voice.synth(text, lang))
+        mp3.write_bytes(voice.synth(voice.spoken(text, lang), lang))
         clips.append(mp3)
     return clips
 
