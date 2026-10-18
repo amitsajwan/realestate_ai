@@ -259,12 +259,18 @@ async def prepare(guide: Guide, uploads: Path, llm: Any = None, say=lambda s: No
 
 
 def render(beats: Sequence[Dict[str, str]], photos: Sequence[Optional[Path]], drawn: Sequence[bool], out: Path, lang: str = "mr",
-           gender: str = "female", music: Optional[str] = None, seed: str = "guide") -> Tuple[Path, float]:
+           gender: str = "female", music: Optional[str] = None, seed: str = "guide", voice_kind: str = "charon") -> Tuple[Path, float]:
     """The voiced reel: each scene lasts as long as its spoken line (at least MIN_SCENE). Voice only unless `music` names a mood
     (owner 2026-10-17 on the first guide reel: the music bed sounded like "tisss tisss"; no music)."""
     from app.modules.reels import ffmpeg
     work = Path(tempfile.mkdtemp(prefix="guide-"))
-    clips = narration.spoken_lines([b["voice"] for b in beats], lang, gender, work)
+    lines = [b["voice"] for b in beats]
+    if voice_kind == "charon":
+        # the voice of the MHADA how-to reel (2,295 views, 15 s average watch, 35 shares on Instagram in a day; the Gemini-voiced
+        # update reel had 5 s): Chirp's calm male Charon, all lines in one take (owner 2026-10-18: "same voice which worked")
+        clips, _ = narration.voice_lines(lines, lang, work)
+    else:
+        clips = narration.spoken_lines(lines, lang, gender, work)
     durs = stretch([max(MIN_SCENE, ffmpeg.probe(c).duration + 0.45) for c in clips], XFADE)
     badge = SYMBOLIC.get(lang, SYMBOLIC["en"])
     scenes = [Scene(image=photos[i], lines=[TextLine(b["screen"], size=100 if i == 0 else 92)], layout="lower",
@@ -288,7 +294,7 @@ def render_row(doc: dict, uploads: Path) -> str:
     if not (dest.is_file() and dest.stat().st_size > 0):
         photos = [Path(uploads) / p if p else None for p in c.get("pictures") or []]
         render(c["beats"], photos, c.get("drawn") or [False] * len(photos), dest, c.get("lang", "mr"), c.get("gender", "female"),
-               c.get("music"), seed=slug)
+               c.get("music"), seed=slug, voice_kind=c.get("voice_kind") or "charon")
     return dest.resolve().relative_to(Path(uploads).resolve()).as_posix()
 
 
@@ -305,6 +311,7 @@ async def schedule(store, guide: Guide, prep: Prepared, status: str = "approved"
         creative = {"role": "buyer", "source": "guide_reels", "template": "guide", "reel_key": guide.slug, "ref": guide.name,
                     "path": "guide", "layout": "reel", "ok": True, "hook": guide.get("hook") or prep.beats[0]["voice"],
                     "hook_type": guide.get("hook_type", "guide"), "lang": guide.lang, "gender": guide.get("gender", "female"),
+                    "voice_kind": guide.get("voice", "charon"),
                     "music": guide.get("music"), "audience": "buyers", "as_of": guide.get("as_of"), "beats": prep.beats,
                     "script": [b["voice"] for b in prep.beats], "pictures": prep.pictures, "drawn": prep.drawn,
                     "words_by": prep.note.get("made_by"), "topic": guide.get("topic")}
