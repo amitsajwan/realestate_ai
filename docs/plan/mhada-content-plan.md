@@ -1,6 +1,6 @@
 # MHADA content plan (Pune lottery 2026)
 
-Owner: Amit · Written 18 Oct 2026 · Track here: tick the box when it is done, add the numbers after 24 h.
+Owner: Amit · Written 18 Oct 2026 · Track here: every posted reel gets its Instagram and Facebook links in this table; add the numbers after 24 h.
 
 **Why MHADA:** the MHADA how-to reel is our best content (2,295 Instagram views, 15 s average watch, 35 shares). Every other reel gets under 300 views.
 
@@ -13,7 +13,7 @@ Owner: Amit · Written 18 Oct 2026 · Track here: tick the box when it is done, 
 
 | Date | Time (IST) | Reel | Status | Views after 24 h |
 |---|---|---|---|---|
-| Sat 18 Oct | 21:00 | **Homes in our areas**: Lohegaon 117 homes, Dhanori 65, Keshav Nagar-Mundhwa 37, Kharadi 3 (none in Wagholi / Viman Nagar) | ✅ ready, auto-posts | |
+| Sat 18 Oct | 18:23 (posted early) | **Homes in our areas**: Lohegaon 117 homes, Dhanori 65, Keshav Nagar-Mundhwa 37, Kharadi 3 (none in Wagholi / Viman Nagar) | ✅ posted: [Instagram](https://www.instagram.com/reel/DeouubYlL8m/) · [Facebook](https://www.facebook.com/reel/4351166681812589) | |
 | Sun 19 Oct | 10:00 | **Other boards**: Chh. Sambhajinagar lottery open till 23 Oct (97 flats, 20% scheme, from ₹10.82 L), Waluj is in it; Nashik / Nagpur / Amravati not open now | ✅ ready, auto-posts | |
 | Tue 21 Oct | 19:00 | **Tomorrow is the last day**: 22 Oct 11:59 PM, RTGS by 23 Oct 3:59 PM | ⏸ needs owner OK in Studio > Content on 21 Oct (check MHADA did not extend again) | |
 
