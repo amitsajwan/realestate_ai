@@ -45,7 +45,10 @@ async def test_numbers_come_only_from_the_last_seven_days_and_only_this_agents_d
 async def test_tips_are_concrete_and_only_appear_when_they_apply():
     svc, db = make()
     db.get_collection("listings").docs += [listing("L1", photos=0), listing("L2", photos=0), listing("L3", freshness_confirmed_at=AGO(days=30), published_at=AGO(days=30))]
-    db.get_collection("contacts").docs.append({"_id": "c1", "agent_id": "A1", "created_at": AGO(days=3), "last_activity_at": AGO(days=3), "stage": "new", "score_base": 0})
+    db.get_collection("contacts").docs += [
+        {"_id": "c1", "agent_id": "A1", "phone": "+919800000001", "created_at": AGO(days=3), "last_activity_at": AGO(days=3), "stage": "new", "score_base": 0},
+        # only said hello in a comment, no phone, no requirement: an Inbox conversation, not an enquiry waiting for a call
+        {"_id": "c2", "agent_id": "A1", "phone": "", "created_at": AGO(days=3), "last_activity_at": AGO(days=3), "stage": "new", "score_base": 0}]
     db.get_collection("engage_comments").docs.append({"_id": "k1", "agent_id": "A1", "processed_at": AGO(hours=5), "intent": "question", "needs_human": True, "status": "needs_human"})
     kinds = {t["kind"]: t for t in (await svc.weekly("A1"))["todo"]}
     assert kinds["photos"]["count"] == 2 and kinds["freshness"]["count"] == 1 and kinds["followup"]["count"] == 1 and kinds["answer"]["count"] == 1

@@ -6,6 +6,7 @@ from typing import Callable, Dict, List, Optional
 
 from app.modules.listings.freshness import freshness_of
 from app.modules.tracking import scoring
+from app.modules.tracking.requirement import is_conversation_only
 from app.modules.tracking.performance import VISIT_STAGES, is_qualified
 
 DAYS = 7
@@ -28,7 +29,8 @@ class ReportService:
         listings = await self.listings.find({"agent_id": agent_id}).to_list(500)
         live = [l for l in listings if l.get("status") in LIVE]
         events = [e for e in await self.events.find({"agent_id": agent_id}).sort("ts", -1).limit(20000).to_list(20000) if e.get("ts") and e["ts"] >= since]
-        contacts = await self.contacts.find({"agent_id": agent_id}).to_list(5000)
+        # comment-only / hello-only people are Inbox conversations, not enquiries (same rule as Studio's Leads list)
+        contacts = [c for c in await self.contacts.find({"agent_id": agent_id}).to_list(5000) if not is_conversation_only(c)]
         new = [c for c in contacts if c.get("created_at") and c["created_at"] >= since]
         profile = await self.profiles.find_one({"agent_id": agent_id}) or {}
         comments = [c for c in await self.comments.find({"agent_id": agent_id}).to_list(1000) if c.get("processed_at") and c["processed_at"] >= since]

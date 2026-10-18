@@ -73,6 +73,12 @@ def requirement_line(req: Optional[dict]) -> Optional[str]:
     return " · ".join(p for p in parts if p) or None
 
 
+def is_conversation_only(contact: dict) -> bool:
+    """Someone who only commented or said hello, with no phone and nothing they want yet, still new: a conversation (Inbox), not a lead.
+    Studio's Leads list hides them by the same rule, so Today's counts, the weekly report and the list agree (2026-10-18)."""
+    return not contact.get("phone") and not requirement_line(public(contact.get("requirement"))) and (contact.get("stage") or "new") == "new"
+
+
 # ---------- parsing free text ----------
 
 _NUM = r"(\d+(?:\.\d+)?)"

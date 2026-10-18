@@ -18,6 +18,7 @@ const TABS = ['today', ...STAGES.map((s) => s.key as string), 'all']
 const LEGACY: Record<string, { tab: string; hot?: boolean }> = {
   new: { tab: 'new' }, hot: { tab: 'all', hot: true }, site_visit: { tab: 'site_visit' }, followups: { tab: 'today' },
 }
+const SHORT: Record<string, string> = { site_visit: 'Visit', negotiating: 'Talks' }
 const EMPTY: Record<string, string> = { today: 'No follow-ups due today.', all: t('noLeads') }
 
 const isOpen = (l: Lead) => l.stage !== 'won' && l.stage !== 'lost'
@@ -143,8 +144,9 @@ function LeadsList() {
       <PageTitle>{t('leads')}</PageTitle>
       {data && (
         <TabBar label="Leads" value={tab} onChange={setTab} tabs={[
-          { key: 'today', label: 'Follow up today', count: inTab('today').length, tone: 'urgent' },
-          ...STAGES.map((s) => ({ key: s.key as string, label: s.label, count: inTab(s.key).length })),
+          { key: 'today', label: 'Today', count: inTab('today').length, tone: 'urgent' },
+          // short labels and no empty stage tabs (except New and the open one), so the row fits a phone without scrolling
+          ...STAGES.map((s) => ({ key: s.key as string, label: SHORT[s.key] ?? s.label, count: inTab(s.key).length, hideWhenEmpty: s.key !== 'new' && s.key !== tab })),
           { key: 'all', label: t('all'), count: leads.length },
         ]} />
       )}

@@ -30,7 +30,7 @@ def end_of_ist_day(now_utc: datetime) -> datetime:
 async def build_today(svc, agent_id: str) -> dict:
     now = svc.now()
     end_of_day = end_of_ist_day(now)
-    contacts = await svc.contacts.find({"agent_id": agent_id}).to_list(2000)
+    contacts = [c for c in await svc.contacts.find({"agent_id": agent_id}).to_list(2000) if not reqmod.is_conversation_only(c)]
     listings = await svc._agent_listings(agent_id)
     rows = []
     for c in contacts:
