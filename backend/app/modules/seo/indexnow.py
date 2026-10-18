@@ -67,6 +67,28 @@ def parse_sitemap(xml: str) -> List[Tuple[str, Optional[datetime]]]:
     return out
 
 
+async def read_sitemap(c: httpx.AsyncClient, url: str) -> List[Tuple[str, Optional[datetime]]]:
+    """Every <url> entry of the sitemap at `url`. A sitemap index (frontend/app/sitemap.xml: one sitemap per Pune place, plus
+    core, agents and builders) is followed into each of its sitemaps, one level deep. An index that cannot be read raises; a
+    child that cannot be read is skipped (its pages wait for the next round)."""
+    r = await c.get(url)
+    r.raise_for_status()
+    root = ET.fromstring(r.text)
+    if root.tag != f"{_NS}sitemapindex":
+        return parse_sitemap(r.text)
+    out: List[Tuple[str, Optional[datetime]]] = []
+    for s in root.iter(f"{_NS}sitemap"):
+        loc = (s.findtext(f"{_NS}loc") or "").strip()
+        if not loc:
+            continue
+        child = await c.get(loc)
+        if child.status_code != 200:
+            log.warning("sitemap: %s answered %s; skipped this round", loc, child.status_code)
+            continue
+        out.extend(parse_sitemap(child.text))
+    return out
+
+
 def due(entries: List[Tuple[str, Optional[datetime]]], since: Optional[datetime], host: str) -> List[str]:
     """Our pages to send: all of them the first time, then those dated after `since` (less SLACK). Undated pages only once."""
     ours = [(u, d) for u, d in entries if urlparse(u).netloc == host]
@@ -87,9 +109,7 @@ async def run_once(store: Store, now: datetime, transport: Optional[httpx.AsyncB
     base = site()
     host = urlparse(base).netloc
     async with httpx.AsyncClient(timeout=30, transport=transport, follow_redirects=True) as c:
-        r = await c.get(sitemap_url())
-        r.raise_for_status()
-        urls = due(parse_sitemap(r.text), since if isinstance(since, datetime) else None, host)
+        urls = due(await read_sitemap(c, sitemap_url()), since if isinstance(since, datetime) else None, host)
         for i in range(0, len(urls), BATCH):
             body = {"host": host, "key": k, "keyLocation": base + KEY_FILE, "urlList": urls[i:i + BATCH]}
             sent = await c.post(ENDPOINT, json=body)

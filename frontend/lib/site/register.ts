@@ -206,7 +206,15 @@ export interface RegisterListItem {
 
 type Got<T> = { ok: true; data: T } | { ok: false; notFound: boolean }
 
+/** One retry half a second later when the API failed (see getJson in ./api): a deploy's restart gives a slow page, not a 5xx. */
 async function get<T>(path: string): Promise<Got<T>> {
+  const first = await getOnce<T>(path)
+  if (first.ok || first.notFound) return first
+  await new Promise((r) => setTimeout(r, 500))
+  return getOnce<T>(path)
+}
+
+async function getOnce<T>(path: string): Promise<Got<T>> {
   const ctrl = new AbortController()
   const timer = setTimeout(() => ctrl.abort(), 5000)
   try {

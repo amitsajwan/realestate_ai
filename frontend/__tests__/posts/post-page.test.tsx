@@ -146,7 +146,7 @@ describe('PostCard opens the post page', () => {
 
 describe('sitemap', () => {
   it('lists every post page, dated by its post', async () => {
-    const { default: sitemap } = await import('@/app/sitemap')
+    const { default: sitemap } = await import('@/lib/site/sitemap')
     calls = []
     global.fetch = jest.fn(async (url: string) => {
       calls.push(String(url))

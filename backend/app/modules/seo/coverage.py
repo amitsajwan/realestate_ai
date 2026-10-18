@@ -75,9 +75,7 @@ async def run_once(store: Store, now: datetime, transport: Optional[httpx.AsyncB
     if not force and last is not None and now - last < EVERY:
         return None
     async with httpx.AsyncClient(timeout=30, transport=transport, follow_redirects=True) as c:
-        r = await c.get(indexnow.sitemap_url())
-        r.raise_for_status()
-        urls = list(dict.fromkeys(u for u, _ in indexnow.parse_sitemap(r.text)))
+        urls = list(dict.fromkeys(u for u, _ in await indexnow.read_sitemap(c, indexnow.sitemap_url())))
         bearer = await searchconsole.token(sa, c)
         done = 0
         for url in await pick(store.db, urls, PER_DAY):

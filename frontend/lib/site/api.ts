@@ -14,7 +14,16 @@ const isDev = (): boolean => process.env.NODE_ENV !== 'production'
 
 type Result<T> = { ok: true; data: T } | { ok: false; notFound: boolean }
 
+/** One retry, half a second later, when the API did not answer or failed (a restart during a deploy, one slow call): a slow
+ *  page is better than an error page for buyers and for Google, which slows its crawl after 5xx answers. A 404 is final. */
 async function getJson<T>(path: string): Promise<Result<T>> {
+  const first = await getJsonOnce<T>(path)
+  if (first.ok || first.notFound) return first
+  await new Promise((r) => setTimeout(r, 500))
+  return getJsonOnce<T>(path)
+}
+
+async function getJsonOnce<T>(path: string): Promise<Result<T>> {
   const ctrl = new AbortController()
   const timer = setTimeout(() => ctrl.abort(), 5000)
   try {

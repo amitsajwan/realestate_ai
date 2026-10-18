@@ -2,7 +2,7 @@ import { INSIGHTS } from '@/lib/marketing/insights'
 import { LOCALITIES, getLocality, localitiesByTier, localityByName, localityNameFromSlug, localitySlug, localitySource, localitySourceFromSlug } from '@/lib/marketing/localities'
 import { buildMarketingConfig } from '@/lib/marketing/config'
 import { articleJsonLd, breadcrumbJsonLd } from '@/lib/marketing/seo'
-import sitemap from '@/app/sitemap'
+import sitemap from '@/lib/site/sitemap'
 import robots from '@/app/robots'
 
 describe('locality pages are safe to publish', () => {

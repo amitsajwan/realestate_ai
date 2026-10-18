@@ -202,6 +202,15 @@ async def audit(site: str, max_pages: int = 300, transport: Optional[httpx.Async
             rep.errors.append(f"sitemap.xml answers {sm.status_code}")
             return rep
         urls = parse_sitemap(sm.text)
+        root = ET.fromstring(sm.text)
+        if root.tag == f"{_NS}sitemapindex":   # one sitemap per Pune place (frontend/app/sitemap.xml): read each of them
+            urls = []
+            for loc in [(s.findtext(f"{_NS}loc") or "").strip() for s in root.iter(f"{_NS}sitemap")]:
+                child = await c.get(loc) if loc else None
+                if child is None or child.status_code != 200:
+                    rep.errors.append(f"`{loc}` (in sitemap.xml) answers {child.status_code if child is not None else 'nothing'}")
+                    continue
+                urls.extend(parse_sitemap(child.text))
         rep.listed = len(urls)
         if not urls:
             rep.errors.append("sitemap.xml lists no pages")

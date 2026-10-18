@@ -34,7 +34,7 @@ import { BANDS, filterProjects, livePages, matches, MIN_PROJECTS } from '@/lib/s
 import { getLocality } from '@/lib/marketing/localities'
 import { byLocality, mainAgent } from '@/lib/site/projects'
 import { projectMetadata } from '@/lib/site/seo'
-import sitemap from '@/app/sitemap'
+import sitemap from '@/lib/site/sitemap'
 
 function project(slug: string, locality: string, homes: Array<[number, number]>, extra: Partial<CatalogProject> = {}): CatalogProject {
   const configurations = homes.map(([bhk, price]) => ({ label: `${bhk} BHK`, bhk, carpet_sqft: 800, price_inr: price, price_per_sqft: Math.round(price / 800), source: 'agent' as const }))
