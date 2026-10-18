@@ -4,7 +4,8 @@ One turn, when an LLM is configured:
   1. understand: the model reads the buyer's message with the conversation so far and returns what they told us (area, BHK, budget, timeline,
      name...) and what they want (a question, 'you suggest', a skip, homes, a visit, a person). Every value is checked against the message.
   2. homes: the agent's live listings that fit (engine._show_homes, the same finder and matching as before).
-  3. reply: the model writes the answer from our vetted knowledge (knowledge/site.py, the area's facts, the page's facts) and the homes found,
+  3. reply: the model writes the answer from our vetted knowledge (knowledge/site.py, the area's facts, the page's facts, and the passages a
+     search of everything we publish finds: knowledge/vectors.py) and the homes found,
      then the one next question our code chose. The reply is checked before it goes out: no number, price or name that our data does not
      contain, no phone, link, hype or prediction.
 
@@ -21,7 +22,7 @@ from app.core import areas as area_registry
 from app.core import brand
 from app.modules.engage.brain import ABUSE
 from app.modules.knowledge import areas as area_kb
-from app.modules.knowledge import site
+from app.modules.knowledge import site, vectors
 from app.modules.knowledge.reply import LANG_NAME, _facts_block, _nums, valid_text
 from app.modules.tracking import requirement as rq
 
@@ -207,7 +208,20 @@ def _apply(d: dict, u: dict, text: str, rules_new: List[str]) -> None:
 
 # ---- 2 + 3. homes and the reply --------------------------------------------------------------------------------------------------------
 
-def _knowledge(d: dict, grounding) -> str:
+SEARCH_INTENTS = ("question", "suggest", "agent", "chat")
+PASSAGES = 6
+
+
+async def _found(d: dict, text: str, intent: str) -> List[vectors.Passage]:
+    """Passages from everything we publish (knowledge/index.py) that may answer this message; [] when the search is off or fails.
+    site.ENTRIES are already given whole, so their passages are left out."""
+    if intent not in SEARCH_INTENTS or len(text.split()) < 2:
+        return []
+    q = text if not d.get("locality") or d["locality"].lower() in text.lower() else f"{text} ({d['locality']})"
+    return [p for p in await vectors.search(q, PASSAGES + 2) if p.kind != "site"][:PASSAGES]
+
+
+def _knowledge(d: dict, grounding, found: Optional[List[vectors.Passage]] = None) -> str:
     out = ["About us and buying in Pune:"]
     out += [f"- {e.answer}" for e in site.ENTRIES]
     af = area_kb.area_facts(d.get("locality"))
@@ -298,7 +312,7 @@ async def _turn(d: dict, text: str, llm, grounding, finder, whatsapp: bool, hist
         d["value_given"] = True
 
     nxt = _next(d, intent, needs_human)
-    knowledge = _knowledge(d, grounding)
+    knowledge = _knowledge(d, grounding, await _found(d, text, intent))
     homes = _homes_text(cards, shown, d) if cards or shown or not d.get("shown_brief") else \
         "No cards this turn (say 'the home I showed you', never 'below'). Shown earlier in the chat:\n" + d["shown_brief"]
     buyer = _buyer_text(d)

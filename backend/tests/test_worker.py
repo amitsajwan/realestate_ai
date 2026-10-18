@@ -99,6 +99,7 @@ def test_the_worker_runs_the_fourteen_loops_under_the_api_lease_names():
     from app.modules.calendar.runner import render_loop as calendar_reels_loop
     from app.modules.insights.collector import loop as insights_loop
     from app.modules.knowledge.gaps import loop as gaps_loop
+    from app.modules.knowledge.index import loop as knowledge_index_loop
     from app.modules.engage.runner import loop as engage_loop
     from app.modules.newsroom.runner import loop as newsroom_loop
     from app.modules.propertyfacts.jobs import loop as marketing_loop
@@ -115,7 +116,8 @@ def test_the_worker_runs_the_fourteen_loops_under_the_api_lease_names():
                               "project_enrich": enrich_loop, "insights": insights_loop,
                               "answer_gaps": gaps_loop, "inbound_messages": inbound_loop,
                               "token_cleanup": token_cleanup_loop, "radar": radar_loop,
-                              "seo": seo_loop, "communities": communities_loop}
+                              "seo": seo_loop, "communities": communities_loop,
+                              "knowledge_index": knowledge_index_loop}
 
 
 def test_worker_roles_partition_every_loop_once():

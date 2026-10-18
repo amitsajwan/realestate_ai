@@ -28,11 +28,12 @@ from app.platform.leases import run_as_leader
 LoopTable = Dict[str, Callable[[], Awaitable[Any]]]
 ALL_LOOP_NAMES = (
     "engage", "newsroom", "calendar", "calendar_reels", "listing_reels", "marketing_runs", "project_enrich", "insights",
-    "answer_gaps", "inbound_messages", "token_cleanup", "radar", "seo", "communities",
+    "answer_gaps", "inbound_messages", "token_cleanup", "radar", "seo", "communities", "knowledge_index",
 )   # render_dispatch is not among them: only the `dispatch` role starts it (it calls Cloud Run; development has none)
 ROLE_LOOPS = {
     "conversations": ("engage", "answer_gaps", "inbound_messages"),
-    "newsroom": ("newsroom", "seo", "communities", "project_enrich", "radar", "insights", "calendar", "token_cleanup"),
+    "newsroom": ("newsroom", "seo", "communities", "project_enrich", "radar", "insights", "calendar", "token_cleanup",
+                 "knowledge_index"),
     "media": ("calendar_reels", "listing_reels", "marketing_runs"),
     # on the VM in place of media once reels are drawn by the Cloud Run Job (reels.render_job): it only starts that job
     "dispatch": ("render_dispatch",),
@@ -47,6 +48,7 @@ def loops() -> LoopTable:
     from app.modules.engage.runner import loop as engage_loop
     from app.modules.insights.collector import loop as insights_loop
     from app.modules.knowledge.gaps import loop as gaps_loop
+    from app.modules.knowledge.index import loop as knowledge_index_loop
     from app.modules.newsroom.runner import loop as newsroom_loop
     from app.modules.propertyfacts.jobs import loop as marketing_loop
     from app.modules.whatsapp.jobs import loop as inbound_loop
@@ -61,7 +63,7 @@ def loops() -> LoopTable:
             "marketing_runs": marketing_loop, "project_enrich": enrich_loop, "insights": insights_loop,
             "answer_gaps": gaps_loop, "inbound_messages": inbound_loop, "token_cleanup": token_cleanup_loop,
             "radar": radar_loop, "seo": seo_loop,
-            "communities": communities_loop, "render_dispatch": dispatch_loop}
+            "communities": communities_loop, "knowledge_index": knowledge_index_loop, "render_dispatch": dispatch_loop}
 
 
 def requested_loop_names(role: Optional[str] = None, value: Optional[str] = None) -> Tuple[str, ...]:
@@ -129,6 +131,8 @@ def expected_intervals() -> Dict[str, Optional[float]]:
     from app.modules.insights.collector import INTERVAL_S as INSIGHTS_INTERVAL_S
     from app.modules.insights.collector import enabled as insights_on
     from app.modules.knowledge.gaps import INTERVAL_S as GAPS_INTERVAL_S
+    from app.modules.knowledge.index import INTERVAL_S as KNOWLEDGE_INDEX_INTERVAL_S
+    from app.modules.knowledge.vectors import enabled as knowledge_index_on
     from app.modules.whatsapp.jobs import HEARTBEAT_INTERVAL_S as INBOUND_INTERVAL_S
     from app.services.token_cleanup_service import INTERVAL_S as TOKEN_CLEANUP_INTERVAL_S
     from app.platform.meta_graph.config import load as social_cfg
@@ -157,6 +161,7 @@ def expected_intervals() -> Dict[str, Optional[float]]:
         "radar": float(radar_cfg().interval_s) if radar_cfg().enabled else None,  # RADAR_ENABLED
         "seo": float(SEO_INTERVAL_S) if seo_on() else None,  # INDEXNOW_KEY or GSC_SA_KEY_B64
         "communities": float(COMMUNITIES_POLL_S) if communities_on() else None,  # COMMUNITY_ARTICLES_ENABLED
+        "knowledge_index": float(KNOWLEDGE_INDEX_INTERVAL_S) if knowledge_index_on() else None,  # QDRANT_URL + EMBEDDER_URL
         "render_dispatch": float(DISPATCH_EVERY_S),  # always on where the dispatch role runs
     }
 

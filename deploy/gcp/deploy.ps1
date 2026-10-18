@@ -95,7 +95,7 @@ if ($Build) {
   Step "Unpacking deploy/, pulling the images of $sha and restarting (secrets in deploy/gcp/.env are kept)"
   $setTag = SetEnv "IMAGE_TAG" $sha
   $login = "sudo gcloud auth configure-docker asia-south1-docker.pkg.dev --quiet >/dev/null 2>&1; "
-  $remote = "set -e; mkdir -p $RemoteDir; tar xzf ~/pune-property.tgz -C $RemoteDir; cd $RemoteDir/deploy/gcp; test -f .env || { echo 'ERROR: deploy/gcp/.env missing on the VM'; exit 1; }; ${setEmail}${setTag}${login}sudo docker compose pull backend conversations newsroom media frontend; sudo docker compose up -d --no-build --remove-orphans || { echo first up failed, retrying; sleep 10; sudo docker compose up -d --no-build; }; sleep 8; sudo docker compose up -d --no-build; sudo docker compose ps; sudo docker image prune -a -f --filter until=72h >/dev/null; rm -f ~/pune-property.tgz"
+  $remote = "set -e; mkdir -p $RemoteDir; tar xzf ~/pune-property.tgz -C $RemoteDir; cd $RemoteDir/deploy/gcp; test -f .env || { echo 'ERROR: deploy/gcp/.env missing on the VM'; exit 1; }; ${setEmail}${setTag}${login}sudo docker compose pull backend conversations newsroom media embedder qdrant frontend; sudo docker compose up -d --no-build --remove-orphans || { echo first up failed, retrying; sleep 10; sudo docker compose up -d --no-build; }; sleep 8; sudo docker compose up -d --no-build; sudo docker compose ps; sudo docker image prune -a -f --filter until=72h >/dev/null; rm -f ~/pune-property.tgz"
 }
 Run "gcloud compute ssh $target $common --command `"$remote`""
 

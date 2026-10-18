@@ -85,6 +85,12 @@ Each domain is a package under `backend/app/modules/`. A domain is made of one o
 | **content** | Sources → drafts → review → ready to publish; the render kit (brand, layouts, cards, reels) | newsroom, calendar, showcase, marketing packs, creative, reels, photoquality | `newsroom_*`, `content_calendar`, `calendar_status`, `marketing_packs`, `reel_jobs` |
 | **conversations** | Comment replies, website chat, WhatsApp inbound, grounded answers, notifications | engage, chat, whatsapp, knowledge, notifications | `engage_*`, `chat_sessions`, `whatsapp_*`, `notifications` |
 
+**Knowledge search** (LIVE 2026-10-18): `knowledge/index.py` (newsroom role, every 15 min) cuts what we publish into short passages
+(site answers, area facts, topic pages, published posts, served MahaRERA project pages) and stores them in **Qdrant** (compose
+service `qdrant`) with two vectors each: meaning (`embedder` service, multilingual MiniLM, ONNX) and BM25 words (`knowledge/sparse.py`).
+`knowledge/vectors.search` fuses both (RRF); the website/WhatsApp chat (`chat/agent.py`) gives the top passages to the reply model,
+and the reply checks still refuse any number not in them. Unset `QDRANT_URL`/`EMBEDDER_URL` = off; any failure = answer without it.
+
 **Apps** (top layer, may use any domain): operator console (concierge, admin), public site API, HTTP routers.
 The operator console owns `concierge_agents` and `concierge_audit`; the platform owns `admin_settings` (controls) and
 `worker_leases`.

@@ -35,11 +35,36 @@ services:
       # the worker roles (conversations, newsroom, media) run the background loops. Roll back: RUN_BACKGROUND_LOOPS=true in .env, then
       # `docker compose up -d backend` (the API runs them again; leases keep it safe while the roles also run)
       RUN_BACKGROUND_LOOPS: ${RUN_BACKGROUND_LOOPS:-false}
+      # knowledge search (app/modules/knowledge/vectors.py): the chat finds passages from everything we publish; set both empty = off
+      QDRANT_URL: ${QDRANT_URL-http://qdrant:6333}
+      EMBEDDER_URL: ${EMBEDDER_URL-http://embedder:8090}
     volumes:
       - uploads:/app/uploads
     depends_on:
       mongo:
         condition: service_healthy
+
+  # The knowledge index (knowledge/index.py fills it from the newsroom role): passages with meaning + BM25 vectors.
+  qdrant:
+    image: qdrant/qdrant:v1.13.6
+    restart: unless-stopped
+    volumes:
+      - qdrant_data:/qdrant/storage
+    mem_limit: ${QDRANT_MEMORY_LIMIT:-384m}
+
+  # The meaning model, loaded once for the API and every role (knowledge/embedder.py); downloaded into the uploads volume.
+  embedder:
+    image: ${IMAGE_REGISTRY:-asia-south1-docker.pkg.dev/trader-502012/avasetu}/backend:${IMAGE_TAG:-latest}
+    command: ["uvicorn", "app.modules.knowledge.embedder:app", "--host", "0.0.0.0", "--port", "8090", "--workers", "1"]
+    restart: unless-stopped
+    environment:
+      UPLOAD_DIRECTORY: /app/uploads
+    volumes:
+      - uploads:/app/uploads
+    healthcheck:
+      disable: true
+    mem_limit: ${EMBEDDER_MEMORY_LIMIT:-768m}
+    cpus: ${EMBEDDER_CPU_LIMIT:-1.0}
 
   # Each role uses the same image and settings. Runner leases keep one copy of every loop running during deploys or rollback.
   conversations:
@@ -144,6 +169,7 @@ services:
 
 volumes:
   mongo_data:
+  qdrant_data:
   uploads:
   caddy_data:
   caddy_config:

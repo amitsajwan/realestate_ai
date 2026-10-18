@@ -85,7 +85,7 @@ elif [ "$PCT" -ge "$DISK_FAIL_PCT" ]; then bad disk "root disk is ${PCT}% full (
 else ok disk "${PCT}% used"; fi
 
 PS="$($DC ps --format '{{.Service}} {{.State}} {{.Health}}' 2>/dev/null)"
-for svc in mongo backend conversations newsroom media frontend caddy; do
+for svc in mongo backend conversations newsroom media embedder qdrant frontend caddy; do
   line="$(printf '%s\n' "$PS" | awk -v s="$svc" '$1==s{print; exit}')"
   if [ -z "$line" ]; then bad "container $svc" "not found"
   elif [ "$(echo "$line" | awk '{print $2}')" != "running" ]; then bad "container $svc" "state is $(echo "$line" | awk '{print $2}')"
