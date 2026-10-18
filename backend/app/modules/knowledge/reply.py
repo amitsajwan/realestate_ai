@@ -332,6 +332,7 @@ PREDICT = re.compile(r"\b(will (rise|go up|increase|double|appreciate)|expected 
 BRUSH_OFF = re.compile(r"\b(will|shall) (forward|reply|get back)|forward(ed)? (this|your)|our team will reply", I)
 CAPITAL = re.compile(r"(?<![.!?]\s)(?<!^)\b[A-Z][a-zA-Z]{2,}\b")
 ALLOWED_NAMES = {"pune", "property", "team", "rera", "maharera", "bhk", "i", "tap"}
+MONTHS = ("january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december")
 
 
 def _nums(text: str) -> Set[str]:
@@ -358,6 +359,7 @@ def valid_text(text: str, source: str, channel: str, limit: int, strict: bool = 
         return False
     words = [w.lower() for w in re.findall(r"[A-Za-z][A-Za-z']+", source)]
     vocab = set(words) | ALLOWED_NAMES
+    vocab |= {m[:3] for m in MONTHS if m in vocab} | ({"sept"} if "september" in vocab else set())   # '18 Oct' from 'October'
     for m in CAPITAL.finditer(t):
         if m.group(0).lower() not in vocab:
             return False

@@ -232,6 +232,10 @@ def _knowledge(d: dict, grounding, found: Optional[List[vectors.Passage]] = None
     if grounding is not None:
         out.append("The page the visitor is looking at:")
         out.append(_facts_block(grounding))
+    if found:
+        out.append("Found in our published pages (answer from these when they answer the question; a project here is not a home for"
+                   " sale unless it is in HOMES):")
+        out += [f"- [{p.title}] {p.text}" for p in found]
     out.append("Areas we cover: " + ", ".join(AREA_NAMES))
     return "\n".join(out)
 
