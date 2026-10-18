@@ -22,6 +22,7 @@ from datetime import datetime, timedelta
 from typing import Callable, Optional
 
 from . import adapters, lang as L
+from .brain import ChatBrain
 from .config import WhatsAppConfig
 from .graph import WhatsAppGraphError
 
@@ -51,7 +52,18 @@ def mask(phone: str) -> str:
     return f"+{digits[:2]} {digits[2:4]}******{digits[-2:]}" if len(digits) >= 8 else "******"
 
 
-class WhatsAppService:
+# an agent who is not signed up yet starts the free trial right here, by sending TRIAL
+TRIAL_HERE = {
+    "en": "Free trial for agents, 1 month free: reply TRIAL here and we send your sign-up code. Details: {url}",
+    "hi": "एजेंट्स के लिए फ्री ट्रायल, 1 महीना फ्री: यहीं TRIAL लिखकर भेजें, हम आपका साइन-अप कोड भेज देंगे। जानकारी: {url}",
+    "hinglish": "Agents ke liye free trial, 1 mahina free: yahin TRIAL likh kar bhejein, hum aapka sign-up code bhej denge. Details: {url}",
+    "mr": "एजंटसाठी फ्री ट्रायल, 1 महिना फ्री: इथेच TRIAL लिहून पाठवा, आम्ही तुमचा साइन-अप कोड पाठवू. माहिती: {url}",
+    "mr_latn": "Agents sathi free trial, 1 mahina free: ithech TRIAL lihun pathva, aamhi tumcha sign-up code pathvu. Mahiti: {url}",
+}
+
+
+class WhatsAppService(ChatBrain):
+    trial_line = TRIAL_HERE
     def __init__(self, db, cfg: WhatsAppConfig, graph=None, llm=None, now: Callable[[], datetime] = datetime.utcnow):
         self.db, self.cfg, self.graph, self.llm, self.now = db, cfg, graph, llm, now
         self.messages = db.get_collection("whatsapp_messages")
@@ -100,15 +112,18 @@ class WhatsAppService:
         return ""
 
     # ---- routing ----------------------------------------------------------------------------------------------------
-    async def _route(self, conv: dict, pid: str, text: str, now: datetime) -> None:
+    async def _route(self, conv: dict, pid: str, text: str, now: datetime, referral: Optional[dict] = None) -> None:
         mapped = self.cfg.number_agents.get(pid)
         if mapped:
             conv["agent_id"], conv["routed_by"] = mapped, "number"
+        if referral:  # they tapped "Send message" on one of our ads or posts: that post is what they ask about
+            origin = await adapters.dm_origin(self.db, "whatsapp", conv["wa_id"], {"media_ids": [referral.get("source_id")],
+                                                                                   "urls": [referral.get("source_url")]})
+            if origin:
+                conv["context"] = origin
         link = await adapters.find_interest_link(self.db, text) if text else None
         if link:
-            conv["context"] = {"kind": link.get("kind"), "ref": link.get("ref"), "sample": bool(link.get("sample")), "code": link.get("code"),
-                               "title": (link.get("title") or "")[:140],
-                               "listing_id": link.get("ref") if link.get("kind") == "listing" and not link.get("sample") else None}
+            conv["context"] = adapters.link_context(link, "wrote the code of")
             if not mapped and conv.get("routed_by") in (None, "owner"):
                 conv["agent_id"], conv["routed_by"] = adapters.interest_target_agent(link, self.cfg.owner_agent_id), "interest_code"
             await adapters.record_interest_event(self.db, link["code"], f"whatsapp:{conv['wa_id']}", now)
@@ -147,7 +162,7 @@ class WhatsAppService:
                     "notice_sent_at": None, "lead_id": None, "context": None, "language": None, "needs_human_notified": False, "replies": []}
         last_in = conv.get("last_inbound_at")
         conv["last_inbound_at"] = max(sent_at, last_in) if last_in else sent_at
-        await self._route(conv, pid, text, now)
+        await self._route(conv, pid, text, now, msg.get("referral"))
         if mtype == "reaction":  # a thumbs-up on our message: nothing to say
             return await self._finish(conv, mid, None, "ignored", now, text, mtype)
 
@@ -199,9 +214,15 @@ class WhatsAppService:
 
         if not agent_id:
             log.warning("whatsapp: no agent for this chat (set WHATSAPP_OWNER_AGENT_ID); replying without saving a lead")
+        elif conv.get("role") == "agent":
+            if not conv.get("agent_notified") and self.cfg.owner_agent_id:
+                conv["agent_notified"] = True
+                await adapters.notify(self.db, self.cfg.owner_agent_id, "agent_whatsapp",
+                                      f"{conv.get('name') or 'An agent'} (agent, not signed up) wrote on WhatsApp: \"{(text or '')[:120]}\"",
+                                      {"conversation_id": cid, "screen": "/studio/inbox"}, now)
         else:
             await self._lead(conv, agent_id, wa_id, pid, text or f"[{mtype}]", now)
-        if not conv.get("notice_sent_at") and agent_id:
+        if reply and not conv.get("notice_sent_at") and agent_id and conv.get("role") != "agent":   # the buyer notice is not for agents
             reply = f"{reply}\n\n{L.pick(L.NOTICE, lang, agent=await adapters.agent_name(self.db, agent_id) or L.pick(L.TEAM, lang))}"
             conv["notice_sent_at"] = now
         return await self._finish(conv, mid, reply, "answered", now, text, mtype)
@@ -221,25 +242,6 @@ class WhatsAppService:
         if not last or now - last >= AGENT_ACK_EVERY:
             reply, conv["agent_ack_at"] = adapters.agent_ack(agent, "+" + conv["wa_id"], lang), now
         return await self._finish(conv, mid, reply, "agent", now, text, mtype)
-
-    async def _answer(self, conv: dict, text: str, lang: str) -> str:
-        data = conv["data"]
-        grounding = await adapters.grounding_for(self.db, conv.get("context"), data.get("locality"))
-        t = await adapters.chat_turn(data, text, self.llm, grounding, finder=await adapters.homes_finder(self.db, conv.get("agent_id")),
-                                    history=conv.get("messages") or [])
-        # the homes sit between what we found and what we ask next, as on the website; the links are never translated
-        parts = [await self._say(t.reply, lang), adapters.card_lines(t.cards), await self._say(t.follow_up, lang) if t.follow_up else ""]
-        reply = "\n".join(p for p in parts if p)
-        opts = L.options_line(t.quick, lang)
-        return f"{reply}\n{opts}" if opts else reply
-
-    async def _say(self, body: str, lang: str) -> str:
-        reply, english_left = L.localise_fixed(body, lang)
-        if english_left and self.llm is not None:
-            translated = await adapters.translate(body, lang, self.llm)
-            if translated != body:
-                reply = translated
-        return reply
 
     async def _lead(self, conv: dict, agent_id: str, wa_id: str, pid: str, text: str, now: datetime) -> None:
         try:

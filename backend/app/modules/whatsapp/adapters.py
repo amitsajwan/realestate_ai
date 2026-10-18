@@ -662,10 +662,13 @@ async def facts_reply(text: str, grounding, lang: str, llm, history: str = "") -
         log.info("facts reply failed: %s", type(e).__name__)
         return None
     reply = " ".join(str((raw or {}).get("reply") or "").split()) if isinstance(raw, dict) else ""
-    source = f"{facts} {grounding.subject} {brand_name()}"
+    # the person's own words count as a source in a 1:1 chat ('income 7 lakh' may be said back), as on the website chat
+    source = f"{facts} {grounding.subject} {brand_name()} {text}"
     if lang in ("hinglish", "mr_latn"):
         source += " " + " ".join(re.findall(r"[A-Za-z][A-Za-z']+", reply))
-    if not reply or not valid_text(reply, source, "chat", 700):
+    if len(reply) < 12 or reply.strip(" .\"'").lower() in ("reply", "answer", "none", "null", "n/a"):
+        return None   # the model sometimes returns the field name or a placeholder instead of an answer
+    if not valid_text(reply, source, "chat", 700):
         return None
     return reply
 

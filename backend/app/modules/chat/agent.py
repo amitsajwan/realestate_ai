@@ -66,7 +66,7 @@ intent:
 
 Fill a field ONLY with what the visitor says in THIS message (null for everything else; never copy from the conversation).
 Money: 80 lakh = 8000000, 1.2 crore = 12000000, 25k = 25000. "under 80 lakh" -> max only; "80 lakh to 1 crore" -> both; "around 1 crore" -> min 9000000, max 11000000.
-timeline: "now/asap/this month" -> now; within 3 months -> 1_3_months; 4-6 months -> 3_6_months; later than 6 months, a year or more, "just looking" -> exploring.
+timeline: "now/asap/this month", "ready possession", "ready to move", "ready flat" -> now (and intent answer); within 3 months -> 1_3_months; 4-6 months -> 3_6_months; later than 6 months, a year or more, "just looking" -> exploring.
 Never guess a name: "no name", "why", "sir" are not names."""
 
 REPLY = f"""You are the {brand.NAME} assistant in the chat on a Pune real estate agent's website. You talk like a good local property advisor:

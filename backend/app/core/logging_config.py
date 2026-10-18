@@ -208,6 +208,17 @@ def get_logging_config(environment: str = "development") -> Dict[str, Any]:
                 "level": "WARNING",
                 "handlers": ["console", "file_app"],
                 "propagate": False
+            },
+            # httpx logs every request URL at INFO, and Graph API URLs carry ?access_token=...: never at INFO (2026-10-18)
+            "httpx": {
+                "level": "WARNING",
+                "handlers": ["console", "file_app"],
+                "propagate": False
+            },
+            "httpcore": {
+                "level": "WARNING",
+                "handlers": ["console", "file_app"],
+                "propagate": False
             }
         }
     }
