@@ -528,12 +528,21 @@ async def dm_origin(db, platform: str, sender: str, refs: Optional[dict]) -> Opt
 # words that say nothing about a topic, in the languages people write to us in
 _STOP = set("""what when where which this that have with from your about there their will would could should please tell know want need
  does into they them then than also just only very more some much many like here kasa kashi kase kuthe kiti kadhi aahe ahet aahet madhe
- sathi karaycha karayche kitna kitni kahan kaise hain hoga milega chahiye mujhe aapka hamara kripya batao bataiye home homes pune""".split())
-_WORDS = re.compile(r"[a-z][a-z0-9]{3,}|[ऀ-ॿ]{3,}", re.I)
+ sathi karaycha karayche kitna kitni kahan kaise hain hoga milega chahiye mujhe aapka hamara kripya batao bataiye home homes pune
+ the and for you are can how why who not but all any our has had was its yes kya hai hum aap yeh woh kar karu kaa kee mein par aur
+ ahe aah kay ani aani tar mala tula ghar new kasa kase kashi karyach karycha karaych""".split()) | {"आहे", "का", "कसा", "कशी", "करायचा", "मध्ये", "आणि", "है", "क्या", "में", "और", "की", "के", "का"}
+_WORDS = re.compile(r"[a-z][a-z0-9]{2,}|[ऀ-ॿ]{2,}", re.I)
+
+
+# the same idea in the words people type: 'arj kasa karaycha' asks how to apply
+_SAME = {"arj": "apply", "arji": "apply", "arja": "apply", "arz": "apply", "aavedan": "apply", "avedan": "apply", "अर्ज": "apply",
+         "आवेदन": "apply", "application": "apply", "kagadpatre": "documents", "kagadpatra": "documents", "कागदपत्रे": "documents",
+         "दस्तावेज": "documents", "tarikh": "date", "tarikha": "date", "तारीख": "date", "उत्पन्न": "income", "utpanna": "income",
+         "aay": "income", "आय": "income", "sodat": "lottery", "सोडत": "lottery", "लॉटरी": "lottery", "म्हाडा": "mhada"}
 
 
 def _topic_words(text: str) -> set:
-    return {w.lower() for w in _WORDS.findall(text or "")} - _STOP
+    return {_SAME.get(w.lower(), w.lower()) for w in _WORDS.findall(text or "")} - _STOP
 
 
 async def guide_for(db, text: str, earlier: str = "", exclude=()) -> Optional[dict]:
