@@ -153,6 +153,14 @@ def decide(listing: dict, seen: Dict[str, Any], registered: bool, units_total: O
     scope = listing.get("listing_scope")
     sizes = seen.get("sizes") or []
     single = one_unit(listing)
+    table = [c for c in listing.get("configurations") or [] if isinstance(c, dict)]
+    if len(table) > 1:   # the agent's price table (several home types) answers both: a project, its sizes as the table says
+        if scope != "layout":
+            scope = auto["listing_scope"] = "layout"
+        carpets = [c["carpet_sqft"] for c in table if c.get("carpet_sqft")]
+        if carpets and not listing.get("size_min_sqft"):
+            auto.update(size_min_sqft=min(carpets), size_max_sqft=max(carpets))
+        single, sizes = False, []
     if scope == "layout" and single:   # a brochure made the form say "whole project" for one 3 BHK (Camelot, 2026-10-14)
         bhk = f"{listing['bhk']:g} BHK " if listing.get("bhk") else ""
         ask.append(_q("scope_check", f"This listing gives one {bhk}{word} of {listing['carpet_sqft']:,.0f} sq ft at one price, "
