@@ -2,7 +2,7 @@
   "slug": "upper-kharadi",
   "row_prefixes": ["upper-kharadi-"],
   "lang": "en",
-  "checked_on": "2026-10-18",
+  "checked_on": "2026-10-19",
   "status": null,
   "title": {
     "en": "Upper Kharadi, Pune (2026): projects, booking numbers, prices, metro and what to check before you buy"
@@ -11,7 +11,7 @@
     "en": "Upper Kharadi is the newer stretch between Kharadi's IT parks and Wagholi, where Lodha, Gera, Mahindra and Godrej are building. Here is every big project from the MahaRERA register with how many homes are already booked, what portals say about prices, where the metro really stands, and the questions a buyer should ask."
   },
   "status_line": {
-    "en": "MahaRERA register, read 18 Oct 2026: the 8 big projects sold as Upper Kharadi or Kharadi Annex have 3,876 homes registered and 3,305 (85%) already booked. The towers finishing first, in 2027 and 2028, are 92-100% booked. The metro station named \"Upper Kharadi Road\" is approved but not yet under construction, and no opening date has been announced."
+    "en": "MahaRERA register, read 18-19 Oct 2026: the 9 big projects sold as Upper Kharadi or Kharadi Annex have 6,668 homes registered and 3,794 (57%) booked. The towers finishing first, in 2027 and 2028, are 92-100% booked; Godrej Ivara, registered in February 2026 with 2,792 homes finishing in 2032, is 18% booked. The metro station named \"Upper Kharadi Road\" is approved but not yet under construction, and no opening date has been announced."
   },
   "dates": [
     {
@@ -62,7 +62,7 @@
     {
       "id": "projects",
       "heading": {"en": "The big projects and how much is already booked"},
-      "text": {"en": "Every row is from the MahaRERA register as we read it on 18 October 2026. \"Booked\" is what the builder last filed with MahaRERA, so the real number may be a little higher. Brand names are what the builder or portals call the project; the register often uses a working name."},
+      "text": {"en": "Every row is from the MahaRERA register as we read it on 18 October 2026 (Godrej Ivara on 19 October). \"Booked\" is what the builder last filed with MahaRERA, so the real number may be a little higher. Brand names are what the builder or portals call the project; the register often uses a working name."},
       "table": {
         "columns": ["Project (builder)", "MahaRERA name", "Homes", "Booked", "Completion filed"],
         "rows": [
@@ -75,14 +75,14 @@
           {"cells": ["Gera's World of Joy, tower M (Gera)", "Gera's World of Joy M", "320", "320 (100%)", "Dec 2027"], "href": "/projects/geras-world-of-joy-m-wagholi"},
           {"cells": ["My Home Upper Kharadi (Godiva Promoters)", "My Home Upper Kharadi", "143", "102 (71%)", "Apr 2029"], "href": "/projects/my-home-upper-kharadi"},
           {"cells": ["Mahindra IvyLush, Kharadi Annex (Mahindra)", "Codename Crown towers A, B, E and IvyLush C, D", "1,075", "827 (77%)", "Jul to Dec 2030"], "href": "/projects/mahindra-ivylush-tower-c-and-tower-d-wagholi"},
-          {"cells": ["Godrej, 16 acres in Upper Kharadi", "Not on MahaRERA yet (none found 18 Oct 2026)", "-", "-", "-"]}
+          {"cells": ["Godrej Ivara (Godrej; promoter on MahaRERA: Manjari Housing Projects LLP)", "Godrej Ivara, towers A-K", "2,792", "489 (18%)", "Dec 2032 (Aug 2032 at registration)"], "href": "/projects/godrej-ivara-pune"}
         ],
-        "note": {"en": "Total: 3,876 homes registered, 3,305 booked (85%). Builders' own names for towers change; search the MahaRERA number, not the brochure name."}
+        "note": {"en": "Total: 6,668 homes registered, 3,794 booked (57%). Without Godrej Ivara: 3,876 homes, 3,305 booked (85%). Builders' own names for towers change; search the MahaRERA number, not the brochure name."}
       },
       "items": {
         "en": [
           "The flats finishing first (Lodha Giardino, Gera Island of Joy, Gera World of Joy M) are 95-100% booked. If you want a home ready by 2027-28, expect to buy resale or one of the last few units, not to pick from a full price list.",
-          "What is still open is mostly in towers due in 2029-2031: Lodha Camelot, Lodha's P1 phase, Mahindra IvyLush and, once it registers, Godrej. Buying there means a 3-5 year wait.",
+          "What is still open is mostly in towers due in 2029-2031: Lodha Camelot, Lodha's P1 phase, Mahindra IvyLush and Godrej Ivara, which alone has about 2,300 homes not yet booked. Buying there means a 3-6 year wait.",
           "Godrej's announcement was revenue potential (what it expects to sell, about ₹3,100 crore here and ₹4,200 crore on its 14-acre Kharadi-Wagholi land), not money already invested. The Upper Kharadi land is planned as premium flats plus high-street retail, about 2.5 million sq ft."
         ]
       }
@@ -190,8 +190,8 @@
       "a": {"en": "Few from builders. The towers finishing in 2027-28 were 92-100% booked on MahaRERA in October 2026. Most new stock is in towers due in 2029-2031, so a ready flat usually means resale."}
     },
     {
-      "q": {"en": "Has Godrej launched its Upper Kharadi project?"},
-      "a": {"en": "Godrej announced the 16-acre land in June 2025. We found no MahaRERA registration for it in Kharadi or Wagholi when we read the register on 18 October 2026. Until a project has a MahaRERA number, it cannot legally take bookings."}
+      "q": {"en": "Has Godrej launched in Upper Kharadi?"},
+      "a": {"en": "Yes. Godrej Ivara is registered with MahaRERA as PR1260002502426 (registered 20 February 2026; the promoter on MahaRERA is Manjari Housing Projects LLP). On 19 October 2026 it showed 11 towers (A to K, 37 to 43 floors), 2,792 homes, 489 booked, and completion filed for 16 December 2032, moved from 16 August 2032 at registration. Portals list it on Upper Kharadi Main Road; check the village and survey number on the agreement. Godrej announced a 16-acre Upper Kharadi parcel and a 14-acre Kharadi-Wagholi parcel in June 2025; we have not confirmed which one Ivara is."}
     },
     {
       "q": {"en": "Is Upper Kharadi the same as Kharadi Annex or New Kharadi?"},
@@ -212,6 +212,8 @@
   },
   "sources": [
     {"name": "MahaRERA project register, read by Avasetu", "read_on": "2026-10-18"},
+    {"name": "MahaRERA: Godrej Ivara, PR1260002502426", "url": "https://maharerait.maharashtra.gov.in/public/project/view/61337", "read_on": "2026-10-19"},
+    {"name": "Beyondwalls: Godrej Ivara listed in Wagholi", "url": "https://www.beyondwalls.com/property/pune/wagholi/godrej-ivara", "read_on": "2026-10-19"},
     {"name": "Pune Metro Rail: Line 2A and 2B", "url": "https://punemetrorail.org/Line_2a_b.aspx", "read_on": "2026-10-18"},
     {"name": "Business Standard: Pune Metro Phase 2 approved (25 June 2025)", "url": "https://www.business-standard.com/india-news/pune-metro-phase-2-approved-it-hubs-chandani-kharadi-wagholi-125062500727_1.html"},
     {"name": "The Bridge Chronicle: Ramwadi-Wagholi metro extension tenders", "url": "https://www.thebridgechronicle.com/pune/ramwadi-wagholi-metro-extension-tenders-eastern-pune-agn97"},
