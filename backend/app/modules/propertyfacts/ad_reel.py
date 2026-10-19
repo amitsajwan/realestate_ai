@@ -25,7 +25,7 @@ import logging
 import os
 import random
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
@@ -413,11 +413,18 @@ async def scores(db) -> Dict[str, float]:
 
 
 # ---- the video -----------------------------------------------------------------------------------------------------------
+def _plain(text: str) -> str:
+    """Hyphens and dashes the reel font draws: a non-breaking hyphen (U+2011) and its kin become '-'."""
+    return re.sub("[‐‑‒]", "-", text or "")
+
+
 def scenes(s: Script, pictures: Sequence, kicker: Optional[str] = None) -> list:
     """compose scenes for a script: hook, one beat per picture, payoff, cta, then the hook picture again (the loop)."""
     from app.modules.reels.compose import Scene, TextLine
     pics = list(pictures) or [None]
     at = lambda i: pics[i % len(pics)]   # noqa: E731
+    # a model's non-breaking hyphen ("lagoon‑style") is missing from the reel font and drew as "lagoonstyle"
+    s = replace(s, hook=_plain(s.hook), beats=[_plain(b) for b in s.beats], payoff=_plain(s.payoff))
     out = [Scene(image=at(0), lines=[TextLine(s.hook, size=108, max_lines=4)], kicker=kicker, seconds=HOOK_S, seed="ad-hook")]
     for i, b in enumerate(s.beats):
         out.append(Scene(image=at(i + 1), lines=[TextLine(b, size=86, max_lines=3)], seconds=BEAT_S, seed=f"ad-beat-{i}"))

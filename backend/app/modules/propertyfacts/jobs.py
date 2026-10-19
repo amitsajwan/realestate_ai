@@ -649,6 +649,8 @@ class MarketingRuns:
         todo = [p for p in todo if p["angle"] in written or (not written and p.get("format"))]
         formats = ["story" if p["angle"] in written else p["format"] for p in todo]
         pics = [p for p in pool if Path(p).is_file()]
+        # the posts' picture gate: no clipart, map, QR code or screenshot opens a reel (Ivara's first reel opened on clipart)
+        pics = [p for p in pics if listing_posts.photo_like(p)] or pics
         kicker = (project or "").upper()[:28] or None
         reels: List[dict] = []
         for i, (p, fmt) in enumerate(zip(todo, formats)):
