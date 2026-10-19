@@ -51,7 +51,7 @@ BUY_WORDS = re.compile(r"\b(buy|buying|purchase|kharid\w*|ghar lena|invest\w*|vi
 ABOUT = re.compile(r"^\W*(tell me (more )?about (it|this|this home|the home)|details( please)?|about this home|iske baare mein( batao)?|"
                    r"yabaddal sanga|इसके बारे में बताइए|याबद्दल सांगा)\W*$", re.I)
 HOMES = re.compile(r"\b(similar|show (me )?(some |the |more )?(homes|options|flats|houses|listings|properties|matches)|any (homes|flats|houses|listings)|"
-                   r"(home|flat|house|more) options|what (homes|flats) do you have|ghar dikhao|aise aur ghar|asech ghar|ghare dakhva|flat dikhao)\b|"
+                   r"(home|flat|house|more) options|what (homes|flats) do you have|(which|what|any) projects|projects (are )?(available|there|in)|ghar dikhao|aise aur ghar|asech ghar|ghare dakhva|flat dikhao)\b|"
                    r"घर दिखाइए|ऐसे और घर|असेच घर|घरे दाखवा", re.I)
 SIMILAR = re.compile(r"\b(similar|aise aur|asech)\b|ऐसे और|असेच", re.I)
 WHATSAPP_RX = re.compile(r"^\W*continue on whatsapp\W*$", re.I)
@@ -489,6 +489,10 @@ async def _show_homes(d: dict, finder: Optional[Finder], force: bool) -> tuple:
         d["want_phone_now"] = True
         return say("no_other_match" if exclude else "no_match", lang), [], True
     d["shown_ids"] = list(dict.fromkeys((d.get("shown_ids") or []) + [c.get("id") for c in cards if c.get("id")]))[-12:]
+    if all(c.get("kind") == "project" and not c.get("priced") for c in cards):
+        d.pop("price_hint", None)
+        d["want_phone_now"] = True   # the price comes from the agent: the number is the next useful step
+        return say("cards_projects", lang, area=d.get("locality") or "this area"), cards, True
     samples = [c for c in cards if c.get("sample")]
     hint = d.pop("price_hint", None)
     price_line = _price_line(d, cards, lang) if hint else ""

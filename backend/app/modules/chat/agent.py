@@ -84,7 +84,8 @@ How to reply:
    We find and show homes; we do not give home loans, legal work, discounts, offers or anything KNOWLEDGE does not describe: never offer,
    promise or say we can arrange one (for a loan: the buyer's bank decides; the agent can tell them which banks the project works with).
 3. HOMES are shown as cards right under your message: point to them ("the home below", "these two"), do not list every detail again.
-   A home marked SAMPLE is an illustration, never for sale. Do not repeat a price or detail you already said in CONVERSATION unless asked.
+   A home marked SAMPLE is an illustration, never for sale. A card marked PROJECT is one of our project pages in their area: never say it
+   fits or matches their BHK or budget; say these are projects there and the agent can tell the sizes and current prices. Do not repeat a price or detail you already said in CONVERSATION unless asked.
 4. Put the next step in "question": exactly the one thing NEXT asks for, in your own natural words, or "" when NEXT is none. "reply"
    itself contains no question. Never ask anything else, never ask again for something in BUYER or something they skipped.
 5. Write in {{lang}}. 1 to 3 short sentences in "reply" (under 300 characters), "question" one short sentence. No links, phone numbers,
@@ -250,6 +251,12 @@ def _homes_text(cards: List[dict], searched: bool, d: dict) -> str:
         facts = [c.get("title") or "Home"]
         if c.get("carpet_sqft"):
             facts.append(f"{int(c['carpet_sqft']):,} sq ft carpet")
+        if c.get("kind") == "project":   # chat/projects.py: one of our project pages, not one of the agent's listings
+            facts.append(f"a project page on our site ({c.get('locality')})")
+            facts.append(f"from {c['price_text']} for this size (the agent's price sheet)" if c.get("price_text") else
+                         "PROJECT, sizes and prices NOT known to us, not checked against their BHK or budget: the agent tells them")
+            lines.append(f"{i}. " + ", ".join(facts))
+            continue
         facts.append("SAMPLE, an illustration, not for sale" if c.get("sample") else (f"price {c['price_text']}" if c.get("price_text") else "price on request"))
         lines.append(f"{i}. " + ", ".join(facts))
     return "\n".join(lines)
@@ -334,6 +341,8 @@ async def _turn(d: dict, text: str, llm, grounding, finder, whatsapp: bool, hist
             return None
     if question:  # the model sometimes asks in the reply too: the question is said once, at the end
         reply = " ".join(x for x in re.split(r"(?<=[.!?।])\s+", reply) if not x.rstrip().endswith("?")).strip() or reply
+    if not cards:   # 'the home below' with no card under the message (seen 2026-10-20): that sentence goes
+        reply = " ".join(x for x in re.split(r"(?<=[.!?।])\s+", reply) if not re.search(r"\bbelow\b", x, re.I)).strip()
     if not reply:
         return None
     if nxt == "none":

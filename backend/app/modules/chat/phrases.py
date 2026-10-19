@@ -125,6 +125,13 @@ P: Dict[str, Dict[str, str]] = {
         "mr": "सॅम्पल असलेली घरे फक्त उदाहरणे आहेत, विक्रीसाठी नाहीत.",
         "mr_latn": "Sample asleli ghare fakt udaharane aahet, vikrisathi nahit.",
     },
+    "cards_projects": {   # chat/projects.py: no listing fits, so our project pages in the area (the register has no prices)
+        "en": "No listed home fits this yet, but these projects in {area} are on our site. The agent can tell you their current prices.",
+        "hinglish": "Abhi koi listed ghar match nahi hua, par {area} ke yeh projects hamari site par hain. Agent aapko inke aaj ke daam bata sakte hain.",
+        "hi": "अभी कोई लिस्टेड घर मेल नहीं खाता, पर {area} के ये प्रोजेक्ट हमारी साइट पर हैं। एजेंट आपको इनकी आज की कीमत बता सकते हैं।",
+        "mr": "सध्या कोणतेही लिस्टेड घर जुळत नाही, पण {area} मधले हे प्रोजेक्ट आमच्या साइटवर आहेत. एजंट तुम्हाला त्यांच्या आजच्या किमती सांगू शकतात.",
+        "mr_latn": "Sadhya kontehi listed ghar julat nahi, pan {area} madhle he project aamchya site var aahet. Agent tumhala tyanchya aajchya kimati sangu shaktat.",
+    },
     "no_match": {
         "en": "I could not find a listed home that matches this right now, but our team can look for you.",
         "hinglish": "Abhi is requirement se milta koi listed ghar nahi mila, par hamari team aapke liye dhoondh sakti hai.",

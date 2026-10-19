@@ -18,6 +18,7 @@ from app.modules.tracking.schemas import InquiryIn
 from app.modules.tracking.service import TrackingError
 
 from . import agent as chat_agent, engine
+from .projects import project_cards
 
 log = logging.getLogger(__name__)
 SESSION_RX = re.compile(r"^[A-Za-z0-9_-]{12,64}$")
@@ -140,7 +141,8 @@ class ChatService:
             by_id = {d["_id"]: d for d in docs}
             tx = req.pop("transaction", "sale")
             top = matching.top_matches(req, docs, tx, limit=10)
-            return [card(by_id[m["listing_id"]], slug) for m in top if m["match_pct"] >= CARD_MIN_PCT and m["listing_id"] in by_id][:3]
+            cards = [card(by_id[m["listing_id"]], slug) for m in top if m["match_pct"] >= CARD_MIN_PCT and m["listing_id"] in by_id][:3]
+            return cards or await project_cards(self.db, {**req, "transaction": tx})   # no listing fits: our project pages there
         return find
 
     async def whatsapp_url(self, data: dict, page: Optional[dict]) -> Optional[str]:

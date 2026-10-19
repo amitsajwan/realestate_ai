@@ -53,6 +53,7 @@ async def homes_finder(db, agent_id: Optional[str]):
     if not agent_id or not _site_url():
         return None
     try:
+        from app.modules.chat.projects import project_cards
         from app.modules.chat.service import CARD_MIN_PCT, MAX_LISTINGS_SCANNED, PUBLIC, card
         from app.modules.listings.freshness import is_hidden
         from app.modules.tracking import matching
@@ -72,7 +73,8 @@ async def homes_finder(db, agent_id: Optional[str]):
             by_id = {d["_id"]: d for d in docs}
             tx = req.pop("transaction", "sale")
             top = matching.top_matches(req, docs, tx, limit=10)
-            return [card(by_id[m["listing_id"]], slug) for m in top if m["match_pct"] >= CARD_MIN_PCT and m["listing_id"] in by_id][:3]
+            cards = [card(by_id[m["listing_id"]], slug) for m in top if m["match_pct"] >= CARD_MIN_PCT and m["listing_id"] in by_id][:3]
+            return cards or await project_cards(db, {**req, "transaction": tx})   # no listing fits: our project pages there
         except Exception as e:
             log.info("homes finder failed: %s", type(e).__name__)
             return []

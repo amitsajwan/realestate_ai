@@ -35,7 +35,7 @@ MAX_KEPT = 20
 MAX_TEXT = 500
 MAX_REPLIES_PER_HOUR = 30
 AGENT_ACK_EVERY = timedelta(hours=12)
-AUTO_QUIET = timedelta(hours=24)      # how long the bot stays quiet in a chat with an auto-reply bot
+AUTO_QUIET = timedelta(hours=24)      # kept on old chats as auto_until; since 2026-10-20 a flagged chat stays quiet for good (auto_sender)
 AUTO_SAME = 3                         # the same text (AUTO_MIN_CHARS or longer) this many times within AUTO_SPAN ...
 AUTO_MIN_CHARS = 12                   # "ok" three times is a person
 AUTO_BURST = 8                        # ... or this many messages within BURST_SPAN: a bot, not a person
@@ -209,15 +209,17 @@ class WhatsAppService(ChatBrain):
                 await adapters.notify(self.db, to, "whatsapp_reply", f"{conv.get('name') or 'Someone'} replied on WhatsApp: \"{(text or f'[{mtype}]')[:120]}\"",
                                       {"conversation_id": cid, "screen": "/studio/inbox"}, now)
             return await self._finish(conv, mid, None, "held", now, text, mtype)
-        if conv.get("auto_until") and conv["auto_until"] > now:
+        # another business's bot never turns into a person: once flagged the chat stays quiet (2026-10-20: after each 24-hour pause
+        # +91 80100 00535's bot started the loop again); a person can still answer it from the Studio inbox
+        if conv.get("auto_sender") or conv.get("auto_until"):
             return await self._finish(conv, mid, None, "auto_sender", now, text, mtype)
         if self._auto_sender(conv, text, now):
-            conv["auto_until"] = now + AUTO_QUIET
+            conv["auto_sender"], conv["auto_until"] = True, now + AUTO_QUIET
             if self.cfg.owner_agent_id:
                 await adapters.notify(self.db, self.cfg.owner_agent_id, "whatsapp_auto_sender",
-                                      f"{conv.get('name') or mask(wa_id)} looks like an auto-reply bot (\"{(text or '')[:80]}\"): the bot stopped replying for a day",
+                                      f"{conv.get('name') or mask(wa_id)} looks like an auto-reply bot (\"{(text or '')[:80]}\"): the bot stopped replying in this chat",
                                       {"conversation_id": cid, "screen": "/studio/inbox"}, now)
-            log.warning("whatsapp: %s looks like an auto-reply bot; quiet for a day", mask(wa_id))
+            log.warning("whatsapp: %s looks like an auto-reply bot; quiet from now on", mask(wa_id))
             return await self._finish(conv, mid, None, "auto_sender", now, text, mtype)
         agent = await adapters.agent_for_phone(self.db, "+" + wa_id, exclude=self.cfg.owner_agent_id)
         if agent:
