@@ -56,10 +56,13 @@ _UC = re.compile(r"under[\s-]*construction|(?<![a-z])u/c(?![a-z])|(?<![a-z])uc(?
 
 
 def parse_possession(t: str) -> Optional[tuple[str, float]]:
-    for m in _DATE.finditer(t):
-        ctx = t[max(0, m.start() - 25):m.end() + 25]
-        if _POSS_WORD.search(ctx):
-            return f"{m.group('y')}-{_MONTHS[m.group('m')]:02d}", 0.95
+    # a date right after the word first ("possession: aug 2032"), so "booked as of 19 oct 2026. possession: aug 2032" is not
+    # read as October 2026 (Godrej Ivara, 2026-10-19); then a date with the word anywhere near it
+    dates = list(_DATE.finditer(t))
+    for near in (lambda m: t[max(0, m.start() - 25):m.start()], lambda m: t[max(0, m.start() - 25):m.end() + 25]):
+        for m in dates:
+            if _POSS_WORD.search(near(m)):
+                return f"{m.group('y')}-{_MONTHS[m.group('m')]:02d}", 0.95
     m = _YEAR_POSS.search(t)
     if m:
         return m.group("y"), 0.9
@@ -126,6 +129,28 @@ def _clean_words(s: str) -> str:
     return " ".join(words)
 
 
+# builders whose projects are named "<brand> <name>" ("Godrej Ivara", "Lodha Camelot", "Kolte Patil Life Republic")
+_BRAND = re.compile(r"(?<![A-Za-z])((?:Godrej|Lodha|Kolte[\s-]?Patil|Gera'?s?|Mahindra|VTP|Pride|Rohan|Panchshil|Kumar|Goel Ganga|"
+                    r"Vilas Javdekar|Majestique|Kohinoor|Shapoorji(?: Pallonji)?|Tata|Puranik|Paranjape|Nyati|Marvel|Sobha|"
+                    r"Prestige|Birla|Adani|Raheja|Kalpataru|Runwal|Shriram|Ganga|Kasturi|Pristine|Mantra|Venkatesh|Vilas)"
+                    r"(?:\s+(?:of\s+)?[A-Z][A-Za-z0-9']*){1,4})")
+_NOT_NAME = {"properties", "developers", "developer", "group", "realty", "builders", "constructions", "infra", "pune", "bhk",
+             "limited", "ltd", "llp", "homes"}
+
+
+def _brand_name(raw: str) -> Optional[str]:
+    for m in _BRAND.finditer(raw):
+        words = m.group(1).split()
+        keep = [words[0]]
+        for w in words[1:]:
+            if w.lower().strip("'") in _NOT_NAME or w.lower() in _GEO_WORDS:
+                break
+            keep.append(w)
+        if len(keep) > 1:
+            return " ".join(keep)
+    return None
+
+
 def parse_project(raw: str) -> Optional[str]:
     cue = _PROJECT_CUE.search(raw)
     cands = []
@@ -133,6 +158,9 @@ def parse_project(raw: str) -> Optional[str]:
         cands.append(_clean_words(cue.group(1)))
     for m in _PROJECT.finditer(raw):
         cands.append(_clean_words(m.group(1)))
+    brand = _brand_name(raw)
+    if brand:
+        cands.insert(0 if not cands else 1, brand)
     for c in cands:
         low = c.lower()
         base = re.sub(r"\s+(?:city|township|nagari)$", "", low)

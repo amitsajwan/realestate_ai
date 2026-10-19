@@ -99,13 +99,35 @@ def _kind(q: str) -> str:
     return "carpet" if "carpet" in q else "sba"
 
 
+# an area of the whole project, not of the home: "13 acre community", "6 acres of open green", "50,000 sq ft clubhouse"
+# (Godrej Ivara, 2026-10-19: "13 acres" became a 5,66,280 sq ft carpet area)
+_SHARED = re.compile(r"(?<![a-z])(?:club\s*-?\s*house|clubhouse|amenit\w*|open\s+(?:green\s+)?spaces?|green\w*|garden|podium|"
+                     r"land(?:\s+parcel)?|parcel|township|community|campus|retail|commercial\s+space|lagoon|pool)(?![a-z])")
+
+
+_HOME_SIDE = {"view", "views", "facing", "side", "access", "touch", "flat", "flats", "apartment", "home", "unit", "villa"}
+
+
+def _shared(t: str, start: int, end: int) -> bool:
+    """A project-wide space named right at the area: "6 acres of open green", "50,000 sq ft clubhouse", "clubhouse of 50,000
+    sq ft". Not "1100 sq ft near the clubhouse", "1050 sq ft with pool view" or "1200 sq ft garden facing flat": the home's."""
+    after = re.match(r"[\s,:]*(?:of\s+)?((?:[a-z]+\s*){1,4})", t[end:end + 50])
+    if after and _SHARED.match(after.group(1)) and not _HOME_SIDE & set(after.group(1).split()):
+        return True
+    before = re.search(r"(?P<w>[a-z]+)\s*(?:area\s*)?(?:of|is|:|-)\s*(?:about|approx\.?|around)?\s*$", t[max(0, start - 40):start])
+    return bool(before and _SHARED.match(before.group("w")))
+
+
 def parse_areas(t: str) -> dict[str, tuple[int, float]]:
-    """-> {'carpet': (sqft, conf), 'sba': (sqft, conf)}"""
+    """-> {'carpet': (sqft, conf), 'sba': (sqft, conf)}: the home's own areas. Acres are always land (`total_acres`, never a
+    flat's area), and an unlabelled area next to a project-wide space (clubhouse, open space, land) is that space's."""
     items: list[tuple[int, int, float, Optional[str]]] = []  # start, end, sqft, forced kind
     unit_starts = set()
     for m in UNIT_FIRST.finditer(t):
-        items.append((m.start(), m.end(), _num(m.group("n")) * _factor(m.group("u")), None))
         unit_starts.add(m.start("n"))
+        if m.group("u").startswith("acre") or _shared(t, m.start(), m.end()):
+            continue
+        items.append((m.start(), m.end(), _num(m.group("n")) * _factor(m.group("u")), None))
     q_first = [(m.start("n"), m.end("n"), _num(m.group("n")), _kind(m.group("q"))) for m in QUAL_FIRST.finditer(t)
                if m.start("n") not in unit_starts]
     n_first = [(m.start("n"), m.end("n"), _num(m.group("n")), _kind(m.group("q"))) for m in NUM_QUAL.finditer(t)
@@ -143,7 +165,14 @@ BHK_RE = re.compile(r"(?<![\w.])(?P<n>\d(?:\.\d)?|" + "|".join(_BHK_WORDS) + r")
 RK_RE = re.compile(r"(?<![\w.])(?:1|one)\s*rk(?![a-z])|(?<![a-z])studio(?![a-z])")
 
 
+# "2, 3 and 4 BHK", "2/3/4 BHK", "2 & 3 BHK": a project's configurations; the smallest goes with a "from" price
+BHK_LIST = re.compile(r"(?<![\w.])(?P<ns>\d(?:\s*(?:,|/|&|and|or)\s*\d)+)\s*[-.]?\s*(?:b\.?\s?h\.?\s?k|bedrooms?|beds?|br)(?![a-z])")
+
+
 def parse_bhk(t: str) -> Optional[tuple[float, float]]:
+    ml = BHK_LIST.search(t)
+    if ml:
+        return min(int(n) for n in re.findall(r"\d", ml.group("ns"))), 0.7
     m = BHK_RE.search(t)
     if m:
         n = m.group("n")

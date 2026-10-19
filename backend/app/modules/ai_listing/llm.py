@@ -17,7 +17,9 @@ _EXTRACT_SYSTEM = (
     "price_inr (integer rupees; 85 lakh = 8500000, 1.25 crore = 12500000; rent is per month), city, locality, "
     "project_name, bhk (number), carpet_sqft (integer), super_built_up_sqft (integer), floor (integer), "
     "total_floors (integer), furnishing (unfurnished|semi|furnished), possession (ready|under_construction|YYYY-MM), "
-    "rera_no, amenities (array of short English names). Never guess or invent values that are not in the message."
+    "rera_no, amenities (array of short English names). Never guess or invent values that are not in the message. "
+    "carpet_sqft and super_built_up_sqft are one home's own area: never the land, the project's acres, a clubhouse or open "
+    "space. For several configurations ('2, 3 and 4 BHK') give the smallest bhk."
 )
 _TRANSLATE_SYSTEM = (
     "You translate a short real-estate description. Reply with ONE JSON object with keys 'hi' (Hindi, Devanagari) "
