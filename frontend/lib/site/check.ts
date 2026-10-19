@@ -27,11 +27,16 @@ export function checkPill(s: CheckState, monthsLater?: number | null): string {
 }
 
 /** The card's headline and the line under it. */
-export function checkVerdict(s: CheckState, now: string | null | undefined, first: string | null | undefined, monthsLater?: number | null):
-  { title: string; sub: string } {
+export function checkVerdict(s: CheckState, now: string | null | undefined, first: string | null | undefined, monthsLater?: number | null,
+  extension = 0): { title: string; sub: string } {
+  const ext = extension && first && now !== first
+    ? ` MahaRERA added ${months(extension)} to most projects' dates in August 2026 (Order 66/2026).` : ''
+  if (ext && s === 'unchanged') {
+    return { title: `Builder's date unchanged: ${monthYear(first)}`, sub: `MahaRERA now shows ${monthYear(now)}.${ext}` }
+  }
   switch (s) {
     case 'passed': return { title: `Possession date has passed: ${monthYear(now)}`, sub: 'Ask the builder for the occupancy certificate (OC) and the handover date in writing.' }
-    case 'moved': return { title: `Possession moved ${months(monthsLater ?? 0)} later`, sub: `Now ${monthYear(now)}. It was ${monthYear(first)} when the project was registered.` }
+    case 'moved': return { title: `Possession moved ${months(monthsLater ?? 0)} later`, sub: `Now ${monthYear(now)}. It was ${monthYear(first)} when the project was registered.${ext}` }
     case 'unchanged': return { title: `Possession date unchanged: ${monthYear(now)}`, sub: `The same date the builder filed at registration${first ? ` (${monthYear(first)})` : ''}.` }
     case 'dated': return { title: `Possession date: ${monthYear(now)}`, sub: 'As filed on MahaRERA.' }
     default: return { title: 'No possession date on MahaRERA yet', sub: 'The builder has not filed one, or MahaRERA has not shown it.' }
@@ -47,13 +52,20 @@ export const CHECK_STYLE: Record<CheckState, { block: string; pill: string }> = 
   no_date: { block: 'bg-slate-50 text-slate-900 ring-slate-200', pill: 'bg-slate-100 text-slate-700 ring-slate-300' },
 }
 
-/** Whole months a date moved later (backend pages.months_later): 0 when not later; null when either date is unknown. */
-export function monthsLater(now: string | null | undefined, first: string | null | undefined): number | null {
+/** MahaRERA Order 66/2026 (backend pages.extension_months): 4 months MahaRERA added itself in August 2026 to projects registered
+ * before 1 Aug 2026 whose date fell on or after 28 Feb 2026. 0 when it does not apply. */
+export function extensionMonths(now: string | null | undefined, registeredOn: string | null | undefined): number {
+  return registeredOn && registeredOn < '2026-08-01' && now && now >= '2026-06-28' ? 4 : 0
+}
+
+/** Whole months the builder moved a date later (backend pages.months_later), net of MahaRERA's 2026 extension: 0 when not
+ * later; null when either date is unknown. */
+export function monthsLater(now: string | null | undefined, first: string | null | undefined, registeredOn?: string | null): number | null {
   const a = /^(\d{4})-(\d{2})-(\d{2})/.exec(first || ''), b = /^(\d{4})-(\d{2})-(\d{2})/.exec(now || '')
   if (!a || !b) return null
   if ((now as string) <= (first as string)) return 0
   const n = (Number(b[1]) - Number(a[1])) * 12 + (Number(b[2]) - Number(a[2])) - (Number(b[3]) < Number(a[3]) - 3 ? 1 : 0)
-  return Math.max(0, n)
+  return Math.max(0, n - extensionMonths(now, registeredOn))
 }
 
 /** Projects this viewer checked, newest first (this browser only: a convenience, never the record). */

@@ -98,6 +98,7 @@ export interface ProjectDetailsGrid {
   booked_pct: number | null
   registered_on: string | null
   completion_moved_months: number | null
+  extension_months?: number
 }
 
 export interface RegisterBuilding {
@@ -142,8 +143,9 @@ function ownFaq(p: RegisterProject, nearby: { label?: string | null; name?: stri
   const where = p.area ? `${p.area.name}, Pune` : [p.place, p.taluka, 'Pune district'].filter(Boolean).join(', ')
   if (p.completion_now) {
     const moved = p.completion_at_registration && p.completion_at_registration !== p.completion_now
+    const ext = moved && d?.extension_months ? ` MahaRERA added ${d.extension_months} months to most projects' dates in August 2026 (Order 66/2026).` : ''
     out.push({ topic: 'possession', q: `What is the possession date of ${p.name}?`,
-      a: `The completion date filed with MahaRERA is ${longDay(p.completion_now)}.` + (moved ? ` At registration it was ${longDay(p.completion_at_registration)}.` : '') +
+      a: `The completion date filed with MahaRERA is ${longDay(p.completion_now)}.` + (moved ? ` At registration it was ${longDay(p.completion_at_registration)}.` : '') + ext +
         ' Ask the builder for the possession date in your agreement, in writing.' })
   }
   out.push({ topic: 'rera', q: `What is the MahaRERA number of ${p.name}?`, a: `${p.name} is registered with MahaRERA as ${p.regno}.` })
@@ -329,7 +331,7 @@ export function registerDescription(p: RegisterProject): string {
   const area = areaName(p)
   const head = `${shown}${legal}${p.promoter ? ` by ${p.promoter}` : ''}${area ? `, ${area}` : ''}, Pune.`
   const from = p.completion_at_registration && p.completion_now && monthYear(p.completion_at_registration) !== monthYear(p.completion_now)
-    ? `, moved from ${monthYear(p.completion_at_registration)}` : ''
+    && p.details?.completion_moved_months !== 0 ? `, moved from ${monthYear(p.completion_at_registration)}` : ''
   const parts = [p.completion_now ? `Possession ${monthYear(p.completion_now)}${from}` : null,
     p.units_total && p.units_booked != null ? `${p.units_booked}/${p.units_total} homes booked` : null, `MahaRERA ${p.regno}`]
   return `${head} ${parts.filter(Boolean).join(', ')}.`

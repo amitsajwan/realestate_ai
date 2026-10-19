@@ -3,8 +3,8 @@
 One rule for the web card (frontend lib/site/check.ts mirrors it) and the DM answer: never "on time" or "safe" (we hold no
 construction progress, OC or complaints), only what the date did.
   passed     the filed possession date is before today
-  moved      it moved later than the date at registration
-  unchanged  it is the date filed at registration
+  moved      the builder moved it later than the date at registration (net of MahaRERA's 2026 blanket extension)
+  unchanged  it is the date filed at registration, or that date plus only MahaRERA's 2026 blanket extension
   dated      a date, nothing to compare it with
   no_date    MahaRERA shows no date
 """
@@ -31,7 +31,7 @@ def state(completion_now: Optional[str], months_later: Optional[int], today: Opt
 
 async def status(db, regno: str, today: Optional[date] = None) -> Optional[dict]:
     """The check for one registration (the tower the buyer named, not its project's primary page): {name, regno, slug, promoter,
-    place, state, completion_now, completion_at_registration, months_later, booked, total, read_at, maharera_url}. None when unknown."""
+    place, state, completion_now, completion_at_registration, months_later, extension_months, booked, total, read_at, maharera_url}. None when unknown."""
     doc = await Store(db).project((regno or "").strip().upper())
     if doc is None or not doc.get("page_slug"):
         return None
@@ -41,6 +41,7 @@ async def status(db, regno: str, today: Optional[date] = None) -> Optional[dict]
             "promoter": doc.get("promoter") or None, "place": doc.get("pune_place_name") or None,
             "state": state(now, moved, today), "completion_now": now,
             "completion_at_registration": _day(doc.get("completion_at_registration")), "months_later": moved,
+            "extension_months": pages.extension_months(doc),
             "booked": pages.booked(doc), "total": _count(doc.get("units_total")),
             "read_at": read.date().isoformat() if hasattr(read, "date") and doc.get("details_ok", True) else None,
             "maharera_url": doc.get("source_url") or None}

@@ -56,18 +56,18 @@ VERDICT = {
         "mr_latn": "Possession chi tarikh ulatun geli aahe: {now}. Builder kade occupancy certificate (OC) maga.",
     },
     "moved": {
-        "en": "Possession date moved later by {m} months: now {now}, it was {first} at registration.",
+        "en": "The builder moved the possession date {m} months later: MahaRERA shows {now}, it was {first} at registration.",
         "hi": "पज़ेशन की तारीख {m} महीने आगे खिसकी है: अब {now}, रजिस्ट्रेशन के समय {first} थी।",
         "hinglish": "Possession date {m} mahine aage khiski hai: ab {now}, registration ke time {first} thi.",
         "mr": "पझेशनची तारीख {m} महिने पुढे गेली आहे: आता {now}, नोंदणीच्या वेळी {first} होती.",
         "mr_latn": "Possession chi tarikh {m} mahine pudhe geli aahe: aata {now}, nondanichya veli {first} hoti.",
     },
     "unchanged": {
-        "en": "Possession date unchanged since registration: {now}.",
-        "hi": "रजिस्ट्रेशन से अब तक पज़ेशन की तारीख नहीं बदली: {now}।",
-        "hinglish": "Registration se ab tak possession date nahi badli: {now}.",
-        "mr": "नोंदणीपासून पझेशनची तारीख बदललेली नाही: {now}.",
-        "mr_latn": "Nondanipasun possession chi tarikh badalleli nahi: {now}.",
+        "en": "The builder has not moved the possession date since registration. MahaRERA shows {now}.",
+        "hi": "रजिस्ट्रेशन के बाद बिल्डर ने पज़ेशन की तारीख नहीं बदली। MahaRERA पर: {now}।",
+        "hinglish": "Registration ke baad builder ne possession date nahi badli. MahaRERA par: {now}.",
+        "mr": "नोंदणीनंतर बिल्डरने पझेशनची तारीख बदललेली नाही. MahaRERA वर: {now}.",
+        "mr_latn": "Nondaninantar builder ne possession chi tarikh badalleli nahi. MahaRERA var: {now}.",
     },
     "dated": {
         "en": "Possession date on MahaRERA: {now}.",
@@ -84,6 +84,16 @@ VERDICT = {
         "mr_latn": "MahaRERA var ajun yachi possession chi tarikh disat nahi.",
     },
 }
+# MahaRERA's 2026 blanket extension (areastats.pages.extension_months): said under the verdict, so "unchanged" with a later date
+# than at registration, or a smaller move than the two dates show, is not a puzzle
+EXTENDED = {
+    "en": "MahaRERA added {m} months to most projects' dates in August 2026 (Order 66/2026); the builder's date at registration was {first}.",
+    "hi": "MahaRERA ने अगस्त 2026 में ज़्यादातर प्रोजेक्ट्स की तारीख में {m} महीने जोड़े (ऑर्डर 66/2026); रजिस्ट्रेशन के समय बिल्डर की तारीख {first} थी।",
+    "hinglish": "MahaRERA ne August 2026 mein zyadatar projects ki date mein {m} mahine jode (Order 66/2026); registration ke time builder ki date {first} thi.",
+    "mr": "MahaRERA ने ऑगस्ट 2026 मध्ये बहुतेक प्रकल्पांच्या तारखेत {m} महिने वाढवले (आदेश 66/2026); नोंदणीच्या वेळी बिल्डरची तारीख {first} होती.",
+    "mr_latn": "MahaRERA ne August 2026 madhye bahutek prakalpanchya tarikhet {m} mahine vadhavle (Order 66/2026); nondanichya veli builder chi tarikh {first} hoti.",
+}
+
 BOOKED = {
     "en": "{b} of {t} homes booked.",
     "hi": "{t} में से {b} घर बुक हो चुके हैं।",
@@ -150,6 +160,8 @@ def card_text(s: dict, lang: str, site: str) -> str:
     lines = [f"{head}\nMahaRERA {s['regno']}",
              L.pick(VERDICT[s["state"]], lang, now=_month(s.get("completion_now")), first=_month(s.get("completion_at_registration")),
                     m=s.get("months_later") or 0)]
+    if s.get("extension_months") and s["state"] in ("moved", "unchanged") and s.get("completion_at_registration"):
+        lines.append(L.pick(EXTENDED, lang, m=s["extension_months"], first=_month(s["completion_at_registration"])))
     if s.get("total") and s.get("booked") is not None and s["booked"] <= s["total"]:
         lines.append(L.pick(BOOKED, lang, b=f"{s['booked']:,}", t=f"{s['total']:,}"))
     read = L.pick(READ, lang, d=_day(s["read_at"])) if s.get("read_at") else ""

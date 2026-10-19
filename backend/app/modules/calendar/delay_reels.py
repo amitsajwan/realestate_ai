@@ -24,7 +24,7 @@ from typing import Callable, Dict, Iterable, List, Optional, Sequence
 from app.core import areas as _areas
 from app.core import brand
 from app.modules.areastats.pages import booked as _booked
-from app.modules.areastats.pages import months_later
+from app.modules.areastats.pages import EXTENSION_MONTHS, months_later
 from app.modules.areastats.service import _count, _day as _iso
 
 from .area_reels import SOURCE, Slide, _day, _n, save_slides, site_host, wording_problems
@@ -162,7 +162,7 @@ def _captions(hook: str, rows: Sequence[dict], as_of: str, tags: Sequence[str], 
         facts.append(f"• {c['name']} ({c['area_name']}, RERA {c['regno']}): {_month(was)} → {_month(c['now'])}. "
                      f"{_n(c['booked'])} of {_n(c['total'])} homes booked.")
     note = ("Dates as filed on MahaRERA. Moves of projects live in 2020-21 include MahaRERA's COVID extension of up to "
-            f"{COVID_MONTHS} months.")
+            f"{COVID_MONTHS} months; most dates also carry the {EXTENSION_MONTHS} months MahaRERA added in August 2026.")
     source = f"Source: {SOURCE}, as of {_day(as_of)}."
     body = "\n\n".join([hook, "\n".join(facts), note, source, "Booked here? Check your project's dates:"])
     tagline = " ".join(list(tags) + ["#MahaRERA", "#PuneProperty", "#HomeBuyers"])

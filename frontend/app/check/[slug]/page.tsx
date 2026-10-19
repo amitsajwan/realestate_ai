@@ -7,7 +7,7 @@ import CheckNext from '@/components/site/CheckNext'
 import InstallApp from '@/components/site/InstallApp'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { pageMetadata } from '@/lib/marketing/seo'
-import { CHECK_STYLE, checkPill, checkState, checkVerdict, monthsLater } from '@/lib/site/check'
+import { CHECK_STYLE, checkPill, checkState, checkVerdict, extensionMonths, monthsLater } from '@/lib/site/check'
 import type { CheckState } from '@/lib/site/check'
 import { displayName, getRegisterProject, longDay, monthYear } from '@/lib/site/register'
 import type { RegisterProject } from '@/lib/site/register'
@@ -25,6 +25,7 @@ interface Picked {
   now: string | null
   first: string | null
   moved: number | null
+  ext: number
   booked: number | null
   total: number | null
   maharera_url: string | null
@@ -40,10 +41,12 @@ async function load({ params, searchParams }: Props): Promise<{ p: RegisterProje
   const tower = (p.towers ?? []).find((x) => x.regno === r && x.regno !== p.regno)
   const t: Picked = tower
     ? { regno: tower.regno, label: tower.name, now: tower.completion_now, first: tower.completion_at_registration,
-        moved: monthsLater(tower.completion_now, tower.completion_at_registration), booked: tower.units_booked, total: tower.units_total,
+        moved: monthsLater(tower.completion_now, tower.completion_at_registration, tower.registered_on),
+        ext: extensionMonths(tower.completion_now, tower.registered_on), booked: tower.units_booked, total: tower.units_total,
         maharera_url: tower.maharera_url }
     : { regno: p.regno, label: (p.towers ?? []).length > 1 ? p.name : null, now: p.completion_now, first: p.completion_at_registration,
-        moved: p.details?.completion_moved_months ?? monthsLater(p.completion_now, p.completion_at_registration),
+        moved: p.details?.completion_moved_months ?? monthsLater(p.completion_now, p.completion_at_registration, p.details?.registered_on),
+        ext: extensionMonths(p.completion_now, p.details?.registered_on),
         booked: p.units_booked, total: p.units_total, maharera_url: p.maharera_url }
   return { p, t, slug }
 }
@@ -52,7 +55,7 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   const got = await load(props)
   if (!got) return { title: 'Project not found', robots: { index: false } }
   const { p, t } = got
-  const v = checkVerdict(checkState(t.now, t.moved), t.now, t.first, t.moved)
+  const v = checkVerdict(checkState(t.now, t.moved), t.now, t.first, t.moved, t.ext)
   const meta = pageMetadata(getMarketingConfig(), {
     title: `${displayName(p)}: ${v.title}`,
     description: `${v.sub} MahaRERA ${t.regno}. Checked on MahaRERA's public records.`,
@@ -97,7 +100,7 @@ export default async function CheckCardPage(props: Props) {
   const cfg = getMarketingConfig()
   const name = displayName(p)
   const state = checkState(t.now, t.moved)
-  const v = checkVerdict(state, t.now, t.first, t.moved)
+  const v = checkVerdict(state, t.now, t.first, t.moved, t.ext)
   const url = `${cfg.siteUrl}/check/${p.slug}?r=${encodeURIComponent(t.regno)}`
   const where = p.area?.name ?? p.pune_place?.name ?? p.place ?? null
   const towers = p.towers ?? []
@@ -133,7 +136,7 @@ export default async function CheckCardPage(props: Props) {
             <h2 id="towers-title" className="text-lg font-semibold text-slate-900">Each tower or phase</h2>
             <ul className="mt-2 list-none divide-y divide-slate-100 rounded-2xl border border-slate-200 p-0">
               {towers.map((x) => {
-                const m = monthsLater(x.completion_now, x.completion_at_registration)
+                const m = monthsLater(x.completion_now, x.completion_at_registration, x.registered_on)
                 const s = checkState(x.completion_now, m)
                 const mine = x.regno === t.regno
                 return (

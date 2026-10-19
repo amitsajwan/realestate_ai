@@ -178,6 +178,8 @@ def paragraph(doc: dict) -> str:
     now, first = _day(doc.get("completion_now")), _day(doc.get("completion_at_registration"))
     if now and first and now != first:
         out.append(f"Its filed completion date is {_long(now)}; at registration it was {_long(first)}.")
+        if extension_months(doc):
+            out.append(f"{EXTENSION_NOTE}; {'that is the whole change' if not months_later(doc) else 'that is part of the change'}.")
     elif now:
         out.append(f"Its filed completion date is {_long(now)}.")
     total, sold = _count(doc.get("units_total")), booked(doc)
@@ -193,14 +195,30 @@ def paragraph(doc: dict) -> str:
     return " ".join(out)
 
 
+# MahaRERA Order 66/2026 (7 Aug 2026, West Asia conflict, force majeure): 4 months added by MahaRERA itself, without the builder
+# asking, to every project registered before 1 Aug 2026 whose date fell on or after 28 Feb 2026 (so is now on or after 28 Jun
+# 2026). On 19 Oct 2026 about 9 in 10 such records in our register were exactly 4 months later than their registration date.
+EXTENSION_MONTHS = 4
+EXTENSION_REGISTERED_BEFORE = "2026-08-01"
+EXTENSION_DATES_FROM = "2026-06-28"
+EXTENSION_NOTE = "MahaRERA added 4 months to most projects' dates in August 2026 (Order 66/2026)"
+
+
+def extension_months(doc: dict) -> int:
+    """The months of MahaRERA's 2026 blanket extension in the record's filed date (0 when it does not apply)."""
+    reg, now = _day(doc.get("registered_on")), _day(doc.get("completion_now"))
+    return EXTENSION_MONTHS if reg and reg < EXTENSION_REGISTERED_BEFORE and now and now >= EXTENSION_DATES_FROM else 0
+
+
 def months_later(doc: dict) -> Optional[int]:
-    """Whole months the filed completion date moved later since registration; 0 when it did not; None when unknown."""
+    """Whole months the builder moved the filed completion date later since registration, net of MahaRERA's 2026 blanket
+    extension (`extension_months`); 0 when it did not; None when unknown."""
     now, first = _day(doc.get("completion_now")), _day(doc.get("completion_at_registration"))
     if not now or not first:
         return None
     (y1, m1, d1), (y2, m2, d2) = (map(int, first.split("-")), map(int, now.split("-")))
     n = (y2 - y1) * 12 + (m2 - m1) - (1 if d2 < d1 - 3 else 0)
-    return max(0, n) if now > first else 0
+    return max(0, n - extension_months(doc)) if now > first else 0
 
 
 def _served(d: dict) -> bool:
@@ -240,7 +258,8 @@ def details(doc: dict) -> dict:
             "units_total": total or t.get("units_total"), "units_residential": t.get("units_residential"),
             "units_other": t.get("units_other"),
             "booked_pct": round(100 * sold / total) if total and sold is not None and sold <= total else None,
-            "registered_on": _day(doc.get("registered_on")), "completion_moved_months": months_later(doc)}
+            "registered_on": _day(doc.get("registered_on")), "completion_moved_months": months_later(doc),
+            "extension_months": extension_months(doc)}
 
 
 CHECK_LABELS = {"maharera_general": "MahaRERA record", "buildings": "Buildings and wings", "places": "Location",
