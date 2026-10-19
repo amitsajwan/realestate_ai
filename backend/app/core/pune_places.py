@@ -152,6 +152,9 @@ VERIFIED: Dict[str, str] = {
     "PR1260002501399": "upper_kharadi",  # Tower 3
     "PR1260002501398": "upper_kharadi",  # Tower 4
     "PR1260002501449": "upper_kharadi",  # Tower 11
+    # Godrej Ivara: MahaRERA's card shows the promoter's Mumbai PIN (400079); portals and the builder sell it on Upper Kharadi
+    # Main Road, Wagholi side (2026-10-19)
+    "PR1260002502426": "upper_kharadi",
 }
 
 BY_KEY: Dict[str, Place] = {p.key: p for p in PLACES}

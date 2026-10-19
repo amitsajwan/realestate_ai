@@ -41,14 +41,22 @@ async def match_register(register: Any, rera_no: Optional[str], project_name: Op
 
 
 def register_fields(d: dict) -> Dict[str, Any]:
-    """What the draft takes from a register record."""
-    loc = d.get("pune_place_name") or d.get("locality")
+    """What the draft takes from a register record: the facts the agent never has to type or check again (the new-listing
+    screen shows them as one "From MahaRERA" card). `locality_verified` is False when the place is our guess from the PIN."""
+    regno = d.get("regno") or d.get("_id") or ""
+    verified = regno.strip().upper() in pune_places.VERIFIED
+    loc = (pune_places.BY_KEY[pune_places.VERIFIED[regno.strip().upper()]].name if verified else None)         or d.get("pune_place_name") or d.get("locality")
     if not loc and d.get("pincode"):
-        loc = pune_places.place_name(d.get("name", ""), d.get("pincode", ""), d.get("taluka", ""), d.get("regno", ""))
+        loc = pune_places.place_name(d.get("name", ""), d.get("pincode", ""), d.get("taluka", ""), regno)
+    totals = d.get("building_totals") or {}
+    read = d.get("details_checked_at")
     return {k: v for k, v in {
-        "regno": d.get("regno") or d.get("_id"), "name": d.get("name"), "locality": loc, "taluka": d.get("taluka"),
+        "regno": regno, "name": d.get("name"), "locality": loc, "locality_verified": verified, "taluka": d.get("taluka"),
         "pincode": d.get("pincode"), "promoter": d.get("promoter"),
         "completion_at_registration": d.get("completion_at_registration"), "completion_now": d.get("completion_now"),
+        "towers": totals.get("towers"), "max_floors": totals.get("max_floors"),
+        "units_total": d.get("units_total"), "units_booked": d.get("units_booked"),
+        "read_at": read.date().isoformat() if hasattr(read, "date") else None,
     }.items() if v not in (None, "")}
 
 

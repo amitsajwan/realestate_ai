@@ -51,6 +51,14 @@ def _where(f: dict) -> str:
 
 
 def make_title(f: dict) -> Optional[str]:
+    if f.get("listing_scope") == "layout" and f.get("project_name"):
+        # a whole project: "Godrej Ivara, Upper Kharadi: 2 BHK and up from ₹1.29 Cr" (the price is the smallest home's)
+        bhk = f.get("bhk")
+        homes = f"{bhk:g} BHK and up" if isinstance(bhk, (int, float)) else "Homes"
+        title = f"{f['project_name']}" + (f", {f['locality']}" if f.get("locality") else "") + f": {homes}"
+        if f.get("price_inr"):
+            title += " from " + format_price_short(f["price_inr"], False)
+        return title[:120]
     label = _label(f)
     if not (label or f.get("price_inr") or f.get("locality")):
         return None

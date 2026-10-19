@@ -115,6 +115,22 @@ class AIListingService:
                 for k, v in (("rera_no", maharera.get("regno")), ("locality", maharera.get("locality")),
                              ("project_name", maharera.get("name"))):
                     if v and (k != "project_name" or not facts.get(k)):
+                        # a place from the PIN alone is our map's guess, not MahaRERA's: the agent checks it
+                        sure = k != "locality" or maharera.get("locality_verified")
+                        facts[k], conf[k], sources[k] = v, (0.95 if sure else 0.6), ("maharera" if sure else "map")
+                # the rest of what MahaRERA holds: never typed or checked by the agent (owner 2026-10-19: "adding a listing
+                # is so complex"). Possession is the builder's date filed at registration (MahaRERA's later date is mostly
+                # its own 2026 extension, areastats.pages.extension_months); a draft with no flat's carpet area or floor is
+                # the whole project
+                filled = {"city": "Pune", "possession": str(maharera.get("completion_at_registration") or "")[:7] or None,
+                          "total_floors": maharera.get("max_floors")}
+                if not facts.get("carpet_sqft") and facts.get("floor") is None:
+                    filled["listing_scope"] = "layout"
+                    facts.pop("total_floors", None)
+                    if conf.get("transaction", 0) < 0.7:   # a registered project is sold, not rented
+                        filled["transaction"] = "sale"
+                for k, v in filled.items():
+                    if v and (k in ("possession", "listing_scope", "transaction") or not facts.get(k)):
                         facts[k], conf[k], sources[k] = v, 0.95, "maharera"
             group = await project_group(register, facts.get("rera_no"), by_name)
             if group and group["regno"] and group["regno"] == facts.get("rera_no"):

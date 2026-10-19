@@ -108,7 +108,7 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
   const priceWarning = priceSanity(view)
   const [priceAck, setPriceAck] = useState<string | null>(null)
   const priceBlocked = !!priceWarning && priceAck !== priceWarning
-  const low = draft ? lowConfidenceFields(draft.confidence) : []
+  const low = draft ? lowConfidenceFields(draft.confidence).filter((k) => draft.sources?.[k] !== 'maharera') : []
   const hasInput = text.trim().length > 0 || !!audio || photos.length > 0
   // A brochure means a builder project: no tick needed.
   const projectDefault = newProject || !!brochure
@@ -125,7 +125,8 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
       const project = projectDefault && !rest.carpet_sqft
       setForm({ visibility: 'network', ...(project ? { listing_scope: 'layout' as const } : {}), ...rest })
       setAbout(found ?? {})
-      setStep('about') // quick and skippable: what the assistant uses to answer buyers
+      // straight to the short check (owner 2026-10-19): 'About the project and area' is opened from there when wanted
+      setStep('review')
     } catch (e) {
       setError(errorMessage(e))
       setStep('capture')
@@ -217,8 +218,9 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
             <LinkBtn variant="secondary" href={`/studio/listings/${posted.id}`}>Add photos</LinkBtn>
           </div>
         )}
-        <LinkBtn variant="secondary" href={`/studio/listings/${posted.id}?tab=ai`}>Ask AI for a picture plan and posts</LinkBtn>
+        {/* one clear next step: marketing is a deliberate tap, never automatic (owner 2026-10-14) */}
         <LinkBtn href={`/studio/listings/${posted.id}/marketing`}>{t('startMarketing')}</LinkBtn>
+        <LinkBtn variant="secondary" href={`/studio/listings/${posted.id}?tab=ai`}>Ask AI (ChatGPT / Gemini) for a picture plan and posts</LinkBtn>
         <section className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4">
           <p className="break-all text-sm text-blue-700">{link}</p>
           <ShareBar url={link} message={`New property: ${posted.title}.`} />
@@ -257,10 +259,8 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
           </div>
         )}
         {low.length > 0 && <p className="text-sm text-amber-700">{t('pleaseCheck')}: {low.map((k) => FIELD_LABELS[k] ?? k.replace('_', ' ')).join(', ')}</p>}
-        <PhotoPicker files={photos} onChange={setPhotos} />
-        <BrochurePick file={brochure} onPick={setBrochure} />
-        {isProject && <ProjectVideo video={video} onVideo={setVideo} />}
-        <ReviewForm value={view} about={about} onEditAbout={() => setStep('about')} onChange={({ media, ...rest }) => setForm(rest)} confidence={draft.confidence} missing={missing} errors={errors}
+        {photos.length === 0 && <PhotoPicker files={photos} onChange={setPhotos} />}
+        <ReviewForm compact maharera={draft.maharera} value={view} about={about} onEditAbout={() => setStep('about')} onChange={({ media, ...rest }) => setForm(rest)} confidence={draft.confidence} missing={missing} errors={errors}
           sources={draft.sources} reraCandidates={draft.rera_candidates} />
         {priceWarning && (
           <label className="flex min-h-[44px] items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-semibold text-amber-900">

@@ -94,6 +94,7 @@ const en = {
   spChooseInListing: 'Choose in the listing',
   srcMaharera: 'MahaRERA',
   srcAgent: 'You said',
+  srcMap: 'Our map: please check',
   reraIsItOne: 'Is it one of these?',
   reraNoneOfThese: 'None of these',
   reraNotRegistered: 'Not registered',

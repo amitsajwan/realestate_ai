@@ -143,9 +143,28 @@ export interface AIDraft {
   sources?: Record<string, DraftSource>
   /** MahaRERA projects that match the name, when the draft has no rera_no. */
   rera_candidates?: ReraCandidate[]
+  /** Our MahaRERA register's record for the draft's registration number: shown as one read-only card. */
+  maharera?: MahaReraFacts | null
 }
 
-export type DraftSource = 'maharera' | 'agent'
+/** What the register knows about a project (backend ai_listing.register.register_fields). */
+export interface MahaReraFacts {
+  regno: string
+  name?: string
+  locality?: string
+  /** false: the place is our map's guess from the PIN, not a checked one */
+  locality_verified?: boolean
+  promoter?: string
+  completion_at_registration?: string
+  completion_now?: string
+  towers?: number
+  max_floors?: number
+  units_total?: number
+  units_booked?: number
+  read_at?: string
+}
+
+export type DraftSource = 'maharera' | 'agent' | 'map'
 
 export interface ReraCandidate {
   regno: string

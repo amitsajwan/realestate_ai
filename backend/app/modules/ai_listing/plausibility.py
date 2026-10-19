@@ -26,7 +26,7 @@ def build_warnings(f: dict, conf: dict) -> list[str]:
     elif price and tx == "sale":
         if price < 100_000:
             w.append(f"Sale price of Rs {format_inr(price)} looks very low; did you mean lakh or crore?")
-        elif area and f.get("property_type") != "plot":
+        elif area and f.get("property_type") != "plot" and f.get("listing_scope") != "layout":  # a project's "from" price
             psf = price / area
             loc = LOCALITIES.get(f.get("locality", ""))
             if loc:

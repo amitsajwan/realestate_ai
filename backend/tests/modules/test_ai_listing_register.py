@@ -55,7 +55,7 @@ def test_register_match_by_number_fills_rera_and_locality():
     d = run(AIListingService().create_draft(text="Plots in Gulmohar City 25 lakh, MahaRERA P52100012345",
                                             register=FakeRegister([REC])))
     assert d.draft["rera_no"] == "P52100012345" and d.sources["rera_no"] == "maharera"
-    assert d.draft["locality"] == "Malthan" and d.sources["locality"] == "maharera"
+    assert d.draft["locality"] == "Malthan" and d.sources["locality"] == "map"   # a place from the PIN is our map's guess (2026-10-19)
     assert d.maharera["taluka"] == "Shirur" and d.maharera["promoter"] == "Gulmohar Developers"
     assert d.draft["price_inr"] == 2500000 and d.sources["price_inr"] == "agent"
 
