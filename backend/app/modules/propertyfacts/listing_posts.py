@@ -1,12 +1,12 @@
-"""The campaign's two posts (owner, 2026-10-19: "why that many posts? We need 2: one with multiple pictures, one with full
-details"). The reels carry the creative room's ideas; the posts are the property itself.
+"""The campaign's one post (owner, 2026-10-19: "we need 2: one with multiple pictures, one with full details", then "why a post
+with just the price? include it in the single one"). The reels carry the creative room's ideas; the post is the property.
 
-  gallery   a carousel of the property's own pictures (photos, video stills, the builder's renders marked "Artist's
+  listing   a carousel of the property's own pictures (photos, video stills, the builder's renders marked "Artist's
             impression"): a cover slide with the name, the place, the home types, the "from" price and the payment plan, then
             three of them combined on one slide (collage), the rest one a slide (up to GALLERY_MAX pictures). Pictures are
             cropped where their detail is, phone photos lifted a little, and maps, QR codes, clipart and screenshots left out
-            (photo_like)
-  details   one card with what a buyer asks first: every home type with its carpet area and price (listing.configurations),
+            (photo_like); its second slide is the price sheet:
+            one card with what a buyer asks first: every home type with its carpet area and price (listing.configurations),
             the payment plan, possession and the MahaRERA number with its QR code; its caption lists the same, the project's
             highlights and the distances
 
@@ -90,7 +90,7 @@ def _possession(listing: dict, c: Ctx) -> str:
     return own or ("Under construction" if c.v.get("possession_now") else "")
 
 
-def details_caption(listing: dict, c: Ctx, contact: Sequence[str], link_line: str) -> str:
+def details_caption(listing: dict, c: Ctx, contact: Sequence[str], link_line: str, slides: int = 0, renders: int = 0) -> str:
     table = homes.rows(listing)
     parts = [headline(listing, c)]
     if table and (len(table) > 1 or table[0].get("carpet_sqft")):
@@ -116,21 +116,10 @@ def details_caption(listing: dict, c: Ctx, contact: Sequence[str], link_line: st
         parts.append("\n".join(facts))
     if any(r.get("price_inr") for r in table):
         parts.append(PRICE_NOTE)
+    if slides:
+        parts.append(f"Swipe: the price sheet and {slides - 1} more slides of the project" +
+                     (f" (the builder's renders are marked \"{ARTISTS_IMPRESSION}\")" if renders else "") + ".")
     parts += [ASK, "\n".join(contact), link_line, _hashtags(c)]
-    return "\n\n".join(p for p in parts if p)
-
-
-def gallery_caption(listing: dict, c: Ctx, contact: Sequence[str], link_line: str, n: int, renders: int) -> str:
-    table = homes.rows(listing)
-    where = c.where or c.locality or "this property"
-    low = homes.from_price(listing)
-    what = homes.bhk_range(table) if homes.several(listing) else (table[0]["label"] if table else "")
-    line = " · ".join(x for x in ((f"{what} homes" if what else "Plots" if listing.get("property_type") == "plot" else "Homes") + (f" from {homes.short_price(low)} onwards" if low and homes.several(listing)
-                                                                         else f" at {homes.short_price(low)}" if low else ""),
-                                   f"{homes.payment_plan(listing)} payment plan" if homes.payment_plan(listing) else "") if x)
-    looks = [f"✨ {h}" for h in _highlights(listing, table, 3)]
-    swipe = f"Swipe through {n - 1} pictures" + (f" (the builder's renders are marked \"{ARTISTS_IMPRESSION}\")" if renders else "") + "."
-    parts = [f"A look around {where}.", line, "\n".join(looks), swipe, ASK, "\n".join(contact), link_line, _hashtags(c)]
     return "\n\n".join(p for p in parts if p)
 
 
@@ -464,33 +453,33 @@ async def localize(caption: str, lang: str, llm: Any) -> str:
 # ---- the two posts ---------------------------------------------------------------------------------------------------------
 def make(listing: dict, c: Ctx, pictures: Sequence[Tuple[str, bool]], out_dir: Path, contact: Sequence[str] = (),
          link_line: str = "", brand_name: str = "", logo: str = "") -> List[Dict[str, Any]]:
-    """The gallery (when there are 2 pictures or more) and the details post. `pictures`: (path, is a builder's render), best
-    first. A post that cannot be drawn is left out (logged); the other still comes."""
+    """The campaign's one post: a carousel of the cover, the price sheet, then the pictures (three on one slide from
+    COLLAGE_FROM pictures, the rest one a slide), with the full details in its caption; the price sheet alone when there are
+    fewer than 2 pictures. `pictures`: (path, is a builder's render), best first. [] when nothing could be drawn."""
     name = brand_name or brand.NAME
     pics = [(p, r) for p, r in pictures if p and Path(p).is_file() and photo_like(p)][:GALLERY_MAX]
-    out: List[Dict[str, Any]] = []
+    # the price sheet's band is wide: the first wide picture after the cover (the cover may be a builder's creative)
+    band = next((p for p, _ in pics[1:] if _landscape(p)), pics[0][0] if pics else None)
+    try:
+        sheet = details_card(listing, c, band, name, logo, out_dir / "listing" / "prices.jpg")
+    except Exception:
+        log.warning("listing posts: price sheet not drawn", exc_info=True)
+        return []
+    images = [sheet]
     if len(pics) >= 2:
         try:
-            # the cover; with COLLAGE_FROM pictures or more the next three share one slide (each picture shown once); then
-            # the rest one a slide
             slides: List[Tuple[Any, bool]] = [(p, r) for p, r in pics[1:]]
             if len(pics) >= COLLAGE_FROM:
                 slides = [(list(pics[1:4]), any(r for _, r in pics[1:4]))] + slides[3:]
-            n = len(slides) + 1
-            images = [gallery_cover(pics[0][0], pics[0][1], listing, c, name, logo, out_dir / "gallery" / "slide1.jpg")]
-            images += [gallery_slide(p, r, i + 2, n, name, logo, out_dir / "gallery" / f"slide{i + 2}.jpg")
-                       for i, (p, r) in enumerate(slides)]
-            out.append({"angle": "gallery", "layout": "gallery", "format": "carousel", "images": images,
-                        "caption": gallery_caption(listing, c, contact, link_line, len(pics) + 1, sum(1 for _, r in pics if r)),
-                        "used_llm": False, "prompts": []})
+            n = len(slides) + 2
+            cover = gallery_cover(pics[0][0], pics[0][1], listing, c, name, logo, out_dir / "listing" / "slide1.jpg")
+            images = [cover, sheet] + [gallery_slide(p, r, i + 3, n, name, logo, out_dir / "listing" / f"slide{i + 3}.jpg")
+                                       for i, (p, r) in enumerate(slides)]
         except Exception:
-            log.warning("listing posts: gallery not drawn", exc_info=True)
-    try:
-        # the band is wide: the first wide picture after the cover (the cover may be a builder's creative with its own print)
-        own = next((p for p, _ in pics[1:] if _landscape(p)), pics[0][0] if pics else None)
-        card = details_card(listing, c, own, name, logo, out_dir / "details" / "card.jpg")
-        out.append({"angle": "details", "layout": "price_sheet", "format": "single", "images": [card],
-                    "caption": details_caption(listing, c, contact, link_line), "used_llm": False, "prompts": []})
-    except Exception:
-        log.warning("listing posts: details card not drawn", exc_info=True)
-    return out
+            log.warning("listing posts: pictures not drawn, the price sheet goes alone", exc_info=True)
+            images = [sheet]
+    renders = sum(1 for _, r in pics if r) if len(images) > 1 else 0
+    return [{"angle": "listing", "layout": "listing_carousel" if len(images) > 1 else "price_sheet",
+             "format": "carousel" if len(images) > 1 else "single", "images": images,
+             "caption": details_caption(listing, c, contact, link_line, len(images) - 1, renders),
+             "used_llm": False, "prompts": []}]

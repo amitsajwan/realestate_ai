@@ -41,7 +41,7 @@ Three reviews (UX, sales/agent operations, data/compliance) read the flow and th
 LIVE after this deploy:
 - Listing: `configurations` (BHK, carpet, price per home type, smallest first) and `payment_plan` ("20:20:30:30"). Form:
   "Homes and prices" rows or a pasted builder price list; the smallest row sets the listing's BHK, carpet and "from" price.
-- Posts: exactly two, drawn by code from the listing (`propertyfacts/listing_posts.py`): a gallery carousel (cover with name,
+- Posts: ONE carousel drawn by code from the listing (`propertyfacts/listing_posts.py`; owner: "why a post with just the price? include it in the single"): cover with name,
   place, home types, from-price, payment plan; three pictures combined on one slide from 5 pictures; smart crop on edge energy;
   phone photos lifted; maps, QR codes, clipart, screenshots and small pictures left out) and a details card (price table,
   payment plan, possession, MahaRERA QR) whose caption lists everything.

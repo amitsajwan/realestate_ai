@@ -110,7 +110,7 @@ async def test_an_agents_marathi_campaign(tmp_path, monkeypatch):
     assert created and doc["language"] == "mr"
     await runs.run_once()
     d = await runs.latest("a1", "L1")
-    assert d["status"] == "done" and [p["angle"] for p in d["posts"]] == ["details"] and jobs.run_out(d)["language"] == "mr"
+    assert d["status"] == "done" and [p["angle"] for p in d["posts"]] == ["listing"] and jobs.run_out(d)["language"] == "mr"
     for p in d["posts"]:
         assert "+91 90000 12345" in p["caption"] and "99219" not in p["caption"] and "house-deal.com" in p["caption"] and "avasetu.in/agent/house-deal" in p["caption"]
         assert p["caption"].startswith("मराठी: ") and "INFO" in p["caption"]   # translated down to the ask; contact lines as they are

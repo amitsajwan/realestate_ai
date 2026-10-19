@@ -87,9 +87,7 @@ async def test_new_photos_remake_the_posts_without_one_but_not_an_edited_post(tm
     posts = {p["angle"]: p for p in d["posts"]}
     kept = posts[edited["angle"]]
     assert kept["caption"].endswith("Our words.") and kept["stale"] and kept["newer"]["photo"] == "photo"
-    assert kept["images"] == edited["images"]
-    others = [p for a, p in posts.items() if a != edited["angle"]]
-    assert others and all(p["photo"] == "photo" and not p.get("stale") for p in others)
+    assert kept["images"] == edited["images"] and len(kept["newer"]["images"]) == 3   # cover, price sheet, picture
     assert set(d["redone"]) == set(posts)
     assert jobs.run_out(d)["stale"] == [edited["angle"]]
 
@@ -99,18 +97,18 @@ async def test_a_fact_change_remakes_the_posts_that_say_it_and_spares_approved_o
     await runs.to_calendar("a1", "L1")
     cal = CalendarStore(db)
     rows = {(r["channel"], r["slug"]): r for r in await cal.all()}
-    await cal.approve(rows[("instagram", "campaign-L1-details")]["_id"])
+    await cal.approve(rows[("instagram", "campaign-L1-listing")]["_id"])
     tick(runs)
     await change(db, price_inr=3500000)
     run, created = await runs.create("a1", "L1")
     assert created and run["changes"] == ["facts"] and run["calendar"]
     d = await finish(runs)
     posts, before = {p["angle"]: p for p in d["posts"]}, {p["angle"]: p for p in done["posts"]}
-    assert "details" in d["redone"]
-    assert posts["details"]["caption"] == before["details"]["caption"] and posts["details"]["stale"]   # approved: kept
-    assert "35" in posts["details"]["newer"]["caption"]
-    ok = await cal.get(rows[("instagram", "campaign-L1-details")]["_id"])
-    assert ok["caption"] == rows[("instagram", "campaign-L1-details")]["caption"]  # approved row untouched
+    assert "listing" in d["redone"]
+    assert posts["listing"]["caption"] == before["listing"]["caption"] and posts["listing"]["stale"]   # approved: kept
+    assert "35" in posts["listing"]["newer"]["caption"]
+    ok = await cal.get(rows[("instagram", "campaign-L1-listing")]["_id"])
+    assert ok["caption"] == rows[("instagram", "campaign-L1-listing")]["caption"]  # approved row untouched
 
 
 async def test_a_new_brochure_remakes_no_post(tmp_path):

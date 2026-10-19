@@ -123,8 +123,8 @@ async def test_facts_then_posts(tmp_path):
     assert d["facts"]["maharera"] == "P52100076768" and d["facts"]["usable"] > 10
     assert d["page_url"] == PROJECT_URL                                   # a registered project: its own page is the link
     assert d["listing_url"] == "https://avasetu.in/agent/priya/listings/L1"
-    # no photos: the details post only (the gallery needs 2 pictures)
-    assert [p["angle"] for p in d["posts"]] == ["details"] and all(i.startswith("/uploads/campaigns/L1/") for p in d["posts"] for i in p["images"])
+    # no photos: the one post is the price sheet alone (the pictures come with 2 or more)
+    assert [p["angle"] for p in d["posts"]] == ["listing"] and len(d["posts"][0]["images"]) == 1 and all(i.startswith("/uploads/campaigns/L1/") for p in d["posts"] for i in p["images"])
     assert (await clients.facts_store.get("P52100076768"))["listing_id"] == "L1"     # the knowledge base is kept
     assert all("Full details of Gulmohar City, Ranjangaon, with its MahaRERA record: link in bio." in p["caption"]
                for p in d["posts"])
@@ -198,17 +198,17 @@ async def test_send_to_calendar_plans_rows_for_approval(tmp_path):
     posts = [r for r in rows if r["kind"] == "post"]
     reels = [r for r in rows if r["kind"] == "reel"]
     ads = [r for r in reels if r["slug"].endswith("-ad")]
-    assert [p["angle"] for p in out["posts"]] == ["gallery", "details"]                           # the two posts (owner, 2026-10-19)
+    assert [p["angle"] for p in out["posts"]] == ["listing"]                                      # one post (owner, 2026-10-19)
     assert len(ads) == 2 * jobs.FALLBACK_REELS and all(r["status"] == "planned" for r in rows)     # no room met: two reels
-    assert len(posts) == 2 * n and len(next(r for r in posts if r["slug"] == "campaign-L1-gallery")["images"]) == 2
+    assert len(posts) == 2 * n and len(posts[0]["images"]) == 3   # cover, price sheet, picture
     assert all(r["creative"]["experiment"] == "ad_reel" and r["creative"]["variant"] for r in ads)
     assert all(r["video"].startswith("campaigns/L1/") and r["video"].endswith(".mp4") for r in reels)
     assert all(r["agent_id"] == "a1" and r["listing_id"] == "L1" for r in rows)
     ig = sorted((r for r in rows if r["channel"] == "instagram"), key=lambda r: r["due_at"])
-    assert ig[0]["slug"] == "campaign-L1-gallery" and ig[1]["slug"].endswith("-ad") and ig[2]["slug"] == "campaign-L1-details"
-    when = [r["due_at"].astimezone(schedule.IST).strftime("%m-%d %H:%M") for r in ig[:4]]
+    assert ig[0]["slug"] == "campaign-L1-listing" and ig[1]["slug"].endswith("-ad") and ig[2]["slug"].endswith("-ad")
+    when = [r["due_at"].astimezone(schedule.IST).strftime("%m-%d %H:%M") for r in ig[:3]]
     # two a day (11:00 and 19:00 IST); the 8th's 19:00 is within 6 h of the brand post at 19:30, so the next free slot follows
-    assert when == ["10-07 11:00", "10-07 19:00", "10-08 11:00", "10-09 11:00"]
+    assert when == ["10-07 11:00", "10-07 19:00", "10-08 11:00"]
     assert all(not i.startswith("/") and i.startswith("campaigns/L1/") for r in posts for i in r["images"])
     fb = next(r for r in rows if r["channel"] == "facebook_page")
     # Facebook links to this listing's own page (its photos, as in the post: jobs._post_page)
@@ -274,7 +274,7 @@ async def test_a_reel_failure_never_loses_the_posts(tmp_path):
     await runs.create("a1", "L1")
     await runs.run_once()
     d = await runs.latest("a1", "L1")
-    assert d["status"] == "done" and [p["angle"] for p in d["posts"]] == ["details"]
+    assert d["status"] == "done" and [p["angle"] for p in d["posts"]] == ["listing"]
     assert [r["kind"] for r in d["reels"]] == ["walkthrough"]
 
 
@@ -286,19 +286,19 @@ async def test_edit_a_post_updates_planned_rows_only(tmp_path):
     await runs.to_calendar("a1", "L1")
     cal = CalendarStore(db)
     rows = {(r["channel"], r["slug"]): r for r in await cal.all()}
-    approved = rows[("facebook_page", "campaign-L1-details")]
+    approved = rows[("facebook_page", "campaign-L1-listing")]
     await cal.approve(approved["_id"])                              # the owner already approved the Facebook one
     text = "Our plot at Gulmohar City, Ranjangaon: ₹32.3 Lakh.\n\nFull details of Gulmohar City, Ranjangaon, with its MahaRERA record: link in bio."
-    run, problems = await runs.edit_post("a1", "L1", "details", text)
+    run, problems = await runs.edit_post("a1", "L1", "listing", text)
     assert problems == [] and run["synced"] == 1
-    post = next(p for p in run["posts"] if p["angle"] == "details")
+    post = next(p for p in run["posts"] if p["angle"] == "listing")
     assert post["caption"] == text and post["edited"]
-    assert text.splitlines()[0] in (await cal.get(rows[("instagram", "campaign-L1-details")]["_id"]))["caption"]
+    assert text.splitlines()[0] in (await cal.get(rows[("instagram", "campaign-L1-listing")]["_id"]))["caption"]
     assert (await cal.get(approved["_id"]))["caption"] == approved["caption"]        # approved rows are never changed
-    _, problems = await runs.edit_post("a1", "L1", "details", "Only ₹25 lakh! Best deal, call 9876543210")
+    _, problems = await runs.edit_post("a1", "L1", "listing", "Only ₹25 lakh! Best deal, call 9876543210")
     assert any("number not in facts" in p for p in problems) and "phone number" in problems and "hype word" in problems
     with pytest.raises(jobs.RunError):
-        await runs.edit_post("a1", "L1", "details", "   ")
+        await runs.edit_post("a1", "L1", "listing", "   ")
     with pytest.raises(jobs.RunError) as e:
         await runs.edit_post("a1", "L1", "no_such_angle", "x")
     assert e.value.status_code == 404
@@ -309,8 +309,8 @@ async def test_draw_a_post_again_from_the_listing(tmp_path):
     await runs.create("a1", "L1")
     await runs.run_once()
     await db.get_collection("listings").update_one({"_id": "L1"}, {"$set": {"payment_plan": "10:90"}})
-    run = await runs.redo_post("a1", "L1", "details", "show the payment plan")
-    post = next(p for p in run["posts"] if p["angle"] == "details")
+    run = await runs.redo_post("a1", "L1", "listing", "show the payment plan")
+    post = next(p for p in run["posts"] if p["angle"] == "listing")
     assert post["redos"] == 1 and post["note"] == "show the payment plan" and "Payment plan: 10:90" in post["caption"]
     assert all("/redo1/" in i for i in post["images"])
     assert (await runs.latest("a1", "L1"))["posts"] == run["posts"]
