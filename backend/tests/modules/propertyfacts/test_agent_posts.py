@@ -8,7 +8,7 @@ from app.modules.creative import translate
 from app.modules.creative.layouts import render_layout
 from app.modules.creative.layouts.base import DEVANAGARI_FONTS, card, load_font
 from app.modules.creative.models import Brief, CardBrand, Copy, Design
-from app.modules.propertyfacts import campaign, identity, jobs
+from app.modules.propertyfacts import identity, jobs
 
 from .test_jobs import LISTING, setup
 
@@ -62,6 +62,8 @@ class Translator:
         self.fn = fn
 
     async def json(self, system, user):
+        if "Instagram caption" in system:   # listing_posts.localize: the caption text as it is
+            return {"text": self.fn(user)}
         return self.fn(json.loads(user)) if "translate one social post" in system else None
 
 
@@ -108,11 +110,10 @@ async def test_an_agents_marathi_campaign(tmp_path, monkeypatch):
     assert created and doc["language"] == "mr"
     await runs.run_once()
     d = await runs.latest("a1", "L1")
-    assert d["status"] == "done" and len(d["posts"]) == 1 + campaign.FOLLOW_UPS and jobs.run_out(d)["language"] == "mr"
+    assert d["status"] == "done" and [p["angle"] for p in d["posts"]] == ["details"] and jobs.run_out(d)["language"] == "mr"
     for p in d["posts"]:
         assert "+91 90000 12345" in p["caption"] and "99219" not in p["caption"] and "house-deal.com" in p["caption"] and "avasetu.in/agent/house-deal" in p["caption"]
-        assert p["caption"].startswith("मराठी: ") and ("खाली सांगा" in p["caption"] or "कमेंटमध्ये" in p["caption"])
-        assert "card_translator@3/listing" in p["prompts"]
+        assert p["caption"].startswith("मराठी: ") and "INFO" in p["caption"]   # translated down to the ask; contact lines as they are
     _, created = await runs.create("a1", "L1", language="en")      # another language makes a new run
     assert created
     assert LISTING["_id"] == "L1"

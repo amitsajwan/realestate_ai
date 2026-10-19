@@ -58,6 +58,12 @@ export interface AboutSuggestion {
   area_name?: string | null
 }
 
+export interface Configuration {
+  bhk: number
+  carpet_sqft?: number | null
+  price_inr?: number | null
+}
+
 export interface Listing {
   id: string
   agent_id: string
@@ -82,6 +88,10 @@ export interface Listing {
   /** single: one flat or plot. layout: a whole project. Set here, marketing does not ask again. */
   listing_scope?: 'single' | 'layout' | null
   rera_status?: 'not_registered' | null
+  /** A project's home types as the builder prices them (2, 3 and 4 BHK...): the details post's price table. */
+  configurations?: Configuration[] | null
+  /** The builder's payment plan as written: "20:20:30:30". */
+  payment_plan?: string | null
   amenities: string[]
   media: Media[]
   about?: About | null

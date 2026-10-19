@@ -93,8 +93,8 @@ def property_of(listing: dict, facts: Optional[Dict[str, Any]] = None) -> Dict[s
 
 
 def items(run: dict, link_line: str) -> List[Dict]:
-    """What goes into the calendar, in campaign order, on both channels: each post's ad reel in place of the post (89.9% of
-    our views come from the Reels tab), the overview also as a post (the Page grid), a post without an ad reel as a post; the
+    """What goes into the calendar, in campaign order, on both channels: the two posts (gallery, details) with the ad reels
+    between them (older runs: each post's ad reel in place of the post, the overview also as a post); the
     walkthrough reel, once rendered, and the reel from the agent's own video. Older runs' slides reels go on Instagram only.
     Each: {slug, channel, kind, caption, images, video, angle, creative}."""
     lid, page = run["listing_id"], run.get("listing_url") or run.get("page_url") or ""
@@ -107,21 +107,39 @@ def items(run: dict, link_line: str) -> List[Dict]:
         out.append({"slug": slug, "channel": channel, "kind": kind, "caption": caption, "images": images, "video": video,
                     "angle": angle, "creative": creative})
 
+    def add_ad(channel, ad):
+        sc = ad.get("script") or {}
+        add(slug_for(lid, f"{ad['angle']}-ad"), channel, "reel", ad["caption"], [], _rel(ad["video"]), f"{ad['angle']}-ad",
+            {"layout": "ad_reel", "template": "campaign", "experiment": "ad_reel", "variant": ad.get("format"),
+             "hook": sc.get("hook", "").replace("*", ""), "hook_type": sc.get("hook_type"), "script": sc.get("beats") or [],
+             "llm": sc.get("by") == "llm"})
+
+    def add_post(channel, p):
+        add(slug_for(lid, p["angle"]), channel, "post", p["caption"], [_rel(i) for i in p["images"]], None, p["angle"],
+            {"layout": p.get("layout"), "format": p.get("format"), "llm": p.get("used_llm"), "prompts": p.get("prompts") or []})
+
     for channel in CHANNELS:
-        # the overview takes the first slot (slots are in time order); the rest keep the campaign's order
-        ads = {r["angle"]: r for r in run.get("reels") or [] if r.get("kind") == "ad" and r.get("video")}
-        for p in sorted(run.get("posts") or [], key=lambda p: p["angle"] != "overview"):
-            ad = ads.get(p["angle"])
-            if ad:
-                sc = ad.get("script") or {}
-                add(slug_for(lid, f"{p['angle']}-ad"), channel, "reel", ad["caption"], [], _rel(ad["video"]), f"{p['angle']}-ad",
-                    {"layout": "ad_reel", "template": "campaign", "experiment": "ad_reel", "variant": ad.get("format"),
-                     "hook": sc.get("hook", "").replace("*", ""), "hook_type": sc.get("hook_type"), "script": sc.get("beats") or [],
-                     "llm": sc.get("by") == "llm"})
-                if p["angle"] != "overview":
-                    continue
-            add(slug_for(lid, p["angle"]), channel, "post", p["caption"], [_rel(i) for i in p["images"]], None, p["angle"],
-                {"layout": p.get("layout"), "format": p.get("format"), "llm": p.get("used_llm"), "prompts": p.get("prompts") or []})
+        ads = [r for r in run.get("reels") or [] if r.get("kind") == "ad" and r.get("video")]
+        posts = run.get("posts") or []
+        mine = {p["angle"] for p in posts}
+        if any(a["angle"] in mine for a in ads):
+            # a run made before 2026-10-19: each post went out as its ad reel; the overview first and also as a post
+            by = {a["angle"]: a for a in ads}
+            for p in sorted(posts, key=lambda p: p["angle"] != "overview"):
+                if p["angle"] in by:
+                    add_ad(channel, by[p["angle"]])
+                    if p["angle"] != "overview":
+                        continue
+                add_post(channel, p)
+        else:
+            # the two posts (gallery, details) and the reels, taking turns: gallery, a reel, details, the other reels
+            free = [a for a in ads if a["angle"] not in mine]
+            for i, p in enumerate(posts):
+                add_post(channel, p)
+                if i < len(free):
+                    add_ad(channel, free[i])
+            for a in free[len(posts):]:
+                add_ad(channel, a)
         for r in run.get("reels") or []:
             if not r.get("video"):
                 continue

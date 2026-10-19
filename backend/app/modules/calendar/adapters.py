@@ -435,7 +435,7 @@ def whatsapp_lines(caption: str, code: str, channel: str) -> str:
     line = ""
     if num:
         line = (f"{WA_MARK} WhatsApp: https://wa.me/{num}?text={quote(f'Hi, I am interested in {code}')}" if channel == "facebook"
-                else f"{WA_MARK} WhatsApp {phone_label('+' + num)} and send: interested in {code}")
+                else f"{WA_MARK} WhatsApp wa.me/{num} ({phone_label('+' + num)}) and send: interested in {code}")
     out = []
     for ln in caption.splitlines():
         s = ln.strip()

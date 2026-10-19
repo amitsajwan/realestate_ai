@@ -35,3 +35,20 @@ Three reviews (UX, sales/agent operations, data/compliance) read the flow and th
 
 - Sales asked for Post = market in one tap with auto-scheduling. Kept as one deliberate tap: the owner decided on 2026-10-14
   that posting must not start marketing by itself.
+
+## Homes and prices, two posts (2026-10-19 evening, owner feedback on the Ivara campaign)
+
+LIVE after this deploy:
+- Listing: `configurations` (BHK, carpet, price per home type, smallest first) and `payment_plan` ("20:20:30:30"). Form:
+  "Homes and prices" rows or a pasted builder price list; the smallest row sets the listing's BHK, carpet and "from" price.
+- Posts: exactly two, drawn by code from the listing (`propertyfacts/listing_posts.py`): a gallery carousel (cover with name,
+  place, home types, from-price, payment plan; three pictures combined on one slide from 5 pictures; smart crop on edge energy;
+  phone photos lifted; maps, QR codes, clipart, screenshots and small pictures left out) and a details card (price table,
+  payment plan, possession, MahaRERA QR) whose caption lists everything.
+- Reels: the creative room's ideas only (no "why Avasetu" piece), else two formats the facts support; silent story scenes
+  2.6-3 s each (~17 s reel). Calendar: gallery, a reel, details, the other reels, then the walkthrough.
+- Walkthrough voice: "Possession Aug 2032" (was "2032-08"), "1 crore 29 lakh rupees" (was "1.29 crore").
+- Our own posts carry the WhatsApp line (wa.me link on Facebook, wa.me + number on Instagram, with the post's code).
+- MahaRERA badge reads PR + 13-digit numbers too.
+
+TARGET: the AI draft reads a price sheet image into `configurations`; Marathi/Hindi cards (captions are translated now).

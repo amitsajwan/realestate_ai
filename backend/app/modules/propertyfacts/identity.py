@@ -56,13 +56,20 @@ def bare_url(u: str) -> str:
     return re.sub(r"^https?://(www\.)?", "", (u or "").strip()).rstrip("/")
 
 
+def our_identity() -> Identity:
+    """Our own posts: the brand's voice and cards, and the WhatsApp line (owner, 2026-10-19: "now we can mention our WhatsApp";
+    calendar.adapters.whatsapp_lines makes it a wa.me link with the post's code at publish)."""
+    phone = whatsapp_label()
+    return Identity(contact=[f"{WA_MARK} WhatsApp: {phone}"] if phone else [])
+
+
 def identity(profile: Optional[dict], site: str, uploads_dir: Path, language: str = "en") -> Identity:
     if not profile or profile.get("slug") in (None, "", OFFICIAL_SLUG):
-        return Identity()
+        return our_identity()
     bd = profile.get("branding_data") or {}
     name = (bd.get("business_name") or profile.get("agent_name") or "").strip()
     if not name:
-        return Identity()
+        return our_identity()
     # Buyers reach the agent through OUR WhatsApp number, never the agent's own phone: the chat carries the post's code, so our
     # bot routes it to this agent and the lead is counted for that post (calendar.adapters puts the code link in at publish).
     phone = whatsapp_label()

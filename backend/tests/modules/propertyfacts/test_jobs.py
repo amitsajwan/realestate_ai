@@ -4,11 +4,10 @@ from pathlib import Path
 
 import pytest
 
-from app.modules.propertyfacts import campaign, jobs
-from app.modules.propertyfacts.store import FactsStore
+from app.modules.propertyfacts import jobs
 
 from ..fakes import FakeDb
-from .test_register_and_store import RECORD, Db, Register, WithRegister
+from .test_register_and_store import RECORD, Register, WithRegister
 
 NOW = datetime(2026, 10, 6, 12, 0)
 RENDERED = []
@@ -65,12 +64,22 @@ async def page_for(db, regno):
     return PAGES.get(regno)
 
 
-def with_photos(tmp_path, n=2, listing=LISTING):
+def real_photo(path, seed=0):
+    """A picture with a photo's spread of colours and size (listing_posts.photo_like), not a flat test square."""
+    import random
+
     from PIL import Image
+    rnd = random.Random(seed)
+    im = Image.new("RGB", (64, 48))
+    im.putdata([(rnd.randrange(256), rnd.randrange(256), rnd.randrange(256)) for _ in range(64 * 48)])
+    im.resize((800, 600)).save(path)
+
+
+def with_photos(tmp_path, n=2, listing=LISTING):
     (tmp_path / "images").mkdir(exist_ok=True)
     media = []
     for i in range(n):
-        Image.new("RGB", (64, 48), (40 + 60 * i, 120, 200 - 50 * i)).save(tmp_path / "images" / f"p{i}.jpg")
+        real_photo(tmp_path / "images" / f"p{i}.jpg", i)
         media.append({"kind": "image", "url": f"/uploads/images/p{i}.jpg", "order": i})
     return {**listing, "media": media}
 
@@ -94,10 +103,10 @@ async def setup(tmp_path, listing=LISTING, fail_posts=False, pages=page_for):
         return ran
     runs.run_once = run_once
     if fail_posts:
-        async def boom(*a, **k):
+        def boom(*a, **k):
             raise RuntimeError("render failed")
-        runs_make = jobs.campaign.make
-        jobs.campaign.make = boom
+        runs_make = jobs.listing_posts.make
+        jobs.listing_posts.make = boom
         return db, runs, clients, runs_make
     return db, runs, clients, None
 
@@ -114,7 +123,8 @@ async def test_facts_then_posts(tmp_path):
     assert d["facts"]["maharera"] == "P52100076768" and d["facts"]["usable"] > 10
     assert d["page_url"] == PROJECT_URL                                   # a registered project: its own page is the link
     assert d["listing_url"] == "https://avasetu.in/agent/priya/listings/L1"
-    assert len(d["posts"]) == 1 + campaign.FOLLOW_UPS and all(i.startswith("/uploads/campaigns/L1/") for p in d["posts"] for i in p["images"])
+    # no photos: the details post only (the gallery needs 2 pictures)
+    assert [p["angle"] for p in d["posts"]] == ["details"] and all(i.startswith("/uploads/campaigns/L1/") for p in d["posts"] for i in p["images"])
     assert (await clients.facts_store.get("P52100076768"))["listing_id"] == "L1"     # the knowledge base is kept
     assert all("Full details of Gulmohar City, Ranjangaon, with its MahaRERA record: link in bio." in p["caption"]
                for p in d["posts"])
@@ -128,7 +138,7 @@ async def test_posts_failing_keeps_the_facts(tmp_path):
         await runs.create("a1", "L1")
         await runs.run_once()
     finally:
-        jobs.campaign.make = real
+        jobs.listing_posts.make = real
     d = await runs.latest("a1", "L1")
     assert d["status"] == "failed" and d["facts_done_at"] == NOW and d["facts"]["maharera"] == "P52100076768"
     assert d["error"].startswith("The facts are saved")
@@ -188,13 +198,14 @@ async def test_send_to_calendar_plans_rows_for_approval(tmp_path):
     posts = [r for r in rows if r["kind"] == "post"]
     reels = [r for r in rows if r["kind"] == "reel"]
     ads = [r for r in reels if r["slug"].endswith("-ad")]
-    assert len(ads) == 2 * min(jobs.AD_REELS, n) and all(r["status"] == "planned" for r in rows)   # a post goes out as its ad reel
-    assert len(posts) == 2 * (n - min(jobs.AD_REELS, n) + 1)                                      # the overview also as a post
+    assert [p["angle"] for p in out["posts"]] == ["gallery", "details"]                           # the two posts (owner, 2026-10-19)
+    assert len(ads) == 2 * jobs.FALLBACK_REELS and all(r["status"] == "planned" for r in rows)     # no room met: two reels
+    assert len(posts) == 2 * n and len(next(r for r in posts if r["slug"] == "campaign-L1-gallery")["images"]) == 2
     assert all(r["creative"]["experiment"] == "ad_reel" and r["creative"]["variant"] for r in ads)
     assert all(r["video"].startswith("campaigns/L1/") and r["video"].endswith(".mp4") for r in reels)
     assert all(r["agent_id"] == "a1" and r["listing_id"] == "L1" for r in rows)
     ig = sorted((r for r in rows if r["channel"] == "instagram"), key=lambda r: r["due_at"])
-    assert ig[0]["slug"] == "campaign-L1-overview-ad"
+    assert ig[0]["slug"] == "campaign-L1-gallery" and ig[1]["slug"].endswith("-ad") and ig[2]["slug"] == "campaign-L1-details"
     when = [r["due_at"].astimezone(schedule.IST).strftime("%m-%d %H:%M") for r in ig[:4]]
     # two a day (11:00 and 19:00 IST); the 8th's 19:00 is within 6 h of the brand post at 19:30, so the next free slot follows
     assert when == ["10-07 11:00", "10-07 19:00", "10-08 11:00", "10-09 11:00"]
@@ -204,8 +215,8 @@ async def test_send_to_calendar_plans_rows_for_approval(tmp_path):
     assert "https://avasetu.in/agent/priya/listings/L1?src=fb_" in fb["caption"] and "link in bio" not in fb["caption"]
     assert "link in bio" in ig[0]["caption"]
     again = await runs.to_calendar("a1", "L1")                # pressing twice adds nothing
-    assert len([r for r in await cal.all() if r["slug"].startswith("campaign-L1-")]) == 2 * n + 2
-    assert len(again["calendar"]) == 2 * n + 2
+    assert len([r for r in await cal.all() if r["slug"].startswith("campaign-L1-")]) == 2 * (n + jobs.FALLBACK_REELS)
+    assert len(again["calendar"]) == 2 * (n + jobs.FALLBACK_REELS)
     assert jobs.run_out(again)["calendar"][0]["due_at"] == "2026-10-07T05:30:00Z"   # 11 am IST
     # the walkthrough reel renders later (its own worker): sending again then adds it on both channels
     runs.reel_jobs.render()
@@ -228,8 +239,8 @@ async def test_reels_are_made_after_the_posts(tmp_path):
     await runs.run_once()
     d = await runs.latest("a1", "L1")
     ads = [r for r in d["reels"] if r["kind"] == "ad"]
-    assert len(ads) == min(jobs.AD_REELS, len(d["posts"])) and all(k == "GULMOHAR CITY" for _, _, k in RENDERED)
-    assert [r["angle"] for r in ads] == [p["angle"] for p in d["posts"][:len(ads)]]
+    assert len(ads) == jobs.FALLBACK_REELS and all(k == "GULMOHAR CITY" for _, _, k in RENDERED)
+    assert all(r["angle"] == "ad_" + r["format"] for r in ads)   # reels are not tied to the two posts
     assert ads[0]["script"]["hook"] and "INFO" in ads[0]["caption"] and ads[0]["format"] in ("showcase", "price_reveal", "three_reasons", "pov",
                                                                                             "myth_fact", "checklist")
     out = jobs.run_out(d, "https://api.avasetu.in")
@@ -251,7 +262,7 @@ async def test_each_reel_is_saved_as_it_is_made(tmp_path):
     await runs.run_once()
     d = await runs.latest("a1", "L1")
     ads = [r for r in d["reels"] if r["kind"] == "ad"]
-    assert len(ads) == min(jobs.AD_REELS, len(d["posts"]))
+    assert len(ads) == jobs.FALLBACK_REELS
     assert seen[:len(ads)] == list(range(1, len(ads) + 1))   # reel i lands before reel i+1 is rendered: Studio can show them
 
 
@@ -263,7 +274,7 @@ async def test_a_reel_failure_never_loses_the_posts(tmp_path):
     await runs.create("a1", "L1")
     await runs.run_once()
     d = await runs.latest("a1", "L1")
-    assert d["status"] == "done" and len(d["posts"]) == 1 + campaign.FOLLOW_UPS
+    assert d["status"] == "done" and [p["angle"] for p in d["posts"]] == ["details"]
     assert [r["kind"] for r in d["reels"]] == ["walkthrough"]
 
 
@@ -275,36 +286,33 @@ async def test_edit_a_post_updates_planned_rows_only(tmp_path):
     await runs.to_calendar("a1", "L1")
     cal = CalendarStore(db)
     rows = {(r["channel"], r["slug"]): r for r in await cal.all()}
-    approved = rows[("facebook_page", "campaign-L1-price_reveal-ad")]
+    approved = rows[("facebook_page", "campaign-L1-details")]
     await cal.approve(approved["_id"])                              # the owner already approved the Facebook one
-    text = "Our plot at Gulmohar City, Ranjangaon: ₹32.3 lakh.\n\nFull details of Gulmohar City, Ranjangaon, with its MahaRERA record: link in bio."
-    run, problems = await runs.edit_post("a1", "L1", "price_reveal", text)
+    text = "Our plot at Gulmohar City, Ranjangaon: ₹32.3 Lakh.\n\nFull details of Gulmohar City, Ranjangaon, with its MahaRERA record: link in bio."
+    run, problems = await runs.edit_post("a1", "L1", "details", text)
     assert problems == [] and run["synced"] == 1
-    post = next(p for p in run["posts"] if p["angle"] == "price_reveal")
+    post = next(p for p in run["posts"] if p["angle"] == "details")
     assert post["caption"] == text and post["edited"]
-    assert text.splitlines()[0] in (await cal.get(rows[("instagram", "campaign-L1-price_reveal-ad")]["_id"]))["caption"]   # the reel takes the new text
+    assert text.splitlines()[0] in (await cal.get(rows[("instagram", "campaign-L1-details")]["_id"]))["caption"]
     assert (await cal.get(approved["_id"]))["caption"] == approved["caption"]        # approved rows are never changed
-    _, problems = await runs.edit_post("a1", "L1", "price_reveal", "Only ₹25 lakh! Best deal, call 9876543210")
+    _, problems = await runs.edit_post("a1", "L1", "details", "Only ₹25 lakh! Best deal, call 9876543210")
     assert any("number not in facts" in p for p in problems) and "phone number" in problems and "hype word" in problems
     with pytest.raises(jobs.RunError):
-        await runs.edit_post("a1", "L1", "price_reveal", "   ")
+        await runs.edit_post("a1", "L1", "details", "   ")
     with pytest.raises(jobs.RunError) as e:
         await runs.edit_post("a1", "L1", "no_such_angle", "x")
     assert e.value.status_code == 404
 
 
-async def test_improve_a_post_with_a_note(tmp_path):
-    from ..creative.helpers import FakeLlm
+async def test_draw_a_post_again_from_the_listing(tmp_path):
     db, runs, _, _ = await setup(tmp_path)
     await runs.create("a1", "L1")
     await runs.run_once()
-    llm = FakeLlm(text_reply="")
-    runs.llm_factory = lambda: llm
-    run = await runs.redo_post("a1", "L1", "near_work", "mention the MIDC jobs")
-    post = next(p for p in run["posts"] if p["angle"] == "near_work")
-    assert post["redos"] == 1 and post["note"] == "mention the MIDC jobs"
-    assert all("/near_work/redo1/" in i for i in post["images"])
-    assert any("The agent asked for this change: mention the MIDC jobs" in c[2] for c in llm.calls)   # the note reached the writer
+    await db.get_collection("listings").update_one({"_id": "L1"}, {"$set": {"payment_plan": "10:90"}})
+    run = await runs.redo_post("a1", "L1", "details", "show the payment plan")
+    post = next(p for p in run["posts"] if p["angle"] == "details")
+    assert post["redos"] == 1 and post["note"] == "show the payment plan" and "Payment plan: 10:90" in post["caption"]
+    assert all("/redo1/" in i for i in post["images"])
     assert (await runs.latest("a1", "L1"))["posts"] == run["posts"]
 
 

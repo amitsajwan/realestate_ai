@@ -37,7 +37,9 @@ EXPERIMENT = "ad_reel"
 FORMATS = ("showcase", "price_reveal", "three_reasons", "pov", "myth_fact", "checklist")
 EXPLORE = 0.2
 HOOK_WORDS, LINE_WORDS = 10, 8
-HOOK_S, BEAT_S, PAYOFF_S, CHECKED_S, CTA_S, LOOP_S = 1.9, 1.5, 2.0, 2.2, 1.8, 0.7   # the least each scene lasts; a spoken line makes it longer
+# the least each scene lasts; a spoken line makes it longer. A silent reel is about 17 s: each picture held long enough to see
+# it and read its line (owner, 2026-10-19: at 1.5 s a beat "pictures moving very fast", the reel 11 s)
+HOOK_S, BEAT_S, PAYOFF_S, CHECKED_S, CTA_S, LOOP_S = 2.8, 2.6, 3.0, 2.6, 2.6, 0.7
 VOICE_PAD_S = 0.6       # after a spoken line, before the next scene's cut: a breath, as a person talking takes
 SILENT_S = 1.2          # a voiced reel's scene with no words: its text read at a glance, then on
 SPOKEN_MAX_S = 30.0     # a guard: the voice-over's word budget (voiceover.BUDGET) keeps a reel ~18-20 s (owner: under 20 s)

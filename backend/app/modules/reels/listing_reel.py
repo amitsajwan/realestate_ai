@@ -142,8 +142,9 @@ def reel_facts(listing: dict, profile: Optional[dict]) -> Tuple[str, List[str], 
     about = listing.get("about") or {}
     subject = f.title_line("en")
     lines: List[str] = [f.title_line("en")]
-    if f.price_text:
-        lines.append(f"Price {f.price_text}")
+    if f.price_text:   # with the way it is said, so a spoken "1 crore 29 lakh" passes the number check
+        said = crore_lakh(f.price_text)
+        lines.append(f"Price {f.price_text}" + (f" ({said.replace('Cr', 'crore').replace('Lakh', 'lakh')})" if said else ""))
     if f.area_text:
         lines.append(f"{f.area_kind.capitalize()} area {f.area_text}")
     if f.floor_text("en"):
@@ -218,9 +219,16 @@ _SAY = {
 }
 
 
+def crore_lakh(price: str) -> str:
+    """'1.29 Cr' -> '1 Cr 29 Lakh' (how it is said: never "one point two nine crore"); '' when there is no lakh part."""
+    m = re.fullmatch(r"\s*₹?\s*(\d+)\.(\d{1,2})\s*Cr\s*", price or "")
+    lakh = int(m.group(2).ljust(2, "0")) if m else 0
+    return f"{m.group(1)} Cr {lakh} Lakh" if lakh else ""
+
+
 def _spoken_price(f: Facts, lang: str) -> str:
     """'₹85 Lakh' -> '85 lakh rupees' / '85 लाख रुपये'; '₹45,000/month' -> '45,000 rupees a month' / '45,000 रुपये महीना'."""
-    p = f.price_text.replace("₹", "").replace("/month", "")
+    p = crore_lakh(f.price_text.replace("₹", "").replace("/month", "")) or f.price_text.replace("₹", "").replace("/month", "")
     if lang == "en":
         return p.replace("Cr", "crore").replace("Lakh", "lakh") + (" rupees a month" if f.rent else " rupees")
     for a, b in _UNIT[lang].items():

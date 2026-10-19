@@ -3,7 +3,8 @@ import React, { useEffect, useRef, useState } from 'react'
 import { aboutSummaryLines } from '@/lib/app/about'
 import { formatInr, groupIndian, parseInr } from '@/lib/app/format'
 import { t } from '@/lib/app/strings'
-import type { About, DraftSource, Furnishing, ListingInput, MahaReraFacts, PropertyType, ReraCandidate, Transaction } from '@/lib/app/types'
+import { fromRows, parsePriceSheet } from '@/lib/app/configurations'
+import type { About, Configuration, DraftSource, Furnishing, ListingInput, MahaReraFacts, PropertyType, ReraCandidate, Transaction } from '@/lib/app/types'
 import { LOW_CONFIDENCE, priceSanity } from '@/lib/app/validate'
 import { ChipPicker } from './JoinFlow'
 import { Field, inputCls } from './ui'
@@ -131,6 +132,47 @@ function MahaReraCard({ facts, sources, onWrong }: { facts: MahaReraFacts; sourc
       {extended && <p className="mt-2 text-xs text-gray-600">MahaRERA added 4 months to most projects&apos; dates in August 2026 (Order 66/2026).</p>}
       <button type="button" onClick={onWrong} className="mt-2 min-h-[44px] text-sm font-semibold text-blue-700 underline">Not this project? Remove the number</button>
     </section>
+  )
+}
+
+/** A project's home types (owner 2026-10-19: "it has 2, 3 and 4 BHK; the listing never captured that"): a row each, or a
+ *  builder's price sheet pasted as text. The smallest row sets the listing's own BHK, carpet and "from" price. */
+function HomesTable({ rows, onChange }: { rows: Configuration[]; onChange: (rows: Configuration[]) => void }) {
+  const [paste, setPaste] = useState('')
+  const num = (v: string) => (v.trim() === '' ? null : Number(v.replace(/[^\d.]/g, '')) || null)
+  const edit = (i: number, patch: Partial<Configuration>) => onChange(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)))
+  const read = parsePriceSheet(paste)
+  return (
+    <Field label="Homes and prices (each BHK and size)">
+      {rows.length > 0 && (
+        <div className="space-y-2">
+          <div className="grid grid-cols-[4rem_1fr_1fr_2.75rem] gap-2 text-xs font-semibold text-gray-500">
+            <span>BHK</span><span>Carpet sq ft</span><span>Price</span><span />
+          </div>
+          {rows.map((r, i) => (
+            <div key={i} className="grid grid-cols-[4rem_1fr_1fr_2.75rem] gap-2">
+              <input aria-label={`Row ${i + 1} BHK`} className={inputCls} inputMode="decimal" value={r.bhk ?? ''} onChange={(e) => edit(i, { bhk: num(e.target.value) ?? 0 })} />
+              <input aria-label={`Row ${i + 1} carpet`} className={inputCls} inputMode="numeric" value={r.carpet_sqft ?? ''} onChange={(e) => edit(i, { carpet_sqft: num(e.target.value) })} />
+              <input key={`${i}-${r.price_inr ?? ''}`} aria-label={`Row ${i + 1} price`} className={inputCls} placeholder="1.20 Cr" defaultValue={r.price_inr ? formatInr(r.price_inr) : ''}
+                onBlur={(e) => edit(i, { price_inr: parseInr(e.target.value) })} />
+              <button type="button" aria-label={`Remove row ${i + 1}`} className="min-h-[44px] rounded-lg border border-gray-300 text-gray-600" onClick={() => onChange(rows.filter((_, j) => j !== i))}>×</button>
+            </div>
+          ))}
+        </div>
+      )}
+      <button type="button" className="mt-2 min-h-[44px] text-sm font-semibold text-blue-700" onClick={() => onChange([...rows, { bhk: rows.length ? rows[rows.length - 1].bhk : 2 }])}>
+        + Add a home type
+      </button>
+      <details className="mt-1 text-sm">
+        <summary className="min-h-[44px] cursor-pointer py-2 font-semibold text-blue-700">Paste the builder's price list</summary>
+        <textarea aria-label="Builder rate sheet text" className={`${inputCls} min-h-[100px] py-2`} placeholder={'2 BHK 730 sq ft ₹1.20 Cr\n3 BHK 890 sq ft ₹1.44 Cr'}
+          value={paste} onChange={(e) => setPaste(e.target.value)} />
+        <button type="button" disabled={!read.length} className="mt-2 min-h-[44px] rounded-lg bg-blue-600 px-4 font-semibold text-white disabled:opacity-40"
+          onClick={() => { onChange(read); setPaste('') }}>
+          {read.length ? `Use these ${read.length} rows` : 'No rows read yet'}
+        </button>
+      </details>
+    </Field>
   )
 }
 
@@ -294,6 +336,17 @@ export function ReviewForm({ value, onChange, confidence = {}, missing = [], err
       </label>
     </Field>
   )
+  // the table sets the listing's own figures from its smallest home: the "from" price, BHK and carpet the rest of the app reads
+  const homesTable = (
+    <HomesTable key="homes" rows={value.configurations ?? []}
+      onChange={(rows) => set({ configurations: rows.length ? rows : null, ...(rows.length ? fromRows(rows) : {}), ...(rows.length > 1 ? { listing_scope: 'layout' as const } : {}) })} />
+  )
+  const paymentPlan = (
+    <Field key="plan" label="Payment plan (optional)" htmlFor="plan">
+      <input id="plan" className={inputCls} maxLength={60} placeholder="20:20:30:30" value={value.payment_plan ?? ''}
+        onChange={(e) => set({ payment_plan: e.target.value || null })} />
+    </Field>
+  )
   const amenities = <ChipPicker key="amenities" label="Amenities" options={AMENITIES} value={value.amenities ?? []} onChange={(a) => set({ amenities: a })} />
   const aboutBox = onEditAbout ? <AboutSummary key="about" about={about} onEdit={onEditAbout} /> : null
   const description = (
@@ -342,6 +395,7 @@ export function ReviewForm({ value, onChange, confidence = {}, missing = [], err
         <div className="grid grid-cols-2 gap-2">{city}{locality}</div>
         {projectName}
         <div className="grid grid-cols-2 gap-2">{bhk}{carpet}{floor}{totalFloors}</div>
+        {homesTable}{paymentPlan}
         <div className="grid grid-cols-2 gap-2">{furnishing}{possession}</div>
         {scope}{rera}{amenities}{aboutBox}{description}{photoStrip}
       </div>
@@ -358,12 +412,14 @@ export function ReviewForm({ value, onChange, confidence = {}, missing = [], err
     ['bhk', bhk],
     ...(project ? [] : [['carpet_sqft', carpet] as Part]),
     ...(regLocality ? [] : [['locality', locality] as Part]),
+    ...(project ? [['configurations', homesTable] as Part, ['payment_plan', paymentPlan] as Part] : []),
   ]
   const more: Part[] = [
     ['title', title], ['property_type', ptype], ['city', city], ...(regLocality ? [['locality', locality] as Part] : []),
     ['project_name', projectName], ...(project ? [['carpet_sqft', carpet] as Part] : []), ['floor', floor],
     ['total_floors', totalFloors], ['furnishing', furnishing], ['possession', possession], ['listing_scope', scope],
     ...(reg ? [] : [['rera_no', rera] as Part]), ...(reg && project ? [['transaction', transaction] as Part] : []),
+    ...(project ? [] : [['configurations', homesTable] as Part, ['payment_plan', paymentPlan] as Part]),
     ['amenities', amenities], ['about', aboutBox], ['description.en', description],
   ]
   const openMore = more.some(([k]) => has(k))

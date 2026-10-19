@@ -1,6 +1,7 @@
 """Listing facts + formatting helpers + per-language word tables. Everything here is derived from the listing only."""
 from app.core import brand
 from app.platform.text import bhk_label, money, sqft
+import re
 from dataclasses import dataclass, field
 from typing import List, Optional
 
@@ -26,6 +27,12 @@ def budget_phrase(price: int, rent: bool = False) -> str:
     return f"under {money(c, rent)}"
 
 
+MONTH_RE = re.compile(r"(\d{4})-(0[1-9]|1[0-2])(?:-\d{2})?")
+MONTHS = {
+    "en": ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"),
+    "hi": ("जनवरी", "फ़रवरी", "मार्च", "अप्रैल", "मई", "जून", "जुलाई", "अगस्त", "सितंबर", "अक्टूबर", "नवंबर", "दिसंबर"),
+    "mr": ("जानेवारी", "फेब्रुवारी", "मार्च", "एप्रिल", "मे", "जून", "जुलै", "ऑगस्ट", "सप्टेंबर", "ऑक्टोबर", "नोव्हेंबर", "डिसेंबर"),
+}
 T = {
     "en": {
         "tx": {"sale": "for sale", "rent": "for rent"},
@@ -137,6 +144,9 @@ class Facts:
     def possession_text(self, lang: str = "en") -> Optional[str]:
         if not self.possession:
             return None
+        m = MONTH_RE.fullmatch(str(self.possession).strip())
+        if m:   # the new-listing flow keeps the builder's month ("2032-08"); a voice read it out digit by digit
+            return f"{T[lang]['possession']} {MONTHS[lang][int(m.group(2)) - 1]} {m.group(1)}"
         return T[lang]["poss"].get(self.possession, self.possession)
 
     def floor_text(self, lang: str = "en") -> Optional[str]:

@@ -2,7 +2,8 @@
 
     1. facts  - gather the property's knowledge base (our MahaRERA register first, then MahaRERA, OpenStreetMap, calculators)
                 and keep it; the listing's page then shows "Checked for you" (VerifiedFacts) from it.
-    2. posts  - only once step 1 is done: the campaign (one post per angle the facts support), rendered as drafts.
+    2. posts  - only once step 1 is done: two posts drawn from the listing (listing_posts.py: a gallery carousel and the
+                details card), and the reels (the creative room's ideas, else two formats the facts support), as drafts.
                 Nothing publishes from here: posting goes through approval.
 
 Jobs live in `marketing_runs`; the worker loop "marketing_runs" (app/worker.py) runs one at a time under its runner lease.
@@ -22,7 +23,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence
 
 from app.platform import trace
 
-from . import campaign, identity, points, room, understand, voiceover
+from . import campaign, identity, listing_posts, points, room, understand, voiceover
 from .brochure import Brochures, usable_images
 from .facts import USABLE
 from .gather import Clients, gather
@@ -33,7 +34,8 @@ log = logging.getLogger(__name__)
 COLLECTION = "marketing_runs"
 MARKETABLE = ("live", "under_offer")
 ACTIVE = ("queued", "facts", "asking", "posts")  # asking: waiting for the agent's answers (understand.py)
-AD_REELS = 6  # ad reels per campaign (ad_reel.py): one per post, in campaign order
+FALLBACK_REELS = 2   # ad reels when the creative room did not meet (no model, Marathi or Hindi): formats the facts support
+TWO_POSTS = ("gallery", "details")   # listing_posts.py: the only posts a campaign makes (owner, 2026-10-19)
 WALKTHROUGH_NOTE = "Add 2 photos to get a walkthrough reel with voiceover"
 # The walkthrough reel's style, split by listing so the two can be compared on real results (schedule.WALKTHROUGH_EXPERIMENT
 # tags the calendar rows; the insights collector reads them back). Fixed per listing: a campaign made again keeps its style.
@@ -49,7 +51,7 @@ HEARTBEAT_INTERVAL_S = STALE_AFTER.total_seconds()
 # listing fields the posts are made from: a change to one of them remakes the posts that say it
 FACT_FIELDS = ("transaction", "property_type", "listing_scope", "price_inr", "carpet_sqft", "plot_sqft", "size_min_sqft",
                "size_max_sqft", "sizes_sqft", "bhk", "units_total", "total_acres", "locality", "city", "project_name", "rera_no",
-               "rera_status", "possession_date")
+               "rera_status", "possession_date", "possession", "configurations", "payment_plan")
 LOCKED = ("approved", "scheduled", "published")   # calendar rows the owner already passed: their post is never replaced
 
 
@@ -368,7 +370,8 @@ class MarketingRuns:
                                     kit=await self._kit(listing_id, agent_id), **self._who(run, who)))
         if angle not in briefs and run.get("room"):
             briefs.update(await self._room_briefs(run, listing, angle, idx))
-        corpus = briefs[angle].corpus() if angle in briefs else ""
+        # the two drawn posts are checked against what they were drawn from (their own caption: every fact they state)
+        corpus = briefs[angle].corpus() if angle in briefs else run["posts"][idx]["caption"] if angle in TWO_POSTS else ""
         checked = "\n".join(line for line in caption.splitlines() if line.strip() not in who.contact)  # code-made contact block
         problems = [p for p in problems_in(checked, corpus, allow_url=True) if p != "url"] if corpus else []
         posts = list(run["posts"])
@@ -393,6 +396,21 @@ class MarketingRuns:
         note = (note or "").strip()[:NOTE_MAX]
         run, idx = await self._done_run(agent_id, listing_id, angle)
         listing = await self._listing(agent_id, listing_id)
+        if angle in TWO_POSTS:   # drawn from the listing, not written: drawn again from it (a changed price sheet shows)
+            n = int(run["posts"][idx].get("redos") or 0) + 1
+            out = self.uploads_dir / "campaigns" / _safe(listing_id) / run["_id"][:8] / f"redo{n}"
+            facts = await self._reel_facts(run, listing)
+            made = await self._two_posts(run, listing, facts, out, await self._photo_pool(listing, out),
+                                         await self._brochure_images(agent_id, listing_id), await self._kit(listing_id, agent_id),
+                                         run.get("link_line") or "")
+            new = next((p for p in made if p["angle"] == angle), None)
+            if new is None:
+                raise RunError("This post could not be drawn again. Check the listing's photos and prices.", 422)
+            posts = list(run["posts"])
+            posts[idx] = {**new, "edited": False, "stale": False, "newer": None, "redos": n, "note": note, "redone_at": self.now()}
+            await self._set(run["_id"], posts=posts)
+            synced = await self._sync_calendar(run, angle, new["caption"], new["images"])
+            return {**run, "posts": posts, "synced": synced}
         photo = await asyncio.to_thread(self._photo, listing)
         briefs = dict(campaign.plan(await self._facts(run, listing), photo, run.get("page_url") or "", follow_ups=None,
                                     images=await self._brochure_images(agent_id, listing_id),
@@ -538,13 +556,13 @@ class MarketingRuns:
         p = cover_photo_path(listing.get("media") or [], self.uploads_dir)
         return str(p) if p and Path(p).is_file() else "none"
 
-    async def _reels(self, job: dict, listing: dict, posts: List[dict], out: Path, project: str, link_line: str,
+    async def _reels(self, job: dict, listing: dict, todo: List[dict], out: Path, project: str, link_line: str,
                      pool: Sequence[str] = (), facts: Optional[Dict[str, Any]] = None) -> List[dict]:
-        """An ad reel per post (up to AD_REELS), the video reel, and the walkthrough reel job. Each one that fails is skipped.
+        """An ad reel per `todo` item (_reel_todo), the video reel, and the walkthrough reel job. Each one that fails is skipped.
         The walkthrough: none for a listing with a video (its video reel covers the place); from the listing's
         photos when it has 2; else from the run's ranked pictures (`pool`: stills, brochure pages) when 2 are usable; else a
         note asking for photos. Its style (tour or stack) is fixed per listing (walkthrough_style), spoken in the posts' language."""
-        reels = await self._ad_reels(job, posts, out, project, pool, facts or {})
+        reels = await self._ad_reels(job, todo, out, project, pool, facts or {})
         video = self._video(listing)
         if video:
             reels.append(await self._video_reel(job, listing, video, out, project, link_line))
@@ -575,21 +593,61 @@ class MarketingRuns:
                             (str(e) or type(e).__name__))
         return reels
 
-    async def _ad_reels(self, job: dict, posts: List[dict], out: Path, project: str, pool: Sequence[str],
+    async def _reel_todo(self, job: dict, listing: dict, facts: Dict[str, Any], posts: List[dict], link_line: str) -> List[dict]:
+        """What each ad reel is made for: [{angle, caption, format}]. The creative room's reel pieces (story format), each
+        captioned with its own lines, the price line and the contact block; without a room, FALLBACK_REELS formats the facts
+        support (ad_reel.pick), captioned with the details post."""
+        from . import ad_reel, homes
+        who = await self._identity(job)
+        ctx = campaign.Ctx(facts)
+        plan = homes.payment_plan(listing)
+        tail = [x for x in (listing_posts.headline(listing, ctx), f"Payment plan: {plan}" if plan else "",
+                            "\n".join(who.contact), link_line) if x]
+        pieces = ((job.get("room") or {}).get("campaign") or {}).get("pieces") or []
+        todo = []
+        for i, p in enumerate(pieces):
+            if p.get("reel"):
+                body = "\n".join([*(p.get("lines") or []), *([p["ask"]] if p.get("ask") else [])])
+                todo.append({"angle": room.angle_id(i, p), "format": "story", "caption": "\n\n".join([body, *tail])})
+        if todo:
+            return todo[:room.MAX_REELS]
+        details = next((p["caption"] for p in posts if p["angle"] == "details"), "\n\n".join(tail))
+        fmts = ad_reel.pick(ad_reel.eligible(ctx), FALLBACK_REELS, await ad_reel.scores(self.db))
+        return [{"angle": f"ad_{f}", "format": f, "caption": details} for f in fmts]
+
+    async def _two_posts(self, job: dict, listing: dict, facts: Dict[str, Any], out: Path, photos: Sequence[str],
+                         images: Sequence[Dict[str, Any]], kit: Optional[dict], link_line: str) -> List[dict]:
+        """The gallery and the details post (listing_posts.make) as kept on the run: own pictures first, then the builder's
+        renders from the brochure kit."""
+        who = await self._identity(job)
+        ctx = campaign.Ctx(facts, kit=kit)
+        pics = [(p, False) for p in photos]   # ranked best first; listing_posts.photo_like leaves out maps, QR codes, clipart
+        pics += [(i["path"], True) for i in images if i.get("kind") == "render" and Path(str(i.get("path"))).is_file()]
+        cb = who.card_brand
+        made = await asyncio.to_thread(listing_posts.make, listing, ctx, pics, out / "posts", who.contact, link_line,
+                                       cb.name if cb else "", cb.logo if cb else "")
+        lang = job.get("language") or "en"
+        if lang != "en":
+            llm = self.llm_factory() if self.llm_factory else None
+            made = [{**p, "caption": await listing_posts.localize(p["caption"], lang, llm)} for p in made]
+        kept = []
+        for p in made:
+            imgs = ["/uploads/" + Path(i).resolve().relative_to(self.uploads_dir.resolve()).as_posix() for i in p["images"]]
+            key = hashlib.sha1(p["caption"].encode("utf-8")).hexdigest()[:16]
+            kept.append({**p, "images": imgs, "brief": key, "photo": "photo" if pics else "none"})
+        return kept
+
+    async def _ad_reels(self, job: dict, todo: List[dict], out: Path, project: str, pool: Sequence[str],
                         facts: Dict[str, Any]) -> List[dict]:
-        """One ad reel per post (ad_reel.py) in the format that says what the post says (ad_reel.for_posts), the words
-        checked against the facts, each opening on a different one of the best pictures. Own photos first."""
+        """One ad reel per `todo` item (_reel_todo): the room's story scripts, else the format asked, the words checked against
+        the facts, each opening on a different one of the best pictures. Own photos first."""
         from . import ad_reel
         render = self.ad_renderer or ad_reel.render
         llm = self.llm_factory() if self.llm_factory else None
         ctx = campaign.Ctx(facts, voice=(await self._identity(job)).voice)
         written = room.scripts(job.get("room"))   # the creative room's reels: the director chose which pieces get one
-        if written:
-            todo = [p for p in posts if p["angle"] in written][:room.MAX_REELS]
-            formats = ["story"] * len(todo)
-        else:
-            todo = posts[:AD_REELS]
-            formats = ad_reel.for_posts([p["angle"] for p in todo], ad_reel.eligible(ctx), await ad_reel.scores(self.db))
+        todo = [p for p in todo if p["angle"] in written or (not written and p.get("format"))]
+        formats = ["story" if p["angle"] in written else p["format"] for p in todo]
         pics = [p for p in pool if Path(p).is_file()]
         kicker = (project or "").upper()[:28] or None
         reels: List[dict] = []
@@ -653,7 +711,8 @@ class MarketingRuns:
             if not pool:   # no photos of its own: the brochure pages the posts used
                 pool = [str(self.uploads_dir / _rel(i)) for p in job.get("posts") or [] if p.get("photo") == "brochure"
                         for i in p.get("images", [])[:1]]
-            ads = await self._ad_reels(job, [p for p in job.get("posts") or [] if not p.get("stale")], out, ctx.project, pool, facts)
+            todo = await self._reel_todo(job, listing, facts, job.get("posts") or [], job.get("link_line") or "")
+            ads = await self._ad_reels(job, todo, out, ctx.project, pool, facts)
             reels = [r for r in job.get("reels") or [] if r.get("kind") not in ("slides", "ad")] + ads
             await self._set(job["_id"], reels=reels, reels_state="done", reels_error=None)
             if job.get("calendar"):
@@ -983,7 +1042,6 @@ class MarketingRuns:
                         r.update({k: v for k, v in change.items() if v or k == "was"})
                 await self._set(jid, step="content" if change["state"] == "content" else "design", plan=plan_rows)
 
-            used: Dict[str, str] = {}
             pf = sheet.facts.get("project_name")
             names = job.get("names") or await campaign.project_name_for(
                 str(pf.value or "") if pf is not None and pf.usable else "", job.get("language") or "en", llm)
@@ -994,30 +1052,31 @@ class MarketingRuns:
             photo = await asyncio.to_thread(self._photo, listing)
             images = await self._brochure_images(job["agent_id"], job["listing_id"])
             kit = await self._kit(job["listing_id"], job["agent_id"])
-            # the creative room pitches and chooses the campaign; without it (no model, another language, too few facts
-            # surviving the check) the fixed angles make the posts as before
-            room_doc, room_ctx = await self._room(job, listing, sheet.facts, photo, page, who, photos, images, kit, previous, llm)
-            planned = room.briefs(room_doc, room_ctx, photos, images) if room_doc else None
+            # the creative room pitches the reels; without it (no model, another language, too few facts surviving the
+            # check) the reels take formats the facts support. The posts are always the two drawn from the listing.
+            room_doc, _ = await self._room(job, listing, sheet.facts, photo, page, who, photos, images, kit, previous, llm)
             job = {**job, "room": room_doc}
-            packs = await campaign.make(sheet.facts, out, llm=llm, photo=photo, link=page, dropped=dropped,
-                                        photos=photos, previous=previous, on_plan=on_plan, on_post=on_post, used=used,
-                                        images=images, kit=kit, planned=planned, **who)
-            keys = {aid: campaign.brief_key(b) for aid, b in (planned or campaign.plan(sheet.facts, follow_ups=None, images=images,
-                                                                                          kit=kit, **who))}
             ctx = campaign.Ctx(sheet.facts)
             where = ctx.where or "this property"
             link_line = campaign.link_line_for(where, job.get("language") or "en", ctx.registered)
-            posts = await self._keep_edited({**job, "page_url": page, "link_line": link_line},
-                                            [self._post(aid, p, keys.get(aid), used.get(aid, "none")) for aid, p in packs])
-            trace.event(log, "marketing", jid, "posts", trace.OK if posts and not dropped else trace.FALLBACK if posts else trace.FAILED,
-                        made=len(posts), by_llm=sum(1 for p in posts if p["used_llm"]), photo="none" if photo == "none" else "listing",
+            await on_plan([{"angle": a, "headline": listing_posts.headline(listing, ctx) if a == "details" else "A look around"}
+                           for a in TWO_POSTS], {})
+            made = await self._two_posts(job, listing, sheet.facts, out, photos, images, kit, link_line)
+            for a in TWO_POSTS:
+                await on_post(a, {"state": "designed" if any(p["angle"] == a for p in made) else "dropped"})
+                if not any(p["angle"] == a for p in made):
+                    dropped[a] = "not drawn" if a == "details" else "fewer than 2 usable pictures"
+            posts = await self._keep_edited({**job, "page_url": page, "link_line": link_line}, made)
+            trace.event(log, "marketing", jid, "posts", trace.OK if len(made) == len(TWO_POSTS) else trace.FALLBACK if posts else trace.FAILED,
+                        made=len(posts), photo="none" if photo == "none" else "listing",
                         dropped="; ".join(f"{k}: {v}" for k, v in dropped.items()) or None)
             await self._set(jid, posts=posts, dropped={k: str(v)[:300] for k, v in dropped.items()}, inputs=self._inputs(listing),
                             link_line=link_line)
             # step 3 (best effort, never fails the run): reels from the best carousels, and the walkthrough reel
             step = "reels"
             await self._set(jid, step="reels")
-            reels = await self._reels(job, listing, posts, out, ctx.project, link_line, pool=photos, facts=sheet.facts)
+            todo = await self._reel_todo(job, listing, sheet.facts, posts, link_line)
+            reels = await self._reels(job, listing, todo, out, ctx.project, link_line, pool=photos, facts=sheet.facts)
             await self._set(jid, reels=reels)
             # the master boost pair (best effort: a failure is kept as boost.error, the run is done either way)
             step = "boost"
@@ -1056,10 +1115,7 @@ class MarketingRuns:
         try:
             from app.platform.llm import critical_llm   # Gemini first for the room
             llm = critical_llm() or llm
-            from app.core import brand as brand_mod   # our own campaign (no agent's card, or ours): the Avasetu reasons apply
-            cb = who.get("card_brand")
-            ours = cb is None or brand_mod.NAME.lower() in str(getattr(cb, "name", "")).lower()
-            doc = await room.convene(ctx, listing, llm, photos=len(photos), images=images, ours=ours, pick=job.get("pick"),
+            doc = await room.convene(ctx, listing, llm, photos=len(photos), images=images, pick=job.get("pick"),
                                      earlier=job.get("earlier_room"))
         except Exception as e:
             trace.event(log, "marketing", job["_id"], "room", trace.FAILED, reason=str(e)[:200] or type(e).__name__, exc_info=True)
@@ -1111,7 +1167,16 @@ class MarketingRuns:
             briefs = dict(campaign.plan(sheet.facts, "none", job.get("page_url") or "", follow_ups=None, **who))
             own = await self._photo_pool(listing, out)
             locked = await self._locked(job)
+            remade = {p["angle"]: p for p in await self._two_posts(job, listing, sheet.facts, out, own,
+                                                                    await self._brochure_images(job["agent_id"], job["listing_id"]),
+                                                                    await self._kit(job["listing_id"], job["agent_id"]),
+                                                                    job.get("link_line") or "")}
             for i, p in enumerate(posts):
+                if p["angle"] in remade:
+                    if remade[p["angle"]]["brief"] != p.get("brief") or "photos" in changes:
+                        posts[i] = await self._place(job, p, remade[p["angle"]], locked)
+                        redone.append(p["angle"])
+                    continue
                 b = briefs.get(p["angle"])
                 key = campaign.brief_key(b) if b else None
                 why = ("facts" if key and (key != p["brief"] if p.get("brief") else "facts" in changes) else
@@ -1129,6 +1194,10 @@ class MarketingRuns:
                     continue
                 posts[i] = await self._place(job, p, self._post(p["angle"], pack, key, photo), locked)
                 redone.append(p["angle"])
+            for a, p in remade.items():   # a post the change made possible (2 photos now: the gallery)
+                if not any(x["angle"] == a for x in posts):
+                    posts.insert(TWO_POSTS.index(a), p)
+                    redone.append(a)
         if "video" in changes:
             video = self._video(listing)
             reels = [r for r in reels if r.get("kind") != "video"]

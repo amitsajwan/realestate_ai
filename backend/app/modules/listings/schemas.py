@@ -148,6 +148,18 @@ class PictureSlot(BaseModel):
     url: Optional[str] = Field(None, max_length=2000)
 
 
+MAX_CONFIGURATIONS = 12
+
+
+class Configuration(BaseModel):
+    """One home type of a project as the builder prices it (owner 2026-10-19: Godrej Ivara's 2, 3 and 4 BHK, seven sizes):
+    its BHK, carpet area and price. The listing's own bhk/carpet/price stay the smallest (the "from" figures)."""
+    model_config = ConfigDict(extra="forbid")
+    bhk: float = Field(..., ge=0.5, le=20)
+    carpet_sqft: Optional[StrictInt] = Field(None, gt=0, lt=100_000)
+    price_inr: Optional[StrictInt] = Field(None, gt=0)
+
+
 class _Fields(BaseModel):
     """Agent-editable fields, shared by create/update/read. Everything optional so drafts can be sparse."""
     model_config = ConfigDict(extra="forbid")
@@ -175,6 +187,8 @@ class _Fields(BaseModel):
     size_max_sqft: Optional[StrictInt] = Field(None, gt=0)
     total_acres: Optional[float] = Field(None, gt=0)
     rera_status: Optional[Literal["not_registered"]] = None
+    configurations: Optional[List[Configuration]] = Field(None, max_length=MAX_CONFIGURATIONS)
+    payment_plan: Optional[str] = Field(None, max_length=60)   # the builder's plan as written: "20:20:30:30"
     media: List[Media] = Field(default_factory=list, max_length=MAX_PHOTOS)
     about: Optional[About] = None  # project and area knowledge (docs/contracts/engagement.md); optional, never migrated
     selling_points: Optional[List[SellingPoint]] = Field(None, max_length=MAX_SELLING_POINTS)
@@ -198,7 +212,21 @@ class _Fields(BaseModel):
             out.append(a)
         return out
 
-    @field_validator("city", "locality", "project_name", "rera_no", "possession", mode="before")
+    @field_validator("configurations")
+    @classmethod
+    def _configurations(cls, v):
+        """Smallest first, a row the agent typed twice once; an empty table is no table."""
+        if not v:
+            return None
+        seen, out = set(), []
+        for c in sorted(v, key=lambda c: (c.bhk, c.carpet_sqft or 0, c.price_inr or 0)):
+            k = (c.bhk, c.carpet_sqft, c.price_inr)
+            if k not in seen:
+                seen.add(k)
+                out.append(c)
+        return out
+
+    @field_validator("city", "locality", "project_name", "rera_no", "possession", "payment_plan", mode="before")
     @classmethod
     def _strip(cls, v):
         if isinstance(v, str):

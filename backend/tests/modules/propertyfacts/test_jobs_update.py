@@ -1,12 +1,10 @@
 """A finished campaign meets a changed listing: only what the change touches is made again; edited and approved posts stay."""
 from datetime import timedelta
 
-from PIL import Image
-
 from app.modules.calendar.store import Store as CalendarStore
 from app.modules.propertyfacts import jobs
 
-from .test_jobs import LISTING, NOW, setup
+from .test_jobs import LISTING, NOW, real_photo, setup
 
 LATER = [NOW]
 
@@ -43,10 +41,10 @@ async def change(db, **fields):
     await db.get_collection("listings").update_one({"_id": "L1"}, {"$set": {**fields, "updated_at": LATER[0] + timedelta(minutes=1)}})
 
 
-def photo(tmp_path, name="p1.jpg"):
+def photo(tmp_path, name="p1.jpg", seed=0):
     (tmp_path / "images").mkdir(exist_ok=True)
-    Image.new("RGB", (800, 800), (120, 140, 160)).save(tmp_path / "images" / name)
-    return {"kind": "image", "url": f"/uploads/images/{name}", "order": 0}
+    real_photo(tmp_path / "images" / name, seed)
+    return {"kind": "image", "url": f"/uploads/images/{name}", "order": seed}
 
 
 async def test_nothing_that_matters_changed_keeps_the_run(tmp_path):
@@ -82,7 +80,7 @@ async def test_new_photos_remake_the_posts_without_one_but_not_an_edited_post(tm
     db, runs, done = await first_run(tmp_path)
     edited = done["posts"][0]
     await runs.edit_post("a1", "L1", edited["angle"], edited["caption"] + "\nOur words.")
-    await change(db, media=[photo(tmp_path)])
+    await change(db, media=[photo(tmp_path), photo(tmp_path, "p2.jpg", 1)])
     run, created = await runs.create("a1", "L1")
     assert created and run["changes"] == ["photos"]
     d = await finish(runs)
@@ -101,24 +99,18 @@ async def test_a_fact_change_remakes_the_posts_that_say_it_and_spares_approved_o
     await runs.to_calendar("a1", "L1")
     cal = CalendarStore(db)
     rows = {(r["channel"], r["slug"]): r for r in await cal.all()}
-    await cal.approve(rows[("instagram", "campaign-L1-overview")]["_id"])
+    await cal.approve(rows[("instagram", "campaign-L1-details")]["_id"])
     tick(runs)
     await change(db, price_inr=3500000)
     run, created = await runs.create("a1", "L1")
     assert created and run["changes"] == ["facts"] and run["calendar"]
     d = await finish(runs)
     posts, before = {p["angle"]: p for p in d["posts"]}, {p["angle"]: p for p in done["posts"]}
-    assert "price_reveal" in d["redone"] and "35" in posts["price_reveal"]["caption"] and not posts["price_reveal"].get("stale")
-    assert posts["overview"]["caption"] == before["overview"]["caption"] and posts["overview"]["stale"]   # approved: kept
-    assert "35" in posts["overview"]["newer"]["caption"]
-    if "plot_checklist" in posts:                                    # says no price: untouched
-        assert "plot_checklist" not in d["redone"] and posts["plot_checklist"]["caption"] == before["plot_checklist"]["caption"]
-    # the price post goes to the calendar as its ad reel (schedule.items): its planned row took the new price
-    old = rows[("instagram", "campaign-L1-price_reveal-ad")]
-    ig = await cal.get(old["_id"])
-    assert ig["caption"] != old["caption"] and "35" in ig["caption"]
-    ok = await cal.get(rows[("instagram", "campaign-L1-overview")]["_id"])
-    assert ok["caption"] == rows[("instagram", "campaign-L1-overview")]["caption"]  # approved row untouched
+    assert "details" in d["redone"]
+    assert posts["details"]["caption"] == before["details"]["caption"] and posts["details"]["stale"]   # approved: kept
+    assert "35" in posts["details"]["newer"]["caption"]
+    ok = await cal.get(rows[("instagram", "campaign-L1-details")]["_id"])
+    assert ok["caption"] == rows[("instagram", "campaign-L1-details")]["caption"]  # approved row untouched
 
 
 async def test_a_new_brochure_remakes_no_post(tmp_path):
@@ -135,8 +127,8 @@ async def test_a_new_brochure_remakes_no_post(tmp_path):
 
 async def test_again_remakes_everything_but_keeps_an_edited_post(tmp_path):
     db, runs, done = await first_run(tmp_path)
-    angle = done["posts"][1]["angle"]
-    await runs.edit_post("a1", "L1", angle, done["posts"][1]["caption"] + "\nMine.")
+    angle = done["posts"][0]["angle"]
+    await runs.edit_post("a1", "L1", angle, done["posts"][0]["caption"] + "\nMine.")
     run, created = await runs.create("a1", "L1", again=True)
     assert created and run["mode"] == "full" and run["base_run"] == done["_id"]
     d = await finish(runs)
