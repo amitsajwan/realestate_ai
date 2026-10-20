@@ -9,7 +9,7 @@ the details post, the creative room's fact book and the captions say about price
 import re
 from typing import Any, Dict, List, Optional
 
-from app.platform.text import bhk_label
+from app.platform.text import bhk_label, money as rupees
 
 MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 MONTH = re.compile(r"(\d{4})-(0[1-9]|1[0-2])(?:-\d{2})?")
@@ -59,6 +59,9 @@ def deal(listing: dict) -> tuple:
     '20:20:30:30 payment plan'); one home: ('2 BHK at ₹1.29 Cr', ...)."""
     table, low = rows(listing), from_price(listing)
     plot = listing.get("property_type") == "plot"
+    if listing.get("transaction") == "rent":   # a rent is a month's money ('₹25,000/month'), never '₹0.2 Lakh'
+        what = table[0]["label"] if table else ""
+        return ((f"{what} at " if what else "") + rupees(int(low), rent=True)) if low else "", ""
     if several(listing):
         what = bhk_range(table) or ("Plots" if plot else "Homes")
         money = f"{what} from {short_price(low)}" if low else ""
