@@ -3,6 +3,7 @@
  * The facts are Avasetu's (the register); an agent's listing in the project lives on the agent's page and uses them.
  */
 import { serverApiBase } from './api'
+import { badStatus, failed, withRetry, type Got } from './retry'
 import type { WebFacts } from './webfacts'
 import type { ProjectProfile } from './profile'
 
@@ -237,14 +238,9 @@ export interface RegisterListItem {
   indexable: boolean
 }
 
-type Got<T> = { ok: true; data: T } | { ok: false; notFound: boolean }
-
-/** One retry half a second later when the API failed (see getJson in ./api): a deploy's restart gives a slow page, not a 5xx. */
+/** Retried as getJson in ./api (./retry): a deploy's restart gives a slow page, not a 5xx. */
 async function get<T>(path: string, ms = 5000): Promise<Got<T>> {
-  const first = await getOnce<T>(path, ms)
-  if (first.ok || first.notFound) return first
-  await new Promise((r) => setTimeout(r, 500))
-  return getOnce<T>(path, ms)
+  return withRetry(() => getOnce<T>(path, ms))
 }
 
 async function getOnce<T>(path: string, ms: number): Promise<Got<T>> {
@@ -253,10 +249,10 @@ async function getOnce<T>(path: string, ms: number): Promise<Got<T>> {
   try {
     const res = await fetch(serverApiBase() + path, { headers: { Accept: 'application/json' }, next: { revalidate: 300 }, signal: ctrl.signal })
     if (res.status === 404) return { ok: false, notFound: true }
-    if (!res.ok) return { ok: false, notFound: false }
+    if (!res.ok) return badStatus(res.status)
     return { ok: true, data: (await res.json()) as T }
-  } catch {
-    return { ok: false, notFound: false }
+  } catch (e) {
+    return failed(e)
   } finally {
     clearTimeout(timer)
   }

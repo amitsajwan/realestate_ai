@@ -18,6 +18,8 @@ async def indexnow_key() -> PlainTextResponse:
 
 
 # ---- area list pages that grow from searches (docs/plan/area-intent-pages.md) -----------------------------------------------------
+import asyncio  # noqa: E402
+import time  # noqa: E402
 from typing import List  # noqa: E402
 
 from fastapi import Depends, Response  # noqa: E402
@@ -38,7 +40,26 @@ async def public_facets(response: Response, db=Depends(get_db)) -> List[dict]:
     """Live area list pages: [{key, path, place, place_slug, intent, possession, builder, label, count, indexable, page_updated}]
     (the sitemap, the chips on place and project pages)."""
     response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
-    return await grow.live_pages(db)
+    return await _live_pages(db)
+
+
+# the list costs 0.3-0.9 s of CPU (every live page counted from the register) and is the same for every project page: computed once
+# per CACHE_SECONDS, concurrent requests wait for that one computation (after a deploy every page asked for it at once)
+_LIVE: dict = {}
+_LIVE_LOCK = asyncio.Lock()
+
+
+async def _live_pages(db) -> List[dict]:
+    hit = _LIVE.get("pages")
+    if hit and hit[0] > time.monotonic():
+        return hit[1]
+    async with _LIVE_LOCK:
+        hit = _LIVE.get("pages")
+        if hit and hit[0] > time.monotonic():
+            return hit[1]
+        out = await grow.live_pages(db)
+        _LIVE["pages"] = (time.monotonic() + CACHE_SECONDS, out)
+        return out
 
 
 @public_router.get("/facets/{place}/{rest:path}")

@@ -5,6 +5,7 @@
  * A list comes back empty on any failure; a page is null on a 404 and throws on an outage (never a cached 404).
  */
 import { serverApiBase } from './api'
+import { badStatus, failed, withRetry, type Got } from './retry'
 
 export type Intent = 'new-launches' | 'top' | 'ready-to-move' | 'all'
 
@@ -64,16 +65,21 @@ export interface FacetPage {
 
 const SEG = /^[a-z0-9]+(?:-[a-z0-9]+){0,15}$/
 
-async function get<T>(path: string): Promise<{ ok: true; data: T } | { ok: false; notFound: boolean }> {
+/** Retried as getJson in ./api (./retry). */
+function get<T>(path: string): Promise<Got<T>> {
+  return withRetry(() => getOnce<T>(path))
+}
+
+async function getOnce<T>(path: string): Promise<Got<T>> {
   const ctrl = new AbortController()
   const timer = setTimeout(() => ctrl.abort(), 8000)
   try {
     const res = await fetch(serverApiBase() + path, { headers: { Accept: 'application/json' }, next: { revalidate: 300 }, signal: ctrl.signal })
     if (res.status === 404) return { ok: false, notFound: true }
-    if (!res.ok) return { ok: false, notFound: false }
+    if (!res.ok) return badStatus(res.status)
     return { ok: true, data: (await res.json()) as T }
-  } catch {
-    return { ok: false, notFound: false }
+  } catch (e) {
+    return failed(e)
   } finally {
     clearTimeout(timer)
   }

@@ -1,5 +1,6 @@
 import { fixtureAgent, fixtureListing, fixtureListings } from './fixtures'
 import type { AgentProfile, CatalogProject, ListingsPage, PropertyFactsView, PublicListing, PublicProject } from './types'
+import { badStatus, failed, withRetry, type Got } from './retry'
 
 // Server-side data access for the public site. Server components need an ABSOLUTE url:
 // SITE_API_URL (server-only) > NEXT_PUBLIC_API_URL > http://localhost:8000.
@@ -12,15 +13,12 @@ export function serverApiBase(): string {
 export const fixturesForced = (): boolean => process.env.SITE_USE_FIXTURES === '1'
 const isDev = (): boolean => process.env.NODE_ENV !== 'production'
 
-type Result<T> = { ok: true; data: T } | { ok: false; notFound: boolean }
+type Result<T> = Got<T>
 
-/** One retry, half a second later, when the API did not answer or failed (a restart during a deploy, one slow call): a slow
+/** Retried (./retry): while a deploy restarts the API the page waits for it, and a slow or failed call gets one more try: a slow
  *  page is better than an error page for buyers and for Google, which slows its crawl after 5xx answers. A 404 is final. */
 async function getJson<T>(path: string): Promise<Result<T>> {
-  const first = await getJsonOnce<T>(path)
-  if (first.ok || first.notFound) return first
-  await new Promise((r) => setTimeout(r, 500))
-  return getJsonOnce<T>(path)
+  return withRetry(() => getJsonOnce<T>(path))
 }
 
 async function getJsonOnce<T>(path: string): Promise<Result<T>> {
@@ -33,10 +31,10 @@ async function getJsonOnce<T>(path: string): Promise<Result<T>> {
       signal: ctrl.signal,
     })
     if (res.status === 404) return { ok: false, notFound: true }
-    if (!res.ok) throw new Error('API ' + res.status)
+    if (!res.ok) return badStatus(res.status)
     return { ok: true, data: (await res.json()) as T }
   } catch (e) {
-    return { ok: false, notFound: false }
+    return failed(e)
   } finally {
     clearTimeout(timer)
   }

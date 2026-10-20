@@ -278,7 +278,7 @@ async def live_pages(db, now: Optional[datetime] = None) -> List[dict]:
     rows = await db.get_collection(PAGES).find({"status": "live"}).to_list(None)
     if not rows:
         return []
-    docs = await Store(db).all_projects()
+    docs = await Store(db).shared_projects()   # read-only here: the one copy the public pages share
     stamps = cluster_stamps(docs)
     by_place: Dict[str, List[dict]] = {}
     for d in _primaries(docs):

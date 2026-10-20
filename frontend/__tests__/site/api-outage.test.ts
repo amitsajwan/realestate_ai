@@ -36,10 +36,46 @@ describe('site data access', () => {
     await expect(api.getListings('a')).rejects.toThrow(/temporarily unavailable/)
   })
 
-  it('throws when the API is unreachable', async () => {
+  it('waits for an API that is restarting, then throws when it stays unreachable', async () => {
     const api = await load()
-    mockFetch(() => Promise.reject(new Error('ECONNREFUSED')))
-    await expect(api.getAgent('a')).rejects.toThrow(/temporarily unavailable/)
+    jest.useFakeTimers()
+    try {
+      mockFetch(() => Promise.reject(new Error('ECONNREFUSED')))
+      const got = expect(api.getAgent('a')).rejects.toThrow(/temporarily unavailable/)
+      await jest.advanceTimersByTimeAsync(11000)
+      await got
+      expect((global as unknown as { fetch: jest.Mock }).fetch).toHaveBeenCalledTimes(11)   // first try + 10 a second apart
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
+  it('serves the page once a restarting API answers', async () => {
+    const api = await load()
+    jest.useFakeTimers()
+    try {
+      let n = 0
+      mockFetch(() => (++n < 4 ? Promise.reject(new Error('ECONNREFUSED')) : json(200, { slug: 'a', agent_name: 'A' })))
+      const got = api.getAgent('a')
+      await jest.advanceTimersByTimeAsync(3000)
+      expect((await got)?.agent_name).toBe('A')
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
+  it('retries a timeout only once (a busy API is not asked again and again)', async () => {
+    const api = await load()
+    jest.useFakeTimers()
+    try {
+      mockFetch(() => Promise.reject(Object.assign(new Error('aborted'), { name: 'AbortError' })))
+      const got = expect(api.getAgent('a')).rejects.toThrow(/temporarily unavailable/)
+      await jest.advanceTimersByTimeAsync(1000)
+      await got
+      expect((global as unknown as { fetch: jest.Mock }).fetch).toHaveBeenCalledTimes(2)
+    } finally {
+      jest.useRealTimers()
+    }
   })
 
   it('returns data on success', async () => {
