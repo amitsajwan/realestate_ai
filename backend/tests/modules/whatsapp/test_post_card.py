@@ -74,3 +74,37 @@ async def test_a_reel_code_gets_its_listing_posts_full_table_under_the_project_n
     svc.llm = FakeLLM("buyer", "question")
     r = await ask(svc, "rzzky45")
     assert "₹1.44 Cr" in r["reply"] and not r["reply"].startswith("Step into green serenity")
+
+
+# ---- the project's word (owner 2026-10-20: 'send IVARA', simpler than a code) ----------------------------------------------------------
+def with_listings(db, *more):
+    db.get_collection("listings").docs.append({"_id": "L1", "project_name": "Godrej Ivara", "title": "Godrej Ivara, Upper Kharadi",
+                                               "status": "live", "agent_id": "AG1"})
+    db.get_collection("listings").docs.extend(more)
+    return db
+
+
+@pytest.mark.parametrize("text", ["IVARA", "ivara", "Ivara price list", "Godrej Ivara", "GODREJ"])
+async def test_the_projects_word_gets_the_same_price_list(text):
+    svc, db, _, _ = make(db=with_listings(db_with_campaign()))
+    svc.llm = FakeLLM("buyer", "question")
+    r = await ask(svc, text)
+    assert "₹1.44 Cr" in r["reply"] and "https://avasetu.test/projects/godrej-ivara-pune" in r["reply"]
+    conv = (await db.get_collection("dm_conversations").find({}).to_list(5))[0]
+    assert conv["context"]["listing_id"] is None and conv["context"]["code"] == "prcxy23" and conv["agent_id"] == "AG1"
+
+
+async def test_a_word_two_projects_share_asks_which():
+    other = {"_id": "L2", "project_name": "Kumar Ivara", "title": "Kumar Ivara, Wagholi", "status": "live", "agent_id": "AG2"}
+    svc, db, _, _ = make(db=with_listings(db_with_campaign(), other))
+    svc.llm = FakeLLM("buyer", "question")
+    r = await ask(svc, "IVARA")
+    assert "GODREJ IVARA" in r["reply"] and "KUMAR IVARA" in r["reply"] and "₹" not in r["reply"]
+
+
+async def test_a_builders_name_shared_by_two_projects_names_neither():
+    other = {"_id": "L2", "project_name": "Godrej Woods", "title": "Godrej Woods", "status": "live", "agent_id": "AG2"}
+    svc, db, _, _ = make(db=with_listings(db_with_campaign(), other))
+    svc.llm = FakeLLM("buyer", "question")
+    r = await ask(svc, "GODREJ")
+    assert "₹1.44 Cr" not in r["reply"]

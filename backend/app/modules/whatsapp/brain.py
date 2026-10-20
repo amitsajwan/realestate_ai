@@ -6,6 +6,7 @@ import logging
 import re
 from typing import Optional
 
+from app.core import keywords
 from app.modules.engage.config import quiet_topic
 
 from . import adapters, check_flow, lang as L
@@ -77,8 +78,16 @@ SELLER = {
 CODE_FILLER = re.compile(r"\b(?:hi+|hello|hey|namaste|namaskar|i|am|im|interested|intrested|in|info|details?|prices?|list|sheet|floor|plans?|"
                          r"please|pls|plz|send|me|the|and|of|for|code|want|share)\b|[^\w\s]", re.I)
 CARD_FACT = re.compile(r"₹|\bBHK\b|payment plan|possession|MahaRERA|price", re.I)
+CARD_NOT_PRICE = re.compile(r"\bloan\b|\bemi\b|a month|per month|/month|% for \d+ years", re.I)   # an EMI post is not a price list
 CARD_CAUTION = re.compile(r"before you book|confirm|today's price", re.I)   # a line without a figure is kept only as the price caution
 CARD_MAX_FACTS = 12
+WHICH_PROJECT = {   # a word two live projects share
+    "en": "Which project do you mean: {names}? Reply with its name.",
+    "hi": "आप कौन सा प्रोजेक्ट पूछ रहे हैं: {names}? उसका नाम लिखें।",
+    "hinglish": "Aap kaunsa project pooch rahe hain: {names}? Uska naam likhein.",
+    "mr": "तुम्ही कोणता प्रोजेक्ट विचारत आहात: {names}? त्याचे नाव लिहा.",
+    "mr_latn": "Tumhi konta project vicharat aahat: {names}? Tyache nav liha.",
+}
 CARD_PAGE = {
     "en": "Full details and pictures: {page}",
     "hi": "पूरी जानकारी और फोटो: {page}",
@@ -107,7 +116,8 @@ def card_facts(facts) -> list:
     out = []
     for f in facts or []:
         f = (f or "").strip()
-        if f and len(f) <= 200 and CARD_FACT.search(f) and (re.search(r"\d", f) or CARD_CAUTION.search(f)) and f not in out:
+        if f and len(f) <= 200 and CARD_FACT.search(f) and not CARD_NOT_PRICE.search(f) and (re.search(r"\d", f) or CARD_CAUTION.search(f)) \
+                and f not in out:
             out.append(f)
     return out[:CARD_MAX_FACTS] if any("₹" in f for f in out) else []
 
@@ -141,8 +151,19 @@ class ChatBrain:
         if checked is not None:
             return checked
         code = (conv.get("context") or {}).get("code")
-        if code and re.search(rf"\b{re.escape(code)}\b", text, re.I):
-            rest = re.sub(rf"\b{re.escape(code)}\b", " ", text, flags=re.I)
+        named = None
+        if not (code and re.search(rf"\b{re.escape(code)}\b", text, re.I)) and not adapters.codes_in(text):
+            # a project's word ('IVARA', what Instagram captions and replies ask for): as if they had sent its newest post's code
+            found = await keywords.listings_named_in(self.db, text)
+            if len(found) > 1:
+                return L.pick(WHICH_PROJECT, lang, names=" / ".join(keywords.full_word(keywords.project_name(d)) for d in found))
+            ctx = await adapters.listing_word_context(self.db, found[0]) if found else None
+            if ctx:
+                conv["context"], named, code = ctx, found[0], ctx["code"]
+                if ctx.get("agent_id") and conv.get("routed_by") in (None, "owner"):
+                    conv["agent_id"], conv["routed_by"] = ctx["agent_id"], "project_word"
+        if code and (named or re.search(rf"\b{re.escape(code)}\b", text, re.I)):
+            rest = keywords.without_word(text, named) if named else re.sub(rf"\b{re.escape(code)}\b", " ", text, flags=re.I)
             # the website's WhatsApp button fills in "Hi, I am interested in <title> (ref <code>)" (WhatsAppButton.waText)
             prefilled = re.search(rf"\binterested in\b.*\(ref\s+{re.escape(code)}\)", text, re.I | re.S)
             if prefilled:
@@ -153,7 +174,10 @@ class ChatBrain:
                     return card
             # read without the code (a bare code once looked like spam and got no reply); a post without prices (a guide) is told in
             # a sentence or two with its page, instead of the buyer questions ("which area?") an "I am interested" alone would get
-            text = rest.strip(" -:,") if CODE_FILLER.sub(" ", rest).strip() else SHARED_ASK
+            if not named:   # a question naming the project keeps the name ("is camelot near the metro?")
+                text = rest.strip(" -:,") if CODE_FILLER.sub(" ", rest).strip() else SHARED_ASK
+            elif not CODE_FILLER.sub(" ", rest).strip():
+                text = SHARED_ASK
         u = await self._understand(conv, text)
         who, need = (u or {}).get("who"), (u or {}).get("need")
         if who in ("agent", "seller") and not conv.get("role"):
@@ -237,7 +261,8 @@ class ChatBrain:
         title = (ctx.get("title") or "").strip()
         for other in await adapters.listing_posts_groundings(self.db, ctx):   # a reel's caption has one price; its listing post has them all
             more = card_facts(other.facts)
-            if sum("₹" in x for x in more) > sum("₹" in x for x in lines):
+            if sum("₹" in x for x in more) > sum("₹" in x for x in lines) or \
+                    (more and getattr(other, "subject", "").endswith("-listing") and sum("₹" in x for x in more) == sum("₹" in x for x in lines)):
                 g, lines, title = other, more, ""   # the listing post's own headline leads, not the reel's hook
         if not lines:
             return None

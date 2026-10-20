@@ -271,3 +271,16 @@ async def test_without_our_number_the_reply_is_as_before(monkeypatch):
     svc.interest_url = lambda ctx, channel: "https://site.test/i/abc2345"
     await svc.run_once()
     assert "abc2345" not in meta.replies[0][1] and "link in our bio" in meta.replies[0][1]
+
+
+async def test_a_listing_posts_reply_asks_for_the_projects_word(monkeypatch):
+    monkeypatch.setenv("WHATSAPP_PUBLIC_NUMBER", "919834256406")
+    meta = Meta([media([ig_comment("c1", "INFO")], mid="M9", caption="Godrej Ivara: 2 BHK ₹1.20 Cr")])
+    svc, db = make(meta)
+    db.get_collection("content_calendar").docs.append({"_id": "CAL9", "slug": "campaign-L1-listing", "kind": "post", "channel": "instagram",
+                                                      "external_id": "M9", "caption": "Godrej Ivara: 2 BHK ₹1.20 Cr", "status": "published",
+                                                      "listing_id": "L1"})
+    db.get_collection("listings").docs.append({"_id": "L1", "project_name": "Godrej Ivara", "status": "live"})
+    svc.interest_url = lambda ctx, channel: "https://site.test/i/abc2345"
+    await svc.run_once()
+    assert "send IVARA" in meta.replies[0][1] and "abc2345" not in meta.replies[0][1]

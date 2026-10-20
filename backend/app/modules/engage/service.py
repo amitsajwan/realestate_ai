@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 from typing import Any, Callable, Dict, List, Optional
 from urllib.parse import quote
 
+from app.core.keywords import keyword_for_post, listing_keyword
 from app.modules.knowledge.grounding import Ref, facts_for
 
 from app.platform.text import normalize_indian_mobile
@@ -191,6 +192,9 @@ class EngageService:
             # links in Instagram comments cannot be tapped: the buyer is sent to WhatsApp with this post's code (the caption's code too)
             link = ctx.get("link") or ""
             code = link.rsplit("/", 1)[-1] if "/i/" in link else ""
+            row = await self.calendar.find_one({"_id": ctx["calendar_id"]}) if ctx.get("calendar_id") else None
+            word = await keyword_for_post(self.db, row) if row else (await listing_keyword(self.db, ctx["listing_id"]) if ctx.get("listing_id") else "")
+            code = word or code   # the project's word ('IVARA') when the post is a listing's
             d.reply = whatsapp_reply(d.reply, d.intent == "interested" and d.signal in ("", "info"), d.language, sender.get("name"), code,
                                      public_whatsapp(), "₹" in (ctx.get("facts") or ""))
         doc = {**base, "audience": ctx.get("audience") or "buyers", "calendar_id": ctx.get("calendar_id"), "intent": d.intent, "language": d.language, "reply": d.reply, "needs_human": d.needs_human, "reason": d.reason, "status": "ignored",

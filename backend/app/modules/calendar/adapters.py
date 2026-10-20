@@ -438,7 +438,7 @@ IG_WA_LINE = {
 }
 
 
-def whatsapp_lines(caption: str, code: str, channel: str, language: str = "en") -> str:
+def whatsapp_lines(caption: str, code: str, channel: str, language: str = "en", word: str = "") -> str:
     """The caption's contact lines made trackable: an agent's own phone line ('📞 ...') is dropped, and the WhatsApp line ('💬 ...')
     becomes our number with this post's code, so the chat reaches our bot, which routes it to the agent and counts the lead for this
     post (whatsapp.adapters.codes_in reads 'interested in <code>'). Facebook gets a tap-to-chat link; Instagram captions cannot
@@ -452,7 +452,7 @@ def whatsapp_lines(caption: str, code: str, channel: str, language: str = "en") 
         line = f"{WA_MARK} WhatsApp: https://wa.me/{num}?text={quote(f'Hi, I am interested in {code}')}"
     elif num:
         table = IG_WA_LINE["price" if "₹" in caption else "other"]
-        line = f"{WA_MARK} " + table.get(language, table["en"]).format(code=code, number=phone_label("+" + num))
+        line = f"{WA_MARK} " + table.get(language, table["en"]).format(code=word or code, number=phone_label("+" + num))
     out = []
     for ln in caption.splitlines():
         s = ln.strip()
@@ -599,7 +599,10 @@ async def with_interest(db, doc: dict) -> dict:
                 line = ""
             if line and line not in caption:
                 caption = caption.rstrip() + "\n\n" + line
-            caption = whatsapp_lines(caption, url.rsplit("/", 1)[-1], channel, _language(doc))
+            from app.core.keywords import keyword_for_post
+            # Instagram asks for the project's word ('send IVARA'), easier to type and remember than the code; other posts keep the code
+            word = await keyword_for_post(db, doc) if channel == "instagram" else ""
+            caption = whatsapp_lines(caption, url.rsplit("/", 1)[-1], channel, _language(doc), word)
         from .reach import locality
         language = _language(doc)
         place = locality(doc)[0]

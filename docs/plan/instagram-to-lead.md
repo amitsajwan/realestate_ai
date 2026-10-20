@@ -10,16 +10,19 @@ How an Instagram viewer becomes a lead we can call. Decided 2026-10-20 after the
 - The Instagram profile has no website set, so "link in our bio" led nowhere. /go also showed no reels.
 - WhatsApp works for everyone now, and a chat gives us the buyer's number.
 
-So every Instagram post and every buyer comment reply names our WhatsApp number and the post's code. The code tells the bot which post the
-buyer saw.
+So every Instagram post and every buyer comment reply names our WhatsApp number and a word to send. For a listing it is the project's own
+word (owner 2026-10-20: "why not LODHA"): `send IVARA to +91 98342 56406` (`app/core/keywords.py`: the distinctive word of the project
+name, builder brands and generic words left out; the full name when two live listings share the word). The bot also takes the full name
+and a builder name only one live project carries ("LODHA"); a word two projects share gets "which project do you mean". Other posts
+(guides, news) keep their interest code. Codes always keep working (old posts, the website's WhatsApp button).
 
 ## LIVE (efb90f5d, then this change)
 
 | Piece | What it does | Code |
 |---|---|---|
-| Caption | Instagram: `💬 Price list and floor plans on WhatsApp: send <code> to +91 98342 56406.` (`Questions? WhatsApp … and send <code>.` on a post without prices). Facebook keeps its tap links. | `calendar/adapters.py` `with_interest`, `whatsapp_lines`, `IG_WA_LINE` |
+| Caption | Instagram: `💬 Price list and floor plans on WhatsApp: send IVARA to +91 98342 56406.` (the code for a post without a listing) (`Questions? WhatsApp … and send <code>.` on a post without prices). Facebook keeps its tap links. | `calendar/adapters.py` `with_interest`, `whatsapp_lines`, `IG_WA_LINE` |
 | Comment reply | Instagram buyer comments: INFO / details / price list / interested get "WhatsApp <number> and send <code>"; answers to questions get the same line under them. MHADA stays silent (quiet topic). | `engage/brain.py` `CTA_ONLY`, `whatsapp_reply`; `engage/service.py` |
-| WhatsApp / DM bot | A message that is the code (alone, with "interested/info/price list", or the website button's prefilled text) gets the post's price lines, payment plan, possession, MahaRERA, the project page, and "floor plans: our team will send them". The team is told (needs you). A reel's code gets its listing post's full price table. A guide or news code gets a two-line summary and its page. | `whatsapp/brain.py` `_post_card`, `card_facts`; `whatsapp/adapters.py` `grounding_for`, `listing_posts_groundings` |
+| WhatsApp / DM bot | A message that is the project's word or the code (alone, with "interested/info/price list", or the website button's prefilled text) gets the post's price lines, payment plan, possession, MahaRERA, the project page, and "floor plans: our team will send them". The team is told (needs you). A reel's code gets its listing post's full price table (loan / EMI lines are not prices). A guide or news code gets a two-line summary and its page. | `whatsapp/brain.py` `_post_card`, `card_facts`; `whatsapp/adapters.py` `grounding_for`, `listing_posts_groundings` |
 | Facts | A post's own asks ("Comment INFO and we will send…", "Swipe", "WhatsApp: …") are not facts: the bot once answered "price list please" with "comment INFO". | `knowledge/grounding.py` `CALL_TO_ACTION` |
 | /go (bio page) | One card per listing (its newest post) or per post, reels included (their cover), Instagram code, Instagram copy wins over Facebook. Recruitment posts get no card. A card goes when its post is no longer published, its news is withdrawn or its listing is no longer live. WhatsApp is the main button. | `calendar/adapters.py` `register_hub`; `interest/store.py` `hub_items`; `frontend/app/go/page.tsx` |
 | Agent posts | The library's own agent posts (pillar "agent", e.g. `agent-buyer-summary`) count as recruitment posts, not buyer posts. | `calendar/reach.py` `audience` |

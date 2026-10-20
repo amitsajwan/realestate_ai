@@ -231,6 +231,7 @@ class WhatsAppService(ChatBrain):
             reply = L.pick(L.MEDIA, lang)
         else:
             reply = await self._answer(conv, text, lang)
+        agent_id = conv.get("agent_id")   # the answer may route the chat (a project's word names its listing's agent)
 
         if not agent_id:
             log.warning("whatsapp: no agent for this chat (set WHATSAPP_OWNER_AGENT_ID); replying without saving a lead")

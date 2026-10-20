@@ -64,3 +64,10 @@ async def test_a_stopped_topic_gets_no_card():
     db = FakeDb()
     await adapters.register_hub(db, row("mhada-areas-mr-20261019", caption="MHADA Pune Lottery 2026: Lohegaon"))
     assert db.get_collection("hub_items").docs == []
+
+
+async def test_a_listings_instagram_caption_asks_for_its_word():
+    db = FakeDb()
+    db.get_collection("listings").docs.append({"_id": "L1", "project_name": "Godrej Ivara", "status": "live"})
+    out = (await adapters.with_interest(db, row(listing_id="L1")))["caption"]
+    assert "Price list and floor plans on WhatsApp: send IVARA to +91 98342 56406." in out

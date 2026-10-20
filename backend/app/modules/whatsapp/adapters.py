@@ -510,6 +510,29 @@ def link_context(link: dict, how: str) -> dict:
             "came_from": f"{how} “{title}”" if title else how}
 
 
+async def listing_word_context(db, listing: dict) -> Optional[dict]:
+    """A message that names a listing by its word ('IVARA', app.core.keywords): the chat is about that listing's newest published post,
+    with that post's Instagram code (the word is what Instagram captions and replies give), so the answer and the lead are as for the code.
+    None when the listing has no published post."""
+    cal = db.get_collection("content_calendar")
+    rows = await cal.find({"listing_id": listing["_id"], "status": "published"}).sort("published_at", -1).to_list(1)
+    if not rows:
+        return None
+    links = db.get_collection("interest_links")
+    slug = rows[0]["slug"]
+    link = await links.find_one({"kind": "post", "ref": slug, "channel": "instagram"}) or await links.find_one({"kind": "post", "ref": slug})
+    if link is None:
+        from app.modules.interest.service import interest_url
+        code = (await interest_url(db, kind="post", ref=slug, agent_id=listing.get("agent_id") or "", channel="instagram",
+                                   title=listing.get("title") or "")).rsplit("/", 1)[-1]
+        link = await links.find_one({"code": code})
+    if link is None:
+        return None
+    from app.core.keywords import project_name
+    return {**link_context(link, "wrote the name of"), "title": (listing.get("title") or project_name(listing))[:140],
+            "came_from": f"wrote the name of “{project_name(listing)}”", "agent_id": listing.get("agent_id")}
+
+
 async def dm_origin(db, platform: str, sender: str, refs: Optional[dict]) -> Optional[dict]:
     """Where this person came from, best evidence first: the link or ad they opened (its ref is an interest code), the post they shared or
     replied to, the comment that made us message them. None when the chat simply started."""
