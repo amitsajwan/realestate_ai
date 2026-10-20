@@ -3,6 +3,8 @@ import secrets
 from datetime import datetime
 from typing import Optional
 
+from app.core.topics import quiet_topic
+
 ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789"  # no look-alikes (i l o 0 1)
 CODE_LEN = 7
 
@@ -70,6 +72,8 @@ class Store:
 
     async def _backed(self, d: dict) -> bool:
         ref = d.get("ref")
+        if quiet_topic(d.get("title"), str(ref or ""), d.get("slug")):
+            return False   # a topic we stopped (MHADA, 2026-10-20) is not offered to buyers either
         if d.get("slug") and not await self.db.get_collection("content_calendar").find_one({"slug": d["slug"], "status": "published"}):
             return False   # the post the card shows is gone
         if d.get("kind") == "listing":

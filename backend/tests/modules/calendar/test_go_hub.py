@@ -58,3 +58,9 @@ async def test_recruitment_posts_and_reels_without_a_picture_make_no_card(tmp_pa
     await adapters.register_hub(db, row("agent-buyer-summary"))   # a library post with pillar "agent"
     await adapters.register_hub(db, row("reel-x", kind="reel", images=[], video="c/x.mp4"), "", tmp_path)   # no cover drawn
     assert db.get_collection("hub_items").docs == []
+
+
+async def test_a_stopped_topic_gets_no_card():
+    db = FakeDb()
+    await adapters.register_hub(db, row("mhada-areas-mr-20261019", caption="MHADA Pune Lottery 2026: Lohegaon"))
+    assert db.get_collection("hub_items").docs == []

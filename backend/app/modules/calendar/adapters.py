@@ -620,11 +620,12 @@ async def register_hub(db, doc: dict, permalink: str = "", uploads: Optional[Pat
     """Best effort: show a published post or reel on the /go link-in-bio hub, the page our Instagram bio opens. One card per listing (its
     newest post: a campaign's six reels are one home) or per post; the picture is the post's first image or the reel's cover. The card's
     code is the Instagram one (the bio is Instagram's), the same code the caption and comment replies give. An Instagram copy wins over
-    the Facebook copy of the same card. Recruitment posts are for agents, not buyer cards."""
+    the Facebook copy of the same card. Recruitment posts are for agents, not buyer cards; a stopped topic (MHADA) gets none."""
     try:
         from .reach import audience
-        if audience(doc) == "agents":
-            return
+        from app.core.topics import quiet_topic
+        if audience(doc) == "agents" or quiet_topic(doc.get("slug"), (doc.get("caption") or "")[:300]):
+            return   # recruitment posts are for agents; a stopped topic (MHADA) is not offered to buyers
         from app.modules.interest.service import interest_url, upsert_hub_item
         import os
         agent = doc.get("agent_id") or _owner_agent()
