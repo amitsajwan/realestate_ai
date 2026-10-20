@@ -12,6 +12,12 @@ One turn, when an LLM is configured:
 Kept in code, never left to the model: the number (asked only when engine._can_ask_phone allows, with the consent line added here), confirming a
 number, the lead, abuse, the first greeting. Any failure (no LLM, a provider down, a reply that fails the checks) falls back to the rules engine
 (engine.turn) for that turn, on the state as it was, so the chat never breaks.
+
+Short by design (owner, 2026-10-20: "bot don't need to be in conversation for long; if not sure, the final message is 'forwarded to the
+Avasetu team'"): it asks only the area and the size and budget, once each, then (on the website) the number; when it cannot answer, the
+buyer wants a person or a visit, the model fails, or the chat runs past MAX_TURNS, it hands off: one closing line that the team has it
+(with the number ask on the website), the agent alerted. After that it answers only clear questions it can answer from our data; anything
+else gets a short acknowledgement (on WhatsApp and DMs once, then the message just waits for the team in the Inbox).
 """
 import copy
 import logging
@@ -37,7 +43,11 @@ INTENTS = ("answer", "question", "suggest", "skip", "homes", "visit", "human", "
 TIMELINES = ("now", "1_3_months", "3_6_months", "exploring")
 FINANCING = ("home_loan", "own_funds", "undecided")
 FIELD_WORDS = {"tx": "whether they want to buy or rent", "locality": "which area of Pune", "bhk": "how many bedrooms (BHK)",
-               "budget": "their budget", "timeline": "when they plan to move", "name": "their name"}
+               "budget": "their budget", "timeline": "when they plan to move", "name": "their name",
+               "size_budget": "how many bedrooms (BHK) and their budget, in one short question"}
+ASKS = ("locality", "bhk", "budget")   # the only details we ask for, once each (anything else they tell us is still kept)
+MAX_TURNS = 8                          # visitor messages before the bot hands the chat to the team
+WEB = "web"                            # channel: the website chat; "message" = WhatsApp and DMs (we already have their number there)
 AREA_NAMES = sorted({a.name for a in area_registry.AREAS})
 
 UNDERSTAND = f"""You read one message from a visitor in the {brand.NAME} website chat (a Pune real estate agent's site) and say what it means.
@@ -80,7 +90,7 @@ How to reply:
    it back word by word.
 2. Use ONLY what KNOWLEDGE, HOMES and BUYER contain. Never invent or estimate prices, price trends, rates per sq ft, distances, travel times,
    schools, hospitals, malls, amenities, possession dates, approvals or availability. Prices come only from HOMES. If you cannot answer from
-   them, say honestly that you do not have that and the agent will confirm it, and set "needs_team": true.
+   them, say in one short sentence that you do not have that (our code adds that the team will get back) and set "needs_team": true.
    We find and show homes; we do not give home loans, legal work, discounts, offers or anything KNOWLEDGE does not describe: never offer,
    promise or say we can arrange one (for a loan: the buyer's bank decides; the agent can tell them which banks the project works with).
 3. HOMES are shown as cards right under your message: point to them ("the home below", "these two"), do not list every detail again.
@@ -108,22 +118,58 @@ def _rules_only(d: dict, text: str) -> bool:
 
 
 async def turn(d: dict, text: str, llm, grounding=None, finder: Optional[engine.Finder] = None, whatsapp: bool = False,
-               history: Optional[List[dict]] = None) -> engine.Turn:
+               history: Optional[List[dict]] = None, channel: str = WEB) -> engine.Turn:
     engine._upgrade(d)
     text = (text or "").strip()
     if llm is None or not hasattr(llm, "json") or _rules_only(d, text):
         return await engine.turn(d, text, llm, grounding, finder, whatsapp)
     work = copy.deepcopy(d)
     try:
-        t = await _turn(work, text, llm, grounding, finder, whatsapp, history or [])
+        t = await _turn(work, text, llm, grounding, finder, whatsapp, history or [], channel)
     except Exception:
-        log.exception("chat agent turn failed, the rules answer")
+        log.exception("chat agent turn failed, handed to the team")
         t = None
-    if t is None:
-        return await engine.turn(d, text, llm, grounding, finder, whatsapp)
+    if t is None:   # the rules answer only when they know it (a checked site answer, a plain detail); anything else goes to the team
+        work = copy.deepcopy(d)
+        t = await engine.turn(work, text, llm, grounding, finder, whatsapp)
+        if t.needs_human or work.get("handed_off"):   # 'I do not want to guess...' read as useless in real chats (2026-10-20)
+            d.clear()
+            d.update(work)
+            return _handoff(d, channel)
     d.clear()
     d.update(work)
     return t
+
+
+def _has_number(d: dict) -> bool:
+    return bool(d.get("phone") or d.get("lead_done"))
+
+
+def _handoff(d: dict, channel: str, answer: str = "", cards: Optional[List[dict]] = None) -> engine.Turn:
+    """The closing turn: what we could say, then that the team has it. The first time also alerts the agent (notify) and, on the website
+    without a number, asks for it (the only way the team can answer). Later: a short acknowledgement; on WhatsApp/DMs only once."""
+    lang = engine._lang(d)
+    first = not d.get("handed_off")
+    d["handed_off"], d["needs_human"] = True, True
+    notify = not d.get("needs_you_sent")
+    if notify:
+        d["needs_you_sent"] = True
+    quick: List[str] = []
+    d["asked"] = None
+    if first and channel == WEB and not _has_number(d) and "phone" not in d["declined"] and not d.get("pending_phone"):
+        line = say("handoff_web", lang, team=brand.NAME)
+        if not d.get("consent_shown"):
+            d["consent_shown"] = True
+            line = f"{line} {say('consent', lang)}"
+        d["asked"], d["phone_asks"], d["phone_asked_turn"] = "phone", d.get("phone_asks", 0) + 1, d.get("turn_no", 0)
+        quick = [engine.qr("not_now", lang)]
+    elif first:
+        line = say("handoff", lang, team=brand.NAME)
+    elif channel == WEB or not d.get("handoff_acked"):
+        line, d["handoff_acked"] = say("handed_ack", lang, team=brand.NAME), True
+    else:
+        line = ""   # told already: the message waits for the team in the Inbox
+    return engine.Turn(" ".join(x for x in (answer, line) if x), quick, None, True, cards or [], notify)
 
 
 # ---- 1. understand ---------------------------------------------------------------------------------------------------------------------
@@ -262,19 +308,26 @@ def _homes_text(cards: List[dict], searched: bool, d: dict) -> str:
     return "\n".join(lines)
 
 
-def _next(d: dict, intent: str, needs_human: bool) -> str:
-    """The one next step, chosen by code: a missing detail in order, or the number when it is allowed and useful."""
-    if d.get("after_lead") or intent == "agent":
+def _next(d: dict, intent: str, channel: str) -> str:
+    """The one next step, chosen by code: the area, then size and budget (each asked once), then on the website the number."""
+    if d.get("handed_off") or d.get("after_lead") or intent == "agent":
         return "none"
-    want_phone = needs_human or d.get("want_phone_now") or intent in ("visit", "human")
-    nf = engine.next_field(d)
-    if (want_phone or nf == "phone") and engine._can_ask_phone(d) and d.get("value_given"):
+    asks = d.get("asks", {})
+    left = [f for f in ASKS if not engine.filled(d, f) and not asks.get(f) and f not in d["declined"]]
+    if "locality" in left:
+        return "locality"
+    if "bhk" in left and "budget" in left:
+        return "size_budget"
+    if left:
+        return left[0]
+    if channel == WEB and engine._can_ask_phone(d) and d.get("value_given"):
         return "phone"
-    if intent == "visit" and not d.get("phone") and d.get("phone_asks", 0) < engine.MAX_PHONE_ASKS and "phone" not in d["declined"]:
-        return "phone"   # a visit needs a number: the warmest moment to ask, even soon after the last ask
-    if nf and nf != "phone":
-        return nf
     return "none"
+
+
+def _ready(d: dict) -> bool:
+    """Enough to show homes: the area, and size and budget each given or asked once."""
+    return engine.filled(d, "locality") and all(engine.filled(d, f) or d.get("asks", {}).get(f) or f in d["declined"] for f in ("bhk", "budget"))
 
 
 def _next_text(nxt: str, d: dict) -> str:
@@ -288,7 +341,7 @@ def _next_text(nxt: str, d: dict) -> str:
     return f"ask {FIELD_WORDS[nxt]}"
 
 
-async def _turn(d: dict, text: str, llm, grounding, finder, whatsapp: bool, history: List[dict]) -> Optional[engine.Turn]:
+async def _turn(d: dict, text: str, llm, grounding, finder, whatsapp: bool, history: List[dict], channel: str = WEB) -> Optional[engine.Turn]:
     d["greeted"] = True
     d["turn_no"] = d.get("turn_no", 0) + 1
     engine._update_lang(d, text)
@@ -315,14 +368,17 @@ async def _turn(d: dict, text: str, llm, grounding, finder, whatsapp: bool, hist
         d["want_phone_now"] = True
 
     same = d.get("shown_sig") == engine._sig(d) and d.get("shown_brief")
-    force = (intent == "homes" or bool(engine.HOMES.search(text))) or (intent == "suggest" and not same)
+    force = (intent == "homes" or bool(engine.HOMES.search(text))) or (intent == "suggest" and not same) or \
+        (_ready(d) and d.get("shown_sig") != engine._sig(d))
     _, cards, shown = await engine._show_homes(d, finder, force)
     if cards:
         d["shown_brief"] = _homes_text(cards, True, d)
     if intent in ("question", "suggest"):
         d["value_given"] = True
 
-    nxt = _next(d, intent, needs_human)
+    handed = bool(d.get("handed_off"))
+    turns = sum(1 for m in history if m.get("role") == "user") + 1
+    nxt = _next(d, intent, channel)
     knowledge = _knowledge(d, grounding, await _found(d, text, intent))
     homes = _homes_text(cards, shown, d) if cards or shown or not d.get("shown_brief") else \
         "No cards this turn (say 'the home I showed you', never 'below'). Shown earlier in the chat:\n" + d["shown_brief"]
@@ -347,6 +403,11 @@ async def _turn(d: dict, text: str, llm, grounding, finder, whatsapp: bool, hist
         return None
     if nxt == "none":
         question = ""
+    if r.get("needs_team") is True or needs_human or intent == "visit" or (not handed and turns >= MAX_TURNS):
+        if r.get("needs_team") is True:
+            d.setdefault("missing", []).append(text[:100])
+            d["gaps"] = (d.get("gaps") or [])[-19:] + [{"q": text[:200], "topics": ["other"]}]
+        return _handoff(d, channel, reply, cards)
     if r.get("needs_team") is True:
         needs_human = True
         d.setdefault("missing", []).append(text[:100])
@@ -364,6 +425,9 @@ async def _turn(d: dict, text: str, llm, grounding, finder, whatsapp: bool, hist
         d.pop("want_phone_now", None)
         if first:
             question = f"{question} {say('consent', lang)}"
+    elif nxt == "size_budget" and question:
+        _, quick = engine._prompt(d, "bhk")      # one question for both: each counts as asked
+        d["asks"]["budget"] = d["asks"].get("budget", 0) + 1
     elif nxt not in ("none", "phone") and question:
         _, quick = engine._prompt(d, nxt)        # counts the ask; its quick replies
     else:

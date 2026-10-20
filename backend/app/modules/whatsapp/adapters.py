@@ -37,7 +37,7 @@ async def chat_turn(data: dict, text: str, llm, grounding, finder=None, history=
     import os
     if os.environ.get("CHAT_AGENT", "on").strip().lower() != "off":
         from app.modules.chat import agent as chat_agent
-        return await chat_agent.turn(data, text, llm, grounding, finder=finder, history=history or [])
+        return await chat_agent.turn(data, text, llm, grounding, finder=finder, history=history or [], channel="message")
     return await engine.turn(data, text, llm, grounding, finder=finder)
 
 

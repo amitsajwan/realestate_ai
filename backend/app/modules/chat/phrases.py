@@ -59,6 +59,28 @@ P: Dict[str, Dict[str, str]] = {
     "ask_name": {"en": "May I know your name?", "hinglish": "Aapka naam jaan sakta hoon?", "hi": "क्या मैं आपका नाम जान सकता हूँ?",
                  "mr": "तुमचे नाव कळेल का?", "mr_latn": "Tumche naav kalel ka?"},
     # ---- the number: asked at most twice, consent shown once, next to the ask -------------------------------------
+    # ---- the hand-off (owner, 2026-10-20: short chats; when the bot is not sure, its last word is 'passed to the team') ----------------
+    "handoff": {   # we have their number (WhatsApp, DMs, or shared on the site)
+        "en": "I have passed this to the {team} team. They will get back to you soon.",
+        "hinglish": "Maine yeh {team} team ko bhej diya hai. Woh jaldi aapse sampark karenge.",
+        "hi": "मैंने यह {team} टीम को भेज दिया है। वे जल्द आपसे संपर्क करेंगे।",
+        "mr": "मी हे {team} टीमकडे पाठवले आहे. ते लवकरच तुमच्याशी संपर्क करतील.",
+        "mr_latn": "Mi he {team} team kade pathavle aahe. Te lavkarach tumchyashi samparka kartil.",
+    },
+    "handoff_web": {   # the website, no number yet: the team cannot answer in this chat, so the number is the way back
+        "en": "I have passed this to the {team} team. Share your mobile number and they will call or WhatsApp you.",
+        "hinglish": "Maine yeh {team} team ko bhej diya hai. Apna mobile number share karein, woh aapko call ya WhatsApp karenge.",
+        "hi": "मैंने यह {team} टीम को भेज दिया है। अपना मोबाइल नंबर दें, वे आपको कॉल या WhatsApp करेंगे।",
+        "mr": "मी हे {team} टीमकडे पाठवले आहे. तुमचा मोबाइल नंबर द्या, ते तुम्हाला कॉल किंवा WhatsApp करतील.",
+        "mr_latn": "Mi he {team} team kade pathavle aahe. Tumcha mobile number dya, te tumhala call kinva WhatsApp kartil.",
+    },
+    "handed_ack": {
+        "en": "The {team} team has your message and will get back to you.",
+        "hinglish": "{team} team ko aapka message mil gaya hai, woh aapse sampark karenge.",
+        "hi": "{team} टीम को आपका संदेश मिल गया है, वे आपसे संपर्क करेंगे।",
+        "mr": "{team} टीमला तुमचा संदेश मिळाला आहे, ते तुमच्याशी संपर्क करतील.",
+        "mr_latn": "{team} team la tumcha sandesh milala aahe, te tumchyashi samparka kartil.",
+    },
     "ask_phone": {
         "en": "If you like, share your mobile number and our team will send you options and answer anything I cannot.",
         "hinglish": "Aap chahein to apna mobile number share karein, hamari team aapko options bhejegi aur baaki sawaalon ke jawab degi.",
