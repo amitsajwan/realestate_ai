@@ -18,6 +18,7 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi.responses import JSONResponse
 
 from app.core import areas as core_areas
 from app.core.database import get_database
@@ -170,6 +171,22 @@ async def find(store: Store, item_id: str) -> Optional[dict]:
     return None
 
 
+async def retired_path(store: Store, item_id: str) -> Optional[str]:
+    """Where an address of a withdrawn story (taken down, not merged into another) now sends readers: the page of its first area,
+    else the news list. Its social posts and old search results still link it (2026-10-20: four one-line stories were withdrawn)."""
+    doc = await store.get(item_id)
+    if doc is None:
+        head, _, tail = item_id.rpartition("-")
+        if not head or not tail or len(tail) > ID_CHARS:
+            return None
+        near = await store.items.find({"_id": {"$gte": tail}}).sort("_id", 1).limit(50).to_list(50)
+        doc = next((d for d in near if str(d["_id"])[:ID_CHARS].lower() == tail and d.get("status") == "withdrawn"), None)
+    if doc is None or doc.get("status") != "withdrawn" or doc.get("merged_into"):
+        return None
+    keys = _area_keys(doc)
+    return f"/localities/{core_areas.BY_KEY[keys[0]].slug}" if keys else "/news"
+
+
 async def _story_ids(store: Store, doc: dict) -> Dict[str, str]:
     """A digest's story ids that are public stories, mapped to their slugs."""
     out = {}
@@ -202,6 +219,9 @@ async def public_news_item(item_id: str, response: Response, store: Store = Depe
     """One item by its slug or by any older address of it; the reply's `id` is the address to show (and redirect to)."""
     doc = await find(store, item_id)
     if not doc:
+        moved = await retired_path(store, item_id)
+        if moved:  # taken down: 410 with the page to send readers to (the site redirects there)
+            return JSONResponse({"moved_to": moved}, status_code=410, headers={"Cache-Control": f"public, max-age={CACHE_SECONDS}"})
         raise HTTPException(404, "Not found")
     response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
     return view(doc, item_ids=await _story_ids(store, doc) if _is_digest(doc) else None)

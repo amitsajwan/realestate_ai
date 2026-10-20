@@ -43,7 +43,8 @@ export interface NewsItem {
 }
 
 export type NewsListResult = { ok: true; items: NewsItem[] } | { ok: false; items: [] }
-export type NewsItemResult = { ok: true; item: NewsItem } | { ok: false; notFound: boolean }
+/** `movedTo`: a story we took down; its address sends readers to this site path (its area's page, or /news). */
+export type NewsItemResult = { ok: true; item: NewsItem } | { ok: false; notFound: boolean; movedTo?: string }
 
 const https = (u: unknown): u is string => typeof u === 'string' && /^https:\/\//.test(u)
 const str = (v: unknown): string => (typeof v === 'string' ? v : '')
@@ -99,7 +100,7 @@ async function getJson(path: string): Promise<{ status: number; body: unknown } 
   const timer = setTimeout(() => ctrl.abort(), 4000)
   try {
     const res = await fetch(`${serverApiBase()}/api/v1/public/news${path}`, { headers: { Accept: 'application/json' }, next: { revalidate: 60 }, signal: ctrl.signal })
-    return { status: res.status, body: res.ok ? await res.json() : null }
+    return { status: res.status, body: res.ok || res.status === 410 ? await res.json() : null }
   } catch {
     return null
   } finally {
@@ -132,6 +133,10 @@ export async function fetchNewsItem(id: string): Promise<NewsItemResult> {
   const res = await getJson(`/${encodeURIComponent(id)}`)
   if (!res) { await dontCacheThisRender(); return { ok: false, notFound: false } }
   if (res.status === 404) return { ok: false, notFound: true }
+  if (res.status === 410) {
+    const to = str((res.body as Record<string, unknown> | null)?.moved_to)
+    return /^\/[a-z0-9/-]*$/.test(to) ? { ok: false, notFound: true, movedTo: to } : { ok: false, notFound: true }
+  }
   const item = cleanNewsItem(res.body)
   return item ? { ok: true, item } : { ok: false, notFound: false }
 }

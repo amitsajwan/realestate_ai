@@ -25,6 +25,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function NewsItemPage({ params }: Props) {
   const { id } = await params
   const res = await fetchNewsItem(decoded(id))
+  if (!res.ok && res.movedTo) permanentRedirect(res.movedTo)  // a story we took down: its area's page, not a dead end
   if (!res.ok && res.notFound) notFound()
   // an older address (the stored id that captions already posted link to, or an older slug): one permanent (308) hop to the current one
   if (res.ok && res.item.id !== decoded(id)) permanentRedirect(newsPath(res.item.id))
