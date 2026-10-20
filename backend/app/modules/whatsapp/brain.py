@@ -6,6 +6,8 @@ import logging
 import re
 from typing import Optional
 
+from app.modules.engage.config import quiet_topic
+
 from . import adapters, check_flow, lang as L
 
 log = logging.getLogger(__name__)
@@ -46,6 +48,13 @@ NOT_IN_POST = {
     "hinglish": "Yeh jaankari hamari post mein nahi hai. Maine hamari team se poocha hai, woh yahin reply karenge.",
     "mr": "ही माहिती आमच्या पोस्टमध्ये नाही. मी आमच्या टीमला विचारले आहे, ते इथेच उत्तर देतील.",
     "mr_latn": "Hi mahiti aamchya post madhe nahi. Mi aamchya team la vicharle aahe, te ithech uttar detil.",
+}
+QUIET = {   # a topic the bot must not answer (MHADA, owner 2026-10-20): never a figure or a date, only who to ask; the team is told
+    "en": "We are not MHADA and we never take any payment. For your application or payment, please check only with MHADA's official website or office. Our team will read your message.",
+    "hi": "हम MHADA नहीं हैं और कोई भी पैसा नहीं लेते। अपने आवेदन या पेमेंट के लिए सिर्फ MHADA की ऑफिशियल वेबसाइट या ऑफिस से ही पूछें। हमारी टीम आपका मैसेज पढ़ेगी।",
+    "hinglish": "Hum MHADA nahi hain aur koi bhi paisa nahi lete. Apne application ya payment ke liye sirf MHADA ki official website ya office se hi poochhein. Hamari team aapka message padhegi.",
+    "mr": "आम्ही MHADA नाही आणि कोणतेही पैसे घेत नाही. तुमच्या अर्ज किंवा पेमेंटसाठी फक्त MHADA ची अधिकृत वेबसाइट किंवा ऑफिसकडेच चौकशी करा. आमची टीम तुमचा मेसेज वाचेल.",
+    "mr_latn": "Aamhi MHADA nahi ani konatehi paise ghet nahi. Tumchya arj kinva payment sathi fakt MHADA chi adhikrut website kinva office kadech chaukashi kara. Aamchi team tumcha message vachel.",
 }
 GONE = {
     "en": "“{title}” is no longer listed. Here is what I can find for you instead.",
@@ -106,6 +115,11 @@ class ChatBrain:
             return L.pick(SELLER, adapters.detect_language(text))
         if need == "spam":
             return ""
+        ctx = conv.get("context") or {}
+        if quiet_topic(text, ctx.get("slug"), ctx.get("came_from"), (u or {}).get("about")):
+            data["needs_human"] = True
+            data.setdefault("questions", []).append(text[:200])
+            return L.pick(QUIET, adapters.detect_language(text))
         if LOAN.search(text) and need in ("question", "other", None):
             return L.pick(LOAN_TEXT, adapters.detect_language(text))
         ctx = conv.get("context") or {}

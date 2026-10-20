@@ -16,7 +16,7 @@ from app.modules.knowledge.grounding import Ref, facts_for
 from app.platform.text import normalize_indian_mobile
 
 from .brain import COMMENT_PHONE, SIGNAL_SCORE, Decision, decide, dm_text, render, want_text
-from .config import EngageConfig
+from .config import EngageConfig, quiet_topic
 from .graph import EngageGraphError
 
 log = logging.getLogger(__name__)
@@ -151,7 +151,8 @@ class EngageService:
             if code and reel_source:  # an agent reel: the sign-up is traced back to this reel (scripts/agent_reels.py report)
                 source = reel_source(code, channel)
         return {"facts": message, "link": with_source(landing, source), "listing_id": None, "agent_id": self.cfg.owner_agent_id or None,
-                "grounding": grounding, "calendar_id": item["_id"] if item else None, "audience": "agents" if agents else "buyers"}
+                "grounding": grounding, "calendar_id": item["_id"] if item else None, "audience": "agents" if agents else "buyers",
+                "quiet": quiet_topic((item or {}).get("slug"), post.get("message"))}
 
     # ---- limits ------------------------------------------------------------------------------------------------
     async def _hourly_full(self) -> bool:
@@ -174,6 +175,9 @@ class EngageService:
         own = c.get("own") or (channel == "facebook" and sender.get("id") == self.cfg.page_id)
         if own or c.get("replied") or c.get("parent") or (t and self.now() - t > MAX_COMMENT_AGE):
             return {**base, "intent": "other", "language": "en", "status": "ignored", "needs_human": False, "reason": "own comment, already answered, thread reply or old"}
+        if ctx.get("quiet") or quiet_topic(c.get("message")):  # a topic the bot must not answer: a person replies, nothing is posted
+            return {**base, "audience": ctx.get("audience") or "buyers", "calendar_id": ctx.get("calendar_id"), "intent": "other", "language": "en",
+                    "status": "needs_human", "needs_human": True, "reason": "quiet topic: a person answers"}
         extra = {"channel": channel, "handle": handle} if channel != "facebook" else {}
         d: Decision = await decide(c.get("message") or "", sender.get("name"), ctx["facts"], ctx["link"], self.llm, grounding=ctx.get("grounding"),
                                    audience=ctx.get("audience") or "buyers", **extra)

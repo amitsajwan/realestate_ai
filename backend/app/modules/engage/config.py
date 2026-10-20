@@ -1,5 +1,6 @@
 """Engagement configuration, read from the environment at call time. Tokens are never logged (repr=False)."""
 import os
+import re
 from dataclasses import dataclass, field
 
 TRUE = ("1", "true", "yes", "on")
@@ -30,6 +31,14 @@ class EngageConfig:
     @property
     def secrets(self):
         return [s for s in (self.page_token,) if s]
+
+
+def quiet_topic(*texts) -> bool:
+    """A topic the bot must not answer (owner 2026-10-20: MHADA comments ask about payments, too risky for an automatic answer): comments
+    on it wait for a person, DMs get only a safety line. ENGAGE_QUIET_WORDS (comma separated) replaces the default; "-" turns it off."""
+    words = [w.strip() for w in _env("ENGAGE_QUIET_WORDS", "mhada,म्हाडा").split(",") if w.strip() and w.strip() != "-"]
+    text = " ".join(t for t in texts if isinstance(t, str)).lower()
+    return bool(words) and any(re.search(re.escape(w.lower()), text) for w in words)
 
 
 def load() -> EngageConfig:
