@@ -199,7 +199,8 @@ def carousel_briefs(f: Facts, hook: str, photo: str) -> List[Tuple[str, Brief]]:
         work = [f"{c.place('industry', p)} is about {campaign._km(p['km'])} away (straight line)." for p in v.get("nearby.industry") or []]
         offer = ([f"Booking amount: {price_label(int(f.booking))}."] + ([f"Starting price: {price_label(int(f.start))}."] if f.start else [])
                  if f.booking else [])
-        out.append(("hook", en(replace(base, hooks={p: hook for p in PATTERNS}, photo=photo, facts=list(base.facts) + work + offer))))
+        out.append(("hook", en(replace(base, hooks={p: hook for p in PATTERNS}, photo=photo, facts=list(base.facts) + work + offer
+                                                                          + f.sheet_lines()))))
     # single cards only (stat and tip layouts): a list layout draws a carousel of its own, whose cover alone says nothing
     if f.price:
         price = price_label(f.price)
@@ -241,8 +242,11 @@ def carousel_briefs(f: Facts, hook: str, photo: str) -> List[Tuple[str, Brief]]:
                                           facts=lines, tip="; ".join(lines[1:]) + ". Straight-line distances." if len(lines) > 1
                                           else "Straight-line distance: drive it once.", prefer="stat"))))
     if f.rera:
+        # a 15-character number (PR1260002502426) does not fit the big-number box: the box says "Registered", the label the number
+        big = f.rera if len(f.rera) <= 12 else "Registered"
         out.append(("maharera", en(c.brief(hook=f"MahaRERA {f.rera}: check it yourself", topic="Check it on MahaRERA",
-                                            short="MahaRERA check", stat_value=f.rera, stat_label="MahaRERA registration number",
+                                            short="MahaRERA check", stat_value=big,
+                                            stat_label="MahaRERA registration number" if big == f.rera else f"on MahaRERA: {f.rera}",
                                             facts=[f"{c.project or 'This project'} is registered on MahaRERA as {f.rera}."],
                                             tip="Search it on the MahaRERA website: completion date, approvals, promoter.",
                                             prefer="stat"))))
