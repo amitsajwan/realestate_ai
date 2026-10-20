@@ -70,9 +70,9 @@ export class AuthInterceptor {
                 this.showTokenExpiredNotification();
 
                 // Redirect to login page if not already there
-                if (window.location.pathname !== '/login' && window.location.pathname !== '/') {
-                    logger.info('[AuthInterceptor] Redirecting to login page');
-                    window.location.href = '/login';
+                if (!['/join', '/login', '/'].includes(window.location.pathname)) {
+                    logger.info('[AuthInterceptor] Redirecting to sign-in');
+                    window.location.href = '/join';
                 }
             }
         } catch (error) {

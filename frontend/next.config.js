@@ -20,6 +20,13 @@ const nextConfig = {
       // House Deal's account moved from /agent/sharad to /agent/house-deal (2026-10-03); old post links keep working
       { source: '/agent/sharad', destination: '/agent/house-deal', permanent: true },
       { source: '/agent/sharad/:path*', destination: '/agent/house-deal/:path*', permanent: true },
+      // the old email/password app (its 'Forgot password' link was a 404): sign-in is the login code at /join, the app is /studio
+      { source: '/login', destination: '/join', permanent: false },
+      { source: '/register', destination: '/join', permanent: false },
+      { source: '/forgot-password', destination: '/join', permanent: false },
+      { source: '/dashboard', destination: '/studio', permanent: false },
+      { source: '/onboarding', destination: '/studio', permanent: false },
+      { source: '/profile', destination: '/studio', permanent: false },
     ]
   },
   // Proxy API requests to backend

@@ -147,28 +147,10 @@ body {
 }
 
 /* === FONT WEIGHT UTILITIES === */
-.font-thin { font-weight: var(--font-weight-thin); }
-.font-extralight { font-weight: var(--font-weight-extralight); }
-.font-light { font-weight: var(--font-weight-light); }
-.font-normal { font-weight: var(--font-weight-normal); }
-.font-medium { font-weight: var(--font-weight-medium); }
-.font-semibold { font-weight: var(--font-weight-semibold); }
-.font-bold { font-weight: var(--font-weight-bold); }
-.font-extrabold { font-weight: var(--font-weight-extrabold); }
-.font-black { font-weight: var(--font-weight-black); }
 
 /* === LINE HEIGHT UTILITIES === */
-.leading-tight { line-height: var(--line-height-tight); }
-.leading-snug { line-height: var(--line-height-snug); }
-.leading-normal { line-height: var(--line-height-normal); }
-.leading-relaxed { line-height: var(--line-height-relaxed); }
-.leading-loose { line-height: var(--line-height-loose); }
 
 /* === LETTER SPACING UTILITIES === */
-.tracking-tight { letter-spacing: var(--letter-spacing-tight); }
-.tracking-normal { letter-spacing: var(--letter-spacing-normal); }
-.tracking-wide { letter-spacing: var(--letter-spacing-wide); }
-.tracking-wider { letter-spacing: var(--letter-spacing-wider); }
 
 /* === TEXT COLOR UTILITIES === */
 .text-primary { color: var(--color-text-primary); }
@@ -191,22 +173,10 @@ body {
 .text-info { color: var(--color-info-500); }
 
 /* === TEXT ALIGNMENT === */
-.text-left { text-align: left; }
-.text-center { text-align: center; }
-.text-right { text-align: right; }
-.text-justify { text-align: justify; }
 
 /* === TEXT TRANSFORM === */
-.uppercase { text-transform: uppercase; }
-.lowercase { text-transform: lowercase; }
-.capitalize { text-transform: capitalize; }
-.normal-case { text-transform: none; }
 
 /* === TEXT DECORATION === */
-.underline { text-decoration: underline; }
-.overline { text-decoration: overline; }
-.line-through { text-decoration: line-through; }
-.no-underline { text-decoration: none; }
 
 /* === RESPONSIVE TYPOGRAPHY === */
 @media (max-width: 640px) {
@@ -225,17 +195,6 @@ body {
 
 /* === ACCESSIBILITY === */
 /* Screen reader only text */
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
 
 /* Focus visible text */
 .focus-visible {
@@ -275,39 +234,9 @@ body {
 }
 
 /* === MONOSPACE TYPOGRAPHY === */
-.font-mono {
-  font-family: var(--font-family-mono);
-  font-variant-numeric: tabular-nums;
-}
 
 /* === CUSTOM TYPOGRAPHY UTILITIES === */
 /* Text truncation */
-.truncate {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.line-clamp-1 {
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 1;
-}
-
-.line-clamp-2 {
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-
-.line-clamp-3 {
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-}
 
 /* Text selection */
 ::selection {

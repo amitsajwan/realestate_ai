@@ -1,11 +1,19 @@
 (site) {
 	encode gzip
 	@api path /api/* /docs /openapi.json /uploads/*
+	# a deploy recreates the containers (~10-60 s): hold a visitor's request and retry until the container answers again,
+	# instead of an instant 502 on every page
 	handle @api {
-		reverse_proxy backend:8000
+		reverse_proxy backend:8000 {
+			lb_try_duration 30s
+			lb_try_interval 500ms
+		}
 	}
 	handle {
-		reverse_proxy frontend:3000
+		reverse_proxy frontend:3000 {
+			lb_try_duration 30s
+			lb_try_interval 500ms
+		}
 	}
 }
 

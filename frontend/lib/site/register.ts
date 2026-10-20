@@ -273,13 +273,28 @@ export async function getRegisterProject(slug: string): Promise<RegisterProject 
   throw new Error('Project data is temporarily unavailable')
 }
 
+/** Lists kept in this process for 5 minutes: the whole register is ~7.5 MB, over the 2 MB Next.js data cache limit, so without
+ *  this /projects (rendered per request for ?q=), the homepage and the sitemap each fetched it again on every render (~8 s).
+ *  Concurrent renders share one fetch; a failed fetch is not kept. */
+const LIST_TTL_MS = 5 * 60 * 1000
+const lists = new Map<string, { at: number; data: Promise<RegisterListItem[] | null> }>()
+
 /** Indexable project pages (for the sitemap), optionally one area's. An outage gives an empty list. */
 export async function getRegisterProjects(area?: string, all = false, place?: string): Promise<RegisterListItem[]> {
   const q = [area ? 'area=' + encodeURIComponent(area) : '', all ? 'all=true' : '', place ? 'place=' + encodeURIComponent(place) : '',
     'limit=20000'].filter(Boolean).join('&')
-  // the whole register (11,000+ projects, ~5 MB) takes several seconds: a 5 s cut left the sitemap without project pages
-  const r = await get<RegisterListItem[]>('/api/v1/public/register/projects' + (q ? '?' + q : ''), 30000)
-  return r.ok && Array.isArray(r.data) ? r.data : []
+  const hit = lists.get(q)
+  if (hit && Date.now() - hit.at < LIST_TTL_MS) {
+    const data = await hit.data
+    if (data) return data
+  }
+  // the whole register (11,000+ projects) takes several seconds: a 5 s cut left the sitemap without project pages
+  const data = get<RegisterListItem[]>('/api/v1/public/register/projects?' + q, 30000)
+    .then((r) => (r.ok && Array.isArray(r.data) ? r.data : null))
+  lists.set(q, { at: Date.now(), data })
+  const got = await data
+  if (!got && lists.get(q)?.data === data) lists.delete(q)
+  return got ?? []
 }
 
 /** A Pune place with projects in the register: GET /api/v1/public/register/places, in zone order. */

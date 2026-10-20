@@ -1,30 +1,41 @@
 'use client'
 
 import { useEffect } from 'react'
+import Link from 'next/link'
+import { BRAND_NAME, LOGO } from '@/lib/brand'
 
-export default function Error({
-  error,
-  reset,
-}: {
-  error: Error & { digest?: string }
-  reset: () => void
-}) {
+/** A page whose data did not load (usually the API busy or restarting for a few seconds): in the site's colours, with a retry that
+ *  re-renders on the server and a way out. No shared shell: the shell itself may be what failed. */
+export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
-    // Log the error to an error reporting service
     console.error('Application Error:', error)
   }, [error])
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-      <div className="text-center">
-        <h2 className="text-2xl font-bold text-white mb-4">Something went wrong!</h2>
-        <p className="text-gray-300 mb-6">An unexpected error occurred.</p>
-        <button
-          onClick={reset}
-          className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded"
-        >
-          Try again
-        </button>
+    <div data-surface="v2" className="min-h-screen bg-white text-slate-900">
+      <header className="border-b border-[#1d3a63] bg-[#0f2340]">
+        <div className="mx-auto flex max-w-5xl items-center px-4 py-1.5">
+          <Link href="/" className="flex min-h-[44px] items-center gap-2 text-lg font-bold text-white no-underline">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={LOGO.mark} alt="" width={32} height={32} className="h-8 w-8" />
+            {BRAND_NAME}
+          </Link>
+        </div>
+      </header>
+      <div className="mx-auto max-w-3xl px-4 py-12 sm:py-16">
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900">This page did not load</h1>
+        <p className="mt-4 text-lg leading-relaxed text-slate-700">
+          Our server was busy for a moment. Trying again usually works within a few seconds.
+        </p>
+        <div className="mt-8 flex flex-wrap gap-3">
+          <button type="button" onClick={() => { reset(); window.location.reload() }}
+            className="inline-flex min-h-[48px] items-center rounded-xl bg-[#f0b440] px-6 font-bold text-[#0f2340] hover:bg-[#f5c75e]">
+            Try again
+          </button>
+          <Link href="/" className="inline-flex min-h-[48px] items-center rounded-xl border-2 border-[#0f2340] px-6 font-bold text-[#0f2340] no-underline hover:bg-[#0f2340] hover:text-white">
+            Home page
+          </Link>
+        </div>
       </div>
     </div>
   )

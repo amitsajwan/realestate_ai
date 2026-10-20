@@ -26,11 +26,6 @@
 
 /* === BACKGROUND COLOR UTILITIES === */
 /* Surface Colors */
-.bg-surface { background-color: var(--color-surface); }
-.bg-surface-variant { background-color: var(--color-surface-variant); }
-.bg-surface-container { background-color: var(--color-surface-container); }
-.bg-surface-container-high { background-color: var(--color-surface-container-high); }
-.bg-surface-container-highest { background-color: var(--color-surface-container-highest); }
 
 /* Brand Background Colors */
 .bg-brand-primary { background-color: var(--color-primary-500); }
@@ -44,19 +39,9 @@
 .bg-info { background-color: var(--color-info-500); }
 
 /* Neutral Background Colors */
-.bg-neutral-50 { background-color: var(--color-neutral-50); }
-.bg-neutral-100 { background-color: var(--color-neutral-100); }
-.bg-neutral-200 { background-color: var(--color-neutral-200); }
-.bg-neutral-300 { background-color: var(--color-neutral-300); }
-.bg-neutral-400 { background-color: var(--color-neutral-400); }
-.bg-neutral-500 { background-color: var(--color-neutral-500); }
-.bg-neutral-600 { background-color: var(--color-neutral-600); }
-.bg-neutral-700 { background-color: var(--color-neutral-700); }
-.bg-neutral-800 { background-color: var(--color-neutral-800); }
-.bg-neutral-900 { background-color: var(--color-neutral-900); }
 
 /* === BORDER COLOR UTILITIES === */
-.border { border-color: var(--color-border); }
+
 .border-variant { border-color: var(--color-border-variant); }
 .border-focus { border-color: var(--color-border-focus); }
 .border-error { border-color: var(--color-border-error); }
@@ -261,17 +246,6 @@
 .dark .border-variant { border-color: var(--color-border-variant); }
 
 /* === COLOR OPACITY UTILITIES === */
-.bg-opacity-10 { background-color: rgba(0, 0, 0, 0.1); }
-.bg-opacity-20 { background-color: rgba(0, 0, 0, 0.2); }
-.bg-opacity-30 { background-color: rgba(0, 0, 0, 0.3); }
-.bg-opacity-40 { background-color: rgba(0, 0, 0, 0.4); }
-.bg-opacity-50 { background-color: rgba(0, 0, 0, 0.5); }
-
-.text-opacity-50 { color: rgba(0, 0, 0, 0.5); }
-.text-opacity-60 { color: rgba(0, 0, 0, 0.6); }
-.text-opacity-70 { color: rgba(0, 0, 0, 0.7); }
-.text-opacity-80 { color: rgba(0, 0, 0, 0.8); }
-.text-opacity-90 { color: rgba(0, 0, 0, 0.9); }
 
 /* === GLASS MORPHISM === */
 .glass {
