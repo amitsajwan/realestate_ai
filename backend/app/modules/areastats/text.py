@@ -6,6 +6,7 @@ builds a slug or writes a name starts here — two copies of these rules decide 
 """
 import re
 import unicodedata
+from functools import lru_cache
 from typing import Optional
 
 WORDS = re.compile(r"[a-z0-9]+")
@@ -49,6 +50,12 @@ def words(text: Optional[str]) -> list:
 
 def promoter_key(name: Optional[str]) -> str:
     """'M/s. Rohan Builders Pvt. Ltd.' and 'ROHAN BUILDERS PRIVATE LIMITED' -> 'rohan builders'."""
+    return _promoter_key(name if isinstance(name, str) else str(name or ""))
+
+
+@lru_cache(maxsize=65536)
+def _promoter_key(name: str) -> str:
+    # remembered: project pages ask it for every record (~13k) on each view
     text = " ".join(WORDS.findall(ascii_text(name)))
     return " ".join(LEGAL.sub(" ", text).split())
 
