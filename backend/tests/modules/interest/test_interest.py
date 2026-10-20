@@ -259,6 +259,7 @@ def test_router_rate_limit_is_429(env):
 def test_hub_uses_hub_items_newest_first_capped_at_12_and_cached(env):
     c, svc, db, loop = env
     for i in range(14):
+        loop.run_until_complete(db.get_collection("content_calendar").insert_one({"_id": f"r{i}", "slug": f"p{i}", "status": "published"}))
         loop.run_until_complete(upsert_hub_item(db, "post", f"p{i}", f"Post {i}", subtitle="s", interest_code=f"c{i}",
                                                 permalink=f"https://fb.test/{i}"))
         db.get_collection("hub_items").docs[-1]["updated_at"] = datetime(2026, 1, 1) + timedelta(minutes=i)
@@ -269,6 +270,20 @@ def test_hub_uses_hub_items_newest_first_capped_at_12_and_cached(env):
     assert body["items"][0]["interest_code"] == "c13" and body["items"][0]["sample"] is False
     loop.run_until_complete(upsert_hub_item(db, "post", "late", "Late post"))
     assert len(c.get("/public/hub").json()["items"]) == 12 and c.get("/public/hub").json()["items"][0]["title"] == "Post 13"  # cached
+
+
+def test_hub_drops_cards_whose_post_or_home_is_gone(env):
+    c, svc, db, loop = env
+    cal, news, listings = (db.get_collection(n) for n in ("content_calendar", "newsroom_items", "listings"))
+    for doc, col in (({"_id": "r1", "slug": "live", "status": "published"}, cal), ({"_id": "r2", "slug": "gone", "status": "removed"}, cal),
+                     ({"_id": "n1"}, news), ({"_id": "L9"}, listings)):
+        loop.run_until_complete(col.insert_one(doc))
+    for kind, ref in (("post", "live"), ("post", "gone"), ("post", "deleted-row"), ("post", "news-n1"), ("post", "news-n2"),
+                      ("listing", "L9"), ("listing", "L8")):
+        loop.run_until_complete(upsert_hub_item(db, kind, ref, ref))
+    shown = {i["ref"] for i in c.get("/public/hub").json()["items"]}
+    assert shown == {"live", "news-n1", "L9"}
+    assert {d["ref"] for d in db.get_collection("hub_items").docs} == shown   # the dead cards are deleted, not just hidden
 
 
 def test_upsert_hub_item_updates_in_place(env):

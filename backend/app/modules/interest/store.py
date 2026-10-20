@@ -17,6 +17,7 @@ class Store:
         self.events = db.get_collection("interest_events")
         self.log = db.get_collection("interest_log")
         self.hub = db.get_collection("hub_items")
+        self.db = db
 
     async def find_link(self, kind: str, ref: str, channel: str) -> Optional[dict]:
         return await self.links.find_one({"kind": kind, "ref": ref, "channel": channel})
@@ -53,4 +54,23 @@ class Store:
         await self.log.insert_one({"kind": kind, "key": key, "ts": now})
 
     async def hub_items(self, limit: int) -> list:
-        return await self.hub.find({}).sort("updated_at", -1).limit(limit).to_list(limit)
+        """The newest cards whose post or home still exists. A card whose calendar post is no longer published (deleted on the
+        platform, or its row deleted), whose news item or listing is gone, is dropped from hub_items here."""
+        docs = await self.hub.find({}).sort("updated_at", -1).limit(limit * 3).to_list(limit * 3)
+        live = []
+        for d in docs:
+            if await self._backed(d):
+                live.append(d)
+                if len(live) == limit:
+                    break
+            else:
+                await self.hub.delete_one({"_id": d["_id"]})
+        return live
+
+    async def _backed(self, d: dict) -> bool:
+        ref = d.get("ref")
+        if d.get("kind") == "listing":
+            return bool(await self.db.get_collection("listings").find_one({"_id": ref}))
+        if isinstance(ref, str) and ref.startswith("news-"):
+            return bool(await self.db.get_collection("newsroom_items").find_one({"_id": ref[5:]}))
+        return bool(await self.db.get_collection("content_calendar").find_one({"slug": ref, "status": "published"}))
