@@ -17,6 +17,9 @@ number the facts do not hold. English cards; the caption follows the run's langu
     # [{"angle", "layout", "format", "images": [local paths], "caption", "used_llm": False, "prompts": []}]
 """
 import logging
+import re
+import shutil
+import subprocess
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
@@ -184,9 +187,39 @@ MIN_COLOURS = 4000      # distinct colours on a 96 px copy: photos and renders m
 PAPER = 0.5             # share of near-white pixels above which it is a page of text, not a place
 
 
+PRINTED = 6   # words printed on a picture at which it is an advert (a builder creative's "₹1.20 Cr onwards, Pay for 2 BHK ...")
+WORD = re.compile(r"[A-Za-z]{3,}")
+
+
+def printed_words(path: str) -> int:
+    """How many words are printed on the picture (tesseract, the same OCR the brochure reader uses), kept beside it as
+    '<picture>.words' so each picture is read once. A render or a photo reads as 0-2; a builder's advert as dozens.
+    0 without tesseract."""
+    side = Path(f"{path}.words")
+    try:
+        return int(side.read_text().strip())
+    except (OSError, ValueError):
+        pass
+    exe = shutil.which("tesseract")
+    if not exe:
+        return 0
+    try:
+        out = subprocess.run([exe, str(path), "-", "--psm", "11"], capture_output=True, text=True, timeout=30).stdout
+    except (subprocess.SubprocessError, OSError):
+        return 0
+    n = len(WORD.findall(out))
+    try:
+        side.write_text(str(n))
+    except OSError:
+        pass
+    return n
+
+
 def photo_like(path: str) -> bool:
-    """A picture a gallery slide may show: readable, big enough, and a photo or render rather than an illustration, a map,
-    a QR code or a screenshot of text (all of which agents upload among the photos)."""
+    """A picture a gallery slide, a reel or the boost pair may show: readable, big enough, and a photo or render rather
+    than an illustration, a map, a QR code, a screenshot of text or an advert with its own words and prices printed on it
+    (all of which agents upload among the photos; Ivara 2026-10-20: clipart, a black strip and a builder creative with
+    "Pay for 2 BHK ₹10,499*/month" reached the boost reel)."""
     try:
         with Image.open(path) as im:
             im = ImageOps.exif_transpose(im).convert("RGB")
@@ -198,7 +231,7 @@ def photo_like(path: str) -> bool:
     if len(set(t.getdata())) < MIN_COLOURS:
         return False
     grey = t.convert("L").histogram()
-    return sum(grey[235:]) / (96 * 96) <= PAPER
+    return sum(grey[235:]) / (96 * 96) <= PAPER and printed_words(path) < PRINTED
 
 
 GAP = 10

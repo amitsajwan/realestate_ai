@@ -793,10 +793,15 @@ class MarketingRuns:
         for i in range(max(len(own), len(stills))):
             pool += ([own[i]] if i < len(own) else []) + ([stills[i]] if i < len(stills) else [])
         try:
-            return await asyncio.to_thread(pictures.rank, pool, set(own), pictures.shot_notes(out / "frames"))
+            ranked = await asyncio.to_thread(pictures.rank, pool, set(own), pictures.shot_notes(out / "frames"))
         except Exception:
             log.warning("marketing: picture ranking failed, upload order kept", exc_info=True)
-            return pool
+            ranked = pool
+        # the picture gate for every card, reel and the boost pair: no clipart, map, QR code, thumbnail or advert
+        kept = await asyncio.to_thread(lambda: [p for p in ranked if listing_posts.photo_like(p)])
+        if len(kept) < len(ranked):
+            log.info("marketing: %d of %d pictures left out (not a photo or render)", len(ranked) - len(kept), len(ranked))
+        return kept
 
     def _has_files(self, listing: dict) -> bool:
         """Something to show on the cards: a photo, a video or a brochure (its kit's renders and plans)."""
