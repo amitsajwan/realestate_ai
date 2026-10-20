@@ -68,7 +68,7 @@ async def active(db, area: Optional[str] = None, place: Optional[str] = None, li
     """Up to `limit` active project pages in an area (key or slug) or a Pune place: doctor's link slots first, then hot score,
     then Google impressions. [{slug, name, fact, source}]."""
     now = now or datetime.now(timezone.utc)
-    docs = _primaries(await Store(db).all_projects())
+    docs = _primaries(await Store(db).shared_projects())
     if area:
         a = BY_KEY.get(area) or next((x for x in BY_KEY.values() if x.slug == area), None)
         if a is None:
@@ -117,7 +117,7 @@ async def near_projects(db, area_slug: str, slug: str, limit: int = NEAR_PROJECT
     if not g or not g.get("published") or g.get("lat") is None:
         return []
     now, centre, out = datetime.now(timezone.utc), (float(g["lat"]), float(g["lon"])), []
-    for d in _primaries(await Store(db).all_projects()):
+    for d in _primaries(await Store(db).shared_projects()):
         at = _geo(d)
         if at is None or not indexable(d):
             continue
@@ -141,7 +141,7 @@ def _by_builder(docs: List[dict]) -> dict:
 
 async def builders(db, only_indexable: bool = True) -> List[dict]:
     """Every builder with projects in the register: [{slug, name, projects, indexable, page_updated}], most projects first."""
-    docs = await Store(db).all_projects()
+    docs = await Store(db).shared_projects()
     by_cluster = cluster_stamps(docs)
     out = []
     for s, mine in _by_builder(docs).items():
@@ -180,7 +180,7 @@ def _builder_name(mine: List[dict], slug: str = "") -> str:
 async def builder_page(db, slug: str) -> Optional[dict]:
     """A builder's page: every Pune project of theirs (towers merged) with MahaRERA's dates and bookings, and how often the
     filed completion date moved. None for an unknown builder."""
-    docs = await Store(db).all_projects()
+    docs = await Store(db).shared_projects()
     by_cluster = cluster_stamps(docs)
     mine = _by_builder(docs).get(slug)
     if not mine:

@@ -337,7 +337,7 @@ async def view(db, place: str, segments: List[str], now: Optional[datetime] = No
     if f.segments != [s.strip().lower() for s in segments]:
         return {"redirect_to": f.path}
     now = now or datetime.now(timezone.utc)
-    docs = await Store(db).all_projects()
+    docs = await Store(db).shared_projects()
     if not any(d.get("pune_place") == f.place for d in docs):
         return None
     return facet_view(f, docs, now)

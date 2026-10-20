@@ -1,5 +1,7 @@
 """The only file that touches Mongo for the newsroom. Collections: newsroom_items, newsroom_status, projects (the project register).
 Uses only find/find_one/insert_one/update_one/count_documents with $set/$push/$in/$gte so the in-memory test fakes work too."""
+import asyncio
+import time
 from datetime import datetime, timezone
 from typing import Callable, Dict, List, Optional
 
@@ -14,6 +16,11 @@ DONE = ("scheduled", "published")
 
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
+
+
+SHARED_SECONDS = 60
+_SHARED: Dict[int, tuple] = {}
+_SHARED_LOCKS: Dict[int, asyncio.Lock] = {}
 
 
 class Store:
@@ -171,6 +178,23 @@ class Store:
     async def all_projects(self, limit: int = 20000) -> List[dict]:
         """Every register record (a few thousand at most: our areas only), for the area stats and the relabel pass."""
         return await self.projects.find({}).to_list(limit)
+
+    async def shared_projects(self) -> List[dict]:
+        """Every register record for the public pages, READ-ONLY: one load shared by all requests for SHARED_SECONDS. A load is
+        ~13k records (~1.8 s of CPU on the VM); a burst of page views loading it once each starved the API (2026-10-20).
+        Workers that change records keep using `all_projects`."""
+        key = id(self.db)
+        hit = _SHARED.get(key)
+        if hit and hit[2] is self.db and hit[0] > time.monotonic():   # the db is held: its id cannot be reused
+            return hit[1]
+        lock = _SHARED_LOCKS.setdefault(key, asyncio.Lock())
+        async with lock:   # one load for everyone waiting
+            hit = _SHARED.get(key)
+            if hit and hit[2] is self.db and hit[0] > time.monotonic():
+                return hit[1]
+            docs = await self.all_projects()
+            _SHARED[key] = (time.monotonic() + SHARED_SECONDS, docs, self.db)
+            return docs
 
     async def set_project(self, regno: str, **fields) -> None:
         """Set fields on one register record (details from MahaRERA's project API, a corrected locality)."""

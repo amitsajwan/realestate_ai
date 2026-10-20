@@ -514,7 +514,7 @@ async def project_page(db, slug: str) -> Optional[dict]:
     doc = await store.projects.find_one({"page_slug": slug})
     if doc is None or not in_register(doc):
         return None
-    docs = await store.all_projects()   # about a thousand records: the same-area list and the builder's track record
+    docs = await store.shared_projects()   # ~13k records: the same-area list and the builder's track record
     doc = primary_of(doc, docs)
     key = "locality" if doc.get("locality") else "pune_place"
     peers = [d for d in docs if doc.get(key) and d.get(key) == doc[key] and not d.get("cluster_primary")]
@@ -555,7 +555,7 @@ async def listing(db, area: Optional[str] = None, only_indexable: bool = True, l
     """Pages for the sitemap, area pages and search: {slug, regno, name, area, place, place_name, promoter, completion_now,
     checked, active, indexable}, newest listed first. `area` is one of our covered areas; `place` any Pune place (key or slug)."""
     store = Store(db)
-    every = await store.all_projects()
+    every = await store.shared_projects()
     served = {d["_id"] for d in every if can_host(d)}
     # a tower or phase whose project has a page search may list is not a page of its own (it answers 301 to it)
     docs = [d for d in every if _served(d) and d.get("cluster_primary") not in served]
@@ -600,7 +600,7 @@ async def _search_rows(db) -> List[dict]:
     if hit and hit[0] > time.monotonic():
         return hit[1]
     rows = []
-    for d in await Store(db).all_projects():
+    for d in await Store(db).shared_projects():
         if not _served(d):
             continue
         marketed, aliases = names(d)
@@ -648,7 +648,7 @@ async def places(db) -> List[dict]:
     """Pune places with at least one project page, with counts, in the zone order of app/core/pune_places.py; talukas last."""
     from app.core import pune_places
     counts: dict = {}
-    for d in await Store(db).all_projects():
+    for d in await Store(db).shared_projects():
         if d.get("page_slug") and d.get("pune_place"):
             c = counts.setdefault(d["pune_place"], {"name": d.get("pune_place_name") or d["pune_place"], "projects": 0, "indexable": 0})
             c["projects"] += 1
