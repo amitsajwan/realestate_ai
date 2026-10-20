@@ -147,8 +147,9 @@ def _rel(url_path: str) -> str:
 
 
 def _post_page(run: dict) -> str:
-    """Where a post's link goes: this listing's own page (its photos, as in the post), else the project page."""
-    return run.get("listing_url") or run.get("page_url") or ""
+    """Where a post's link goes: the project page (owner 2026-10-20: every post links the page we want found in search; it
+    shows the agent's offer and price sheet too), else this listing's own page."""
+    return run.get("page_url") or run.get("listing_url") or ""
 
 
 def _summary(sheet) -> dict:
