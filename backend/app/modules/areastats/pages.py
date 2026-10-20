@@ -263,16 +263,41 @@ def can_host(d: dict) -> bool:
     return _served(d) and indexable(d)
 
 
+MOVED_MIN = 3     # months later (net of blanket extensions) that count as a moved date: smaller shifts are paperwork
+RECORD_MIN = 5    # projects with both dates before a builder's record is stated as a record
+
+
+def builder_key(doc: dict) -> str:
+    """The builder page a record belongs to (/builders/<key>): its brand (areastats.brands), else its MahaRERA promoter."""
+    from . import brands
+    b = brands.of(doc)
+    return b.slug if b else builder_slug(doc.get("promoter"))
+
+
+def delivery(mine: List[dict]) -> dict:
+    """A builder's date record over its projects: {with_dates, moved_later, avg_months_later, record_ok}. Moved = the filed
+    completion date is MOVED_MIN+ months later than at registration, net of MahaRERA's blanket extensions (the 2026 order;
+    the 2020-21 COVID extensions are not in these dates: 72% of projects being built then show no move, no 6/9-month spike,
+    checked on the register 2026-10-20). record_ok: enough projects with both dates to state it."""
+    with_dates = [m for m in (months_later(d) for d in mine) if m is not None]
+    moved = [m for m in with_dates if m >= MOVED_MIN]
+    return {"with_dates": len(with_dates), "moved_later": len(moved),
+            "avg_months_later": round(sum(moved) / len(moved)) if moved else None, "record_ok": len(with_dates) >= RECORD_MIN}
+
+
 def track_record(doc: dict, docs: List[dict]) -> Optional[dict]:
-    """The promoter's projects in our register: how many, how many moved their completion date later and by how much."""
-    key = promoter_key(doc.get("promoter"))
+    """The builder's (brand's, else promoter's) projects in our register, towers and phases counted once: how many, how many
+    moved their completion date later and by how much."""
+    key = builder_key(doc)
     if not key:
         return None
-    mine = [d for d in docs if promoter_key(d.get("promoter")) == key]
-    moved = [m for m in (months_later(d) for d in mine) if m]
+    from . import brands
+    hosted = {d["_id"] for d in docs if can_host(d)}
+    mine = [d for d in docs if builder_key(d) == key
+            and not (d.get("cluster_primary") in hosted and d.get("cluster_primary") != d["_id"])]
     mine.sort(key=lambda d: (_day(d.get("completion_now")) or "9999", d.get("name", "")))
-    return {"name": doc.get("promoter"), "count": len(mine), "with_dates": sum(1 for d in mine if months_later(d) is not None),
-            "moved_later": len(moved), "avg_months_later": round(sum(moved) / len(moved)) if moved else None,
+    b = brands.BY_SLUG.get(key)
+    return {"name": b.name if b else doc.get("promoter"), "slug": key, "count": len(mine), **delivery(mine),
             "projects": [{"name": d.get("name", ""), "regno": d.get("regno") or d["_id"], "slug": d["page_slug"] if _served(d) else None,
                           "completion_now": _day(d.get("completion_now")), "months_later": months_later(d),
                           "this": d["_id"] == doc["_id"]} for d in mine[:30]]}
@@ -336,7 +361,7 @@ def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None) ->
         "place": doc.get("place_locality") or None, "taluka": doc.get("taluka") or None,
         "slug": doc.get("page_slug"), "name": doc.get("name", ""), "regno": doc.get("regno") or doc["_id"],
         "promoter": doc.get("promoter") or None, "pincode": doc.get("pincode") or None,
-        "builder_slug": builder_slug(doc.get("promoter")) or None,
+        "builder_slug": builder_key(doc) or None,
         "area": {"key": area.key, "slug": area.slug, "name": area.name} if area else None,
         "pune_place": {"key": doc["pune_place"], "name": doc.get("pune_place_name")} if doc.get("pune_place") else None,
         "completion_now": _day(doc.get("completion_now")), "completion_at_registration": _day(doc.get("completion_at_registration")),
@@ -491,6 +516,8 @@ async def project_page(db, slug: str) -> Optional[dict]:
     out["web_facts"] = web_public(group_primary(doc, docs).get("web_facts"))
     from .profile import public as profile_public
     out["profile"] = profile_public(group_primary(doc, docs).get("profile"))
+    from .prices import public as prices_public   # asked prices per home size, from the builder's site or two sites
+    out["prices"] = prices_public(group_primary(doc, docs).get("prices"))
     from .cautions import cautions   # 'Check before you book' (docs/plan/project-pages.md)
     out["cautions"] = cautions(doc, out["towers"], out["web_facts"])
     try:   # the neighbourhood guide nearest the project (rank-loop R5): a link both ways
@@ -534,6 +561,7 @@ async def listing(db, area: Optional[str] = None, only_indexable: bool = True, l
         docs = [d for d in docs if indexable(d)]
     docs.sort(key=lambda d: (_day(d.get("last_modified")) or "", d.get("name", "")), reverse=True)
     stamps = cluster_stamps(every)
+    from .prices import price_from
     return [{"slug": d["page_slug"], "regno": d.get("regno") or d["_id"], "name": d.get("name", ""), "marketed_name": names(d)[0],
              "search_name": d.get("search_name") or None,
              "area": d.get("locality"), "units_total": _count(d.get("units_total")), "units_booked": booked(d),
@@ -541,6 +569,7 @@ async def listing(db, area: Optional[str] = None, only_indexable: bool = True, l
              "promoter": d.get("promoter") or None, "completion_now": _day(d.get("completion_now")),
              "checked": checked_count(d), "checks_total": len(CHECK_LABELS), "active": not is_old(d),
              "listed_or_updated": _day(d.get("last_modified")), "stage": stage(d), "sold_out": sold_out(d),
+             "price_from": price_from(d),   # the lowest asked price we publish (areastats.prices), else None
              "page_updated": cluster_updated(d, every, stamps),   # our own last change (the sitemap's lastmod; a primary: its newest tower), never MahaRERA's dates
              "indexable": indexable(d)} for d in docs[:limit]]
 

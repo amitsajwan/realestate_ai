@@ -48,7 +48,7 @@ export default function ProjectProfile({ profile, name }: { profile: Profile | n
                     ({h.sources.map((s, i) => (
                       <React.Fragment key={s.url}>
                         {i > 0 && ', '}
-                        <a href={s.url} target="_blank" rel="noopener nofollow" className="underline underline-offset-2">{s.site}</a>
+                        {h.official ? <a href={s.url} target="_blank" rel="noopener nofollow" className="underline underline-offset-2">{s.site}</a> : s.site}
                       </React.Fragment>
                     ))})
                   </span>

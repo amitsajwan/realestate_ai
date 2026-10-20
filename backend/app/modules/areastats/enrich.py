@@ -18,6 +18,9 @@ more than a year ago are skipped (status "finished"). For that project:
 2c. profile: highlights, the builder's pictures and floor plans (areastats.profile), only while the filed completion date is to
    come; read from the same pages (each fetched once per round), kept as `profile`; the highlights go to the text model too. A
    hot project with no profile yet is enriched at once (after urgent requests). Not counted in the score.
+2d. prices: what the builder's site and the property sites ask, per home size (areastats.prices), from the same pages' price
+   lines, every amount read by code from a quote; kept as `prices`. Not given to the text model (prices change faster than the
+   text is rewritten) and not counted in the score.
 3. stored on the register record: `page_text` (when accepted), `enriched_at`, `enrich_notes`, `geo` (the gathered position,
    checked to be within NEAR_KM of the pincode's centre) and `enrichment` = {at, steps: {maharera_general, buildings, places,
    text}: each {ok, at, checked...}, score "n/4"}; `status_list` is the owner's view of it (Studio > Newsroom > Project pages).
@@ -38,7 +41,7 @@ from app.modules.newsroom import register
 from app.modules.newsroom.store import Store
 from app.platform import trace
 
-from . import hot, pages, profile, searchconsole, webfacts
+from . import hot, pages, prices, profile, searchconsole, webfacts
 from .service import _day
 
 log = logging.getLogger(__name__)
@@ -424,6 +427,7 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime, reread: bool =
     web, prof = {}, {}
     if not reread:
         steps["web"], steps["profile"] = kept_steps.get("web") or {}, kept_steps.get("profile") or {}
+        steps["prices"] = kept_steps.get("prices") or {}
     else:
         try:
             steps["web"], web = await webfacts.gather(store, doc, llm, now, fetch=fetch)
@@ -439,6 +443,13 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime, reread: bool =
             steps["profile"], prof = _step(False, now, checked=f"failed ({type(e).__name__})"), {}
         if prof:
             await store.set_project(doc["_id"], **prof)
+        try:   # areastats.prices: the same pages again (fetched once), only their price lines
+            steps["prices"], priced = await prices.gather(store, doc, llm, now, fetch=fetch)
+        except Exception as e:
+            log.exception("enrich: prices failed for %s", regno)
+            steps["prices"], priced = _step(False, now, checked=f"failed ({type(e).__name__})"), {}
+        if priced:
+            await store.set_project(doc["_id"], **priced)
     pinned = ((placed or {}).get("geo") or {}).get("located_from") == "google"
     draft, refused = await write_text(llm, doc, gathered, (web or {}).get("web_facts") or doc.get("web_facts"),
                                       (prof or {}).get("profile") or doc.get("profile"), pinned)
@@ -494,7 +505,7 @@ async def status_list(store: Store, status: Optional[str] = None, limit: int = 3
             "enriched_at": _iso(d.get("enriched_at")), "score": e.get("score"),
             "failed": [k for k in STEPS if not ((e.get("steps") or {}).get(k) or {}).get("ok")] if e else [],
             "checks": {k: ((e.get("steps") or {}).get(k) or {}).get("checked") or (((e.get("steps") or {}).get(k) or {}).get("refused_reasons") or None)
-                       for k in STEPS + ("web", "profile")} if e else {},
+                       for k in STEPS + ("web", "profile", "prices")} if e else {},
             "page": f"/projects/{d['page_slug']}" if d.get("page_slug") else None,
         })
     items.sort(key=lambda x: x["enriched_at"] or "", reverse=True)

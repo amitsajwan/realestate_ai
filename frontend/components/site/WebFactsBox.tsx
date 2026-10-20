@@ -18,9 +18,10 @@ export default function WebFactsBox({ web, name }: { web: WebFacts | null | unde
               {f.sources.map((s, i) => (
                 <React.Fragment key={s.url}>
                   {i > 0 && ', '}
-                  <a href={s.url} target="_blank" rel="noopener nofollow" className="underline underline-offset-2">
-                    {s.site}{i === 0 && f.official ? " (the builder's site)" : ''}
-                  </a>
+                  {/* only the builder's own site is linked: property sites are named, not linked (we do not send buyers to portals) */}
+                  {i === 0 && f.official
+                    ? <a href={s.url} target="_blank" rel="noopener nofollow" className="underline underline-offset-2">{s.site} (the builder&apos;s site)</a>
+                    : s.site}
                 </React.Fragment>
               ))}
             </dd>

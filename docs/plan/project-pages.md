@@ -159,3 +159,18 @@ landmarks on a Kharadi page, sizes that disagree, test.housiey.com indexed). Sho
    MahaRERA's quarterly progress (getBuildingWingsActivityDetails, getLastQPRFormDetails) answers 401 without its login, so
    the stage is labelled "by dates", never "construction progress".
 3. TARGET: builder pages with a delivery record (`pages.track_record` already counts moved dates per promoter).
+
+## Prices from the web (2026-10-20, LIVE)
+
+Owner: "enrichment by our agent/crawler, Upper Kharadi is priority". Reverses the earlier "never prices from the web" rule,
+under the same checks as the highlights.
+1. LIVE: `areastats/prices.py`, enrichment step 2d, on the same pages as the web facts and profile (each fetched once). Only
+   the lines with ₹/lakh/crore go to the model; it says which size and which sentence, code reads every amount from that
+   sentence (the model never supplies a number). Per-sq.ft rates, booking amounts, EMIs, offers and rents are refused.
+   Published per size when the builder's site states it, or two sites within 15% (the lower). Read for finished projects
+   too. Kept 45 days at most, then the price goes.
+2. LIVE: project pages show "Prices of <name>" (per size, sources, read date, "ask for the all-in cost"); place pages show
+   "from ₹X" per project.
+3. LIVE: property sites are named, not linked (web facts, highlights, prices); only the builder's own site and MahaRERA are
+   links. We do not send buyers to portals.
+4. TARGET: agent price sheets (agentprojects configurations) first on the register page and in "from ₹X" when a project has one.

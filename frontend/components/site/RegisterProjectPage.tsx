@@ -8,6 +8,7 @@ import type { RegisterProject } from '@/lib/site/register'
 import type { FacetLink } from '@/lib/site/facets'
 import WebFactsBox from '@/components/site/WebFactsBox'
 import ProjectProfile from '@/components/site/ProjectProfile'
+import PriceBox from '@/components/site/PriceBox'
 import { areaName, displayName, longDay, monthYear, otherNames, projectFaq, placePath, STAGE_LABEL, STAGE_NOTE } from '@/lib/site/register'
 import type { EnrichCheck, Faq } from '@/lib/site/register'
 import type { PropertyFactsView } from '@/lib/site/types'
@@ -374,7 +375,8 @@ function BuilderBox({ p }: { p: RegisterProject }) {
       <SectionHead id="builder-title" title="About the builder" kind="rera" tag="From MahaRERA records" />
       <p className="mt-2 text-slate-800">
         {b.name} has {b.count} project{b.count === 1 ? '' : 's'} in our MahaRERA register for Pune.
-        {b.with_dates > 0 && <> {b.moved_later} of {b.with_dates} with both dates moved the completion date later{b.avg_months_later ? `, by ${months(b.avg_months_later)} on average` : ''}.</>}
+        {b.record_ok ? <> {b.moved_later} of {b.with_dates} with both dates moved the completion date 3 months or more later{b.avg_months_later ? `, by ${months(b.avg_months_later)} on average` : ''}.</>
+          : b.with_dates > 0 ? <> Only {b.with_dates} with both dates: too few to judge their record.</> : null}
       </p>
       {others.length > 0 && (
         <ul className="mt-3 space-y-1 p-0">
@@ -477,6 +479,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [] }: {
             ))}
           </section>
 
+          <PriceBox prices={p.prices} name={shown} />
           <ProjectProfile profile={p.profile} name={shown} />
 
           <section aria-labelledby="facts-title">

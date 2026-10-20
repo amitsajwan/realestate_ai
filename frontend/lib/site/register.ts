@@ -52,6 +52,8 @@ export interface RegisterProject {
   web_facts?: WebFacts | null
   /** highlights, the builder's pictures and floor plans while the project is being built (backend areastats/profile.py) */
   profile?: ProjectProfile | null
+  /** asked prices per home size, from the builder's site or two sites that agree (backend areastats/prices.py) */
+  prices?: ProjectPrices | null
   /** 'Check before you book': weak points worked out by code from MahaRERA and checked web facts (backend areastats/cautions.py) */
   cautions?: { key: string; text: string; source: 'rera' | 'web' }[]
   stage?: Stage | null
@@ -115,8 +117,12 @@ export interface RegisterBuilding {
 }
 
 export interface BuilderRecord {
+  /** the brand's name (backend areastats/brands.py), else the MahaRERA promoter's */
   name: string
+  slug?: string
   count: number
+  /** enough projects with both dates (5+) to state the record */
+  record_ok?: boolean
   with_dates: number
   moved_later: number
   avg_months_later: number | null
@@ -170,7 +176,7 @@ function ownFaq(p: RegisterProject, nearby: { label?: string | null; name?: stri
   if (p.promoter) {
     const b = p.builder
     out.push({ topic: 'builder', q: `Who is the builder of ${p.name}?`,
-      a: `The promoter registered with MahaRERA is ${p.promoter}.` + (b && b.count > 1 ? ` Our register has ${b.count} projects by this promoter${b.moved_later ? `; ${b.moved_later} moved their completion date later` : ''}.` : '') })
+      a: `The promoter registered with MahaRERA is ${p.promoter}.` + (b && b.count > 1 ? ` Our register has ${b.count} Pune projects by ${b.name}${b.record_ok ? `; ${b.moved_later} of ${b.with_dates} with both dates moved their completion date 3 months or more later` : ''}.` : '') })
   }
   out.push({ topic: 'location', q: `Where is ${p.name}?`, a: `${p.name} is in ${where}${p.pincode ? ` (pincode ${p.pincode})` : ''}.` })
   const near = nearby.filter((n) => n.name && n.km != null).slice(0, 3)
@@ -192,6 +198,12 @@ export const STAGE_LABEL: Record<Stage, string> = { new: 'New launch', early: 'E
   passed: 'Completion date passed' }
 export const STAGE_NOTE = 'Stage by dates: how much of the time between MahaRERA registration and the completion date the builder filed has gone. '
   + 'Not a site check: MahaRERA’s construction progress reports are behind its login.'
+
+export interface ProjectPrices {
+  read_at: string | null
+  /** url only for the builder's own site: property sites are named, not linked */
+  rows: { bhk: string; from_inr: number; to_inr: number | null; official: boolean; sources: { site: string; url: string | null }[] }[]
+}
 
 export interface RegisterListItem {
   slug: string
@@ -215,6 +227,8 @@ export interface RegisterListItem {
   stage?: Stage | null
   /** every home booked on MahaRERA */
   sold_out?: boolean
+  /** the lowest asked price we publish for it (backend areastats/prices.py), in rupees */
+  price_from?: number | null
   /** the Pune place (key) and its name: every Pune district project has one */
   place?: string | null
   place_name?: string | null
