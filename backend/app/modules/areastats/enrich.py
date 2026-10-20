@@ -152,15 +152,21 @@ def sources_fresh(d: dict, now: datetime) -> bool:
 
 
 def needs_profile(d: dict, now: datetime) -> bool:
-    """Still being built and never given a profile round (areastats.profile); towers are read on their group's primary."""
-    return not d.get("profile") and not d.get("cluster_primary") and not pages.completion_passed(d, now.date())
+    """Still being built and never given a profile round (areastats.profile); towers are read on their group's primary. A round
+    that found nothing (no web results name the project) counts: the project then waits for its refresh like any other, or it
+    stayed first and was read again every minute (Hollyhock City, 2026-10-20)."""
+    tried = (((d.get("enrichment") or {}).get("steps") or {}).get("profile") or {}).get("at")
+    return (not d.get("profile") and not tried and not d.get("cluster_primary")
+            and not pages.completion_passed(d, now.date()))
 
 
 async def next_project(store: Store, now: datetime) -> Optional[dict]:
     urgent = {r["_id"] for r in await store.db.get_collection(REQUESTS).find({}).to_list(200)}
     ranked = []
     for d in await store.all_projects():
-        if not _ours(d):
+        # an asked-for project is taken even outside our areas (a campaign's project with no locality): skipped, its request
+        # stayed and kept the loop running every minute
+        if not _ours(d) and (d.get("regno") or d["_id"]) not in urgent:
             continue
         key = priority(d, urgent, now)
         if key is not None:

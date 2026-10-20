@@ -26,7 +26,7 @@ import httpx
 
 from app.core.areas import BY_KEY
 
-from . import pages, websearch
+from . import brands, pages, websearch
 
 log = logging.getLogger(__name__)
 
@@ -141,12 +141,16 @@ def value_in_quote(kind: str, value: Any, quote: str) -> bool:
     return n in found
 
 
-def official(link: str, builder_word: str) -> bool:
-    """The builder's own site: its domain name is the builder's word, alone or with a company suffix (lodhagroup.com)."""
+def official(link: str, builder_word) -> bool:
+    """The builder's own site: its domain name is the builder's word, alone or with a company suffix (lodhagroup.com).
+    `builder_word` may be several words (builder_words: the MahaRERA promoter's and the brand's)."""
     host = websearch.site(link)
     label = host.split(".")[0] if host else ""
-    w = re.sub(r"[^a-z0-9]", "", (builder_word or "").lower())
-    return bool(w) and len(w) >= 3 and any(label == w + s for s in OFFICIAL_SUFFIXES)
+    for word in ([builder_word] if isinstance(builder_word, str) else builder_word or ()):
+        w = re.sub(r"[^a-z0-9]", "", (word or "").lower())
+        if len(w) >= 3 and any(label == w + s for s in OFFICIAL_SUFFIXES):
+            return True
+    return False
 
 
 def builder_word(promoter: str) -> str:
@@ -154,7 +158,14 @@ def builder_word(promoter: str) -> str:
     return words[0].lower() if words else ""
 
 
-def pick_sources(results: List[dict], name: str, word: str, limit: int = MAX_SOURCES) -> List[dict]:
+def builder_words(doc: dict) -> tuple:
+    """The promoter's word and, when the project is sold under a brand (areastats.brands), the brand's: MahaRERA often files
+    a project under a company formed for it (Godrej Ivara: Manjari Housing Projects LLP), whose word is not the builder's site."""
+    b = brands.of(doc)
+    return tuple(w for w in (builder_word(doc.get("promoter") or ""), builder_word(b.name) if b else "") if w)
+
+
+def pick_sources(results: List[dict], name: str, word, limit: int = MAX_SOURCES) -> List[dict]:
     """[{url, site, official}]: the builder's own site first, then other sites whose result names the project; one per site."""
     organic = sorted((r for r in results if r.get("type", "organic") == "organic" and r.get("link")),
                      key=lambda r: int(r.get("position") or 99))
@@ -318,7 +329,7 @@ async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[Fetch] = 
         return {"ok": False, "at": now, "checked": "no LLM key"}, {}
     name = pages.names(doc)[0]
     results = await results_for(store, doc, name, search if search is not None else websearch.provider(), now)
-    sources = pick_sources(results, name, builder_word(doc.get("promoter") or ""), limit=MAX_TRIES)
+    sources = pick_sources(results, name, builder_words(doc), limit=MAX_TRIES)
     if not sources:
         return {"ok": False, "at": now, "checked": "no web results name the project"}, {}
     readings, read = [], []

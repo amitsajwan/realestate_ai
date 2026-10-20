@@ -359,7 +359,7 @@ async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[webfacts.
         return {"ok": False, "at": now, "checked": "no LLM key"}, {}
     name = pages.names(doc)[0]
     results = await webfacts.results_for(store, doc, name, search if search is not None else websearch.provider(), now)
-    sources = webfacts.pick_sources(results, name, webfacts.builder_word(doc.get("promoter") or ""), limit=webfacts.MAX_TRIES)
+    sources = webfacts.pick_sources(results, name, webfacts.builder_words(doc), limit=webfacts.MAX_TRIES)
     if not sources:
         return {"ok": False, "at": now, "checked": "no web results name the project"}, {}
     fetch = fetch or webfacts.fetch_page

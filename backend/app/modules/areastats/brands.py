@@ -63,6 +63,8 @@ BRANDS: List[Brand] = [
     _b("pegasus-megapolis", "Pegasus (Megapolis)", r"\bpegasus properties\b", r"^megapolis\b", r"\b(megapolis|pegasus)\b"),
     _b("duville-estates", "Duville Estates", r"\bduville\b"),
     _b("ravima", "Ravima", r"\bravima\b"),
+    # "My Home ..." is Goyal Properties' series, filed under a company per project (Godiva Promoters, Ravet Land Developers, ...)
+    _b("goyal-properties", "Goyal Properties (My Home)", r"^goyal developers\b", r"^my home\b", r"\b(goyal properties|my home)\b"),
 ]
 BY_SLUG = {b.slug: b for b in BRANDS}
 
