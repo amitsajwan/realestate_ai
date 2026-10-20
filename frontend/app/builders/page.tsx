@@ -10,7 +10,9 @@ import type { BuilderCard } from '@/lib/site/hubs'
 
 // Every builder page in one place (docs/plan/project-pages.md, from Housiey): the brands first, with their date record, then the
 // other builders with two or more projects. Links every builder page within two clicks of the home page.
-export const revalidate = 3600
+// Rendered per request (the API answer itself is cached 5 min, lib/site/hubs.ts): built statically, the image build (which cannot
+// reach the API) baked in an empty list that stayed (2026-10-20).
+export const dynamic = 'force-dynamic'
 
 const OTHERS = 200
 
@@ -30,6 +32,7 @@ function record(b: BuilderCard): string {
 export default async function BuildersIndex() {
   const cfg = getMarketingConfig()
   const all = await getBuilders()
+  if (all.length === 0) throw new Error('Builder list is temporarily unavailable')   // an error page, never an empty list cached
   const brands = all.filter((b) => b.brand).sort((a, b) => b.projects - a.projects)
   const others = all.filter((b) => !b.brand).slice(0, OTHERS)
   return (
@@ -71,7 +74,6 @@ export default async function BuildersIndex() {
             </ul>
           </section>
         )}
-        {all.length === 0 && <p className="mt-8 rounded-xl bg-slate-50 p-4 text-slate-700">The builder list is not available right now.</p>}
         <p className="mt-10 text-sm text-slate-600">From MahaRERA&apos;s public records. This is general information, not investment or legal advice.</p>
       </div>
     </MarketingShell>
