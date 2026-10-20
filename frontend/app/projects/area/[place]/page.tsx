@@ -40,11 +40,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const meta = pageMetadata(getMarketingConfig(), {
     title: launches ? `Residential Projects in ${place.name}, Pune: all ${place.projects} on MahaRERA`
       : `New Projects in ${place.name}, Pune: Price, Possession, MahaRERA (${place.projects})`,
-    description: `All ${place.projects} MahaRERA projects in ${place.name}, Pune: builder, possession date filed with MahaRERA, whether it moved, and homes booked, for each project.`,
+    description: placeDescription(place, launches, (await getActive({ place: place.key })).slice(0, 2).map((a) => a.name)),
     path: placePath(place.slug),
   })
   // an area with no project that has real facts yet stays out of search until it has one
   return place.indexable > 0 ? meta : { ...meta, robots: { index: false, follow: true } }
+}
+
+// Google rewrote the old generic description from page text ("Lodha Camelot completion filed ..."): this one starts with the
+// words people search ("projects in Upper Kharadi") and names the most active projects, so it is the better snippet to keep
+function placeDescription(place: RegisterPlace, launches: boolean, names: string[]): string {
+  const kind = launches ? 'residential' : 'new'
+  const incl = names.length ? `, including ${names.join(' and ')}` : ''
+  return `${place.projects} ${kind} projects in ${place.name}, Pune${incl}: possession date filed with MahaRERA, whether it moved, homes booked, and what to check before you book.`
 }
 
 function Row({ r }: { r: RegisterListItem }) {

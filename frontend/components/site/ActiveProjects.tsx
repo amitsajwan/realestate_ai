@@ -14,7 +14,8 @@ export default function ActiveProjects({ title, items, className = 'mt-9' }: { t
           <li key={p.slug}>
             <Link href={`/projects/${p.slug}`} className="block h-full min-h-[44px] rounded-xl border border-slate-200 bg-white px-3 py-2 no-underline hover:border-[#0f2340]">
               <span className="block font-semibold text-[#0f2340]">{p.name}{p.km != null ? <span className="font-normal text-slate-600"> · {p.km} km</span> : null}</span>
-              <span className="block text-sm text-slate-600">{p.fact} ({p.source})</span>
+              {/* the space keeps "name fact" apart in the text Google reads (it showed "Lodha Camelotcompletion filed ...") */}
+              {' '}<span className="block text-sm text-slate-600">{p.fact} ({p.source})</span>
             </Link>
           </li>
         ))}
