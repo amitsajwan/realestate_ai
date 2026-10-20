@@ -10,7 +10,7 @@ from typing import List, Optional, Tuple
 
 from .. import policy
 from ..types import Draft, Facts, Llm, RawItem, Relevance, Research
-from .research import readable_chars
+from .research import _aware, readable_chars
 
 BRAND = brand.TEAM
 AREA_NAMES = {"kharadi": "Kharadi", "upper_kharadi": "Upper Kharadi", "wagholi": "Wagholi"}
@@ -50,7 +50,9 @@ SYSTEM_ARTICLE = (
     "comes from ('according to <source>', '<source> reported'); the source names are given with each fact. If two sources give "
     "different figures, say so and give both. Do not copy wording word for word; say it in your own words. No hype or superlatives, "
     "no phone numbers, no predictions about prices, no praise or criticism of any builder. If something is only approved or planned, "
-    "say 'approved' or 'planned', never that it is running or open unless a fact says so. Reply with JSON only, with these keys: "
+    "say 'approved' or 'planned', never that it is running or open unless a fact says so. When a later report gives a newer status "
+    "than an earlier one (delayed, stalled, changed), the later report is the news: lead with it and say what changed since the earlier "
+    "report. Reply with JSON only, with these keys: "
     '"title" (a plain, specific headline of 6 to 12 words in sentence case: capitalise only the first word and names, no hype), "standfirst" (one sentence: the news in brief), "body" (a list '
     "of 3 to 6 paragraphs, each 2 to 4 sentences: what happened, the key figures and dates, who decided or said what, what happens "
     'next as reported), "background" (1 to 2 sentences built only from the background lines, or "" when they do not help), "why" '
@@ -149,6 +151,12 @@ def _sources(item: RawItem, facts: Facts, research: Optional[Research]) -> List[
         if n not in [x for x, _ in out]:
             out.append((n, ""))
     return out
+
+
+def _report_dates(research: Optional[Research]) -> str:
+    """One line with each report's date, oldest first, so the writer knows which status is the latest."""
+    dated = sorted((s for s in (research.sources if research else []) if s.published_at), key=lambda s: _aware(s.published_at))
+    return ("Report dates: " + "; ".join(f"{s.name} {s.published_at:%d %b %Y}" for s in dated) + "\n") if dated else ""
 
 
 def _readable(url: str) -> bool:
@@ -280,7 +288,7 @@ async def write_article(item: RawItem, facts: Facts, relevance: Relevance, llm: 
     where = ", ".join(AREA_NAMES[a] for a in _areas(relevance)) or "Pune"
     bg = research.background if research else []
     user = (f"Area: {where}\nTopic: {relevance.pillar or 'general'}\nAs of: {_as_of(facts, item) or 'unknown'}\n"
-            f"Sources read: {', '.join(n for n, _ in _sources(item, facts, research))}\n"
+            f"Sources read: {', '.join(n for n, _ in _sources(item, facts, research))}\n" + _report_dates(research)
             + "Facts (each with its source):\n" + _facts_block(facts)
             + ("\nBackground (our own verified area guide; context only, never news):\n" + "\n".join(f"- {b}" for b in bg) if bg else "")
             + ("\nThe last version failed our checks. Fix these problems: " + "; ".join(problems) if problems else ""))

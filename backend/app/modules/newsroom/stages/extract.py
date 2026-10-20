@@ -30,7 +30,8 @@ SYSTEM_RESEARCHED = (
     "places, what happens next as officially stated, and what affected people or officials said. The quote is the exact sentence or "
     "clause copied character for character from that report, and source is the number of that report. Prefer facts that matter "
     "to a home buyer (money, dates, rules, rights, the project or place). When two reports give different figures for the same "
-    "thing, include both, each with its own source. Write numbers, dates, money amounts, project names and place names exactly as "
+    "thing, include both, each with its own source. When a later report gives a newer status (delayed, stalled, cancelled, "
+    "opened, changed), include that fact: the newest status matters most. Write numbers, dates, money amounts, project names and place names exactly as "
     "written; never round, convert or translate them. Do not include predictions, forecasts, opinions, promotional claims or "
     'advice. If the reports have no concrete facts, return {"facts": []}.'
 )
@@ -83,7 +84,8 @@ async def _extract_researched(item: RawItem, llm: Llm, research: Research) -> Op
     blocks = []
     for i, s in enumerate(docs, 1):
         cap = MAX_SOURCE_CHARS if s.role == "main" else MAX_RELATED_CHARS
-        blocks.append(f"[{i}] {s.name}\nTitle: {s.title}\nText:\n{(s.text or '')[:cap]}")
+        when = f"\nPublished: {s.published_at:%d %b %Y}" if s.published_at else ""
+        blocks.append(f"[{i}] {s.name}{when}\nTitle: {s.title}\nText:\n{(s.text or '')[:cap]}")
     try:
         data = await llm.json(SYSTEM_RESEARCHED, "Reports:\n\n" + "\n\n".join(blocks))
     except Exception:

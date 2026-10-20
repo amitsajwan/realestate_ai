@@ -19,6 +19,7 @@ is noted for the owner and the story goes on with what we have.
 import dataclasses
 import hashlib
 import re
+from datetime import datetime, timezone
 from typing import Awaitable, Callable, Iterable, List, Optional, Sequence
 from urllib.parse import urlsplit
 
@@ -46,8 +47,38 @@ _GENERIC = {"pune", "east", "west", "north", "south", "area", "areas", "project"
             "corridor", "road", "kharadi", "wagholi", "upper", "lohegaon", "lohgaon", "here", "there", "main", "many", "most"}
 
 
+def _spellings() -> dict:
+    """Other one-word spellings of our areas mapped to the area's own ("lohgaon" -> "lohegaon"): publishers spell them both ways."""
+    from app.core import areas as core_areas
+    out = {}
+    for a in core_areas.AREAS:
+        for al in a.aliases:
+            if " " not in al and al != a.key:
+                out[al] = a.key
+    return out
+
+
+_SPELLINGS = _spellings()
+
+
 def _words(text: str) -> set:
-    return {w.strip("'") for w in _WORD.findall((text or "").lower())} - _STOP
+    return {_SPELLINGS.get(w, w) for w in (w.strip("'") for w in _WORD.findall((text or "").lower()))} - _STOP
+
+
+def _area_words(text: str) -> set:
+    from app.core import areas as core_areas
+    return {a.key for a in core_areas.named_in(text or "")}
+
+
+def follow_up(a: RawItem, b: RawItem) -> bool:
+    """`b` reports on the same thing in the same area as `a`, even in other words: both headlines name one of our areas and share a
+    subject word ("hospital", "metro", "HCMTR"). A later report often carries a new status in a new headline ("Lohegaon hospital set
+    to start OPD" on 13 Oct, "Lohgaon hospital opening delayed" on 19 Oct): without it the 13 Oct story went out on 20 Oct as if the
+    hospital were opening (2026-10-20)."""
+    if not (_area_words(a.title) & _area_words(b.title)):
+        return False
+    subject = lambda t: {w for w in _words(t) - _GENERIC if len(w) >= 5 and not w.isdigit()}  # noqa: E731
+    return bool(subject(a.title) & subject(b.title))
 
 
 def _figures(text: str) -> set:
@@ -76,6 +107,9 @@ def pick_related(item: RawItem, candidates: Iterable[RawItem], same_story=None, 
         s = related_score(item, c)
         if same_story is not None and same_story(item.title, c.title):
             s = max(s, MIN_SHARED + 2)
+        later = bool(c.published_at and item.published_at and _aware(c.published_at) > _aware(item.published_at))
+        if later and follow_up(item, c):
+            s = max(s, MIN_SHARED + 3)  # a later report of the same thing comes first: it may change the story
         if s >= MIN_SHARED:
             scored.append((s, 1 if _is_google(c.url) else 0, c))
     scored.sort(key=lambda t: (t[1], -t[0]))  # a report we can read first (a Google link cannot be), then the closest match
@@ -89,6 +123,10 @@ def pick_related(item: RawItem, candidates: Iterable[RawItem], same_story=None, 
         if len(out) == limit:
             break
     return out
+
+
+def _aware(d: datetime) -> datetime:
+    return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
 
 
 def _is_google(url: str) -> bool:

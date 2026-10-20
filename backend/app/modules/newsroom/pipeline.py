@@ -6,7 +6,7 @@ and filter links each kept news item to the registered projects it clearly names
 import functools
 import inspect
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Callable, Dict, Optional
 
 from app.platform.meta_graph.publisher import sanitize
@@ -22,6 +22,8 @@ BATCH = 20
 RESEARCH_WINDOW = timedelta(days=policy.MAX_AGE_DAYS)  # other reports of a story are looked for among items collected this recently
 MIN_AHEAD = timedelta(minutes=10)  # Facebook's window for scheduled posts: 10 minutes to 30 days ahead
 MAX_AHEAD = timedelta(days=30)
+STALE_AFTER = timedelta(hours=48)  # an approved report waiting longer than this for its slot is researched again before it goes out
+UPDATE_LOOKBACK = 50  # published stories a new report is compared with, to find the one it updates
 
 
 def default_stages() -> Dict[str, Callable]:
@@ -33,9 +35,10 @@ def default_stages() -> Dict[str, Callable]:
     from .stages.filter import assess
     from .stages.filter import same_story
     from .stages.impact import judge
+    from .stages.research import follow_up
     from . import adapters  # cards and hub registration live behind the adapters (the only place that touches creative and interest)
     stages = {"filter": assess, "extract": extract, "draft": draft, "check": check, "same_story": same_story, "article": write_article,
-              "cards": adapters.card_stage, "after_publish": adapters.after_publish, "impact": judge}
+              "cards": adapters.card_stage, "after_publish": adapters.after_publish, "impact": judge, "follow_up": follow_up}
     cfg = load()
     if cfg.research:
         from .stages.read import RobotsCache, polite_get
@@ -129,6 +132,24 @@ async def _each(store: Store, status: str, stage: str, counts: dict, step) -> No
             await _fail(store, doc, stage, e)
 
 
+def _newer(a, b) -> bool:
+    """`a` was published after `b` (both RawItems; an undated one is never newer)."""
+    if not a.published_at or not b.published_at:
+        return False
+    tz = lambda d: d if d.tzinfo else d.replace(tzinfo=timezone.utc)  # noqa: E731
+    return tz(a.published_at) > tz(b.published_at)
+
+
+def _waited(doc: dict, now: datetime) -> Optional[timedelta]:
+    """How long an approved item has been waiting for its slot, from its last 'approved' step."""
+    at = next((h.get("at") for h in reversed(doc.get("history") or []) if h.get("status") == "approved"), None)
+    if at is None:
+        return None
+    if at.tzinfo is None:
+        at = at.replace(tzinfo=now.tzinfo)
+    return now - at
+
+
 async def _filter(store, stages, now, doc):
     rel = await _call(stages["filter"], codec.raw_item(doc), now)
     same = stages.get("same_story")
@@ -141,7 +162,15 @@ async def _filter(store, stages, now, doc):
             await store.move(doc["_id"], "dropped", "same story as an item already in the pipeline")
             return
     if rel.keep:
-        await store.move(doc["_id"], "relevant", rel.reason, relevance=codec.to_doc(rel))
+        extra = {}
+        if not maharera and stages.get("follow_up"):
+            raw = codec.raw_item(doc)
+            for pub in await store.by_status(["published"], UPDATE_LOOKBACK):
+                old = codec.raw_item(pub)
+                if pub["_id"] != doc["_id"] and _newer(raw, old) and stages["follow_up"](old, raw):
+                    extra = {"update_of": pub["_id"]}  # once this is out, the older story gives way to it (see _publish_item)
+                    break
+        await store.move(doc["_id"], "relevant", rel.reason, relevance=codec.to_doc(rel), **extra)
         try:
             await _link_projects(store, doc, rel.areas)
         except Exception as e:  # the register is a side record: it never holds an item back
@@ -266,6 +295,12 @@ async def _publish_item(store: Store, publisher, doc: dict, now: datetime, when,
     if res.get("card"):
         fields["card"] = res["card"]
     await store.move(doc["_id"], "published", note[:240], **fields)
+    old = doc.get("update_of")
+    if old:  # a later report of a story we ran: the old page now redirects here, so no page tells the older status (2026-10-20)
+        try:
+            await store.move(old, "withdrawn", f"updated by {doc['_id']}", merged_into=doc["_id"])
+        except Exception as e:
+            log.warning("newsroom: could not retire %s after its update %s: %s", old, doc.get("_id"), sanitize(e))
     after = stages.get("after_publish")
     if after is not None:  # hub, interest links: best effort, never blocks or fails the item
         try:
@@ -278,6 +313,11 @@ async def _publish(store: Store, publisher: Publisher, now: datetime, cfg: Newsr
     used = await store.published_since(now - timedelta(hours=24))
     multi = hasattr(publisher, "publish_item")
     for doc in await store.next_batch("approved", BATCH):
+        waited = _waited(doc, now)
+        if waited is not None and waited > STALE_AFTER and doc.get("research"):
+            # researched days ago: a newer report may have changed the story, so it is researched and written again first
+            await store.move(doc["_id"], "relevant", f"waited {waited.days} days for a slot: researched again before posting")
+            continue
         if used >= cfg.daily_cap:
             counts["capped"] += 1  # stays approved; picked up on a later run when the cap frees up
             continue
