@@ -187,14 +187,27 @@ export function BoostStep({ listingId, run, onRun }: { listingId: string; run: M
 
       {b.state !== 'making' && b.state !== 'failed' && (
         <>
+          {/* check before boosting: the reel plays and every carousel card shows here, not only inside the kit */}
           <div className="grid grid-cols-2 gap-2">
             {b.reel && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={b.reel.poster_url} alt="" className="aspect-[9/16] w-full rounded-lg bg-black object-cover" />
+              <div>
+                <p className="mb-1 text-xs font-semibold text-gray-700">Boost reel{b.reel.duration_s ? ` · ${Math.round(b.reel.duration_s)} s` : ''}</p>
+                <video src={b.reel.video_url} poster={b.reel.poster_url || undefined} controls playsInline preload="metadata"
+                  className="aspect-[9/16] w-full rounded-lg bg-black object-cover" />
+              </div>
             )}
-            {b.carousel?.images[0] && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={b.carousel.images[0]} alt="" className="aspect-[9/16] w-full rounded-lg object-cover" />
+            {b.carousel && b.carousel.images.length > 0 && (
+              <div className="min-w-0">
+                <p className="mb-1 text-xs font-semibold text-gray-700">Boost post · {b.carousel.images.length} cards, swipe</p>
+                <div className="flex snap-x gap-2 overflow-x-auto">
+                  {b.carousel.images.map((src, i) => (
+                    <a key={src} href={src} target="_blank" rel="noopener noreferrer" className="shrink-0 snap-start" style={{ width: '100%' }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={src} alt={`Card ${i + 1}`} className="aspect-[4/5] w-full rounded-lg object-cover" />
+                    </a>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
 
