@@ -144,8 +144,9 @@ def value_in_quote(kind: str, value: Any, quote: str) -> bool:
 def official(link: str, builder_word) -> bool:
     """The builder's own site: its domain name is the builder's word, alone or with a company suffix (lodhagroup.com).
     `builder_word` may be several words (builder_words: the MahaRERA promoter's and the brand's)."""
-    host = websearch.site(link)
-    label = host.split(".")[0] if host else ""
+    # the domain's own name, not a sub-domain: godrej.puneupcomingprojects.com is a marketer's site (2026-10-20)
+    parts = websearch.site(link).split(".")
+    label = parts[-3] if len(parts) >= 3 and parts[-2] in ("co", "com", "net", "org") else parts[-2] if len(parts) >= 2 else ""
     for word in ([builder_word] if isinstance(builder_word, str) else builder_word or ()):
         w = re.sub(r"[^a-z0-9]", "", (word or "").lower())
         if len(w) >= 3 and any(label == w + s for s in OFFICIAL_SUFFIXES):
