@@ -4,8 +4,8 @@ import { useEffect } from 'react'
 import Link from 'next/link'
 import { BRAND_NAME, LOGO } from '@/lib/brand'
 
-/** A page whose data did not load (usually the API busy or restarting for a few seconds): in the site's colours, with a retry that
- *  re-renders on the server and a way out. No shared shell: the shell itself may be what failed. */
+/** A page that failed (the API busy or restarting, or a bug in the page): in the site's colours, with a retry that reloads the
+ *  page and a way out. No shared shell: the shell itself may be what failed. */
 export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
     console.error('Application Error:', error)
@@ -25,7 +25,7 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
       <div className="mx-auto max-w-3xl px-4 py-12 sm:py-16">
         <h1 className="text-3xl font-bold tracking-tight text-slate-900">This page did not load</h1>
         <p className="mt-4 text-lg leading-relaxed text-slate-700">
-          Our server was busy for a moment. Trying again usually works within a few seconds.
+          Something went wrong while opening it. Trying again usually works; if it keeps happening, tell us on WhatsApp.
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
           <button type="button" onClick={() => { reset(); window.location.reload() }}

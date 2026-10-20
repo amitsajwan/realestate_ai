@@ -100,7 +100,9 @@ export default function InboxThreadPage() {
     inboxApi.thread(id).then(setDoc).catch((e) => setError(errorMessage(e)))
   }, [id])
   React.useEffect(load, [load])
-  React.useEffect(() => end.current?.scrollIntoView({ block: 'end' }), [doc?.thread.length])
+  // braces: Chrome's scrollIntoView now returns a Promise, and an effect that returns one crashes the page on leaving it
+  // ('destroy is not a function': every Inbox link from a conversation showed the error page)
+  React.useEffect(() => { end.current?.scrollIntoView({ block: 'end' }) }, [doc?.thread.length])
 
   async function markDone() {
     setBusy(true)

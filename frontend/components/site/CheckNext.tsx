@@ -32,7 +32,7 @@ function ShareWhatsApp({ text, label }: { text: string; label: string }) {
  *  The project is remembered in this browser for "Checked before". */
 export default function CheckNext({ slug, regno, name, verdict, url }: Props) {
   const [stage, setStage] = useState<Stage | null>(null)
-  useEffect(() => saveCheck({ slug, regno, name }), [slug, regno, name])
+  useEffect(() => { saveCheck({ slug, regno, name }) }, [slug, regno, name])
   const share = `${name}: ${verdict}. From MahaRERA, checked on Avasetu: ${url}`
   const btn = (s: Stage, label: string) => (
     <button type="button" aria-pressed={stage === s} onClick={() => setStage(s)}
