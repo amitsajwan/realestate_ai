@@ -92,10 +92,26 @@ RUNNING = re.compile(r"\b(?:take|ride|catch|by|via) (?:the )?metro\b|\bmetro (?:
                      r"|\bmetro (?:station )?(?:next door|at your doorstep)\b|\bmetro\b[^.]{0,25}\bruns\b", re.I)
 
 
+# a payment plan explained beyond the facts (Ivara 2026-10-20: "20:20:30:30" became "Pay 20% now, 20% next year, 30% later")
+PCT = re.compile(r"\d+(?:\.\d+)?\s*%")
+WHEN = re.compile(r"\b(?:now|today|next year|later|on possession|at possession|on booking|at booking|on completion|per year|every year)\b"
+                  r"|\bin \d+ (?:months?|years?)\b", re.I)
+
+
+def unbacked_plan(text: str, corpus: str) -> bool:
+    """A percentage the facts do not print, or money paid 'now' / 'next year' / 'on possession' when the facts never say when."""
+    said = {re.sub(r"\s+", "", m) for m in PCT.findall(corpus)}
+    if any(re.sub(r"\s+", "", m) not in said for m in PCT.findall(text)):
+        return True
+    return bool(WHEN.search(text) and re.search(r"\d", text) and not WHEN.search(corpus))
+
+
 def overclaims(text: str, corpus: str = "") -> bool:
     """A registration sold as an approval, puffery, a claim no fact carries, 'ready' for a project the facts do not call
     ready, or a walk to a place 1 km or more away (or with no distance at all)."""
     if OVERCLAIM.search(text) or UNBACKED.search(text) or (RUNNING.search(text) and "not running" in corpus.lower()):
+        return True
+    if unbacked_plan(text, corpus):
         return True
     if READY.search(text) and not READY.search(corpus):
         return True
@@ -199,7 +215,11 @@ RULES = ("Rules for everyone in the room: use ONLY the numbered facts; never a n
          "to three, on purpose). Never 'best deal', 'lowest price' or 'cheapest'. Buyers decide on money: when the facts give "
          "home types with prices or a payment plan, the campaign says them (the BHK range and the 'from' price in at least "
          "one reel, the payment plan in at least one piece). When the facts carry what the agent says, follow it: the agent "
-         "knows what sells this property.")
+         "knows what sells this property. A payment plan is said exactly as the facts give it ('20:20:30:30 payment plan'): never "
+         "what each part means or when it is paid ('20% now', 'next year') unless the facts say so. A reel hook stops the scroll "
+         "with something concrete: a price, a BHK with its price or size, a km to a named place, the project or area name "
+         "('Godrej 3 BHK in Kharadi from ₹1.44 Cr', '3 BHK, 1.8 km from EON IT Park'); never an abstract phrase ('numbers that "
+         "fit', 'a clear choice', 'step into serenity').")
 
 STRATEGIST = (
     "You are the marketing strategist of a Pune property agency. From the numbered facts, write the campaign brief. Decide what "
