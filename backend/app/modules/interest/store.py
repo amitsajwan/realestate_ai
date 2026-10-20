@@ -55,7 +55,8 @@ class Store:
 
     async def hub_items(self, limit: int) -> list:
         """The newest cards whose post or home still exists. A card whose calendar post is no longer published (deleted on the
-        platform, or its row deleted), whose news item or listing is gone, is dropped from hub_items here."""
+        platform, or its row deleted), whose news item is no longer published (withdrawn) or whose listing is no longer live is dropped
+        from hub_items here."""
         docs = await self.hub.find({}).sort("updated_at", -1).limit(limit * 3).to_list(limit * 3)
         live = []
         for d in docs:
@@ -69,8 +70,10 @@ class Store:
 
     async def _backed(self, d: dict) -> bool:
         ref = d.get("ref")
+        if d.get("slug") and not await self.db.get_collection("content_calendar").find_one({"slug": d["slug"], "status": "published"}):
+            return False   # the post the card shows is gone
         if d.get("kind") == "listing":
-            return bool(await self.db.get_collection("listings").find_one({"_id": ref}))
+            return bool(await self.db.get_collection("listings").find_one({"_id": ref, "status": {"$in": ["live", "under_offer"]}}))
         if isinstance(ref, str) and ref.startswith("news-"):
-            return bool(await self.db.get_collection("newsroom_items").find_one({"_id": ref[5:]}))
+            return bool(await self.db.get_collection("newsroom_items").find_one({"_id": ref[5:], "status": "published"}))  # not withdrawn
         return bool(await self.db.get_collection("content_calendar").find_one({"slug": ref, "status": "published"}))

@@ -41,6 +41,14 @@ def quiet_topic(*texts) -> bool:
     return bool(words) and any(re.search(re.escape(w.lower()), text) for w in words)
 
 
+def public_whatsapp() -> str:
+    """Our WhatsApp number as people type it ('+91 98342 56406'), from WHATSAPP_PUBLIC_NUMBER (the number posts show); '' when unset."""
+    d = re.sub(r"\D", "", _env("WHATSAPP_PUBLIC_NUMBER"))
+    if re.fullmatch(r"[6-9]\d{9}", d):
+        d = "91" + d
+    return f"+91 {d[2:7]} {d[7:]}" if len(d) == 12 and d.startswith("91") else ""
+
+
 def load() -> EngageConfig:
     ig_id = _env("META_IG_BUSINESS_ID")
     ig_flag = _env("ENGAGE_INSTAGRAM_ENABLED").lower()

@@ -279,13 +279,15 @@ async def interest_url(db, *, kind: str, ref: str, agent_id: str, channel: str, 
 
 # ---- hub items (filled by the integrator) ----
 async def upsert_hub_item(db, kind: str, ref: str, title: str, image_url: str = "", subtitle: str = "",
-                          interest_code: str = "", permalink: str = "", sample: bool = False) -> None:
+                          interest_code: str = "", permalink: str = "", sample: bool = False, slug: str = "", channel: str = "") -> None:
     """Shape of a hub_items doc: {_id: '<kind>:<ref>', kind: 'listing'|'post', ref, title, image_url, subtitle,
-    interest_code, permalink, sample, updated_at}. Newest `updated_at` first on /go (up to 12 shown)."""
+    interest_code, permalink, sample, slug, channel, updated_at}. `slug`: the calendar post the card shows now (a listing's card shows
+    its newest post); `channel`: where that post went. Newest `updated_at` first on /go (up to 12 shown)."""
     col = db.get_collection("hub_items")
     _id = f"{kind}:{ref}"
     fields = {"kind": kind, "ref": ref, "title": title, "image_url": image_url, "subtitle": subtitle,
-              "interest_code": interest_code, "permalink": permalink, "sample": sample, "updated_at": datetime.utcnow()}
+              "interest_code": interest_code, "permalink": permalink, "sample": sample, "slug": slug, "channel": channel,
+              "updated_at": datetime.utcnow()}
     if await col.find_one({"_id": _id}):
         await col.update_one({"_id": _id}, {"$set": fields})
     else:

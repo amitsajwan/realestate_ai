@@ -27,6 +27,9 @@ COMMENT_PHONE = re.compile(r"(?<!\d)(?:\+?91[\s-]?|0)?[6-9](?:[\s-]?\d){9}(?!\d)
 WANTS_INFO = re.compile(r"\b(brochure|floor\s*plans?|price\s*list|more\s*info|send\s*(me\s*)?(the\s*)?(details|info|pics|photos)|share\s*(the\s*)?(details|info)|"
                         r"call\s*(me|back)|contact\s*me|details\s*(bhejo|send|pls|please)|bhej\s*do|pathva)\b|"
                         r"माहिती|जानकारी|ब्रोशर|डिटेल्स", re.I)
+# The word our posts ask for ("Comment INFO"), alone: always the details reply, never a guess at a question about the post (2026-10-20: "INFO"
+# on a guide got "this post does not cover that detail")
+CTA_ONLY = re.compile(r"^\W*(?:info|information|details?|price\s*list|interested|intrested|माहिती|जानकारी|इंटरेस्टेड)\W*$", re.I)
 # Short positive comments ("Nice", "Wow 😍", "👍"): thanked, never sent to a person
 PRAISE = re.compile(r"^\W*((very |so |too )?(nice|wow+|superb|beautiful|awesome|amazing|lovely|great|good|excellent|mast|zakkas|sundar|chan|"
                     r"khoob|badhiya|osm|gorgeous|congrats|congratulations)\b[\s!.]*(flat|home|house|property|one|place|view|work|post)?|"
@@ -103,6 +106,39 @@ IG_TEMPLATES = {
         "objection": "समजले{name}. तुमचे बजेट आणि आवडता एरिया सांगा, आम्ही तुमच्या बजेटमधील घरे पाठवू. अधिक माहिती आमच्या बायोमधील लिंकवर.",
     },
 }
+# Instagram: comments cannot hold a link and our Instagram DMs wait for Meta's review, so a buyer's next step is WhatsApp: the post's code sent
+# to our number gets its price list and page there (whatsapp.brain card) and the chat gives us their number. Replaces "leave your WhatsApp
+# number at the link in our bio", which led nowhere (2026-10-20: no website in the bio, reels not on /go)
+WA_INTERESTED = {
+    "price": {"en": "Thanks{name}! For the price list and floor plans, WhatsApp {number} and send {code}.",
+              "hi": "धन्यवाद{name}! प्राइस लिस्ट और फ्लोर प्लान के लिए WhatsApp {number} पर {code} भेजें।",
+              "mr": "धन्यवाद{name}! प्राइस लिस्ट आणि फ्लोअर प्लॅनसाठी WhatsApp {number} वर {code} पाठवा."},
+    "other": {"en": "Thanks{name}! WhatsApp {number} and send {code}, and we will answer you there.",
+              "hi": "धन्यवाद{name}! WhatsApp {number} पर {code} भेजें, हम वहीं जवाब देंगे।",
+              "mr": "धन्यवाद{name}! WhatsApp {number} वर {code} पाठवा, आम्ही तिथेच उत्तर देऊ."},
+}
+WA_LINE = {
+    "price": {"en": "💬 Price list and floor plans on WhatsApp: send {code} to {number}.",
+              "hi": "💬 प्राइस लिस्ट और फ्लोर प्लान WhatsApp पर: {number} पर {code} भेजें।",
+              "mr": "💬 प्राइस लिस्ट आणि फ्लोअर प्लॅन WhatsApp वर: {number} वर {code} पाठवा."},
+    "other": {"en": "💬 Questions? WhatsApp {number} and send {code}.",
+              "hi": "💬 सवाल? WhatsApp {number} पर {code} भेजें।",
+              "mr": "💬 प्रश्न? WhatsApp {number} वर {code} पाठवा."},
+}
+
+
+def whatsapp_reply(reply: str, template: bool, lang: str, name: Optional[str], code: str, number: str, priced: bool) -> str:
+    """An Instagram buyer reply that sends them to WhatsApp with the post's code: our 'interested' template is replaced, any other reply
+    (an answer, a requirement noted) gets the WhatsApp line under it. Unchanged without a code or a number."""
+    if not code or not number or not reply:
+        return reply
+    kind, lang = ("price" if priced else "other"), (lang if lang in ("en", "hi", "mr") else "en")
+    if template:
+        return WA_INTERESTED[kind][lang].format(name=first_name(name), number=number, code=code)
+    line = WA_LINE[kind][lang].format(number=number, code=code)
+    return reply if line in reply else reply.rstrip() + "\n" + line
+
+
 DM_ME = re.compile(r"\bdm\s*(me|us)\b|\b(pls|please)\s+dm\b|\bmessage me\b|\bmsg me\b", re.I)
 
 SYSTEM = (
@@ -315,7 +351,7 @@ async def decide(text: str, from_name: Optional[str], facts: str, link: str, llm
                                 reason="stated a requirement", requirement=req, signal="requirement")
             if OBJECTION.search(text or ""):
                 return Decision("interested", lang, render("objection", lang, from_name, link, channel), reason="price objection", signal="objection")
-            if WANTS_INFO.search(text or "") and not asks_about_the_post(text):
+            if CTA_ONLY.match(text or "") or (WANTS_INFO.search(text or "") and not asks_about_the_post(text)):
                 return Decision("interested", lang, render("interested", lang, from_name, link, channel), reason="asked for details", signal="info")
             if intent is None and PRAISE.match(text or ""):
                 return Decision("praise", lang, render("praise", lang, from_name, link, channel), reason="short praise")

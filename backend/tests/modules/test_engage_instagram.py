@@ -239,3 +239,35 @@ async def test_private_replies_and_the_inbox_use_the_pages_messaging_api_with_th
         from urllib.parse import unquote_plus
         assert _json.loads(unquote_plus(form["recipient"])) == {"comment_id": "C7"} and _json.loads(unquote_plus(form["message"])) == {"text": "hello"}
         assert get_req.url.path.endswith("/PAGE/conversations") and get_req.url.params["platform"] == platform
+
+
+# ---- 2026-10-20: Instagram buyers go on to WhatsApp with the post's code ---------------------------------------------------------------
+@pytest.mark.parametrize("text", ["INFO", "Info.", "details", "price list"])
+async def test_info_gets_whatsapp_with_the_posts_code(monkeypatch, text):
+    monkeypatch.setenv("WHATSAPP_PUBLIC_NUMBER", "919834256406")
+    meta = Meta([media([ig_comment("c1", text)], caption="2 BHK in Kharadi, ₹85 Lakh")])
+    svc, db = make(meta)
+    svc.interest_url = lambda ctx, channel: "https://site.test/i/abc2345"
+    await svc.run_once()
+    reply = meta.replies[0][1]
+    assert "WhatsApp +91 98342 56406 and send abc2345" in reply and "price list" in reply.lower()
+    assert "leave your whatsapp number" not in reply.lower() and "http" not in reply
+
+
+async def test_a_post_without_prices_is_not_promised_a_price_list(monkeypatch):
+    monkeypatch.setenv("WHATSAPP_PUBLIC_NUMBER", "919834256406")
+    meta = Meta([media([ig_comment("c1", "INFO")], caption="Upper Kharadi vs Kharadi Annex: what the names mean")])
+    svc, db = make(meta)
+    svc.interest_url = lambda ctx, channel: "https://site.test/i/abc2345"
+    await svc.run_once()
+    reply = meta.replies[0][1]
+    assert "send abc2345" in reply and "price list" not in reply.lower()
+
+
+async def test_without_our_number_the_reply_is_as_before(monkeypatch):
+    monkeypatch.delenv("WHATSAPP_PUBLIC_NUMBER", raising=False)
+    meta = Meta([media([ig_comment("c1", "INFO")], caption="2 BHK in Kharadi, ₹85 Lakh")])
+    svc, db = make(meta)
+    svc.interest_url = lambda ctx, channel: "https://site.test/i/abc2345"
+    await svc.run_once()
+    assert "abc2345" not in meta.replies[0][1] and "link in our bio" in meta.replies[0][1]

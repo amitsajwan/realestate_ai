@@ -58,7 +58,12 @@ _BROAD = {"#pune", "#avasetu", "#realestate", "#india"}  # kept only when there 
 def audience(doc: dict) -> str:
     """'agents' for our recruitment posts, 'buyers' for everything else (projects, homes, news, guides)."""
     src = str((doc.get("creative") or {}).get("source") or "")
-    return "agents" if src in AGENT_SOURCES or str(doc.get("slug", "")).startswith("promo") else "buyers"
+    slug = str(doc.get("slug", ""))
+    if src in AGENT_SOURCES or slug.startswith("promo") or (doc.get("creative") or {}).get("role") == "agent":
+        return "agents"
+    from .library import BY_SLUG   # the library's own agent posts ('agent-buyer-summary', pillar "agent") were counted as buyer posts
+    entry = BY_SLUG.get(slug)
+    return "agents" if entry is not None and entry.pillar == "agent" else "buyers"
 
 
 def area(doc: dict) -> Optional[pune_areas.Area]:

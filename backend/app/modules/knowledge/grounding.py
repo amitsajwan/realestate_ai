@@ -21,6 +21,9 @@ from .areas import AreaFacts, area_facts
 CALENDAR_COLLECTION = "content_calendar"
 URL = re.compile(r"https?://|www\.|\b\w+\.(?:com|in|org|gov\.in|net)\b", re.I)
 INTEREST = "{interest_url}"
+# A post's own asks ("Comment INFO and we will send you the price sheet", "Swipe: ...", "WhatsApp: +91 ...") are not facts: the WhatsApp
+# bot answered "price list please" from them by sending the buyer back to comment (2026-10-20)
+CALL_TO_ACTION = re.compile(r"\bcomment\b|\bswipe\b|whatsapp|\bsend this\b|\btap\b|\bfollow (?:us|the page|this)|कमेंट|स्वाइप", re.I)
 
 VISIT = "You can request a site visit and the agent will confirm a day and time."
 LOAN = "Most buyers use a home loan; a bank will tell you your eligibility, so keep income proofs and ID ready."
@@ -256,7 +259,8 @@ def sentences(body: str) -> List[str]:
 def post_grounding(subject: str, body: str, review: str = "") -> Grounding:
     g = Grounding(subject=subject or "this post", kind="post")
     for s in sentences(body):
-        _add(g.facts, s)
+        if not CALL_TO_ACTION.search(s):
+            _add(g.facts, s)
     if review:
         g.sources.append(review)
     return g

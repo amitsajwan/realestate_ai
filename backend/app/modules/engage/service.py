@@ -15,8 +15,8 @@ from app.modules.knowledge.grounding import Ref, facts_for
 
 from app.platform.text import normalize_indian_mobile
 
-from .brain import COMMENT_PHONE, SIGNAL_SCORE, Decision, decide, dm_text, render, want_text
-from .config import EngageConfig, quiet_topic
+from .brain import COMMENT_PHONE, SIGNAL_SCORE, Decision, decide, dm_text, render, want_text, whatsapp_reply
+from .config import EngageConfig, public_whatsapp, quiet_topic
 from .graph import EngageGraphError
 
 log = logging.getLogger(__name__)
@@ -187,6 +187,12 @@ class EngageService:
             d.reply = render("interested_dm", d.language, sender.get("name"), ctx["link"], channel)
         elif d.signal == "requirement" and d.reply and self.cfg.private_reply and sender.get("id") and hasattr(graph, "private_reply"):
             d.reply = render("requirement_dm", d.language, sender.get("name"), ctx["link"], channel, want=want_text(d.requirement))
+        elif channel == "instagram" and d.reply and d.intent in LEAD_INTENTS and not d.phone and (ctx.get("audience") or "buyers") != "agents":
+            # links in Instagram comments cannot be tapped: the buyer is sent to WhatsApp with this post's code (the caption's code too)
+            link = ctx.get("link") or ""
+            code = link.rsplit("/", 1)[-1] if "/i/" in link else ""
+            d.reply = whatsapp_reply(d.reply, d.intent == "interested" and d.signal in ("", "info"), d.language, sender.get("name"), code,
+                                     public_whatsapp(), "₹" in (ctx.get("facts") or ""))
         doc = {**base, "audience": ctx.get("audience") or "buyers", "calendar_id": ctx.get("calendar_id"), "intent": d.intent, "language": d.language, "reply": d.reply, "needs_human": d.needs_human, "reason": d.reason, "status": "ignored",
                "answer_basis": d.basis, "missing": d.missing, "gaps": d.gaps, "signal": d.signal, "requirement": d.requirement or None,
                "phone": d.phone}

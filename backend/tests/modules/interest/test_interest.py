@@ -276,11 +276,15 @@ def test_hub_drops_cards_whose_post_or_home_is_gone(env):
     c, svc, db, loop = env
     cal, news, listings = (db.get_collection(n) for n in ("content_calendar", "newsroom_items", "listings"))
     for doc, col in (({"_id": "r1", "slug": "live", "status": "published"}, cal), ({"_id": "r2", "slug": "gone", "status": "removed"}, cal),
-                     ({"_id": "n1"}, news), ({"_id": "L9"}, listings)):
+                     ({"_id": "n1", "status": "published"}, news), ({"_id": "n2", "status": "withdrawn"}, news),
+                     ({"_id": "L9", "status": "live"}, listings), ({"_id": "L8", "status": "sold"}, listings)):
         loop.run_until_complete(col.insert_one(doc))
     for kind, ref in (("post", "live"), ("post", "gone"), ("post", "deleted-row"), ("post", "news-n1"), ("post", "news-n2"),
-                      ("listing", "L9"), ("listing", "L8")):
+                      ("post", "news-n3"), ("listing", "L9"), ("listing", "L8"), ("listing", "L7")):
         loop.run_until_complete(upsert_hub_item(db, kind, ref, ref))
+    # a listing's card shows its newest post: the card goes when that post is gone, even while the listing is live
+    loop.run_until_complete(listings.insert_one({"_id": "L6", "status": "live"}))
+    loop.run_until_complete(upsert_hub_item(db, "listing", "L6", "L6", slug="gone"))
     shown = {i["ref"] for i in c.get("/public/hub").json()["items"]}
     assert shown == {"live", "news-n1", "L9"}
     assert {d["ref"] for d in db.get_collection("hub_items").docs} == shown   # the dead cards are deleted, not just hidden

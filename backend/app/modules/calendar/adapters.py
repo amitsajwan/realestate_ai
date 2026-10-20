@@ -11,6 +11,7 @@ creative's guards reject any number that is not in the Brief, any price, predict
 offending field with its deterministic draft, so the LLM cannot add a fact.
 """
 from app.core import brand
+import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -27,6 +28,8 @@ from app.platform.meta_graph.publisher import PublishError, Result
 
 from . import render as _cards
 from .library import SITE, Entry
+
+log = logging.getLogger(__name__)
 
 CHANNEL_OF = {"facebook_page": "facebook", "instagram": "instagram", "facebook": "facebook"}
 REEL_DIR = "calendar/reels"
@@ -423,7 +426,19 @@ def _owner_agent() -> str:
     return os.environ.get("INTEREST_OWNER_AGENT_ID") or os.environ.get("ENGAGE_OWNER_AGENT_ID") or ""
 
 
-def whatsapp_lines(caption: str, code: str, channel: str) -> str:
+# Instagram: the caption's way to us is WhatsApp with the post's code (captions and comments cannot link; our Instagram DMs wait for Meta's
+# review), worded as the comment replies say it (engage.brain.WA_LINE); the code gets the post's price list there (whatsapp.brain card)
+IG_WA_LINE = {
+    "price": {"en": "Price list and floor plans on WhatsApp: send {code} to {number}.",
+              "hi": "प्राइस लिस्ट और फ्लोर प्लान WhatsApp पर: {number} पर {code} भेजें।",
+              "mr": "प्राइस लिस्ट आणि फ्लोअर प्लॅन WhatsApp वर: {number} वर {code} पाठवा."},
+    "other": {"en": "Questions? WhatsApp {number} and send {code}.",
+              "hi": "सवाल? WhatsApp {number} पर {code} भेजें।",
+              "mr": "प्रश्न? WhatsApp {number} वर {code} पाठवा."},
+}
+
+
+def whatsapp_lines(caption: str, code: str, channel: str, language: str = "en") -> str:
     """The caption's contact lines made trackable: an agent's own phone line ('📞 ...') is dropped, and the WhatsApp line ('💬 ...')
     becomes our number with this post's code, so the chat reaches our bot, which routes it to the agent and counts the lead for this
     post (whatsapp.adapters.codes_in reads 'interested in <code>'). Facebook gets a tap-to-chat link; Instagram captions cannot
@@ -433,9 +448,11 @@ def whatsapp_lines(caption: str, code: str, channel: str) -> str:
     from app.modules.propertyfacts.identity import WA_MARK, phone_label, posts_whatsapp_number
     num = posts_whatsapp_number()
     line = ""
-    if num:
-        line = (f"{WA_MARK} WhatsApp: https://wa.me/{num}?text={quote(f'Hi, I am interested in {code}')}" if channel == "facebook"
-                else f"{WA_MARK} WhatsApp wa.me/{num} ({phone_label('+' + num)}) and send: interested in {code}")
+    if num and channel == "facebook":
+        line = f"{WA_MARK} WhatsApp: https://wa.me/{num}?text={quote(f'Hi, I am interested in {code}')}"
+    elif num:
+        table = IG_WA_LINE["price" if "₹" in caption else "other"]
+        line = f"{WA_MARK} " + table.get(language, table["en"]).format(code=code, number=phone_label("+" + num))
     out = []
     for ln in caption.splitlines():
         s = ln.strip()
@@ -532,24 +549,21 @@ async def _search_line_for(db, doc: dict, language: str) -> str:
     return search_line(listing, language)
 
 
-# the avasetu.in page a post that is not about one listing links in its footer, by its calendar slug (campaign posts carry their
-# project page in the caption already)
-TOPIC_PAGES = (("mhada", "/guides/mhada-pune-lottery"), ("upper-kharadi", "/guides/upper-kharadi"))
-
-
 def page_for(doc: dict) -> str:
     """The page this post is about: its own page_url, a guide by slug, the for-agents page for recruitment; '' for the home page."""
     from app.core import brand
     from .reach import audience
     if doc.get("page_url"):
         return str(doc["page_url"])
-    slug = str(doc.get("slug") or "")
-    for prefix, path in TOPIC_PAGES:
-        if slug.startswith(prefix):
-            return brand.SITE + path
+    if brand.topic_page(str(doc.get("slug") or "")):   # campaign posts carry their project page in the caption already
+        return brand.topic_page(str(doc.get("slug") or ""))
     if audience(doc) == "agents":
         return brand.SITE + "/for-agents"
     return ""
+
+
+def _language(doc: dict) -> str:
+    return str((doc.get("tags") or {}).get("language") or (doc.get("creative") or {}).get("language") or "en")
 
 
 async def with_interest(db, doc: dict) -> dict:
@@ -573,7 +587,11 @@ async def with_interest(db, doc: dict) -> dict:
             if shown.get("page_url"):  # the agent's site line points at this listing, not the agent's home page
                 caption = re.sub(r"(\U0001F3E0[^\n]*?)\b(?:https?://)?[\w.-]+/agent/[\w-]+/?(?=\s|$)",
                                  lambda m: m.group(1) + shown["page_url"].split("://", 1)[-1], caption)
-            if "link in our bio" not in caption and channel == "instagram":
+            from app.modules.propertyfacts.identity import WA_MARK, posts_whatsapp_number
+            if channel == "instagram" and posts_whatsapp_number():
+                # a WhatsApp line with this post's code (whatsapp_lines words it), unless the caption already has one to rewrite
+                line = "" if any(ln.strip().startswith(WA_MARK) for ln in caption.splitlines()) else f"{WA_MARK} WhatsApp"
+            elif "link in our bio" not in caption and channel == "instagram":
                 line = "👉 Interested? Tap the link in our bio and press 'I am interested'."
             elif channel == "facebook":
                 line = f"👉 Interested? One tap tells us: {url}"
@@ -581,9 +599,9 @@ async def with_interest(db, doc: dict) -> dict:
                 line = ""
             if line and line not in caption:
                 caption = caption.rstrip() + "\n\n" + line
-            caption = whatsapp_lines(caption, url.rsplit("/", 1)[-1], channel)
+            caption = whatsapp_lines(caption, url.rsplit("/", 1)[-1], channel, _language(doc))
         from .reach import locality
-        language = str((doc.get("tags") or {}).get("language") or (doc.get("creative") or {}).get("language") or "en")
+        language = _language(doc)
         place = locality(doc)[0]
         try:   # the search line is a help, never a reason to hold a post
             caption = with_search_line(caption, await _search_line_for(db, doc, language), place)
@@ -598,26 +616,49 @@ async def with_interest(db, doc: dict) -> dict:
         return doc
 
 
-async def register_hub(db, doc: dict, permalink: str = "") -> None:
-    """Best effort: show a published post or home on the /go link-in-bio hub."""
+async def register_hub(db, doc: dict, permalink: str = "", uploads: Optional[Path] = None) -> None:
+    """Best effort: show a published post or reel on the /go link-in-bio hub, the page our Instagram bio opens. One card per listing (its
+    newest post: a campaign's six reels are one home) or per post; the picture is the post's first image or the reel's cover. The card's
+    code is the Instagram one (the bio is Instagram's), the same code the caption and comment replies give. An Instagram copy wins over
+    the Facebook copy of the same card. Recruitment posts are for agents, not buyer cards."""
     try:
-        if doc.get("kind") == "reel" or not (doc.get("images") or doc.get("image_path")):
+        from .reach import audience
+        if audience(doc) == "agents":
             return
         from app.modules.interest.service import interest_url, upsert_hub_item
         import os
-        agent = _owner_agent()
-        if not agent:
-            return
-        kind = "post"
-        channel = "instagram" if doc["channel"] == "instagram" else "facebook"
-        url = await interest_url(db, kind=kind, ref=doc["slug"], agent_id=agent, channel=channel)
-        code = url.rsplit("/", 1)[-1]
-        first = (doc.get("images") or [doc.get("image_path")])[0]
+        agent = doc.get("agent_id") or _owner_agent()
         base = os.environ.get("PUBLIC_MEDIA_BASE_URL", "").rstrip("/")
-        await upsert_hub_item(db, kind, doc["slug"], (doc["caption"].splitlines() or [""])[0][:140], f"{base}/uploads/{first}" if base else "",
-                              "", code, permalink or "")
+        picture = hub_picture(doc, uploads)
+        if not agent or not base or not picture:
+            return
+        listing = await db.get_collection("listings").find_one({"_id": doc["listing_id"]}) if doc.get("listing_id") else None
+        kind, ref = ("listing", listing["_id"]) if listing else ("post", doc["slug"])
+        on_ig = doc["channel"] == "instagram"
+        if not on_ig:
+            card = await db.get_collection("hub_items").find_one({"_id": f"{kind}:{ref}"})
+            if card and card.get("channel") == "instagram":
+                return
+        url = await interest_url(db, kind="post", ref=doc["slug"], agent_id=agent, channel="instagram")
+        title = (listing.get("title") if listing else "") or (doc["caption"].splitlines() or [""])[0]
+        await upsert_hub_item(db, kind, ref, title[:140], f"{base}/uploads/{picture}", (listing or {}).get("locality") or "",
+                              url.rsplit("/", 1)[-1], permalink or "", slug=doc["slug"], channel="instagram" if on_ig else "facebook")
     except Exception:
-        return
+        log.warning("calendar: /go card for %s not made", doc.get("slug"), exc_info=True)
+
+
+def hub_picture(doc: dict, uploads: Optional[Path] = None) -> str:
+    """The /go card picture under uploads/: the post's first image, else the cover drawn next to the reel's video; '' when neither."""
+    first = (doc.get("images") or [doc.get("image_path")])[0]
+    if first:
+        return first
+    video = doc.get("video") or ""
+    if not video:
+        return ""
+    cover = video[:-4] + _reel_publish.COVER_SUFFIX if video.endswith(".mp4") else ""
+    if cover and uploads is not None and not (Path(uploads) / cover).is_file():
+        return ""
+    return cover
 
 
 INTEREST_LINK = re.compile(r"https?://\S+/i/[a-z0-9]{4,12}\b")

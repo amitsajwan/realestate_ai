@@ -71,6 +71,46 @@ SELLER = {
     "mr_latn": "Dhanyavad! Vikri kiva bhadyane denyache kaam aamche agent kartat. Tumcha area, gharacha size ani mobile number pathva, agent tumhala call kartil.",
 }
 
+# A message that is a post's code alone, or with "interested / info / price list" (the text Facebook's wa.me link fills in, what our captions
+# and comment replies tell people to send), gets that post's price lines and page at once, taken from the post's facts, never written by the
+# model (2026-10-20: the bare code got no answer and "price list please" was told to go and comment INFO)
+CODE_FILLER = re.compile(r"\b(?:hi+|hello|hey|namaste|namaskar|i|am|im|interested|intrested|in|info|details?|prices?|list|sheet|floor|plans?|"
+                         r"please|pls|plz|send|me|the|and|of|for|code|want|share)\b|[^\w\s]", re.I)
+CARD_FACT = re.compile(r"₹|\bBHK\b|payment plan|possession|MahaRERA|price", re.I)
+CARD_CAUTION = re.compile(r"before you book|confirm|today's price", re.I)   # a line without a figure is kept only as the price caution
+CARD_MAX_FACTS = 12
+CARD_PAGE = {
+    "en": "Full details and pictures: {page}",
+    "hi": "पूरी जानकारी और फोटो: {page}",
+    "hinglish": "Poori jaankari aur photos: {page}",
+    "mr": "संपूर्ण माहिती आणि फोटो: {page}",
+    "mr_latn": "Sampurna mahiti ani photos: {page}",
+}
+CARD_PLANS = {   # no page of ours carries a project's floor plans yet: a person sends them, and the team is told (needs_human)
+    "en": "Floor plans: our team will send them here shortly.",
+    "hi": "फ्लोर प्लान: हमारी टीम जल्द ही यहीं भेजेगी।",
+    "hinglish": "Floor plans: hamari team jald hi yahin bhejegi.",
+    "mr": "फ्लोअर प्लॅन: आमची टीम लवकरच इथेच पाठवेल.",
+    "mr_latn": "Floor plans: aamchi team lavkarach ithech pathvel.",
+}
+CARD_END = {
+    "en": "Ask me anything about it here, or reply VISIT to book a site visit.",
+    "hi": "इसके बारे में कुछ भी यहीं पूछें, या साइट विज़िट के लिए VISIT लिखें।",
+    "hinglish": "Iske baare mein kuch bhi yahin poochhein, ya site visit ke liye VISIT likhein.",
+    "mr": "याबद्दल काहीही इथेच विचारा, किंवा साइट व्हिजिटसाठी VISIT लिहा.",
+    "mr_latn": "Yabaddal kahihi ithech vichara, kiva site visit sathi VISIT liha.",
+}
+
+
+def card_facts(facts) -> list:
+    """The lines of a post a buyer asking for its price list wants: prices, configurations, payment plan, possession, MahaRERA."""
+    out = []
+    for f in facts or []:
+        f = (f or "").strip()
+        if f and len(f) <= 200 and CARD_FACT.search(f) and (re.search(r"\d", f) or CARD_CAUTION.search(f)) and f not in out:
+            out.append(f)
+    return out[:CARD_MAX_FACTS] if any("₹" in f for f in out) else []
+
 
 def _once(text: str) -> str:
     """'…aapka budget kya hai? Aapka budget kya hai?' -> said once."""
@@ -100,6 +140,20 @@ class ChatBrain:
         checked = await check_flow.turn(self.db, conv, text, lang)   # "check my project's status" (docs/plan/project-check.md)
         if checked is not None:
             return checked
+        code = (conv.get("context") or {}).get("code")
+        if code and re.search(rf"\b{re.escape(code)}\b", text, re.I):
+            rest = re.sub(rf"\b{re.escape(code)}\b", " ", text, flags=re.I)
+            # the website's WhatsApp button fills in "Hi, I am interested in <title> (ref <code>)" (WhatsAppButton.waText)
+            prefilled = re.search(rf"\binterested in\b.*\(ref\s+{re.escape(code)}\)", text, re.I | re.S)
+            if prefilled:
+                rest = text[:prefilled.start()] + text[prefilled.end():]
+            if not CODE_FILLER.sub(" ", rest).strip() and code not in (conv.get("cards") or []):
+                card = await self._post_card(conv, lang)
+                if card:
+                    return card
+            # read without the code (a bare code once looked like spam and got no reply); a post without prices (a guide) is told in
+            # a sentence or two with its page, instead of the buyer questions ("which area?") an "I am interested" alone would get
+            text = rest.strip(" -:,") if CODE_FILLER.sub(" ", rest).strip() else SHARED_ASK
         u = await self._understand(conv, text)
         who, need = (u or {}).get("who"), (u or {}).get("need")
         if who in ("agent", "seller") and not conv.get("role"):
@@ -108,8 +162,6 @@ class ChatBrain:
             conv["role"] = None
         if conv.get("role") == "agent":
             return await self._agent_answer(conv, text)
-        if (conv.get("context") or {}).get("code"):
-            text = re.sub(rf"\b{re.escape(conv['context']['code'])}\b", "", text, flags=re.I).strip(" -:,") or "Tell me about this"
         if conv.get("role") == "seller" and need not in ("homes",):
             data["needs_human"] = True
             return L.pick(SELLER, adapters.detect_language(text))
@@ -175,6 +227,33 @@ class ChatBrain:
                     if not ctx.get("kind"):
                         conv["context"] = ctx = {**found, "came_from": ctx.get("came_from") or found["came_from"]}
         return out
+
+    async def _post_card(self, conv: dict, lang: str) -> Optional[str]:
+        """The price lines of the post behind the code, its page, and who sends the floor plans; None for a post without prices (a guide),
+        which the normal answer handles. Once per code per chat."""
+        ctx = conv.get("context") or {}
+        g = await adapters.grounding_for(self.db, ctx, None)
+        lines = card_facts(g.facts) if g is not None else []
+        title = (ctx.get("title") or "").strip()
+        for other in await adapters.listing_posts_groundings(self.db, ctx):   # a reel's caption has one price; its listing post has them all
+            more = card_facts(other.facts)
+            if sum("₹" in x for x in more) > sum("₹" in x for x in lines):
+                g, lines, title = other, more, ""   # the listing post's own headline leads, not the reel's hook
+        if not lines:
+            return None
+        out = [title] if title and not lines[0].startswith(title[:24]) else []
+        out += [lines[0]] + [ln if ln.startswith("•") else f"• {ln}" for ln in lines[1:]]
+        page = g.links.get("page") if isinstance(g.links, dict) else ""
+        if page:
+            out.append(L.pick(CARD_PAGE, lang, page=page))
+            conv["page_sent"] = True
+        out.append(L.pick(CARD_PLANS, lang))
+        data = conv["data"]
+        data["needs_human"] = True   # the team is told to send the floor plans (WhatsApp service: whatsapp_needs_you)
+        data.setdefault("questions", []).append(f"Send the floor plans of {title or 'this project'}"[:200])
+        out.append(L.pick(CARD_END, lang))
+        conv.setdefault("cards", []).append(ctx["code"])
+        return "\n".join(out)
 
     def _grounded_text(self, conv: dict, g, reply: str, confident: bool, question: str = "") -> str:
         """An answer from a post's, project's or guide's facts, in the person's language; one we could not answer tells the team."""

@@ -35,6 +35,18 @@ def site() -> str:
     return (os.environ.get("PUBLIC_SITE_URL") or DEFAULT_SITE).rstrip("/")
 
 
+# our guide pages, by the calendar slug of the posts about them (posts, footers and the chat bots link the same page)
+TOPIC_PAGES = (("mhada", "/guides/mhada-pune-lottery"), ("upper-kharadi", "/guides/upper-kharadi"))
+
+
+def topic_page(slug: str) -> str:
+    """The guide page a post is about, by its calendar slug ('upper-kharadi-names-en-20261019' -> https://.../guides/upper-kharadi); ''."""
+    for prefix, path in TOPIC_PAGES:
+        if (slug or "").startswith(prefix):
+            return site() + path
+    return ""
+
+
 def footer(channel: str) -> str:
     """'Avasetu · <site>' for Facebook, 'Avasetu · link in our bio' for Instagram (captions cannot hold links)."""
     return f"{NAME} · link in our bio" if channel == "instagram" else f"{NAME} · {SITE}"

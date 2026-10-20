@@ -197,7 +197,7 @@ async def _publish_one(store: Store, publisher, social: SocialConfig, doc: dict,
         await store.published(doc["_id"], res.external_id, res.permalink)
         trace.event(log, "publish", doc["slug"], "send", trace.OK, channel=doc["channel"], kind="slides reel" if kind != "reel" and reel
                     else kind, attempt=attempts, permalink=res.permalink or res.external_id)
-        await adapters.register_hub(store.db, doc, res.permalink or "")
+        await adapters.register_hub(store.db, doc, res.permalink or "", uploads)
         if link_comment and doc["channel"] == "facebook_page" and (kind == "reel" or reel):
             await link_comment(store.db, doc, res.external_id, social)
         return "published"

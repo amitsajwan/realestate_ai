@@ -2,7 +2,7 @@ import React from 'react'
 import type { Metadata } from 'next'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { getHub, type Hub, type HubItem } from '@/lib/interest/api'
-import WhatsAppButton from '@/components/site/WhatsAppButton'
+import WhatsAppButton, { waNumber } from '@/components/site/WhatsAppButton'
 import { LOGO } from '@/lib/brand'
 
 export const revalidate = 60
@@ -21,6 +21,8 @@ export function generateMetadata(): Metadata {
 
 const pill = 'flex min-h-[44px] items-center justify-center rounded-full border border-[#cdbf99] bg-white px-4 text-sm font-semibold text-[#0f2340] no-underline'
 
+const hasWa = !!waNumber(process.env.NEXT_PUBLIC_WHATSAPP_NUMBER)
+
 function Card({ item }: { item: HubItem }) {
   return (
     <li className="overflow-hidden rounded-2xl border border-[#ead9ae] bg-white shadow-sm">
@@ -34,12 +36,17 @@ function Card({ item }: { item: HubItem }) {
         <h2 className="text-lg font-bold leading-snug text-[#0f2340]">{item.title}</h2>
         {item.subtitle && <p className="mt-1 text-sm leading-relaxed text-slate-600">{item.subtitle}</p>}
         <div className="mt-3 flex flex-col gap-2">
+          {/* as on the interest page: with our WhatsApp number set, the chat leads (it gives us the buyer's number and sends the post's
+              price list at once); the one-tap stays as the second way */}
+          {item.interest_code && hasWa && (
+            <WhatsAppButton title={item.title} code={item.interest_code}
+              className="flex min-h-[52px] items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 text-base font-bold text-[#053b1a] no-underline" />
+          )}
           {item.interest_code && (
-            <a href={`/i/${item.interest_code}`} className="flex min-h-[52px] items-center justify-center rounded-xl bg-[#f0b440] px-4 text-base font-bold text-[#0f2340] no-underline">
+            <a href={`/i/${item.interest_code}`} className={hasWa ? pill : 'flex min-h-[52px] items-center justify-center rounded-xl bg-[#f0b440] px-4 text-base font-bold text-[#0f2340] no-underline'}>
               I am interested
             </a>
           )}
-          {item.interest_code && <WhatsAppButton title={item.title} code={item.interest_code} />}
           {item.permalink && (
             <a href={item.permalink} target="_blank" rel="noopener noreferrer" className={pill}>See the post</a>
           )}

@@ -10,6 +10,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
+from app.core import brand
 from app.modules.chat import engine
 from app.modules.knowledge.grounding import Ref, facts_for
 from app.modules.knowledge.reply import detect_language as _detect
@@ -133,11 +134,27 @@ async def grounding_for(db, context: Optional[dict], locality: Optional[str]):
                 g = await facts_for(Ref.listing(ref), db) if doc else None
             if g:
                 return g
+        if kind == "post" and str(ref or "").startswith("news-"):   # a news post: its published text, and its page on our news site
+            item = await db.get_collection("newsroom_items").find_one({"_id": ref[5:], "status": "published"})
+            text = ((item or {}).get("draft") or {}).get("text") or ""
+            g = await facts_for(Ref.text(text), db) if text else None
+            if g:
+                g.subject = (item.get("draft") or {}).get("title") or g.subject
+                g.links["page"] = f"{_site_url()}/news/{ref[5:]}" if _site_url() else ""
+            return g
         if kind in ("post", "calendar") and ref:
             doc = await db.get_collection("content_calendar").find_one({"_id": ref}) or \
                 await db.get_collection("content_calendar").find_one({"slug": ref})   # interest links name a post by its slug
             g = await facts_for(Ref.calendar(doc["_id"]), db) if doc else None
             if g:
+                if isinstance(g.links, dict) and not g.links.get("page"):
+                    # the page sent with the answer: the post's own page, a guide's page by its slug, or a campaign's project page
+                    # (else the listing's page)
+                    page = doc.get("page_url") or brand.topic_page(doc.get("slug") or "")
+                    if not page and doc.get("campaign_run"):
+                        run = await db.get_collection("marketing_runs").find_one({"_id": doc["campaign_run"]}) or {}
+                        page = run.get("page_url") or run.get("listing_url") or ""
+                    g.links["page"] = page
                 return g
             found = await project_for(db, ctx.get("title") or "")   # a campaign post about a project: the project's own facts
             if found:
@@ -564,6 +581,27 @@ async def guide_for(db, text: str, earlier: str = "", exclude=()) -> Optional[di
     if best is None or best_score < 3:
         return None
     return _calendar_context(best, "asked about the topic of")
+
+
+async def listing_posts_groundings(db, context: Optional[dict]) -> list:
+    """The facts of every published post made from the same listing as the post behind the code (a campaign's reels carry only 'from
+    ₹1.20 Cr'; its listing post carries the whole price table), newest first. [] for a post not made from a listing."""
+    ctx = context or {}
+    if ctx.get("kind") not in ("post", "calendar") or not ctx.get("ref"):
+        return []
+    cal = db.get_collection("content_calendar")
+    doc = await cal.find_one({"_id": ctx["ref"]}) or await cal.find_one({"slug": ctx["ref"]})
+    if not doc or not doc.get("listing_id"):
+        return []
+    out, seen = [], set()
+    for row in await cal.find({"listing_id": doc["listing_id"], "status": "published"}).sort("published_at", -1).to_list(40):
+        if row.get("slug") in seen:   # the Facebook and Instagram copies of one post
+            continue
+        seen.add(row.get("slug"))
+        g = await grounding_for(db, {"kind": "calendar", "ref": row["_id"]}, None)
+        if g is not None:
+            out.append(g)
+    return out
 
 
 async def project_for(db, text: str) -> Optional[dict]:
