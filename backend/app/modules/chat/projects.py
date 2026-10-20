@@ -14,7 +14,6 @@ from typing import List, Optional
 
 from app.core import areas as area_registry
 from app.modules.areastats import pages
-from app.modules.newsroom.store import Store
 from app.platform.text import money
 
 log = logging.getLogger(__name__)
@@ -79,7 +78,7 @@ def _has_homes(d: dict) -> bool:
 
 
 async def _register_cards(db, area: area_registry.Area, skip: set) -> List[dict]:
-    every = await Store(db).all_projects()
+    every = await pages.Store(db).all_projects()   # through areastats: chat may not import newsroom (.importlinter)
     served = {d["_id"] for d in every if pages.can_host(d)}
     docs = [d for d in every if d.get("locality") == area.key and pages.can_host(d) and d.get("cluster_primary") not in served
             and not pages.is_old(d) and _has_homes(d) and (d.get("regno") or d["_id"]) not in skip]
