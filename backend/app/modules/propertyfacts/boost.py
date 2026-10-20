@@ -116,6 +116,22 @@ class Facts:
         return [" · ".join(x for x in (r["label"], f"{int(r['carpet_sqft']):,} sq ft" if r.get("carpet_sqft") else "",
                                        short_price(int(r["price_inr"])) if r.get("price_inr") else "") if x) for r in self.table[:n]]
 
+    def grouped_lines(self) -> List[str]:
+        """Every home type in a line per BHK, so all of them fit: '3 BHK · 890-1,234 sq ft · ₹1.44-2.2Cr' (Ivara's 7 rows in 3)."""
+        out: List[str] = []
+        for label in dict.fromkeys(r["label"] for r in self.table):
+            rows = [r for r in self.table if r["label"] == label]
+            sizes = sorted(int(r["carpet_sqft"]) for r in rows if r.get("carpet_sqft"))
+            prices = sorted(int(r["price_inr"]) for r in rows if r.get("price_inr"))
+            size = (f"{sizes[0]:,}-{sizes[-1]:,} sq ft" if sizes[-1] > sizes[0] else f"{sizes[0]:,} sq ft") if sizes else ""
+            price = ""
+            if prices:
+                lo, hi = short_price(prices[0]), short_price(prices[-1])
+                price = lo if lo == hi else (f"{lo.replace('Cr', '')}-{hi.replace('₹', '')}" if lo.endswith("Cr") and hi.endswith("Cr")
+                                             else f"{lo}-{hi.replace('₹', '')}")
+            out.append(" · ".join(x for x in (label, size, price) if x))
+        return out
+
     def highlight(self) -> str:
         return _fit(self.highlights)
 
@@ -197,7 +213,7 @@ def carousel_briefs(f: Facts, hook: str, photo: str) -> List[Tuple[str, Brief]]:
         tip = "Ask what the price includes: stamp duty, registration and charges."
         if f.table:
             facts += f.sheet_lines()[:len(f.table)]
-            tip = "; ".join(f.table_lines(6)) + "."
+            tip = "; ".join(f.grouped_lines()) + "."
         if f.emi:
             tip = f"EMI about ₹{f.emi['emi']:,} a month: {f.emi_note()}. Ask your bank for its rate."
             facts.append(tip)
@@ -267,7 +283,7 @@ def reel_beats(f: Facts, brand_name: str = "") -> Tuple[str, List[dict]]:
     hook = f.hook()
     beats: List[dict] = []
     if f.table:   # every home type with its size and price: what a buyer asks first
-        beats.append({"kind": "homes", "lines": ["Prices by home type"] + f.table_lines(), "photo": False})
+        beats.append({"kind": "homes", "lines": ["Prices by home type"] + f.grouped_lines(), "photo": False})
     else:
         size = f.size()
         if size:
