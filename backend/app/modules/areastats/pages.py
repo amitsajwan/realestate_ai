@@ -423,7 +423,8 @@ def web_public(web: Optional[dict]) -> Optional[dict]:
         return None
     at = web.get("at")
     return {"read_at": at.date().isoformat() if isinstance(at, datetime) else None,
-            "facts": [{k: f[k] for k in ("key", "label", "text", "official", "sources")} for f in web["facts"]]}
+            # value: the number the cautions work from ('homes per acre'); without it a page with land acres answered 500
+            "facts": [{k: f.get(k) for k in ("key", "label", "value", "text", "official", "sources")} for f in web["facts"]]}
 
 
 def group_primary(doc: dict, docs: List[dict]) -> dict:

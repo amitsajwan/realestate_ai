@@ -80,7 +80,7 @@ def cautions(doc: dict, towers: Optional[List[dict]] = None, web: Optional[dict]
                             f"slow building: check the progress the builder files with MahaRERA every quarter."})
     land = _web(web, "land_acres")
     try:
-        acres = float(land["value"]) if land else 0.0
+        acres = float(land.get("value")) if land else 0.0
     except (TypeError, ValueError):
         acres = 0.0
     if homes and acres > 0 and homes / acres >= DENSE_PER_ACRE:
