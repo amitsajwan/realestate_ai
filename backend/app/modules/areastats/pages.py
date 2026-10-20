@@ -162,6 +162,28 @@ def _brand_fix(name: str, promoter: Optional[str]) -> tuple:
     return name, None
 
 
+_SMALL = {"OF", "AND", "AT", "THE", "IN", "ON", "BY", "FOR"}
+_ROMAN = re.compile(r"(?i)^(i|ii|iii|iv|v|vi|vii|viii|ix|x|xi|xii)$")
+
+
+def nice_case(name: str) -> str:
+    """A name MahaRERA filed in capitals as buyers write it: "MY HOME UPPER KHARADI" -> "My Home Upper Kharadi". Kept as they
+    are: a name with any small letter, roman numerals (II), letters with digits (E1), single letters (A), codes with no vowel
+    (VTP). The legal name stays an alias (search, "Filed on MahaRERA as")."""
+    if re.search(r"[a-z]", name) or not re.search(r"[A-Z]{3}", name):
+        return name
+
+    def word(m: re.Match) -> str:
+        w = m.group(0)
+        if len(w) == 1 or _ROMAN.match(w) or not re.search(r"[AEIOUY]", w):
+            return w
+        if w in _SMALL and m.start() > 0:
+            return w.lower()
+        return w[0] + w[1:].lower()
+    # a run of letters on its own (not glued to digits: E1, 3BHK stay)
+    return re.sub(r"(?<![A-Za-z0-9])[A-Z]+(?![A-Za-z0-9])", word, name)
+
+
 def _base(name: str) -> str:
     """Trailing single-letter / roman phase tokens off ("Gera World of Joy M" -> "Gera World of Joy"); two words always kept."""
     words = name.split()
@@ -173,7 +195,7 @@ def _base(name: str) -> str:
 def names(doc: dict) -> tuple:
     """(marketed_name, aliases): the name buyers google and its variants (base without phase, "Gera's ..." possessive, legal)."""
     legal = " ".join((doc.get("name") or "").split())
-    fixed, brand_word = _brand_fix(legal, doc.get("promoter"))
+    fixed, brand_word = _brand_fix(nice_case(legal), doc.get("promoter"))
     # a page that stands for several towers or phases is named after the project they share, not after one tower (rank-loop R0)
     group = _brand_fix(" ".join((doc.get("group_name") or "").split()), doc.get("promoter"))[0] if doc.get("group_name") else ""
     marketed = " ".join((doc.get("marketed_name_override") or "").split()) or group or fixed
@@ -203,7 +225,7 @@ def paragraph(doc: dict) -> str:
     where = (f"in {area.name}, Pune" if area else f"in {place}, Pune district" if place
              else ("in Pune district" + (f" (pincode {doc['pincode']})" if doc.get("pincode") else "")))
     who = f" by {doc['promoter']}" if doc.get("promoter") else ""
-    out = [f"{doc.get('name') or 'This project'} is a project{who} {where}, registered with MahaRERA as {doc.get('regno') or doc['_id']}."]
+    out = [f"{names(doc)[0] or 'This project'} is a project{who} {where}, registered with MahaRERA as {doc.get('regno') or doc['_id']}."]
     now, first = _day(doc.get("completion_now")), _day(doc.get("completion_at_registration"))
     if now and first and now != first:
         out.append(f"Its filed completion date is {_long(now)}; at registration it was {_long(first)}.")

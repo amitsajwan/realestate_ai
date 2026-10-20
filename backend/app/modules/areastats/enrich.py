@@ -41,7 +41,7 @@ from app.modules.newsroom import register
 from app.modules.newsroom.store import Store
 from app.platform import trace
 
-from . import hot, pages, prices, profile, searchconsole, webfacts
+from . import brands, hot, pages, prices, profile, searchconsole, webfacts
 from .service import _day
 
 log = logging.getLogger(__name__)
@@ -59,8 +59,23 @@ MAX_TEXT = 2600                       # characters, the summary and its sections
 MAX_SUMMARY = 160                     # the one-line summary search results may show
 # 2 (owner 2026-10-17, "more content, good summary, good SEO"): a summary, then sections under fixed headings, then a one-line
 # summary for search results. A page whose text an older writer wrote is due for a round again (`priority`).
-TEXT_VERSION = 2
+# 3 (owner 2026-10-20, "paragraph, line or highlights, if they need improvements"): the name as buyers write it (not MahaRERA's
+# capitals), the brand beside the filing company, and the highlights (shown as bullets next to the text) not repeated
+TEXT_VERSION = 3
 SECTIONS = ("The homes and the building", "Location", "Amenities and features")
+# Each reading step has a version (owner 2026-10-20: "enrichment can happen again: we improve it, get more info, a better model").
+# Raise a step's number when the step gets better (a new rule, a new source, a better model): every project that step read with
+# an older version is read again, in the BACKFILL group, hot ones first. Kept per project in `enrichment.versions`.
+# profile 2: the builder's site found through the brand, on the domain's own name (ef886e0b, e1c6adb9)
+VERSIONS = {"web": 1, "profile": 2, "prices": 1}
+# fail and move on (owner 2026-10-20: "note it and continue with others, find a solution offline later"): each reading step
+# has STEP_SECONDS, the whole round ROUND_SECONDS; a project is not taken again within MIN_GAP (urgent requests aside), and
+# after MAX_FAILS failed rounds in a row it is parked for PARK_DAYS with its reason in the owner's list (status "parked")
+STEP_SECONDS = 240
+ROUND_SECONDS = 15 * 60
+MIN_GAP = timedelta(hours=6)
+MAX_FAILS = 3
+PARK_DAYS = 14
 BACKFILL = 7                          # priority group of a rewrite for a newer writer: after everything else
 BACKFILL_EVERY = timedelta(minutes=30)   # a rewrite that reads the web pages again (~9 model calls): ~48 a day on the free tiers
 # a rewrite whose web pages were read within REFRESH_DAYS only writes (one model call, ~2K tokens): at the loop's own pace
@@ -122,9 +137,14 @@ def priority(d: dict, urgent: set, now: datetime) -> Optional[tuple]:
     if pages.is_old(d, now.date()):
         return None                                             # finished more than a year ago: MahaRERA facts only
     done, heat = d.get("enriched_at"), int(d.get("hot_score") or 0)
+    if parked(d, now) or isinstance(done, datetime) and now - _aware(done) < MIN_GAP:
+        return None                                             # failing again and again, or just done: the others go first
     is_hot = heat >= hot.HOT_MIN
     seen = int(d.get("gsc_impressions") or 0)
     legacy = isinstance(done, datetime) and not d.get("enrichment")   # enriched before buildings and checks: redo
+    stale = isinstance(done, datetime) and bool(outdated(d))    # read by an older version of a step
+    if stale:   # hot: with the hot ones (after those never given a profile); the rest after everything else, Google's first
+        return (1, 1, -heat) if is_hot else (BACKFILL, 1, 1, -seen, _aware(done).timestamp())
     # hot pages are rewritten every HOT_REFRESH_DAYS anyway
     old_writer = not is_hot and isinstance(done, datetime) and int(d.get("page_text_version") or 1) < TEXT_VERSION
     if is_hot and needs_profile(d, now):
@@ -143,6 +163,18 @@ def priority(d: dict, urgent: set, now: datetime) -> Optional[tuple]:
     if seen:   # Google already shows it: just off page one first, then most impressions first
         return (2, 0 if searchconsole.near_page_one(d.get("gsc_position"), seen) else 1, -seen)
     return (4 if pages.indexable(d) else 5, -pages.recency(d), -(int(d.get("units_total") or 0)))   # newest first, then bigger
+
+
+def outdated(d: dict) -> List[str]:
+    """The reading steps this project's last round ran with an older version than VERSIONS (a step that never ran is not)."""
+    e = d.get("enrichment") or {}
+    steps, had = e.get("steps") or {}, e.get("versions") or {}
+    return [k for k, v in VERSIONS.items() if (steps.get(k) or {}).get("at") and int(had.get(k) or 1) < v]
+
+
+def parked(d: dict, now: datetime) -> bool:
+    until = d.get("enrich_parked_until")
+    return isinstance(until, datetime) and _aware(until) > now
 
 
 def sources_fresh(d: dict, now: datetime) -> bool:
@@ -181,6 +213,9 @@ def facts_text(doc: dict, gathered: Optional[dict], web: Optional[dict] = None, 
     gathered sheet. Nearby places only when they were measured from the project's own Google pin (`pinned`): from a locality's
     centre they would put the project somewhere it is not."""
     lines = [pages.paragraph(doc)]
+    b = brands.of(doc)
+    if b and doc.get("promoter"):
+        lines.append(f"Sold under the brand {b.name}; the company filed with MahaRERA is {doc['promoter']}")
     now, first = _day(doc.get("completion_now")), _day(doc.get("completion_at_registration"))
     if now:
         lines.append(f"Completion date filed with MahaRERA now: {pages._long(now)}")
@@ -237,6 +272,10 @@ SYSTEM = ("You write the description on a property website's page about one hous
           "for it: " + "; ".join(f'"{h}"' for h in SECTIONS) + ". Homes: towers, floors, homes, BHK types, sizes, land, open space. "
           "Location: the area and the nearby places given, with their distances as given (straight line); none given: leave it out. "
           "Amenities: the clubhouse, amenities, specifications and features given. Never repeat a sentence of the summary. "
+          "The page shows every 'Highlight' line as a bullet point next to your text: do not repeat them; when Highlight lines "
+          "are given, write no \"Amenities and features\" section, and use a highlight in the summary only to say what kind of "
+          "homes are on offer. Write the project's name and the brand as the first two lines give them (not in capital "
+          "letters); say a project's completion date has passed only when it has. "
           f"3) search_summary: one line under {MAX_SUMMARY} characters for search results: name, area, what is on offer, completion. "
           "Keep each date with its label. No adjectives of praise, no advice to buy, no prices unless a fact gives one, no numbers "
           "that are not in the facts, no facts about other projects. "
@@ -436,21 +475,21 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime, reread: bool =
         steps["prices"] = kept_steps.get("prices") or {}
     else:
         try:
-            steps["web"], web = await webfacts.gather(store, doc, llm, now, fetch=fetch)
+            steps["web"], web = await asyncio.wait_for(webfacts.gather(store, doc, llm, now, fetch=fetch), STEP_SECONDS)
         except Exception as e:
             log.exception("enrich: web facts failed for %s", regno)
             steps["web"], web = _step(False, now, checked=f"failed ({type(e).__name__})"), {}
         if web:
             await store.set_project(doc["_id"], **web)
         try:
-            steps["profile"], prof = await profile.gather(store, doc, llm, now, fetch=fetch)
+            steps["profile"], prof = await asyncio.wait_for(profile.gather(store, doc, llm, now, fetch=fetch), STEP_SECONDS)
         except Exception as e:
             log.exception("enrich: profile failed for %s", regno)
             steps["profile"], prof = _step(False, now, checked=f"failed ({type(e).__name__})"), {}
         if prof:
             await store.set_project(doc["_id"], **prof)
         try:   # areastats.prices: the same pages again (fetched once), only their price lines
-            steps["prices"], priced = await prices.gather(store, doc, llm, now, fetch=fetch)
+            steps["prices"], priced = await asyncio.wait_for(prices.gather(store, doc, llm, now, fetch=fetch), STEP_SECONDS)
         except Exception as e:
             log.exception("enrich: prices failed for %s", regno)
             steps["prices"], priced = _step(False, now, checked=f"failed ({type(e).__name__})"), {}
@@ -464,10 +503,13 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime, reread: bool =
     if text is None:
         notes.extend(refused)
         notes.append("kept the code-written paragraph")
-    enrichment = {"at": now, "steps": steps, "score": score(steps)}
+    # the versions the reading steps ran with (a carried-over step keeps the version it was read with)
+    versions = {k: (VERSIONS[k] if reread else int(((doc.get("enrichment") or {}).get("versions") or {}).get(k) or 1)) for k in VERSIONS}
+    enrichment = {"at": now, "steps": steps, "score": score(steps), "versions": versions}
     trace.event(log, "enrich", regno, "done", trace.OK if text and gathered else trace.FALLBACK, text="model" if text else "code",
                 facts="gathered" if gathered else "none", score=enrichment["score"], notes="; ".join(notes) or None)
-    fields = {"enriched_at": now, "enrich_notes": notes, "enrich_gathered": bool(gathered), "enrichment": enrichment, **placed}
+    fields = {"enriched_at": now, "enrich_notes": notes, "enrich_gathered": bool(gathered), "enrichment": enrichment, **placed,
+              "enrich_fails": 0, "enrich_error": None, "enrich_parked_until": None}
     if text:
         fields.update(page_text=text, page_text_at=now, page_text_version=TEXT_VERSION, page_sections=draft["sections"],
                       page_summary=draft["summary"])
@@ -478,10 +520,12 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime, reread: bool =
 
 # ---- the owner's view: what is enriched and checked ------------------------------------------------------------------------
 
-STATUSES = ("ok", "partial", "failed", "waiting", "finished")
+STATUSES = ("ok", "partial", "failed", "parked", "waiting", "finished")
 
 
 def status_of(d: dict, today=None) -> str:
+    if parked(d, datetime.now(timezone.utc)):
+        return "parked"
     e = d.get("enrichment")
     if not e:
         return "finished" if pages.is_old(d, today) else "waiting"   # finished: never enriched, MahaRERA facts only
@@ -513,6 +557,8 @@ async def status_list(store: Store, status: Optional[str] = None, limit: int = 3
             "checks": {k: ((e.get("steps") or {}).get(k) or {}).get("checked") or (((e.get("steps") or {}).get(k) or {}).get("refused_reasons") or None)
                        for k in STEPS + ("web", "profile", "prices")} if e else {},
             "page": f"/projects/{d['page_slug']}" if d.get("page_slug") else None,
+            "error": d.get("enrich_error"), "fails": int(d.get("enrich_fails") or 0),
+            "parked_until": _iso(d.get("enrich_parked_until")), "outdated": outdated(d),
         })
     items.sort(key=lambda x: x["enriched_at"] or "", reverse=True)
     return {"counts": counts, "items": items[:max(1, limit)]}
@@ -551,15 +597,37 @@ async def step(store: Store, llm, now: datetime, last_regular: Optional[datetime
         return None
     reread = True
     if not urgent and (priority(doc, set(), now) or (0,))[0] == BACKFILL:
-        reread = not sources_fresh(doc, now)
+        reread = not sources_fresh(doc, now) or bool(outdated(doc))
         if reread and last_regular is not None and now - _aware(last_regular) < BACKFILL_EVERY:
             return None
         if busy(llm):
             log.info("enrich: rewrite for %s waits: most free model tiers are resting", doc.get("_id"))
             return None
-    out = await enrich_one(store, doc, llm, now, reread=reread)
+    try:
+        out = await asyncio.wait_for(enrich_one(store, doc, llm, now, reread=reread), ROUND_SECONDS)
+    except asyncio.CancelledError:
+        raise
+    except Exception as e:   # noted on the record and the next project goes on; the request does not keep the loop busy
+        out = await failed_round(store, doc, now, e)
     out["urgent"] = bool(urgent)
     return out
+
+
+async def failed_round(store: Store, doc: dict, now: datetime, e: Exception) -> dict:
+    """A round that crashed or ran past ROUND_SECONDS: noted on the record (enrich_fails, enrich_error), the project waits MIN_GAP
+    like any other, and after MAX_FAILS in a row it is parked for PARK_DAYS, for a fix offline (owner's list: status "parked")."""
+    regno = doc.get("regno") or doc["_id"]
+    why = "round took longer than %d min" % (ROUND_SECONDS // 60) if isinstance(e, asyncio.TimeoutError) else f"round failed ({type(e).__name__}: {e})"[:300]
+    if not isinstance(e, asyncio.TimeoutError):
+        log.error("enrich: round failed for %s", regno, exc_info=e)
+    fails = int(doc.get("enrich_fails") or 0) + 1
+    fields = {"enriched_at": now, "enrich_fails": fails, "enrich_error": why}
+    if fails >= MAX_FAILS:
+        fields["enrich_parked_until"] = now + timedelta(days=PARK_DAYS)
+    await store.set_project(doc["_id"], **fields)
+    await store.db.get_collection(REQUESTS).delete_one({"_id": regno})
+    trace.event(log, "enrich", regno, "done", trace.FALLBACK, notes=why, fails=fails, parked=fails >= MAX_FAILS)
+    return {"regno": regno, "text": False, "gathered": False, "notes": [why], "score": None}
 
 
 async def loop() -> None:

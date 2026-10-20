@@ -6,6 +6,7 @@ import { serverApiBase } from './api'
 import { badStatus, failed, withRetry, type Got } from './retry'
 import type { WebFacts } from './webfacts'
 import type { ProjectProfile } from './profile'
+import { formatPrice } from './format'
 
 export interface RegisterProject {
   slug: string
@@ -147,46 +148,49 @@ function ownFaq(p: RegisterProject, nearby: { label?: string | null; name?: stri
   price?: string | null): (Faq & { topic: string })[] {
   const out: (Faq & { topic: string })[] = []
   const shown = displayName(p)
+  const asked = askedPrices(p)
   out.push({ topic: 'price', q: `What is the price of ${shown}?`,
     a: price ? `A local agent quotes ${price} for ${shown}. Prices change often: confirm the price and what it includes before you book.`
+      : asked ? `${asked.rows.map((r) => `${r.bhk}: ${r.range}`).join('; ')}, as listed on ${asked.sites}${asked.on ? ` on ${longDay(asked.on)}` : ''}. `
+        + 'Builders change prices often and add parking and other charges: ask for the current price sheet before you book.'
       : `No agent has quoted a price for ${shown} yet. Ask through the enquiry form on this page and a local agent will send you the current price.` })
   const d = p.details
   const where = p.area ? `${p.area.name}, Pune` : [p.place, p.taluka, 'Pune district'].filter(Boolean).join(', ')
   if (p.completion_now) {
     const moved = p.completion_at_registration && p.completion_at_registration !== p.completion_now
     const ext = moved && d?.extension_months ? ` MahaRERA added ${d.extension_months} months to most projects' dates in August 2026 (Order 66/2026).` : ''
-    out.push({ topic: 'possession', q: `What is the possession date of ${p.name}?`,
+    out.push({ topic: 'possession', q: `What is the possession date of ${shown}?`,
       a: `The completion date filed with MahaRERA is ${longDay(p.completion_now)}.` + (moved ? ` At registration it was ${longDay(p.completion_at_registration)}.` : '') + ext +
         ' Ask the builder for the possession date in your agreement, in writing.' })
   }
-  out.push({ topic: 'rera', q: `What is the MahaRERA number of ${p.name}?`, a: `${p.name} is registered with MahaRERA as ${p.regno}.` })
+  out.push({ topic: 'rera', q: `What is the MahaRERA number of ${shown}?`, a: `${shown} is registered with MahaRERA as ${p.regno}.` })
   if (d?.towers) {
-    out.push({ topic: 'size', q: `How many towers and floors does ${p.name} have?`,
+    out.push({ topic: 'size', q: `How many towers and floors does ${shown} have?`,
       a: `MahaRERA lists ${d.towers} building${d.towers === 1 ? '' : 's'}` + (d.max_floors ? `, the tallest with ${d.max_floors} floors.` : '.') })
   }
   const units = d?.units_total ?? p.units_total
   if (units) {
-    out.push({ topic: 'size', q: `How many flats are there in ${p.name}?`,
+    out.push({ topic: 'size', q: `How many flats are there in ${shown}?`,
       a: `MahaRERA lists ${units} units` + (d?.units_residential != null && d?.units_other ? ` (${d.units_residential} residential, ${d.units_other} other).` : '.') })
   }
   if (p.units_total) {
-    out.push({ topic: 'booked', q: `How many homes in ${p.name} are booked?`,
+    out.push({ topic: 'booked', q: `How many homes in ${shown} are booked?`,
       a: p.units_booked != null ? `${p.units_booked} of ${p.units_total} homes were booked as per MahaRERA${p.details_read_at ? ` on ${longDay(p.details_read_at)}` : ''}.`
         : 'The builder has not reported bookings on MahaRERA.' })
   }
   if (p.promoter) {
     const b = p.builder
-    out.push({ topic: 'builder', q: `Who is the builder of ${p.name}?`,
+    out.push({ topic: 'builder', q: `Who is the builder of ${shown}?`,
       a: `The promoter registered with MahaRERA is ${p.promoter}.` + (b && b.count > 1 ? ` Our register has ${b.count} Pune projects by ${b.name}${b.record_ok ? `; ${b.moved_later} of ${b.with_dates} with both dates moved their completion date 3 months or more later` : ''}.` : '') })
   }
-  out.push({ topic: 'location', q: `Where is ${p.name}?`, a: `${p.name} is in ${where}${p.pincode ? ` (pincode ${p.pincode})` : ''}.` })
+  out.push({ topic: 'location', q: `Where is ${shown}?`, a: `${shown} is in ${where}${p.pincode ? ` (pincode ${p.pincode})` : ''}.` })
   const near = nearby.filter((n) => n.name && n.km != null).slice(0, 3)
   if (near.length) {
-    out.push({ topic: 'near', q: `What is near ${p.name}?`,
+    out.push({ topic: 'near', q: `What is near ${shown}?`,
       a: near.map((n) => `${n.name}${n.label ? ` (${n.label})` : ''}, ${n.km} km`).join('; ') + ' (OpenStreetMap, straight-line distance).' })
   }
   if (p.completion_passed) {
-    out.push({ topic: 'oc', q: `Has the completion date of ${p.name} passed?`, a: 'Yes. Ask the builder for the occupancy certificate (OC) before you book.' })
+    out.push({ topic: 'oc', q: `Has the completion date of ${shown} passed?`, a: 'Yes. Ask the builder for the occupancy certificate (OC) before you book.' })
   }
   return out.slice(0, 11)
 }
@@ -353,25 +357,47 @@ export function areaName(p: RegisterProject): string | null {
   return p.area?.name ?? p.pune_place?.name ?? p.place ?? null
 }
 
+/** The asked prices we publish (backend areastats/prices.py) in words: per home size, the lowest price, the sites. Null when none. */
+export function askedPrices(p: Pick<RegisterProject, 'prices'>): { rows: { bhk: string; range: string }[]; from: string; bhks: string; sites: string; on: string | null } | null {
+  const rows = (p.prices?.rows ?? []).filter((r) => r.from_inr > 0)
+  if (!rows.length) return null
+  const lowest = Math.min(...rows.map((r) => r.from_inr))
+  const sites = Array.from(new Set(rows.flatMap((r) => r.sources.map((s) => s.site)))).slice(0, 3)
+  return {
+    rows: rows.map((r) => ({ bhk: r.bhk, range: formatPrice(r.from_inr) + (r.to_inr && r.to_inr !== r.from_inr ? ` to ${formatPrice(r.to_inr)}` : '') })),
+    from: formatPrice(lowest),
+    bhks: rows.map((r) => r.bhk.replace(/\s*BHK$/i, '')).join(', ') + ' BHK',
+    sites: sites.join(' and '),
+    on: p.prices?.read_at ?? null,
+  }
+}
+
 /** Search result title, aiming at 60 characters: "{Marketed} {Area}: Price, Possession {Mon YYYY}, MahaRERA", dropping parts for long names. */
 export function registerTitle(p: RegisterProject): string {
   const shown = displayName(p)
   const area = areaName(p)
   const at = area && !shown.toLowerCase().includes(area.toLowerCase()) ? `${shown} ${area}` : shown
   const when = monthYear(p.completion_now)
-  const options = when
+  const asked = askedPrices(p)
+  // the price is what buyers search and click on: first when we publish one
+  const priced = asked ? (when ? [`${at}: ${asked.bhks} from ${asked.from}, Possession ${when}`, `${shown}: ${asked.bhks} from ${asked.from}, Possession ${when}`,
+    `${at}: from ${asked.from}, Possession ${when}`, `${shown}: from ${asked.from}, Possession ${when}`]
+    : [`${at}: ${asked.bhks} from ${asked.from}`, `${shown}: from ${asked.from}`]) : []
+  const options = [...priced, ...(when
     ? [`${at}: Price, Possession ${when}, MahaRERA`, `${at}: Possession ${when}, MahaRERA`, `${at}: Possession ${when}`, `${shown}: Possession ${when}`]
-    : [`${at}: Price, Possession, MahaRERA`, `${at}: Price, MahaRERA`]
+    : [`${at}: Price, Possession, MahaRERA`, `${at}: Price, MahaRERA`])]
   return options.find((t) => t.length <= 60) ?? at
 }
 
 /** Search result description: "{Marketed} ({Legal}) by {Builder}, {Area}, Pune. Possession {Mon YYYY}, moved from X, b/t homes booked, MahaRERA {regno}." */
 export function registerDescription(p: RegisterProject): string {
-  if (p.search_description) return p.search_description
+  const asked = askedPrices(p)
+  if (p.search_description && !asked) return p.search_description
   const shown = displayName(p)
   const legal = shown.toLowerCase() !== p.name.toLowerCase() ? ` (${p.name})` : ''
   const area = areaName(p)
-  const head = `${shown}${legal}${p.promoter ? ` by ${p.promoter}` : ''}${area ? `, ${area}` : ''}, Pune.`
+  const by = p.builder?.name && p.builder.name !== p.promoter ? p.builder.name : p.promoter
+  const head = `${shown}${legal}${by ? ` by ${by}` : ''}${area ? `, ${area}` : ''}, Pune.${asked ? ` ${asked.bhks} from ${asked.from}.` : ''}`
   const from = p.completion_at_registration && p.completion_now && monthYear(p.completion_at_registration) !== monthYear(p.completion_now)
     && p.details?.completion_moved_months !== 0 ? `, moved from ${monthYear(p.completion_at_registration)}` : ''
   const parts = [p.completion_now ? `Possession ${monthYear(p.completion_now)}${from}` : null,

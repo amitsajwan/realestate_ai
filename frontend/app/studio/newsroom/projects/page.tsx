@@ -9,9 +9,9 @@ import { getEnrichment } from '@/lib/app/enrichment'
 import type { EnrichItem, EnrichStatus } from '@/lib/app/enrichment'
 import { useAsync } from '@/lib/app/useAsync'
 
-const TABS: EnrichStatus[] = ['ok', 'partial', 'failed', 'waiting', 'finished']
-const LABEL: Record<EnrichStatus, string> = { ok: 'Enriched', partial: 'Partial', failed: 'Failed', waiting: 'Waiting', finished: 'Finished' }
-const TONE: Record<EnrichStatus, PillTone> = { ok: 'ok', partial: 'action', failed: 'bad', waiting: 'muted', finished: 'muted' }
+const TABS: EnrichStatus[] = ['ok', 'partial', 'failed', 'parked', 'waiting', 'finished']
+const LABEL: Record<EnrichStatus, string> = { ok: 'Enriched', partial: 'Partial', failed: 'Failed', parked: 'Parked', waiting: 'Waiting', finished: 'Finished' }
+const TONE: Record<EnrichStatus, PillTone> = { ok: 'ok', partial: 'action', failed: 'bad', parked: 'action', waiting: 'muted', finished: 'muted' }
 const STEP: Record<string, string> = { maharera_general: 'MahaRERA record', buildings: 'Buildings', places: 'Map position', text: 'Page text' }
 
 function Row({ item }: { item: EnrichItem }) {
@@ -32,6 +32,13 @@ function Row({ item }: { item: EnrichItem }) {
           })}
         </ul>
       )}
+      {item.error && (
+        <p className="mt-2 text-xs text-gray-700">
+          <span className="font-semibold">Last round:</span> {item.error}
+          {item.parked_until ? ` · parked until ${new Date(item.parked_until).toLocaleDateString('en-IN')} after ${item.fails} failed rounds` : ''}
+        </p>
+      )}
+      {item.outdated && item.outdated.length > 0 && <p className="mt-1 text-xs text-gray-600">Read again soon (improved: {item.outdated.join(', ')})</p>}
       {item.page && <LinkOut href={item.page} label={item.name}>Open page</LinkOut>}
     </li>
   )

@@ -29,10 +29,13 @@ function Credit({ pics }: { pics: ProfilePicture[] }) {
   )
 }
 
-/** Highlights, the builder's pictures and floor plans of a project still being built (backend areastats/profile.py). */
-export default function ProjectProfile({ profile, name }: { profile: Profile | null | undefined; name: string }) {
+/** Highlights, the builder's pictures and floor plans of a project still being built (backend areastats/profile.py). `part` shows
+ * one of them, so a page can put the pictures first and the plans next to the prices. */
+export default function ProjectProfile({ profile, name, part }: { profile: Profile | null | undefined; name: string; part?: 'highlights' | 'photos' | 'plans' }) {
   if (!profile) return null
-  const { highlights, photos, plans } = profile
+  const highlights = !part || part === 'highlights' ? profile.highlights : []
+  const photos = !part || part === 'photos' ? profile.photos : []
+  const plans = !part || part === 'plans' ? profile.plans : []
   return (
     <>
       {highlights.length > 0 && (

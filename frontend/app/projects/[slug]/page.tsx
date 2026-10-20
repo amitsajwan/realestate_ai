@@ -71,10 +71,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (p && p.agents.length) return catalogProjectMetadata(p, priceRange(p) + ', ' + bhkRange(p.bhk_options), await getWebFacts(p.rera_no))
   const r = await loadRegister(params)
   if (!r) return { title: 'Project not found', robots: { index: false } }
+  // the first builder picture is the preview of a shared link and the page's image in search, else the brand card
+  const photo = r.profile?.photos?.find((x) => x.url.startsWith('/') && x.width && x.height)
   const meta = pageMetadata(getMarketingConfig(), {
     title: registerTitle(r),
     description: registerDescription(r),
     path: `/projects/${r.slug}`,
+    ...(photo ? { image: { path: photo.url, width: photo.width as number, height: photo.height as number, alt: photo.alt } } : {}),
   })
   return r.indexable ? meta : { ...meta, robots: { index: false, follow: true } }   // thin pages stay out of search until filled in
 }

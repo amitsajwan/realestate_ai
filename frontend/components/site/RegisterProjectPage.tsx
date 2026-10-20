@@ -9,7 +9,7 @@ import type { FacetLink } from '@/lib/site/facets'
 import WebFactsBox from '@/components/site/WebFactsBox'
 import ProjectProfile from '@/components/site/ProjectProfile'
 import PriceBox from '@/components/site/PriceBox'
-import { areaName, displayName, longDay, monthYear, otherNames, projectFaq, placePath, STAGE_LABEL, STAGE_NOTE } from '@/lib/site/register'
+import { areaName, askedPrices, displayName, longDay, monthYear, otherNames, projectFaq, placePath, STAGE_LABEL, STAGE_NOTE } from '@/lib/site/register'
 import type { EnrichCheck, Faq } from '@/lib/site/register'
 import type { PropertyFactsView } from '@/lib/site/types'
 import { formatPrice } from '@/lib/site/format'
@@ -148,11 +148,20 @@ function Stat({ label, value, sub }: { label: string; value: React.ReactNode; su
   )
 }
 
+/** "by Goyal Properties (My Home), filed by GODIVA PROMOTERS LLP": the brand buyers know, and the company MahaRERA has. */
+function brandLine(p: RegisterProject): string | null {
+  const brand = p.builder?.name
+  if (brand && p.promoter && brand.toLowerCase() !== p.promoter.toLowerCase()) return `by ${brand}, filed by ${p.promoter}`
+  return p.promoter ? `by ${p.promoter}` : null
+}
+
 /** The page's opening: name, builder, area and registration on a dark band, with the headline numbers from MahaRERA. */
 function Hero({ p }: { p: RegisterProject }) {
   const d = p.details
   const moved = d?.completion_moved_months
   const stats: [string, React.ReactNode, React.ReactNode?][] = []
+  const asked = askedPrices(p)
+  if (asked) stats.push(['Asking price', `from ${asked.from}`, asked.bhks])
   if (p.completion_now) stats.push(['Completion filed', longDay(p.completion_now),
     moved != null ? (moved > 0 ? `moved ${months(moved)} later` : 'not moved') : undefined])
   if (d?.booked_pct != null) stats.push(['Booked', `${d.booked_pct}%`, p.units_booked != null && p.units_total ? `${n(p.units_booked)} of ${n(p.units_total)}` : undefined])
@@ -183,7 +192,7 @@ function Hero({ p }: { p: RegisterProject }) {
           <Link href={p.group.path} className="inline-flex min-h-[44px] items-center font-semibold text-amber-300 underline underline-offset-2">see all {p.group.towers} towers</Link>
         </p>
       )}
-      <p className="mt-2 text-base text-slate-200">{[p.promoter && `by ${p.promoter}`, where, p.pincode].filter(Boolean).join(' · ')}</p>
+      <p className="mt-2 text-base text-slate-200">{[brandLine(p), where, p.pincode].filter(Boolean).join(' · ')}</p>
       {stats.length > 0 && (
         <dl className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4">
           {stats.map(([l, v, sub]) => <Stat key={l} label={l} value={v} sub={sub} />)}
@@ -479,7 +488,9 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [] }: {
     ...(p.units_total ? { numberOfAccommodationUnits: p.units_total } : {}),
     identifier: { '@type': 'PropertyValue', propertyID: 'MahaRERA registration', value: p.regno },
     ...(p.map ? { geo: { '@type': 'GeoCoordinates', latitude: p.map.lat, longitude: p.map.lon } } : {}),
-    ...(p.promoter ? { builder: { '@type': 'Organization', name: p.promoter } } : {}),
+    ...(p.promoter ? { builder: { '@type': 'Organization', name: p.builder?.name || p.promoter } } : {}),
+    // the builder's pictures we keep (profile): Google can show them with the page
+    ...(p.profile?.photos?.length ? { image: p.profile.photos.slice(0, 6).map((x) => (x.url.startsWith('/') ? siteUrl + x.url : x.url)) } : {}),
     ...(p.maharera_url ? { sameAs: p.maharera_url } : {}),
     // one tower of a marketed project registered tower by tower: the whole project is the place this one is in
     ...(p.group ? { containedInPlace: { '@type': 'ApartmentComplex', name: p.group.name, url: siteUrl + p.group.path } } : {}),
@@ -507,6 +518,9 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [] }: {
 
       <Hero p={p} />
 
+      {/* pictures first: what a buyer looks for before reading (owner 2026-10-20) */}
+      <div className="mt-8"><ProjectProfile profile={p.profile} name={shown} part="photos" /></div>
+
       <div className="mt-8 grid gap-8 lg:grid-cols-3">
         <div className="min-w-0 space-y-10 lg:col-span-2">
           <section aria-labelledby="about-title">
@@ -521,8 +535,9 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [] }: {
             ))}
           </section>
 
+          <ProjectProfile profile={p.profile} name={shown} part="highlights" />
           <PriceBox prices={p.prices} name={shown} />
-          <ProjectProfile profile={p.profile} name={shown} />
+          <ProjectProfile profile={p.profile} name={shown} part="plans" />
 
           <section aria-labelledby="facts-title">
             <SectionHead id="facts-title" title="The record" kind="rera" tag={p.details_read_at ? `From MahaRERA, read ${longDay(p.details_read_at)}` : 'From MahaRERA'} />

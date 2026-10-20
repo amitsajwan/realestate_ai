@@ -3,7 +3,7 @@ import { API_BASE_URL } from '@/lib/config/api'
 import { ApiError, parseErrorBody } from './api'
 import { getToken } from './session'
 
-export type EnrichStatus = 'ok' | 'partial' | 'failed' | 'waiting' | 'finished'
+export type EnrichStatus = 'ok' | 'partial' | 'failed' | 'parked' | 'waiting' | 'finished'
 
 export interface EnrichItem {
   regno: string
@@ -15,6 +15,12 @@ export interface EnrichItem {
   failed: string[]
   checks: Record<string, string | string[] | null>
   page: string | null
+  /** the last round crashed or ran too long (areastats.enrich.failed_round); parked after 3 in a row, for a fix offline */
+  error?: string | null
+  fails?: number
+  parked_until?: string | null
+  /** reading steps last run by an older version (enrich.VERSIONS): read again soon */
+  outdated?: string[]
 }
 
 export interface EnrichList {

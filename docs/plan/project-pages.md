@@ -106,7 +106,7 @@ Owner, 2026-10-14: Google's AI answer shows more about a project than our page, 
 - First trial, Lodha Camelot: 10 acres (lodhagroup.com, nobroker.in, magicbricks.com) and 80% open space (lodhagroup.com)
   published; towers held back (nobroker 6, magicbricks 7). 99acres and housing.com refuse the reader.
 
-## Project profile (2026-10-15, BUILT, deploy pending)
+## Project profile (2026-10-15, LIVE eb551855)
 
 Owner, 2026-10-15: a new enrichment phase: a summary with bullet points, pictures from the builder (or real ones), floor plans;
 read again and again, but only for projects whose completion date is still to come; hot projects first.
@@ -188,3 +188,29 @@ under the same checks as the highlights.
 3. LIVE: property sites are named, not linked (web facts, highlights, prices); only the builder's own site and MahaRERA are
    links. We do not send buyers to portals.
 4. TARGET: agent price sheets (agentprojects configurations) first on the register page and in "from ₹X" when a project has one.
+
+## Enrichment that improves, fails forward and sells (2026-10-20, LIVE)
+Owner, 2026-10-20: enrichment runs again when we improve it, get more info or a better model; a project that fails is noted
+and the loop moves on (fixed offline later), with a cut-off; think SEO always; make the paragraph, lines and highlights better.
+- **Runs again on improvement.** Each reading step has a version (`enrich.VERSIONS`: web, profile, prices) and the writer has
+  `TEXT_VERSION`. Raising a number re-reads every project that step read with an older one: hot projects with the hot ones,
+  the rest after all other work. A better model or a new rule = raise the number. Kept per project in `enrichment.versions`.
+  Now: profile 2 (builder's site through the brand, on the domain's own name), text 3.
+- **Fails forward.** Each reading step stops after `STEP_SECONDS` (240 s), a round after `ROUND_SECONDS` (15 min). A crashed or
+  over-long round is noted (`enrich_error`, `enrich_fails`) and the next project goes; a project is never taken again within
+  `MIN_GAP` (6 h, urgent requests aside); after `MAX_FAILS` (3) failed rounds in a row it is parked `PARK_DAYS` (14). Studio >
+  Newsroom > Project pages has a Parked tab with the reason: that is the offline list. An urgent request is cleared even when
+  its round fails, and is taken even outside our areas.
+  Found 2026-10-20: Hollyhock City redone every minute all day (hot, no profile because no web results), Gera's Avive request
+  never taken (no locality) and keeping the loop at full speed.
+- **Builder's site through the brand.** MahaRERA files many projects under a company formed for them (Godrej Ivara: Manjari
+  Housing Projects LLP; My Home Upper Kharadi: Godiva Promoters LLP). `webfacts.builder_words` adds the brand's word
+  (`brands.py`, new brand Goyal Properties (My Home)); the domain's own name must match, not a sub-domain.
+- **Page and search.** Names MahaRERA filed in capitals are shown as buyers write them (`pages.nice_case`; legal name stays an
+  alias and on "Filed on MahaRERA as"). The brand is named with the filing company. When we publish asked prices: the title
+  leads with "2, 3 BHK from ₹96 L, Possession Apr 2029", the description and the price FAQ use them (the FAQ said "no agent has
+  quoted a price" under a price table), the header shows "from". The builder's pictures come right after the header, are the
+  page's image in JSON-LD and the shared-link preview. Highlights sit under the text; the writer (v3) no longer repeats them
+  and writes no amenities section when there are highlights. Floor plans sit after the prices.
+- TARGET: builder sites that load pictures by script (godrejproperties.com gives none): read them in a browser; per-step model
+  name on the record.
