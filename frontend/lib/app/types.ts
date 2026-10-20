@@ -624,7 +624,8 @@ export interface AppApi {
   markBoosted(listingId: string, dailySpendInr: number, days: number): Promise<MarketingRun>
   /** Make the boost kit again (after a failure). */
   remakeBoost(listingId: string): Promise<MarketingRun>
-  remakeReels(listingId: string): Promise<MarketingRun>
+  /** `note`: what to stress or change ("lead with the 20:20:30:30 plan"); the creative room meets again with it */
+  remakeReels(listingId: string, note?: string): Promise<MarketingRun>
   /** One reel's voice-over (`reel`: an ad reel's angle, or 'video'), made in the background. */
   voiceReel(listingId: string, reel: string, language: VoiceLanguage, gender: VoiceGender, style: VoiceStyle): Promise<MarketingRun>
   getPerformance(): Promise<PerformanceItem[]>
@@ -706,6 +707,8 @@ export interface MarketingRun {
   voice_choices?: VoiceChoice[]
   /** A reels remake asked from Studio: making, done or failed (reels_error says why). */
   reels_state?: 'making' | 'done' | 'failed' | null
+  /** the agent's note the reels were last remade with */
+  reels_note?: string
   reels_error?: string
   /** What the listing's project files said (the builder's claims, not checked facts). */
   files?: { brochure?: { claims?: string[]; rera_no?: string | null; rera_missing?: boolean; error?: string | null; pages?: number } }

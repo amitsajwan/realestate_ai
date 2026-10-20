@@ -24,7 +24,7 @@ from app.modules.creative.hooks import PATTERNS
 from app.modules.creative.listing_brief import price_label
 from app.modules.creative.models import Brief
 
-from . import campaign, surroundings
+from . import campaign, homes, surroundings
 from .facts import Fact
 
 log = logging.getLogger(__name__)
@@ -77,8 +77,17 @@ def _fit(options: Sequence[str], n: int = BEAT_WORDS) -> str:
 class Facts:
     """The numbers a boost piece may say, from the usable facts (campaign.Ctx)."""
 
-    def __init__(self, facts: Dict[str, Fact]):
+    def __init__(self, facts: Dict[str, Fact], listing: Optional[dict] = None):
         self.c = c = campaign.Ctx(facts)
+        listing = listing or {}
+        # what sells a project (owner 2026-10-20: the boost pair must carry every selling point): the price sheet, the payment
+        # plan, the project's top highlight and the agent's note, all the listing's own
+        self.table = homes.rows(listing) if homes.several(listing) and listing.get("configurations") else []
+        self.plan = homes.payment_plan(listing)
+        from .room import STALE, agent_note
+        self.highlights = [h for h in (" ".join(str(x).split()).rstrip(".") for x in (listing.get("about") or {}).get("highlights") or [])
+                           if h and not STALE.search(h) and "BHK" not in h.upper()]
+        self.note = agent_note(listing)
         v = c.v
         self.price = v.get("price_inr")
         self.work = (v.get("nearby.industry") or [None])[0]
@@ -91,12 +100,31 @@ class Facts:
         self.kinds = (c.kind + "s") if c.layout else c.kind
         self.booking = v.get("point.booking_amount")   # an agent-confirmed booking amount (points.py)
         self.start = v.get("point.starting_price") or (self.price if c.layout else None)
+        if self.table:   # the sheet's lowest price is the 'from' price
+            self.price = homes.from_price(listing) or self.price
+
+    def sheet_lines(self) -> List[str]:
+        """The listing's selling facts as sentences, for the guards' corpus."""
+        rows = [f"{r['label']}" + (f", {int(r['carpet_sqft']):,} sq ft carpet" if r.get("carpet_sqft") else "")
+                + (f": {short_price(int(r['price_inr']))} ({price_label(int(r['price_inr']))})." if r.get("price_inr") else ".")
+                for r in self.table]
+        return (rows + ([f"Payment plan: {self.plan}."] if self.plan else []) + [f"The project's notes say: {h}." for h in self.highlights]
+                + ([f"The agent says: {self.note}."] if self.note else []))
+
+    def table_lines(self, n: int = 4) -> List[str]:
+        """'3 BHK · 890 sq ft · ₹1.44Cr', one per home type (the first n)."""
+        return [" · ".join(x for x in (r["label"], f"{int(r['carpet_sqft']):,} sq ft" if r.get("carpet_sqft") else "",
+                                       short_price(int(r["price_inr"])) if r.get("price_inr") else "") if x) for r in self.table[:n]]
+
+    def highlight(self) -> str:
+        return _fit(self.highlights)
 
     def hook(self) -> str:
         c, lead = self.c, ""
         if self.price:
             p = short_price(self.price)
-            lead = f"{c.kind.capitalize()}s from {p}" if c.layout else f"{p} {c.kind}"
+            lead = (f"{homes.bhk_range(self.table)} from {p}" if self.table else
+                    f"{c.kind.capitalize()}s from {p}" if c.layout else f"{p} {c.kind}")
         else:
             lead = f"{c.kind.capitalize()}s" if c.layout else f"A {c.kind}"
         opts = []
@@ -167,13 +195,22 @@ def carousel_briefs(f: Facts, hook: str, photo: str) -> List[Tuple[str, Brief]]:
             if f.start and f.start != f.price:
                 facts.append(f"Starting price: {price_label(int(f.start))}.")
         tip = "Ask what the price includes: stamp duty, registration and charges."
+        if f.table:
+            facts += f.sheet_lines()[:len(f.table)]
+            tip = "; ".join(f.table_lines(6)) + "."
         if f.emi:
             tip = f"EMI about ₹{f.emi['emi']:,} a month: {f.emi_note()}. Ask your bank for its rate."
             facts.append(tip)
         out.append(("price", en(c.brief(hook=f"What {price} buys at {f.place}" if f.place else f"What {price} buys",
                                          topic="Price breakdown", short="price breakdown", stat_value=price, stat_label=label,
                                          facts=facts, tip=tip, prefer="stat"))))
-    size = campaign.size_in_guntha(c) or campaign.land_area(c) or campaign.layout_size(c)
+    if f.plan:
+        out.append(("plan", en(c.brief(hook=f"Pay as it is built: {f.plan}", topic="Payment plan", short="payment plan",
+                                        stat_value=f.plan, stat_label="payment plan (the builder's)",
+                                        facts=[f"Payment plan: {f.plan} (the builder's plan)."],
+                                        tip="Ask the builder for the stage of each payment and the demand letter schedule.",
+                                        prefer="stat"))))
+    size = None if f.table else (campaign.size_in_guntha(c) or campaign.land_area(c) or campaign.layout_size(c))
     if size is None and f.size():
         size = c.brief(hook=f.size(), topic="Size", short="size", stat_value=f"{c.sqft:,} sq ft" if c.sqft else f.size(),
                        stat_label=f"this {c.kind}", facts=[f.size()], prefer="stat")
@@ -229,9 +266,16 @@ def reel_beats(f: Facts, brand_name: str = "") -> Tuple[str, List[dict]]:
     """(hook, beats): each beat {"lines": [main, small?], "photo": bool, "kind"}. Main lines at most 7 words."""
     hook = f.hook()
     beats: List[dict] = []
-    size = f.size()
-    if size:
-        beats.append({"kind": "size", "lines": [size], "photo": True})
+    if f.table:   # every home type with its size and price: what a buyer asks first
+        beats.append({"kind": "homes", "lines": ["Prices by home type"] + f.table_lines(), "photo": False})
+    else:
+        size = f.size()
+        if size:
+            beats.append({"kind": "size", "lines": [size], "photo": True})
+    if f.plan:
+        beats.append({"kind": "plan", "lines": [f"{f.plan} payment plan", "the builder's plan"], "photo": True})
+    if f.highlight():
+        beats.append({"kind": "highlight", "lines": [f.highlight()], "photo": True})
     second, small = f.second(hook)
     if second:
         beats.append({"kind": "fact", "lines": [second] + ([small] if small else []), "photo": True})
@@ -306,19 +350,28 @@ def ad_copy(f: Facts, hook: str, beats: List[dict], language: str, corpus: str) 
     place = _local(c.locality or f.place or "Pune", language)
     project = f.place or place
     kind = KIND_WORD.get(language, {}).get(f.kinds, f.kinds)
+    if f.table and language == "en":
+        kind = f"{homes.bhk_range(f.table)} homes"
     fact = next((b["lines"][0] for b in beats if b["kind"] == "fact"), "")
     fact = (fact + t["fact_end"]) if fact else ""
-    reel = (t["reel"] if f.rera else t["reel_plain"]).format(hook=hook, fact=fact, rera=f.rera)
+    plan = f"{f.plan} payment plan. " if f.plan else ""   # the payment plan leads the facts
+    reel = (t["reel"] if f.rera else t["reel_plain"]).format(hook=hook, fact=plan + fact, rera=f.rera)
+    if len(reel) > PRIMARY_MAX:   # too long: the plan stays, the distance goes
+        reel = (t["reel"] if f.rera else t["reel_plain"]).format(hook=hook, fact=plan, rera=f.rera)
     if len(reel) > PRIMARY_MAX:
-        reel = (t["reel"] if f.rera else t["reel_plain"]).format(hook=hook, fact="", rera=f.rera)
+        reel = t["reel_plain"].format(hook=hook, fact=plan, rera="")
     size = next((b["lines"][0] for b in beats if b["kind"] == "size"), "")
-    price = (("from " if c.layout and language == "en" else "") + price_label(f.price)) if f.price else ""
+    price = (("from " if (c.layout or f.table) and language == "en" else "") + price_label(f.price)) if f.price else ""
+    if f.table and language == "en":
+        price = f"{homes.bhk_range(f.table)} {price}"
+    if f.plan:
+        size = f"{f.plan} payment plan"
     post = t["post"].format(project=project, price=price, size=(", " + size) if size else "")
     if len(post) > PRIMARY_MAX:
         post = t["post"].format(project=project, price=price, size="")
     if not f.price:
         post = post.replace(": , ", ": ").replace(": .", ".")
-    out = {"reel": {"primary_text": _cut(reel, PRIMARY_MAX), "headline": _cut(t["head_reel"].format(kind=kind.capitalize() if language == "en" else kind, place=place), HEADLINE_MAX)},
+    out = {"reel": {"primary_text": _cut(reel, PRIMARY_MAX), "headline": _cut(t["head_reel"].format(kind=kind[:1].upper() + kind[1:] if language == "en" else kind, place=place), HEADLINE_MAX)},
            "post": {"primary_text": _cut(post, PRIMARY_MAX), "headline": _cut(t["head_post"].format(place=project), HEADLINE_MAX)},
            "cta": CTA}
     plain = {"en": "WhatsApp us for the fact sheet of {p}.", "mr": "{p} ची फॅक्ट शीट: WhatsApp करा.",
@@ -395,12 +448,12 @@ async def make(db, *, facts: Dict[str, Fact], listing: dict, agent_id: str, out:
     """The boost pair as kept on the run (`boost`, state "ready"); raises on failure (the caller stores the error)."""
     uploads_dir, out = Path(uploads_dir), Path(out)
     rel = lambda p: "/uploads/" + Path(p).resolve().relative_to(uploads_dir.resolve()).as_posix()
-    f = Facts(facts)
+    f = Facts(facts, listing)
     hook, beats = reel_beats(f, brand_name)
     briefs = carousel_briefs(f, hook, photos[0] if photos else "none")
     if card_brand is not None:
         briefs = [(n, replace(b, card_brand=card_brand)) for n, b in briefs]
-    corpus = "\n".join(b.corpus() for _, b in briefs)   # the facts only: the hook and beats are checked against it
+    corpus = "\n".join([*(b.corpus() for _, b in briefs), *f.sheet_lines()])   # the facts only: the hook and beats are checked against it
     beats = check_beats(hook, beats, corpus)
     # carousel
     cards = await _cards(briefs, out / "carousel")

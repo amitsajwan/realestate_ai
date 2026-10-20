@@ -435,10 +435,10 @@ def _button_height(size: int) -> int:
 
 
 def _facts_rows(f: Facts) -> List[Tuple[str, str]]:
-    rows = [("PRICE", f.price_text), ("CONFIGURATION", " ".join(x for x in (f.bhk_text, f.type_text("en").title()) if x)),
+    rows = [("PRICE", f.price_line), ("CONFIGURATION", " ".join(x for x in (f.bhk_text, f.type_text("en").title()) if x)),
             ("AREA", f"{f.area_text} ({f.area_kind})" if f.area_text else None), ("FLOOR", f.floor_text("en")),
             ("POSSESSION", f.possession_text("en")), ("FURNISHING", T["en"]["furn"].get(f.furnishing or "")),
-            ("RERA", f.rera)]
+            ("PAYMENT PLAN", f.payment_plan), ("RERA", f.rera)]
     return [(k, v) for k, v in rows if v]
 
 

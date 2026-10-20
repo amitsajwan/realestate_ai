@@ -40,10 +40,36 @@ def get_db():
     return get_database()
 
 
+LIVE_STATES = ("live", "under_offer")
+
+
+async def with_sheet(db, out: Optional[dict]) -> Optional[dict]:
+    """The page's offer with the live listing's price sheet and payment plan (homes.rows, homes.payment_plan): a project
+    listed with seven home types showed only its first flat ("2 BHK, 730 sq ft, ₹1.2 Cr"; Godrej Ivara, 2026-10-20)."""
+    regno = ((out or {}).get("maharera") or {}).get("rera_no") or ""
+    if not out or not out.get("offer") or not regno:
+        return out
+    from . import homes
+    listing = await db.listings.find_one({"rera_no": regno, "status": {"$in": list(LIVE_STATES)}},
+                                         {"configurations": 1, "payment_plan": 1, "bhk": 1, "price_inr": 1, "carpet_sqft": 1,
+                                          "property_type": 1, "listing_scope": 1}, sort=[("updated_at", -1)])
+    if not listing:
+        return out
+    table = homes.rows(listing) if listing.get("configurations") else []
+    offer = dict(out["offer"])
+    if len(table) > 1:
+        offer["homes"] = [{"bhk": r["bhk"], "label": r["label"], "carpet_sqft": r.get("carpet_sqft"), "price_inr": r.get("price_inr")}
+                          for r in table]
+        offer["price_inr"] = homes.from_price(listing) or offer.get("price_inr")
+    if homes.payment_plan(listing):
+        offer["payment_plan"] = homes.payment_plan(listing)
+    return {**out, "offer": offer}
+
+
 @public_router.get("/property-facts")
 async def public_property_facts(response: Response, rera: Optional[str] = None, project: Optional[str] = None,
                                 locality: Optional[str] = None, db=Depends(get_db)) -> dict:
-    out = view(await FactsStore(db).find(rera or "", project or "", locality or ""))
+    out = await with_sheet(db, view(await FactsStore(db).find(rera or "", project or "", locality or "")))
     if out is None:
         raise HTTPException(status_code=404, detail="No facts kept for this property")
     response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
@@ -54,7 +80,7 @@ async def public_property_facts(response: Response, rera: Optional[str] = None, 
 async def public_property_facts_by_regno(regno: str, response: Response, db=Depends(get_db)) -> dict:
     """The usable facts we keep for a MahaRERA project, for its own page (/projects/<slug>): every fact a campaign post may
     use, each block with its source (docs/plan/project-pages.md). 404 when no campaign gathered facts for it."""
-    out = view(await FactsStore(db).find(regno.strip().upper()))
+    out = await with_sheet(db, view(await FactsStore(db).find(regno.strip().upper())))
     if out is None:
         raise HTTPException(status_code=404, detail="No facts kept for this project")
     response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
@@ -177,11 +203,13 @@ async def remake_boost(listing_id: str, request: Request, user: User = Depends(c
 
 
 @router.post("/{listing_id}/campaign/reels/remake", status_code=202)
-async def remake_reels(listing_id: str, request: Request, user: User = Depends(current_active_user),
+async def remake_reels(listing_id: str, request: Request, body: Optional[RedoIn] = None,
+                       user: User = Depends(current_active_user),
                        runs: jobs.MarketingRuns = Depends(get_runs), _w: None = Depends(start_worker)) -> dict:
-    """Make only the ad reels again from the finished run's posts and pictures; the worker does it (reels_state "making")."""
+    """Make only the ad reels again from the finished run's posts and pictures; the worker does it (reels_state "making").
+    `note`: what to stress or change; the creative room meets again with it."""
     try:
-        doc = await runs.remake_reels(str(user.id), listing_id)
+        doc = await runs.remake_reels(str(user.id), listing_id, (body.note if body else "")[:1000])
     except jobs.RunError as e:
         raise HTTPException(status_code=e.status_code, detail=e.detail)
     return {"run": jobs.run_out(doc, str(request.base_url))}

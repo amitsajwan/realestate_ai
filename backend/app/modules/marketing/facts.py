@@ -3,7 +3,7 @@ from app.core import brand
 from app.platform.text import bhk_label, money, sqft
 import re
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from .maharera import ProjectRegistration, from_listing
 
@@ -96,17 +96,26 @@ class Facts:
     sample: bool = False  # an illustrative listing (title starts with 'Sample'): labelled everywhere, never presented as available
     # the PROJECT's MahaRERA registration we trust, printed as the QR badge (maharera.py); never the agent's own number
     registration: Optional[ProjectRegistration] = None
+    # a project's price sheet (listing.configurations via propertyfacts.homes.rows): with two or more home types the posts say
+    # the range ("2, 3 & 4 BHK", "from ₹1.2 Cr", "730-1,580 sq ft"), never the first flat's numbers as if it were the only one
+    homes: List[Dict[str, Any]] = field(default_factory=list)
+    payment_plan: str = ""
 
     @classmethod
     def from_docs(cls, listing: dict, profile: Optional[dict], share_url: str) -> "Facts":
         profile = profile or {}
+        from app.modules.propertyfacts import homes as homes_mod   # here: propertyfacts imports marketing
         carpet, sba = listing.get("carpet_sqft"), listing.get("super_built_up_sqft")
+        table = homes_mod.rows(listing) if listing.get("configurations") else []
+        several = len(table) > 1
+        sizes = [r["carpet_sqft"] for r in table if r.get("carpet_sqft")]
         return cls(
             listing_id=str(listing.get("_id") or listing.get("id") or ""),
             transaction=listing.get("transaction") or "sale", ptype=listing.get("property_type") or "apartment",
-            price=listing.get("price_inr"), city=listing.get("city"), locality=listing.get("locality"),
+            price=(homes_mod.from_price(listing) if several else listing.get("price_inr")), city=listing.get("city"), locality=listing.get("locality"),
             project=listing.get("project_name"), bhk=listing.get("bhk"),
-            area=carpet or sba, area_kind="carpet" if carpet else ("super built-up" if sba else None),
+            area=None if several else (carpet or sba),
+            area_kind="carpet" if carpet or (several and sizes) else ("super built-up" if sba else None),
             floor=listing.get("floor"), total_floors=listing.get("total_floors"),
             furnishing=listing.get("furnishing"), possession=listing.get("possession"), rera=listing.get("rera_no"),
             amenities=[a for a in (listing.get("amenities") or []) if a],
@@ -115,7 +124,8 @@ class Facts:
             agent_business=str(((profile.get("branding_data") or {}).get("business_name")) or "")[:60],
             agent_rera_no=str(((profile.get("branding_data") or {}).get("rera_agent_no")) or "")[:20],
             share_url=share_url, sample=(listing.get("title") or "").strip().lower().startswith("sample"),
-            registration=from_listing(listing))
+            registration=from_listing(listing), homes=table if several else [],
+            payment_plan=homes_mod.payment_plan(listing))
 
     # -- derived text ------------------------------------------------------------------------
     @property
@@ -127,11 +137,33 @@ class Facts:
         return money(self.price, self.rent) if self.price else None
 
     @property
+    def several(self) -> bool:
+        """Two or more home types on the price sheet: prices are 'from', sizes a range."""
+        return len(self.homes) > 1
+
+    @property
+    def price_line(self) -> Optional[str]:
+        """What a card or caption prints: '₹1.2 Cr', or 'from ₹1.2 Cr' for a price sheet (price_text stays the bare amount,
+        which the reels read out)."""
+        return (f"from {self.price_text}" if self.several else self.price_text) if self.price_text else None
+
+    @property
     def bhk_text(self) -> Optional[str]:
+        if self.several:
+            from app.modules.propertyfacts.homes import bhk_range
+            return bhk_range(self.homes) or None
         return bhk_label(self.bhk) if self.bhk else None
 
     @property
+    def size_range(self) -> Optional[tuple]:
+        sizes = [int(r["carpet_sqft"]) for r in self.homes if r.get("carpet_sqft")]
+        return (min(sizes), max(sizes)) if self.several and sizes and max(sizes) > min(sizes) else None
+
+    @property
     def area_text(self) -> Optional[str]:
+        if self.size_range:
+            lo, hi = self.size_range
+            return f"{lo:,}-{hi:,} sq ft"
         return sqft(self.area) if self.area else None
 
     @property
@@ -160,7 +192,8 @@ class Facts:
         t = T[lang]
         bhk = f"{self.bhk_text} " if self.bhk_text else ""
         loc = self.loc or self.city or ""
-        s = t["title"].format(bhk=bhk, type=self.type_text(lang), tx=t["tx"][self.transaction], loc=loc)
+        kind = self.type_text(lang) + ("s" if self.several and lang == "en" and not self.type_text(lang).endswith("s") else "")
+        s = t["title"].format(bhk=bhk, type=kind, tx=t["tx"][self.transaction], loc=loc)
         if not loc:  # no location known: drop the dangling preposition
             s = s.replace(" in ", "").replace(" में ", " ").replace(" येथे ", " ").strip()
         return s.replace("  ", " ").strip()

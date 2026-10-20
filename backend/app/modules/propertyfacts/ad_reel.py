@@ -87,6 +87,23 @@ class Script:
                    **{k: d[k] for k in ("by", "hook_type", "checked", "team", "intro", "info") if d.get(k)})
 
 
+PRICE_SAID = re.compile(r"₹\s?[\d.,]+", re.I)
+
+
+def with_deal(s: Script, money: str, plan: str) -> Script:
+    """The reel says the deal on screen (owner 2026-10-20: the Ivara reels were all mood, the price and the 20:20:30:30 plan
+    only in the caption): the money line ('2, 3 & 4 BHK from ₹1.20 Cr') closes it unless a line already says a price, the
+    payment plan is its last beat unless a line says it. Two beats of the writer's are kept, so the reel stays ~17 s."""
+    said = " ".join([s.hook, *s.beats, s.payoff])
+    beats = list(s.beats)
+    if plan and plan.split()[0] not in said:
+        beats = beats[:2] + [plan]
+    if money and not PRICE_SAID.search(said):
+        s.payoff = money
+    s.beats = beats
+    return s
+
+
 # ---- the facts a reel may say ---------------------------------------------------------------------------------------------
 def _price(c: Ctx) -> str:
     from app.modules.creative.listing_brief import price_label

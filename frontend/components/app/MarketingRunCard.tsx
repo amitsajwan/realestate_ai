@@ -317,10 +317,11 @@ export function MarketingRunCard({ listingId }: { listingId: string }) {
     }
   }
 
+  const [reelNote, setReelNote] = useState('')
   const remakeReels = async () => {
     setError(null)
     try {
-      const r = await api.remakeReels(listingId)
+      const r = await api.remakeReels(listingId, reelNote.trim())
       if (alive.current) setRun(r)
     } catch (e) {
       if (alive.current) setError(errorMessage(e))
@@ -526,8 +527,18 @@ export function MarketingRunCard({ listingId }: { listingId: string }) {
             )}
             {run.status === 'done' && (
               <div className="space-y-1">
+                <label htmlFor="reel-note" className="block text-sm font-medium text-gray-800">
+                  What sells this property? What should the reels say or change? (optional)
+                </label>
+                <textarea id="reel-note" rows={3} maxLength={600} value={reelNote} onChange={(e) => setReelNote(e.target.value)}
+                  placeholder={run.reels_note || 'e.g. Lead with the 20:20:30:30 payment plan. Say every BHK and its price. Less mood, more numbers. 6 acres of green.'}
+                  className="w-full rounded-lg border border-gray-300 p-2 text-sm" />
+                <p className="text-xs text-gray-500">
+                  With a note, the creative room meets again and writes new reels from it; the note is kept for this
+                  listing&apos;s later campaigns. Every reel shows the BHK range, the &quot;from&quot; price and the payment plan.
+                </p>
                 <Btn disabled={run.reels_state === 'making'} onClick={remakeReels}>
-                  {run.reels_state === 'making' ? 'Making the reels…' : 'Make the reels again (ad style)'}
+                  {run.reels_state === 'making' ? 'Making the reels…' : reelNote.trim() ? 'Make new reels from my note' : 'Make the reels again (ad style)'}
                 </Btn>
                 <p className="text-xs text-gray-500">
                   Every post becomes a short ad reel (hook, quick cuts, price at the end, "Comment INFO") with our music. Uses

@@ -25,21 +25,63 @@ interface Offer {
   bhk?: number | null
   source?: string | null
   read_at?: string | null
+  /** the live listing's price sheet: every home type with its size and price (a project listed with several) */
+  homes?: { bhk: number; label: string; carpet_sqft?: number | null; price_inr?: number | null }[] | null
+  payment_plan?: string | null
+}
+
+function bhkRange(homes: { label: string }[]): string {
+  const nums = Array.from(new Set(homes.map((h) => h.label.replace(' BHK', '')).filter((x) => /^[\d.]+$/.test(x))))
+  if (!nums.length) return ''
+  return (nums.length > 1 ? `${nums.slice(0, -1).join(', ')} & ${nums[nums.length - 1]}` : nums[0]) + ' BHK'
 }
 
 function OfferBox({ facts }: { facts: PropertyFactsView | null }) {
   const o = (facts as unknown as { offer?: Offer } | null)?.offer
   if (!o || !(o.price_inr || o.plot_sqft || o.carpet_sqft || o.bhk)) return null
-  const what = [o.bhk ? `${o.bhk} BHK` : null, o.property_type, o.plot_sqft ? `plot ${o.plot_sqft.toLocaleString('en-IN')} sq ft` : null,
-    o.carpet_sqft ? `${o.carpet_sqft.toLocaleString('en-IN')} sq ft carpet` : null].filter(Boolean).join(' · ')
+  const sheet = o.homes && o.homes.length > 1 ? o.homes : null
+  const sizes = (sheet || []).map((h) => h.carpet_sqft || 0).filter(Boolean)
+  const what = sheet
+    ? [bhkRange(sheet), o.property_type ? `${o.property_type}s` : null,
+      sizes.length ? `${Math.min(...sizes).toLocaleString('en-IN')} to ${Math.max(...sizes).toLocaleString('en-IN')} sq ft carpet` : null]
+      .filter(Boolean).join(' · ')
+    : [o.bhk ? `${o.bhk} BHK` : null, o.property_type, o.plot_sqft ? `plot ${o.plot_sqft.toLocaleString('en-IN')} sq ft` : null,
+      o.carpet_sqft ? `${o.carpet_sqft.toLocaleString('en-IN')} sq ft carpet` : null].filter(Boolean).join(' · ')
   return (
     <section aria-labelledby="offer-title" className="rounded-2xl border border-amber-200 bg-amber-50 p-4" data-testid="offer">
       <h2 id="offer-title" className="text-lg font-bold text-slate-900">On offer</h2>
-      {o.price_inr ? <p className="mt-1 text-2xl font-extrabold text-slate-900">{formatPrice(o.price_inr)}</p> : null}
+      {o.price_inr ? <p className="mt-1 text-2xl font-extrabold text-slate-900">{sheet ? 'From ' : ''}{formatPrice(o.price_inr)}</p> : null}
       {what && <p className="mt-1 text-slate-800">{what}</p>}
+      {o.payment_plan ? (
+        <p className="mt-2 text-slate-900" data-testid="payment-plan">
+          Payment plan: <strong>{o.payment_plan}</strong> <span className="text-sm text-slate-600">(the builder&apos;s plan)</span>
+        </p>
+      ) : null}
+      {sheet ? (
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full min-w-[16rem] text-left text-sm" data-testid="price-sheet">
+            <thead>
+              <tr className="border-b border-amber-200 text-slate-600">
+                <th className="py-1.5 pr-3 font-medium">Home</th>
+                <th className="py-1.5 pr-3 font-medium">Carpet area</th>
+                <th className="py-1.5 font-medium">Price</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sheet.map((h, i) => (
+                <tr key={i} className="border-b border-amber-100 last:border-0">
+                  <td className="py-1.5 pr-3 font-semibold text-slate-900">{h.label}</td>
+                  <td className="py-1.5 pr-3 text-slate-800">{h.carpet_sqft ? `${h.carpet_sqft.toLocaleString('en-IN')} sq ft` : '—'}</td>
+                  <td className="py-1.5 font-semibold text-slate-900">{h.price_inr ? formatPrice(h.price_inr) : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
       {o.price_inr && o.transaction !== 'rent' ? (
         <p className="mt-2 text-sm text-slate-800" data-testid="own-cash">
-          With a home loan, your own cash: about <strong>{formatPrice(ownCash(o.price_inr))}</strong>
+          With a home loan, your own cash{sheet ? ` for the ${sheet[0].label}` : ''}: about <strong>{formatPrice(ownCash(o.price_inr))}</strong>
           <span className="mt-1 block text-xs text-slate-600">{OWN_CASH_NOTE}</span>
         </p>
       ) : null}

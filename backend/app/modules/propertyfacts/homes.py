@@ -54,6 +54,21 @@ def short_price(n: Optional[int]) -> str:
     return f"₹{lakh:.0f} Lakh" if lakh == int(lakh) else f"₹{lakh:.1f} Lakh"
 
 
+def deal(listing: dict) -> tuple:
+    """(money line, plan line) a reel closes on, '' for what the listing lacks: ('2, 3 & 4 BHK from ₹1.20 Cr',
+    '20:20:30:30 payment plan'); one home: ('2 BHK at ₹1.29 Cr', ...)."""
+    table, low = rows(listing), from_price(listing)
+    plot = listing.get("property_type") == "plot"
+    if several(listing):
+        what = bhk_range(table) or ("Plots" if plot else "Homes")
+        money = f"{what} from {short_price(low)}" if low else ""
+    else:
+        what = table[0]["label"] if table else ("Plot" if plot else "")
+        money = (f"{what} at {short_price(low)}" if what else short_price(low)) if low else ""
+    plan = payment_plan(listing)
+    return money, (f"{plan} payment plan" if plan else "")
+
+
 def payment_plan(listing: dict) -> str:
     return " ".join(str(listing.get("payment_plan") or "").split())
 

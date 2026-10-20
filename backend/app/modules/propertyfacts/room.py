@@ -158,6 +158,9 @@ def book(c: Ctx, listing: dict) -> List[Dict[str, str]]:
                 continue
             seen.add(x.lower())
             out.append(f"{said}: {x}.")
+    note = agent_note(listing)
+    if note:   # what the agent says sells it (Studio's "what to stress" note): theirs, like the listing's own numbers
+        out.append(f"The agent says: {note.rstrip('.')}.")
     for k, v in c.brochure.items():   # what the agent confirmed from the brochure kit
         if k.startswith("brochure.") and isinstance(v, list):
             items = [str(x) for x in v if str(x).strip() and not STALE.search(str(x))][:8]
@@ -166,13 +169,22 @@ def book(c: Ctx, listing: dict) -> List[Dict[str, str]]:
     return [{"id": f"F{i + 1}", "text": t} for i, t in enumerate(dict.fromkeys(out))]
 
 
+NOTE_MAX = 600
+
+
+def agent_note(listing: dict) -> str:
+    """The agent's own steer for the campaign (listing.marketing_note, set with "Make reels again"): what to stress, what to
+    change. One line, at most NOTE_MAX characters."""
+    return " ".join(str(listing.get("marketing_note") or "").split())[:NOTE_MAX]
+
+
 def _book_text(facts: Sequence[Dict[str, str]]) -> str:
     return "\n".join(f"{f['id']}: {f['text']}" for f in facts)
 
 
 # ---- the people --------------------------------------------------------------------------------------------------------------
 RULES = ("Rules for everyone in the room: use ONLY the numbered facts; never a number, name, date or claim that is not in them "
-         "(no prices beyond the one given, no 'ready to move', no investment returns, no 'best', 'dream', 'guaranteed', 'luxurious'). "
+         "(no prices beyond the ones given, no 'ready to move', no investment returns, no 'best', 'dream', 'guaranteed', 'luxurious'). "
          "Premium words are fine when the facts carry them (a known builder, a named architect, a clubhouse). A price that is a "
          "starting price is always 'from ... onwards'. Keep every fact where it belongs: a feature of one home type (a servant "
          "quarter in the 4 BHK) is never given to another. A MahaRERA registration is a registration: never 'approved', "
@@ -184,7 +196,10 @@ RULES = ("Rules for everyone in the room: use ONLY the numbered facts; never a n
          "welcome when a fact stands behind them; returns, appreciation and 'ready' are not. The project itself is launched "
          "and booking: never 'coming' or 'soon'. Spread the facts across the campaign: each named fact (an architect, a place, "
          "the metro, the price) leads at most one piece and appears in at most two, unless it is the brief's focus (then up "
-         "to three, on purpose). Never 'best deal', 'lowest price' or 'cheapest'.")
+         "to three, on purpose). Never 'best deal', 'lowest price' or 'cheapest'. Buyers decide on money: when the facts give "
+         "home types with prices or a payment plan, the campaign says them (the BHK range and the 'from' price in at least "
+         "one reel, the payment plan in at least one piece). When the facts carry what the agent says, follow it: the agent "
+         "knows what sells this property.")
 
 STRATEGIST = (
     "You are the marketing strategist of a Pune property agency. From the numbered facts, write the campaign brief. Decide what "
@@ -258,6 +273,8 @@ def _user(facts, room: Dict[str, Any], extra: str = "") -> str:
         parts.append("Brief: " + "; ".join(f"{k}: {v}" for k, v in brief.items() if v))
     if room.get("pictures"):
         parts.append("Pictures we have: " + room["pictures"])
+    if room.get("note"):
+        parts.append("The agent's note (follow it: what to stress, what to change): " + room["note"])
     if extra:
         parts.append(extra)
     return "\n\n".join(parts)
@@ -357,6 +374,8 @@ async def convene(c: Ctx, listing: dict, llm: Any, photos: int = 0, images: Sequ
     room: Dict[str, Any] = {"book": facts, "pictures": ", ".join(x for x in (
         f"{photos} photos of the property" if photos else "", f"{kinds.count('render')} builder render(s)" if "render" in kinds else "",
         f"{kinds.count('floor_plan')} floor plan(s)" if "floor_plan" in kinds else "") if x) or "text cards only"}
+    if agent_note(listing):
+        room["note"] = agent_note(listing)
     if earlier and pick:
         room.update({k: earlier.get(k) for k in ("brief", "pitches", "discussion")})
     else:

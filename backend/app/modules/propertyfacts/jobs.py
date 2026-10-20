@@ -101,7 +101,7 @@ def run_out(doc: Optional[dict], base_url: str = "") -> Optional[dict]:
             "plan": doc.get("plan") or [], "skipped": doc.get("skipped") or {},
             "mode": doc.get("mode") or "full", "changes": doc.get("changes") or [], "base_run": doc.get("base_run"),
             "redone": doc.get("redone") or [], "stale": [p["angle"] for p in doc.get("posts") or [] if p.get("stale")],
-            "reels_state": doc.get("reels_state"), "reels_error": doc.get("reels_error") or "",
+            "reels_state": doc.get("reels_state"), "reels_error": doc.get("reels_error") or "", "reels_note": doc.get("reels_note") or "",
             "boost": boost_out(doc.get("boost"), base), "room": room_out(doc.get("room")), "pick": doc.get("pick")}
 
 
@@ -562,7 +562,7 @@ class MarketingRuns:
         The walkthrough: none for a listing with a video (its video reel covers the place); from the listing's
         photos when it has 2; else from the run's ranked pictures (`pool`: stills, brochure pages) when 2 are usable; else a
         note asking for photos. Its style (tour or stack) is fixed per listing (walkthrough_style), spoken in the posts' language."""
-        reels = await self._ad_reels(job, todo, out, project, pool, facts or {})
+        reels = await self._ad_reels(job, todo, out, project, pool, facts or {}, listing)
         video = self._video(listing)
         if video:
             reels.append(await self._video_reel(job, listing, video, out, project, link_line))
@@ -638,10 +638,12 @@ class MarketingRuns:
         return kept
 
     async def _ad_reels(self, job: dict, todo: List[dict], out: Path, project: str, pool: Sequence[str],
-                        facts: Dict[str, Any]) -> List[dict]:
+                        facts: Dict[str, Any], listing: Optional[dict] = None) -> List[dict]:
         """One ad reel per `todo` item (_reel_todo): the room's story scripts, else the format asked, the words checked against
-        the facts, each opening on a different one of the best pictures. Own photos first."""
-        from . import ad_reel
+        the facts, each opening on a different one of the best pictures. Own photos first. Each one says the deal on screen
+        (ad_reel.with_deal: the BHK range and 'from' price, the payment plan) from the listing."""
+        from . import ad_reel, homes
+        money, plan = homes.deal(listing) if listing else ("", "")
         render = self.ad_renderer or ad_reel.render
         llm = self.llm_factory() if self.llm_factory else None
         ctx = campaign.Ctx(facts, voice=(await self._identity(job)).voice)
@@ -660,6 +662,7 @@ class MarketingRuns:
             try:
                 script = written[p["angle"]] if p["angle"] in written else await ad_reel.write(fmt, ctx, llm)
                 ad_reel.with_checks(script, ctx)
+                ad_reel.with_deal(script, money, plan)
                 order = pics[i % len(pics):] + pics[:i % len(pics)] if pics else []
                 started = time.monotonic()
                 made = await asyncio.to_thread(render, script, order, dest, kicker)   # music only: the voice is asked later
@@ -679,16 +682,43 @@ class MarketingRuns:
                             reason=str(e) or type(e).__name__, exc_info=True)
         return reels
 
-    async def remake_reels(self, agent_id: str, listing_id: str) -> dict:
+    async def remake_reels(self, agent_id: str, listing_id: str, note: str = "") -> dict:
         """Make only the ad reels again from the finished run's posts, facts and pictures (the worker does it; reels_state
-        "making" meanwhile). The posts, the walkthrough and the video reel are kept as they are."""
+        "making" meanwhile). The posts, the walkthrough and the video reel are kept as they are. `note`: the agent's steer
+        ("stress the 20:20:30:30 plan, less mood"), kept on the listing as marketing_note for every later campaign; with
+        one the creative room meets again before the reels are written."""
         run = await self.latest(agent_id, listing_id)
         if not run or run["status"] != "done" or not run.get("posts"):
             raise RunError("Make the posts first.", 409)
         if run.get("reels_state") == "making":
             return run
-        await self._set(run["_id"], reels_state="making", reels_queued=True)
-        return {**run, "reels_state": "making"}
+        note = " ".join(str(note or "").split())[:room.NOTE_MAX]
+        if note:
+            await self.listings.update_one({"_id": listing_id, "agent_id": agent_id}, {"$set": {"marketing_note": note}})
+        await self._set(run["_id"], reels_state="making", reels_queued=True, reels_note=note)
+        return {**run, "reels_state": "making", "reels_note": note}
+
+    async def _reroom(self, job: dict, listing: dict, facts: Dict[str, Any], pool: Sequence[str]) -> dict:
+        """The run with a new creative room written with the agent's note (listing.marketing_note), kept as its `room`; the
+        run as it was when the room cannot meet (no model, a non-English run, too little surviving the fact check)."""
+        live = getattr(self.llm_factory, "__name__", "") == "default_llm"
+        llm = self.llm_factory() if self.llm_factory else None
+        if llm is None or not live or (job.get("language") or "en") != "en" or os.environ.get("CREATIVE_ROOM", "on").lower() == "off":
+            return job
+        try:
+            from app.platform.llm import critical_llm
+            kit = await self._kit(job["listing_id"], job["agent_id"])
+            images = await self._brochure_images(job["agent_id"], job["listing_id"])
+            doc = await room.convene(campaign.Ctx(facts, kit=kit), listing, critical_llm() or llm, photos=len(pool), images=images)
+        except Exception as e:
+            trace.event(log, "marketing", job["_id"], "reroom", trace.FAILED, reason=str(e)[:200] or type(e).__name__, exc_info=True)
+            return job
+        if doc is None:
+            trace.event(log, "marketing", job["_id"], "reroom", trace.FALLBACK, reason="no campaign survived the fact check")
+            return job
+        trace.event(log, "marketing", job["_id"], "reroom", trace.OK, campaign=doc["campaign"]["name"])
+        await self._set(job["_id"], room=doc)
+        return {**job, "room": doc}
 
     async def claim_reels(self) -> Optional[dict]:
         doc = await self.runs.find_one({"reels_queued": True})
@@ -714,7 +744,11 @@ class MarketingRuns:
                 pool = [str(self.uploads_dir / _rel(i)) for p in job.get("posts") or [] if p.get("photo") == "brochure"
                         for i in p.get("images", [])[:1]]
             todo = await self._reel_todo(job, listing, facts, job.get("posts") or [], job.get("link_line") or "")
-            ads = await self._ad_reels(job, todo, out, ctx.project, pool, facts)
+            if job.get("reels_note"):   # the agent's note: the room meets again with it, then the reels are written anew
+                job = await self._reroom(job, listing, facts, pool)
+            ads = await self._ad_reels(job, todo if not job.get("reels_note") else
+                                       await self._reel_todo(job, listing, facts, job.get("posts") or [], job.get("link_line") or ""),
+                                       out, ctx.project, pool, facts, listing)
             reels = [r for r in job.get("reels") or [] if r.get("kind") not in ("slides", "ad")] + ads
             await self._set(job["_id"], reels=reels, reels_state="done", reels_error=None)
             if job.get("calendar"):

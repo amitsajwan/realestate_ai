@@ -36,6 +36,7 @@ from app.modules.marketing.images import latin, photo_paths
 from app.modules.marketing.maharera import ProjectRegistration, badge as maharera_badge, for_listing as project_registration
 from app.modules.photoquality import rank_photos, room_order, shown, tag_photos
 from app.platform import trace
+from app.platform.text import money
 
 from . import ffmpeg, narration, voice
 from .compose import Scene, TextLine, devanagari_clean, devanagari_ok, make_reel, plan, stretch
@@ -144,9 +145,15 @@ def reel_facts(listing: dict, profile: Optional[dict]) -> Tuple[str, List[str], 
     lines: List[str] = [f.title_line("en")]
     if f.price_text:   # with the way it is said, so a spoken "1 crore 29 lakh" passes the number check
         said = crore_lakh(f.price_text)
-        lines.append(f"Price {f.price_text}" + (f" ({said.replace('Cr', 'crore').replace('Lakh', 'lakh')})" if said else ""))
+        lines.append(("Prices from " if f.several else "Price ") + f.price_text + (" onwards" if f.several else "")
+                     + (f" ({said.replace('Cr', 'crore').replace('Lakh', 'lakh')})" if said else ""))
+    for r in f.homes:   # a price sheet: every home type with its size and price, as the agent listed them
+        lines.append(" · ".join(x for x in (r["label"], f"{int(r['carpet_sqft']):,} sq ft carpet" if r.get("carpet_sqft") else "",
+                                            money(int(r["price_inr"])) if r.get("price_inr") else "") if x))
     if f.area_text:
-        lines.append(f"{f.area_kind.capitalize()} area {f.area_text}")
+        lines.append(f"{(f.area_kind or 'carpet').capitalize()} area {f.area_text}")
+    if f.payment_plan:
+        lines.append(f"Payment plan {f.payment_plan} (the builder's plan)")
     if f.floor_text("en"):
         lines.append(f.floor_text("en"))
     if f.possession_text("en"):
@@ -292,6 +299,8 @@ def _devanagari_screens(f: Facts, lang: str) -> Dict:
     else:
         feats_line = f"*{first[0]}*" if first else ""
     price = w["rent" if f.rent else "sale"].format(p=f"*{_screen_price(f, lang)}*") if f.price_text else ""
+    if price and f.several:   # a price sheet: "कीमत ₹1.2 करोड़ से" / "किंमत ₹1.2 कोटी पासून"
+        price += " से" if lang == "hi" else " पासून"
     return {"hook": w["in"].format(w=f"*{what}*", l=place) if place else f"*{what}*",
             "price": price, "size": size, "feats": feats_line,
             "highlight": _short_deva(f.highlights[0], SCREEN_WORDS) if f.highlights else "", "look": w["look"]}
@@ -307,7 +316,8 @@ def _say_hook(f: Facts, lang: str) -> str:
         return f.title_line(lang) + _end(lang)
     w = (f"{f.bhk_text} " if f.bhk_text else "") + f.type_text(lang)
     loc, tx = f.loc or f.city or "", T[lang]["tx"][f.transaction]
-    return (_SAY[lang]["hook"].format(l=loc, w=w, tx=tx) if loc else _SAY[lang]["hook_nl"].format(w=w, tx=tx))
+    out = (_SAY[lang]["hook"].format(l=loc, w=w, tx=tx) if loc else _SAY[lang]["hook_nl"].format(w=w, tx=tx))
+    return out.replace("एक ", "", 1) if f.several else out   # several home types: never "one"
 
 
 def _say_floor(f: Facts, lang: str) -> Optional[str]:
@@ -357,7 +367,21 @@ def rules_script(f: Facts, lang: str, devanagari: Optional[bool] = None) -> Dict
     beats = [{"screen": ds.get("hook") or hook_s, "voice": _say_hook(f, lang)}]
     if f.price_text:
         said = _SAY[lang]["rent" if f.rent else "sale"] if lang in _SAY else w["price"]
-        beats.append({"screen": ds.get("price") or f"*{f.price_text}*", "voice": said.format(p=_spoken_price(f, lang))})
+        if f.several:   # a price sheet: "from ₹1.2 Cr" on screen, "prices start at ..." said
+            said = {"en": "Prices start at {p}.", "hi": "कीमत {p} से शुरू।", "mr": "किंमत {p} पासून सुरू."}.get(lang, said)
+            screen = ds.get("price") or f"From *{f.price_text}*"
+        else:
+            screen = ds.get("price") or f"*{f.price_text}*"
+        beats.append({"screen": screen, "voice": said.format(p=_spoken_price(f, lang))})
+    if f.size_range:   # the smallest to the largest home on the sheet
+        lo, hi = f.size_range
+        beats.append({"screen": f"*{lo:,}-{hi:,}* sq ft", "voice": {
+            "en": f"Homes from {lo:,} to {hi:,} square feet carpet.", "hi": f"घर {lo:,} से {hi:,} स्क्वेयर फीट कार्पेट।",
+            "mr": f"घरं {lo:,} ते {hi:,} स्क्वेअर फूट कार्पेट."}.get(lang, f"{lo:,}-{hi:,} sq ft.")})
+    if f.payment_plan:   # what a buyer of an under-construction home asks next: how the money is paid
+        spoken = ", ".join(f.payment_plan.replace(":", " ").replace("/", " ").split())
+        beats.append({"screen": f"*{f.payment_plan}* payment plan", "voice": {
+            "en": f"Payment plan: {spoken}.", "hi": f"पेमेंट प्लान {spoken}।", "mr": f"पेमेंट प्लॅन {spoken}."}.get(lang, f.payment_plan)})
     if f.area or f.floor is not None:
         # commas, not ' · ': the renderer wraps on spaces, so a lone dot could start the next line
         screen = ds.get("size") or ", ".join(x for x in [f"*{f.area:,}* sq ft" if f.area else "", f.floor_text("en") or ""] if x)
@@ -807,7 +831,8 @@ def caption(listing: dict, attribution: str, lang: str = "en") -> str:
     lang = lang if lang in LANGS else "en"
     f = Facts.from_docs(listing, None, "")
     kind = _CAPTION_KIND[lang].get(f.area_kind or "", f.area_kind or "")
-    bits = " · ".join(x for x in (f.price_text, f.area_text and f"{f.area_text} {kind}".strip()) if x)
+    bits = " · ".join(x for x in (f.price_line, f.area_text and f"{f.area_text} {kind}".strip(),
+                                  f.payment_plan and f"Payment plan {f.payment_plan}") if x)
     lines = [f.title_line(lang) + (f"\n{bits}" if bits else "")]
     if attribution:
         lines.append(attribution)
