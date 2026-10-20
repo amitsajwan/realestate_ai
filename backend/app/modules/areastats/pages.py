@@ -9,6 +9,7 @@ list first (areastats.watch), and then has its page at once.
 """
 import re
 import time
+from functools import lru_cache
 from datetime import date, datetime, timedelta, timezone
 from typing import List, Optional
 
@@ -269,9 +270,15 @@ RECORD_MIN = 5    # projects with both dates before a builder's record is stated
 
 def builder_key(doc: dict) -> str:
     """The builder page a record belongs to (/builders/<key>): its brand (areastats.brands), else its MahaRERA promoter."""
+    return _builder_key(str(doc.get("promoter") or ""), str(doc.get("name") or ""))
+
+
+@lru_cache(maxsize=65536)
+def _builder_key(promoter: str, name: str) -> str:
+    # remembered: every project page asks it for all ~13k records (4.5 s uncached on the VM, 2026-10-20)
     from . import brands
-    b = brands.of(doc)
-    return b.slug if b else builder_slug(doc.get("promoter"))
+    b = brands.of({"promoter": promoter, "name": name})
+    return b.slug if b else builder_slug(promoter)
 
 
 def delivery(mine: List[dict]) -> dict:
