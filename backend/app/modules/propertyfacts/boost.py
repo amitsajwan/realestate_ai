@@ -306,14 +306,32 @@ def reel_beats(f: Facts, brand_name: str = "") -> Tuple[str, List[dict]]:
     return hook, beats
 
 
+HERO_KINDS = ("exterior", "amenity", "view")   # what opens the pair: the building or its grounds, never a bedroom
+
+
+def hero_first(photos: Sequence[str]) -> List[str]:
+    """The photos with the best outside shot first (photoquality tags, cached by the walkthrough's tagging: no network here);
+    the ranked order as it is when no photo is tagged as one."""
+    pics = list(photos)
+    try:
+        from app.modules.photoquality.tagging import cached_tags
+        tags = {str(k): v for k, v in cached_tags(pics).items()}
+    except Exception:
+        return pics
+    hero = next((p for kind in HERO_KINDS for p in pics if (tags.get(str(Path(p))) or {}).get("kind") == kind), None)
+    return [hero] + [p for p in pics if p != hero] if hero else pics
+
+
 def reel_scenes(hook: str, beats: List[dict], photos: Sequence[str], kicker: str) -> List[Any]:
     from app.modules.reels.compose import Scene, TextLine
     pics = list(photos)
-    scenes = [Scene(lines=[TextLine(hook, size=124, max_lines=4)], kicker=kicker or None, seconds=2.2, seed="boost-hook")]
-    for i, p in enumerate(pics[:2]):   # the property itself, right after the hook
+    # the first second is the property, its offer on top (owner 2026-10-20: an empty blue card does not stop a scroll)
+    scenes = [Scene(image=pics[0] if pics else None, lines=[TextLine(hook, size=124, max_lines=4)], kicker=kicker or None,
+                    seconds=2.2, seed="boost-hook")]
+    for i, p in enumerate(pics[1:3]):   # more of the property, right after the hook
         scenes.append(Scene(image=p, seconds=2.4, seed=f"boost-photo{i}"))
     for i, b in enumerate(beats):
-        img = pics[(2 + i) % len(pics)] if pics and b["photo"] else None
+        img = pics[(3 + i) % len(pics)] if pics and b["photo"] else None
         lines = [TextLine(b["lines"][0], size=96, max_lines=3)] + [TextLine(x, size=40) for x in b["lines"][1:]]
         scenes.append(Scene(image=img, lines=lines, layout="center", seconds=2.8 if b["kind"] == "cta" else 2.5,
                             seed=f"boost-{b['kind']}"))
@@ -468,6 +486,12 @@ async def make(db, *, facts: Dict[str, Fact], listing: dict, agent_id: str, out:
     """The boost pair as kept on the run (`boost`, state "ready"); raises on failure (the caller stores the error)."""
     uploads_dir, out = Path(uploads_dir), Path(out)
     rel = lambda p: "/uploads/" + Path(p).resolve().relative_to(uploads_dir.resolve()).as_posix()
+    try:   # label the pictures the walkthrough did not (cached once per picture); the pair never waits on a failure here
+        from app.modules.photoquality.tagging import tag_photos
+        await tag_photos([Path(p) for p in photos])
+    except Exception:
+        log.info("boost: picture tagging skipped", exc_info=True)
+    photos = hero_first(photos)
     f = Facts(facts, listing)
     hook, beats = reel_beats(f, brand_name)
     briefs = carousel_briefs(f, hook, photos[0] if photos else "none")
