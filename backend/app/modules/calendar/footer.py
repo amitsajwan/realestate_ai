@@ -48,8 +48,15 @@ def ask_for(body: str, key: Optional[str] = None, place: str = "", language: str
     return "\n".join(asks)
 
 
-def footer_for(channel: str) -> str:
-    return INSTAGRAM_FOOTER if channel == "instagram" else FACEBOOK_FOOTER
+def footer_for(channel: str, page: str = "") -> str:
+    """The footer; with `page` (the avasetu.in page the post is about: a guide, the for-agents page) it links that page, not the
+    home page (owner 2026-10-20: every post links its own Avasetu page, for search and for the reader). Instagram writes the
+    address out, as its captions cannot link."""
+    if not page:
+        return INSTAGRAM_FOOTER if channel == "instagram" else FACEBOOK_FOOTER
+    if channel == "instagram":
+        return f"{brand.NAME} · {re.sub(r'^https?://(www[.])?', '', page).rstrip('/')} · link in our bio"
+    return f"{brand.NAME} · {page}"
 
 
 def _limit(channel: str) -> int:
@@ -81,12 +88,14 @@ def _cut(body: str, room: int) -> str:
     return (cut[:at] if at > 0 else cut).rstrip() + "…"
 
 
-def with_footer(caption: str, channel: str, key: Optional[str] = None, place: str = "", language: str = "en") -> str:
+def with_footer(caption: str, channel: str, key: Optional[str] = None, place: str = "", language: str = "en",
+                page: str = "") -> str:
     """Caption + engagement ask + footer, once. At most 10 hashtags (5 on Instagram); Facebook stays under 900 characters and Instagram under 2000 (the body is trimmed, never the footer)."""
-    foot = footer_for(channel)
+    foot = footer_for(channel, page)
     body = _LEGACY_FOOTER.sub("", caption or "").strip()
-    if foot in body:
-        body = body.replace(foot, "").rstrip(" \n·")
+    for f in dict.fromkeys((foot, footer_for(channel))):   # the plain footer of an earlier pass too, never kept twice
+        if f in body:
+            body = body.replace(f, "").rstrip(" \n·")
     body = _trim_hashtags(body, _max_tags(channel))
     tags = _TAG.findall(body)
     # keep the trailing hashtag block (if any) intact when trimming the prose

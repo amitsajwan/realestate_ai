@@ -532,16 +532,37 @@ async def _search_line_for(db, doc: dict, language: str) -> str:
     return search_line(listing, language)
 
 
+# the avasetu.in page a post that is not about one listing links in its footer, by its calendar slug (campaign posts carry their
+# project page in the caption already)
+TOPIC_PAGES = (("mhada", "/guides/mhada-pune-lottery"), ("upper-kharadi", "/guides/upper-kharadi"))
+
+
+def page_for(doc: dict) -> str:
+    """The page this post is about: its own page_url, a guide by slug, the for-agents page for recruitment; '' for the home page."""
+    from app.core import brand
+    from .reach import audience
+    if doc.get("page_url"):
+        return str(doc["page_url"])
+    slug = str(doc.get("slug") or "")
+    for prefix, path in TOPIC_PAGES:
+        if slug.startswith(prefix):
+            return brand.SITE + path
+    if audience(doc) == "agents":
+        return brand.SITE + "/for-agents"
+    return ""
+
+
 async def with_interest(db, doc: dict) -> dict:
     """The row with its caption ready to publish: a tap-to-show-interest line (a real link on Facebook, 'link in our bio' on Instagram,
-    whose bio link is the /go hub) and the standard footer. Any failure returns the row unchanged: a post never waits on this."""
+    whose bio link is the /go hub) and the standard footer, linking the page the post is about (page_for). Any failure returns the
+    row unchanged: a post never waits on this."""
     try:
         from app.modules.interest.service import interest_url
         from .footer import with_footer
         channel = "instagram" if doc["channel"] == "instagram" else "facebook"
         from .reach import audience
         if audience(doc) == "agents":  # recruitment posts carry their own free-trial link and comment keyword, not a buyer interest link
-            return {**doc, "caption": with_footer(doc["caption"], channel)}
+            return {**doc, "caption": with_footer(doc["caption"], channel, page=page_for(doc))}
         agent = doc.get("agent_id") or _owner_agent()  # an agent's own post (agentprojects) sends interest to that agent
         caption = doc["caption"]
         if agent:
@@ -572,7 +593,7 @@ async def with_interest(db, doc: dict) -> dict:
             from app.modules.creative import i18n
             place = i18n.PLACES.get(place, {}).get(language, place)
         return {**doc, "caption": with_footer(caption, channel, key=str(doc.get("slug") or doc.get("_id") or ""), place=place,
-                                              language=language)}
+                                              language=language, page=page_for(doc))}
     except Exception:
         return doc
 
