@@ -158,7 +158,21 @@ landmarks on a Kharadi page, sizes that disagree, test.housiey.com indexed). Sho
    (/projects/area/<place>): "Being built" grouped by stage with jump chips; sold-out projects in a closed section at the end.
    MahaRERA's quarterly progress (getBuildingWingsActivityDetails, getLastQPRFormDetails) answers 401 without its login, so
    the stage is labelled "by dates", never "construction progress".
-3. TARGET: builder pages with a delivery record (`pages.track_record` already counts moved dates per promoter).
+3. LIVE once deployed: builder pages by brand with a date record.
+   - Brands (`areastats/brands.py`): MahaRERA files projects under one company per project or land (Godrej Ivara: Manjari
+     Housing Projects LLP), so 29 Pune brands group their companies: a record joins when the company name says the brand, or the
+     project name starts with a brand word no other builder uses (and a promoter is on record). Per record: Manjari LLP's
+     "Sarita Niketan" stays out. Checked on the register 2026-10-20: 854 of 12,835 records in a brand; Godrej 42 projects over
+     15 companies. `pages.builder_key` = brand slug, else the promoter slug; /builders/<company> whose projects all moved to a
+     brand answers 301 to the brand page.
+   - Record (`pages.delivery`): moved = filed completion date 3+ months later than at registration, net of the 2026 blanket
+     extension. COVID extensions are not in these dates (72% of 2,652 projects built through 2020 show no move, no 6/9-month
+     spike), so nothing else is netted. Stated only with 5+ projects with both dates. MahaRERA's `projectStatusName` says "New"
+     even for finished projects, so no "overdue/completed" figure; handover dates are not published.
+   - SEO: brand page title "<Brand> Projects in Pune (N): Possession Dates and Delays", FAQPage (how many projects, on time?,
+     which being built, which companies), breadcrumb Home > Builders; /builders index (brands first, then 200 others) linked from
+     the header menu and footer, in the sitemap; brand pages at priority 0.8. `seo.gaps` sends brand searches ("godrej projects
+     pune", "vj palladio") to the brand page; facet lists and project pages link the brand page.
 
 ## Prices from the web (2026-10-20, LIVE)
 

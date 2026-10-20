@@ -22,7 +22,7 @@ from app.core import pune_places
 from app.core.areas import AREAS
 from app.modules.areastats import hot
 from app.modules.areastats.hubs import _primaries, link_name
-from app.modules.areastats.pages import _long, booked, cluster_stamps, cluster_updated, completion_passed, indexable, is_old
+from app.modules.areastats.pages import _long, booked, builder_key, cluster_stamps, cluster_updated, completion_passed, indexable, is_old
 from app.modules.areastats.service import _count, _day
 from app.modules.areastats.text import builder_slug
 from app.modules.newsroom.store import Store
@@ -246,7 +246,7 @@ def _row(d: dict, why: str, n: int) -> dict:
     total = _count(d.get("units_total"))
     return {"rank": n, "slug": d["page_slug"], "name": link_name(d), "legal_name": d.get("name", ""),
             "regno": d.get("regno") or d["_id"], "promoter": d.get("promoter") or None,
-            "builder_slug": builder_slug(d.get("promoter")) or None,
+            "builder_slug": builder_key(d) or None,   # the brand page when there is one (areastats.brands)
             "registered_on": _day(d.get("registered_on")), "completion_now": _day(d.get("completion_now")),
             "completion_at_registration": _day(d.get("completion_at_registration")),
             "units_total": total, "units_booked": booked(d), "reason": why, "source": "MahaRERA"}

@@ -76,8 +76,8 @@ def answer(topic: str, doc: dict, docs: List[dict], shown: str) -> Optional[tupl
         t = track_record(doc, docs)
         more = ""
         if t and t["count"] > 1:
-            more = f" Our MahaRERA register has {t['count']} Pune projects by this promoter"
-            more += (f"; {t['moved_later']} of {t['with_dates']} moved their completion date later." if t["with_dates"] else ".")
+            more = f" Our MahaRERA register has {t['count']} Pune projects by {t['name']}"
+            more += (f"; {t['moved_later']} of {t['with_dates']} moved their completion date 3 months or more later." if t["record_ok"] else ".")
         return (f"The promoter registered with MahaRERA for {shown} is {doc['promoter']}.{more}", "MahaRERA")
     if topic == "size":
         bits, srcs = [], []

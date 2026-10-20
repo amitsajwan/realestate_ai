@@ -9,7 +9,12 @@ import { serverApiBase } from './api'
 
 export interface ActiveProject { slug: string; name: string; fact: string; source: string; km?: number }
 
-export interface BuilderCard { slug: string; name: string; projects: number; indexable: boolean; page_updated: string | null }
+export interface BuilderCard {
+  slug: string; name: string; projects: number; indexable: boolean; page_updated: string | null
+  /** a brand over several MahaRERA companies (backend areastats/brands.py) */
+  brand?: boolean
+  with_dates?: number; moved_later?: number; avg_months_later?: number | null; record_ok?: boolean
+}
 
 export interface BuilderProject {
   slug: string
@@ -37,6 +42,13 @@ export interface BuilderPage {
   with_dates: number
   moved_later: number
   avg_months_later: number | null
+  /** 5+ projects with both dates: the record is stated */
+  record_ok: boolean
+  /** months later that count as moved (net of MahaRERA's blanket extensions) */
+  moved_min: number
+  brand: boolean
+  /** the MahaRERA promoters counted, most projects first */
+  companies: { name: string; projects: number }[]
   indexable: boolean
   page_updated: string | null
   source: string
@@ -78,9 +90,10 @@ export async function getBuilders(): Promise<BuilderCard[]> {
   return r.ok && Array.isArray(r.data) ? r.data : []
 }
 
-export async function getBuilder(slug: string): Promise<BuilderPage | null> {
+/** A builder page; { redirect } when the address is a company whose projects are all counted under a brand now. */
+export async function getBuilder(slug: string): Promise<BuilderPage | { redirect: string } | null> {
   if (!SLUG.test(slug)) return null
-  const r = await get<BuilderPage>('/api/v1/public/builders/' + encodeURIComponent(slug))
+  const r = await get<BuilderPage | { redirect: string }>('/api/v1/public/builders/' + encodeURIComponent(slug))
   if (r.ok) return r.data
   if (r.notFound) return null
   throw new Error('Builder data is temporarily unavailable')

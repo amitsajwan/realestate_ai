@@ -91,7 +91,8 @@ export async function buildSitemap(): Promise<Grouped> {
       .map((r) => ({ group: area(r.place ? placeSlug.get(r.place) : null),
         entry: at('/projects/' + r.slug, r.active === false ? 0.4 : 0.7, r.page_updated) })),   // our own page date only; MahaRERA's old dates never
     // one page per builder with two or more indexable projects (docs/plan/rank-loop.md R6)
-    ...builders.filter((b) => b.indexable).map((b) => ({ group: 'builders', entry: at('/builders/' + b.slug, 0.6, b.page_updated) })),
+    core(at('/builders', 0.6)),
+    ...builders.filter((b) => b.indexable).map((b) => ({ group: 'builders', entry: at('/builders/' + b.slug, b.brand ? 0.8 : 0.6, b.page_updated) })),
     // an agent's copy of a project on a shared page names that page as canonical, so only the others are listed
     ...agents.projects.filter((p) => !shared.has(p.agent_slug + '/' + p.slug)).map((p) => ({ group: 'agents', entry: at(agentPath(p.agent_slug, 'projects/' + p.slug), 0.6, p.updated_at) })),
     ...agents.listings.map((l) => ({ group: 'agents', entry: at(agentPath(l.agent_slug, 'listings/' + l.id), 0.6, l.updated_at) })),

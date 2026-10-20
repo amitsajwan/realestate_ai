@@ -156,13 +156,13 @@ export default async function CheckCardPage(props: Props) {
           </section>
         )}
 
-        {b && b.with_dates > 1 && (
+        {b && b.record_ok && (
           <section aria-labelledby="builder-title" className="rounded-2xl bg-slate-50 p-4 ring-1 ring-inset ring-slate-200">
             <h2 id="builder-title" className="text-lg font-semibold text-slate-900">{b.name}&apos;s record</h2>
             <p className="mt-1 text-slate-800">
               {b.moved_later === 0
-                ? `None of their ${b.with_dates} projects with dates in our register moved their possession date later.`
-                : `${b.moved_later} of their ${b.with_dates} projects with dates moved possession later${b.avg_months_later ? `, by ${b.avg_months_later} months on average` : ''}.`}
+                ? `None of their ${b.with_dates} projects with dates in our register moved their possession date 3 months or more later.`
+                : `${b.moved_later} of their ${b.with_dates} projects with dates moved possession 3 months or more later${b.avg_months_later ? `, by ${b.avg_months_later} months on average` : ''}.`}
             </p>
             {p.builder_slug && <Link href={`/builders/${p.builder_slug}`} className="mt-2 inline-flex min-h-[44px] items-center font-semibold text-[#0f2340] underline underline-offset-2">See their projects</Link>}
           </section>

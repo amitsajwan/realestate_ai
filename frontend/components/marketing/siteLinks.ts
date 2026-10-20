@@ -30,6 +30,7 @@ export function siteLinks() {
   const posts: SiteLink = { href: '/posts', label: 'Posts' }
   const areas: SiteLink = { href: '/localities', label: 'Area guides' }
   const projects: SiteLink = { href: '/projects', label: 'Projects' }
+  const builders: SiteLink = { href: '/builders', label: 'Builders' }
   const check: SiteLink = { href: '/check', label: 'Check your project' }
   const insights: SiteLink = { href: '/insights', label: 'Insights' }
   const invite: SiteLink = { href: INVITE_PATH, label: 'Claim your free trial' }
@@ -38,13 +39,13 @@ export function siteLinks() {
   const ig: SiteLink = { href: instagram, label: 'Instagram', external: true }
   const fb: SiteLink = { href: facebook, label: 'Facebook', external: true }
   return {
-    forAgents, demo, news, posts, areas, projects, check, insights, invite, signIn, need, instagram: ig, facebook: fb,
+    forAgents, demo, news, posts, areas, projects, builders, check, insights, invite, signIn, need, instagram: ig, facebook: fb,
     /** Header, wide screens, by audience (the buyer or invite button sits next to these; 'For agents' is always there). */
     headerWide: { buyer: [projects, areas, news, forAgents], agent: [projects, forAgents, demo, areas] } as Record<Audience, SiteLink[]>,
     /** Header menu on phones: everything. */
-    menu: [projects, check, areas, news, insights, posts, forAgents, demo, signIn, ig, fb],
+    menu: [projects, builders, check, areas, news, insights, posts, forAgents, demo, signIn, ig, fb],
     footerAgents: [forAgents, demo, invite, signIn],
-    footerExplore: [projects, check, areas, news, posts, insights],
+    footerExplore: [projects, builders, check, areas, news, posts, insights],
     footerFollow: [ig, fb],
   }
 }

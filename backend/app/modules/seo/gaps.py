@@ -14,7 +14,7 @@ from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from app.core.areas import named_in
-from app.modules.areastats import searchconsole
+from app.modules.areastats import brands, searchconsole
 from app.modules.newsroom.store import Store
 
 MARK = "seo_gaps"
@@ -49,6 +49,9 @@ def template(phrase: str, builder_slugs: List[str]) -> Optional[str]:
     for slug, rx in BANDS:
         if area and re.search(rx, phrase, re.I):
             return f"/price/{slug}/{area.slug}"
+    brand = brands.for_search(phrase)   # "godrej projects pune": the brand page, not one of its companies
+    if brand is not None and brand.slug in builder_slugs:
+        return f"/builders/{brand.slug}"
     words = "-".join(re.findall(r"[a-z0-9]+", phrase.lower()))
     for b in builder_slugs:
         if b and (words.startswith(b + "-") or f"-{b}-" in f"-{words}-"):

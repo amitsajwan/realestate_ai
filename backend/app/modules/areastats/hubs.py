@@ -16,7 +16,9 @@ from app.modules.newsroom.store import Store
 
 from . import hot
 from .enrich import km_between
-from .pages import _long, _served, booked, can_host, cluster_stamps, cluster_updated, indexable, is_old, months_later, names
+from . import brands as brand_list
+from .pages import (MOVED_MIN, _long, _served, booked, builder_key, can_host, cluster_stamps, cluster_updated, delivery, indexable,
+                    is_old, months_later, names)
 from .text import builder_slug
 from .service import _count, _day
 
@@ -131,7 +133,7 @@ async def near_projects(db, area_slug: str, slug: str, limit: int = NEAR_PROJECT
 def _by_builder(docs: List[dict]) -> dict:
     out: dict = {}
     for d in _primaries(docs):
-        s = builder_slug(d.get("promoter"))
+        s = builder_key(d)
         if s:
             out.setdefault(s, []).append(d)
     return out
@@ -147,14 +149,26 @@ async def builders(db, only_indexable: bool = True) -> List[dict]:
         if only_indexable and n < BUILDER_MIN:
             continue
         stamps = [x for x in (cluster_updated(d, docs, by_cluster) for d in mine) if x]
-        out.append({"slug": s, "name": _builder_name(mine), "projects": len(mine), "indexable": n >= BUILDER_MIN,
+        out.append({"slug": s, "name": _builder_name(mine, s), "projects": len(mine), "indexable": n >= BUILDER_MIN,
+                    "brand": s in brand_list.BY_SLUG, **delivery(mine),
                     "page_updated": max(stamps) if stamps else None})
     out.sort(key=lambda r: (-r["projects"], r["slug"]))
     return out
 
 
-def _builder_name(mine: List[dict]) -> str:
-    """The promoter's name as MahaRERA writes it most often."""
+def _companies(mine: List[dict]) -> List[dict]:
+    """The MahaRERA promoters a builder page counts, most projects first: [{name, projects}]."""
+    counts: dict = {}
+    for d in mine:
+        n = " ".join(str(d.get("promoter") or "").split()) or "Promoter not given on MahaRERA"
+        counts[n] = counts.get(n, 0) + 1
+    return [{"name": k, "projects": v} for k, v in sorted(counts.items(), key=lambda x: (-x[1], x[0]))]
+
+
+def _builder_name(mine: List[dict], slug: str = "") -> str:
+    """The brand's name (areastats.brands), else the promoter's name as MahaRERA writes it most often."""
+    if slug in brand_list.BY_SLUG:
+        return brand_list.BY_SLUG[slug].name
     counts: dict = {}
     for d in mine:
         n = " ".join(str(d.get("promoter") or "").split())
@@ -170,20 +184,22 @@ async def builder_page(db, slug: str) -> Optional[dict]:
     by_cluster = cluster_stamps(docs)
     mine = _by_builder(docs).get(slug)
     if not mine:
+        # a company whose every project is now counted under its brand: its old address points at the brand (301)
+        moved = {builder_key(d) for d in _primaries(docs) if builder_slug(d.get("promoter")) == slug}
+        if len(moved) == 1 and next(iter(moved)) in brand_list.BY_SLUG:
+            return {"redirect": next(iter(moved))}
         return None
     now = datetime.now(timezone.utc)
     mine.sort(key=lambda d: (is_old(d), _day(d.get("completion_now")) or "9999", d.get("name", "")))
-    moved = [m for m in (months_later(d) for d in mine) if m]
-    with_dates = sum(1 for d in mine if months_later(d) is not None)
     total = sum(_count(d.get("units_total")) or 0 for d in mine)
     sold = sum(booked(d) or 0 for d in mine)
     areas = sorted({BY_KEY[d["locality"]].name for d in mine if d.get("locality") in BY_KEY})
     stamps = [x for x in (cluster_updated(d, docs, by_cluster) for d in mine) if x]
     n_index = sum(1 for d in mine if indexable(d))
     return {
-        "slug": slug, "name": _builder_name(mine), "projects_count": len(mine), "areas": areas,
+        "slug": slug, "name": _builder_name(mine, slug), "projects_count": len(mine), "areas": areas,
         "active": sum(1 for d in mine if not is_old(d)), "units_total": total or None, "units_booked": sold or None,
-        "with_dates": with_dates, "moved_later": len(moved), "avg_months_later": round(sum(moved) / len(moved)) if moved else None,
+        **delivery(mine), "moved_min": MOVED_MIN, "brand": slug in brand_list.BY_SLUG, "companies": _companies(mine),
         "indexable": n_index >= BUILDER_MIN, "page_updated": max(stamps) if stamps else None, "source": "MahaRERA public records",
         "projects": [{"slug": d["page_slug"], "name": link_name(d), "legal_name": d.get("name", ""), "regno": d.get("regno") or d["_id"],
                       "area": BY_KEY[d["locality"]].name if d.get("locality") in BY_KEY else d.get("pune_place_name"),
