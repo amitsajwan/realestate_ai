@@ -65,6 +65,9 @@ PLAN = re.compile(r"floor[-_ ]?plan|unit[-_ ]?plan|typical[-_ ]?floor|\b[1-5](?:
 JUNK = re.compile(r"logo|icon|favicon|sprite|avatar|placeholder|loader|whatsapp|qr[-_]?code|award|certificate|team|director|"
                   r"chairman|testimonial|client|partner[-_]?logo|google[-_]?map|staticmap|badge|arrow|button|flag|blank|pixel|"
                   r"emoji|social|facebook|instagram|youtube|twitter|linkedin", re.I)
+EMBEDDED = re.compile(r"""https?://[^\s"'<>()\\]+?\.(?:jpe?g|png|webp)(?=["'?\s\\])""", re.I)
+# renders of rooms ("4-bhk-bedroom-1") are photos, not floor plans, unless they say plan or layout
+ROOM = re.compile(r"bed\s*room|kitchen|living|foyer|bath|toilet|balcony|dining|lobby|interior", re.I)
 SUBPAGE = re.compile(r"gallery|photos?|images|plans?|floor|layout|amenit|walkthrough", re.I)
 MAX_SUBPAGES = 3                      # the builder's own gallery / plans pages under the project's page
 EXT = re.compile(r"\.(jpe?g|png|webp)(?:$|\?)", re.I)
@@ -213,6 +216,12 @@ def candidates(raw: str, base: str) -> List[dict]:
                 add(_largest(_attr(tag, a)), alt)
     for m in re.finditer(r"<a\b[^>]*>", raw or "", re.I):
         add(_attr(m.group(0), "href"), _attr(m.group(0), "title"))
+    # pictures a site lists only in its page data and draws by script (godrejproperties.com: one <img> tag, 144 pictures in
+    # __NEXT_DATA__, 2026-10-20); named from the file ("1-elevation-view-cmlz..." -> "elevation view")
+    for m in EMBEDDED.finditer((raw or "").replace("\\/", "/").replace("\\u002F", "/")):
+        url = m.group(0)
+        stem = re.sub(r"-[a-z0-9]{20,}.*$", "", urlparse(url).path.rsplit("/", 1)[-1].rsplit(".", 1)[0])
+        add(url, " ".join(dict.fromkeys(w for w in re.split(r"[-_]+", stem) if w and not re.fullmatch(r"\d+(x\d+)?", w))))
     return out
 
 
@@ -231,7 +240,8 @@ def subpages(raw: str, base: str) -> List[str]:
 
 
 def kind_of(c: dict) -> str:
-    return "plan" if PLAN.search(urlparse(c["url"]).path + " " + c.get("alt", "")) else "photo"
+    where = urlparse(c["url"]).path + " " + c.get("alt", "")
+    return "plan" if PLAN.search(where) and not (ROOM.search(where) and not re.search(r"plan|layout", where, re.I)) else "photo"
 
 
 async def fetch_bytes(url: str, transport: Optional[httpx.AsyncBaseTransport] = None) -> Optional[bytes]:

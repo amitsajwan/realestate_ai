@@ -67,7 +67,8 @@ SECTIONS = ("The homes and the building", "Location", "Amenities and features")
 # Raise a step's number when the step gets better (a new rule, a new source, a better model): every project that step read with
 # an older version is read again, in the BACKFILL group, hot ones first. Kept per project in `enrichment.versions`.
 # profile 2: the builder's site found through the brand, on the domain's own name (ef886e0b, e1c6adb9)
-VERSIONS = {"web": 1, "profile": 2, "prices": 1}
+# profile 3: pictures listed in the page data (sites that draw them by script, godrejproperties.com); room renders are photos
+VERSIONS = {"web": 1, "profile": 3, "prices": 1}
 # fail and move on (owner 2026-10-20: "note it and continue with others, find a solution offline later"): each reading step
 # has STEP_SECONDS, the whole round ROUND_SECONDS; a project is not taken again within MIN_GAP (urgent requests aside), and
 # after MAX_FAILS failed rounds in a row it is parked for PARK_DAYS with its reason in the owner's list (status "parked")
