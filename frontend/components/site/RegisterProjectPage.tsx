@@ -12,6 +12,7 @@ import { areaName, displayName, longDay, monthYear, otherNames, projectFaq, plac
 import type { EnrichCheck, Faq } from '@/lib/site/register'
 import type { PropertyFactsView } from '@/lib/site/types'
 import { formatPrice } from '@/lib/site/format'
+import { OWN_CASH_NOTE, ownCash } from '@/lib/site/upfront'
 
 /** The agent's offer as kept on the property's fact sheet (propertyfacts public view): what campaign posts quote. */
 interface Offer {
@@ -35,6 +36,12 @@ function OfferBox({ facts }: { facts: PropertyFactsView | null }) {
       <h2 id="offer-title" className="text-lg font-bold text-slate-900">On offer</h2>
       {o.price_inr ? <p className="mt-1 text-2xl font-extrabold text-slate-900">{formatPrice(o.price_inr)}</p> : null}
       {what && <p className="mt-1 text-slate-800">{what}</p>}
+      {o.price_inr && o.transaction !== 'rent' ? (
+        <p className="mt-2 text-sm text-slate-800" data-testid="own-cash">
+          With a home loan, your own cash: about <strong>{formatPrice(ownCash(o.price_inr))}</strong>
+          <span className="mt-1 block text-xs text-slate-600">{OWN_CASH_NOTE}</span>
+        </p>
+      ) : null}
       <p className="mt-2 text-xs text-slate-600">From {o.source || "the agent's listing"}{o.read_at ? `, ${longDay(o.read_at)}` : ''}. Prices change: confirm before you book.</p>
     </section>
   )
@@ -217,6 +224,27 @@ function DetailsGrid({ p }: { p: RegisterProject }) {
       <dl className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
         {cells.map(([label, value]) => <Cell key={label} label={label} value={value} />)}
       </dl>
+    </section>
+  )
+}
+
+/** 'Check before you book': the weak points the record shows, each with what to ask (backend areastats/cautions.py). */
+function Cautions({ p }: { p: RegisterProject }) {
+  const rows = p.cautions ?? []
+  if (!rows.length) return null
+  const web = rows.some((c) => c.source === 'web')
+  return (
+    <section aria-labelledby="cautions-title" data-testid="cautions">
+      <SectionHead id="cautions-title" title="Check before you book" kind={web ? 'checked' : 'rera'}
+        tag={web ? 'From MahaRERA and checked sites' : 'From MahaRERA'} />
+      <ul className="mt-3 list-none space-y-2 p-0">
+        {rows.map((c) => (
+          <li key={c.key} className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-slate-800">
+            <span aria-hidden className="font-bold text-amber-700">!</span><span>{c.text}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-2 text-xs text-slate-600">Worked out from the facts on this page, not an opinion of the project. Every project has some; these are the ones its record shows.</p>
     </section>
   )
 }
@@ -464,6 +492,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [] }: {
           </section>
 
           <DetailsGrid p={p} />
+          <Cautions p={p} />
           <TowersTable p={p} />
           <BuildingsTable p={p} />
           <MapBox p={p} nearby={nearby} />

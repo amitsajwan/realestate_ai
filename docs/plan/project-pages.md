@@ -134,3 +134,23 @@ read again and again, but only for projects whose completion date is still to co
 
 TARGET: floor plans from an agent's uploaded brochure (brochure_doc pages with plan words); the owner's status list shows the
 profile check but no picture review yet.
+
+## Learning from Housiey (2026-10-20)
+
+Owner, 2026-10-20: "learn from housiey.com". Housiey is a big channel partner (MahaRERA agent A51900001761, builders pay it). Its
+project pages show per-unit all-in prices with a minimum down payment, one honest con, a litigation line, documents, builder
+stats and related projects; area pages filter by construction stage, hide sold out, litigation-free. Its data is sloppy (Wagholi
+landmarks on a Kharadi page, sizes that disagree, test.housiey.com indexed). Shortlist, in order:
+
+1. LIVE once deployed: project page.
+   - "Check before you book" (`areastats/cautions.py`, `cautions` in the register page payload): up to 4 weak points worked
+     out by code, each a fact plus what to ask: date passed (ask for OC), date moved >= 3 months (net of the 2026 blanket
+     extension), completion >= 4 years away (rent + pre-EMI), < 25% booked 2+ years after registration, >= 150 homes per acre
+     (land from published web facts) else a 1,500+ home township, towers >= 30 floors, 20+ shops/offices. Never model-written.
+   - "Your own cash" (`frontend/lib/site/upfront.ts`): price minus the most a home loan covers (RBI: 90% to a ₹30 L loan, 80%
+     to ₹75 L, 75% above) + stamp duty 7% + registration up to ₹30,000. A column in the agent price table, a line in the
+     register page's offer box.
+   - NOT POSSIBLE: litigation, documents (CC, title report) and inventory. MahaRERA's endpoints for them answer 401 without
+     its login and captcha (checked 2026-10-20 on Godrej Ivara, id 61337); we do not get around that. Pages keep linking the record.
+2. TARGET: construction stage from MahaRERA progress (badge on project pages; filter plus "hide sold out" on area pages).
+3. TARGET: builder pages with a delivery record (`pages.track_record` already counts moved dates per promoter).

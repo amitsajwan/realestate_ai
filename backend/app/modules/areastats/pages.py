@@ -462,6 +462,8 @@ async def project_page(db, slug: str) -> Optional[dict]:
     out["web_facts"] = web_public(group_primary(doc, docs).get("web_facts"))
     from .profile import public as profile_public
     out["profile"] = profile_public(group_primary(doc, docs).get("profile"))
+    from .cautions import cautions   # 'Check before you book' (docs/plan/project-pages.md)
+    out["cautions"] = cautions(doc, out["towers"], out["web_facts"])
     try:   # the neighbourhood guide nearest the project (rank-loop R5): a link both ways
         from .hubs import near_guide
         out["near_guide"] = await near_guide(db, doc)

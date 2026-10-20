@@ -52,6 +52,8 @@ export interface RegisterProject {
   web_facts?: WebFacts | null
   /** highlights, the builder's pictures and floor plans while the project is being built (backend areastats/profile.py) */
   profile?: ProjectProfile | null
+  /** 'Check before you book': weak points worked out by code from MahaRERA and checked web facts (backend areastats/cautions.py) */
+  cautions?: { key: string; text: string; source: 'rera' | 'web' }[]
   /** how people search for the project (backend seo/targets.py, docs/plan/rank-loop.md R1): leads the title and H1 */
   search_name?: string | null
   /** Google's "People also ask" questions about it, answered from our facts (backend seo/questions.py, R4) */

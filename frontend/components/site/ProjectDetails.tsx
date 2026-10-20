@@ -4,6 +4,7 @@ import RegistrationsBox from '@/components/site/RegistrationsBox'
 import SlideStrip from '@/components/site/SlideStrip'
 import { formatPrice, groupIndian } from '@/lib/site/format'
 import { formatDay, mapsLink, possessionLines, sourceLabel } from '@/lib/site/projects'
+import { OWN_CASH_NOTE, ownCash } from '@/lib/site/upfront'
 import type { PublicProject } from '@/lib/site/types'
 
 /** The body of a project page: photo, prices, the MahaRERA record, possession dates, fit, location, amenities and details.
@@ -79,7 +80,7 @@ export default function ProjectDetails({ p, agentName }: { p: PublicProject; age
         <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-slate-600">
-              <tr><th className="px-2 py-2 font-semibold sm:px-3">Home</th><th className="px-2 py-2 font-semibold sm:px-3">Carpet</th><th className="px-2 py-2 font-semibold sm:px-3">Price</th><th className="px-2 py-2 font-semibold sm:px-3">Per sq ft</th></tr>
+              <tr><th className="px-2 py-2 font-semibold sm:px-3">Home</th><th className="px-2 py-2 font-semibold sm:px-3">Carpet</th><th className="px-2 py-2 font-semibold sm:px-3">Price</th><th className="px-2 py-2 font-semibold sm:px-3">Your own cash*</th><th className="hidden px-2 py-2 font-semibold sm:table-cell sm:px-3">Per sq ft</th></tr>
             </thead>
             <tbody>
               {p.configurations.map((c) => (
@@ -87,13 +88,15 @@ export default function ProjectDetails({ p, agentName }: { p: PublicProject; age
                   <td className="px-2 py-2 sm:px-3 font-semibold">{c.label}</td>
                   <td className="px-2 py-2 sm:px-3">{groupIndian(c.carpet_sqft)} sq ft</td>
                   <td className="px-2 py-2 sm:px-3 font-semibold">{formatPrice(c.price_inr)}</td>
-                  <td className="px-2 py-2 sm:px-3">₹{groupIndian(c.price_per_sqft)}</td>
+                  <td className="px-2 py-2 sm:px-3">{formatPrice(ownCash(c.price_inr))}</td>
+                  <td className="hidden px-2 py-2 sm:table-cell sm:px-3">₹{groupIndian(c.price_per_sqft)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
         <p className="mt-2 text-xs text-slate-600">{quoted}. Builders change prices often: confirm the price, the floor and any extra charges (parking, GST, stamp duty) before you book.</p>
+        <p className="mt-1 text-xs text-slate-600">* {OWN_CASH_NOTE}</p>
       </section>
 
       <ReraBox p={p} />
