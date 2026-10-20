@@ -152,5 +152,10 @@ landmarks on a Kharadi page, sizes that disagree, test.housiey.com indexed). Sho
      register page's offer box.
    - NOT POSSIBLE: litigation, documents (CC, title report) and inventory. MahaRERA's endpoints for them answer 401 without
      its login and captcha (checked 2026-10-20 on Godrej Ivara, id 61337); we do not get around that. Pages keep linking the record.
-2. TARGET: construction stage from MahaRERA progress (badge on project pages; filter plus "hide sold out" on area pages).
+2. LIVE once deployed: stage by dates (`pages.stage`: new = registered within 6 months, early < 40% of the time from
+   registration to the filed completion date gone, mid < 75%, advanced, passed) and `sold_out` (booked = total), in the page
+   payload and the register list. Project page header: "<Stage> (by dates)" chip and "Sold out on MahaRERA". Place pages
+   (/projects/area/<place>): "Being built" grouped by stage with jump chips; sold-out projects in a closed section at the end.
+   MahaRERA's quarterly progress (getBuildingWingsActivityDetails, getLastQPRFormDetails) answers 401 without its login, so
+   the stage is labelled "by dates", never "construction progress".
 3. TARGET: builder pages with a delivery record (`pages.track_record` already counts moved dates per promoter).

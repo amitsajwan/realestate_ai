@@ -14,7 +14,7 @@ import { getCatalog } from '@/lib/site/api'
 import { getFacets, placeChips } from '@/lib/site/facets'
 import { livePages } from '@/lib/site/filters'
 import { getActive } from '@/lib/site/hubs'
-import { displayName, getRegisterPlaces, getRegisterProjects, placePath, projectSummary } from '@/lib/site/register'
+import { displayName, getRegisterPlaces, getRegisterProjects, placePath, projectSummary, STAGE_LABEL, STAGE_NOTE, STAGES } from '@/lib/site/register'
 import type { RegisterListItem, RegisterPlace } from '@/lib/site/register'
 
 export const revalidate = 300
@@ -66,7 +66,11 @@ export default async function PlaceProjectsPage({ params }: Props) {
   const [active, facets, catalog] = await Promise.all([getActive({ place: place.key }), getFacets(), getCatalog().catch(() => [])])
   const chips = placeChips(place, facets, livePages(catalog), getLocality(place.slug) ? `/localities/${place.slug}` : null)
   const launches = facets.some((f) => f.place === place.key && f.intent === 'new-launches' && !f.possession && !f.builder && f.indexable)
-  const building = projects.filter((r) => r.active !== false).sort((a, b) => displayName(a).localeCompare(displayName(b)))
+  const building = projects.filter((r) => r.active !== false && !r.sold_out).sort((a, b) => displayName(a).localeCompare(displayName(b)))
+  const soldOut = projects.filter((r) => r.active !== false && r.sold_out).sort((a, b) => displayName(a).localeCompare(displayName(b)))
+  // Housiey-style stage groups (docs/plan/project-pages.md): by dates, with the ones we cannot place last
+  const groups = [...STAGES.map((st) => ({ key: st, title: STAGE_LABEL[st], items: building.filter((r) => r.stage === st) })),
+    { key: 'unknown', title: 'Dates not read yet', items: building.filter((r) => !r.stage) }].filter((g) => g.items.length > 0)
   const finished = projects.filter((r) => r.active === false).sort((a, b) => displayName(a).localeCompare(displayName(b)))
   return (
     <MarketingShell>
@@ -80,7 +84,7 @@ export default async function PlaceProjectsPage({ params }: Props) {
         </nav>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">{launches ? 'Residential projects' : 'New projects'} in {place.name}, Pune</h1>
         <p className="mt-4 max-w-3xl text-lg leading-relaxed text-slate-800">
-          Every project MahaRERA lists in {place.name}: {building.length} being built or recently finished
+          Every project MahaRERA lists in {place.name}: {building.length + soldOut.length} being built or recently finished
           {finished.length > 0 ? `, and ${finished.length} older ones` : ''}. Each page shows the completion date the builder filed with
           MahaRERA, whether it has moved, and how many homes are booked, with the date we read the record.
         </p>
@@ -92,10 +96,37 @@ export default async function PlaceProjectsPage({ params }: Props) {
         {building.length > 0 && (
           <section aria-labelledby="building-title" className="mt-10">
             <h2 id="building-title" className="text-2xl font-bold text-slate-900">Being built ({building.length})</h2>
-            <ul className="mt-3 list-none columns-1 p-0 sm:columns-2" data-testid="place-projects">
-              {building.map((r) => <Row key={r.slug} r={r} />)}
-            </ul>
+            {groups.length > 1 && (
+              <nav aria-label="Stages" className="mt-3 flex flex-wrap gap-2">
+                {groups.map((g) => (
+                  <a key={g.key} href={`#stage-${g.key}`} className="inline-flex min-h-[44px] items-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-[#0f2340] no-underline">
+                    {g.title} ({g.items.length})
+                  </a>
+                ))}
+              </nav>
+            )}
+            <div data-testid="place-projects">
+              {groups.map((g) => (
+                <div key={g.key} id={`stage-${g.key}`} className="mt-6 scroll-mt-20">
+                  <h3 className="text-lg font-semibold text-slate-900">{g.title} ({g.items.length})</h3>
+                  <ul className="mt-2 list-none columns-1 p-0 sm:columns-2">
+                    {g.items.map((r) => <Row key={r.slug} r={r} />)}
+                  </ul>
+                </div>
+              ))}
+            </div>
+            <p className="mt-4 text-xs text-slate-600">{STAGE_NOTE}</p>
           </section>
+        )}
+        {soldOut.length > 0 && (
+          <details className="mt-8 rounded-xl border border-slate-200 bg-white p-4" data-testid="sold-out">
+            <summary className="flex min-h-[44px] cursor-pointer items-center text-lg font-semibold text-slate-900">
+              Sold out on MahaRERA ({soldOut.length})
+            </summary>
+            <ul className="mt-3 list-none columns-1 p-0 sm:columns-2">
+              {soldOut.map((r) => <Row key={r.slug} r={r} />)}
+            </ul>
+          </details>
         )}
         {finished.length > 0 && (
           <details className="mt-8 rounded-xl border border-slate-200 bg-white p-4">

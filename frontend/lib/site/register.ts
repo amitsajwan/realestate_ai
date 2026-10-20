@@ -54,6 +54,8 @@ export interface RegisterProject {
   profile?: ProjectProfile | null
   /** 'Check before you book': weak points worked out by code from MahaRERA and checked web facts (backend areastats/cautions.py) */
   cautions?: { key: string; text: string; source: 'rera' | 'web' }[]
+  stage?: Stage | null
+  sold_out?: boolean
   /** how people search for the project (backend seo/targets.py, docs/plan/rank-loop.md R1): leads the title and H1 */
   search_name?: string | null
   /** Google's "People also ask" questions about it, answered from our facts (backend seo/questions.py, R4) */
@@ -182,6 +184,15 @@ function ownFaq(p: RegisterProject, nearby: { label?: string | null; name?: stri
   return out.slice(0, 11)
 }
 
+/** How far a project is through the time from MahaRERA registration to its filed completion date (backend areastats/pages.stage):
+ *  by dates, not a site check (MahaRERA's progress reports need its login). */
+export type Stage = 'new' | 'early' | 'mid' | 'advanced' | 'passed'
+export const STAGES: Stage[] = ['new', 'early', 'mid', 'advanced', 'passed']
+export const STAGE_LABEL: Record<Stage, string> = { new: 'New launch', early: 'Early stage', mid: 'Mid stage', advanced: 'Near completion',
+  passed: 'Completion date passed' }
+export const STAGE_NOTE = 'Stage by dates: how much of the time between MahaRERA registration and the completion date the builder filed has gone. '
+  + 'Not a site check: MahaRERA’s construction progress reports are behind its login.'
+
 export interface RegisterListItem {
   slug: string
   regno: string
@@ -200,6 +211,10 @@ export interface RegisterListItem {
   /** false: finished more than a year ago; the page stays, the lists leave it out */
   active?: boolean
   listed_or_updated: string | null
+  /** how far through its filed build time, by dates (backend pages.stage) */
+  stage?: Stage | null
+  /** every home booked on MahaRERA */
+  sold_out?: boolean
   /** the Pune place (key) and its name: every Pune district project has one */
   place?: string | null
   place_name?: string | null

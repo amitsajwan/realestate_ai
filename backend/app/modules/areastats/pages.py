@@ -96,6 +96,34 @@ def recency(doc: dict) -> int:
     return date.fromisoformat(max(days)).toordinal() if days else 0
 
 
+NEW_LAUNCH_DAYS = 183   # registered this recently: a new launch
+
+
+def stage(doc: dict, today: Optional[date] = None) -> Optional[str]:
+    """How far through its filed build time a project is, BY DATES (not measured progress: MahaRERA's quarterly progress
+    reports need its login): 'new' (registered within NEW_LAUNCH_DAYS), 'early' (< 40% of the time from registration to the
+    filed completion date gone), 'mid' (< 75%), 'advanced', 'passed' (the filed date has passed); None without the dates."""
+    now, reg = _day(doc.get("completion_now")), _day(doc.get("registered_on"))
+    if not now:
+        return None
+    t = today or date.today()
+    if now < t.isoformat():
+        return "passed"
+    if not reg or reg >= now:
+        return None
+    r, c = date.fromisoformat(reg), date.fromisoformat(now)
+    if (t - r).days <= NEW_LAUNCH_DAYS:
+        return "new"
+    f = (t - r).days / (c - r).days
+    return "early" if f < 0.4 else "mid" if f < 0.75 else "advanced"
+
+
+def sold_out(doc: dict) -> bool:
+    """Every home booked, as MahaRERA shows it."""
+    total, b = _count(doc.get("units_total")), booked(doc)
+    return bool(total) and b is not None and b >= total
+
+
 def booked(doc: dict) -> Optional[int]:
     """Homes booked as MahaRERA shows them; None when unknown. A 0 after the filed completion date means the builder has not
     reported bookings (a finished project with nothing sold is not what that 0 says), so it counts as unknown."""
@@ -313,6 +341,7 @@ def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None) ->
         "pune_place": {"key": doc["pune_place"], "name": doc.get("pune_place_name")} if doc.get("pune_place") else None,
         "completion_now": _day(doc.get("completion_now")), "completion_at_registration": _day(doc.get("completion_at_registration")),
         "units_total": _count(doc.get("units_total")), "units_booked": booked(doc), "completion_passed": completion_passed(doc),
+        "stage": stage(doc), "sold_out": sold_out(doc),
         "details_read_at": read.date().isoformat() if isinstance(read, datetime) and doc.get("details_ok") else None,
         "listed_or_updated": _day(doc.get("last_modified")), "maharera_url": doc.get("source_url") or None,
         # the enriched text (model-written from gathered facts, checked) when there is one, else the code-written paragraph
@@ -511,7 +540,7 @@ async def listing(db, area: Optional[str] = None, only_indexable: bool = True, l
              "place": d.get("pune_place"), "place_name": d.get("pune_place_name"),
              "promoter": d.get("promoter") or None, "completion_now": _day(d.get("completion_now")),
              "checked": checked_count(d), "checks_total": len(CHECK_LABELS), "active": not is_old(d),
-             "listed_or_updated": _day(d.get("last_modified")),
+             "listed_or_updated": _day(d.get("last_modified")), "stage": stage(d), "sold_out": sold_out(d),
              "page_updated": cluster_updated(d, every, stamps),   # our own last change (the sitemap's lastmod; a primary: its newest tower), never MahaRERA's dates
              "indexable": indexable(d)} for d in docs[:limit]]
 
