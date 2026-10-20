@@ -37,6 +37,15 @@ export async function generateStaticParams(): Promise<{ slug: string }[]> {
 type Props = { params: Promise<{ slug: string }> }
 
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+){0,15}$/
+// House Deal's catalog pages, taken down 2026-10-20 (owner: their old pictures and projects go): each address goes to the
+// project's own MahaRERA page (Rohan Abhilasha is not in our register: the Wagholi list)
+const RETIRED: Record<string, string> = {
+  'goyal-my-home': '/projects/my-home-upper-kharadi',
+  'amco-equa': '/projects/equa-wagholi',
+  'anshul-medora': '/projects/anshul-medora-c-building-wagholi',
+  'triaa-kosmic-kourtyard': '/projects/kosmic-kourtyard-phase-2-wagholi',
+  'rohan-abhilasha': '/projects/area/wagholi',
+}
 
 async function load(params: Props['params']): Promise<CatalogProject | null> {
   const { slug } = await params
@@ -72,6 +81,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function SharedProjectPage({ params }: Props) {
   const { slug } = await params
+  if (RETIRED[slug]) permanentRedirect(RETIRED[slug])
   const p = await load(params)
   if (!p || !p.agents.length) {
     const r = await loadRegister(params)
