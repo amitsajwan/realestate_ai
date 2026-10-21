@@ -100,6 +100,26 @@ export default function PagesTab() {
         <p className="text-sm text-gray-600">Live {d.counts.live ?? 0} · held {d.counts.held ?? 0} · waiting {d.counts.candidate ?? 0} · never {d.counts.never ?? 0}</p>
       </div>
 
+      {d.prices && (
+        <div className={`${card} mt-3`}>
+          <p className="font-semibold text-gray-900">Prices by area</p>
+          <p className="text-xs text-gray-600">
+            Size pages (2 BHK flats in …) and the price tables need 3 priced projects per size. Prices are read one project every
+            15 minutes, outward from Kharadi, new launches and hot projects first{d.prices.at ? `; last ${timeAgo(d.prices.at)}` : '; the first round starts with the deploy'}.
+          </p>
+          {d.prices.coverage.length > 0 && (
+            <ul className="mt-1 space-y-1 p-0">
+              {d.prices.coverage.map((c) => (
+                <li key={c.place} className="flex justify-between gap-2 text-xs text-gray-700">
+                  <span>{c.place.split('_').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ')}</span>
+                  <span className="tabular-nums">{c.priced} of {c.selling} priced · {c.none_found} none found · {c.waiting} to read</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
       <h2 className="mt-4 font-semibold text-gray-900">Live</h2>
       {d.live.length ? <ul className="mt-2 space-y-2 p-0">{d.live.map((p) => <PageRow key={p.key} p={p} onDone={q.reload} />)}</ul>
         : <Empty>No list page is live yet.</Empty>}

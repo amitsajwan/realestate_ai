@@ -125,6 +125,15 @@ def sold_out(doc: dict) -> bool:
     return bool(total) and b is not None and b >= total
 
 
+NEARLY_SOLD = 0.9   # this share of homes booked: few left to sell, so its page and prices are worked on last
+
+
+def nearly_sold(doc: dict) -> bool:
+    """At least NEARLY_SOLD of the homes booked, as MahaRERA shows them."""
+    total, b = _count(doc.get("units_total")), booked(doc)
+    return bool(total) and b is not None and b >= NEARLY_SOLD * total
+
+
 def booked(doc: dict) -> Optional[int]:
     """Homes booked as MahaRERA shows them; None when unknown. A 0 after the filed completion date means the builder has not
     reported bookings (a finished project with nothing sold is not what that 0 says), so it counts as unknown."""

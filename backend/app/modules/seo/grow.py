@@ -330,7 +330,10 @@ async def owner_view(store: Store) -> dict:
     waiting = sorted((item(p) for p in rows if p.get("status") == "candidate" and (p.get("gate") or {}).get("demand")),
                      key=lambda r: (-(r["demand"].get("impressions") or 0), -(r["count"] or 0)))[:KEEP_LISTS]
     never = [item(p) for p in rows if p.get("status") == "never"]
-    return {"at": _iso(mark.get("at")), "enabled": enabled(),
+    from app.modules.areastats import pricing
+    pm = await store.get_mark(pricing.MARK)
+    priced = {"at": _iso(pm.get("at")), "searches": pm.get("searches") or 0, "coverage": pm.get("coverage") or []}
+    return {"at": _iso(mark.get("at")), "enabled": enabled(), "prices": priced,
             "last": {k: mark.get(k) for k in ("made", "waiting", "attached", "autocomplete", "budget")},
             "counts": {s: sum(1 for p in rows if p.get("status") == s) for s in STATUSES},
             "live": live, "waiting": waiting, "never": never,

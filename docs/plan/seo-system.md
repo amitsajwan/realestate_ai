@@ -152,6 +152,7 @@ All in the `newsroom` worker role (seo loop every 30 minutes; each step runs onl
 | Search gaps | weekly | searches that show us with no page in the top 20 | `seo/gaps.py` |
 | Area list pages grow | weekly, at most 10 new | from real searches once they pass demand, supply (3+ projects) and overlap checks (a size page is compared only with pages of the same size); seeds: new launches, top, ready to move, 1/2/3 BHK for every place; autocomplete seeds take turns: new projects / flats / 2 bhk flats / property in <area> | `seo/grow.py`, `seo/facets.py`, `seo/phrases.py` |
 | MagicBricks scoreboard | weekly | our place vs MagicBricks, 99acres, Housing for every search run in 28 days; "win next" list; history per week | `seo/scoreboard.py` |
+| Prices round | one project every 15 min (`PRICES_EVERY_MINUTES`), inside the enrich loop | prices only (builder's site, or two agreeing sites); Upper Kharadi → Kharadi → Wagholi → Keshav Nagar → Lohegaon → Baner → Wakad → Hinjawadi → everywhere else, new launches and hot projects first in each area, 90%+ booked last, completed projects never; never read first, re-read every 30 days (before a price lapses at 45), 14 days after a read that found none; at most 10 new Serper searches a day (`PRICES_SEARCHES_PER_DAY`), waits while the free model tiers rest; coverage per area on Insights → Pages | `areastats/pricing.py` |
 | AI visit log | every page request (proxy, after the response) | AI fetchers and visits from AI answers, per day; on Rankings and in the weekly note | `frontend/proxy.ts`, `seo/aivisits.py` |
 | Owner's SEO note | weekly | Studio notification with the week's numbers and how many pages wait for Request indexing | `seo/note.py` |
 | Page writer | every 5 min (cheap rewrite), full re-read at most 1 per 30 min | project text on free LLM tiers; skipped while most providers are resting | `areastats/enrich.py` |
@@ -175,9 +176,9 @@ All in the `newsroom` worker role (seo loop every 30 minutes; each step runs onl
 
 ## 8. To build (TARGET, in order)
 
-1. **Prices area by area** (fuel for the size pages and "Flat prices in X"): prices are read on the page writer's turn,
-   Upper Kharadi first; take our 8 areas' projects first, so each area has 3+ priced projects per size. Read the size pages'
-   `gate.supply` on Insights → Pages to see which wait on prices.
+1. ~~Prices area by area~~ BUILT 2026-10-21 (`areastats/pricing.py`, the prices round above). Watch "Prices by area" on
+   Insights → Pages; if a first area stays under 3 priced projects per size after a week, the gap is sites that state no price
+   ("none found"), not turns.
 2. **Budget pages from published prices**: `/projects/area/<place>/under-50-lakh` like the size pages, so budget searches are
    answered for every place, not only where agents list; then the agents' `/price/<band>/<area>` 301s like `/N-bhk/<area>`.
 3. **Read the search families in Search Console** (28 days after deploy, ~2026-11-20): for each area, impressions and position
@@ -242,6 +243,7 @@ measure (Search Console, Serper, URL Inspection) → choose (near page one, Magi
 | 2026-10-21 | aaf7c45 | Search phrases name a place however it is spelt (`pune_places.in_search`) |
 | 2026-10-21 | f43252f, 1ab4a00 | Every way buyers search: size pages from published prices, "Flat prices in X", Place `alternateName`, flats wording and links, owner map, rank watch for the families |
 | 2026-10-21 | 7720a6d, d730c5c, 7abbe6f + this | AI search: AI visit log, AI fetcher audit, `/llms.txt`, Bing verification tag, quotable place pages (answer, FAQ, updated date) |
+| 2026-10-21 | this | Prices round (own turn, every 15 min); enrichment and prices skip completed projects, put 90%+ booked last, and go area by area outward from Kharadi with new launches and hot projects first |
 
 ## 12. Detail and history
 

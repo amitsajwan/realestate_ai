@@ -214,7 +214,7 @@ def test_records_enriched_before_the_checks_are_redone_after_googles_new_pages()
     keys = sorted([(enrich.priority(d, set(), NOW), d["_id"]) for d in (old, seen, new)])
     assert [k[1] for k in keys] == ["S", "O", "N"]
     assert enrich.priority({**old, "enrichment": {"score": "4/4"}, "page_text_version": enrich.TEXT_VERSION}, set(), NOW) is None
-    assert enrich.priority({**old, "enrichment": {"score": "4/4"}}, set(), NOW)[0] == enrich.BACKFILL   # an older writer's text
+    assert enrich._priority({**old, "enrichment": {"score": "4/4"}}, NOW)[0] == enrich.BACKFILL   # an older writer's text
 
 
 def test_builder_track_record_from_the_register():
@@ -223,3 +223,26 @@ def test_builder_track_record_from_the_register():
             {"_id": "C", "name": "Other", "promoter": "Someone Else"}]
     rec = pages.track_record(docs[0], docs)
     assert rec["count"] == 2 and rec["moved_later"] == 1 and rec["avg_months_later"] == 12
+
+
+def test_completed_projects_are_not_enriched_and_nearly_sold_ones_go_last():
+    base = {"page_slug": "x", "locality": "wagholi", **FULL}
+    done = {**base, "_id": "D", "completion_now": "2026-09-30"}               # filed completion date passed
+    assert enrich.priority(done, set(), NOW) is None
+    assert enrich.priority(done, {"D"}, NOW) == (-1,)                          # a campaign still gets it
+    assert enrich.status_of(done, NOW.date()) == "finished"
+    nearly = {**base, "_id": "N", "units_total": 100, "units_booked": 92, "hot_score": 99}
+    later = {**base, "_id": "L", "units_total": 100, "units_booked": 10}
+    order = sorted([(enrich.priority(d, set(), NOW), d["_id"]) for d in (nearly, later)])
+    assert [k[1] for k in order] == ["L", "N"]                                 # 90% booked waits, even when hot
+
+
+def test_our_areas_outward_from_kharadi_and_new_launches_or_hot_first():
+    base = {"page_slug": "x", **FULL, "registered_on": "2020-01-01"}
+    wakad = {**base, "_id": "W", "locality": "wakad", "pune_place": "wakad", "hot_score": 99}
+    lohegaon = {**base, "_id": "L", "locality": "lohegaon", "pune_place": "lohegaon"}
+    kharadi_old = {**base, "_id": "K", "locality": "kharadi", "pune_place": "kharadi", "gsc_impressions": 500}
+    kharadi_new = {**base, "_id": "N", "locality": "kharadi", "pune_place": "kharadi", "registered_on": "2026-08-01"}
+    upper = {**base, "_id": "U", "locality": "upper_kharadi", "pune_place": "upper_kharadi"}
+    order = sorted([(enrich.priority(d, set(), NOW), d["_id"]) for d in (wakad, lohegaon, kharadi_old, kharadi_new, upper)])
+    assert [k[1] for k in order] == ["U", "N", "K", "L", "W"]

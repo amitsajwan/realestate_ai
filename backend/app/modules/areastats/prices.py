@@ -211,15 +211,18 @@ def _model(llm):
 
 
 async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[webfacts.Fetch] = None,
-                 search: Optional[websearch.Search] = None) -> tuple:
-    """(step, register fields) for areastats.enrich."""
+                 search: Optional[websearch.Search] = None, allow_search: bool = True) -> tuple:
+    """(step, register fields) for areastats.enrich and areastats.pricing. allow_search=False: only stored Google results are
+    used (the pricing round's daily search budget is spent)."""
     if doc.get("cluster_primary"):
         return {"ok": True, "at": now, "checked": "read on the group's primary record"}, {}
     if llm is None:
         return {"ok": False, "at": now, "checked": "no LLM key"}, {}
     llm = _model(llm)
     name = pages.names(doc)[0]
-    results = await webfacts.results_for(store, doc, name, search if search is not None else websearch.provider(), now)
+    if search is None and allow_search:
+        search = websearch.provider()
+    results = await webfacts.results_for(store, doc, name, search if allow_search else None, now)
     sources = webfacts.pick_sources(results, name, webfacts.builder_words(doc), limit=webfacts.MAX_TRIES)
     if not sources:
         return {"ok": False, "at": now, "checked": "no web results name the project"}, {}
