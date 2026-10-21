@@ -11,7 +11,8 @@ Which pages, in order (at most PER_DAY, never one treated in the last REST_DAYS)
 The menu (one fix per page per visit, so each result can be put down to one change):
   faq          "People also ask" questions about the project that our facts answer (seo.questions) -> `seo_faq`
   links        the page gets a link slot for LINK_DAYS: first in "Most active projects" on its area page (areastats.hubs)
-  refresh      facts older than STALE_DAYS, no web facts yet, or Google has not indexed it -> urgent enrichment, which rereads
+  refresh      facts older than STALE_DAYS, no web facts yet, Google has not indexed it, or MagicBricks shows a price for its
+               search and we have none -> urgent enrichment, which rereads
                MahaRERA and the web and rewrites the page (its sitemap date moves, so Google and IndexNow see it)
   description  seen on page one but not clicked -> a search description from the facts (possession, bookings, registration)
   rival        MagicBricks just above us for the page's own search -> a search description led by the kinds of fact their result
@@ -28,7 +29,7 @@ import statistics
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 
-from app.modules.areastats import enrich, hot, searchconsole
+from app.modules.areastats import enrich, hot, prices, searchconsole
 from app.modules.areastats.hubs import active
 from app.modules.areastats.pages import _long, _served, booked, can_host, indexable, names
 from app.modules.areastats.service import _count, _day
@@ -48,6 +49,7 @@ EXPLORE = 5                    # measured results a fix type needs before its me
 WORSE_BY = 5.0                 # positions lost after 28 days that undo a title or description change
 FIXES = ("faq", "links", "refresh", "description", "rival")
 DEMAND = "search_demand"
+RIVAL = "MagicBricks just above"   # pick reason: these pages try the rival fix, then refresh (for a price), first
 
 
 def _aware(d) -> Optional[datetime]:
@@ -142,7 +144,7 @@ async def pick(store: Store, docs: List[dict], now: datetime, limit: int = PER_D
     seen_min = searchconsole.NEAR_MIN_IMPRESSIONS
     groups = [
         ("near page one", [d for d in pages if searchconsole.near_page_one(d.get("gsc_position"), d.get("gsc_impressions"))]),
-        ("MagicBricks just above", [d for d in pages if (d.get("regno") or d["_id"]) in (rivals or {})]),
+        (RIVAL, [d for d in pages if (d.get("regno") or d["_id"]) in (rivals or {})]),
         ("rising search", [by_path[p] for p in rising]),
         ("hot, below 20", [d for d in pages if (d.get("hot_score") or 0) >= hot.HOT_MIN and int(d.get("gsc_impressions") or 0) > 0
                            and _pos(d) > 20]),
@@ -195,7 +197,10 @@ async def applicable(store: Store, doc: dict, docs: List[dict], now: datetime, s
             out["links"] = {}
     enriched = _aware(doc.get("enriched_at"))
     stale = enriched is None or now - enriched > timedelta(days=STALE_DAYS) or not (doc.get("web_facts") or {}).get("facts")
-    if stale or (index_state and index_state != "PASS"):
+    no_price = bool(rivalry and "price" in rivalry["wants"] and not prices.public(doc.get("prices"), now))
+    if no_price:   # MagicBricks shows a price for this search and our page has none: read the builder's and portals' pages again
+        out["refresh"] = {"note": "MagicBricks shows a price, our page has none"}
+    elif stale or (index_state and index_state != "PASS"):
         out["refresh"] = {"note": "not indexed: " + index_state if index_state and index_state != "PASS" else "facts older than "
                           f"{STALE_DAYS} days or no web facts"}
     if 0 < _pos(doc) <= 10 and int(doc.get("gsc_impressions") or 0) >= searchconsole.NEAR_MIN_IMPRESSIONS and not doc.get("gsc_clicks"):
@@ -251,7 +256,8 @@ async def run_once(store: Store, now: datetime, force: bool = False) -> Optional
             slotted_areas[area] = {f"/projects/{r['slug']}" for r in await active(store.db, area=area, now=now)}
         fixes = await applicable(store, doc, docs, now, slotted_areas.get(area, set()), states.get(_path(doc)),
                                  rivals.get(doc.get("regno") or doc["_id"]))
-        fix = next((f for f in menu if f in fixes), None)
+        here = menu if reason != RIVAL else ["rival", "refresh"] + [f for f in menu if f not in ("rival", "refresh")]
+        fix = next((f for f in here if f in fixes), None)
         if fix is None:
             await stamp(store, doc["_id"], now)
             continue
