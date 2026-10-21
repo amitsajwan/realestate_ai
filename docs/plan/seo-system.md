@@ -5,7 +5,7 @@ code, pages or plans updates this page in the same commit (section 11 gets a lin
 history; when they and this page disagree, this page is right.
 
 Labels: **LIVE** = running in production · **TARGET** = to build · **OWNER** = done by hand · **DROPPED** = decided against.
-Last updated 2026-10-21 (search families).
+Last updated 2026-10-21 (search families, AI search).
 
 ## 1. Goal and scorecard
 
@@ -37,6 +37,7 @@ By area (2026-10-21, of pages checked): core pages 21/25, Wagholi 26/76, Kharadi
 | Weekly SEO note | Studio **Home** → "Needs you now" (once a week; opening Rankings clears it) |
 | Google's own view | Search Console, property `sc-domain:avasetu.in` (owner's Google account) |
 | Weekly site audit | GitHub → Actions → "SEO audit (live site)" |
+| AI search: assistants that read us, pages they use, visits from AI answers | Insights → **Rankings** → "AI search"; one line in the weekly note |
 | Raw loop log | VM: `docker compose logs newsroom \| grep pipeline=seo` (one line per step per round) |
 
 ## 3. Accounts and keys (all LIVE, all only in the VM's `.env`, never in git or chat)
@@ -97,6 +98,22 @@ the real other spellings ("Also spelt Lohgaon") and put them in the Place `alter
 
 Kept out (robots.txt `PRIVATE_PATHS`): `/api/`, `/studio`, `/join`, `/login`, `/register`, `/i/` and the old app paths.
 
+### AI search (BUILT 2026-10-21, not deployed)
+
+How the assistants pick sources: ChatGPT search reads its own index (OAI-SearchBot) and Bing's; Copilot is Bing; Google's AI
+Overviews come from Google's index; Perplexity crawls (PerplexityBot) and searches. They cite pages that already rank and that hold
+a short, dated, quotable answer. So for AI search the levers are the same as for Google, plus being in **Bing**, being readable by
+their fetchers, and leading each page with the answer. What we run:
+
+| Piece | What it does | Code |
+|---|---|---|
+| AI visit log | every page request from an AI fetcher (ChatGPT-User / Perplexity-User / Claude-User = "read to answer a question"; OAI-SearchBot, PerplexityBot, Bingbot, Googlebot = search crawlers; GPTBot, ClaudeBot, CCBot = training) and every visit from an AI answer (chatgpt.com, perplexity.ai, copilot, gemini, claude.ai, `utm_source=chatgpt.com`), counted per day with the pages for answers and referrals. By user agent as sent (no reverse DNS): trends, not proof | `frontend/proxy.ts` → `/internal/seo/visit` (outside `/api`, so never reachable from the public site) → `seo/aivisits.py` |
+| AI fetcher audit | the weekly site audit reads 12 sampled pages again as OAI-SearchBot, ChatGPT-User, PerplexityBot and bingbot: error on a robots.txt block, another status, another page (bot shield) or no `<h1>` text in the HTML | `seo/audit.py` |
+| robots.txt | every crawler allowed, AI ones included (decision: being read beats being private; GPTBot training kept allowed so models know the brand) | `frontend/app/robots.ts` |
+| `/llms.txt` | a map of the site for assistants (our areas, their lists, guides, the MahaRERA tracker), from the sitemap's lists. A hint some read, not a ranking signal | `frontend/app/llms.txt/route.ts` |
+| Bing | IndexNow sends changes (LIVE); `NEXT_PUBLIC_BING_SITE_VERIFICATION` puts the `msvalidate.01` tag in every page | `seo/indexnow.py`, `frontend/app/layout.tsx` |
+| Quotable pages | place pages open with a paragraph written by code from the numbers ("As of 21 Oct 2026, MahaRERA lists 14 housing projects in Lohegaon … 2 BHK flats start from ₹69 lakh"), then a FAQ from the same lists (FAQPage) and "Updated <day>" (WebPage dateModified); list pages already had both | `frontend/lib/site/placeFacts.ts` |
+
 ## 5. On-page rules every page follows (LIVE)
 
 - **One page per project**: tower and phase records are grouped (`areastats/clusters.py`); members answer 301 to the primary.
@@ -135,10 +152,11 @@ All in the `newsroom` worker role (seo loop every 30 minutes; each step runs onl
 | Search gaps | weekly | searches that show us with no page in the top 20 | `seo/gaps.py` |
 | Area list pages grow | weekly, at most 10 new | from real searches once they pass demand, supply (3+ projects) and overlap checks (a size page is compared only with pages of the same size); seeds: new launches, top, ready to move, 1/2/3 BHK for every place; autocomplete seeds take turns: new projects / flats / 2 bhk flats / property in <area> | `seo/grow.py`, `seo/facets.py`, `seo/phrases.py` |
 | MagicBricks scoreboard | weekly | our place vs MagicBricks, 99acres, Housing for every search run in 28 days; "win next" list; history per week | `seo/scoreboard.py` |
+| AI visit log | every page request (proxy, after the response) | AI fetchers and visits from AI answers, per day; on Rankings and in the weekly note | `frontend/proxy.ts`, `seo/aivisits.py` |
 | Owner's SEO note | weekly | Studio notification with the week's numbers and how many pages wait for Request indexing | `seo/note.py` |
 | Page writer | every 5 min (cheap rewrite), full re-read at most 1 per 30 min | project text on free LLM tiers; skipped while most providers are resting | `areastats/enrich.py` |
 | Hot projects refresh | every 14 days per hot project | facts, prices and text re-read | `areastats/hot.py`, `enrich.py` |
-| Site audit | weekly, Mondays 08:47 IST (GitHub Actions) | 300 sitemap pages read like Googlebot: status, robots, noindex, canonical, title, JSON-LD; a 5xx is read again after 30 s | `seo/audit.py`, `.github/workflows/seo-audit.yml` |
+| Site audit | weekly, Mondays 08:47 IST (GitHub Actions) | 300 sitemap pages read like Googlebot: status, robots, noindex, canonical, title, JSON-LD; a 5xx is read again after 30 s; 12 of them again as 4 AI fetchers (same page, `<h1>` in the HTML, robots.txt) | `seo/audit.py`, `.github/workflows/seo-audit.yml` |
 
 ## 7. What the owner does by hand (OWNER)
 
@@ -149,6 +167,11 @@ All in the `newsroom` worker role (seo loop every 30 minutes; each step runs onl
   linking to their project pages; offer the MahaRERA tracker to journalists and bloggers.
 - **Social → site**: Instagram website + WhatsApp button, captions link the project or area page (visits bring crawls).
 - **Validate fix** in Search Console when it reports an error group we fixed.
+- **Bing Webmaster Tools, once** (ChatGPT search and Copilot lean on Bing): bing.com/webmasters → add avasetu.in → "Import from
+  Google Search Console" (or put the HTML meta tag value in `NEXT_PUBLIC_BING_SITE_VERIFICATION` in `deploy/gcp/.env` and
+  redeploy) → submit `/sitemap.xml`. Then check its Index and Search Performance reports monthly.
+- **Be talked about** (AI answers lean on brands the web mentions): answer Pune property threads on Reddit and Quora with the
+  project or area page that answers them, offer the MahaRERA tracker to journalists, keep the Google Business Profile current.
 
 ## 8. To build (TARGET, in order)
 
@@ -172,6 +195,16 @@ All in the `newsroom` worker role (seo loop every 30 minutes; each step runs onl
 10. **Coverage off the loop**: its hour holds the seo loop's later steps once a day; give it its own task if they must run first.
 11. **Tidy the SEO code** (seo-review S2-S5): one `_aware` (31 copies today), one Search Console client, one sitemap parser,
    `pages` out of `areastats`, an import-linter contract.
+
+AI search, next (TARGET):
+- **AI answer panel** (needs a paid key, owner to decide): weekly, 20 buyer questions ("2 bhk flats in Lohegaon", "is <project>
+  delayed") asked through the Perplexity Sonar API or Gemini with Google Search grounding, recording which sites the answer cites;
+  our share of citations beside MagicBricks/99acres/Housing on the scoreboard. ~80 calls a month.
+- **Bing Webmaster API** (needs the API key from Bing Webmaster Tools): Bing's searches and positions for our pages into
+  `search_demand` like Search Console (source "bing"), so the doctor and the gaps report see Bing too.
+- **Marathi searches**: the phrase parser drops Devanagari ("लोहगाव मध्ये फ्लॅट"); read it with the Marathi place names we hold
+  (`reels/spoken_names.py`) and a Marathi vocabulary, then decide Marathi place pages from the counts.
+- **Verified bots**: reverse-DNS check for Googlebot, Bingbot and OAI-SearchBot before counting, if spoofed names ever skew the log.
 
 Results to read: doctor's first 14-day results **2026-10-28**; rival and price refreshes from **2026-11-04**.
 
@@ -207,7 +240,8 @@ measure (Search Console, Serper, URL Inspection) → choose (near page one, Magi
 | 2026-10-21 | 9cbba482, 0d55a7ca | Doctor rival fix (+ price refresh), Indexed by area, panel of target searches |
 | 2026-10-21 | 886047b | Place pages say "flats" in title, H1 and description |
 | 2026-10-21 | aaf7c45 | Search phrases name a place however it is spelt (`pune_places.in_search`) |
-| 2026-10-21 | f43252f + this | Every way buyers search: size pages from published prices, "Flat prices in X", Place `alternateName`, flats wording and links, owner map, rank watch for the families |
+| 2026-10-21 | f43252f, 1ab4a00 | Every way buyers search: size pages from published prices, "Flat prices in X", Place `alternateName`, flats wording and links, owner map, rank watch for the families |
+| 2026-10-21 | 7720a6d, d730c5c, 7abbe6f + this | AI search: AI visit log, AI fetcher audit, `/llms.txt`, Bing verification tag, quotable place pages (answer, FAQ, updated date) |
 
 ## 12. Detail and history
 
