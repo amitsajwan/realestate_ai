@@ -13,7 +13,7 @@ import re
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
-from app.core.areas import named_in
+from app.core.areas import in_search as named_in
 from app.modules.areastats import brands, searchconsole
 from app.modules.newsroom.store import Store
 

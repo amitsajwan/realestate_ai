@@ -15,7 +15,7 @@ from typing import Dict, List, Optional
 from urllib.parse import urlparse
 
 from app.core import brand
-from app.core.areas import named_in
+from app.core.areas import in_search as named_in
 from app.modules.newsroom.store import Store
 
 from . import hot

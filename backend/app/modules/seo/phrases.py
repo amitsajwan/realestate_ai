@@ -52,15 +52,11 @@ def _blank(text: str, phrase: str) -> str:
 
 
 def _place(text: str) -> Tuple[Optional[str], str]:
-    best = None
-    for p in pune_places.PLACES:
-        for al in (p.name.lower(),) + p.aliases:
-            a = _norm(al)
-            if len(a) > 2 and a in text and (best is None or len(a) > len(best[1])):
-                best = (p.key, a)
-    if best is None:
+    """The place a search names, however it is spelt ("lohegoan" is Lohegaon: pune_places.in_search), and the text without it."""
+    hit = pune_places.in_search(text)
+    if hit is None:
         return None, text
-    return best[0], text.replace(best[1], " ")
+    return hit[0].key, text.replace(_norm(hit[1]), " ")
 
 
 def builder_names(builders: List[dict]) -> Dict[str, str]:
