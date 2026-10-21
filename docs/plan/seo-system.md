@@ -48,6 +48,7 @@ All in the `newsroom` worker role unless noted. One `pipeline=seo step=<name> ou
 | MagicBricks scoreboard | weekly (new 2026-10-21) | for every stored search: our place, MagicBricks', 99acres', Housing's; count above MagicBricks, the searches to win next, history per week | `seo/scoreboard.py` |
 | Page writer | every 5 min (cheap rewrite), full re-read at most 1 per 30 min | summary + sections + search line on project pages, free LLM tiers | `areastats/enrich.py` |
 | Hot projects refresh | every 14 days per hot project | facts and page text re-read for the projects buyers look at | `areastats/hot.py` |
+| Owner's SEO note | weekly (new 2026-10-21) | one Studio notification on Home ("Needs you now"): clicks, impressions, page one, indexed, above MagicBricks, each beside last week; opens Insights → Rankings, which lists the not-indexed pages most worth a Request indexing (list/guide pages, then hot, then seen) | `seo/note.py` |
 | Site audit | weekly, Mondays 08:47 IST (GitHub Actions) | reads 300 sitemap pages like Googlebot: status, noindex, canonical, title, JSON-LD; a 5xx is read again after 30 s, so a restart during the run is a warning, not a failure (new 2026-10-21) | `seo/audit.py`, `.github/workflows/seo-audit.yml` |
 
 Owner sees all of it in Studio → Newsroom → Insights (Rankings: week numbers, MagicBricks scoreboard, doctor results, fixes with
@@ -55,8 +56,8 @@ Undo, targets, conflicts, gaps; Pages: area list pages; System: loop health and 
 
 ## 4. What the owner does by hand (no API allows it)
 
-- **Search Console → URL Inspection → Request indexing, about 10 a day**: the 8 area pages, `/guides/upper-kharadi`, then the
-  hottest projects (Insights → Hot). This is the only way to jump the crawl queue.
+- **Search Console → URL Inspection → Request indexing, about 10 a day**, from the list on Insights → Rankings ("Ask Google to
+  index": list and guide pages first, then hot projects, then pages already seen). This is the only way to jump the crawl queue.
 - After a big deploy that adds page types: resubmit `/sitemap.xml` (Sitemaps report).
 - **Outside links** (the biggest lever for a new domain): Google Business Profile for Avasetu; listings on Pune property
   directories; agents' own sites linking to their project pages; the MahaRERA tracker page offered to journalists/bloggers.
@@ -64,9 +65,8 @@ Undo, targets, conflicts, gaps; Pages: area list pages; System: loop health and 
 
 ## 5. What to build next (TARGET, in order)
 
-1. **Weekly SEO note to the owner.** `report.week_lines` writes the numbers but nothing sends them. Send every Monday (email,
-   or the owner's WhatsApp once a template is approved): clicks, impressions, pages on page one, indexed share, above-MagicBricks
-   count, each with last week's beside it, and the 3 fixes that worked best.
+1. **Weekly SEO note on WhatsApp/email too.** LIVE in Studio only (`seo/note.py`); there is no email sender, and WhatsApp
+   to the owner outside 24 hours needs an approved template. `report.week_lines` (unused) can then be removed or reused.
 2. **Crawl push for "Discovered - not indexed" pages.** 480 known pages wait for a crawl. Put the fullest of them (summary,
    dates, nearby) in the link slots of pages Google crawls most (indexed, high impressions: the 8 place pages, Wakad guide),
    rotating weekly, and let coverage measure how many get indexed in 14 days. Today link slots only go to pages that already

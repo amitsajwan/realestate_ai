@@ -9,7 +9,8 @@ rankings(store, now) -> {
              (the stored Serper results for that search);
   conflicts: searches that show two of our pages (seo.targets R2);
   gaps:      searches with no page in the top 20 (seo.gaps R7);
-  scoreboard: searches where we are above MagicBricks, the ones to win next, and the count per week (seo.scoreboard I6).
+  scoreboard: searches where we are above MagicBricks, the ones to win next, and the count per week (seo.scoreboard I6);
+  request_indexing: pages Google has not indexed, most worth the owner's Request indexing first (seo.note).
 }
 Owner only (marketer sites are never public).
 """
@@ -20,7 +21,7 @@ from app.modules.areastats.demand import our_host, rank_of
 from app.modules.areastats.websearch import RESULTS, site
 from app.modules.newsroom.store import Store
 
-from . import doctor, gaps, scoreboard, targets
+from . import doctor, gaps, note, scoreboard, targets
 from .actions import ACTIONS, gain
 
 TARGETS_SHOWN = 60
@@ -97,6 +98,7 @@ async def rankings(store: Store, now: datetime) -> dict:
         "conflicts": {"at": _iso(conflicts.get("at")), "total": conflicts.get("total") or 0, "items": conflicts.get("items") or []},
         "gaps": {"at": _iso(gapmark.get("at")), "total": gapmark.get("total") or 0, "items": gapmark.get("items") or []},
         "scoreboard": _board(await store.get_mark(scoreboard.MARK)),
+        "request_indexing": await note.request_list(store),
     }
 
 

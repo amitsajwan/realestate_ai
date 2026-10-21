@@ -7,6 +7,7 @@ import { errorMessage } from '@/lib/app/client'
 import { getRankings, revertPage } from '@/lib/app/insights'
 import type { BoardRow, RankAction, RankTarget, Scoreboard, WeekNumbers } from '@/lib/app/insights'
 import { useAsync } from '@/lib/app/useAsync'
+import { getNotifications, markNotificationRead } from '@/lib/app/whatsapp'
 
 // Insights → Rankings (docs/plan/rank-loop.md R9): the rank loop's numbers, fixes and results, read-only except "Undo".
 const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://avasetu.in'
@@ -95,8 +96,28 @@ function Board({ b }: { b: Scoreboard }) {
   )
 }
 
+/** Search Console allows "Request indexing" only by hand: the pages most worth the owner's ~10 a day (seo/note.py). */
+function AskGoogle({ pages }: { pages: { url: string; state: string | null; why: string }[] }) {
+  const [all, setAll] = useState(false)
+  return (
+    <div className={card}>
+      <p className="font-semibold text-gray-900">Ask Google to index ({pages.length} waiting)</p>
+      <p className="text-xs text-gray-600">10 a day: Search Console → URL inspection → paste the address → Request indexing. List and guide pages first, they link many pages.</p>
+      <ul className="mt-1 space-y-1 p-0">
+        {(all ? pages : pages.slice(0, 10)).map((p) => (
+          <li key={p.url} className="break-words text-xs text-gray-700"><LinkOut href={p.url}>{p.url.replace(SITE, '')}</LinkOut> · {p.why}</li>
+        ))}
+      </ul>
+      {pages.length > 10 && <button type="button" className={`${btn} mt-2`} onClick={() => setAll(!all)}>{all ? 'Show 10' : `Show all ${pages.length}`}</button>}
+    </div>
+  )
+}
+
 export default function RankingsTab() {
   const q = useAsync(() => getRankings(), [])
+  React.useEffect(() => {   // opening the tab reads the weekly SEO note shown on Home
+    getNotifications(true).then((n) => Promise.all(n.items.filter((x) => x.kind === 'seo_week').map((x) => markNotificationRead(x.id))), () => undefined)
+  }, [])
   if (q.loading && !q.data) return <Spinner />
   if (q.error) return <ErrorBox message={q.error} onRetry={q.reload} />
   const d = q.data!
@@ -125,6 +146,8 @@ export default function RankingsTab() {
       </div>
 
       {d.scoreboard?.at && <Board b={d.scoreboard} />}
+
+      {!!d.request_indexing?.length && <AskGoogle pages={d.request_indexing} />}
 
       <div className={card}>
         <p className="font-semibold text-gray-900">What works (page doctor)</p>

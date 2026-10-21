@@ -8,8 +8,9 @@ from datetime import datetime
 from typing import Callable, Optional
 
 KINDS = ("new_whatsapp_lead", "whatsapp_needs_you", "new_chat_lead", "chat_needs_you", "new_dm_lead", "dm_needs_you", "invite_request",
-         "content_needs_you", "answer_gap", "comment_needs_you")  # content_needs_you: the system cannot fix it alone (e.g. a missing Meta permission);
+         "content_needs_you", "answer_gap", "comment_needs_you", "seo_week")  # content_needs_you: the system cannot fix it alone (e.g. a missing Meta permission);
 #                                              answer_gap: buyers keep asking something about a home that its details do not answer
+#                                              seo_week: the owner's weekly SEO note (seo/note.py)
 MAX_SUMMARY = 300
 
 

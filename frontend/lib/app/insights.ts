@@ -142,6 +142,7 @@ export interface Rankings {
   conflicts: { at: string | null; total: number; items: RankConflict[] }
   gaps: { at: string | null; total: number; items: RankGap[] }
   scoreboard?: Scoreboard
+  request_indexing?: { url: string; state: string | null; why: string }[]
 }
 
 export const getRankings = () => call<Rankings>('rankings')
