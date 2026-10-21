@@ -80,3 +80,45 @@ def test_a_large_sitemap_is_sampled_evenly():
 def test_the_report_counts_errors_and_warnings():
     text = audit.markdown(SITE, audit.Report(errors=["e1"], warnings=["w1", "w2"], checked=3, listed=9))
     assert "Checked 3 of 9 sitemap pages: **1 errors**, 2 warnings." in text and "- e1" in text and "- w2" in text
+
+
+def ai_site(pages, robots="User-agent: *\nAllow: /\nSitemap: https://avasetu.in/sitemap.xml\n", for_bots=None):
+    """Like site(), but a request whose user agent names an AI fetcher gets for_bots(path, ua) when that gives a response."""
+    plain = site(pages, robots)
+
+    def handler(req):
+        ua = req.headers.get("user-agent", "")
+        if for_bots and "compatible;" in ua:
+            got = for_bots(req.url.path, ua)
+            if got is not None:
+                return got
+        return plain.handler(req)
+    return httpx.MockTransport(handler)
+
+
+async def test_ai_fetchers_get_the_same_pages():
+    rep = await audit.audit(SITE, transport=ai_site({"/": page("/", title="Avasetu"), "/a": page("/a", title="A")}))
+    assert rep.errors == [] and rep.ai_checked == 2 * len(audit.AI_AGENTS)
+    assert "and 8 reads as AI search fetchers" in audit.markdown(SITE, rep)
+
+
+async def test_a_page_ai_fetchers_cannot_read_is_an_error():
+    def shield(path, ua):
+        if "PerplexityBot" in ua:
+            return httpx.Response(403, text="blocked")
+        if "bingbot" in ua and path == "/a":
+            return httpx.Response(200, text="<html><head><title>Just a moment...</title></head><body></body></html>")
+        if "OAI-SearchBot" in ua and path == "/a":
+            return httpx.Response(200, text='<html><head><title>A</title></head><body><h1></h1><div id="app"></div></body></html>')
+        return None
+    rep = await audit.audit(SITE, transport=ai_site({"/": page("/", title="Avasetu"), "/a": page("/a", title="A")}, for_bots=shield))
+    joined = "\n".join(rep.errors)
+    assert "`/a` answers 403 to perplexitybot (200 to us)" in joined
+    assert '`/a` shows bingbot another page (title "Just a moment...")' in joined
+    assert "`/a` has no <h1> text in the HTML oai-searchbot gets" in joined
+
+
+async def test_robots_txt_blocking_an_ai_fetcher_is_an_error():
+    robots = "User-agent: *\nAllow: /\n\nUser-agent: OAI-SearchBot\nDisallow: /\nSitemap: https://avasetu.in/sitemap.xml\n"
+    rep = await audit.audit(SITE, transport=ai_site({"/": page("/", title="Avasetu")}, robots=robots))
+    assert rep.errors == ["`/`: robots.txt blocks oai-searchbot"]

@@ -24,6 +24,8 @@ const inter = Inter({ subsets: ['latin'] })
 
 // Google Search Console: paste the code from its "HTML tag" method (only the content="..." value) into this variable.
 const googleVerification = (process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || '').trim()
+// Bing Webmaster Tools (ChatGPT search and Copilot lean on Bing): the content="..." value of its "HTML Meta Tag" method
+const bingVerification = (process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION || '').trim()
 // Meta Business Manager domain verification for avasetu.in (public value; Settings > Brand safety > Domains > meta-tag)
 const facebookVerification = (process.env.NEXT_PUBLIC_FACEBOOK_DOMAIN_VERIFICATION || 'ptmuazmn3xe1a79xwc1w5mnrjqmul2').trim()
 
@@ -42,7 +44,10 @@ export const metadata: Metadata = {
   },
   verification: {
     ...(googleVerification ? { google: googleVerification } : {}),
-    ...(facebookVerification ? { other: { 'facebook-domain-verification': facebookVerification } } : {}),
+    other: {
+      ...(facebookVerification ? { 'facebook-domain-verification': facebookVerification } : {}),
+      ...(bingVerification ? { 'msvalidate.01': bingVerification } : {}),
+    },
   },
 }
 

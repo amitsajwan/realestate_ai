@@ -48,6 +48,8 @@ UTM = {"chatgpt.com": "ChatGPT", "chatgpt": "ChatGPT", "openai": "ChatGPT", "per
 def classify(ua: Optional[str], referer: Optional[str], utm_source: Optional[str]) -> Optional[dict]:
     """{group, agent} for a request we count, else None (an ordinary visitor or a bot we do not track)."""
     low = (ua or "").lower()
+    if "avasetuseoaudit" in low:
+        return None   # our own weekly audit reading pages as the AI fetchers (seo/audit.py)
     for token, name, group in AGENTS:
         if token in low:
             return {"group": group, "agent": name}

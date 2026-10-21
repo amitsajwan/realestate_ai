@@ -8,6 +8,9 @@ spread), and reports:
            restart during the run is a warning, not a failure), is blocked by robots.txt, says noindex, names another page as
            canonical, has no <title>, or has structured data (JSON-LD) that does not parse; robots.txt without the sitemap
   warnings (exit 0): a long or duplicate title, a missing or odd-length description, not exactly one <h1>, images without alt
+Then AI_SAMPLE of those pages are read again as the AI search fetchers (AI_AGENTS: ChatGPT's search crawler and live reader,
+Perplexity, Bing for ChatGPT and Copilot): an error when robots.txt blocks one, or a page that answered us 200 does not answer
+it 200 with the same <title> and its <h1> in the HTML (a bot shield, a different page, or text that only appears after JS).
 The report is printed as Markdown and, on GitHub, added to the job summary. Reads only; standard library and httpx only.
 """
 import argparse
@@ -26,6 +29,14 @@ import xml.etree.ElementTree as ET
 import httpx
 
 AGENT = "AvasetuSeoAudit/1.0 (+https://github.com/amitsajwan/realestate_ai)"
+# (robots.txt group, user agent sent): each carries "AvasetuSeoAudit" so our own AI visit log (seo/aivisits.py) leaves it out
+AI_AGENTS = (
+    ("oai-searchbot", "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; OAI-SearchBot/1.0; AvasetuSeoAudit/1.0"),
+    ("chatgpt-user", "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; ChatGPT-User/1.0; AvasetuSeoAudit/1.0"),
+    ("perplexitybot", "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; PerplexityBot/1.0; AvasetuSeoAudit/1.0"),
+    ("bingbot", "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; bingbot/2.0; AvasetuSeoAudit/1.0"),
+)
+AI_SAMPLE = 12
 TITLE_MAX = 70
 DESC_MIN, DESC_MAX = 50, 170
 CONCURRENCY = 4
@@ -43,6 +54,8 @@ class _Page(HTMLParser):
         self.robots = ""
         self.canonical: Optional[str] = None
         self.h1 = 0
+        self.h1_text: List[str] = []
+        self._h1: Optional[List[str]] = None
         self.img_no_alt = 0
         self.ld: List[str] = []
         self._in: Optional[str] = None
@@ -65,12 +78,17 @@ class _Page(HTMLParser):
             self.canonical = a.get("href") or None
         elif tag == "h1":
             self.h1 += 1
+            self._h1 = []
         elif tag == "img" and "alt" not in a:
             self.img_no_alt += 1
         elif tag == "body":
             self._head = False   # an <svg><title> in the body is not the page title
 
     def handle_endtag(self, tag):
+        if tag == "h1" and self._h1 is not None:
+            if "".join(self._h1).strip():
+                self.h1_text.append("".join(self._h1).strip())
+            self._h1 = None
         if self._in == "title" and tag == "title":
             self.titles.append("".join(self._buf).strip())
             self._in = None
@@ -79,6 +97,8 @@ class _Page(HTMLParser):
             self._in = None
 
     def handle_data(self, data):
+        if self._h1 is not None:
+            self._h1.append(data)
         if self._in:
             self._buf.append(data)
 
@@ -89,6 +109,7 @@ class Report:
     warnings: List[str] = field(default_factory=list)
     checked: int = 0
     listed: int = 0
+    ai_checked: int = 0
 
 
 def _same(a: str, b: str) -> bool:
@@ -100,7 +121,7 @@ class Robots:
     """robots.txt read the way Googlebot reads it: the `Googlebot` group, else `*`; the longest matching rule wins and Allow
     wins a tie (Python's RobotFileParser takes the first match instead, so `Allow: /` before `Disallow: /studio` hid the block)."""
 
-    def __init__(self, text: str):
+    def __init__(self, text: str, agent: str = "googlebot"):
         groups: Dict[str, List[Tuple[bool, str]]] = {}
         agents: List[str] = []
         in_rules = False
@@ -121,7 +142,7 @@ class Robots:
                 if val:
                     for a in agents:
                         groups[a].append((key == "allow", val))
-        self.rules = groups.get("googlebot", groups.get("*", []))
+        self.rules = groups.get(agent.lower(), groups.get("*", []))
 
     def can_fetch(self, agent: str, url: str) -> bool:
         path = urlparse(url).path or "/"
@@ -192,9 +213,10 @@ async def audit(site: str, max_pages: int = 300, transport: Optional[httpx.Async
     rep = Report()
     async with httpx.AsyncClient(timeout=30, transport=transport, headers={"User-Agent": AGENT}) as c:
         robots: Optional[Robots] = None
+        robots_text = ""
         r = await c.get(site + "/robots.txt")
         if r.status_code == 200:
-            robots = Robots(r.text)
+            robots, robots_text = Robots(r.text), r.text
             if "sitemap:" not in r.text.lower():
                 rep.errors.append("robots.txt does not name the sitemap")
         else:
@@ -240,8 +262,11 @@ async def audit(site: str, max_pages: int = 300, transport: Optional[httpx.Async
             errs, warns, title = check_page(u, res.status_code, dict(res.headers), res.text, robots)
             if first is not None and res.status_code < 500:
                 warns.append(f"`{urlparse(u).path or '/'}` answered {first}, then {res.status_code} {RETRY_S:.0f} s later")
+            if res.status_code == 200 and title:
+                read_ok[u] = res.text
             return errs, warns, title
 
+        read_ok: Dict[str, str] = {}
         for errs, warns, title in await asyncio.gather(*(one(u) for u in spread(urls, max_pages))):
             rep.errors += errs
             rep.warnings += warns
@@ -249,11 +274,44 @@ async def audit(site: str, max_pages: int = 300, transport: Optional[httpx.Async
             if title:
                 titles[title] += 1
         rep.warnings += [f'{n} pages share the title "{t}"' for t, n in titles.items() if n > 1]
+
+        # the AI search fetchers: same robots.txt answer, same page, its text in the HTML
+        sample = spread(list(read_ok), AI_SAMPLE)
+        for group, ua in AI_AGENTS:
+            bot_robots = Robots(robots_text, group) if robots_text else None
+            for u in sample:
+                path = urlparse(u).path or "/"
+                if bot_robots is not None and not bot_robots.can_fetch(group, u):
+                    rep.errors.append(f"`{path}`: robots.txt blocks {group}")
+                    continue
+                async with gate:
+                    try:
+                        res = await c.get(u, headers={"User-Agent": ua})
+                    except httpx.HTTPError as e:
+                        rep.errors.append(f"`{path}` could not be read as {group} ({type(e).__name__})")
+                        continue
+                rep.ai_checked += 1
+                rep.errors += ai_mismatch(path, group, read_ok[u], res.status_code, res.text)
     return rep
 
 
+def ai_mismatch(path: str, group: str, ours: str, status: int, theirs: str) -> List[str]:
+    """What an AI fetcher sees differently from us on one page: [] when it gets the same page."""
+    if status != 200:
+        return [f"`{path}` answers {status} to {group} (200 to us)"]
+    a, b = _Page(), _Page()
+    a.feed(ours)
+    b.feed(theirs)
+    if (a.titles[:1] or [""])[0] != (b.titles[:1] or [""])[0]:
+        return [f"`{path}` shows {group} another page (title \"{(b.titles[:1] or [''])[0][:60]}\")"]
+    if a.h1_text and not b.h1_text:
+        return [f"`{path}` has no <h1> text in the HTML {group} gets"]
+    return []
+
+
 def markdown(site: str, rep: Report) -> str:
-    lines = [f"## SEO audit of {site}", "", f"Checked {rep.checked} of {rep.listed} sitemap pages: "
+    ai = f" (and {rep.ai_checked} reads as AI search fetchers)" if rep.ai_checked else ""
+    lines = [f"## SEO audit of {site}", "", f"Checked {rep.checked} of {rep.listed} sitemap pages{ai}: "
              f"**{len(rep.errors)} errors**, {len(rep.warnings)} warnings.", ""]
     for head, items in (("Errors", rep.errors), ("Warnings", rep.warnings)):
         if items:
