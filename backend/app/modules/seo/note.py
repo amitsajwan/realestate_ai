@@ -4,12 +4,14 @@ Once a week (inside the seo loop, app/modules/seo/runner.py) every owner (INSIGH
 concierge's) gets one Studio notification (`seo_week`, shown on Home under "Needs you now", opening Insights → Rankings): the
 week's numbers beside last week's, and how many pages wait for "Request indexing". Search Console allows that request only by
 hand (no API for our page types), so `request_list` picks the pages worth the owner's ~10 clicks a day: sitemap pages Google has
-not indexed, list and guide pages first (they link many pages), then project pages buyers look at (hot score, then impressions).
+not indexed, list and guide pages first (they link many pages; place pages before their sub-lists), then project pages buyers look
+at (hot score, then impressions); our own areas (app.core.areas) first within each.
 """
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 from urllib.parse import urlparse
 
+from app.core.areas import BY_KEY, BY_SLUG
 from app.modules.insights.collector import owner_ids
 from app.modules.newsroom.store import Store
 from app.modules.notifications.service import notify
@@ -40,9 +42,10 @@ async def request_list(store: Store, n: int = PER_DAY * 7) -> List[dict]:
     def rank(doc: dict):
         path = urlparse(doc["_id"]).path
         if path.startswith(HUBS) or path.count("/") <= 1:
-            return (0, -path.count("/"), path)
-        p = by_slug.get(path.rsplit("/", 1)[-1]) if path.startswith("/projects/") else None
-        return (1, -float((p or {}).get("hot_score") or 0), -int((p or {}).get("gsc_impressions") or 0), path)
+            ours = any(seg in BY_SLUG for seg in path.split("/"))
+            return (0, not ours, path.count("/"), path)
+        p = (by_slug.get(path.rsplit("/", 1)[-1]) if path.startswith("/projects/") else None) or {}
+        return (1, p.get("locality") not in BY_KEY, -float(p.get("hot_score") or 0), -int(p.get("gsc_impressions") or 0), path)
 
     def why(doc: dict) -> str:
         path = urlparse(doc["_id"]).path
@@ -79,7 +82,9 @@ async def run_once(store: Store, now: datetime, force: bool = False) -> Optional
     ago = next((h for h in reversed(snaps) if week and _aware(week.get("at")) and _aware(h.get("at"))
                 and _aware(week["at"]) - _aware(h["at"]) >= timedelta(days=7)), None)
     waiting = await store.db.get_collection(coverage.COLLECTION).count_documents({"state": {"$in": list(WAITING)}})
-    text = summary(week, ago, await store.get_mark(coverage.MARK), await store.get_mark(scoreboard.MARK), waiting)
+    index = store.db.get_collection(coverage.COLLECTION)   # every page inspected so far, not only the last day's batch
+    cov = {"inspected": await index.count_documents({}), "indexed": await index.count_documents({"verdict": "PASS"})}
+    text = summary(week, ago, cov, await store.get_mark(scoreboard.MARK), waiting)
     for owner in owners:
         await notify(store.db, owner, KIND, text, {"href": "/studio/newsroom/insights?tab=rankings"}, now=now)
     await store.set_mark(MARK, at=now, text=text)
