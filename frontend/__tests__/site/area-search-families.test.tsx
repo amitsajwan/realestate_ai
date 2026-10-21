@@ -22,8 +22,10 @@ jest.mock('@/lib/site/register', () => ({
   ...jest.requireActual('@/lib/site/register'),
   getRegisterPlaces: async () => [{ key: 'lohegaon', slug: 'lohegaon', name: 'Lohegaon', zone: 'East Pune', spellings: ['Lohgaon', 'Lohogaon'], projects: 2, indexable: 2 }],
   getRegisterProjects: async () => [
-    { slug: 'sky-one', regno: 'P1', name: 'SKY ONE', marketed_name: 'Sky One', area: 'lohegaon', completion_now: '2028-06-30', indexable: true, stage: null },
-    { slug: 'river-two', regno: 'P2', name: 'RIVER TWO', area: 'lohegaon', completion_now: '2029-01-31', indexable: true, stage: null },
+    { slug: 'sky-one', regno: 'P1', name: 'SKY ONE', marketed_name: 'Sky One', area: 'lohegaon', completion_now: '2028-06-30', indexable: true, stage: null,
+      promoter: 'Sky Builders', units_total: 200, units_booked: 50, page_updated: '2026-10-19T08:00:00+00:00' },
+    { slug: 'river-two', regno: 'P2', name: 'RIVER TWO', area: 'lohegaon', completion_now: '2029-01-31', indexable: true, stage: null,
+      promoter: 'Sky Builders', units_total: 100, units_booked: 10, page_updated: '2026-10-20T08:00:00+00:00' },
   ],
 }))
 
@@ -48,6 +50,16 @@ describe('place page answers flats, property and price searches', () => {
     expect(screen.getByRole('heading', { name: 'Flat prices in Lohegaon' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '4 with 2 BHK flats' })).toHaveAttribute('href', '/projects/area/lohegaon/2-bhk')
     const ld = [...container.querySelectorAll('script[type="application/ld+json"]')].map((s) => JSON.parse(s.textContent || '{}'))
+    expect(screen.getByTestId('place-answer')).toHaveTextContent(
+      /MahaRERA lists 2 housing projects in Lohegaon, Pune being built or recently finished\. 60 of their 300 homes are booked\. The earliest filed completion date is Sky One \(Jun 2028\)\. 2 BHK flats start from ₹69/)
+    expect(screen.getByText('Updated 20 Oct 2026')).toBeInTheDocument()
+    expect(screen.getByText('Which builders have the most projects in Lohegaon?')).toBeInTheDocument()
+    const faq = ld.find((x) => x['@type'] === 'FAQPage')
+    expect(faq.mainEntity.map((q: { name: string }) => q.name)).toEqual([
+      'How many new projects are there in Lohegaon, Pune?', 'What is the price of a 2 BHK flat in Lohegaon?',
+      'Which projects in Lohegaon have the earliest possession?', 'Which builders have the most projects in Lohegaon?',
+      'Where do these Lohegaon numbers come from?'])
+    expect(ld.find((x) => x['@type'] === 'WebPage').dateModified).toBe('2026-10-20T08:00:00+00:00')
     const list = ld.find((x) => x['@type'] === 'ItemList')
     expect(list.itemListElement).toHaveLength(2)
     expect(list.about.alternateName).toEqual(['Lohgaon, Pune', 'Lohogaon, Pune'])

@@ -13,10 +13,11 @@ import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
 import { getCatalog } from '@/lib/site/api'
 import { getFacets, getPlacePrices, placeChips } from '@/lib/site/facets'
 import type { PlacePrices } from '@/lib/site/facets'
+import { placeAnswer, placeFaq, placeUpdated } from '@/lib/site/placeFacts'
 import { livePages } from '@/lib/site/filters'
 import { formatPrice } from '@/lib/site/format'
 import { getActive } from '@/lib/site/hubs'
-import { displayName, getRegisterPlaces, getRegisterProjects, placePath, projectSummary, STAGE_LABEL, STAGE_NOTE, STAGES } from '@/lib/site/register'
+import { displayName, getRegisterPlaces, longDay, getRegisterProjects, placePath, projectSummary, STAGE_LABEL, STAGE_NOTE, STAGES } from '@/lib/site/register'
 import type { RegisterListItem, RegisterPlace } from '@/lib/site/register'
 
 export const revalidate = 300
@@ -122,12 +123,23 @@ export default async function PlaceProjectsPage({ params }: Props) {
     { key: 'unknown', title: 'Dates not read yet', items: building.filter((r) => !r.stage) }].filter((g) => g.items.length > 0)
   const finished = projects.filter((r) => r.active === false).sort((a, b) => displayName(a).localeCompare(displayName(b)))
   const spellings = place.spellings ?? []
+  const asOf = new Date().toISOString().slice(0, 10)
+  const answer = placeAnswer(place, building, soldOut, asOf, prices)
+  const faq = placeFaq(place, building, soldOut, asOf, prices)
+  const updated = placeUpdated(projects)
   return (
     <MarketingShell>
       <div className="mx-auto max-w-5xl px-4 py-10 sm:py-14" style={AVASETU_SITE_VARS}>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(breadcrumbJsonLd(cfg.siteUrl, [
           { name: 'Home', path: '/' }, { name: 'Projects', path: '/projects' }, { name: place.name, path: placePath(place.slug) },
         ])) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString({
+          '@context': 'https://schema.org', '@type': 'FAQPage',
+          mainEntity: faq.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
+        }) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString({
+          '@context': 'https://schema.org', '@type': 'WebPage', url: cfg.siteUrl + placePath(place.slug), ...(updated ? { dateModified: updated } : {}),
+        }) }} />
         {/* the list itself and the place it is about (with the other spellings people search) as structured data */}
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString({
           '@context': 'https://schema.org', '@type': 'ItemList', name: `${launches ? 'Flats and residential projects' : 'New projects and flats'} in ${place.name}, Pune`,
@@ -142,7 +154,9 @@ export default async function PlaceProjectsPage({ params }: Props) {
         </nav>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">{launches ? 'Flats and residential projects' : 'New projects and flats'} in {place.name}, Pune</h1>
         {spellings.length > 0 && <p className="mt-1 text-sm text-slate-600">Also spelt {spellings.join(', ')}</p>}
-        <p className="mt-4 max-w-3xl text-lg leading-relaxed text-slate-800">
+        {updated && <p className="mt-1 text-sm text-slate-600">Updated {longDay(updated)}</p>}
+        {projects.length > 0 && <p className="mt-4 max-w-3xl text-lg font-medium leading-relaxed text-slate-900" data-testid="place-answer">{answer}</p>}
+        <p className="mt-4 max-w-3xl leading-relaxed text-slate-800">
           Every residential project MahaRERA lists in {place.name}, the flats and apartments on sale here and the ones already
           handed over: {building.length + soldOut.length} being built or recently finished
           {finished.length > 0 ? `, and ${finished.length} older ones` : ''}. Before you buy a property in {place.name}, each page shows the completion date the builder filed with
@@ -201,6 +215,20 @@ export default async function PlaceProjectsPage({ params }: Props) {
           </details>
         )}
         {projects.length === 0 && <p className="mt-8 rounded-xl bg-slate-50 p-4 text-slate-700">No projects are in our register here yet.</p>}
+
+        {projects.length > 0 && (
+          <section aria-labelledby="faq-title" className="mt-10">
+            <h2 id="faq-title" className="text-xl font-semibold text-slate-900">Questions buyers ask about {place.name}</h2>
+            <dl className="mt-3 space-y-4">
+              {faq.map((f) => (
+                <div key={f.q}>
+                  <dt className="font-semibold text-slate-900">{f.q}</dt>
+                  <dd className="mt-1 text-slate-800">{f.a}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        )}
 
         <p className="mt-10 text-sm text-slate-600">
           From MahaRERA&apos;s public records, read on the date shown on each project&apos;s page. A project is listed under the area of the
