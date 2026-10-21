@@ -11,6 +11,8 @@ jest.mock('@/lib/site/api', () => ({
   fixturesForced: () => false,
   serverApiBase: () => 'http://api',
 }))
+// the area's lists (seo facets) come from their own endpoint, retried on failure: none here
+jest.mock('@/lib/site/facets', () => ({ ...jest.requireActual('@/lib/site/facets'), getFacets: async () => [] }))
 jest.mock('@/components/marketing/MarketingShell', () => ({ __esModule: true, default: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }))
 jest.mock('next/navigation', () => ({
   notFound: () => { throw new Error('NOT_FOUND') },

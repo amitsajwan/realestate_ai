@@ -6,7 +6,7 @@ import { fetchNews } from '@/lib/news/data'
 import { fetchPosts, postPath } from '@/lib/posts/data'
 import { getCommunities } from '@/components/localities/communities'
 import { getCatalog, getSitemapEntries } from '@/lib/site/api'
-import { getFacets } from '@/lib/site/facets'
+import { getFacets, withoutMovedSizePages } from '@/lib/site/facets'
 import { fetchTopics, topicPath } from '@/lib/site/topics'
 import { livePages } from '@/lib/site/filters'
 import { getBuilders } from '@/lib/site/hubs'
@@ -79,7 +79,7 @@ export async function buildSitemap(): Promise<Grouped> {
     ...[...latest].map(([slug, d]) => ({ group: 'agents', entry: at(agentPath(slug), 0.7, d) })),
     core(at('/projects', 0.9)),
     ...projects.map((p) => ({ group: areaOfLocality(p.locality), entry: at('/projects/' + p.slug, 0.9, [p.rera?.checked_at, p.updated_at].filter(Boolean).sort().pop()) })),
-    ...livePages(projects).map((f) => core(at(f.path, 0.7))),
+    ...withoutMovedSizePages(livePages(projects), facets).map((f) => core(at(f.path, 0.7))),
     // Avasetu's own page for each MahaRERA project with real facts (thin ones are noindex and left out)
     // (dated by page_updated, when the page's facts last changed; no date when unknown; finished projects rank lower)
     // one page per Pune area listing its projects, once one of them has real facts

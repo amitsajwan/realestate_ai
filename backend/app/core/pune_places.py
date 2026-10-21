@@ -390,6 +390,20 @@ def _sounds() -> Dict[str, Tuple[str, str]]:
 SOUNDS: Dict[str, Tuple[str, str]] = _sounds()   # sound -> (place key, the name it came from, spaces dropped)
 
 
+def spellings(place: Place) -> Tuple[str, ...]:
+    """Other spellings of the place's name ("Lohgaon", "Lohogaon" for Lohegaon), for the page to say and its structured data;
+    aliases that are another name (Amanora for Magarpatta) are not spellings."""
+    own = place.name.lower().replace(" ", "")
+    out = []
+    for al in place.aliases:
+        if al.replace(" ", "").replace("-", "") != own and SequenceMatcher(None, al.replace(" ", ""), own).ratio() >= SPELT_LIKE \
+                and "-" not in al:
+            t = " ".join(w.capitalize() for w in al.split())
+            if t not in out:
+                out.append(t)
+    return tuple(out)
+
+
 def in_search(text: str) -> Optional[Tuple[Place, str]]:
     """(place, the words that named it) for a search phrase, or None. The longest exact name wins; else the run of words that
     sounds like one place's name and is spelt closest to it (SPELT_LIKE: "possession" sounds like Pashan but is not spelt

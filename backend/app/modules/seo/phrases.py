@@ -19,7 +19,7 @@ from typing import Dict, List, Optional, Tuple
 from app.core import pune_places
 
 from . import gaps
-from .facets import FIRST_YEAR, LAST_YEAR, Facet
+from .facets import BHKS, FIRST_YEAR, LAST_YEAR, Facet
 
 VOCAB = Path(__file__).with_name("vocabulary.json")
 # words in builders' names that say nothing about which builder ("Kolte Patil Developers" is "kolte patil")
@@ -80,9 +80,18 @@ def parse(phrase: str, builders: Optional[Dict[str, str]] = None) -> dict:
         if hit:
             out["unanswerable"].append(w)
             text = text2
-    if any(_norm(w) in text for w in v["existing_pages"]) or re.search(r"\b\d\s*bhk\b", phrase.lower()):
+    # "2 bhk flats in lohegaon" (and "2 bhk flat price in ...") is a size page drawn from published prices; a budget ("under 50
+    # lakh") or a size we have no page for goes to the existing page types
+    size = re.search(r"\b(\d)(?:\.5)?\s*bhk\b", phrase.lower())
+    bhk = int(size.group(1)) if size and int(size.group(1)) in BHKS else None
+    if bhk:
+        text = re.sub(r" \d(?: 5)? ?bhk ", " ", text)
+    budget = [w for w in v["existing_pages"] if w not in v["size_price_words"]]
+    if any(_norm(w) in text for w in budget) or (size and not bhk) or (not bhk and any(_norm(w) in text for w in v["existing_pages"])):
         out["existing"] = gaps.template(phrase, list((builders or {}).values()))
         return out
+    for w in v["size_price_words"]:
+        text = _blank(text, w)
     place, text = _place(text)
     out["place"] = place
     builder = None
@@ -107,6 +116,8 @@ def parse(phrase: str, builders: Optional[Dict[str, str]] = None) -> dict:
     for w in sorted(v["stop"], key=len, reverse=True):
         text = _blank(text, w)
     out["unknown"] = [w for w in text.split() if not w.isdigit() and len(w) > 1]
+    if bhk and intent is None:
+        intent = "all"
     if place and intent and not out["unanswerable"]:
-        out["facet"] = Facet(place, intent, possession, builder)
+        out["facet"] = Facet(place, intent, possession, builder, bhk)
     return out

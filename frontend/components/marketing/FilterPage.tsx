@@ -1,7 +1,7 @@
 import React from 'react'
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import { notFound } from 'next/navigation'
+import { notFound, permanentRedirect } from 'next/navigation'
 import MarketingShell from '@/components/marketing/MarketingShell'
 import ProjectCard from '@/components/site/ProjectCard'
 import { getMarketingConfig } from '@/lib/marketing/config'
@@ -9,6 +9,7 @@ import { getLocality } from '@/lib/marketing/localities'
 import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/seo'
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
 import { getCatalog } from '@/lib/site/api'
+import { getFacets, sizePage } from '@/lib/site/facets'
 import { type AnyFilter, MIN_PROJECTS, filterPath, filterProjects, filterTitle } from '@/lib/site/filters'
 import { formatPrice, groupIndian } from '@/lib/site/format'
 import { formatDay } from '@/lib/site/projects'
@@ -17,6 +18,9 @@ import { formatDay } from '@/lib/site/projects'
 async function load(f: AnyFilter | null, areaSlug: string) {
   const area = getLocality(areaSlug)
   if (!f || !area) return null
+  // the size page from published prices answers "2 bhk flats in <area>" once it is in search: one page per search
+  const moved = f.kind === 'bhk' ? sizePage(await getFacets(), area.slug, f.bhk) : null
+  if (moved) permanentRedirect(moved.path)
   const matches = filterProjects(await getCatalog(area.listingName), area, f)
   return matches.length >= MIN_PROJECTS ? { area, matches } : null
 }

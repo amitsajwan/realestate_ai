@@ -62,6 +62,13 @@ async def _live_pages(db) -> List[dict]:
         return out
 
 
+@public_router.get("/place-prices/{place}")
+async def public_place_prices(place: str, response: Response, db=Depends(get_db)) -> dict:
+    """Flat prices by home size for a place page (/projects/area/<place>): published prices only (areastats.prices)."""
+    response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
+    return await facets.prices_view(db, place)
+
+
 @public_router.get("/facets/{place}/{rest:path}")
 async def public_facet(place: str, rest: str, response: Response, db=Depends(get_db)) -> dict:
     """One area list page (/projects/area/<place>/<rest>), or {"redirect_to"} for the same page under its one URL. Only pages
