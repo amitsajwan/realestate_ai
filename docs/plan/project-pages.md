@@ -146,10 +146,16 @@ built, all with model text, 40 with highlights, 2 with photos, 1 with plans.
 - Floor plans: always behind `FloorPlansLock` (name, mobile, consent -> a lead "Floor plans of <project>" to the page's agent).
   Our plans show after the form (once per browser); without any, the agent sends them on WhatsApp. Plans are never drawn by AI:
   a made-up layout of a registered project would mislead. The chat bot never describes layouts; it says the agent sends them.
-- OTP brochure forms on builder sites: by hand, for the top hot projects only (the OTP comes by SMS to a person's phone).
+- OTP brochure forms on builder sites: not automated. Checked 2026-10-22: the top hot projects are small builders with no site
+  (Maitri Meadows, Prasun Elara), and Ekaanta's forms sit behind reCAPTCHA, which we do not get around.
+- Floor plans from agents' brochures (2026-10-22, LIVE): `profile.brochure_pictures` reads the latest brochure kit
+  (propertyfacts.brochure) whose MahaRERA number MahaRERA returned ("verified"; an agent's unchecked word never) and is this
+  project or one of its group's registrations. Floor and master plans join the plans (first, they are the builder's own),
+  renders are pictures after the builder's site and before other sites (badge "Artist's impression"). Pages the agent dropped are
+  left out, and brochure pictures are read from the kit every round (never carried over), so a drop leaves the page. An upload,
+  a registration answer or a dropped page asks the project for a round at once (`enrich_now`, by "brochure").
 
-TARGET: floor plans from an agent's uploaded brochure (brochure_doc pages with plan words); the owner's status list shows the
-profile check but no picture review yet.
+TARGET: the owner's status list shows the profile check but no picture review yet.
 
 ## Learning from Housiey (2026-10-20)
 

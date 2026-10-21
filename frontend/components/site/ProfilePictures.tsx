@@ -10,9 +10,9 @@ export function Picture({ pic, eager }: { pic: ProfilePicture; eager?: boolean }
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={pic.url} alt={pic.alt} width={pic.width ?? undefined} height={pic.height ?? undefined}
         loading={eager ? 'eager' : 'lazy'} decoding="async" className="h-full w-full object-cover" />
-      {sourceOf(pic) !== 'builder' && (
+      {sourceOf(pic) !== 'builder' && !(sourceOf(pic) === 'brochure' && !/artist/i.test(pic.alt)) && (
         <span className="absolute left-2 top-2 rounded bg-black/70 px-2 py-0.5 text-xs font-semibold text-white">
-          {sourceOf(pic) === 'ai' ? 'AI illustration' : 'Not checked by us'}
+          {sourceOf(pic) === 'ai' ? 'AI illustration' : sourceOf(pic) === 'brochure' ? "Artist's impression" : 'Not checked by us'}
         </span>
       )}
     </a>
@@ -23,11 +23,17 @@ export function Credit({ pics, name }: { pics: ProfilePicture[]; name?: string }
   const drawn = pics.some((p) => sourceOf(p) === 'ai')
   const web = pics.filter((p) => sourceOf(p) === 'web')
   const own = pics.filter((p) => sourceOf(p) === 'builder')
+  const brochure = pics.some((p) => sourceOf(p) === 'brochure')
   return (
     <>
       {drawn && (
         <p className="mt-2 text-xs text-slate-600">
           Illustrations made by AI from the MahaRERA facts (towers, floors): they are not pictures of {name || 'the project'}. Ask us for the builder&apos;s pictures.
+        </p>
+      )}
+      {brochure && (
+        <p className="mt-2 text-xs text-slate-600">
+          From the builder&apos;s brochure, shared by an agent. Renders are artist&apos;s impressions; the plans are indicative. Check the sanctioned plans before you book.
         </p>
       )}
       {web.length > 0 && <Sites pics={web} lead="From other sites about the project, not checked by us:" end="Check with the builder before you rely on them." />}

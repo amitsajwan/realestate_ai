@@ -363,6 +363,56 @@ async def pictures(sources: List[dict], raw_of: Dict[str, str], name: str, regno
     return photos, plans, f"{len(photos)} photos, {len(plans)} floor plans ({tried} tried)"
 
 
+# ---- the builder's brochure, uploaded by an agent (propertyfacts.brochure) -------------------------------------------------
+UPLOADS = Path("uploads")
+BROCHURE_PLAN_KINDS = ("floor_plan", "master_plan")
+
+
+def _safe(s: str) -> str:   # as propertyfacts.brochure names a listing's folder
+    return re.sub(r"[^A-Za-z0-9_-]", "", str(s))[:64] or "x"
+
+
+async def brochure_pictures(db, regno: str, name: str, media_dir: Path = MEDIA_DIR, uploads: Path = UPLOADS) -> tuple:
+    """(photos, plans, why) from the latest read brochure whose MahaRERA number is this project's (MahaRERA returned it), or one
+    of its group's registrations. Floor and master plans become plans, renders photos (labelled
+    artist's impressions); pages the agent dropped are left out. Source "brochure"."""
+    q = {"status": "done", "registration.status": "verified",
+         "$or": [{"registration.rera_no": regno}, {"registration.group.registrations": regno}]}
+    kits = await db.get_collection("brochures").find(q).sort("uploaded_at", -1).limit(3).to_list(3)
+    for kit in kits:
+        src = uploads / "brochures" / _safe(kit["listing_id"]) / str(kit.get("sha256") or "")
+        out = media_dir / (re.sub(r"[^A-Za-z0-9]", "", regno).lower() + "-brochure")
+        photos, plans = [], []
+        for im in kit.get("images") or []:
+            kind = im.get("kind")
+            f = src / f"{_safe(im.get('id'))}.jpg"
+            if im.get("state") == "dropped" or kind not in BROCHURE_PLAN_KINDS + ("render",) or not f.is_file():
+                continue
+            room = plans if kind in BROCHURE_PLAN_KINDS else photos
+            if len(room) >= (MAX_PLANS if room is plans else MAX_PHOTOS):
+                continue
+            try:
+                pic = Image.open(f)
+                pic.load()
+                pic = pic.convert("RGB")
+            except Exception:
+                continue
+            pic.thumbnail((KEEP_SIDE, KEEP_SIDE))
+            out.mkdir(parents=True, exist_ok=True)
+            file = f"{_safe(im.get('id'))}.webp"
+            pic.save(out / file, "WEBP", quality=82, method=4)
+            configs = " / ".join(im.get("configs") or [])
+            alt = (f"{name} {configs} floor plan" if configs and kind == "floor_plan" else f"{name} master plan" if kind == "master_plan"
+                   else f"{name} floor plan" if kind == "floor_plan" else f"{name}, artist's impression")
+            rel = out.relative_to(Path("uploads")).as_posix() if out.is_relative_to(Path("uploads")) else out.as_posix()
+            room.append({"path": f"{rel}/{file}", "width": pic.size[0], "height": pic.size[1],
+                         "alt": f"{alt} (page {im.get('page')} of the builder's brochure)", "site": None, "page_url": None,
+                         "source": "brochure"})
+        if photos or plans:
+            return photos, plans, f"brochure: {len(photos)} renders, {len(plans)} plans"
+    return [], [], "no brochure" if not kits else "brochure has no plans or renders"
+
+
 # ---- illustrations: when no site has pictures of the project ---------------------------------------------------------------
 # Owner 2026-10-22: "if we don't find images, add illustrative images". Drawn by Cloudflare's FLUX (free tier, ~2 s a picture),
 # never called the project: source "ai", and the page says each one is an illustration made by AI. Never drawn as floor plans
@@ -448,46 +498,52 @@ async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[webfacts.
     name = pages.names(doc)[0]
     results = await webfacts.results_for(store, doc, name, search if search is not None else websearch.provider(), now)
     sources = webfacts.pick_sources(results, name, webfacts.builder_words(doc), limit=webfacts.MAX_TRIES)
-    if not sources:   # no site names it: illustrations at least, once
-        old = doc.get("profile") or {}
-        if old.get("photos"):
-            return {"ok": False, "at": now, "checked": "no web results name the project"}, {}
-        drawn = await illustrations(doc, name, doc.get("regno") or doc["_id"], place_of(doc), draw, media_dir)
-        profile = {**old, "at": now, "name": name, "read": [], "pictures": f"{len(drawn)} illustrations drawn",
-                   "highlights": old.get("highlights") or [], "photos": drawn, "plans": old.get("plans") or []}
-        return ({"ok": bool(drawn), "at": now, "checked": f"no web results name the project; {len(drawn)} illustrations drawn"},
-                {"profile": profile} if drawn else {})
-    fetch = fetch or webfacts.fetch_page
-    readings, read, raw_of = [], [], {}
-    for src in sources:
-        if sum(1 for r in read if r["why"] != "page not read") >= MAX_PAGES:
-            break
-        raw = await fetch(src["url"])
-        if not raw:
-            read.append({"site": src["site"], "url": src["url"], "official": src["official"], "ok": False, "why": "page not read"})
-            continue
-        text = webfacts.page_text(raw)
-        if not websearch.mentions(name, text):
-            read.append({"site": src["site"], "url": src["url"], "official": src["official"], "ok": False,
-                         "why": "page does not name the project"})
-            continue
-        raw_of[src["url"]] = raw
-        got, why = await read_highlights(llm, src, name, text)
-        readings += got
-        read.append({"site": src["site"], "url": src["url"], "official": src["official"], "ok": bool(got), "why": why})
-    highlights = agree(readings)
     regno = doc.get("regno") or doc["_id"]
-    try:
-        photos, plans, why = await pictures(sources, raw_of, name, regno, image or fetch_bytes, media_dir, page=fetch)
-        if not photos and not plans:   # owner 2026-10-22: "or best we can find, unverified, from the web"
+    old = doc.get("profile") or {}
+    try:   # an agent's uploaded brochure of this project (or of its group): the builder's own plans and renders
+        b_photos, b_plans, b_why = await brochure_pictures(store.db, regno, name, media_dir)
+    except Exception as e:
+        log.exception("profile: brochure pictures failed for %s", regno)
+        b_photos, b_plans, b_why = [], [], f"brochure failed ({type(e).__name__})"
+    readings, read, raw_of = [], [], {}
+    photos, plans, why = [], [], "no web results name the project"
+    if sources:
+        fetch = fetch or webfacts.fetch_page
+        for src in sources:
+            if sum(1 for r in read if r["why"] != "page not read") >= MAX_PAGES:
+                break
+            raw = await fetch(src["url"])
+            if not raw:
+                read.append({"site": src["site"], "url": src["url"], "official": src["official"], "ok": False, "why": "page not read"})
+                continue
+            text = webfacts.page_text(raw)
+            if not websearch.mentions(name, text):
+                read.append({"site": src["site"], "url": src["url"], "official": src["official"], "ok": False,
+                             "why": "page does not name the project"})
+                continue
+            raw_of[src["url"]] = raw
+            got, why_ = await read_highlights(llm, src, name, text)
+            readings += got
+            read.append({"site": src["site"], "url": src["url"], "official": src["official"], "ok": bool(got), "why": why_})
+        try:
+            photos, plans, why = await pictures(sources, raw_of, name, regno, image or fetch_bytes, media_dir, page=fetch)
+        except Exception as e:
+            log.exception("profile: pictures failed for %s", regno)
+            photos, plans, why = [], [], f"pictures failed ({type(e).__name__})"
+    highlights = agree(readings)
+    # the builder's site, then the brochure (its plans first: they are the builder's own), then other sites, then illustrations
+    plans = (b_plans + plans)[:MAX_PLANS]
+    photos = photos or b_photos
+    why = f"{why}; {b_why}"
+    if sources and not photos and not plans:   # owner 2026-10-22: "or best we can find, unverified, from the web"
+        try:
             photos, plans, also = await pictures(sources, raw_of, name, regno, image or fetch_bytes, media_dir, builder=False)
             why = f"{why}; web: {also}"
-    except Exception as e:
-        log.exception("profile: pictures failed for %s", regno)
-        photos, plans, why = [], [], f"pictures failed ({type(e).__name__})"
-    old = doc.get("profile") or {}
-    if not photos and not old.get("photos"):   # nothing real ever found: illustrations, drawn once
-        try:
+        except Exception as e:
+            log.exception("profile: web pictures failed for %s", regno)
+            why = f"{why}; web pictures failed ({type(e).__name__})"
+    if not photos and not old.get("photos"):
+        try:   # nothing real ever found: illustrations, drawn once
             photos = await illustrations(doc, name, regno, place_of(doc), draw, media_dir)
             why += f"; {len(photos)} illustrations drawn"
         except Exception as e:
@@ -496,9 +552,15 @@ async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[webfacts.
     profile = {"at": now, "name": name, "read": read, "pictures": why,
                # a round that finds nothing keeps the last good ones (a builder's site that is down for a day)
                "highlights": highlights or old.get("highlights") or [],
-               "photos": photos or old.get("photos") or [], "plans": plans or old.get("plans") or []}
+               "photos": photos or kept(old.get("photos")), "plans": plans or kept(old.get("plans"))}
     checked = f"{len(highlights)} highlights from {sum(1 for r in read if r['ok'])} of {len(read)} sites; {why}"
     return {"ok": bool(highlights or photos or plans), "at": now, "checked": checked}, {"profile": profile}
+
+
+def kept(pics: Optional[List[dict]]) -> List[dict]:
+    """Last round's pictures kept when this round found none, except the brochure's: those are read from the kit every round,
+    so a page the agent dropped leaves the project page."""
+    return [p for p in pics or [] if p.get("source") != "brochure"]
 
 
 def lines(profile: Optional[dict]) -> List[str]:

@@ -612,9 +612,21 @@ class Brochures:
         doc["photo_note"] = photo_note(read.image_only, read.pages, triage)
         doc.update(status="done", error=None)
         await self.col.insert_one(doc)
+        await self._refresh_page(doc["registration"])
         if self.label_pages:
             label_pages_later(folder / sha, read.pages)
         return doc
+
+    async def _refresh_page(self, reg: dict) -> None:
+        """A brochure of a checked registration: its project page takes the plans and renders now (areastats.profile reads them
+        in its next round; owner 2026-10-22, floor plans from agents' brochures)."""
+        if reg.get("status") != "verified" or not reg.get("rera_no"):   # only a number MahaRERA returned: a typo never lands on another page
+            return
+        try:
+            from app.modules.areastats.enrich import enrich_now
+            await enrich_now(self.col.database, (reg.get("group") or {}).get("primary") or reg["rera_no"], by="brochure")
+        except Exception:
+            log.warning("brochure: project page refresh for %s not asked", reg.get("rera_no"), exc_info=True)
 
     async def set_fact(self, agent_id: str, listing_id: str, fact_id: str, state: str, value: Any = None,
                        has_value: bool = False) -> dict:
@@ -649,6 +661,8 @@ class Brochures:
             # the agent says the brochure's number is wrong: it no longer stands as the project's registration
             update["registration"] = {"status": "unknown", "rera_no": None, "note": ASK}
         await self.col.update_one({"_id": kit["_id"]}, {"$set": update})
+        if "registration" in update:
+            await self._refresh_page(update["registration"])
         return await self.col.find_one({"_id": kit["_id"]}) or kit
 
     @staticmethod
@@ -684,6 +698,7 @@ class Brochures:
             raise BrochureError("status is registered or exempt.", 422)
         reg["answer"] = answer
         await self.col.update_one({"_id": kit["_id"]}, {"$set": {"registration": reg}})
+        await self._refresh_page(reg)
         return {**kit, "registration": reg}
 
     async def set_image(self, agent_id: str, listing_id: str, image_id: str, state: str) -> dict:
@@ -698,6 +713,8 @@ class Brochures:
         im.update(state=state, decided_at=self.now())
         idx = images.index(im)
         await self.col.update_one({"_id": kit["_id"]}, {"$set": {f"images.{idx}": im}})   # one slot: taps in flight don't collide
+        if state == "dropped" or kit.get("images", [{}])[idx].get("state") == "dropped":
+            await self._refresh_page(kit.get("registration") or {})   # a page the agent drops leaves the project page too
         return await self.col.find_one({"_id": kit["_id"]}) or {**kit, "images": images}
 
     async def image_file(self, agent_id: str, listing_id: str, image_id: str) -> Path:
