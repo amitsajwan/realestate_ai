@@ -5,7 +5,7 @@ import { ErrorBox, Spinner } from '@/components/app/ui'
 import { timeAgo } from '@/lib/app/format'
 import { errorMessage } from '@/lib/app/client'
 import { getRankings, revertPage } from '@/lib/app/insights'
-import type { BoardRow, RankAction, RankTarget, Scoreboard, WeekNumbers } from '@/lib/app/insights'
+import type { AiVisits, BoardRow, RankAction, RankTarget, Scoreboard, WeekNumbers } from '@/lib/app/insights'
 import { useAsync } from '@/lib/app/useAsync'
 import { getNotifications, markNotificationRead } from '@/lib/app/whatsapp'
 
@@ -137,6 +137,39 @@ function AskGoogle({ pages }: { pages: { url: string; state: string | null; why:
   )
 }
 
+const AI_GROUP: Record<string, string> = {
+  answer: 'Read to answer a question', referral: 'Visitors from an AI answer', search: 'Search crawlers', training: 'Training crawlers',
+}
+
+/** AI search (seo/aivisits.py): which assistants read our pages, which pages AI answers use, and visits they send us. */
+function AiSearch({ a }: { a: AiVisits }) {
+  return (
+    <div className={card}>
+      <p className="font-semibold text-gray-900">AI search</p>
+      <p className="text-xs text-gray-600">From our request log, by user agent and referring site: 7 days, then {a.days} days. &quot;Read to answer&quot; is an assistant (ChatGPT, Perplexity, Claude) fetching a page while answering someone.</p>
+      {a.agents.length === 0 ? <p className="mt-1 text-sm text-gray-600">Nothing yet: counting starts with the deploy.</p> : (
+        <ul className="mt-1 space-y-1 p-0">
+          {a.agents.map((r) => (
+            <li key={r.group + r.agent} className="flex justify-between gap-2 text-xs text-gray-700">
+              <span>{r.agent} · {AI_GROUP[r.group] ?? r.group}</span>
+              <span className="tabular-nums">{r.week.toLocaleString('en-IN')} · {r.total.toLocaleString('en-IN')}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {[['Pages AI answers read', a.answer_pages], ['Pages people reached from AI answers', a.referral_pages]].map(([title, rows]) =>
+        (rows as AiVisits['answer_pages']).length > 0 && (
+          <div key={title as string} className="mt-2">
+            <p className="text-xs font-semibold text-gray-800">{title as string}</p>
+            <ul className="space-y-0.5 p-0">
+              {(rows as AiVisits['answer_pages']).map((p) => <li key={p.path} className="break-words text-xs text-gray-700"><LinkOut href={SITE + p.path}>{p.path}</LinkOut> · {p.count}</li>)}
+            </ul>
+          </div>
+        ))}
+    </div>
+  )
+}
+
 export default function RankingsTab() {
   const q = useAsync(() => getRankings(), [])
   React.useEffect(() => {   // opening the tab reads the weekly SEO note shown on Home
@@ -174,6 +207,8 @@ export default function RankingsTab() {
       {!!d.coverage?.by_sitemap.length && <ByArea rows={d.coverage.by_sitemap} at={d.coverage.at} />}
 
       {!!d.request_indexing?.length && <AskGoogle pages={d.request_indexing} />}
+
+      {d.ai && <AiSearch a={d.ai} />}
 
       <div className={card}>
         <p className="font-semibold text-gray-900">What works (page doctor)</p>

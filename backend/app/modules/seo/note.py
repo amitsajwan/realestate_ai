@@ -16,7 +16,7 @@ from app.modules.insights.collector import owner_ids
 from app.modules.newsroom.store import Store
 from app.modules.notifications.service import notify
 
-from . import coverage, scoreboard, targets
+from . import aivisits, coverage, scoreboard, targets
 
 MARK = "seo_note"
 KIND = "seo_week"
@@ -84,7 +84,8 @@ async def run_once(store: Store, now: datetime, force: bool = False) -> Optional
     waiting = await store.db.get_collection(coverage.COLLECTION).count_documents({"state": {"$in": list(WAITING)}})
     index = store.db.get_collection(coverage.COLLECTION)   # every page inspected so far, not only the last day's batch
     cov = {"inspected": await index.count_documents({}), "indexed": await index.count_documents({"verdict": "PASS"})}
-    text = summary(week, ago, cov, await store.get_mark(scoreboard.MARK), waiting)
+    text = summary(week, ago, cov, await store.get_mark(scoreboard.MARK), waiting) + " " + aivisits.week_line(
+        await aivisits.summary(store.db, now, days=7))
     for owner in owners:
         await notify(store.db, owner, KIND, text, {"href": "/studio/newsroom/insights?tab=rankings"}, now=now)
     await store.set_mark(MARK, at=now, text=text)

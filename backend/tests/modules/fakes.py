@@ -103,7 +103,11 @@ class FakeCollection:
             else:
                 node[last] = v
         for k, v in update.get("$inc", {}).items():
-            d[k] = d.get(k, 0) + v
+            *path, last = k.split(".")   # "kinds.project": into nested dicts, as Mongo's dotted paths do
+            node = d
+            for part in path:
+                node = node.setdefault(part, {})
+            node[last] = node.get(last, 0) + v
         for k, v in update.get("$addToSet", {}).items():
             if v not in d.setdefault(k, []):
                 d[k].append(v)
@@ -117,11 +121,15 @@ class FakeCollection:
                 return type("R", (), {"deleted_count": 1})
         return type("R", (), {"deleted_count": 0})
 
-    async def update_one(self, flt, update):
+    async def update_one(self, flt, update, upsert=False):
         for d in self.docs:
             if _match(d, flt):
                 self._apply(d, update)
                 return _UpdateResult(1)
+        if upsert:   # a new document from the filter's plain fields, then the update
+            d = {k: v for k, v in flt.items() if not k.startswith("$") and not isinstance(v, dict)}
+            self._apply(d, update)
+            self.docs.append(d)
         return _UpdateResult(0)
 
     async def update_many(self, flt, update):
