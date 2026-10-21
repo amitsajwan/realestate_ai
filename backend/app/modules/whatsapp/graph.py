@@ -68,6 +68,15 @@ class WhatsAppGraph:
         msgs = res.get("messages") or [{}]
         return (msgs[0] or {}).get("id")
 
+    async def send_template(self, phone_number_id: str, to: str, name: str, language: str, params: list) -> Optional[str]:
+        """An approved template (the only message allowed outside the 24-hour window). Returns the new message id."""
+        body = {"messaging_product": "whatsapp", "recipient_type": "individual", "to": to, "type": "template",
+                "template": {"name": name, "language": {"code": language},
+                             "components": [{"type": "body", "parameters": [{"type": "text", "text": str(p)} for p in params]}]}}
+        res = await self._request("POST", self._url(phone_number_id), json=body)
+        msgs = res.get("messages") or [{}]
+        return (msgs[0] or {}).get("id")
+
     async def mark_read(self, phone_number_id: str, message_id: str) -> None:
         await self._request("POST", self._url(phone_number_id), json={"messaging_product": "whatsapp", "status": "read", "message_id": message_id})
 

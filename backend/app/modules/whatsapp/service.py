@@ -14,7 +14,8 @@ Rules
   - Another business's auto-reply bot (the same text again and again, or a burst of messages) gets no more replies for a day, so two bots
     never talk to each other (2026-10-18: 84 messages in 6 minutes); the owner is told once.
   - STOP / UNSUBSCRIBE: opted out, one confirmation, then silence until START.
-  - Replies only inside 24 hours of the buyer's last message; otherwise refused and logged (no paid templates yet).
+  - Replies only inside 24 hours of the buyer's last message; otherwise refused and logged. Outside it a person can only start a chat
+    from Studio with an approved template (send_template; InboxService.start, 2026-10-21).
   - Dry run records the reply and sends nothing. Tokens never reach logs or stored errors.
 """
 import logging
@@ -330,6 +331,26 @@ class WhatsAppService(ChatBrain):
                 log.warning("whatsapp: send failed: %s", rec["error"])
         if rec["status"] in ("sent", "dry_run"):
             conv["replies"] = recent + [now]
+        rec["_id"] = rec.get("_id") or f"out-{uuid.uuid4().hex}"
+        await self.messages.insert_one(rec)
+        return rec
+
+    async def send_template(self, conv: dict, name: str, language: str, params: list, text: str, now: datetime) -> dict:
+        """A person starts a chat with an approved template (allowed outside the 24-hour window). `text` is the filled-in body,
+        kept so the thread shows what went out. Same records, dry run and connection checks as _send."""
+        rec = {"direction": "out", "wa_id": conv["wa_id"], "phone_number_id": conv["phone_number_id"], "agent_id": conv.get("agent_id"),
+               "type": "template", "template": name, "text": text, "ts": now, "error": None, "dry_run": self.cfg.dry_run}
+        if self.cfg.dry_run:
+            rec["status"] = "dry_run"
+        elif self.graph is None or not self.cfg.can_send:
+            rec.update(status="failed", error="WhatsApp is not connected (no access token)")
+        else:
+            try:
+                rec["_id"] = await self.graph.send_template(conv["phone_number_id"], conv["wa_id"], name, language, params) or None
+                rec["status"] = "sent"
+            except WhatsAppGraphError as e:
+                rec.update(status="failed", error=self._clean(e))
+                log.warning("whatsapp: template send failed: %s", rec["error"])
         rec["_id"] = rec.get("_id") or f"out-{uuid.uuid4().hex}"
         await self.messages.insert_one(rec)
         return rec

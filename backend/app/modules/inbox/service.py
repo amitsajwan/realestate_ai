@@ -11,7 +11,8 @@ Sources (read only, except the WhatsApp reply)
 A thread id is "<kind>-<base64url of the stored _id>" (kind: wa, dm, web; cm: "<channel>|<commenter id>"), so ids never carry a raw phone number.
 "Needs you" = the last message is theirs: nobody (bot or person) has answered it.
 A person's reply goes out only on WhatsApp, only inside the 24-hour window, through WhatsAppService._send (same caps, dry run and
-records); the bot then stays quiet in that chat for HUMAN_HOLD, so it does not talk over the person.
+records); the bot then stays quiet in that chat for HUMAN_HOLD, so it does not talk over the person. Outside the window a person can
+start (or restart) a chat from a lead with the approved follow-up template, once per 24 hours (start).
 """
 import base64
 import binascii
@@ -30,6 +31,14 @@ MAX_REPLY = 1000
 MAX_COMMENTS = 300
 COMMENT_CHANNEL = {"facebook": "facebook_comment", "instagram": "instagram_comment"}
 COMMENT_TROUBLE = ("capped", "failed")   # the bot could not answer: a person should
+TEMPLATE_GAP = timedelta(hours=24)
+FOLLOWUP_TEMPLATE = "enquiry_followup_v1"   # approved UTILITY template on our WABA; the body below must match Meta's copy
+FOLLOWUP_BODY = ("Namaste {} ji, this is Avasetu. You asked about a {} in Pune ({}). Thank you!\n\n"
+                 "To shortlist the right homes, could you tell us:\n"
+                 "1. Which part of Pune you'd like to live in, or where you or your family work?\n"
+                 "2. Ready to move, or under construction is fine?\n"
+                 "3. Is it for your family to live in, or an investment?\n\n"
+                 "Hindi mein baat karna ho to bataiye.")
 
 
 class InboxError(Exception):
@@ -180,7 +189,7 @@ class InboxService:
                 "passed": passed, "passed_at": _iso(d.get("passed_at")) if passed else None,
                 "lead_id": d.get("lead_id"), "lead_saved": bool(d.get("lead_id") or d.get("lead_created")),
                 "window_open": window, "opted_out": opted_out, "can_reply": kind == "wa" and window and not opted_out,
-                "summary": self._summary(data), "messages": len(msgs)}
+                "summary": self._summary(data), "messages": len(msgs), "follow_up_sent_at": _iso(d.get("template_sent_at"))}
 
     @staticmethod
     def _summary(data: dict) -> str:
@@ -264,6 +273,49 @@ class InboxService:
             "messages": msgs[-20:], "replies": conv.get("replies", []), "human_until": now + HUMAN_HOLD, "updated_at": now}})
         return await self.thread(agent_id, tid)
 
+    # ---- a person starts a WhatsApp chat with a lead --------------------------------------------------------------
+    # Our number is on the Cloud API, so nobody can open it in the WhatsApp app (owner, 2026-10-21: "we need a way to send a
+    # WhatsApp message"). Inside the 24-hour window the person just writes in the thread; outside it the only thing WhatsApp allows is
+    # an approved template, sent at most once per TEMPLATE_GAP so a quiet buyer is not chased.
+    async def start(self, agent_id: str, lead_id: str, by: str) -> dict:
+        lead = await self.c("contacts").find_one({"_id": lead_id, "agent_id": agent_id})
+        if not lead:
+            raise InboxError("Lead not found", 404)
+        digits = _wa_digits(lead.get("phone"))
+        if not digits:
+            raise InboxError("This lead has no Indian mobile number to message", 422)
+        if self.whatsapp is None or not self.whatsapp.cfg.phone_number_id:
+            raise InboxError("WhatsApp is not connected", 503)
+        now = self.now()
+        pid = str(self.whatsapp.cfg.phone_number_id)
+        cid = f"{pid}:{digits}"
+        tid = _enc("wa", cid)
+        conv = await self.c("whatsapp_conversations").find_one({"_id": cid})
+        if conv and conv.get("opted_out"):
+            raise InboxError("They replied STOP. Do not message them on WhatsApp.", 409)
+        if conv and self._window(conv):
+            return {"id": tid, "sent": False}
+        if conv and conv.get("template_sent_at") and now - conv["template_sent_at"] < TEMPLATE_GAP:
+            raise InboxError("The follow-up message already went out in the last 24 hours. Wait for their reply, or call them.", 409)
+        if not conv:
+            name = (lead.get("name") or "").strip()[:60]
+            from app.modules.whatsapp import adapters
+            conv = {"_id": cid, "wa_id": digits, "phone_number_id": pid, "agent_id": agent_id, "routed_by": "lead_start", "name": name,
+                    "data": adapters.new_chat_state("+" + digits, name or None), "messages": [], "created_at": now, "opted_out": False,
+                    "notice_sent_at": None, "lead_id": lead_id, "context": None, "language": None, "needs_human_notified": False, "replies": []}
+            await self.c("whatsapp_conversations").insert_one(conv)
+        params = followup_params(lead)
+        text = FOLLOWUP_BODY.format(*params)
+        rec = await self.whatsapp.send_template(conv, FOLLOWUP_TEMPLATE, "en", params, text, now)
+        await self.c("whatsapp_messages").update_one({"_id": rec["_id"]}, {"$set": {"sent_by": by}})
+        if rec["status"] not in ("sent", "dry_run"):
+            raise InboxError(f"Not sent: {rec.get('error') or rec['status']}", 502)
+        msgs = (conv.get("messages") or []) + [{"role": "agent", "sent_by": by, "text": text, "ts": now, "status": rec["status"]}]
+        await self.c("whatsapp_conversations").update_one({"_id": cid}, {"$set": {
+            "messages": msgs[-20:], "lead_id": conv.get("lead_id") or lead_id, "template_sent_at": now,
+            "human_until": now + HUMAN_HOLD, "updated_at": now}})
+        return {"id": tid, "sent": True}
+
     # ---- the owner passes a buyer to an agent -----------------------------------------------------------------------
     # The conversation and its lead move to the agent (his Inbox and Leads; WhatsApp routing keeps them with him, since
     # routed_by is no longer "owner"); the owner still sees it, marked "Passed to". The agent gets a Studio alert, and the owner
@@ -333,6 +385,21 @@ class InboxService:
             lines.append(f'They said: "{said[:200]}"')
         lines.append("Please call or WhatsApp them today.")
         return "\n".join(lines)
+
+
+def _money(inr) -> str:
+    return f"Rs {inr / 1e7:.2f}".rstrip("0").rstrip(".") + " Cr" if inr >= 1e7 else f"Rs {inr / 1e5:.0f} L"
+
+
+def followup_params(lead: dict) -> List[str]:
+    """{{1}} name, {{2}} what they want, {{3}} the budget or where they asked; WhatsApp rejects empty or multi-line parameters."""
+    req = lead.get("requirement") or {}
+    name = (lead.get("name") or "").split()
+    bhk = req.get("bhk")
+    what = f"{int(bhk) if float(bhk).is_integer() else bhk} BHK home" if bhk else "home"
+    lo, hi = req.get("budget_min_inr"), req.get("budget_max_inr")
+    budget = f"{_money(lo)} to {_money(hi)}" if lo and hi and lo != hi else f"up to {_money(hi)}" if hi else ""
+    return [name[0][:40] if name else "Sir", what, budget or "your enquiry on our website"]
 
 
 def _wa_digits(phone) -> Optional[str]:
