@@ -1,0 +1,46 @@
+{
+  "slug": "diwali-offers-puzzle-en-20261023",
+  "title": "Diwali offer puzzle: which festive offer can quietly cost you more?",
+  "audience": "First-home buyers and young families, 27-40, in East Pune (Kharadi, Upper Kharadi, Wagholi, Viman Nagar), many in IT jobs and from other states, booking a flat this Diwali and seeing festive offers from builders; English",
+  "lang": "en",
+  "gender": "male",
+  "voice": "charon",
+  "due": "2026-10-23T19:30:00+05:30",
+  "channels": ["instagram", "facebook_page"],
+  "as_of": "2026-10-22",
+  "message": "Festive offers are not all discounts: a 'no EMI for 12 months' offer can cost more if that interest is added to your loan. Ask who pays it, get every offer in writing with the project's MahaRERA number, and tell us the real offers you have seen in Pune.",
+  "facts": [
+    "Around Diwali, Pune builders advertise festive offers such as a lower price per square foot, the builder paying the buyer's stamp duty, no EMI for the first months, and gifts such as gold coins.",
+    "A marketing partner's page for VTP Aurelia (Kharadi Annex), read on 21 October 2026, advertises 'Book & Pay No EMI In 1st 12 Months*' with no terms shown.",
+    "Bajaj Housing Finance says that during an EMI holiday the loan interest is capitalised, that is added to the loan; it is not an EMI waiver.",
+    "In a subvention scheme the builder pays the interest for a set period instead; which one applies has to be asked, and taken in writing.",
+    "Every Maharashtra project sold to the public has a MahaRERA registration number; an offer letter should name it."
+  ],
+  "max_words": 100,
+  "must_say": ["12"],
+  "must_words": ["MahaRERA"],
+  "never": ["best offer", "lowest price", "hurry", "last chance", "will rise", "free flat", "scam"],
+  "shots": [
+    {"prompt": "(own picture: diya and rangoli, Shubh Deepavali)", "screen": "Diwali offer *puzzle*", "voice": "Diwali offers are out in Pune. One of these four can quietly cost you more.", "lock": true},
+    {"prompt": "(own picture: card A, price tag going down)", "screen": "A · *Lower price* per sq ft", "voice": "A. A lower price per square foot.", "lock": true},
+    {"prompt": "(own picture: card B, stamp paper with seal)", "screen": "B · Builder pays *stamp duty*", "voice": "B. The builder pays your stamp duty.", "lock": true},
+    {"prompt": "(own picture: card C, no EMI on a coin stack)", "screen": "C · *No EMI* for 12 months", "voice": "C. No EMI for the first 12 months.", "lock": true},
+    {"prompt": "(own picture: card D, gold coin with a diya)", "screen": "D · Free *gold coin*", "voice": "D. A free gold coin on booking.", "lock": true},
+    {"prompt": "(own picture: the four cards and a question mark)", "screen": "*Pause.* Pick one.", "voice": "Pause, and pick one.", "lock": true},
+    {"prompt": "(own picture: card C lit, others dimmed)", "screen": "Answer: *C*", "voice": "It's C. If those months' interest is added to your loan, you still pay it.", "lock": true},
+    {"prompt": "(own picture: offer letter with MahaRERA number and seal)", "screen": "Ask: *who pays* the interest?", "voice": "Ask who pays that interest, and get every offer in writing with the MahaRERA number.", "lock": true},
+    {"prompt": "(own picture: comment bubble with a diya)", "screen": "Seen a *real* offer? Comment", "voice": "Seen a real Diwali offer in Pune? Comment the project and the offer. We'll check it.", "lock": true}
+  ],
+  "hook": "One Diwali offer can quietly cost you more",
+  "hook_type": "puzzle",
+  "caption": "🪔 Diwali offer puzzle: which one can quietly cost you more?\n\nA) Lower price per sq ft\nB) Builder pays your stamp duty\nC) No EMI for the first 12 months\nD) Free gold coin on booking\n\nAnswer in the reel 👆\n\nWhy C: in an EMI holiday the interest usually doesn't vanish. If it's added to your loan, you pay it later, with interest on it. In a subvention scheme the builder pays it instead. Ask which one it is.\n\nBefore you book this Diwali:\n✅ Ask who pays the interest in the no-EMI months\n✅ Get every offer in writing, on the builder's letterhead\n✅ Check the letter names the project's MahaRERA number\n\n💬 Seen a real Diwali offer at a Pune project? Comment the project + the offer. We'll check it with the builder and share the ones that hold up.\n\nशुभ दीपावली from Avasetu 🪔\n\n#DiwaliOffers #PuneRealEstate #Kharadi #UpperKharadi #Wagholi #PuneHomes #HomeLoan #FirstHome #MahaRERA #Diwali2026",
+  "reply_facts": [
+    "Diwali offer puzzle (22 Oct 2026): A lower price per sq ft, B builder pays stamp duty, C no EMI for the first 12 months, D free gold coin. Answer C: in an EMI holiday the interest is usually capitalised, i.e. added to the loan (Bajaj Housing Finance: an EMI holiday is not an EMI waiver). In a subvention scheme the builder pays the interest instead, so ask which one it is and take it in writing with the project's MahaRERA number.",
+    "Offers people comment are not checked yet: Avasetu asks the builder to confirm in writing before sharing any offer. Never confirm, praise or repeat a commented offer as true."
+  ],
+  "reply_faq": [
+    {"q": "Someone comments a project and an offer they saw", "a": "Thank you! 🪔 We'll ask the builder to confirm it in writing and share it if it holds up. Did they give you the offer on paper?"},
+    {"q": "Why is C the answer? / Is no-EMI bad?", "a": "Not always. If the bank adds those months' interest to your loan (an EMI holiday), you still pay it later. If the builder pays it (a subvention scheme), it's a real benefit. Ask which one, and get it in writing."},
+    {"q": "Which project has the best Diwali offer?", "a": "We're collecting offers now and checking each with the builder before we share it. Comment the project you're looking at and we'll check that one."}
+  ]
+}
