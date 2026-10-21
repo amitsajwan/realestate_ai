@@ -192,6 +192,8 @@ export interface GrownPages {
   unknown: WordCount[]
   gaps: WordCount[]
   existing: { path: string; impressions: number; phrases: string[] }[]
+  /** the prices round (backend areastats/pricing.py): per area, projects being sold and how many show a price */
+  prices?: { at: string | null; searches: number; coverage: { place: string; selling: number; priced: number; none_found: number; waiting: number }[] }
 }
 
 export const getGrownPages = () => call<GrownPages>('pages')

@@ -4,8 +4,11 @@ Each round picks ONE project (`next_project`): an urgent request first (a campai
 selling, in the news, searched for; refreshed every HOT_REFRESH_DAYS), then the pages Google already shows (Search Console
 impressions, when that job has stored them; those just off page one first), then records enriched before the checks below (no
 `enrichment`), then indexable pages never enriched (newest first), then the rest, then the oldest enrichment once it is
-REFRESH_DAYS old (RETRY_DAYS when MahaRERA or the model did not answer: that is the service, not the project). Projects finished
-more than a year ago are skipped (status "finished"). For that project:
+REFRESH_DAYS old (RETRY_DAYS when MahaRERA or the model did not answer: that is the service, not the project). Projects whose filed
+completion date has passed are skipped (status "finished"; owner 2026-10-21: "projects already completed we should not enrich"),
+unless a campaign asks; projects with 90% or more of their homes booked (pages.nearly_sold) come after all the others; the rest
+go area by area outward from Kharadi (areastats.pricing.ORDER: Upper Kharadi, Kharadi, Wagholi, Keshav Nagar, Lohegaon, then the
+west side), and in each area new launches and hot projects first (owner 2026-10-21). For that project:
 0. MahaRERA, two open reads one after the other (PAUSE apart): the general record (kept only when its regno is the record's)
    and the building/wing summary (kept only when every row's projectId and regno are the record's) -> `buildings`,
    `building_totals`. A record with no pincode or locality gets them from the project's fact sheet (same regno) first.
@@ -20,7 +23,8 @@ more than a year ago are skipped (status "finished"). For that project:
    hot project with no profile yet is enriched at once (after urgent requests). Not counted in the score.
 2d. prices: what the builder's site and the property sites ask, per home size (areastats.prices), from the same pages' price
    lines, every amount read by code from a quote; kept as `prices`. Not given to the text model (prices change faster than the
-   text is rewritten) and not counted in the score.
+   text is rewritten) and not counted in the score. Prices also have their own round in this loop (areastats.pricing: one
+   project every 15 minutes, Upper Kharadi, Kharadi and Wagholi first), so they do not wait for a rewrite.
 3. stored on the register record: `page_text` (when accepted), `enriched_at`, `enrich_notes`, `geo` (the gathered position,
    checked to be within NEAR_KM of the pincode's centre) and `enrichment` = {at, steps: {maharera_general, buildings, places,
    text}: each {ok, at, checked...}, score "n/4"}; `status_list` is the owner's view of it (Studio > Newsroom > Project pages).
@@ -41,7 +45,7 @@ from app.modules.newsroom import register
 from app.modules.newsroom.store import Store
 from app.platform import trace
 
-from . import brands, hot, pages, prices, profile, searchconsole, webfacts
+from . import brands, hot, pages, prices, pricing, profile, searchconsole, webfacts
 from .service import _day
 
 log = logging.getLogger(__name__)
@@ -134,9 +138,17 @@ def priority(d: dict, urgent: set, now: datetime) -> Optional[tuple]:
     """Sort key (lower first) for a project that needs enriching, or None when it does not need it now."""
     regno = d.get("regno") or d["_id"]
     if regno in urgent:
-        return (0, 0)
-    if pages.is_old(d, now.date()):
-        return None                                             # finished more than a year ago: MahaRERA facts only
+        return (-1,)                                            # a campaign asked: first, completed or not
+    if pages.completion_passed(d, now.date()):
+        return None                                             # completed: MahaRERA facts only, unless a campaign asks
+    key = _priority(d, now)
+    if key is None:
+        return None
+    # nearly sold out after every other project; then our areas outward from Kharadi; in each, new launches and hot ones first
+    return (1 if pages.nearly_sold(d) else 0, pricing.area_rank(d), 0 if pricing.new_or_hot(d, now) else 1, *key)
+
+
+def _priority(d: dict, now: datetime) -> Optional[tuple]:
     done, heat = d.get("enriched_at"), int(d.get("hot_score") or 0)
     if parked(d, now) or isinstance(done, datetime) and now - _aware(done) < MIN_GAP:
         return None                                             # failing again and again, or just done: the others go first
@@ -529,7 +541,7 @@ def status_of(d: dict, today=None) -> str:
         return "parked"
     e = d.get("enrichment")
     if not e:
-        return "finished" if pages.is_old(d, today) else "waiting"   # finished: never enriched, MahaRERA facts only
+        return "finished" if pages.completion_passed(d, today) else "waiting"   # completed: never enriched, MahaRERA facts only
     n = sum(1 for k in STEPS if ((e.get("steps") or {}).get(k) or {}).get("ok"))
     return "ok" if n == len(STEPS) else "failed" if n <= 1 else "partial"
 
@@ -597,7 +609,7 @@ async def step(store: Store, llm, now: datetime, last_regular: Optional[datetime
     if doc is None:
         return None
     reread = True
-    if not urgent and (priority(doc, set(), now) or (0,))[0] == BACKFILL:
+    if not urgent and (_priority(doc, now) or (0,))[0] == BACKFILL:   # the group of the key before the area and launch order
         reread = not sources_fresh(doc, now) or bool(outdated(doc))
         if reread and last_regular is not None and now - _aware(last_regular) < BACKFILL_EVERY:
             return None
@@ -638,6 +650,7 @@ async def loop() -> None:
 
     log.info("enrich: loop started")
     last_regular: Optional[datetime] = None
+    last_prices: Optional[datetime] = None
     while True:
         cfg = load()
         try:
@@ -656,10 +669,16 @@ async def loop() -> None:
                             log.info("enrich: hot projects %s", scored)
                     except Exception:
                         log.exception("enrich: hot projects scoring failed")
-                    out = await step(Store(get_database()), default_llm(), now, last_regular, cfg.every)
+                    llm = default_llm()
+                    out = await step(Store(get_database()), llm, now, last_regular, cfg.every)
                     if out:   # enrich_one logged it (pipeline=enrich)
                         if not out["urgent"]:
                             last_regular = now
+                    try:   # prices on their own turn, Upper Kharadi, Kharadi and Wagholi first (areastats.pricing)
+                        if await pricing.step(Store(get_database()), llm, datetime.now(timezone.utc), last_prices, busy=busy(llm)):
+                            last_prices = now
+                    except Exception:
+                        log.exception("enrich: prices round failed")
         except asyncio.CancelledError:
             raise
         except Exception:
