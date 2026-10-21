@@ -40,8 +40,11 @@ log = logging.getLogger(__name__)
 RESULTS = "web_search_results"       # {_id: query, kind: "area" | "project", area, regno, at, results: [...]}
 DISCOVERED = "discovered_projects"   # {_id: regno, first_seen, last_seen, seen: [{query, title, link}]}
 MARK = "web_search"                  # newsroom_status document: where the area searches are in their turn
+# one search per way buyers ask for an area (docs/plan/seo-system.md, "Every way buyers search"): the same AREA_PER_DAY budget,
+# a longer turn (7 searches x 8 areas, every area's family once in ~9 days)
 AREA_QUERIES = ("new launch projects in {area} Pune", "upcoming residential projects in {area} Pune",
-                "top residential projects in {area} Pune", "ready to move flats in {area} Pune")
+                "top residential projects in {area} Pune", "ready to move flats in {area} Pune",
+                "flats in {area} Pune", "2 bhk flats in {area} Pune", "property rates in {area} Pune")
 AREA_PER_DAY = 6
 PROJECT_PER_DAY = 8
 TARGET_PER_DAY = 6                   # rank checks: the target search of a page the page doctor changed 14 or 28 days ago

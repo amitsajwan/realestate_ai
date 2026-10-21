@@ -43,7 +43,7 @@ RAISE_AT = 0.7
 RAISE_AFTER = timedelta(days=14)
 KEEP_LISTS = 60
 AUTOCOMPLETE_PER_WEEK = 8
-AUTOCOMPLETE_SEEDS = ("new projects in {area}", "flats in {area}")
+AUTOCOMPLETE_SEEDS = ("new projects in {area}", "flats in {area}", "2 bhk flats in {area}", "property in {area}")
 SOURCES = ("search_console", "related", "question", "autocomplete")
 STATUSES = ("candidate", "live", "held", "never")
 
