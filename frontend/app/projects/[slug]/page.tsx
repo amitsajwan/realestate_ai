@@ -72,7 +72,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const r = await loadRegister(params)
   if (!r) return { title: 'Project not found', robots: { index: false } }
   // the first builder picture is the preview of a shared link and the page's image in search, else the brand card
-  const photo = r.profile?.photos?.find((x) => x.url.startsWith('/') && x.width && x.height)
+  const photo = r.profile?.photos?.find((x) => (x.source ?? 'builder') === 'builder' && x.url.startsWith('/') && x.width && x.height)
   const meta = pageMetadata(getMarketingConfig(), {
     title: registerTitle(r),
     description: registerDescription(r),
@@ -148,7 +148,8 @@ export default async function SharedProjectPage({ params }: Props) {
           </div>
         </header>
 
-        <ProjectProfile profile={profile} name={p.name} />
+        <ProjectProfile profile={profile} name={p.name}
+          lead={{ agentSlug: main.slug, agentName: BRAND_NAME, agentPhone: main.phone, topic: `${p.name} (${p.rera_no})`, waMessage: msg }} />
 
         <ProjectDetails p={p} agentName={main.name} />
 

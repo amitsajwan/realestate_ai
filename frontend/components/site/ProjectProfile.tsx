@@ -1,41 +1,20 @@
 import React from 'react'
 import { formatDay } from '@/lib/site/projects'
-import type { ProfilePicture, ProjectProfile as Profile } from '@/lib/site/profile'
-
-function Picture({ pic, eager }: { pic: ProfilePicture; eager?: boolean }) {
-  return (
-    <a href={pic.url} target="_blank" rel="noopener" className="block overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={pic.url} alt={pic.alt} width={pic.width ?? undefined} height={pic.height ?? undefined}
-        loading={eager ? 'eager' : 'lazy'} decoding="async" className="h-full w-full object-cover" />
-    </a>
-  )
-}
-
-function Credit({ pics }: { pics: ProfilePicture[] }) {
-  const sites = Array.from(new Map(pics.filter((p) => p.site).map((p) => [p.site, p.page_url])).entries())
-  if (!sites.length) return null
-  return (
-    <p className="mt-2 text-xs text-slate-600">
-      From the builder&apos;s website:{' '}
-      {sites.map(([site, url], i) => (
-        <React.Fragment key={site}>
-          {i > 0 && ', '}
-          {url ? <a href={url} target="_blank" rel="noopener nofollow" className="underline underline-offset-2">{site}</a> : site}
-        </React.Fragment>
-      ))}
-      . Renders are the builder&apos;s artist&apos;s impressions; the plans are indicative. Check the sanctioned plans before you book.
-    </p>
-  )
-}
+import type { ProjectProfile as Profile } from '@/lib/site/profile'
+import { Credit, Picture, sourceOf } from '@/components/site/ProfilePictures'
+import FloorPlansLock, { type PlansLead } from '@/components/site/FloorPlansLock'
 
 /** Highlights, the builder's pictures and floor plans of a project still being built (backend areastats/profile.py). `part` shows
- * one of them, so a page can put the pictures first and the plans next to the prices. */
-export default function ProjectProfile({ profile, name, part }: { profile: Profile | null | undefined; name: string; part?: 'highlights' | 'photos' | 'plans' }) {
-  if (!profile) return null
+ * one of them, so a page can put the pictures first and the plans next to the prices. Floor plans are always behind a short
+ * form (owner 2026-10-22: "floor plans locked, ask for the form"): shown only with `lead`, even when we have none yet. */
+export default function ProjectProfile({ profile, name, part, lead }: {
+  profile: Profile | null | undefined; name: string; part?: 'highlights' | 'photos' | 'plans'; lead?: PlansLead
+}) {
+  const showPlans = (!part || part === 'plans') && !!lead
+  if (!profile) return showPlans && lead ? <FloorPlansLock plans={[]} name={name} lead={lead} /> : null
   const highlights = !part || part === 'highlights' ? profile.highlights : []
   const photos = !part || part === 'photos' ? profile.photos : []
-  const plans = !part || part === 'plans' ? profile.plans : []
+  const drawn = photos.length > 0 && photos.every((p) => sourceOf(p) === 'ai')
   return (
     <>
       {highlights.length > 0 && (
@@ -67,7 +46,7 @@ export default function ProjectProfile({ profile, name, part }: { profile: Profi
       )}
       {photos.length > 0 && (
         <section aria-labelledby="photos-title" data-testid="photos">
-          <h2 id="photos-title" className="text-xl font-bold">Pictures of {name}</h2>
+          <h2 id="photos-title" className="text-xl font-bold">{drawn ? `What ${name} could look like` : `Pictures of ${name}`}</h2>
           <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
             {photos.map((p, i) => (
               <div key={p.url} className={i === 0 ? 'col-span-2 aspect-[16/9] sm:col-span-3' : 'aspect-[4/3]'}>
@@ -75,23 +54,10 @@ export default function ProjectProfile({ profile, name, part }: { profile: Profi
               </div>
             ))}
           </div>
-          <Credit pics={photos} />
+          <Credit pics={photos} name={name} />
         </section>
       )}
-      {plans.length > 0 && (
-        <section aria-labelledby="plans-title" data-testid="plans">
-          <h2 id="plans-title" className="text-xl font-bold">Floor plans of {name}</h2>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            {plans.map((p) => (
-              <figure key={p.url}>
-                <div className="aspect-[16/10] [&_img]:object-contain"><Picture pic={p} /></div>
-                <figcaption className="mt-1 text-sm text-slate-700">{p.alt}</figcaption>
-              </figure>
-            ))}
-          </div>
-          <Credit pics={plans} />
-        </section>
-      )}
+      {showPlans && lead && <FloorPlansLock plans={profile.plans} name={name} lead={lead} />}
     </>
   )
 }

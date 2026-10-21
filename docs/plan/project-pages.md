@@ -132,6 +132,22 @@ read again and again, but only for projects whose completion date is still to co
 - Trial, Lodha Camelot (lodhagroup.com/.../lodha-camelot-kharadi): 6 photos (gallery renders + banner) and 4 plans (3 BHK,
   3 BHK with study, 4 BHK with study, master plan).
 
+### Hot first, pictures always, plans behind a form (2026-10-22, LIVE)
+
+Owner, 2026-10-22: "first just hot projects, even outside Kharadi, all 4 stages done; if we don't find images add illustrative
+ones; floor plans locked, ask for the form; else AI or the best unverified from the web". Before: 76 hot projects still being
+built, all with model text, 40 with highlights, 2 with photos, 1 with plans.
+- Queue: a hot project comes before every non-hot one in any area (`enrich.priority`, first key). A hot page that is not
+  `complete` (all 4 STEPS ok and photos, or read on its group's primary) is retried after RETRY_DAYS (1), not HOT_REFRESH_DAYS.
+- Pictures, in order: the builder's site (source "builder") -> other sites' pages whose address names the project (source "web",
+  badge "Not checked by us", credit names the sites) -> illustrations drawn once by Cloudflare FLUX-1-schnell from MahaRERA's
+  facts (towers, floors, homes or offices; source "ai", badge "AI illustration", heading "What <name> could look like", saved
+  under project_media/<regno>-ai). A real picture found later replaces them. Only "builder" pictures go into JSON-LD and og:image.
+- Floor plans: always behind `FloorPlansLock` (name, mobile, consent -> a lead "Floor plans of <project>" to the page's agent).
+  Our plans show after the form (once per browser); without any, the agent sends them on WhatsApp. Plans are never drawn by AI:
+  a made-up layout of a registered project would mislead. The chat bot never describes layouts; it says the agent sends them.
+- OTP brochure forms on builder sites: by hand, for the top hot projects only (the OTP comes by SMS to a person's phone).
+
 TARGET: floor plans from an agent's uploaded brochure (brochure_doc pages with plan words); the owner's status list shows the
 profile check but no picture review yet.
 

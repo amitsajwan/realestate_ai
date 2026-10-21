@@ -234,7 +234,10 @@ def test_completed_projects_are_not_enriched_and_nearly_sold_ones_go_last():
     nearly = {**base, "_id": "N", "units_total": 100, "units_booked": 92, "hot_score": 99}
     later = {**base, "_id": "L", "units_total": 100, "units_booked": 10}
     order = sorted([(enrich.priority(d, set(), NOW), d["_id"]) for d in (nearly, later)])
-    assert [k[1] for k in order] == ["L", "N"]                                 # 90% booked waits, even when hot
+    assert [k[1] for k in order] == ["N", "L"]                                 # hot first, in every area (owner 2026-10-22)
+    hot_free = {**later, "_id": "H", "hot_score": 99}
+    order = sorted([(enrich.priority(d, set(), NOW), d["_id"]) for d in (nearly, later, hot_free)])
+    assert [k[1] for k in order] == ["H", "N", "L"]                            # 90% booked waits behind the other hot ones
 
 
 def test_our_areas_outward_from_kharadi_and_new_launches_or_hot_first():
@@ -245,4 +248,4 @@ def test_our_areas_outward_from_kharadi_and_new_launches_or_hot_first():
     kharadi_new = {**base, "_id": "N", "locality": "kharadi", "pune_place": "kharadi", "registered_on": "2026-08-01"}
     upper = {**base, "_id": "U", "locality": "upper_kharadi", "pune_place": "upper_kharadi"}
     order = sorted([(enrich.priority(d, set(), NOW), d["_id"]) for d in (wakad, lohegaon, kharadi_old, kharadi_new, upper)])
-    assert [k[1] for k in order] == ["U", "N", "K", "L", "W"]
+    assert [k[1] for k in order] == ["W", "U", "N", "K", "L"]                  # hot first in every area, then outward from Kharadi

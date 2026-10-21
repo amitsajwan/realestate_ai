@@ -481,6 +481,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [] }: {
     ...(p.area ? [{ name: p.area.name, path: `/localities/${p.area.slug}` }] : placeName && placeHref ? [{ name: placeName, path: placeHref }] : []),
     { name: shown, path: `/projects/${p.slug}` }]
   const alternateName = otherNames(p)
+  const ownPhotos = (p.profile?.photos ?? []).filter((x) => (x.source ?? 'builder') === 'builder')
   const ld = {
     '@context': 'https://schema.org', '@type': 'ApartmentComplex', name: shown, url,
     ...(alternateName.length ? { alternateName } : {}),
@@ -489,8 +490,8 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [] }: {
     identifier: { '@type': 'PropertyValue', propertyID: 'MahaRERA registration', value: p.regno },
     ...(p.map ? { geo: { '@type': 'GeoCoordinates', latitude: p.map.lat, longitude: p.map.lon } } : {}),
     ...(p.promoter ? { builder: { '@type': 'Organization', name: p.builder?.name || p.promoter } } : {}),
-    // the builder's pictures we keep (profile): Google can show them with the page
-    ...(p.profile?.photos?.length ? { image: p.profile.photos.slice(0, 6).map((x) => (x.url.startsWith('/') ? siteUrl + x.url : x.url)) } : {}),
+    // the builder's pictures we keep (profile): Google can show them with the page (never illustrations or unchecked ones)
+    ...(ownPhotos.length ? { image: ownPhotos.slice(0, 6).map((x) => (x.url.startsWith('/') ? siteUrl + x.url : x.url)) } : {}),
     ...(p.maharera_url ? { sameAs: p.maharera_url } : {}),
     // one tower of a marketed project registered tower by tower: the whole project is the place this one is in
     ...(p.group ? { containedInPlace: { '@type': 'ApartmentComplex', name: p.group.name, url: siteUrl + p.group.path } } : {}),
@@ -537,7 +538,8 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [] }: {
 
           <ProjectProfile profile={p.profile} name={shown} part="highlights" />
           <PriceBox prices={p.prices} name={shown} />
-          <ProjectProfile profile={p.profile} name={shown} part="plans" />
+          <ProjectProfile profile={p.profile} name={shown} part="plans" lead={{ agentSlug: HOUSE_AGENT, agentName: 'Avasetu',
+            topic: `${p.name} (MahaRERA ${p.regno})`, waMessage: `Hi, I want to know about ${p.name} (MahaRERA ${p.regno}): ${url}` }} />
 
           <section aria-labelledby="facts-title">
             <SectionHead id="facts-title" title="The record" kind="rera" tag={p.details_read_at ? `From MahaRERA, read ${longDay(p.details_read_at)}` : 'From MahaRERA'} />

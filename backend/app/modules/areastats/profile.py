@@ -13,13 +13,16 @@ For one project (a tower group is read once, on its primary record):
    page shows other projects). Each picture is downloaded once, checked (size, shape, not a logo or icon, not a near-duplicate),
    sorted into photo or floor plan by its address and alt text, and kept as WebP under uploads/project_media/<regno>/. Portal
    pictures are never taken (watermarked, theirs). Pages say where each picture came from and that renders are artist's
-   impressions.
+   impressions. When the builder's site has none (owner 2026-10-22): pictures from other sites' pages about the project (source
+   "web", shown as not checked by us), else illustrations drawn by AI (source "ai", shown as such; never floor plans).
 Stored on the register record as `profile` = {at, highlights: [{topic, text, official, sources: [{site, url, quote}]}],
 photos: [...], plans: [...], read: [{site, url, ok, why}]}; a round that finds nothing keeps the last good highlights or pictures.
 `public` is what the pages show.
 """
+import base64
 import io
 import logging
+import os
 import re
 import shutil
 from datetime import datetime
@@ -29,6 +32,8 @@ from urllib.parse import urljoin, urlparse
 
 import httpx
 from PIL import Image
+
+from app.core.areas import BY_KEY
 
 from . import pages, webfacts, websearch
 
@@ -305,12 +310,13 @@ def _caption(c: dict, kind: str, name: str) -> str:
 
 
 async def pictures(sources: List[dict], raw_of: Dict[str, str], name: str, regno: str, fetch: FetchBytes,
-                   media_dir: Path = MEDIA_DIR, page: Optional[webfacts.Fetch] = None) -> tuple:
-    """(photos, plans, why): saved pictures from the builder's own project page(s) and its gallery / plans pages."""
-    pages_ = [s for s in sources if s["official"] and raw_of.get(s["url"]) and project_page(s["url"], name)]
+                   media_dir: Path = MEDIA_DIR, page: Optional[webfacts.Fetch] = None, builder: bool = True) -> tuple:
+    """(photos, plans, why): saved pictures from the builder's own project page(s) and its gallery / plans pages, or with
+    `builder=False` from other sites' pages about the project (source "web": shown as not checked by us)."""
+    pages_ = [s for s in sources if bool(s["official"]) == builder and raw_of.get(s["url"]) and project_page(s["url"], name)]
     if not pages_:
-        return [], [], "no builder page for the project"
-    if page is not None:   # its own gallery and plans pages first: the main page spends the budget on icons
+        return [], [], "no builder page for the project" if builder else "no other page about the project"
+    if page is not None and builder:   # its own gallery and plans pages first: the main page spends the budget on icons
         subs = []
         for sub in subpages(raw_of[pages_[0]["url"]], pages_[0]["url"]):
             raw = await page(sub)
@@ -342,8 +348,10 @@ async def pictures(sources: List[dict], raw_of: Dict[str, str], name: str, regno
             hashes.append(h)
             file = f"{h:016x}.webp"
             im.save(tmp / file, "WEBP", quality=82, method=4)
-            room.append({"file": file, "width": im.size[0], "height": im.size[1], "alt": _caption(c, kind, name),
-                         "image_url": c["url"], "page_url": src["url"], "site": src["site"]})
+            room.append({"file": file, "width": im.size[0], "height": im.size[1],
+                         "alt": _caption(c, kind, name) if builder else f"{name}, from {src['site']}",
+                         "image_url": c["url"], "page_url": src["url"], "site": src["site"],
+                         "source": "builder" if builder else "web"})
     if not photos and not plans:
         shutil.rmtree(tmp, ignore_errors=True)
         return [], [], f"no usable pictures ({tried} tried)"
@@ -355,11 +363,81 @@ async def pictures(sources: List[dict], raw_of: Dict[str, str], name: str, regno
     return photos, plans, f"{len(photos)} photos, {len(plans)} floor plans ({tried} tried)"
 
 
+# ---- illustrations: when no site has pictures of the project ---------------------------------------------------------------
+# Owner 2026-10-22: "if we don't find images, add illustrative images". Drawn by Cloudflare's FLUX (free tier, ~2 s a picture),
+# never called the project: source "ai", and the page says each one is an illustration made by AI. Never drawn as floor plans
+# (a made-up layout of a real registered project would mislead); plans are asked for through the page's form instead.
+CF_IMAGE_URL = "https://api.cloudflare.com/client/v4/accounts/{account}/ai/run/@cf/black-forest-labs/flux-1-schnell"
+NO_TEXT = "Photorealistic architectural visualisation, no text, no letters, no logos, no watermarks, no people's faces in close-up."
+Draw = Callable[[str], Awaitable[Optional[bytes]]]
+
+
+async def cf_draw(prompt: str, transport: Optional[httpx.AsyncBaseTransport] = None) -> Optional[bytes]:
+    token, account = os.environ.get("CLOUDFLARE_API_TOKEN"), os.environ.get("CLOUDFLARE_ACCOUNT_ID")
+    if not token or not account:
+        return None
+    try:
+        async with httpx.AsyncClient(timeout=120, transport=transport) as c:
+            r = await c.post(CF_IMAGE_URL.format(account=account), headers={"Authorization": f"Bearer {token}"},
+                             json={"prompt": f"{prompt} {NO_TEXT}", "steps": 6})
+        if r.status_code != 200:
+            log.info("profile: illustration not drawn (HTTP %s)", r.status_code)
+            return None
+        return base64.b64decode(((r.json() or {}).get("result") or {}).get("image") or "") or None
+    except Exception as e:
+        log.info("profile: illustration not drawn (%s)", type(e).__name__)
+        return None
+
+
+def place_of(doc: dict) -> str:
+    area = BY_KEY.get(doc.get("locality") or "")
+    return area.name if area else doc.get("place_locality") or doc.get("taluka") or "Pune"
+
+
+def scenes(doc: dict, place: str) -> List[tuple]:
+    """(caption, prompt) for each illustration, from MahaRERA's facts (towers, floors, homes or offices)."""
+    t = doc.get("building_totals") or {}
+    homes = bool(t.get("units_residential")) or not t.get("units_other")
+    floors = t.get("max_floors")
+    tall = f"{floors}-storey " if floors and floors > 2 else ""
+    many = f"{t['towers']} " if (t.get("towers") or 0) > 1 else "a "
+    if not homes:
+        return [("Illustration: an office building of this kind",
+                 f"Exterior of {many}modern {tall}glass office building in {place}, Pune, India, daytime, street level view."),
+                ("Illustration: an office floor of this kind", "Bright modern open-plan office interior in Pune, India, daylight.")]
+    return [("Illustration: towers of this kind", f"Exterior of {many}modern {tall}residential apartment tower"
+             f"{'s' if (t.get('towers') or 0) > 1 else ''} in {place}, Pune, India, landscaped entrance, golden hour."),
+            ("Illustration: a living room of this kind", "Living room of a new Indian apartment, vitrified tile floor, balcony door, "
+             "daylight, simple modern furniture."),
+            ("Illustration: amenities of this kind", "Rooftop swimming pool and garden deck of a residential tower in Pune, India, "
+             "evening, city view.")]
+
+
+async def illustrations(doc: dict, name: str, regno: str, place: str, draw: Optional[Draw] = None,
+                        media_dir: Path = MEDIA_DIR) -> List[dict]:
+    """Drawn pictures saved under uploads/project_media/<regno>-ai, [] when none could be drawn."""
+    folder = media_dir / (re.sub(r"[^A-Za-z0-9]", "", regno).lower() + "-ai")
+    folder.mkdir(parents=True, exist_ok=True)
+    out = []
+    for caption, prompt in scenes(doc, place):
+        body = await (draw or cf_draw)(prompt)
+        got = picture(body, "photo") if body else None
+        if got is None:
+            continue
+        im, h = got
+        file = f"{h:016x}.webp"
+        im.save(folder / file, "WEBP", quality=80, method=4)
+        rel = folder.relative_to(Path("uploads")).as_posix() if folder.is_relative_to(Path("uploads")) else folder.as_posix()
+        out.append({"path": f"{rel}/{file}", "width": im.size[0], "height": im.size[1], "alt": f"{caption} (made by AI, not {name})",
+                    "site": None, "page_url": None, "source": "ai"})
+    return out
+
+
 # ---- the step --------------------------------------------------------------------------------------------------------------
 
 async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[webfacts.Fetch] = None,
                  image: Optional[FetchBytes] = None, search: Optional[websearch.Search] = None,
-                 media_dir: Path = MEDIA_DIR) -> tuple:
+                 media_dir: Path = MEDIA_DIR, draw: Optional[Draw] = None) -> tuple:
     """(step, register fields) for areastats.enrich."""
     if doc.get("cluster_primary"):
         return {"ok": True, "at": now, "checked": "read on the group's primary record"}, {}
@@ -370,8 +448,15 @@ async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[webfacts.
     name = pages.names(doc)[0]
     results = await webfacts.results_for(store, doc, name, search if search is not None else websearch.provider(), now)
     sources = webfacts.pick_sources(results, name, webfacts.builder_words(doc), limit=webfacts.MAX_TRIES)
-    if not sources:
-        return {"ok": False, "at": now, "checked": "no web results name the project"}, {}
+    if not sources:   # no site names it: illustrations at least, once
+        old = doc.get("profile") or {}
+        if old.get("photos"):
+            return {"ok": False, "at": now, "checked": "no web results name the project"}, {}
+        drawn = await illustrations(doc, name, doc.get("regno") or doc["_id"], place_of(doc), draw, media_dir)
+        profile = {**old, "at": now, "name": name, "read": [], "pictures": f"{len(drawn)} illustrations drawn",
+                   "highlights": old.get("highlights") or [], "photos": drawn, "plans": old.get("plans") or []}
+        return ({"ok": bool(drawn), "at": now, "checked": f"no web results name the project; {len(drawn)} illustrations drawn"},
+                {"profile": profile} if drawn else {})
     fetch = fetch or webfacts.fetch_page
     readings, read, raw_of = [], [], {}
     for src in sources:
@@ -394,10 +479,20 @@ async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[webfacts.
     regno = doc.get("regno") or doc["_id"]
     try:
         photos, plans, why = await pictures(sources, raw_of, name, regno, image or fetch_bytes, media_dir, page=fetch)
+        if not photos and not plans:   # owner 2026-10-22: "or best we can find, unverified, from the web"
+            photos, plans, also = await pictures(sources, raw_of, name, regno, image or fetch_bytes, media_dir, builder=False)
+            why = f"{why}; web: {also}"
     except Exception as e:
         log.exception("profile: pictures failed for %s", regno)
         photos, plans, why = [], [], f"pictures failed ({type(e).__name__})"
     old = doc.get("profile") or {}
+    if not photos and not old.get("photos"):   # nothing real ever found: illustrations, drawn once
+        try:
+            photos = await illustrations(doc, name, regno, place_of(doc), draw, media_dir)
+            why += f"; {len(photos)} illustrations drawn"
+        except Exception as e:
+            log.exception("profile: illustrations failed for %s", regno)
+            why += f"; illustrations failed ({type(e).__name__})"
     profile = {"at": now, "name": name, "read": read, "pictures": why,
                # a round that finds nothing keeps the last good ones (a builder's site that is down for a day)
                "highlights": highlights or old.get("highlights") or [],
@@ -420,7 +515,7 @@ def public(profile: Optional[dict]) -> Optional[dict]:
 
     def pic(p: dict) -> dict:
         return {"url": "/uploads/" + p["path"], "width": p.get("width"), "height": p.get("height"), "alt": p.get("alt") or "",
-                "site": p.get("site"), "page_url": p.get("page_url")}
+                "site": p.get("site"), "page_url": p.get("page_url"), "source": p.get("source") or "builder"}
     return {"read_at": at.date().isoformat() if isinstance(at, datetime) else None,
             "highlights": [{"topic": h["topic"], "text": h["text"], "official": h.get("official", False),
                             "sources": [{"site": s["site"], "url": s["url"]} for s in h.get("sources") or []]}

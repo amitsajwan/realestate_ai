@@ -144,8 +144,18 @@ def priority(d: dict, urgent: set, now: datetime) -> Optional[tuple]:
     key = _priority(d, now)
     if key is None:
         return None
-    # nearly sold out after every other project; then our areas outward from Kharadi; in each, new launches and hot ones first
-    return (1 if pages.nearly_sold(d) else 0, pricing.area_rank(d), 0 if pricing.new_or_hot(d, now) else 1, *key)
+    # hot projects first, in every area (owner 2026-10-22: "first just hot projects, even outside Kharadi, all 4 stages done");
+    # then nearly sold out after every other project; then our areas outward from Kharadi; in each, new launches first
+    hot_first = 0 if int(d.get("hot_score") or 0) >= hot.HOT_MIN else 1
+    return (hot_first, 1 if pages.nearly_sold(d) else 0, pricing.area_rank(d), 0 if pricing.new_or_hot(d, now) else 1, *key)
+
+
+def complete(d: dict) -> bool:
+    """Every stage of the last round passed (score 4/4) and the page has pictures (the builder's, the web's or illustrations)."""
+    e = d.get("enrichment") or {}
+    if not e or any(not ((e.get("steps") or {}).get(k) or {}).get("ok") for k in STEPS):
+        return False
+    return bool(d.get("cluster_primary") or (d.get("profile") or {}).get("photos"))
 
 
 def _priority(d: dict, now: datetime) -> Optional[tuple]:
@@ -162,7 +172,8 @@ def _priority(d: dict, now: datetime) -> Optional[tuple]:
     old_writer = not is_hot and isinstance(done, datetime) and int(d.get("page_text_version") or 1) < TEXT_VERSION
     if is_hot and needs_profile(d, now):
         return (1, -heat)                                       # hot and still being built, no profile yet: first
-    days = HOT_REFRESH_DAYS if is_hot else RETRY_DAYS if unanswered(d) else REFRESH_DAYS
+    # a hot page missing a stage or pictures is tried again the next day, not after HOT_REFRESH_DAYS
+    days = (HOT_REFRESH_DAYS if complete(d) else RETRY_DAYS) if is_hot else RETRY_DAYS if unanswered(d) else REFRESH_DAYS
     if not legacy and not old_writer and isinstance(done, datetime) and now - _aware(done) < timedelta(days=days):
         return None
     if is_hot:

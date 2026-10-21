@@ -11,6 +11,9 @@ export interface ProfilePicture {
   /** the builder's site it came from, and the page it was on */
   site: string | null
   page_url: string | null
+  /** builder: the builder's own site; web: another site's page about the project, not checked by us; ai: an illustration
+   *  drawn by AI from the MahaRERA facts, not the project (backend profile.illustrations) */
+  source?: 'builder' | 'web' | 'ai'
 }
 
 export interface ProjectProfile {
