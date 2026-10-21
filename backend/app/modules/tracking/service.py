@@ -44,7 +44,7 @@ class TrackingService:
             raise TrackingError("Agent site not found", 404)
         return profile["agent_id"]
 
-    async def _record(self, agent_id: str, e, type_: str, contact_id: Optional[str]) -> int:
+    async def _record(self, agent_id: str, e, type_: str, contact_id: Optional[str], app: Optional[str] = None) -> int:
         """Store one event and return the points it earned."""
         prior = 0
         if type_ == "listing_view" and e.listing_id:
@@ -52,7 +52,7 @@ class TrackingService:
                 {"agent_id": agent_id, "anon_id": e.anon_id, "type": "listing_view", "listing_id": e.listing_id})
         await self.events.insert_one({
             "agent_id": agent_id, "anon_id": e.anon_id, "contact_id": contact_id, "type": type_,
-            "listing_id": e.listing_id, "source": e.source, "utm": e.utm, **origin.touch_fields(e), "ts": self.now(),
+            "listing_id": e.listing_id, "source": e.source, "utm": e.utm, **origin.touch_fields(e), "in_app": app, "ts": self.now(),
         })
         return scoring.event_points(type_, prior)
 
@@ -66,20 +66,21 @@ class TrackingService:
         if await self.events.count_documents({"anon_id": e.anon_id, "ts": {"$gte": minute_ago}}) >= MAX_EVENTS_PER_ANON_PER_MINUTE:
             return False
         contact = await self.contacts.find_one({"agent_id": agent_id, "anon_ids": e.anon_id})
-        points = await self._record(agent_id, e, e.type, contact["_id"] if contact else None)
+        points = await self._record(agent_id, e, e.type, contact["_id"] if contact else None, origin.app_of(user_agent))
         if contact:
             await self.contacts.update_one(
                 {"_id": contact["_id"]},
                 {"$inc": {"score_base": points}, "$set": {"last_activity_at": self.now()}})
         return True
 
-    async def capture_inquiry(self, i: InquiryIn) -> dict:
+    async def capture_inquiry(self, i: InquiryIn, user_agent: Optional[str] = None) -> dict:
         if limits.is_honeypot(i.website):  # a bot filled the hidden field: look successful, store nothing
             return {"received": True, "new_lead": False}
         if not i.consent:
             raise TrackingError("Consent is required to contact you about this enquiry")
         agent_id = await self._agent_id(i.agent_slug)
         now = self.now()
+        app = origin.app_of(user_agent)
         if await limits.over_limit(self.inquiry_log, agent_id, i.phone, i.anon_id, now):
             raise TrackingError(limits.TOO_MANY, 429)
         await limits.record_attempt(self.inquiry_log, agent_id, i.phone, i.anon_id, now)
@@ -97,12 +98,14 @@ class TrackingService:
                 if ev["type"] == "listing_view":
                     seen[lid] = prior + 1
             came_from = origin.first_touch(history, i)
+            # the app that opened the page: the first visit's, else this enquiry's (Instagram/Facebook links carry no referrer)
+            came_from["app"] = next((ev["in_app"] for ev in sorted(history, key=lambda d: d["ts"]) if ev.get("in_app")), None) or app
             res = await self.contacts.insert_one({
                 "_id": uuid.uuid4().hex,
                 "agent_id": agent_id, "name": i.name, "phone": i.phone, "message": i.message,
                 "anon_ids": [i.anon_id], "stage": "new",
                 # a tagged link (src=) wins; else the outside site that sent them (google, instagram, ...)
-                "source": i.source or origin.referrer_source(came_from["referrer"]), "utm": i.utm,
+                "source": i.source or origin.referrer_source(came_from["referrer"]) or came_from["app"], "utm": i.utm,
                 "first_touch": came_from, "channel": i.channel,
                 "first_listing_id": i.listing_id,
                 "consent": {"given_at": now, "purpose": "enquiry follow-up", "agent_slug": i.agent_slug},
@@ -120,7 +123,7 @@ class TrackingService:
             if fields:
                 merged = reqmod.merge(contact.get("requirement"), fields, sources)
                 await self.contacts.update_one({"_id": contact_id}, {"$set": {"requirement": merged}})
-        points = await self._record(agent_id, i, "inquiry", contact_id)
+        points = await self._record(agent_id, i, "inquiry", contact_id, app)
         await self.contacts.update_one(
             {"_id": contact_id}, {"$inc": {"score_base": points}, "$set": {"last_activity_at": now, "last_message": i.message}})
         return {"received": True, "new_lead": created}

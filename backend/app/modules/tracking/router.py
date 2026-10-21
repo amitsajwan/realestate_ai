@@ -32,9 +32,9 @@ async def track_event(body: EventIn, user_agent: Optional[str] = Header(None),
 
 
 @public_router.post("/inquiry")
-async def submit_inquiry(body: InquiryIn, svc: TrackingService = Depends(get_service)):
+async def submit_inquiry(body: InquiryIn, user_agent: Optional[str] = Header(None), svc: TrackingService = Depends(get_service)):
     try:
-        return await svc.capture_inquiry(body)
+        return await svc.capture_inquiry(body, user_agent)
     except TrackingError as e:
         raise _http(e)
 
