@@ -1,5 +1,6 @@
 'use client'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import React, { useState } from 'react'
 import { AiSummaryCard, DraftPanel, FollowUpDue, MatchesList, RequirementChips } from '@/components/app/LeadPanels'
 import { DealClosedSheet, LostReasonSheet, MarkSoldPrompt, OutcomeSummary } from '@/components/app/OutcomeSheets'
@@ -7,6 +8,7 @@ import { Btn, ErrorBox, LinkBtn, STAGES, Spinner, TempChip, inputCls } from '@/c
 import { api, errorMessage } from '@/lib/app/client'
 import { displayPhone, timeAgo, waDigits } from '@/lib/app/format'
 import { cameFromLine, eventLabel } from '@/lib/app/leads'
+import { inboxApi } from '@/lib/app/inbox'
 import { dealListings } from '@/lib/app/outcomes'
 import { whatsappChatUrl } from '@/lib/app/share'
 import { t } from '@/lib/app/strings'
@@ -26,6 +28,7 @@ export function LeadDetailView({ id }: { id: string }) {
   const [showDraft, setShowDraft] = useState(false)
   const [sheet, setSheet] = useState<Sheet>(null)
   const [suggest, setSuggest] = useState<NonNullable<LeadDetail['suggest_listing_status']> | null>(null)
+  const router = useRouter()
 
   if (loading && !data) return <Spinner />
   if (error || !data) return <ErrorBox message={error ?? t('notFound')} />
@@ -89,6 +92,19 @@ export function LeadDetailView({ id }: { id: string }) {
     }
   }
 
+  // Our WhatsApp number runs on the Cloud API (no phone app), so the message goes out from the server and the chat opens in the Inbox
+  async function messageFromBrand() {
+    setBusy(true)
+    setErr(null)
+    try {
+      const r = await inboxApi.startWithLead(lead.id)
+      router.push(`/studio/inbox/${encodeURIComponent(r.id)}`)
+    } catch (e) {
+      setErr(errorMessage(e))
+      setBusy(false)
+    }
+  }
+
   const firstName = lead.name.split(' ')[0]
   return (
     <div className="space-y-4 pb-4">
@@ -121,9 +137,15 @@ export function LeadDetailView({ id }: { id: string }) {
       <div className="grid grid-cols-2 gap-3">
         <LinkBtn href={`tel:${lead.phone}`}>📞 {t('call')}</LinkBtn>
         <LinkBtn variant="whatsapp" href={whatsappChatUrl(waDigits(lead.phone), `Hi ${firstName}, this is regarding your property enquiry.`)} target="_blank" rel="noopener noreferrer">
-          {t('whatsapp')}
+          {t('whatsappMyPhone')}
         </LinkBtn>
       </div>
+      {waDigits(lead.phone) && (
+        <div className="space-y-1">
+          <Btn variant="whatsapp" disabled={busy} onClick={messageFromBrand}>{busy ? t('sending') : t('whatsappFromBrand')}</Btn>
+          <p className="text-xs text-gray-500">{t('whatsappFromBrandHint')}</p>
+        </div>
+      )}
 
       <RequirementChips requirement={lead.requirement} />
       <MatchesList matches={lead.matches} />

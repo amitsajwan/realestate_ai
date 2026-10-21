@@ -130,6 +130,20 @@ export default function InboxThreadPage() {
     }
   }
 
+  async function followUp() {
+    if (!doc?.lead_id) return
+    setBusy(true)
+    setError(null)
+    try {
+      await inboxApi.startWithLead(doc.lead_id)
+      setDoc(await inboxApi.thread(id))
+    } catch (e) {
+      setError(errorMessage(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   if (error && !doc) return <ErrorBox message={error} onRetry={load} />
   if (!doc) return <Spinner />
   const name = doc.name || (doc.role === 'agent' ? 'Agent' : doc.channel === 'website' ? 'Website visitor' : 'Buyer')
@@ -178,7 +192,17 @@ export default function InboxThreadPage() {
           <p className="text-xs text-gray-500">{doc.bot_paused_until ? 'The bot is quiet in this chat while you handle it.' : 'After you reply, the bot stays quiet in this chat for 12 hours.'}</p>
         </section>
       ) : doc.channel === 'whatsapp' ? (
-        <p className="rounded-xl bg-gray-50 p-3 text-sm text-gray-700">More than 24 hours since they last wrote. WhatsApp lets us reply only after they write again.</p>
+        <section aria-label="Follow-up" className="space-y-2 rounded-2xl border border-gray-200 bg-gray-50 p-3">
+          <p className="text-sm text-gray-700">
+            {doc.follow_up_sent_at
+              ? `Follow-up message sent ${timeAgo(doc.follow_up_sent_at)}. You can write freely once they reply.`
+              : 'They have not written in the last 24 hours, so WhatsApp allows only our approved follow-up message.'}
+          </p>
+          {error && <p role="alert" className="text-sm font-semibold text-red-700">{error}</p>}
+          {doc.lead_id && !(doc.follow_up_sent_at && Date.now() - Date.parse(doc.follow_up_sent_at) < 24 * 3600 * 1000) && (
+            <Btn disabled={busy} onClick={followUp}>{busy ? 'Sending...' : 'Send the follow-up message'}</Btn>
+          )}
+        </section>
       ) : (
         <p className="rounded-xl bg-gray-50 p-3 text-sm text-gray-700">{doc.channel === 'website' ? 'Website chats are answered by the bot. If they leave a number, it is in Leads.' : 'Reply to this one from the Facebook or Instagram inbox.'}</p>
       )}

@@ -27,6 +27,8 @@ export interface InboxThread {
   can_reply: boolean
   summary: string
   messages: number
+  /** WhatsApp: when a person last sent the approved follow-up template (allowed once per 24 hours). */
+  follow_up_sent_at?: string | null
   /** out = you passed this buyer to an agent; in = the owner passed this buyer to you. */
   passed: 'out' | 'in' | null
   passed_at: string | null
@@ -95,6 +97,8 @@ export const inboxApi = {
   /** A comment thread was answered on Facebook/Instagram (or needs no answer). */
   done: (id: string) => call<InboxThreadFull>(`/${encodeURIComponent(id)}/done`, { method: 'POST' }),
   agents: async (): Promise<PassAgent[]> => (await call<{ items: PassAgent[] }>('/agents')).items ?? [],
+  /** Message a lead from our WhatsApp number: the thread id; when they have not written in 24 hours, the approved follow-up goes out first. */
+  startWithLead: (leadId: string) => call<{ id: string; sent: boolean }>(`/lead/${encodeURIComponent(leadId)}/whatsapp`, { method: 'POST' }),
   pass: (id: string, agentId: string) => call<PassResult>(`/${encodeURIComponent(id)}/pass`, { method: 'POST', json: { agent_id: agentId } }),
 }
 

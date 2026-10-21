@@ -2,6 +2,8 @@
   GET  /conversations                 every conversation: WhatsApp, Messenger/Instagram DMs, website chat; newest first
   GET  /conversations/{id}            one conversation in full
   POST /conversations/{id}/reply      a person's WhatsApp reply (inside the 24-hour window); the bot then stays quiet in that chat for 12 h
+  POST /conversations/lead/{lead_id}/whatsapp   message a lead from our WhatsApp number: the thread id, after the approved follow-up
+                                                 template when the 24-hour window is closed (once per 24 h)
   POST /conversations/{id}/done       a comment thread was handled on Facebook/Instagram: it no longer needs you
   GET  /conversations/agents          (owner) the agents a buyer can be passed to
   POST /conversations/{id}/pass       (owner) pass a buyer to an agent: chat + lead move to him, he gets an alert, the owner a wa.me link
@@ -74,3 +76,8 @@ async def pass_to(tid: str, body: PassIn, user: User = Depends(owner_only), svc:
 @router.post("/{tid}/reply")
 async def reply(tid: str, body: ReplyIn, user: User = Depends(current_active_user), svc: InboxService = Depends(get_inbox)) -> dict:
     return await _run(svc.reply(str(user.id), tid, body.text, "person"))
+
+
+@router.post("/lead/{lead_id}/whatsapp")
+async def start(lead_id: str, user: User = Depends(current_active_user), svc: InboxService = Depends(get_inbox)) -> dict:
+    return await _run(svc.start(str(user.id), lead_id, "person"))
