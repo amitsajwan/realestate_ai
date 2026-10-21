@@ -8,7 +8,8 @@ rankings(store, now) -> {
   targets:   project pages with a target search: position, impressions, our Google rank history and who ranks above us
              (the stored Serper results for that search);
   conflicts: searches that show two of our pages (seo.targets R2);
-  gaps:      searches with no page in the top 20 (seo.gaps R7).
+  gaps:      searches with no page in the top 20 (seo.gaps R7);
+  scoreboard: searches where we are above MagicBricks, the ones to win next, and the count per week (seo.scoreboard I6).
 }
 Owner only (marketer sites are never public).
 """
@@ -19,7 +20,7 @@ from app.modules.areastats.demand import our_host, rank_of
 from app.modules.areastats.websearch import RESULTS, site
 from app.modules.newsroom.store import Store
 
-from . import doctor, gaps, targets
+from . import doctor, gaps, scoreboard, targets
 from .actions import ACTIONS, gain
 
 TARGETS_SHOWN = 60
@@ -95,7 +96,15 @@ async def rankings(store: Store, now: datetime) -> dict:
         "targets": rows,
         "conflicts": {"at": _iso(conflicts.get("at")), "total": conflicts.get("total") or 0, "items": conflicts.get("items") or []},
         "gaps": {"at": _iso(gapmark.get("at")), "total": gapmark.get("total") or 0, "items": gapmark.get("items") or []},
+        "scoreboard": _board(await store.get_mark(scoreboard.MARK)),
     }
+
+
+def _board(m: dict) -> dict:
+    clean = lambda r: {k: (_iso(v) if k == "at" else v) for k, v in r.items()}   # noqa: E731
+    return {"at": _iso(m.get("at")), **{k: m.get(k) or 0 for k in ("searches", "ours", "magicbricks", "above_mb", "above_mb_when_shown")},
+            "next": [clean(r) for r in m.get("next") or []], "won": [clean(r) for r in m.get("won") or []],
+            "history": [clean(h) for h in m.get("history") or []]}
 
 
 def week_lines(w: dict) -> List[str]:

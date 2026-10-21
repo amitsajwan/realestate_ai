@@ -5,7 +5,7 @@ import { ErrorBox, Spinner } from '@/components/app/ui'
 import { timeAgo } from '@/lib/app/format'
 import { errorMessage } from '@/lib/app/client'
 import { getRankings, revertPage } from '@/lib/app/insights'
-import type { RankAction, RankTarget, WeekNumbers } from '@/lib/app/insights'
+import type { BoardRow, RankAction, RankTarget, Scoreboard, WeekNumbers } from '@/lib/app/insights'
 import { useAsync } from '@/lib/app/useAsync'
 
 // Insights → Rankings (docs/plan/rank-loop.md R9): the rank loop's numbers, fixes and results, read-only except "Undo".
@@ -67,6 +67,34 @@ function ActionRow({ a, onDone }: { a: RankAction; onDone: () => void }) {
   )
 }
 
+const place = (p: number | null) => (p == null ? 'not top 10' : `#${p}`)
+
+function BoardLine({ r }: { r: BoardRow }) {
+  return (
+    <li className="text-xs text-gray-700">&quot;{r.query}&quot;: us {place(r.ours)}, MagicBricks {place(r.magicbricks)}, 99acres {place(r.acres99)}, Housing {place(r.housing)}</li>
+  )
+}
+
+/** docs/plan/index-everything.md I6: our Google place against the big portals, from the searches we already run. */
+function Board({ b }: { b: Scoreboard }) {
+  const prev = b.history.length > 1 ? b.history[b.history.length - 2] : null
+  const diff = prev ? b.above_mb - prev.above_mb : null
+  return (
+    <div className={card}>
+      <p className="font-semibold text-gray-900">Above MagicBricks</p>
+      <p className="text-xs text-gray-600">Google searches we ran in the last 28 days{b.at ? `, counted ${timeAgo(b.at)}` : ''} (weekly).</p>
+      <p className="mt-1 text-lg font-semibold text-gray-900">{b.above_mb} of {b.searches}
+        {diff != null && <span className={`ml-1 text-xs ${diff >= 0 ? 'text-green-700' : 'text-red-700'}`}>{diff >= 0 ? '+' : ''}{diff}</span>}
+      </p>
+      <p className="text-xs text-gray-600">We show in {b.ours}; MagicBricks shows in {b.magicbricks}, and we are above them in {b.above_mb_when_shown} of those.</p>
+      {b.next.length > 0 && (<>
+        <p className="mt-2 text-sm font-semibold text-gray-900">Win next (MagicBricks just above us)</p>
+        <ul className="space-y-1 p-0">{b.next.slice(0, 10).map((r) => <BoardLine key={r.query} r={r} />)}</ul>
+      </>)}
+    </div>
+  )
+}
+
 export default function RankingsTab() {
   const q = useAsync(() => getRankings(), [])
   if (q.loading && !q.data) return <Spinner />
@@ -95,6 +123,8 @@ export default function RankingsTab() {
           </dl>
         )}
       </div>
+
+      {d.scoreboard?.at && <Board b={d.scoreboard} />}
 
       <div className={card}>
         <p className="font-semibold text-gray-900">What works (page doctor)</p>

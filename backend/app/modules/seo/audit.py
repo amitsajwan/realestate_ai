@@ -4,7 +4,8 @@
 
 Reads robots.txt and the sitemap, then up to --max-pages pages from the sitemap (all of them when there are fewer, else an even
 spread), and reports:
-  errors   (exit 1): a sitemap page that is not a plain 200, is blocked by robots.txt, says noindex, names another page as
+  errors   (exit 1): a sitemap page that is not a plain 200 (a 5xx or unreadable page is read once more after RETRY_S, so a
+           restart during the run is a warning, not a failure), is blocked by robots.txt, says noindex, names another page as
            canonical, has no <title>, or has structured data (JSON-LD) that does not parse; robots.txt without the sitemap
   warnings (exit 0): a long or duplicate title, a missing or odd-length description, not exactly one <h1>, images without alt
 The report is printed as Markdown and, on GitHub, added to the job summary. Reads only; standard library and httpx only.
@@ -28,6 +29,7 @@ AGENT = "AvasetuSeoAudit/1.0 (+https://github.com/amitsajwan/realestate_ai)"
 TITLE_MAX = 70
 DESC_MIN, DESC_MAX = 50, 170
 CONCURRENCY = 4
+RETRY_S = 30.0       # a page that answered 5xx (or nothing) is read again after this
 _NS = "{http://www.sitemaps.org/schemas/sitemap/0.9}"
 
 
@@ -218,13 +220,27 @@ async def audit(site: str, max_pages: int = 300, transport: Optional[httpx.Async
         gate = asyncio.Semaphore(CONCURRENCY)
         titles: Counter = Counter()
 
-        async def one(u: str):
+        async def read(u: str):
             async with gate:
                 try:
                     res = await c.get(u)
-                    return check_page(u, res.status_code, dict(res.headers), res.text, robots)
+                    return res, None
                 except httpx.HTTPError as e:
-                    return [f"`{urlparse(u).path or '/'}` could not be read ({type(e).__name__})"], [], None
+                    return None, type(e).__name__
+
+        async def one(u: str):
+            res, err = await read(u)
+            first = None
+            if res is None or res.status_code >= 500:   # a restart or a slow backend: Google retries too, so read once more
+                first = err or str(res.status_code)
+                await asyncio.sleep(RETRY_S)
+                res, err = await read(u)
+            if res is None:
+                return [f"`{urlparse(u).path or '/'}` could not be read ({err}, twice)"], [], None
+            errs, warns, title = check_page(u, res.status_code, dict(res.headers), res.text, robots)
+            if first is not None and res.status_code < 500:
+                warns.append(f"`{urlparse(u).path or '/'}` answered {first}, then {res.status_code} {RETRY_S:.0f} s later")
+            return errs, warns, title
 
         for errs, warns, title in await asyncio.gather(*(one(u) for u in spread(urls, max_pages))):
             rep.errors += errs

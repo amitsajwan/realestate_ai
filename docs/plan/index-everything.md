@@ -8,7 +8,7 @@ Follows [rank-loop.md](rank-loop.md) (LIVE): the page doctor needs impressions, 
 | | |
 |---|---|
 | URLs in the sitemap | 8,611 (7,728 `/projects`, 783 `/builders`, 53 posts, 20 localities, rest fixed pages) |
-| Inspected by our coverage loop | 976 (200 a day) |
+| Inspected by our coverage loop | 976 (200 a day; 1,800 a day from 2026-10-21) |
 | Indexed | 301 of 976 (84 of 223 on 2026-10-14) |
 | Discovered, not indexed | 470: Google knows the URL and has not spent a crawl on it |
 | Unknown to Google | 159 |
@@ -85,7 +85,7 @@ MahaRERA dates and booking numbers, and nearby places. A page enters the sitemap
 - 10 listings in Pune real-estate directories and builder/agent sites that link back; agents' own sites link to their project pages.
 - Search Console "Request indexing", 10 a day: the 8 area pages, the MHADA guide, then the hottest projects.
 
-### I6. MagicBricks scoreboard | NEW
+### I6. MagicBricks scoreboard | LIVE (counting) 2026-10-21, doctor fix TARGET
 For each target phrase the seo loop already checks, keep both positions (ours, magicbricks.com, also 99acres and housing.com)
 from the Serper result in `seo_serp` {phrase, at, ours, mb, acres99, housing}. The page doctor (LIVE) gets one new fix from its
 menu when MagicBricks is above us: compare what their result shows (price, BHK, possession in the title/snippet) and add the fact we hold that they don't.
@@ -97,7 +97,7 @@ Insights → Pages shows "above MagicBricks: n of m", weekly.
 2. I1 sitemap index: LIVE 0b602943, 99 sitemaps, 8,659 pages; owner resubmitted /sitemap.xml
 3. I3: already in place (see I3)
 4. I4 writer order (next)
-5. I6 scoreboard (days 5-6), baseline written into section 2
+5. I6 scoreboard: `seo/scoreboard.py`, weekly, on Insights → Rankings (2026-10-21). Baseline: 261 searches, we show in 45, above MagicBricks in 23. The doctor fix is TARGET (seo-system.md 5.3)
 6. I5 runs alongside, every day
 
 ## 5. Rules

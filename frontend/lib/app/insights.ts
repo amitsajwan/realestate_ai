@@ -127,6 +127,12 @@ export interface RankConflict { phrase: string; impressions: number; position: n
 
 export interface RankGap { phrase: string; impressions: number; position: number | null; rising: boolean; page: string | null; shown_pages: string[]; action: string }
 
+export interface BoardRow { query: string; kind: string | null; at: string | null; ours: number | null; magicbricks: number | null; acres99: number | null; housing: number | null }
+
+export interface BoardWeek { at: string | null; searches: number; ours: number; magicbricks: number; above_mb: number; above_mb_when_shown: number }
+
+export interface Scoreboard extends BoardWeek { next: BoardRow[]; won: BoardRow[]; history: BoardWeek[] }
+
 export interface Rankings {
   week: { now: WeekNumbers | null; week_ago: WeekNumbers | null }
   targets_at: string | null
@@ -135,6 +141,7 @@ export interface Rankings {
   targets: RankTarget[]
   conflicts: { at: string | null; total: number; items: RankConflict[] }
   gaps: { at: string | null; total: number; items: RankGap[] }
+  scoreboard?: Scoreboard
 }
 
 export const getRankings = () => call<Rankings>('rankings')
