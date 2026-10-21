@@ -67,6 +67,7 @@ export function cameFromLine(lead: Pick<Lead, 'source' | 'first_touch' | 'channe
   const key = originKey(lead)
   let from: string
   if (ft?.referrer) from = `Came from ${key !== 'direct' ? sourceLabel(key) : referrerHost(ft.referrer)} (${referrerHost(ft.referrer)})`
+  else if (ft?.app) from = `Came from ${sourceLabel(ft.app)} (opened inside the ${sourceLabel(ft.app)} app)`
   else if (key === 'direct') from = 'Came directly (no referring site: typed, saved, or an app that hides it)'
   else if (key === 'unknown') from = 'Where they came from was not recorded (before 17 Oct)'
   else from = `Came from ${sourceLabel(key)}`

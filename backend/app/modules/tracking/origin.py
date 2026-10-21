@@ -14,6 +14,18 @@ REFERRER_SOURCES = (
 )
 
 
+# in-app browsers name their app in the user agent; their links usually arrive with no referrer (2026-10-21: a hot lead showed only
+# "direct" and nobody could tell Instagram from Facebook). Instagram first: its Android agent can also carry FB markers.
+IN_APP = (("instagram", "instagram"), ("fban", "facebook"), ("fbav", "facebook"), ("fb_iab", "facebook"), ("fbios", "facebook"),
+          ("messenger", "facebook"), ("linkedinapp", "linkedin"), ("snapchat", "snapchat"))
+
+
+def app_of(user_agent: Optional[str]) -> Optional[str]:
+    """The app whose built-in browser opened the page (instagram, facebook, ...), from the user agent; None for a normal browser."""
+    ua = (user_agent or "").lower()
+    return next((name for mark, name in IN_APP if mark in ua), None)
+
+
 def clip(value: Optional[str]) -> Optional[str]:
     """Trim and cut to MAX_LEN; empty becomes None. Never rejects: a long URL must not lose the visit."""
     v = (value or "").strip()

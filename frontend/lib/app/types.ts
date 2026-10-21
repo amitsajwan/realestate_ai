@@ -482,6 +482,8 @@ export interface FirstTouch {
   referrer?: string | null
   /** The page the enquiry form was sent from */
   enquiry_page?: string | null
+  /** The app whose built-in browser opened the page (instagram, facebook, ...); since 21 Oct */
+  app?: string | null
 }
 
 export interface LeadNote {
