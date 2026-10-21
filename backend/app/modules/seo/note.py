@@ -78,7 +78,7 @@ async def run_once(store: Store, now: datetime, force: bool = False) -> Optional
     week = snaps[-1] if snaps else None
     ago = next((h for h in reversed(snaps) if week and _aware(week.get("at")) and _aware(h.get("at"))
                 and _aware(week["at"]) - _aware(h["at"]) >= timedelta(days=7)), None)
-    waiting = len(await request_list(store))
+    waiting = await store.db.get_collection(coverage.COLLECTION).count_documents({"state": {"$in": list(WAITING)}})
     text = summary(week, ago, await store.get_mark(coverage.MARK), await store.get_mark(scoreboard.MARK), waiting)
     for owner in owners:
         await notify(store.db, owner, KIND, text, {"href": "/studio/newsroom/insights?tab=rankings"}, now=now)

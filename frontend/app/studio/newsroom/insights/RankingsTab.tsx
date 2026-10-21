@@ -101,7 +101,7 @@ function AskGoogle({ pages }: { pages: { url: string; state: string | null; why:
   const [all, setAll] = useState(false)
   return (
     <div className={card}>
-      <p className="font-semibold text-gray-900">Ask Google to index ({pages.length} waiting)</p>
+      <p className="font-semibold text-gray-900">Ask Google to index: the next {pages.length} pages</p>
       <p className="text-xs text-gray-600">10 a day: Search Console → URL inspection → paste the address → Request indexing. List and guide pages first, they link many pages.</p>
       <ul className="mt-1 space-y-1 p-0">
         {(all ? pages : pages.slice(0, 10)).map((p) => (
