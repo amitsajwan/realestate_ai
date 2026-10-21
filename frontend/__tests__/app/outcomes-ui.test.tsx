@@ -24,7 +24,7 @@ jest.mock('@/lib/app/client', () => ({
   isFixtureMode: () => false,
 }))
 jest.mock('@/lib/app/session', () => ({ useSession: () => ({ siteUrl: null, logout: jest.fn() }) }))
-jest.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams() }))
+jest.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams(), useRouter: () => ({ push: jest.fn() }) }))
 
 beforeEach(() => {
   fx = createFixtureApi({ getItem: () => null, setItem: () => undefined })
