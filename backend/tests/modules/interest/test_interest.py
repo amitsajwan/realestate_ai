@@ -259,8 +259,8 @@ def test_router_rate_limit_is_429(env):
 def test_hub_uses_hub_items_newest_first_capped_at_12_and_cached(env):
     c, svc, db, loop = env
     for i in range(14):
-        loop.run_until_complete(db.get_collection("content_calendar").insert_one({"_id": f"r{i}", "slug": f"p{i}", "status": "published"}))
-        loop.run_until_complete(upsert_hub_item(db, "post", f"p{i}", f"Post {i}", subtitle="s", interest_code=f"c{i}",
+        loop.run_until_complete(db.get_collection("listings").insert_one({"_id": f"p{i}", "status": "live"}))
+        loop.run_until_complete(upsert_hub_item(db, "listing", f"p{i}", f"Post {i}", subtitle="s", interest_code=f"c{i}",
                                                 permalink=f"https://fb.test/{i}"))
         db.get_collection("hub_items").docs[-1]["updated_at"] = datetime(2026, 1, 1) + timedelta(minutes=i)
     r = c.get("/public/hub")
@@ -268,7 +268,7 @@ def test_hub_uses_hub_items_newest_first_capped_at_12_and_cached(env):
     assert r.headers["cache-control"] == "public, max-age=60"
     assert len(body["items"]) == 12 and body["items"][0]["title"] == "Post 13"
     assert body["items"][0]["interest_code"] == "c13" and body["items"][0]["sample"] is False
-    loop.run_until_complete(upsert_hub_item(db, "post", "late", "Late post"))
+    loop.run_until_complete(upsert_hub_item(db, "listing", "late", "Late post"))
     assert len(c.get("/public/hub").json()["items"]) == 12 and c.get("/public/hub").json()["items"][0]["title"] == "Post 13"  # cached
 
 
@@ -286,8 +286,9 @@ def test_hub_drops_cards_whose_post_or_home_is_gone(env):
     loop.run_until_complete(listings.insert_one({"_id": "L6", "status": "live"}))
     loop.run_until_complete(upsert_hub_item(db, "listing", "L6", "L6", slug="gone"))
     shown = {i["ref"] for i in c.get("/public/hub").json()["items"]}
-    assert shown == {"live", "news-n1", "L9"}
-    assert {d["ref"] for d in db.get_collection("hub_items").docs} == shown   # the dead cards are deleted, not just hidden
+    assert shown == {"L9"}   # homes only (owner 2026-10-21): live posts and news stay off /go
+    left = {d["ref"] for d in db.get_collection("hub_items").docs if d["kind"] == "listing"}
+    assert left == {"L9"}   # the dead home cards are deleted, not just hidden
 
 
 def test_upsert_hub_item_updates_in_place(env):

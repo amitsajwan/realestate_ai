@@ -9,8 +9,8 @@ export const revalidate = 60
 
 export function generateMetadata(): Metadata {
   const cfg = getMarketingConfig()
-  const title = `${cfg.businessName}: latest homes and posts`
-  const description = 'Tap I am interested on any home or post and we will get back to you.'
+  const title = `${cfg.businessName}: homes in Pune`
+  const description = 'Pune homes with MahaRERA facts and prices. WhatsApp us for any price list.'
   const image = cfg.siteUrl + '/brand/og.jpg'
   return {
     title, description, alternates: { canonical: cfg.siteUrl + '/go' },
@@ -79,12 +79,13 @@ export default async function GoPage() {
       </nav>
 
       <section aria-labelledby="latest" className="px-4 pb-6 pt-5">
-        <h2 id="latest" className="mb-3 text-sm font-bold uppercase tracking-wide text-[#a87a12]">Latest homes and posts</h2>
+        <h2 id="latest" className="mb-3 text-sm font-bold uppercase tracking-wide text-[#a87a12]">Homes in Pune</h2>
         {items.length ? (
           <ul className="m-0 flex list-none flex-col gap-4 p-0">{items.map((i) => <Card key={i.kind + i.ref} item={i} />)}</ul>
         ) : (
-          <p className="rounded-2xl border border-[#ead9ae] bg-white p-4 text-sm text-slate-700">Fresh homes and posts are on the way. Visit the website in the meantime.</p>
+          <p className="rounded-2xl border border-[#ead9ae] bg-white p-4 text-sm text-slate-700">New homes are on the way. See all Pune projects in the meantime.</p>
         )}
+        <a href={links.website + '/projects'} className={pill + ' mt-4'}>See all Pune projects</a>
       </section>
 
       <section className="mx-4 mb-8 rounded-2xl bg-[#0f2340] p-5 text-white">

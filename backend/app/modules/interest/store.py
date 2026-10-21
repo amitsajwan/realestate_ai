@@ -56,10 +56,11 @@ class Store:
         await self.log.insert_one({"kind": kind, "key": key, "ts": now})
 
     async def hub_items(self, limit: int) -> list:
-        """The newest cards whose post or home still exists. A card whose calendar post is no longer published (deleted on the
+        """The newest home cards (one per listing) whose post and home still exist. A card whose calendar post is no longer published (deleted on the
         platform, or its row deleted), whose news item is no longer published (withdrawn) or whose listing is no longer live is dropped
         from hub_items here."""
-        docs = await self.hub.find({}).sort("updated_at", -1).limit(limit * 3).to_list(limit * 3)
+        # homes only (owner 2026-10-21): the bio page is where buyers land, news and guides stay on the feed and the site
+        docs = await self.hub.find({"kind": "listing"}).sort("updated_at", -1).limit(limit * 3).to_list(limit * 3)
         live = []
         for d in docs:
             if await self._backed(d):
