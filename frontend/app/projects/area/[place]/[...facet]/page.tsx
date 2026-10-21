@@ -12,6 +12,7 @@ import { getCatalog } from '@/lib/site/api'
 import { facetFaq, getFacet, getFacets, placeChips } from '@/lib/site/facets'
 import type { FacetPage, FacetRow } from '@/lib/site/facets'
 import { livePages } from '@/lib/site/filters'
+import { formatPrice } from '@/lib/site/format'
 import { getRegisterPlaces, longDay, monthYear, placePath } from '@/lib/site/register'
 
 // Area list pages (docs/plan/area-intent-pages.md): New launches, Top projects, Ready to move, Possession <year>, by builder, for
@@ -34,7 +35,12 @@ async function load(params: Props['params']): Promise<FacetPage | null> {
 
 function description(p: FacetPage): string {
   const names = p.rows.slice(0, 3).map((r) => r.name).join(', ')
-  return `${p.count} projects in ${p.place.name}, Pune from MahaRERA's records${names ? `: ${names}` : ''}. Registration date, possession filed and whether it moved, homes booked, read ${longDay(p.as_of)}.`.slice(0, 300)
+  const lows = p.rows.map((r) => r.price_from).filter((v): v is number => v != null)
+  if (p.bhk && lows.length) {
+    return `${p.count} new projects in ${p.place.name}, Pune with ${p.bhk} BHK flats from ${formatPrice(Math.min(...lows))}${names ? `: ${names}` : ''}. Price from the builder's site, possession filed with MahaRERA and homes booked.`.slice(0, 300)
+  }
+  const what = { 'new-launches': 'new launch projects and flats', top: 'top residential projects', 'ready-to-move': 'ready to move flats and projects', all: 'projects' }[p.intent]
+  return `${p.count} ${what} in ${p.place.name}, Pune from MahaRERA's records${names ? `: ${names}` : ''}. Registration date, possession filed and whether it moved, homes booked, read ${longDay(p.as_of)}.`.slice(0, 300)
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -64,6 +70,7 @@ function Row({ r }: { r: FacetRow }) {
         )}
         <p className="mt-1 text-sm font-medium text-slate-800">{r.reason} <span className="font-normal text-slate-500">({r.source})</span></p>
         <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-slate-700 sm:grid-cols-4">
+          {r.price_from != null && <div><dt className="text-xs text-slate-500">Price</dt><dd>{formatPrice(r.price_from)}{r.price_to ? ` to ${formatPrice(r.price_to)}` : ''}{r.price_source ? <span className="block text-xs text-slate-500">{r.price_source}</span> : null}</dd></div>}
           {r.registered_on && <div><dt className="text-xs text-slate-500">Registered</dt><dd>{monthYear(r.registered_on)}</dd></div>}
           {r.completion_now && <div><dt className="text-xs text-slate-500">Possession filed</dt><dd>{monthYear(r.completion_now)}{m ? <span className="block text-xs text-amber-800">{m}</span> : null}</dd></div>}
           {r.units_total != null && <div><dt className="text-xs text-slate-500">Homes</dt><dd>{n(r.units_total)}</dd></div>}
@@ -92,7 +99,7 @@ export default async function FacetPageView({ params }: Props) {
   const zone = places.find((x) => x.key === p.place.key)?.zone
   const zoneKeys = new Set(places.filter((x) => x.zone === zone).map((x) => x.key))
   const nearby = all.filter((f) => f.indexable && f.place !== p.place.key && zoneKeys.has(f.place) && f.intent === p.intent
-    && f.possession === p.possession && !f.builder).slice(0, 8)
+    && f.possession === p.possession && (f.bhk ?? null) === (p.bhk ?? null) && !f.builder).slice(0, 8)
   const placeName = (key: string) => places.find((x) => x.key === key)?.name ?? key
   const faq = facetFaq(p)
   const ld = [
@@ -185,7 +192,8 @@ export default async function FacetPageView({ params }: Props) {
         <section aria-labelledby="how-title" className="mt-10">
           <h2 id="how-title" className="text-xl font-semibold text-slate-900">How this list is made</h2>
           <p className="mt-2 text-slate-800">
-            {HOW[p.intent]}{p.possession ? ` Only projects whose filed completion date is in ${p.possession}.` : ''}{p.builder_name ? ` Only projects by ${p.builder_name}.` : ''}{' '}
+            {p.bhk ? `Only projects with a ${p.bhk} BHK price (${p.bhk}.5 BHK counts) that the builder's own site states, or that two property sites agree on, read in the last 45 days. ` : ''}
+            {p.bhk && p.intent === 'all' ? 'Projects still being sold, cheapest first.' : HOW[p.intent]}{p.possession ? ` Only projects whose filed completion date is in ${p.possession}.` : ''}{p.builder_name ? ` Only projects by ${p.builder_name}.` : ''}{' '}
             Towers and phases of one project count once. From {p.source}, worked out on {longDay(p.as_of)}; each project&apos;s page shows the
             date we read its record. No builder pays to be on this list. This is general information, not investment or legal advice.
           </p>

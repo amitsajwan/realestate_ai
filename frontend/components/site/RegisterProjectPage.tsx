@@ -592,7 +592,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [] }: {
                 ))}
               </ul>
               <div className="mt-3 flex flex-wrap gap-x-5">
-                {placeHref && <Link href={placeHref} className="inline-flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2">All projects in {placeName ?? p.area?.name}</Link>}
+                {placeHref && <Link href={placeHref} className="inline-flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2">All projects and flats in {placeName ?? p.area?.name}</Link>}
                 {/* the place's lists (docs/plan/area-intent-pages.md): links into them from every project page in the place */}
                 {lists.map((f) => (
                   <Link key={f.path} href={f.path} className="inline-flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2" data-testid="facet-link">

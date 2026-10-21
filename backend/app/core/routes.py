@@ -40,6 +40,10 @@ def setup_routes(app: FastAPI):
     # from app.api.v1.endpoints import simple_auth
 
     app.include_router(api_router, prefix="/api/v1")
+    # not under /api: the public site never routes /internal to the backend (deploy/gcp/Caddyfile); the frontend proxy's AI
+    # visit log (app/modules/seo/aivisits.py)
+    from app.modules.seo.router import internal_router as seo_internal_router
+    app.include_router(seo_internal_router, prefix="/internal", include_in_schema=False)
     # app.include_router(simple_auth.router)
     
     # Authentication module integration disabled to avoid conflicts with FastAPI Users

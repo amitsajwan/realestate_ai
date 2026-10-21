@@ -5,7 +5,7 @@ code, pages or plans updates this page in the same commit (section 11 gets a lin
 history; when they and this page disagree, this page is right.
 
 Labels: **LIVE** = running in production · **TARGET** = to build · **OWNER** = done by hand · **DROPPED** = decided against.
-Last updated 2026-10-21.
+Last updated 2026-10-21 (search families, AI search).
 
 ## 1. Goal and scorecard
 
@@ -37,6 +37,7 @@ By area (2026-10-21, of pages checked): core pages 21/25, Wagholi 26/76, Kharadi
 | Weekly SEO note | Studio **Home** → "Needs you now" (once a week; opening Rankings clears it) |
 | Google's own view | Search Console, property `sc-domain:avasetu.in` (owner's Google account) |
 | Weekly site audit | GitHub → Actions → "SEO audit (live site)" |
+| AI search: assistants that read us, pages they use, visits from AI answers | Insights → **Rankings** → "AI search"; one line in the weekly note |
 | Raw loop log | VM: `docker compose logs newsroom \| grep pipeline=seo` (one line per step per round) |
 
 ## 3. Accounts and keys (all LIVE, all only in the VM's `.env`, never in git or chat)
@@ -55,9 +56,36 @@ By area (2026-10-21, of pages checked): core pages 21/25, Wagholi 26/76, Kharadi
 | Page | Path | Title pattern (example) | Structured data | Index rule |
 |---|---|---|---|---|
 | Project | `/projects/<slug>` | "<name people search>, <area>: Price, Possession <Mon YYYY>" | ApartmentComplex, FAQPage, BreadcrumbList | noindex while thin (`pages.indexable`); towers/phases of one project are one page, the others 301 to it |
-| Place (all projects) | `/projects/area/<place>` | "New Projects in <place>, Pune …" → "Residential Projects in <place>" once its new-launches page is live | ItemList | listed once a project in it has real facts |
-| Area list (grown from searches) | `/projects/area/<place>/<intent>[/possession-YYYY][/by-builder]` | new launches / top / ready to move | FAQPage | 3+ projects, else noindex |
-| BHK / budget | `/2-bhk/<area>`, `/3-bhk/<area>`, `/price/<band>/<area>` | "2 BHK in Wagholi" | | only with enough live listings, else 404 |
+| Place (all projects) | `/projects/area/<place>` | "New Projects & Flats in <place>, Pune …" → "Flats & Residential Projects in <place>" once its new-launches page is live; "Flat prices in <place>" by size; "Also spelt …" | ItemList (+ Place with `alternateName`) | listed once a project in it has real facts |
+| Area list (grown from searches) | `/projects/area/<place>/<intent>[/<n>-bhk][/possession-YYYY][/by-builder]` | new launches / top / "Ready to Move Flats" | ItemList, FAQPage | 3+ projects, else noindex |
+| Size (from published prices) | `/projects/area/<place>/<n>-bhk` (1-4; "2 BHK" takes in 2.5) | "2 BHK Flats in Lohegaon, Pune (Oct 2026): 7 Projects, Prices" | ItemList, FAQPage | 3+ projects with a published price for that size, else noindex |
+| BHK / budget (agents' listings) | `/2-bhk/<area>`, `/3-bhk/<area>`, `/price/<band>/<area>` | "2 BHK in Wagholi" | | only with enough live listings, else 404; a `/N-bhk/<area>` URL 301s to the size page once that is in search |
+
+### Every way buyers search for an area (LIVE, 2026-10-21)
+
+Google showed the Lohegaon place page for "new projects in lohegaon" and "projects in lohegaon" but not for "flats in lohegaon"
+or "properties in lohegaon": every word on the page said "projects". The fix is a rule, not one page: **every phrasing of an area
+search has exactly one owner page, and that page's title, H1, description, first paragraph and the links into it use the
+phrasing's words.** The owner map (code: `seo/phrases.py` + `vocabulary.json`; rank watch: `areastats/websearch.AREA_QUERIES`):
+
+| Buyers type (any spelling of the place) | Owner page | Words the owner page carries |
+|---|---|---|
+| projects / new projects / residential projects / flats / apartments / homes / property / properties / under construction in X | place page `/projects/area/x` (its new-launches list once that is live) | projects, flats, apartments, property |
+| property rates / flat price / cost in X | place page, "Flat prices in X" section | prices by size, with sources |
+| 1 / 2 / 3 / 4 BHK (flats, flat price) in X | size page `/projects/area/x/2-bhk` | "2 BHK Flats", prices |
+| new launch / upcoming / pre-launch / latest | `/projects/area/x/new-launches` | new launch projects and flats |
+| top / best / popular / most booked | `/projects/area/x/top` | top residential projects |
+| ready to move / ready possession / completed | `/projects/area/x/ready-to-move` | "Ready to Move Flats" |
+| possession 2027 | `/projects/area/x/possession-2027` | possession year |
+| under 50 lakh, 50-75 lakh … | `/price/<band>/x` (agents' listings) | budget |
+| living in X, X review | `/localities/x` | guide |
+| rent, resale, plots, villas, commercial | none: kept on the data-gaps list (Insights → Pages) | |
+
+**Spelling.** People type place names by ear ("lohegoan", "vagholi", "hinjwadi", "kharedi"). `pune_places.in_search` names
+the place when the words sound like exactly one place's name and are spelt close to it (never a guess between two places);
+the parser, the demand classifier and the gaps report use it, so a misspelt search counts toward the right page. Pages show
+the real other spellings ("Also spelt Lohgaon") and put them in the Place `alternateName`; never a misspelling in a title.
+
 | Locality guide + neighbourhoods | `/localities/<area>`, `/localities/<area>/<community>` | "<area>, Pune: projects, MahaRERA records and buyer guide" | Place | |
 | Builder | `/builders/<slug>` | "<builder> projects in Pune: N on MahaRERA" | Organization | 2+ indexable projects, else noindex |
 | Guide / topic | `/guides/<slug>` (`/guides/upper-kharadi`, `/guides/mhada-pune-lottery`) | from `calendar/topics/<slug>.json` | Article, FAQPage | |
@@ -69,6 +97,22 @@ By area (2026-10-21, of pages checked): core pages 21/25, Wagholi 26/76, Kharadi
 | Fixed pages | `/`, `/projects`, `/localities`, `/builders`, `/for-agents`, `/privacy`, `/terms` | | Organization | |
 
 Kept out (robots.txt `PRIVATE_PATHS`): `/api/`, `/studio`, `/join`, `/login`, `/register`, `/i/` and the old app paths.
+
+### AI search (BUILT 2026-10-21, not deployed)
+
+How the assistants pick sources: ChatGPT search reads its own index (OAI-SearchBot) and Bing's; Copilot is Bing; Google's AI
+Overviews come from Google's index; Perplexity crawls (PerplexityBot) and searches. They cite pages that already rank and that hold
+a short, dated, quotable answer. So for AI search the levers are the same as for Google, plus being in **Bing**, being readable by
+their fetchers, and leading each page with the answer. What we run:
+
+| Piece | What it does | Code |
+|---|---|---|
+| AI visit log | every page request from an AI fetcher (ChatGPT-User / Perplexity-User / Claude-User = "read to answer a question"; OAI-SearchBot, PerplexityBot, Bingbot, Googlebot = search crawlers; GPTBot, ClaudeBot, CCBot = training) and every visit from an AI answer (chatgpt.com, perplexity.ai, copilot, gemini, claude.ai, `utm_source=chatgpt.com`), counted per day with the pages for answers and referrals. By user agent as sent (no reverse DNS): trends, not proof | `frontend/proxy.ts` → `/internal/seo/visit` (outside `/api`, so never reachable from the public site) → `seo/aivisits.py` |
+| AI fetcher audit | the weekly site audit reads 12 sampled pages again as OAI-SearchBot, ChatGPT-User, PerplexityBot and bingbot: error on a robots.txt block, another status, another page (bot shield) or no `<h1>` text in the HTML | `seo/audit.py` |
+| robots.txt | every crawler allowed, AI ones included (decision: being read beats being private; GPTBot training kept allowed so models know the brand) | `frontend/app/robots.ts` |
+| `/llms.txt` | a map of the site for assistants (our areas, their lists, guides, the MahaRERA tracker), from the sitemap's lists. A hint some read, not a ranking signal | `frontend/app/llms.txt/route.ts` |
+| Bing | IndexNow sends changes (LIVE); `NEXT_PUBLIC_BING_SITE_VERIFICATION` puts the `msvalidate.01` tag in every page | `seo/indexnow.py`, `frontend/app/layout.tsx` |
+| Quotable pages | place pages open with a paragraph written by code from the numbers ("As of 21 Oct 2026, MahaRERA lists 14 housing projects in Lohegaon … 2 BHK flats start from ₹69 lakh"), then a FAQ from the same lists (FAQPage) and "Updated <day>" (WebPage dateModified); list pages already had both | `frontend/lib/site/placeFacts.ts` |
 
 ## 5. On-page rules every page follows (LIVE)
 
@@ -104,14 +148,15 @@ All in the `newsroom` worker role (seo loop every 30 minutes; each step runs onl
 | Index coverage | daily, ~1 hour | URL Inspection of 1,800 pages (never checked first), so the whole sitemap is covered about once a week; a stale sitemap right after a deploy is skipped; per-area counts (`by_sitemap`) | `seo/coverage.py` |
 | Target searches + titles | daily | target search per project page; title rule above; site snapshot for the weekly numbers | `seo/targets.py` |
 | Page doctor | daily, at most 15 pages | one fix per page per 28 days, measured at 14 and 28 days, title/description undone if the page lost 5+ places. Fixes: title, buyer questions, link slot, refresh facts, description, **rival** (MagicBricks just above: description led by the facts their result shows; if they show a price we lack, refresh first) | `seo/doctor.py`, `seo/actions.py`, `seo/rival.py` |
-| Google searches | daily, ~25 | 6 area + 8 project searches, 6 re-checks of doctored pages, 5 **panel** target searches (every target once in 14 days); new MahaRERA numbers found go to the register | `areastats/websearch.py` |
+| Google searches | daily, ~25 | 6 area (7 phrasings per area: new launch, upcoming, top, ready to move, flats, 2 BHK flats, property rates) + 8 project searches, 6 re-checks of doctored pages, 5 **panel** target searches (every target once in 14 days); new MahaRERA numbers found go to the register | `areastats/websearch.py` |
 | Search gaps | weekly | searches that show us with no page in the top 20 | `seo/gaps.py` |
-| Area list pages grow | weekly, at most 10 new | from real searches once they pass demand, supply (3+ projects) and overlap checks | `seo/grow.py`, `seo/facets.py`, `seo/phrases.py` |
+| Area list pages grow | weekly, at most 10 new | from real searches once they pass demand, supply (3+ projects) and overlap checks (a size page is compared only with pages of the same size); seeds: new launches, top, ready to move, 1/2/3 BHK for every place; autocomplete seeds take turns: new projects / flats / 2 bhk flats / property in <area> | `seo/grow.py`, `seo/facets.py`, `seo/phrases.py` |
 | MagicBricks scoreboard | weekly | our place vs MagicBricks, 99acres, Housing for every search run in 28 days; "win next" list; history per week | `seo/scoreboard.py` |
+| AI visit log | every page request (proxy, after the response) | AI fetchers and visits from AI answers, per day; on Rankings and in the weekly note | `frontend/proxy.ts`, `seo/aivisits.py` |
 | Owner's SEO note | weekly | Studio notification with the week's numbers and how many pages wait for Request indexing | `seo/note.py` |
 | Page writer | every 5 min (cheap rewrite), full re-read at most 1 per 30 min | project text on free LLM tiers; skipped while most providers are resting | `areastats/enrich.py` |
 | Hot projects refresh | every 14 days per hot project | facts, prices and text re-read | `areastats/hot.py`, `enrich.py` |
-| Site audit | weekly, Mondays 08:47 IST (GitHub Actions) | 300 sitemap pages read like Googlebot: status, robots, noindex, canonical, title, JSON-LD; a 5xx is read again after 30 s | `seo/audit.py`, `.github/workflows/seo-audit.yml` |
+| Site audit | weekly, Mondays 08:47 IST (GitHub Actions) | 300 sitemap pages read like Googlebot: status, robots, noindex, canonical, title, JSON-LD; a 5xx is read again after 30 s; 12 of them again as 4 AI fetchers (same page, `<h1>` in the HTML, robots.txt) | `seo/audit.py`, `.github/workflows/seo-audit.yml` |
 
 ## 7. What the owner does by hand (OWNER)
 
@@ -122,21 +167,44 @@ All in the `newsroom` worker role (seo loop every 30 minutes; each step runs onl
   linking to their project pages; offer the MahaRERA tracker to journalists and bloggers.
 - **Social → site**: Instagram website + WhatsApp button, captions link the project or area page (visits bring crawls).
 - **Validate fix** in Search Console when it reports an error group we fixed.
+- **Bing Webmaster Tools, once** (ChatGPT search and Copilot lean on Bing): bing.com/webmasters → add avasetu.in → "Import from
+  Google Search Console" (or put the HTML meta tag value in `NEXT_PUBLIC_BING_SITE_VERIFICATION` in `deploy/gcp/.env` and
+  redeploy) → submit `/sitemap.xml`. Then check its Index and Search Performance reports monthly.
+- **Be talked about** (AI answers lean on brands the web mentions): answer Pune property threads on Reddit and Quora with the
+  project or area page that answers them, offer the MahaRERA tracker to journalists, keep the Google Business Profile current.
 
 ## 8. To build (TARGET, in order)
 
-1. **Page writer goes area by area** (index-everything I4): never-written pages are taken newest first today
+1. **Prices area by area** (fuel for the size pages and "Flat prices in X"): prices are read on the page writer's turn,
+   Upper Kharadi first; take our 8 areas' projects first, so each area has 3+ priced projects per size. Read the size pages'
+   `gate.supply` on Insights → Pages to see which wait on prices.
+2. **Budget pages from published prices**: `/projects/area/<place>/under-50-lakh` like the size pages, so budget searches are
+   answered for every place, not only where agents list; then the agents' `/price/<band>/<area>` 301s like `/N-bhk/<area>`.
+3. **Read the search families in Search Console** (28 days after deploy, ~2026-11-20): for each area, impressions and position
+   for "flats", "property", "2 bhk", "price" searches on the owner page; a phrasing whose impressions land on a non-owner page
+   goes on the conflicts list (R2).
+4. **Page writer goes area by area** (index-everything I4): never-written pages are taken newest first today
    (`enrich.priority`); take our 8 areas' pages first, so each page Google reads there has a summary, dates and nearby places.
-2. **Target searches for list pages**: only project pages get a target search and title from Search Console; give place, area
+5. **Target searches for list pages**: only project pages get a target search and title from Search Console; give place, area
    list, BHK and budget pages the same (rank-loop R1 left them out).
-3. **News stories link the projects they name** (insights-and-seo S4): a story about a project links its page.
-4. **Area list pages, weeks 3-4** (area-intent-pages section 11): retire with 301 after 180 idle days, learn which page types
+6. **News stories link the projects they name** (insights-and-seo S4): a story about a project links its page.
+7. **Area list pages, weeks 3-4** (area-intent-pages section 11): retire with 301 after 180 idle days, learn which page types
    earn, landmark lists, Pune-wide lists, a monthly round-up story, vocabulary proposals; a "New launches by area" strip on home.
-5. **Page speed**: the Baner place page is 0.9 MB; uncached project pages 0.45-0.8 s.
-6. **Weekly note on WhatsApp/email**: needs an email sender or an approved WhatsApp template (`report.week_lines` is unused).
-7. **Coverage off the loop**: its hour holds the seo loop's later steps once a day; give it its own task if they must run first.
-8. **Tidy the SEO code** (seo-review S2-S5): one `_aware` (31 copies today), one Search Console client, one sitemap parser,
+8. **Page speed**: the Baner place page is 0.9 MB; uncached project pages 0.45-0.8 s.
+9. **Weekly note on WhatsApp/email**: needs an email sender or an approved WhatsApp template (`report.week_lines` is unused).
+10. **Coverage off the loop**: its hour holds the seo loop's later steps once a day; give it its own task if they must run first.
+11. **Tidy the SEO code** (seo-review S2-S5): one `_aware` (31 copies today), one Search Console client, one sitemap parser,
    `pages` out of `areastats`, an import-linter contract.
+
+AI search, next (TARGET):
+- **AI answer panel** (needs a paid key, owner to decide): weekly, 20 buyer questions ("2 bhk flats in Lohegaon", "is <project>
+  delayed") asked through the Perplexity Sonar API or Gemini with Google Search grounding, recording which sites the answer cites;
+  our share of citations beside MagicBricks/99acres/Housing on the scoreboard. ~80 calls a month.
+- **Bing Webmaster API** (needs the API key from Bing Webmaster Tools): Bing's searches and positions for our pages into
+  `search_demand` like Search Console (source "bing"), so the doctor and the gaps report see Bing too.
+- **Marathi searches**: the phrase parser drops Devanagari ("लोहगाव मध्ये फ्लॅट"); read it with the Marathi place names we hold
+  (`reels/spoken_names.py`) and a Marathi vocabulary, then decide Marathi place pages from the counts.
+- **Verified bots**: reverse-DNS check for Googlebot, Bingbot and OAI-SearchBot before counting, if spoofed names ever skew the log.
 
 Results to read: doctor's first 14-day results **2026-10-28**; rival and price refreshes from **2026-11-04**.
 
@@ -170,6 +238,10 @@ measure (Search Console, Serper, URL Inspection) → choose (near page one, Magi
 | 2026-10-20 | 7c6ef9cd | Price sheet on project pages |
 | 2026-10-21 | 81263539..02d8154b | Coverage 1,800/day, MagicBricks scoreboard, weekly owner note + Ask Google to index, audit second read |
 | 2026-10-21 | 9cbba482, 0d55a7ca | Doctor rival fix (+ price refresh), Indexed by area, panel of target searches |
+| 2026-10-21 | 886047b | Place pages say "flats" in title, H1 and description |
+| 2026-10-21 | aaf7c45 | Search phrases name a place however it is spelt (`pune_places.in_search`) |
+| 2026-10-21 | f43252f, 1ab4a00 | Every way buyers search: size pages from published prices, "Flat prices in X", Place `alternateName`, flats wording and links, owner map, rank watch for the families |
+| 2026-10-21 | 7720a6d, d730c5c, 7abbe6f + this | AI search: AI visit log, AI fetcher audit, `/llms.txt`, Bing verification tag, quotable place pages (answer, FAQ, updated date) |
 
 ## 12. Detail and history
 

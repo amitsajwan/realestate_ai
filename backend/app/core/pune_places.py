@@ -10,6 +10,7 @@ How a project gets its place (`place_of`):
 A name alone never moves a project to another pincode's place: builders put famous names on far-off projects.
 """
 import re
+from difflib import SequenceMatcher
 from dataclasses import dataclass
 from typing import Dict, Optional, Tuple
 
@@ -358,3 +359,75 @@ def place_key(name: str, pincode: str, regno: str = "") -> Optional[str]:
         return p.key
     t = TALUKA_BY_PIN.get((pincode or "").strip())
     return f"taluka_{t.lower().replace(' ', '_')}" if t and t.lower() not in ("haveli", "pune city", "pune", "na") else None
+
+
+# ---- a place in a buyer's search, however it is spelt -------------------------------------------------------------------------
+# People type place names by ear: "lohegoan", "lohgaon", "vagholi", "hinjawadi", "kharedi". A search names a place when one of
+# its names is in it as whole words; else when a run of 1 to 3 words sounds like one name (`sound`: no vowels, h, or doubled
+# letters, a leading vowel kept as "a"; w=v, f=p, z=j, q/c=k). A sound shared by two places, or shorter than MIN_SOUND, is never used: we never guess.
+# Only for searches (seo, demand): a project's place still comes from its pincode and exact names (`place_of`).
+MIN_SOUND = 3
+SPELT_LIKE = 0.75
+
+
+def sound(s: str) -> str:
+    t = re.sub(r"[^a-z]", "", (s or "").lower())
+    t = t.translate(str.maketrans("wfzqc", "vpjkk")).replace("h", "")
+    t = ("a" if t[:1] in "aeiou" and t else "") + re.sub(r"[aeiou]", "", t)
+    return re.sub(r"(.)\1+", r"\1", t)
+
+
+def _sounds() -> Dict[str, Tuple[str, str]]:
+    seen: Dict[str, set] = {}
+    for p in PLACES:
+        for al in (p.name.lower(),) + p.aliases:
+            k = sound(al)
+            if len(k) >= MIN_SOUND:
+                seen.setdefault(k, set()).add((p.key, al.replace(" ", "")))
+    return {k: next(iter(v)) for k, v in seen.items() if len({key for key, _ in v}) == 1}
+
+
+SOUNDS: Dict[str, Tuple[str, str]] = _sounds()   # sound -> (place key, the name it came from, spaces dropped)
+
+
+def spellings(place: Place) -> Tuple[str, ...]:
+    """Other spellings of the place's name ("Lohgaon", "Lohogaon" for Lohegaon), for the page to say and its structured data;
+    aliases that are another name (Amanora for Magarpatta) are not spellings."""
+    own = place.name.lower().replace(" ", "")
+    out = []
+    for al in place.aliases:
+        if al.replace(" ", "").replace("-", "") != own and SequenceMatcher(None, al.replace(" ", ""), own).ratio() >= SPELT_LIKE \
+                and "-" not in al:
+            t = " ".join(w.capitalize() for w in al.split())
+            if t not in out:
+                out.append(t)
+    return tuple(out)
+
+
+def in_search(text: str) -> Optional[Tuple[Place, str]]:
+    """(place, the words that named it) for a search phrase, or None. The longest exact name wins; else the run of words that
+    sounds like one place's name and is spelt closest to it (SPELT_LIKE: "possession" sounds like Pashan but is not spelt
+    like it)."""
+    t = _norm(text)
+    best: Optional[Tuple[Place, str]] = None
+    for p in PLACES:
+        for al in (p.name.lower(),) + p.aliases:
+            a = _norm(al)
+            if len(a) > 2 and a in t and (best is None or len(a) > len(best[1])):
+                best = (p, a)
+    if best:
+        return best[0], best[1].strip()
+    words, near = t.split(), None
+    for n in (1, 2, 3):
+        for i in range(len(words) - n + 1):
+            run = words[i:i + n]
+            joined = "".join(run)
+            if len(joined) < 5 or any(w.isdigit() for w in run):
+                continue
+            hit = SOUNDS.get(sound(joined))
+            if not hit:
+                continue
+            ratio = SequenceMatcher(None, joined, hit[1]).ratio()
+            if ratio >= SPELT_LIKE and (near is None or ratio > near[0]):
+                near = (ratio, hit[0], " ".join(run))
+    return (BY_KEY[near[1]], near[2]) if near else None

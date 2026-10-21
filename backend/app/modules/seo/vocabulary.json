@@ -11,6 +11,7 @@
             "under construction", "societies", "society", "properties", "property"]
   },
   "possession_words": ["possession", "completion", "handover", "ready by", "delivery"],
+  "size_price_words": ["bhk", "price", "prices", "cost", "rate", "rates"],
   "existing_pages": ["bhk", "lakh", "lakhs", "lac", "lacs", "crore", "cr", "budget", "price", "prices", "cost", "rate", "rates"],
   "unanswerable": ["gated community", "lake view", "river view", "hill view", "luxury", "premium", "villa", "villas", "bungalow",
                    "bungalows", "row house", "row houses", "plot", "plots", "land", "na plots", "rent", "rental", "resale",

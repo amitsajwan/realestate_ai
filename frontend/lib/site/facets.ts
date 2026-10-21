@@ -17,6 +17,7 @@ export interface FacetLink {
   intent: Intent
   possession: number | null
   builder: string | null
+  bhk?: number | null
   label: string
   count: number
   indexable: boolean
@@ -38,6 +39,9 @@ export interface FacetRow {
   units_booked: number | null
   reason: string
   source: string
+  price_from?: number | null
+  price_to?: number | null
+  price_source?: string | null
 }
 
 export interface FacetChange { at: string; text: string; slug: string; source: string }
@@ -50,6 +54,7 @@ export interface FacetPage {
   possession: number | null
   builder: string | null
   builder_name: string | null
+  bhk?: number | null
   title: string
   h1: string
   answer: string
@@ -85,13 +90,23 @@ async function getOnce<T>(path: string): Promise<Got<T>> {
   }
 }
 
+export interface SizePrice { bhk: number; projects: number; low: number; high: number; cheapest: { name: string; slug: string }; path: string }
+export interface PlacePrices { place: string; as_of: string; sizes: SizePrice[] }
+
+/** Flat prices by home size for a place page (published prices only); null on any failure: the page shows no prices then. */
+export async function getPlacePrices(placeSlug: string): Promise<PlacePrices | null> {
+  if (!SEG.test(placeSlug)) return null
+  const r = await get<PlacePrices>(`/api/v1/public/place-prices/${placeSlug}`)
+  return r.ok && r.data && Array.isArray(r.data.sizes) ? r.data : null
+}
+
 export async function getFacets(): Promise<FacetLink[]> {
   const r = await get<FacetLink[]>('/api/v1/public/facets')
   return r.ok && Array.isArray(r.data) ? r.data : []
 }
 
 export async function getFacet(place: string, segments: string[]): Promise<FacetPage | { redirect_to: string } | null> {
-  if (!SEG.test(place) || !segments.length || segments.length > 3 || !segments.every((s) => SEG.test(s))) return null
+  if (!SEG.test(place) || !segments.length || segments.length > 4 || !segments.every((s) => SEG.test(s))) return null
   const r = await get<FacetPage | { redirect_to: string }>(`/api/v1/public/facets/${place}/${segments.join('/')}`)
   if (r.ok) return r.data
   if (r.notFound) return null
@@ -108,7 +123,12 @@ export function facetFaq(p: FacetPage): { q: string; a: string }[] {
   const out: { q: string; a: string }[] = []
   const place = p.place.name
   const names = p.rows.slice(0, 5).map((r) => r.name).join(', ')
-  if (p.intent === 'new-launches') {
+  if (p.bhk) {
+    out.push({ q: `Which new projects in ${place}, Pune have ${p.bhk} BHK flats?`, a: `${p.answer} Cheapest first: ${names}.` })
+    out.push({ q: `What is the price of a ${p.bhk} BHK flat in ${place}?`,
+      a: `On this list, from the price the builder's own site states or two property sites agree on, read in the last 45 days. ` +
+         'Ask the builder for the full cost sheet: parking, stamp duty, registration and GST are usually extra.' })
+  } else if (p.intent === 'new-launches') {
     out.push({ q: `Which are the new launch projects in ${place}, Pune?`, a: `${p.answer} The newest: ${names}.` })
     out.push({ q: `Are pre-launch offers in ${place} allowed?`,
       a: 'Under RERA a builder may not advertise, market, book or sell homes in a project before it is registered with MahaRERA. ' +
@@ -131,6 +151,20 @@ export function facetFaq(p: FacetPage): { q: string; a: string }[] {
 
 const CHIP_LABEL: Record<Intent, string> = { 'new-launches': 'New launches', top: 'Top projects', 'ready-to-move': 'Ready to move', all: 'All projects' }
 
+/** The live size page (/projects/area/<place>/2-bhk) for an area, when it has enough projects to be in search. */
+export function sizePage(all: FacetLink[], placeSlug: string, bhk: number): FacetLink | null {
+  return all.find((f) => f.place_slug === placeSlug && f.bhk === bhk && f.intent === 'all' && !f.possession && !f.builder && f.indexable) ?? null
+}
+
+/** The agents' listing pages (filters.livePages) less the size pages that now answer at /projects/area/<place>/<n>-bhk: an old
+ *  /2-bhk/<area> URL redirects there once that page is in search, so one page answers "2 bhk flats in <area>". */
+export function withoutMovedSizePages<T extends { path: string }>(pages: T[], all: FacetLink[]): T[] {
+  return pages.filter((p) => {
+    const m = /^\/(\d)-bhk\/([a-z0-9-]+)$/.exec(p.path)
+    return !m || !sizePage(all, m[2], Number(m[1]))
+  })
+}
+
 /** Chips for a place: its live lists, the 2 BHK and budget pages that have enough projects (from agents' listings), all
  *  projects, and the area guide for the areas we cover. `filterPages` is filters.livePages(catalog). */
 export function placeChips(
@@ -140,10 +174,10 @@ export function placeChips(
   guide?: string | null,
 ): { path: string; label: string; count?: number | null }[] {
   const mine = siblings(all, place.key)
-  const label = (f: FacetLink) => (f.builder ? `${f.label} by ${f.builder.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}` : f.intent !== 'all' && !f.possession ? CHIP_LABEL[f.intent] : f.label)
+  const label = (f: FacetLink) => (f.builder ? `${f.label} by ${f.builder.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}` : f.intent !== 'all' && !f.possession && !f.bhk ? CHIP_LABEL[f.intent] : f.label)
   return [
     ...mine.map((f) => ({ path: f.path, label: label(f), count: f.count })),
-    ...filterPages.filter((p) => p.area.slug === place.slug).map((p) => ({ path: p.path, label: p.title.replace(/ in .*$/, ''), count: p.count })),
+    ...withoutMovedSizePages(filterPages, all).filter((p) => p.area.slug === place.slug).map((p) => ({ path: p.path, label: p.title.replace(/ in .*$/, ''), count: p.count })),
     { path: `/projects/area/${place.slug}`, label: 'All projects' },
     ...(guide ? [{ path: guide, label: 'Area guide' }] : []),
   ]

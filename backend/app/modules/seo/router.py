@@ -20,7 +20,7 @@ async def indexnow_key() -> PlainTextResponse:
 # ---- area list pages that grow from searches (docs/plan/area-intent-pages.md) -----------------------------------------------------
 import asyncio  # noqa: E402
 import time  # noqa: E402
-from typing import List  # noqa: E402
+from typing import List, Optional  # noqa: E402
 
 from fastapi import Depends, Response  # noqa: E402
 
@@ -62,6 +62,13 @@ async def _live_pages(db) -> List[dict]:
         return out
 
 
+@public_router.get("/place-prices/{place}")
+async def public_place_prices(place: str, response: Response, db=Depends(get_db)) -> dict:
+    """Flat prices by home size for a place page (/projects/area/<place>): published prices only (areastats.prices)."""
+    response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
+    return await facets.prices_view(db, place)
+
+
 @public_router.get("/facets/{place}/{rest:path}")
 async def public_facet(place: str, rest: str, response: Response, db=Depends(get_db)) -> dict:
     """One area list page (/projects/area/<place>/<rest>), or {"redirect_to"} for the same page under its one URL. Only pages
@@ -76,3 +83,25 @@ async def public_facet(place: str, rest: str, response: Response, db=Depends(get
         out["indexable"] = out["indexable"] and state == "live"
     response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
     return out
+
+
+# ---- internal: the frontend proxy's AI visit log (seo.aivisits) -----------------------------------------------------------------
+# Mounted at /internal (app/core/routes.py), outside /api: the public site's Caddy never routes it to the backend, only the
+# frontend container calls it on the internal network.
+from pydantic import BaseModel, Field  # noqa: E402
+
+internal_router = APIRouter()
+
+
+class VisitIn(BaseModel):
+    ua: Optional[str] = Field(None, max_length=500)
+    referer: Optional[str] = Field(None, max_length=500)
+    path: Optional[str] = Field(None, max_length=500)
+    utm_source: Optional[str] = Field(None, max_length=80)
+
+
+@internal_router.post("/seo/visit", status_code=204)
+async def internal_visit(v: VisitIn, db=Depends(get_db)) -> Response:
+    from . import aivisits
+    await aivisits.record(db, v.ua, v.referer, v.path, v.utm_source)
+    return Response(status_code=204)

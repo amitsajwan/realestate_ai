@@ -679,7 +679,8 @@ async def places(db) -> List[dict]:
     out = []
     for p in pune_places.PLACES:
         if p.key in counts:
-            out.append({"key": p.key, "slug": p.slug, "name": p.name, "zone": p.zone, **{k: counts[p.key][k] for k in ("projects", "indexable")}})
+            out.append({"key": p.key, "slug": p.slug, "name": p.name, "zone": p.zone, "spellings": list(pune_places.spellings(p)),
+                        **{k: counts[p.key][k] for k in ("projects", "indexable")}})
     for key, c in sorted(counts.items()):
         if key not in pune_places.BY_KEY:
             out.append({"key": key, "slug": key.replace("_", "-"), "name": c["name"], "zone": pune_places.Z_OUT,

@@ -144,6 +144,17 @@ export interface Rankings {
   scoreboard?: Scoreboard
   request_indexing?: { url: string; state: string | null; why: string }[]
   coverage?: { at: string | null; by_sitemap: { sitemap: string; listed: number; inspected: number; indexed: number }[] }
+  ai?: AiVisits
+}
+
+/** AI search (backend seo/aivisits.py): AI fetchers that read our pages and visits from AI answers, by day. */
+export interface AiVisits {
+  days: number
+  since: string
+  agents: { group: 'answer' | 'referral' | 'search' | 'training'; agent: string; week: number; total: number; kinds: Record<string, number> }[]
+  answer_pages: { path: string; count: number }[]
+  referral_pages: { path: string; count: number }[]
+  totals: Record<string, number>
 }
 
 export const getRankings = () => call<Rankings>('rankings')

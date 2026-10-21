@@ -43,7 +43,7 @@ RAISE_AT = 0.7
 RAISE_AFTER = timedelta(days=14)
 KEEP_LISTS = 60
 AUTOCOMPLETE_PER_WEEK = 8
-AUTOCOMPLETE_SEEDS = ("new projects in {area}", "flats in {area}")
+AUTOCOMPLETE_SEEDS = ("new projects in {area}", "flats in {area}", "2 bhk flats in {area}", "property in {area}")
 SOURCES = ("search_console", "related", "question", "autocomplete")
 STATUSES = ("candidate", "live", "held", "never")
 
@@ -149,6 +149,9 @@ def gate(cand: dict, regnos: List[str], live: List[dict]) -> dict:
     for p in live:
         if p["_id"] == cand["facet"].key or p.get("place") != cand["facet"].place:
             continue
+        other = facets.from_key(p["_id"])
+        if other is not None and other.bhk != cand["facet"].bhk:
+            continue   # "2 bhk flats in X" is its own search, with prices the other lists do not show
         o = overlap(regnos, p.get("regnos") or [])
         if o > worst:
             worst, with_ = o, p["_id"]
@@ -296,10 +299,12 @@ async def live_pages(db, now: Optional[datetime] = None) -> List[dict]:
             stamp.append(live_at.isoformat())   # a new page is news to search engines even when its projects are not
         label = facets.LABEL[f.intent] if not f.possession else (
             f"Possession {f.possession}" if f.intent == "all" else f"{facets.LABEL[f.intent]}, possession {f.possession}")
+        if f.bhk:
+            label = f"{f.bhk} BHK flats" if f.intent == "all" and not f.possession else f"{label}, {f.bhk} BHK"
         out.append({"key": f.key, "path": f.path, "place": f.place, "place_slug": facets.place_slug(f.place), "intent": f.intent,
-                    "possession": f.possession, "builder": f.builder, "label": label, "count": len(listed),
+                    "possession": f.possession, "builder": f.builder, "bhk": f.bhk, "label": label, "count": len(listed),
                     "indexable": len(listed) >= facets.MIN_PROJECTS, "page_updated": max(stamp) if stamp else None})
-    out.sort(key=lambda r: (r["place"], facets.INTENTS.index(r["intent"]), r["possession"] or 0, r["builder"] or ""))
+    out.sort(key=lambda r: (r["place"], facets.INTENTS.index(r["intent"]), r["bhk"] or 0, r["possession"] or 0, r["builder"] or ""))
     return out
 
 

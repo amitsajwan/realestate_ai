@@ -22,7 +22,7 @@ from app.modules.areastats.demand import our_host, rank_of
 from app.modules.areastats.websearch import RESULTS, site
 from app.modules.newsroom.store import Store
 
-from . import coverage, doctor, gaps, note, scoreboard, targets
+from . import aivisits, coverage, doctor, gaps, note, scoreboard, targets
 from .actions import ACTIONS, gain
 
 TARGETS_SHOWN = 60
@@ -101,6 +101,7 @@ async def rankings(store: Store, now: datetime) -> dict:
         "scoreboard": _board(await store.get_mark(scoreboard.MARK)),
         "request_indexing": await note.request_list(store),
         "coverage": {"at": _iso((cov := await store.get_mark(coverage.MARK)).get("at")), "by_sitemap": cov.get("by_sitemap") or []},
+        "ai": await aivisits.summary(store.db, now),
     }
 
 

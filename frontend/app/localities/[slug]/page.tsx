@@ -19,6 +19,7 @@ import { getAreaStats } from '@/components/localities/areaStats'
 import { getCommunities } from '@/components/localities/communities'
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
 import { getCatalog, getLocalityListings } from '@/lib/site/api'
+import { getFacets, siblings, withoutMovedSizePages } from '@/lib/site/facets'
 import { livePages } from '@/lib/site/filters'
 
 type Props = { params: Promise<{ slug: string }> }
@@ -120,12 +121,16 @@ export default async function LocalityPage({ params }: Props) {
   const slug = (await params).slug
   if (!validSlug(slug)) notFound()
   const l = pageLocality(slug)
-  const [listings, projects, stats, posts, news, hoods, active] = await Promise.all([
+  const [listings, projects, stats, posts, news, hoods, active, facets] = await Promise.all([
     getLocalityListings(l.listingName), getCatalog(l.listingName), l.fallback ? Promise.resolve(null) : getAreaStats(l.slug),
     l.fallback ? Promise.resolve([]) : getAreaPosts(l, 6), l.fallback ? Promise.resolve([]) : getAreaNews(l, 5),
     l.fallback ? Promise.resolve([]) : getCommunities(l.key),
     l.fallback ? Promise.resolve([]) : getActive({ area: l.key }),
+    l.fallback ? Promise.resolve([]) : getFacets(),
   ])
+  // the area's own lists (new launches, 2 BHK flats ...) and the agents' pages that still answer here
+  const lists = [...siblings(facets, l.key).map((f) => ({ path: f.path, title: f.label, count: f.count })),
+    ...(l.fallback ? [] : withoutMovedSizePages(livePages(projects, [l]), facets)).map((f) => ({ path: f.path, title: f.title.replace(/, Pune$/, ''), count: f.count }))]
   if (l.fallback && listings.length === 0 && projects.length === 0) notFound()
   const sameTier = localitiesByTier(l.tier).filter((o) => o.slug !== l.slug)
   const guides = l.guides.map((s) => getInsight(s)).filter((g): g is NonNullable<typeof g> => !!g)
@@ -176,14 +181,14 @@ export default async function LocalityPage({ params }: Props) {
             <ul className="mt-4 grid list-none gap-4 p-0 sm:grid-cols-2">
               {projects.map((p) => <li key={p.slug}><ProjectCard p={p} href={`/projects/${p.slug}`} /></li>)}
             </ul>
-            {!l.fallback && livePages(projects, [l]).length > 0 && (
+            {!l.fallback && lists.length > 0 && (
               <ul className="mt-4 flex list-none flex-wrap gap-2 p-0">
-                {livePages(projects, [l]).map((f) => (
-                  <li key={f.path}><Link href={f.path} className="inline-flex min-h-[44px] items-center rounded-full border border-slate-300 px-4 text-sm font-semibold text-[#0f2340] no-underline hover:border-[#0f2340]">{f.title.replace(/, Pune$/, '')} ({f.count})</Link></li>
+                {lists.map((f) => (
+                  <li key={f.path}><Link href={f.path} className="inline-flex min-h-[44px] items-center rounded-full border border-slate-300 px-4 text-sm font-semibold text-[#0f2340] no-underline hover:border-[#0f2340]">{f.title} ({f.count})</Link></li>
                 ))}
               </ul>
             )}
-            <p className="mt-3"><Link href="/projects" className="font-semibold text-[#0f2340] underline underline-offset-2">All projects</Link></p>
+            <p className="mt-3"><Link href={l.fallback ? '/projects' : `/projects/area/${l.slug}`} className="font-semibold text-[#0f2340] underline underline-offset-2">{l.fallback ? 'All projects' : `All projects and flats in ${l.name}`}</Link></p>
           </section>
         )}
         <ActiveProjects title={`Most active projects in ${l.name}`} items={active} />

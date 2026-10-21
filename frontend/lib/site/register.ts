@@ -303,6 +303,7 @@ export interface RegisterPlace {
   slug: string
   name: string
   zone: string
+  spellings?: string[]   // other spellings people search ("Lohgaon" for Lohegaon), never another place's name
   projects: number
   indexable: number
 }

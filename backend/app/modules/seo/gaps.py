@@ -5,7 +5,7 @@ pages sits in the top 20. Each is matched by fixed rules to an EXISTING page typ
   "2 bhk <area>"             -> /2-bhk/<area slug>      (3 bhk likewise)
   "under 50 lakh <area>" ... -> /price/<band>/<area slug>
   "<builder> projects"       -> /builders/<slug>
-  "projects in <area>"       -> /localities/<area slug>
+  "projects / flats / property rates in <area>" -> /projects/area/<area slug> (the place page)
 A match says the page exists but does not rank: the owner links it or the doctor works on it. No match is listed as a search
 with no page type, for the owner to decide. Stored on the `seo_gaps` mark; read-only otherwise.
 """
@@ -13,7 +13,7 @@ import re
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
-from app.core.areas import named_in
+from app.core.areas import in_search as named_in
 from app.modules.areastats import brands, searchconsole
 from app.modules.newsroom.store import Store
 
@@ -30,7 +30,8 @@ BANDS = [("under-50-lakh", r"(under|below|within|upto|up to)\s*50\s*(l|lakh|lakh
          ("1-1.5-crore", r"1\s*(-|to)\s*1\.5\s*(cr|crore)"),
          ("1.5-2-crore", r"1\.5\s*(-|to)\s*2\s*(cr|crore)")]
 BHK = re.compile(r"\b([23])\s*bhk\b", re.I)
-PROJECTS = re.compile(r"\b(projects?|new launch|upcoming|under construction|flats?|apartments?)\b", re.I)
+PROJECTS = re.compile(r"\b(projects?|new launch|upcoming|under construction|flats?|apartments?|propert(y|ies)|homes?|houses?)\b", re.I)
+PRICE = re.compile(r"\b(price|prices|rates?|cost)\b", re.I)
 
 
 def _aware(d) -> Optional[datetime]:
@@ -56,8 +57,8 @@ def template(phrase: str, builder_slugs: List[str]) -> Optional[str]:
     for b in builder_slugs:
         if b and (words.startswith(b + "-") or f"-{b}-" in f"-{words}-"):
             return f"/builders/{b}"
-    if area and PROJECTS.search(phrase):
-        return f"/localities/{area.slug}"
+    if area and (PROJECTS.search(phrase) or PRICE.search(phrase)):
+        return f"/projects/area/{area.slug}"   # the place page owns "flats / projects / property prices in <area>"
     return None
 
 

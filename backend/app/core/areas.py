@@ -60,6 +60,17 @@ def named_in(text: str) -> Tuple[Area, ...]:
     return tuple(sorted(found, key=lambda a: -max(len(al) for al in hits[a.key])))
 
 
+def in_search(text: str) -> Tuple[Area, ...]:
+    """Areas a buyer's search names: `named_in`, else the one place the search sounds like when it is one of our areas
+    ("flats in lohegoan" is Lohegaon; app/core/pune_places.in_search)."""
+    found = named_in(text)
+    if found:
+        return found
+    from app.core import pune_places
+    hit = pune_places.in_search(text)
+    return (BY_KEY[hit[0].key],) if hit and hit[0].key in BY_KEY else ()
+
+
 def _word(alias: str) -> "re.Pattern[str]":
     """The alias as a whole word: "Baner" matches "Baner, Pune" but not "Banerjee"."""
     return re.compile(rf"(?<![a-z]){re.escape(alias)}(?![a-z])")
