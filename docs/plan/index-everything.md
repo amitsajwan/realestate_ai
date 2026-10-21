@@ -1,5 +1,7 @@
 # Index everything, then beat MagicBricks on our searches
 
+> **Current state of all SEO work: [seo-system.md](seo-system.md).** This file is design history; where they differ, seo-system.md is right.
+
 Owner, 2026-10-18: "we want all pages to be indexed", sitemaps by area, fix the 8 error pages, target: beat MagicBricks.
 Follows [rank-loop.md](rank-loop.md) (LIVE): the page doctor needs impressions, and pages that are not indexed get none.
 

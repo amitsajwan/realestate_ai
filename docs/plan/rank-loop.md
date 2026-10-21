@@ -1,5 +1,7 @@
 # Rank loop: every page gets a target search, a fix, and a measured result
 
+> **Current state of all SEO work: [seo-system.md](seo-system.md).** This file is design history; where they differ, seo-system.md is right.
+
 Status: **BUILT, not deployed** (2026-10-14): R0 to R9 are in the code (see section 9 for what differs from the plan). Builds on `docs/plan/insights-and-seo.md` (S1 to S7) and replaces its order for the SEO
 items. Labels: **LIVE** = running in production, **BUILT** = in the code, not deployed, **NEW** = to build.
 

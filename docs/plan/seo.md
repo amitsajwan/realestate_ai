@@ -1,5 +1,7 @@
 # SEO: every post and story findable, all linked to the area pages (2026-10-04)
 
+> **Current state of all SEO work: [seo-system.md](seo-system.md).** This file is design history; where they differ, seo-system.md is right.
+
 ## Why
 Google Search Console is set up for avasetu.in, but the sitemap has 44 URLs. Our daily posts and reels have no page of their own
 (only the /posts feed), news URLs are hashes (`/news/f5ddeef0…`), and the home page links only to /localities, not to the 8 area

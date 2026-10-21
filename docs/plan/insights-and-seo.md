@@ -1,5 +1,7 @@
 # Insights and SEO: turning the data we collect into buyer pages, agent tools, an owner view and rankings
 
+> **Current state of all SEO work: [seo-system.md](seo-system.md).** This file is design history; where they differ, seo-system.md is right.
+
 Status: **decided and building** (2026-10-13). The owner handed the decisions to the architect; all four are taken as
 recommended (section 7). O1, O2 and O6 are **BUILT** (Studio → Newsroom → Insights). Labels: **LIVE** = built and running in
 production, **BUILT** = in the code, not yet deployed, **DATA ONLY** = collected and stored but shown nowhere, **NEW** = to build.

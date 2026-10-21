@@ -1,5 +1,7 @@
 # Area intent pages: new launches, top projects and ready-to-move, one page per search intent per area (2026-10-15)
 
+> **Current state of all SEO work: [seo-system.md](seo-system.md).** This file is design history; where they differ, seo-system.md is right.
+
 Status: **BUILT, not deployed** (2026-10-15): weeks 1 and 2 of section 8. Weeks 3 and 4 (retire with 301, learning per
 type, landmarks, Pune-wide, round-up story, vocabulary proposals) are still **NEW**. What differs from the plan is in section 12. Labels: **LIVE** = running in production, **BUILT** = in the code, not deployed, **NEW** = to build.
 Builds on `rank-loop.md` (R1 targets, R2 self-competition, R5 links, R7 gap pages) and `hot-projects.md` (launch and bookings

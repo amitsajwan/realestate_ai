@@ -1,5 +1,7 @@
 # SEO code: review and how we organise it
 
+> **Current state of all SEO work: [seo-system.md](seo-system.md).** This file is design history; where they differ, seo-system.md is right.
+
 Reviewed 2026-10-14 over the rank-loop work (R0-R9, docs/plan/rank-loop.md §9, built the same day, not deployed).
 Two things here: **what is wrong** (section 1, fix before deploy) and **why it is hard to hold in your head** (2-4, the layout).
 
