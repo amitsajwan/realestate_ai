@@ -645,6 +645,11 @@ async def register_hub(db, doc: dict, permalink: str = "", uploads: Optional[Pat
                 return
         url = await interest_url(db, kind="post", ref=doc["slug"], agent_id=agent, channel="instagram")
         title = (listing.get("title") if listing else "") or (doc["caption"].splitlines() or [""])[0]
+        if listing:   # the card names the project, the word buyers send us ('3 BHK for sale in Kharadi' -> 'Lodha Camelot · 3 BHK ...')
+            from app.core.keywords import project_name
+            name = project_name(listing)
+            if name and name.lower() not in title.lower():
+                title = f"{name} · {title}"
         await upsert_hub_item(db, kind, ref, title[:140], f"{base}/uploads/{picture}", (listing or {}).get("locality") or "",
                               url.rsplit("/", 1)[-1], permalink or "", slug=doc["slug"], channel="instagram" if on_ig else "facebook")
     except Exception:

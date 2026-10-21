@@ -71,3 +71,10 @@ async def test_a_listings_instagram_caption_asks_for_its_word():
     db.get_collection("listings").docs.append({"_id": "L1", "project_name": "Godrej Ivara", "status": "live"})
     out = (await adapters.with_interest(db, row(listing_id="L1")))["caption"]
     assert "Price list and floor plans on WhatsApp: send IVARA to +91 98342 56406." in out
+
+
+async def test_a_home_card_names_its_project():
+    db = FakeDb()
+    db.get_collection("listings").docs.append({"_id": "L2", "title": "3 BHK for sale in Kharadi", "project_name": "Lodha Camelot", "status": "live"})
+    await adapters.register_hub(db, row("campaign-L2-listing", listing_id="L2"), "https://instagram.test/p/9")
+    assert db.get_collection("hub_items").docs[0]["title"] == "Lodha Camelot · 3 BHK for sale in Kharadi"
