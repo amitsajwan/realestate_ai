@@ -55,7 +55,7 @@ By area (2026-10-21, of pages checked): core pages 21/25, Wagholi 26/76, Kharadi
 | Page | Path | Title pattern (example) | Structured data | Index rule |
 |---|---|---|---|---|
 | Project | `/projects/<slug>` | "<name people search>, <area>: Price, Possession <Mon YYYY>" | ApartmentComplex, FAQPage, BreadcrumbList | noindex while thin (`pages.indexable`); towers/phases of one project are one page, the others 301 to it |
-| Place (all projects) | `/projects/area/<place>` | "New Projects in <place>, Pune …" → "Residential Projects in <place>" once its new-launches page is live | ItemList | listed once a project in it has real facts |
+| Place (all projects) | `/projects/area/<place>` | "New Projects & Flats in <place>, Pune …" → "Flats & Residential Projects in <place>" once its new-launches page is live ("flats" so it can show for "flats / properties in <place>") | ItemList | listed once a project in it has real facts |
 | Area list (grown from searches) | `/projects/area/<place>/<intent>[/possession-YYYY][/by-builder]` | new launches / top / ready to move | FAQPage | 3+ projects, else noindex |
 | BHK / budget | `/2-bhk/<area>`, `/3-bhk/<area>`, `/price/<band>/<area>` | "2 BHK in Wagholi" | | only with enough live listings, else 404 |
 | Locality guide + neighbourhoods | `/localities/<area>`, `/localities/<area>/<community>` | "<area>, Pune: projects, MahaRERA records and buyer guide" | Place | |
@@ -170,6 +170,7 @@ measure (Search Console, Serper, URL Inspection) → choose (near page one, Magi
 | 2026-10-20 | 7c6ef9cd | Price sheet on project pages |
 | 2026-10-21 | 81263539..02d8154b | Coverage 1,800/day, MagicBricks scoreboard, weekly owner note + Ask Google to index, audit second read |
 | 2026-10-21 | 9cbba482, 0d55a7ca | Doctor rival fix (+ price refresh), Indexed by area, panel of target searches |
+| 2026-10-21 | (this) | Area pages say "flats" in title, H1 and description, so they can show for "flats / properties in <place>" |
 
 ## 12. Detail and history
 

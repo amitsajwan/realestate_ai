@@ -39,8 +39,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // (docs/plan/area-intent-pages.md section 5): two of our pages never aim at the same search
   const launches = (await getFacets()).some((f) => f.place === place.key && f.intent === 'new-launches' && !f.possession && !f.builder && f.indexable)
   const meta = pageMetadata(getMarketingConfig(), {
-    title: launches ? `Residential Projects in ${place.name}, Pune: all ${place.projects} on MahaRERA`
-      : `New Projects in ${place.name}, Pune: Price, Possession, MahaRERA (${place.projects})`,
+    // "flats" is in the title because people also search "flats in <place>" and "properties in <place>": Google did not show
+    // this page for those while every word on it said "projects"
+    title: launches ? `Flats & Residential Projects in ${place.name}, Pune: all ${place.projects} on MahaRERA`
+      : `New Projects & Flats in ${place.name}, Pune: Price, Possession, MahaRERA (${place.projects})`,
     description: placeDescription(place, launches, (await getActive({ place: place.key })).slice(0, 2).map((a) => a.name)),
     path: placePath(place.slug),
   })
@@ -53,7 +55,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 function placeDescription(place: RegisterPlace, launches: boolean, names: string[]): string {
   const kind = launches ? 'residential' : 'new'
   const incl = names.length ? `, including ${names.join(' and ')}` : ''
-  return `${place.projects} ${kind} projects in ${place.name}, Pune${incl}: possession date filed with MahaRERA, whether it moved, homes booked, and what to check before you book.`
+  return `${place.projects} ${kind} projects and flats in ${place.name}, Pune${incl}: possession date filed with MahaRERA, whether it moved, homes booked, and what to check before you buy property here.`
 }
 
 function Row({ r }: { r: RegisterListItem }) {
@@ -91,10 +93,11 @@ export default async function PlaceProjectsPage({ params }: Props) {
           <Link href="/projects" className="text-[#0f2340] underline underline-offset-2">Projects</Link>
           <span aria-hidden className="px-1 text-slate-400">/</span> {place.zone}
         </nav>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">{launches ? 'Residential projects' : 'New projects'} in {place.name}, Pune</h1>
+        <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">{launches ? 'Flats and residential projects' : 'New projects and flats'} in {place.name}, Pune</h1>
         <p className="mt-4 max-w-3xl text-lg leading-relaxed text-slate-800">
-          Every project MahaRERA lists in {place.name}: {building.length + soldOut.length} being built or recently finished
-          {finished.length > 0 ? `, and ${finished.length} older ones` : ''}. Each page shows the completion date the builder filed with
+          Every residential project MahaRERA lists in {place.name}, the flats and apartments on sale here and the ones already
+          handed over: {building.length + soldOut.length} being built or recently finished
+          {finished.length > 0 ? `, and ${finished.length} older ones` : ''}. Before you buy a property in {place.name}, each page shows the completion date the builder filed with
           MahaRERA, whether it has moved, and how many homes are booked, with the date we read the record.
         </p>
 
