@@ -12,7 +12,7 @@ import { getNotifications, markNotificationRead } from '@/lib/app/whatsapp'
 // Insights → Rankings (docs/plan/rank-loop.md R9): the rank loop's numbers, fixes and results, read-only except "Undo".
 const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://avasetu.in'
 const FIX_LABEL: Record<string, string> = { title: 'Title from search', faq: 'Buyer questions', links: 'Link slot', refresh: 'Refresh facts',
-  description: 'Search description' }
+  description: 'Search description', rival: 'Facts MagicBricks shows' }
 const WEEK_ROWS: [keyof WeekNumbers, string][] = [['clicks', 'Clicks (28 days)'], ['impressions', 'Impressions (28 days)'],
   ['page_one', 'Pages on page one'], ['near_page_one', 'Pages near page one'], ['targeted', 'Pages with a target search']]
 const card = 'list-none rounded-2xl bg-white p-3'
@@ -96,6 +96,30 @@ function Board({ b }: { b: Scoreboard }) {
   )
 }
 
+type AreaRow = { sitemap: string; listed: number; inspected: number; indexed: number }
+const sitemapLabel = (s: string) => (s.startsWith('area-') ? s.slice(5).split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ') : s[0].toUpperCase() + s.slice(1))
+
+/** Indexed share per child sitemap (seo/coverage.py), least indexed first: the area to send Request-indexing turns to. */
+function ByArea({ rows, at }: { rows: AreaRow[]; at: string | null }) {
+  const [all, setAll] = useState(false)
+  const shown = rows.filter((r) => r.inspected > 0)
+  return (
+    <div className={card}>
+      <p className="font-semibold text-gray-900">Indexed by area</p>
+      <p className="text-xs text-gray-600">Pages Google has indexed, of those we checked, per sitemap{at ? `, ${timeAgo(at)}` : ''}. Least indexed first.</p>
+      <ul className="mt-1 space-y-1 p-0">
+        {(all ? shown : shown.slice(0, 10)).map((r) => (
+          <li key={r.sitemap} className="flex justify-between gap-2 text-xs text-gray-700">
+            <span>{sitemapLabel(r.sitemap)}</span>
+            <span className="tabular-nums">{r.indexed} of {r.inspected} checked ({Math.round((100 * r.indexed) / r.inspected)}%) · {r.listed} listed</span>
+          </li>
+        ))}
+      </ul>
+      {shown.length > 10 && <button type="button" className={`${btn} mt-2`} onClick={() => setAll(!all)}>{all ? 'Show 10' : `Show all ${shown.length}`}</button>}
+    </div>
+  )
+}
+
 /** Search Console allows "Request indexing" only by hand: the pages most worth the owner's ~10 a day (seo/note.py). */
 function AskGoogle({ pages }: { pages: { url: string; state: string | null; why: string }[] }) {
   const [all, setAll] = useState(false)
@@ -146,6 +170,8 @@ export default function RankingsTab() {
       </div>
 
       {d.scoreboard?.at && <Board b={d.scoreboard} />}
+
+      {!!d.coverage?.by_sitemap.length && <ByArea rows={d.coverage.by_sitemap} at={d.coverage.at} />}
 
       {!!d.request_indexing?.length && <AskGoogle pages={d.request_indexing} />}
 

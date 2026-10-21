@@ -17,7 +17,7 @@ from app.modules.newsroom.store import Store
 
 ACTIONS = "seo_actions"
 REST_DAYS = 28                   # a page gets one fix per window, so a position move can be put down to one change
-FIELD = {"title": "search_name", "description": "seo_description"}   # the fix types that write a value we can put back
+FIELD = {"title": "search_name", "description": "seo_description", "rival": "seo_description"}   # the fix types that write a value we can put back
 
 
 def numbers(doc: dict) -> dict:

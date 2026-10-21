@@ -67,16 +67,22 @@ def parse_sitemap(xml: str) -> List[Tuple[str, Optional[datetime]]]:
     return out
 
 
-async def read_sitemap(c: httpx.AsyncClient, url: str) -> List[Tuple[str, Optional[datetime]]]:
-    """Every <url> entry of the sitemap at `url`. A sitemap index (frontend/app/sitemap.xml: one sitemap per Pune place, plus
-    core, agents and builders) is followed into each of its sitemaps, one level deep. An index that cannot be read raises; a
-    child that cannot be read is skipped (its pages wait for the next round)."""
+def sitemap_name(loc: str) -> str:
+    """'https://avasetu.in/sitemaps/area-kharadi.xml' -> 'area-kharadi'."""
+    tail = urlparse(loc).path.rstrip("/").rsplit("/", 1)[-1]
+    return tail[:-4] if tail.endswith(".xml") else tail
+
+
+async def read_sitemaps(c: httpx.AsyncClient, url: str) -> List[Tuple[str, str, Optional[datetime]]]:
+    """(sitemap name, url, last modified) for every <url> entry of the sitemap at `url`. A sitemap index (frontend/app/sitemap.xml:
+    one sitemap per Pune place, plus core, agents and builders) is followed into each of its sitemaps, one level deep. An index
+    that cannot be read raises; a child that cannot be read is skipped (its pages wait for the next round)."""
     r = await c.get(url)
     r.raise_for_status()
     root = ET.fromstring(r.text)
     if root.tag != f"{_NS}sitemapindex":
-        return parse_sitemap(r.text)
-    out: List[Tuple[str, Optional[datetime]]] = []
+        return [(sitemap_name(url), u, d) for u, d in parse_sitemap(r.text)]
+    out: List[Tuple[str, str, Optional[datetime]]] = []
     for s in root.iter(f"{_NS}sitemap"):
         loc = (s.findtext(f"{_NS}loc") or "").strip()
         if not loc:
@@ -85,8 +91,13 @@ async def read_sitemap(c: httpx.AsyncClient, url: str) -> List[Tuple[str, Option
         if child.status_code != 200:
             log.warning("sitemap: %s answered %s; skipped this round", loc, child.status_code)
             continue
-        out.extend(parse_sitemap(child.text))
+        out.extend((sitemap_name(loc), u, d) for u, d in parse_sitemap(child.text))
     return out
+
+
+async def read_sitemap(c: httpx.AsyncClient, url: str) -> List[Tuple[str, Optional[datetime]]]:
+    """Every (url, last modified) of the sitemap at `url`, through its index (read_sitemaps)."""
+    return [(u, d) for _, u, d in await read_sitemaps(c, url)]
 
 
 def due(entries: List[Tuple[str, Optional[datetime]]], since: Optional[datetime], host: str) -> List[str]:

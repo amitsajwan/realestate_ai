@@ -41,8 +41,8 @@ All in the `newsroom` worker role unless noted. One `pipeline=seo step=<name> ou
 | Search Console read | daily | per-page and per-search numbers onto the project records and `search_demand`; marks pages near page one | `areastats/searchconsole.py` |
 | Index coverage | daily | URL Inspection of 1,800 pages (was 200 until 2026-10-21), never-checked first, so all 11k are covered in about a week; a stale sitemap after a deploy is skipped, not counted | `seo/coverage.py` |
 | Target searches + titles | daily | one target search per page from Search Console; the title takes it when every word is the project's own | `seo/targets.py` |
-| Page doctor | daily, at most 15 pages | one fix per page per 28 days (title, buyer questions, link slot, refresh facts, description), measured at 14 and 28 days, undone if it lost | `seo/doctor.py`, `seo/actions.py` |
-| Google searches | daily, ~20 | area and project searches through Serper: who ranks, related searches, "People also ask", new MahaRERA numbers | `areastats/websearch.py` |
+| Page doctor | daily, at most 15 pages | one fix per page per 28 days (title, buyer questions, link slot, refresh facts, description, facts MagicBricks shows), measured at 14 and 28 days, undone if it lost | `seo/doctor.py`, `seo/actions.py` |
+| Google searches | daily, ~25 (incl. 5 panel target searches) | area and project searches through Serper: who ranks, related searches, "People also ask", new MahaRERA numbers | `areastats/websearch.py` |
 | Search gaps | weekly | searches that show us with no page in the top 20 | `seo/gaps.py` |
 | Area list pages grow | weekly, at most 10 new | new-launches / top / ready-to-move pages per place, made from real searches once they pass demand, supply and overlap checks | `seo/grow.py`, `seo/facets.py` |
 | MagicBricks scoreboard | weekly (new 2026-10-21) | for every stored search: our place, MagicBricks', 99acres', Housing's; count above MagicBricks, the searches to win next, history per week | `seo/scoreboard.py` |
@@ -65,18 +65,19 @@ Undo, targets, conflicts, gaps; Pages: area list pages; System: loop health and 
 
 ## 5. What to build next (TARGET, in order)
 
+Built 2026-10-21 (stage 2, LIVE): the doctor's **rival** fix (`seo/rival.py`: where MagicBricks is just above our page for its
+own search, the search description leads with the kinds of fact their result shows, from our record; measured and undone like
+the others), **Indexed by area** on Rankings (`coverage.by_sitemap`, least indexed first), and the **panel** of target searches
+(`websearch.panel_checks`: 5 more Serper searches a day, every page's target search once in 14 days, so the scoreboard counts
+a fixed set).
+
 1. **Weekly SEO note on WhatsApp/email too.** LIVE in Studio only (`seo/note.py`); there is no email sender, and WhatsApp
    to the owner outside 24 hours needs an approved template. `report.week_lines` (unused) can then be removed or reused.
-2. **Crawl push for "Discovered - not indexed" pages.** 480 known pages wait for a crawl. Put the fullest of them (summary,
-   dates, nearby) in the link slots of pages Google crawls most (indexed, high impressions: the 8 place pages, Wakad guide),
-   rotating weekly, and let coverage measure how many get indexed in 14 days. Today link slots only go to pages that already
-   have impressions.
-3. **Doctor fix "beat MagicBricks"** (I6 second half): for a "win next" search, compare what MagicBricks' result shows in its
-   title/snippet (price, BHK, possession) with ours and add the fact we hold that they don't. Never copy their text.
-4. **Coverage per area** on Insights: indexed share per child sitemap (from `seo_index`), so the lagging area gets the
-   Request-indexing turns and the crawl push first.
-5. **Scoreboard covers every target search**: the Serper turn spends ~6 searches a day on target checks; give pages with a
-   target and MagicBricks near them a turn every 14 days so the scoreboard is a fixed panel, not whatever was searched.
+2. **Coverage without holding the loop.** 1,800 inspections take about an hour (~2 s each, 4 at a time), and the seo loop's
+   later steps wait for it once a day. Run coverage as its own task if the doctor or targets ever need to run first.
+3. **Crawl push: dropped for now.** The link graph is complete (index-everything I3: every project is linked from its place
+   page), so more internal links are unlikely to change Google's crawl budget. Revisit only if Indexed by area shows linked
+   pages in one area staying unindexed while others index.
 
 ## 6. Rules
 

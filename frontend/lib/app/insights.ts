@@ -143,6 +143,7 @@ export interface Rankings {
   gaps: { at: string | null; total: number; items: RankGap[] }
   scoreboard?: Scoreboard
   request_indexing?: { url: string; state: string | null; why: string }[]
+  coverage?: { at: string | null; by_sitemap: { sitemap: string; listed: number; inspected: number; indexed: number }[] }
 }
 
 export const getRankings = () => call<Rankings>('rankings')

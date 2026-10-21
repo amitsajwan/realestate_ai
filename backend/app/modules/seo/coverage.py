@@ -6,15 +6,16 @@ never inspected first, then those inspected longest ago, so the whole sitemap (~
 with less than SHORT of the pages the last day counted (the index is served stale for up to 10 minutes after a deploy) does
 not count as the day's run: the next round reads it again. Each answer
 is kept in `seo_index` ({_id: url, state, verdict, crawled, checked_at}) and the summary on the `gsc_coverage` mark: how many
-current sitemap pages are indexed, why the others are not (count per Search Console state, e.g. "Crawled - currently not
+current sitemap pages are indexed, the same per child sitemap (`by_sitemap`: area-kharadi, core, builders...: listed, inspected,
+indexed, so the lagging area gets the Request-indexing turns first), why the others are not (count per Search Console state, e.g. "Crawled - currently not
 indexed") and up to EXAMPLES of them, for the Admin health row. Same read-only service account as searchconsole.py
 (GSC_SA_KEY_B64); without it this does nothing.
 """
 import asyncio
 import logging
-from collections import Counter
+from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import httpx
 
@@ -60,7 +61,21 @@ async def save(db, url: str, result: dict, now: datetime) -> None:
         await coll.insert_one({"_id": url, **fields})
 
 
-async def summary(db, urls: List[str]) -> dict:
+def by_sitemap(where: Dict[str, str], docs: List[dict]) -> List[dict]:
+    """[{sitemap, listed, inspected, indexed}] per child sitemap, the least indexed share first."""
+    rows: Dict[str, dict] = defaultdict(lambda: {"listed": 0, "inspected": 0, "indexed": 0})
+    for name in where.values():
+        rows[name]["listed"] += 1
+    for d in docs:
+        r = rows[where[d["_id"]]]
+        r["inspected"] += 1
+        r["indexed"] += 1 if d.get("verdict") == "PASS" else 0
+    out = [{"sitemap": k, **v} for k, v in rows.items()]
+    out.sort(key=lambda r: (r["indexed"] / r["inspected"] if r["inspected"] else 1.0, -r["listed"]))
+    return out
+
+
+async def summary(db, urls: List[str], where: Optional[Dict[str, str]] = None) -> dict:
     """Coverage of the pages in the sitemap now (pages since dropped from it are not counted)."""
     current = set(urls)
     docs = [d for d in await db.get_collection(COLLECTION).find({}).to_list(None) if d["_id"] in current]
@@ -68,7 +83,8 @@ async def summary(db, urls: List[str]) -> dict:
     missing = sorted((d for d in docs if d.get("verdict") != "PASS"), key=lambda d: d["_id"])
     return {"sitemap": len(urls), "inspected": len(docs), "indexed": len(indexed),
             "missing_by_state": dict(Counter(d.get("state") or "Unknown" for d in missing).most_common()),
-            "not_indexed": [{"url": d["_id"], "state": d.get("state")} for d in missing[:EXAMPLES]]}
+            "not_indexed": [{"url": d["_id"], "state": d.get("state")} for d in missing[:EXAMPLES]],
+            "by_sitemap": by_sitemap(where or {u: "sitemap" for u in urls}, docs)}
 
 
 async def run_once(store: Store, now: datetime, transport: Optional[httpx.AsyncBaseTransport] = None,
@@ -81,7 +97,8 @@ async def run_once(store: Store, now: datetime, transport: Optional[httpx.AsyncB
     if not force and last is not None and now - last < EVERY:
         return None
     async with httpx.AsyncClient(timeout=30, transport=transport, follow_redirects=True) as c:
-        urls = list(dict.fromkeys(u for u, _ in await indexnow.read_sitemap(c, indexnow.sitemap_url())))
+        where = {u: name for name, u, _ in await indexnow.read_sitemaps(c, indexnow.sitemap_url())}
+        urls = list(where)
         before = int((await store.get_mark(MARK)).get("sitemap") or 0)
         if not force and len(urls) < before * SHORT:
             log.warning("coverage: sitemap lists %s pages, %s yesterday; read again next round", len(urls), before)
@@ -108,6 +125,6 @@ async def run_once(store: Store, now: datetime, transport: Optional[httpx.AsyncB
                 log.warning("coverage: Search Console quota reached after %s pages", done)
                 break
             await asyncio.gather(*(inspect(u) for u in todo[i:i + PARALLEL]))
-    out = await summary(store.db, urls)
+    out = await summary(store.db, urls, where)
     await store.set_mark(MARK, at=now, checked_today=done, **out)
     return {"checked": done, "indexed": out["indexed"], "inspected": out["inspected"], "sitemap": out["sitemap"]}

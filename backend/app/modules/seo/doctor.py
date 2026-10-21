@@ -3,6 +3,7 @@ Console numbers before, and measured again 14 and 28 days later, so we learn whi
 
 Which pages, in order (at most PER_DAY, never one treated in the last REST_DAYS):
   1. just off page one (position 8-20 with 20+ impressions: searchconsole.near_page_one);
+  1b. MagicBricks just above us for the page's own search (seo.scoreboard `next`, seo.rival);
   2. a rising search shows the page, but below position 20;
   3. a hot project (hot.HOT_MIN) that Google shows below position 20;
   4. seen (20+ impressions) but never clicked.
@@ -13,6 +14,8 @@ The menu (one fix per page per visit, so each result can be put down to one chan
   refresh      facts older than STALE_DAYS, no web facts yet, or Google has not indexed it -> urgent enrichment, which rereads
                MahaRERA and the web and rewrites the page (its sitemap date moves, so Google and IndexNow see it)
   description  seen on page one but not clicked -> a search description from the facts (possession, bookings, registration)
+  rival        MagicBricks just above us for the page's own search -> a search description led by the kinds of fact their result
+               shows (price, sizes, possession), from our record (seo/rival.py)
 (The "title" fix is applied by seo.targets and logged in the same place: seo/actions.py holds the log, the fix window and
 what an undone value means, so the two steps cannot work against each other.)
 
@@ -31,7 +34,7 @@ from app.modules.areastats.pages import _long, _served, booked, can_host, indexa
 from app.modules.areastats.service import _count, _day
 from app.modules.newsroom.store import Store
 
-from . import coverage, questions
+from . import coverage, questions, rival
 from .actions import ACTIONS, FIELD, REST_DAYS, blocked, gain, log_fix, numbers, stamp, undo
 
 log = logging.getLogger(__name__)
@@ -43,7 +46,7 @@ LINK_DAYS = 14
 STALE_DAYS = 30
 EXPLORE = 5                    # measured results a fix type needs before its median decides its place
 WORSE_BY = 5.0                 # positions lost after 28 days that undo a title or description change
-FIXES = ("faq", "links", "refresh", "description")
+FIXES = ("faq", "links", "refresh", "description", "rival")
 DEMAND = "search_demand"
 
 
@@ -125,7 +128,7 @@ def order(table: List[dict]) -> List[str]:
 
 # ---- pick ---------------------------------------------------------------------------------------------------------------
 
-async def pick(store: Store, docs: List[dict], now: datetime, limit: int = PER_DAY) -> List[tuple]:
+async def pick(store: Store, docs: List[dict], now: datetime, limit: int = PER_DAY, rivals: Optional[Dict[str, dict]] = None) -> List[tuple]:
     """[(doc, reason)] for today, in priority order."""
     hosted = {d["_id"] for d in docs if can_host(d)}
     pages = [d for d in docs if _served(d) and d.get("cluster_primary") not in hosted and indexable(d)
@@ -139,6 +142,7 @@ async def pick(store: Store, docs: List[dict], now: datetime, limit: int = PER_D
     seen_min = searchconsole.NEAR_MIN_IMPRESSIONS
     groups = [
         ("near page one", [d for d in pages if searchconsole.near_page_one(d.get("gsc_position"), d.get("gsc_impressions"))]),
+        ("MagicBricks just above", [d for d in pages if (d.get("regno") or d["_id"]) in (rivals or {})]),
         ("rising search", [by_path[p] for p in rising]),
         ("hot, below 20", [d for d in pages if (d.get("hot_score") or 0) >= hot.HOT_MIN and int(d.get("gsc_impressions") or 0) > 0
                            and _pos(d) > 20]),
@@ -173,9 +177,15 @@ def description(doc: dict) -> Optional[str]:
     return text[:160]
 
 
-async def applicable(store: Store, doc: dict, docs: List[dict], now: datetime, slotted: set, index_state: Optional[str]) -> Dict[str, dict]:
+async def applicable(store: Store, doc: dict, docs: List[dict], now: datetime, slotted: set, index_state: Optional[str],
+                     rivalry: Optional[dict] = None) -> Dict[str, dict]:
     """{fix: details} for every fix on the menu this page needs today."""
     out: Dict[str, dict] = {}
+    if rivalry:
+        text = rival.description(doc, rivalry["wants"], now)
+        if text and text != doc.get("seo_description") and not blocked(doc, "rival", text):
+            out["rival"] = {"new": text, "note": f'"{rivalry["query"]}": MagicBricks #{rivalry["magicbricks"]}, us '
+                            + (f'#{rivalry["ours"]}' if rivalry.get("ours") else "not top 10")}
     faq = questions.answers(doc, docs, await questions.questions_for(store.db, doc))
     have = {f.get("topic") for f in doc.get("seo_faq") or []}
     if faq and {f["topic"] for f in faq} - have:
@@ -207,8 +217,8 @@ async def treat(store: Store, doc: dict, fix: str, info: dict, now: datetime, re
     elif fix == "refresh":
         await log_fix(store, doc, "refresh", now, note=note)
         await enrich.enrich_now(store.db, doc.get("regno") or doc["_id"], by="doctor")
-    elif fix == "description":
-        await log_fix(store, doc, "description", now, old=doc.get("seo_description"), new=info["new"], note=note)
+    elif fix in ("description", "rival"):
+        await log_fix(store, doc, fix, now, old=doc.get("seo_description"), new=info["new"], note=note)
         await store.set_project(doc["_id"], seo_description=info["new"])
     await stamp(store, doc["_id"], now, fix)
 
@@ -233,12 +243,14 @@ async def run_once(store: Store, now: datetime, force: bool = False) -> Optional
     docs = await store.all_projects()
     menu = order(await results(store))
     states = await _index_states(store)
+    rivals = await rival.targets(store)
     treated, by_fix, slotted_areas = [], {}, {}
-    for doc, reason in await pick(store, docs, now):
+    for doc, reason in await pick(store, docs, now, rivals=rivals):
         area = doc.get("locality")
         if area and area not in slotted_areas:   # pages already in the area's "Most active" list do not need a slot
             slotted_areas[area] = {f"/projects/{r['slug']}" for r in await active(store.db, area=area, now=now)}
-        fixes = await applicable(store, doc, docs, now, slotted_areas.get(area, set()), states.get(_path(doc)))
+        fixes = await applicable(store, doc, docs, now, slotted_areas.get(area, set()), states.get(_path(doc)),
+                                 rivals.get(doc.get("regno") or doc["_id"]))
         fix = next((f for f in menu if f in fixes), None)
         if fix is None:
             await stamp(store, doc["_id"], now)

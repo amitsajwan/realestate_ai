@@ -15,8 +15,10 @@ Each day (inside the hot-projects refresh):
    lookup job can add it (a project like Lodha Camelot reaches us the day marketers start ranking for it).
 Marketer sites go on the project record as `web_marketers`: for agents, never on the public page (pages.view lists its fields).
 5. target checks (docs/plan/rank-loop.md R8): the target search of a page the page doctor changed 14 or 28 days ago, so the
-   owner sees who ranks above us for it (Search Console gives our position, not theirs).
-About 20 searches a day (600 a month). Read-only: it never clicks an ad or visits a result.
+   owner sees who ranks above us for it (Search Console gives our position, not theirs);
+6. the panel (docs/plan/seo-system.md 5.5): PANEL_PER_DAY more target searches, every page's at least once in PANEL_DAYS, most
+   seen first, so the MagicBricks scoreboard (seo.scoreboard) counts a fixed set of searches, not whatever was searched.
+About 25 searches a day (750 a month). Read-only: it never clicks an ad or visits a result.
 """
 import logging
 import os
@@ -43,6 +45,8 @@ AREA_QUERIES = ("new launch projects in {area} Pune", "upcoming residential proj
 AREA_PER_DAY = 6
 PROJECT_PER_DAY = 8
 TARGET_PER_DAY = 6                   # rank checks: the target search of a page the page doctor changed 14 or 28 days ago
+PANEL_PER_DAY = 5                    # the scoreboard's panel: every page's target search once in PANEL_DAYS
+PANEL_DAYS = 14
 ACTIONS = "seo_actions"              # the page doctor's log (app/modules/seo/doctor.py)
 KEEP_DAYS = 7
 TOP = 10
@@ -132,6 +136,25 @@ async def target_checks(store: Store, now: datetime, taken: set) -> List[dict]:
             continue
         taken.add(q)
         out.append({"q": q, "kind": "target", "area": None, "regno": a.get("regno")})
+    return out + await panel_checks(store, now, taken)
+
+
+async def panel_checks(store: Store, now: datetime, taken: set) -> List[dict]:
+    """Up to PANEL_PER_DAY target searches (seo.targets `seo_target`) not searched in PANEL_DAYS, the most seen pages first."""
+    coll, out = store.db.get_collection(RESULTS), []
+    docs = await store.db.get_collection("projects").find({"seo_target": {"$exists": True}}).to_list(None)
+    docs.sort(key=lambda d: -int((d.get("seo_target") or {}).get("impressions") or 0))
+    for d in docs:
+        if len(out) >= PANEL_PER_DAY:
+            break
+        q = (d.get("seo_target") or {}).get("phrase")
+        if not q or q in taken:
+            continue
+        old = await coll.find_one({"_id": q})
+        if old and isinstance(old.get("at"), datetime) and now - _aware(old["at"]) < timedelta(days=PANEL_DAYS):
+            continue
+        taken.add(q)
+        out.append({"q": q, "kind": "target", "area": d.get("locality"), "regno": d.get("regno") or d["_id"]})
     return out
 
 

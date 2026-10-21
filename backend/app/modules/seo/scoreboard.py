@@ -35,7 +35,7 @@ def above(ours: Optional[int], rival: Optional[int]) -> bool:
 
 def row(doc: dict, host: str) -> dict:
     results = doc.get("results") or []
-    out = {"query": doc["_id"], "kind": doc.get("kind"), "at": doc.get("at"), "ours": rank_of(results, host)}
+    out = {"query": doc["_id"], "kind": doc.get("kind"), "regno": doc.get("regno"), "at": doc.get("at"), "ours": rank_of(results, host)}
     out.update({k: rank_of(results, site) for k, site in RIVALS.items()})
     return out
 
