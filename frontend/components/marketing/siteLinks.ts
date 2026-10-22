@@ -12,7 +12,8 @@ export interface SiteLink {
   external?: boolean
 }
 
-export const FOR_AGENTS_PATH = '/for-agents'
+export const FOR_AGENTS_PATH = '/for-agents'   // the printable one-page pitch (its QR code is on paper)
+export const AGENTS_PATH = '/agents'           // the agents' home
 export const INVITE_PATH = '/trial'   // 'Claim your free trial' (WhatsApp TRIAL); the call-back form stays at /request-invite
 /** Studio is the agent's app; it sends a signed-out visitor to the sign-in screen (/join). */
 export const SIGN_IN_PATH = '/studio'
@@ -24,7 +25,7 @@ export type Audience = 'buyer' | 'agent'
 
 export function siteLinks() {
   const { instagram, facebook } = socialLinks()
-  const forAgents: SiteLink = { href: FOR_AGENTS_PATH, label: 'For agents' }
+  const forAgents: SiteLink = { href: AGENTS_PATH, label: 'For agents' }
   const demo: SiteLink = { href: demoAgentPath(), label: 'See a sample agent page' }
   const news: SiteLink = { href: '/news', label: 'News' }
   const posts: SiteLink = { href: '/posts', label: 'Posts' }

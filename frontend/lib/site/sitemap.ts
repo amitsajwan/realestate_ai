@@ -96,6 +96,7 @@ export async function buildSitemap(): Promise<Grouped> {
     // an agent's copy of a project on a shared page names that page as canonical, so only the others are listed
     ...agents.projects.filter((p) => !shared.has(p.agent_slug + '/' + p.slug)).map((p) => ({ group: 'agents', entry: at(agentPath(p.agent_slug, 'projects/' + p.slug), 0.6, p.updated_at) })),
     ...agents.listings.map((l) => ({ group: 'agents', entry: at(agentPath(l.agent_slug, 'listings/' + l.id), 0.6, l.updated_at) })),
+    core(at('/agents', 0.7)),
     core(at('/for-agents', 0.6)),
     core(at('/request-invite', 0.3)),
     core(at('/trial', 0.6)),

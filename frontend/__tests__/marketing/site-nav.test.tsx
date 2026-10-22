@@ -2,7 +2,7 @@ import React from 'react'
 import { render, screen, within } from '@testing-library/react'
 import SiteHeader from '@/components/marketing/SiteHeader'
 import SiteFooter from '@/components/marketing/SiteFooter'
-import LandingPage from '@/app/page'
+import LandingPage from '@/app/agents/page'
 import { buildMarketingConfig } from '@/lib/marketing/config'
 import { socialLinks } from '@/lib/marketing/social'
 
@@ -12,7 +12,7 @@ jest.mock('@/components/marketing/BuyerProjectLinks', () => ({ __esModule: true,
 
 const cfg = buildMarketingConfig({})
 const EXPECTED: Array<[RegExp, string]> = [
-  [/^for agents$/i, '/for-agents'],
+  [/^for agents$/i, '/agents'],
   [/^see a sample agent page$/i, '/agent/demo'],
   [/^news$/i, '/news'],
   [/^posts$/i, '/posts'],
@@ -42,7 +42,7 @@ describe('site header', () => {
     expect(cta).toHaveAccessibleName('Enquire: tell us what you need')
     expect(cta).toHaveAttribute('href', '/agent/avasetu#enquire')
     expect(within(header).queryByRole('link', { name: /request an invite/i })).toBeNull()
-    expect(hrefOf(header, /^for agents$/i)).toBe('/for-agents')  // still a normal link
+    expect(hrefOf(header, /^for agents$/i)).toBe('/agents')  // still a normal link
   })
 
   it('agent pages get "Claim your free trial"; the invite page itself gets no button', () => {

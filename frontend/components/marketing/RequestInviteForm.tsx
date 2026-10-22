@@ -54,7 +54,7 @@ export default function RequestInviteForm({ idPrefix = 'ri', short = false }: { 
       <section aria-live="polite" className="rounded-2xl border border-emerald-300 bg-emerald-50 p-6 text-emerald-950">
         <h2 ref={doneRef} tabIndex={-1} className="text-2xl font-bold outline-none">{INVITE.success.title(first)}</h2>
         <p className="mt-2 text-lg">{INVITE.success.body(donePhone)}</p>
-        <Link href={PATHS.home} className="mt-5 inline-flex min-h-[48px] items-center rounded-xl bg-[#0f2340] px-6 font-semibold text-white no-underline hover:bg-[#183a5d]">
+        <Link href={PATHS.agents} className="mt-5 inline-flex min-h-[48px] items-center rounded-xl bg-[#0f2340] px-6 font-semibold text-white no-underline hover:bg-[#183a5d]">
           {INVITE.success.back}
         </Link>
       </section>

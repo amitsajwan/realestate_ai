@@ -55,7 +55,7 @@ export default function SiteShell({ agent, children, bottomPad = false }: { agen
           <ContactBlock tone="dark" />
         </div>
         <p className="mt-3">&copy; {new Date().getFullYear()} {name}</p>
-        <p className="mt-2 text-xs text-slate-300">Powered by <Link href="/" className="text-white underline underline-offset-2">{BRAND_NAME}</Link></p>
+        <p className="mt-2 text-xs text-slate-300">Powered by <Link href="/agents" className="text-white underline underline-offset-2">{BRAND_NAME}</Link></p>
       </footer>
     </div>
   )

@@ -6,7 +6,7 @@ const PUBLIC = [
   '/', '/projects', '/projects/lodha-camelot-kharadi', '/projects/area/kharadi', '/projects/area/kharadi/new-launches',
   '/localities', '/localities/kharadi', '/localities/kharadi/eon-free-zone', '/builders', '/builders/lodha',
   '/2-bhk/kharadi', '/3-bhk/wagholi', '/price/under-80-lakh/wagholi', '/check', '/check/lodha-camelot-kharadi',
-  '/news', '/insights', '/posts', '/guides/stamp-duty-pune', '/pune-maharera-tracker', '/agent/avasetu',
+  '/news', '/insights', '/posts', '/guides/stamp-duty-pune', '/pune-maharera-tracker', '/agent/avasetu', '/agents', '/for-agents',
   '/sitemap.xml', '/sitemaps/kharadi.xml', '/llms.txt',
 ]
 

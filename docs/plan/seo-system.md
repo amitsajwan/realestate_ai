@@ -5,7 +5,7 @@ code, pages or plans updates this page in the same commit (section 11 gets a lin
 history; when they and this page disagree, this page is right.
 
 Labels: **LIVE** = running in production · **TARGET** = to build · **OWNER** = done by hand · **DROPPED** = decided against.
-Last updated 2026-10-21 (search families, AI search).
+Last updated 2026-10-22 (buyers' home at `/`, agents at `/agents`, hot projects banner).
 
 ## 1. Goal and scorecard
 
@@ -94,7 +94,9 @@ the real other spellings ("Also spelt Lohgaon") and put them in the Place `alter
 | Insights articles | `/insights/<slug>` | | Article | |
 | MahaRERA tracker | `/pune-maharera-tracker` | | Dataset | meant to earn links |
 | Agent sites | `/agent/<slug>/…` | | RealEstateAgent | an agent's copy of a shared project names the shared page as canonical |
-| Fixed pages | `/`, `/projects`, `/localities`, `/builders`, `/for-agents`, `/privacy`, `/terms` | | Organization | |
+| Buyers' home | `/` | "New Projects in Pune, Checked on MahaRERA: Possession, Bookings, Builders" | Organization, WebSite (SearchAction → `/projects?q=`) | links hot projects, every area's list and guide, live new-launch and ready lists, builders with pages |
+| Agents' home | `/agents` (the home page until 2026-10-22); `/for-agents` stays as the printable one-page pitch | "Free trial for real estate agents in Pune" | | |
+| Fixed pages | `/projects`, `/localities`, `/builders`, `/privacy`, `/terms` | | | |
 
 Kept out (robots.txt `PRIVATE_PATHS`): `/api/`, `/studio`, `/join`, `/login`, `/register`, `/i/` and the old app paths.
 
@@ -251,6 +253,7 @@ measure (Search Console, Serper, URL Inspection) → choose (near page one, Magi
 | 2026-10-21 | f43252f, 1ab4a00 | Every way buyers search: size pages from published prices, "Flat prices in X", Place `alternateName`, flats wording and links, owner map, rank watch for the families |
 | 2026-10-21 | 7720a6d, d730c5c, 7abbe6f + this | AI search: AI visit log, AI fetcher audit, `/llms.txt`, Bing verification tag, quotable place pages (answer, FAQ, updated date) |
 | 2026-10-21 | this | Prices round (own turn, every 15 min); enrichment and prices skip completed projects, put 90%+ booked last, and go area by area outward from Kharadi with new launches and hot projects first |
+| 2026-10-22 | this | `/` is the buyers' home (one topic: new projects in Pune); the agents' home moved to `/agents`. Hot projects banner on every buyer page, set in Studio (`hot-projects.md`); robots guard test |
 
 ## 12. Detail and history
 
