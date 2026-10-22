@@ -26,6 +26,14 @@ def wire() -> None:
     # grounded answers know the sample homes (comments on sample posts published before they were retired, and the demo
     # agent's listings) and the verified evergreen posts; comment replies show listing facts
     grounding.configure(sample_home=samples.get, icon_labels=samples.ICON_LABELS, evergreen_post=calendar_library.BY_SLUG.get)
+    # the knowledge index cuts the guide topics and our published posts into passages, read the calendar's way
+    from app.modules.calendar import public as calendar_public
+    from app.modules.calendar import topics as calendar_topics
+    from app.modules.knowledge import index as knowledge_index
+    knowledge_index.configure(topics=calendar_topics.load, caption_text=calendar_public._text, caption_title=calendar_public._title)
+    # newsroom research gives a story background from our verified area guide (conversations' knowledge)
+    from app.modules.newsroom.stages import research as news_research
+    news_research.configure(area_facts=_area_guide_facts)
     # comment replies know which posts are our agent promos (content's rule, calendar.reach)
     from app.modules.reels.agent_reels import source_tag as agent_reel_source
     engage_service.configure(listing_facts=Facts.from_docs, audience=calendar_reach.audience, reel_source=agent_reel_source)
@@ -51,6 +59,19 @@ def wire() -> None:
     # the MahaRERA badge on the pack cards and the walkthrough reel prints only a project number propertyfacts trusts (AR-3)
     from app.modules.marketing import maharera as maharera_badge
     maharera_badge.configure(resolve=_project_registration)
+    # deleting a listing (inventory) closes its marketing run and skips its posts not yet out; each owner writes its own
+    from app.modules.calendar.store import skip_listing_posts
+    from app.modules.listings import service as listing_service
+    from app.modules.propertyfacts.jobs import listing_deleted as close_marketing_runs
+    listing_service.configure(before_delete=(close_marketing_runs, skip_listing_posts))
+    # Ask AI on a listing knows its property-facts sheet and its project page's web facts
+    from app.modules.areastats.pages import web_facts_for
+    from app.modules.listings import askai
+    askai.configure(facts_sheet=_facts_sheet, web_facts=web_facts_for)
+    # the AI listing draft matches its project in our MahaRERA register (the newsroom's projects, moving to inventory)
+    from app.modules.ai_listing import router as ai_listing_routes
+    from app.modules.newsroom.store import Store as NewsroomStore
+    ai_listing_routes.configure(register=NewsroomStore)
 
 
 async def _tell_owner_about_invite_request(name: str, city: str) -> None:
@@ -112,6 +133,18 @@ async def _gather_project(db, regno, name, locality, city="Pune", now=None):
     from app.modules.propertyfacts.enrich import gather_project
 
     return await gather_project(db, regno, name, locality, city=city, now=now)
+
+
+def _area_guide_facts(key):
+    """An area's fact sentences from our verified guide (knowledge.areas), or none for an area it does not cover."""
+    from app.modules.knowledge.areas import AREAS
+    return getattr(AREAS.get(key), "facts", ()) or ()
+
+
+async def _facts_sheet(db, rera_no, project, locality):
+    """A listing's property-facts sheet, by MahaRERA number else project + locality (Ask AI's first source)."""
+    from app.modules.propertyfacts.store import FactsStore
+    return await FactsStore(db).find(rera_no, project, locality)
 
 
 async def _project_sheet(db, regno):

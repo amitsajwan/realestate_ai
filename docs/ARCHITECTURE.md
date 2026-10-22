@@ -69,6 +69,7 @@ holds them to the platform rule. They move into `app/platform/` in step 8, when 
 | `meta_graph` | Facebook/Instagram Graph client and settings, `sanitize`, publish errors | `social/graph.py`, `social/publisher.py`, `social/config.py`, **done** (step 2) |
 | `media` | Upload storage, public URLs | `photoquality/store.py` (URL helpers **done**, step 2), `endpoints/uploads.py` |
 | `text` | Copy guards (hype words, phone numbers), INR/lakh/crore, sq ft, BHK, Indian mobile numbers, LLM output clean-up | `marketing/polish.py`, `marketing/facts.py`, `onboarding/phone.py`, **done** (step 2) |
+| `guards` | Copy checks for generated text: numbers not in the facts, hype, invented names | `creative/guards.py`, **done** (2026-10-22) |
 | `controls` | Owner pause switches | `admin/controls.py`, **done** (step 2) |
 | `region`, `brand` | Where we operate; the brand name and site URL | `core/region.py`, `core/brand.py` |
 

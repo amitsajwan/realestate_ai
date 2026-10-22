@@ -17,7 +17,7 @@ import asyncio
 import hashlib
 import logging
 from datetime import datetime
-from typing import Dict, Iterable, List
+from typing import Any, Callable, Dict, Iterable, List
 
 from . import site, vectors
 from .areas import AREAS
@@ -28,6 +28,14 @@ INTERVAL_S = 900
 BATCH = 16   # ~4 s of embedder time per batch
 MAX_PER_CYCLE = 2500
 MAX_TEXT = 1500
+
+# Content's readers, passed in by app/wiring.py (conversations never import content): topics() -> the guide topics by slug
+# (calendar.topics.load); caption_text(caption) and caption_title(caption) -> a post's readable text and its title line.
+_content: Dict[str, Any] = {"topics": dict, "caption_text": str, "caption_title": str}
+
+
+def configure(topics: Callable[[], Dict[str, dict]], caption_text: Callable[[str], str], caption_title: Callable[[str], str]) -> None:
+    _content.update(topics=topics, caption_text=caption_text, caption_title=caption_title)
 PROJECT_FIELDS = {"_id": 1, "regno": 1, "name": 1, "promoter": 1, "pincode": 1, "taluka": 1, "locality": 1, "pune_place": 1,
                   "pune_place_name": 1, "page_slug": 1, "source": 1, "completion_now": 1, "completion_at_registration": 1,
                   "units_total": 1, "units_booked": 1, "details_checked_at": 1, "registered_on": 1, "last_modified": 1,
@@ -65,8 +73,7 @@ def _both(v) -> str:
 
 
 def topic_chunks() -> Iterable[dict]:
-    from app.modules.calendar import topics
-    for slug, t in topics.load().items():
+    for slug, t in _content["topics"]().items():
         title, url = t["title"].get("en", slug), f"/guides/{slug}"
         dates = "; ".join(f"{d['label'].get('en')}: {d['value'].get('en')}" for d in t.get("dates", []))
         dates_mr = "; ".join(f"{d['label'].get('mr')}: {d['value'].get('mr')}" for d in t.get("dates", []))
@@ -142,7 +149,7 @@ async def project_all(db) -> List[dict]:
 
 
 async def post_chunks(db) -> List[dict]:
-    from app.modules.calendar.public import _text, _title
+    _text, _title = _content["caption_text"], _content["caption_title"]
     out = []
     cur = db.content_calendar.find({"status": "published", "hidden_from_feed": {"$ne": True}, "caption": {"$nin": [None, ""]}},
                                    {"caption": 1, "permalink": 1, "tags.area": 1, "kind": 1})
