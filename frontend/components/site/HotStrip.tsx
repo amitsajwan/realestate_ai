@@ -1,7 +1,6 @@
 import React from 'react'
 import Link from 'next/link'
-import { getCatalog } from '@/lib/site/api'
-import { getSpotlight, type SpotlightProject } from '@/lib/site/hubs'
+import { getListedSlugs, getSpotlight, type SpotlightProject } from '@/lib/site/hubs'
 
 /** The hot projects banner under the header of every public page (backend areastats/spotlight.py; picked in Studio > Admin).
  *  Server-rendered plain links, so Google reads them as internal links into the hottest project pages (that is how those pages
@@ -43,8 +42,7 @@ export function HotStripView({ items, areaName }: { items: SpotlightProject[]; a
 export default async function HotStrip({ area, exclude }: { area?: string | null; exclude?: string | null }) {
   const spot = await getSpotlight(area)   // no retries: on an outage it is empty at once and the page does not wait
   if (!spot.length) return null
-  const catalog = await getCatalog().catch(() => [])
-  const listed = new Map(catalog.filter((c) => c.agents.length && c.rera_no).map((c) => [c.rera_no as string, c.slug]))
+  const listed = await getListedSlugs()
   const seen = new Set<string>()
   const items = spot.map((p) => ({ ...p, slug: (p.regnos ?? []).map((r) => listed.get(r)).find(Boolean) ?? p.slug }))
     .filter((p) => p.slug !== exclude && !seen.has(p.slug) && seen.add(p.slug))

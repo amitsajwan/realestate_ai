@@ -94,6 +94,14 @@ export async function getSpotlight(area?: string | null): Promise<SpotlightProje
   return r.ok && Array.isArray(r.data) ? r.data : []
 }
 
+/** Registration number -> shared page slug of every project an agent lists (the register page 301s there). Kept 5 minutes like
+ *  the banner itself: lib/site/api's getCatalog keeps 30 s, and a page renders as often as its shortest-lived read. */
+export async function getListedSlugs(): Promise<Map<string, string>> {
+  const r = await get<{ items: { slug: string; rera_no?: string | null; agents?: unknown[] }[] }>('/api/v1/public/projects')
+  const items = r.ok && Array.isArray(r.data?.items) ? r.data.items : []
+  return new Map(items.filter((c) => c.agents?.length && c.rera_no).map((c) => [c.rera_no as string, c.slug]))
+}
+
 export async function getNearGuide(areaSlug: string, slug: string): Promise<ActiveProject[]> {
   if (!SLUG.test(areaSlug) || !SLUG.test(slug)) return []
   const r = await get<ActiveProject[]>(`/api/v1/public/register/near/${areaSlug}/${slug}`)
