@@ -44,7 +44,7 @@ export default async function CommunityPage({ params }: Props) {
     about: { '@type': 'Place', name: `${c.name}, ${c.area_name}, Pune`, containedInPlace: { '@type': 'Place', name: `${c.area_name}, Pune` } },
   }
   return (
-    <MarketingShell>
+    <MarketingShell hot={{ area: c.area_slug }}>
       <article className="mx-auto max-w-3xl px-4 py-10 sm:py-14">
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(article) }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(breadcrumbJsonLd(cfg.siteUrl, [

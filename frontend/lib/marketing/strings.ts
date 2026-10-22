@@ -9,6 +9,8 @@ export const LEGAL_NOTICE =
 
 export const PATHS = {
   home: '/',
+  /** the agents' home: what the product does, the free trial (/ is the buyers' home) */
+  agents: '/agents',
   invite: '/request-invite',
   signIn: '/join',
   privacy: '/privacy',
@@ -215,7 +217,7 @@ export const INVITE = {
   success: {
     title: (first: string) => (first ? 'Thank you, ' + first + '.' : 'Thank you.'),
     body: (phone: string) => 'We have your request. Your sign-up code comes on WhatsApp to ' + phone + ', usually the same day.',
-    back: 'Back to the home page',
+    back: "Back to the agents' page",
   },
   privacyNote: 'We use your details only to reply to your request.',
   privacyLink: 'Privacy',

@@ -128,7 +128,7 @@ export default async function PlaceProjectsPage({ params }: Props) {
   const faq = placeFaq(place, building, soldOut, asOf, prices)
   const updated = placeUpdated(projects)
   return (
-    <MarketingShell>
+    <MarketingShell hot={{ area: place.slug }}>
       <div className="mx-auto max-w-5xl px-4 py-10 sm:py-14" style={AVASETU_SITE_VARS}>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(breadcrumbJsonLd(cfg.siteUrl, [
           { name: 'Home', path: '/' }, { name: 'Projects', path: '/projects' }, { name: place.name, path: placePath(place.slug) },

@@ -2,229 +2,188 @@ import React from 'react'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import MarketingShell from '@/components/marketing/MarketingShell'
-import LeadCardMock from '@/components/marketing/LeadCardMock'
-import RequestInviteForm from '@/components/marketing/RequestInviteForm'
-import StickyJoinBar from '@/components/marketing/StickyJoinBar'
 import NewsSection from '@/components/news/NewsSection'
-import PostsSection from '@/components/site/PostsSection'
-import { socialLinks } from '@/lib/marketing/social'
+import ProjectSearch from '@/components/site/ProjectSearch'
+import { AGENTS_PATH, agentAnchorForward, buyerEnquirePath } from '@/components/marketing/siteLinks'
+import { getCityStats, longDate } from '@/components/localities/areaStats'
 import { getMarketingConfig } from '@/lib/marketing/config'
-import { jsonLdString, organizationJsonLd, pageMetadata } from '@/lib/marketing/seo'
-import { BUYERS, LANDING as L, LIVE, PATHS } from '@/lib/marketing/strings'
 import { TIER_LABELS, localitiesByTier } from '@/lib/marketing/localities'
-import BuyerProjectLinks from '@/components/marketing/BuyerProjectLinks'
-import { BRAND_NAME, TAGLINE } from '@/lib/brand'
+import { jsonLdString, organizationJsonLd, pageMetadata } from '@/lib/marketing/seo'
+import { socialLinks } from '@/lib/marketing/social'
+import { BRAND_NAME } from '@/lib/brand'
+import { getFacets } from '@/lib/site/facets'
+import { getBuilders, getSpotlight } from '@/lib/site/hubs'
+import { getRegisterPlaces, placePath } from '@/lib/site/register'
+
+// The buyers' home (2026-10-22; the agents' home moved to /agents). One topic for Google and for people: new projects in Pune,
+// checked on MahaRERA. Every section is links into the pages that answer buyers' searches: areas, the project lists, the hottest
+// projects, builders. Each block hides itself when its data is not there (an outage, or the build with no API), so the page never
+// breaks; kept 5 minutes like the lists it links.
+export const revalidate = 300
+
+const TITLE = 'New Projects in Pune, Checked on MahaRERA: Possession, Bookings, Builders'
+const DESCRIPTION = 'Every new project in Kharadi, Wagholi, Lohegaon, Hinjawadi, Wakad, Baner and more: the possession date filed with MahaRERA and whether it moved, homes booked, builders\' delivery records and prices quoted by local agents.'
 
 export const metadata: Metadata = pageMetadata(getMarketingConfig(), {
-  title: L.metaTitle,
-  description: L.metaDescription,
+  title: TITLE,
+  description: DESCRIPTION,
   path: '/',
-  image: { path: '/brand/og-landing.jpg', width: 1200, height: 630, alt: `${BRAND_NAME}: ${TAGLINE}. Homes, guides and trusted local agents in Pune.` },
+  image: { path: '/brand/og-landing.jpg', width: 1200, height: 630, alt: `${BRAND_NAME}: new projects in Pune, checked on MahaRERA` },
 })
 
-// Navy + gold brand (the same as every post and reel), laid out as calm editorial rows: only the lead card and the form are cards.
-const goldBtn =
-  'inline-flex min-h-[52px] items-center justify-center rounded-xl bg-[#f0b440] px-7 text-[17px] font-extrabold text-[#0f2340] no-underline hover:bg-[#f5c75e] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white'
-const outlineOnNavy =
-  'inline-flex min-h-[52px] items-center justify-center rounded-xl border-2 border-white/70 px-6 text-[17px] font-bold text-white no-underline hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white'
-const wrap = 'mx-auto max-w-6xl px-4 sm:px-6 lg:px-8'
-const section = 'scroll-mt-16 py-14 sm:py-20'
-const eyebrow = 'text-[13px] font-bold uppercase tracking-[0.08em] text-[#8a5d00]'
-const h2 = 'text-[1.75rem] font-extrabold leading-tight tracking-tight text-[#0f2340] sm:text-4xl'
+const wrap = 'mx-auto max-w-5xl px-4'
+const section = 'py-10 sm:py-14'
+const h2 = 'text-2xl font-extrabold tracking-tight text-[#0f2340] sm:text-3xl'
+const card = 'block h-full rounded-2xl border border-slate-200 bg-white p-4 no-underline hover:border-[#0f2340]'
+const chip = 'inline-flex min-h-[44px] items-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-[#0f2340] no-underline hover:border-[#0f2340]'
 
-export const revalidate = 3600
-
-export default function LandingPage() {
+export default async function BuyerHome() {
   const cfg = getMarketingConfig()
-  const H = L.hero
+  const [city, places, facets, hot, builders] = await Promise.all([getCityStats(), getRegisterPlaces(), getFacets(), getSpotlight(), getBuilders()])
+  const placeOf = (l: { key: string; name: string }) => places.find((p) => p.key === l.key || p.name.toLowerCase() === l.name.toLowerCase())
+  const launches = facets.filter((f) => f.intent === 'new-launches' && f.indexable && !f.builder && !f.possession && !f.bhk)
+    .sort((a, b) => b.count - a.count).slice(0, 12)
+  const ready = facets.filter((f) => f.intent === 'ready-to-move' && f.indexable && !f.builder && !f.possession && !f.bhk)
+    .sort((a, b) => b.count - a.count).slice(0, 8)
+  const brands = builders.filter((b) => b.indexable).sort((a, b) => Number(!!b.brand) - Number(!!a.brand) || b.projects - a.projects).slice(0, 12)
+  const tracked = city?.areas.reduce((n, a) => n + a.projects, 0) ?? 0
+  const ld = [
+    organizationJsonLd(cfg, `${BRAND_NAME} (आवास + सेतु: home + bridge) lists every new project in Pune's main areas with its MahaRERA record: possession filed, homes booked and builders' delivery records, and connects buyers with local agents.`, Object.values(socialLinks())),
+    { '@context': 'https://schema.org', '@type': 'WebSite', name: cfg.businessName, url: cfg.siteUrl,
+      potentialAction: { '@type': 'SearchAction', target: { '@type': 'EntryPoint', urlTemplate: `${cfg.siteUrl}/projects?q={search_term_string}` },
+        'query-input': 'required name=search_term_string' } },
+  ]
+
   return (
-    <MarketingShell cta="agent" stickyBar>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(organizationJsonLd(cfg, L.metaOrgDescription, Object.values(socialLinks()))) }} />
+    <MarketingShell hot={false}>
+      {/* old links to the agents' sections that were on this page (/#invite, /#faq) go on to /agents */}
+      <script dangerouslySetInnerHTML={{ __html: agentAnchorForward() }} />
+      {ld.map((x, i) => <script key={i} type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(x) }} />)}
 
-      {/* Hero: the promise, one gold button, the lead card */}
-      <section aria-labelledby="hero-title" className="bg-gradient-to-b from-[#0f2340] to-[#183a5d] text-white">
-        <div className={wrap + ' grid items-center gap-10 pt-8 pb-12 sm:py-16 md:grid-cols-[1.2fr_1fr] lg:gap-14'}>
-          <div>
-            <p className="flex flex-wrap items-center gap-2 text-[13px] font-bold uppercase tracking-[0.08em] text-[#f0b440]">
-              <span>{H.eyebrow}</span>
-              <span className="rounded-full bg-[#f0b440] px-2.5 py-0.5 text-[#0f2340]">{H.pilot}</span>
-            </p>
-            <h1 id="hero-title" className="mt-4 text-[2.1rem] font-extrabold leading-[1.1] tracking-[-0.015em] [text-wrap:balance] sm:text-[2.75rem] lg:text-[3.25rem]">
-              {H.titleLines.map((t) => <span key={t} className="block">{t}</span>)}
-            </h1>
-            <p className="mt-5 max-w-[52ch] text-lg leading-8 text-slate-100 sm:text-xl">{H.lead}</p>
-            <div id="hero-ctas" className="mt-7 flex flex-wrap gap-3">
-              <a href="/trial" className={goldBtn + ' w-full sm:w-auto'}>{H.cta}</a>
-              {cfg.whatsappUrl ? (
-                <a href={cfg.whatsappUrl} target="_blank" rel="noopener noreferrer" className={outlineOnNavy + ' w-full sm:w-auto'}>
-                  {H.whatsapp}<span className="sr-only"> (opens in a new tab)</span>
-                </a>
-              ) : (
-                <Link href={LIVE.links.page} className={outlineOnNavy + ' w-full sm:w-auto'}>{H.secondary}</Link>
-              )}
-            </div>
-            <p className="mt-5 text-sm leading-relaxed text-slate-300">{H.facts}</p>
-            <p className="mt-1.5 text-sm text-slate-300">
-              {H.signInLead}{' '}
-              <Link href={PATHS.signIn} aria-label={`${H.signInLead} ${H.signIn}`} className="font-semibold text-white underline underline-offset-4">{H.signIn}</Link>
-            </p>
-          </div>
-          <LeadCardMock />
-        </div>
-      </section>
-
-      {/* The agent's problem, as three rows */}
-      <section aria-labelledby="problem-title" className={'bg-[#fbf6ea] ' + section}>
+      <section aria-labelledby="home-title" className="bg-gradient-to-b from-[#0f2340] to-[#183a5d] pb-10 pt-10 text-white sm:pt-14">
         <div className={wrap}>
-          <h2 id="problem-title" className={h2}>{L.problem.heading}</h2>
-          <ul className="mt-8 grid border-t-2 border-[#0f2340] p-0 md:grid-cols-3 md:divide-x md:divide-[#ead9ae]">
-            {L.problem.items.map((p) => (
-              <li key={p.title} className="list-none border-b border-[#ead9ae] py-6 md:border-b-0 md:px-6 md:first:pl-0">
-                <h3 className="text-xl font-bold text-[#0f2340] sm:text-2xl">{p.title}</h3>
-                <p className="mt-2 text-base leading-7 text-slate-700">{p.body}</p>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
-
-      {/* A real agent page: the proof before the explanation */}
-      <section id={LIVE.id} aria-labelledby="live-title" className={section}>
-        <div className={wrap}>
-          <p className={eyebrow}>{LIVE.eyebrow}</p>
-          <h2 id="live-title" className={h2 + ' mt-2'}>{LIVE.heading}</h2>
-          <p className="mt-3 max-w-3xl text-lg leading-8 text-slate-700">{LIVE.lead}</p>
-          <ul className="mt-8 gap-6 [display:grid] [grid-template-columns:repeat(3,minmax(0,1fr))] max-sm:snap-x max-sm:gap-4 max-sm:overflow-x-auto max-sm:pb-3 max-sm:[display:flex]" tabIndex={0} aria-label={LIVE.heading}>
-            {LIVE.cards.map((c) => (
-              <li key={c.src} className="list-none max-sm:w-[78%] max-sm:flex-none max-sm:snap-start">
-                <figure className="m-0">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={c.src} alt={c.alt} width={720} height={900} loading="lazy"
-                    className="aspect-[4/5] h-auto w-full rounded-xl object-cover ring-1 ring-black/10" />
-                  <figcaption className="mt-3">
-                    <span className="block text-lg font-bold text-[#0f2340]">{c.title}</span>
-                    <span className="mt-1 block leading-relaxed text-slate-700">{c.body}</span>
-                  </figcaption>
-                </figure>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3">
-            <Link href={LIVE.links.page} className="inline-flex min-h-[52px] items-center justify-center rounded-xl bg-[#0f2340] px-7 text-[17px] font-bold text-white no-underline hover:bg-[#183a5d]">
-              {LIVE.links.pageLabel}
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Create -> Get discovered -> Get qualified leads -> Close, as numbered rows */}
-      <section id={L.steps.id} aria-labelledby="steps-title" className={'bg-[#fbf6ea] ' + section}>
-        <div className={wrap}>
-          <h2 id="steps-title" className={h2}>{L.steps.heading}</h2>
-          <ol className="mt-8 border-t-2 border-[#0f2340] p-0">
-            {L.steps.items.map((s, i) => (
-              <li key={s.key} className="grid list-none grid-cols-[2.5rem_1fr] gap-x-3 border-b border-[#ead9ae] py-6 lg:grid-cols-[4rem_minmax(0,22rem)_minmax(0,1fr)] lg:items-baseline lg:gap-x-12">
-                <span aria-hidden="true" className="text-lg font-extrabold text-[#8a5d00]">{String(i + 1).padStart(2, '0')}</span>
-                <div>
-                  <p className={eyebrow}>{s.label}</p>
-                  <h3 className="mt-1 text-xl font-bold text-[#0f2340] sm:text-2xl">{s.title}</h3>
-                </div>
-                <p className="col-start-2 mt-2 max-w-[52ch] text-base leading-7 text-slate-700 lg:col-start-3 lg:mt-0">{s.body}</p>
-              </li>
-            ))}
-          </ol>
-          <p className="mt-6 text-base leading-7 text-slate-700">{L.steps.noApp}</p>
-        </div>
-      </section>
-
-      {/* Proof that Avasetu publishes every day */}
-      <PostsSection />
-
-      {/* Cost, in one line */}
-      <section id={L.cost.id} aria-labelledby="cost-title" className="scroll-mt-16 border-y border-[#ead9ae] bg-[#fbf6ea] py-10 sm:py-14">
-        <div className={wrap + ' flex flex-wrap items-baseline gap-x-10 gap-y-3'}>
-          <h2 id="cost-title" className={h2}>{L.cost.title}</h2>
-          <p className="max-w-[56ch] text-lg leading-8 text-slate-700">{L.cost.body}</p>
-        </div>
-      </section>
-
-      {/* FAQ */}
-      <section id={L.faq.id} aria-labelledby="faq-title" className={section}>
-        <div className={wrap + ' grid gap-8 lg:grid-cols-[1fr_2fr]'}>
-          <div>
-            <h2 id="faq-title" className={h2 + ' lg:sticky lg:top-24'}>{L.faq.heading}</h2>
-          </div>
-          <div className="min-w-0">
-            <div className="divide-y divide-slate-200 border-y-2 border-y-[#0f2340]">
-              {L.faq.items.map((f) => (
-                <details key={f.q} className="group py-1">
-                  <summary className="flex min-h-[52px] cursor-pointer list-none items-center justify-between gap-4 text-lg font-semibold text-[#0f2340] [&::-webkit-details-marker]:hidden">
-                    {f.q}
-                    <span aria-hidden="true" className="text-2xl text-[#8a5d00] group-open:hidden">+</span>
-                    <span aria-hidden="true" className="hidden text-2xl text-[#8a5d00] group-open:inline">&minus;</span>
-                  </summary>
-                  <p className="max-w-[60ch] pb-4 text-base leading-7 text-slate-700">{f.a}</p>
-                </details>
-              ))}
-            </div>
-            <p className="mt-5 flex flex-wrap gap-x-6 text-sm">
-              <Link href={PATHS.privacy} className="flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2">{L.faq.privacyLink}</Link>
-              <Link href={PATHS.deletion} className="flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2">{L.faq.deletionLink}</Link>
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* The short form, right here */}
-      <section id="invite" aria-labelledby="cta-title" className="scroll-mt-16 bg-gradient-to-b from-[#0f2340] to-[#183a5d] py-14 sm:py-20">
-        <div className={wrap + ' grid items-start gap-8 md:grid-cols-2 lg:gap-16'}>
-          <div className="text-white">
-            <h2 id="cta-title" className="text-[2.25rem] font-extrabold leading-[1.06] tracking-tight sm:text-5xl">
-              {L.finalCta.titleLines.map((t) => <span key={t} className="block">{t}</span>)}
-            </h2>
-            <p className="mt-4 text-lg leading-8 text-slate-100">{L.finalCta.body}</p>
-            <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 text-base">
-              {cfg.whatsappUrl && (
-                <a href={cfg.whatsappUrl} target="_blank" rel="noopener noreferrer" className="flex min-h-[44px] items-center font-semibold text-white underline underline-offset-4">
-                  {L.finalCta.whatsapp}<span className="sr-only"> (opens in a new tab)</span>
-                </a>
-              )}
-              <Link href={PATHS.invite} className="flex min-h-[44px] items-center text-slate-200 underline underline-offset-4">{L.finalCta.fullForm}</Link>
-            </div>
-          </div>
-          <div className="rounded-2xl bg-white p-5 text-slate-900 shadow-2xl shadow-black/30 sm:p-8">
-            <RequestInviteForm idPrefix="lp" short />
-          </div>
-        </div>
-      </section>
-
-      {/* Buyers who land here: every area page (the hubs search engines and buyers need), then projects and news */}
-      <section aria-labelledby="buyers-title" className="border-b border-[#ead9ae] bg-[#fbf6ea] py-10">
-        <div className={wrap}>
-          <h2 id="buyers-title" className="text-xl font-extrabold text-[#0f2340] sm:text-2xl">{BUYERS.title}</h2>
-          <p className="mt-1 text-slate-700">{BUYERS.body}</p>
-          {(['affordable', 'it'] as const).map((tier) => ({ tier, areas: localitiesByTier(tier) })).map(({ tier, areas }) => (
-            <div key={tier} className="mt-5">
-              <h3 className={eyebrow}>{TIER_LABELS[tier].title}</h3>
-              <ul className="mt-2 flex flex-wrap gap-2 p-0">
-                {areas.map((a) => (
-                  <li key={a.slug} className="list-none">
-                    <Link href={`/localities/${a.slug}`} className="inline-flex min-h-[44px] items-center rounded-full border-2 border-[#0f2340] bg-white px-4 font-semibold text-[#0f2340] no-underline hover:bg-[#0f2340] hover:text-white">{a.name}</Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-          <BuyerProjectLinks eyebrow={eyebrow} />
-          <p className="mt-5 flex flex-wrap gap-x-6 gap-y-1">
-            <Link href="/projects" className="flex min-h-[44px] items-center font-semibold text-[#0f2340] underline underline-offset-4">{BUYERS.projects}</Link>
-            <Link href="/news" className="flex min-h-[44px] items-center font-semibold text-[#0f2340] underline underline-offset-4">{BUYERS.news}</Link>
+          <p className="text-sm font-bold uppercase tracking-wide text-[#f5c75e]">Pune homes, checked on MahaRERA</p>
+          <h1 id="home-title" className="mt-2 text-[2rem] font-extrabold leading-tight [text-wrap:balance] sm:text-5xl">New projects in Pune, with the facts ads leave out</h1>
+          <p className="mt-3 max-w-2xl text-lg text-white/85">
+            The possession date each builder filed and whether it moved, how many homes are booked, and each builder&apos;s delivery record.
+            {tracked > 0 && city ? <> {tracked.toLocaleString('en-IN')} projects in our areas, read from MahaRERA on {longDate(city.asOf)}.</> : null}
           </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <a href={buyerEnquirePath()} className="inline-flex min-h-[48px] items-center rounded-xl bg-[#f0b440] px-5 font-bold text-[#0f2340] no-underline hover:bg-[#f5c75e]">Tell us what you need</a>
+            {cfg.whatsappUrl && (
+              <a href={cfg.whatsappUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-[48px] items-center rounded-xl border-2 border-white/70 px-5 font-bold text-white no-underline hover:bg-white/10">
+                Ask on WhatsApp<span className="sr-only"> (opens in a new tab)</span>
+              </a>
+            )}
+          </div>
         </div>
       </section>
+
+      <div className={wrap}>
+        <ProjectSearch />
+      </div>
+
+      {hot.length > 0 && (
+        <section aria-labelledby="hot-title" className={wrap + ' pt-10'} data-testid="home-hot">
+          <h2 id="hot-title" className={h2}>Hot right now</h2>
+          <ul className="mt-4 grid list-none gap-3 p-0 sm:grid-cols-2 lg:grid-cols-3">
+            {hot.map((p) => (
+              <li key={p.slug}>
+                <Link href={`/projects/${p.slug}`} className={card}>
+                  <span className="block font-bold text-[#0f2340]">{p.name}</span>
+                  {p.area && <span className="block text-sm text-slate-600">{p.area}, Pune</span>}
+                  {' '}<span className="mt-1 block text-sm text-slate-800">{p.note || `${p.fact} (${p.source})`}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <section aria-labelledby="areas-title" className={wrap + ' ' + section}>
+        <h2 id="areas-title" className={h2}>Projects by area</h2>
+        {(['it', 'affordable'] as const).map((tier) => (
+          <div key={tier} className="mt-6">
+            <h3 className="text-lg font-bold text-slate-900">{TIER_LABELS[tier].title}</h3>
+            <p className="text-sm text-slate-600">{TIER_LABELS[tier].blurb}</p>
+            <ul className="mt-3 grid list-none gap-3 p-0 sm:grid-cols-2 lg:grid-cols-4" data-testid={`home-areas-${tier}`}>
+              {localitiesByTier(tier).map((l) => {
+                const place = placeOf(l)
+                const live = place && place.indexable > 0
+                return (
+                  <li key={l.slug} className="flex flex-col rounded-2xl border border-slate-200 bg-white p-4">
+                    <Link href={live ? placePath(place.slug) : `/localities/${l.slug}`} className="font-bold text-[#0f2340] underline-offset-2 hover:underline">
+                      {live ? `New projects in ${l.name}` : l.name}
+                    </Link>
+                    <span className="mt-1 text-sm text-slate-600">{l.tagline}</span>
+                    {place && place.projects > 0 && <span className="mt-1 text-sm font-semibold text-slate-800">{place.projects} projects on MahaRERA</span>}
+                    <Link href={`/localities/${l.slug}`} className="mt-auto inline-flex min-h-[44px] items-center pt-2 text-sm font-semibold text-[#0f2340] underline underline-offset-2">
+                      Living in {l.name}
+                    </Link>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        ))}
+        <p className="mt-5"><Link href="/projects" className="font-semibold text-[#0f2340] underline underline-offset-4">All projects in Pune, by place</Link></p>
+      </section>
+
+      {(launches.length > 0 || ready.length > 0) && (
+        <section aria-labelledby="lists-title" className={'border-y border-[#ead9ae] bg-[#fbf6ea] ' + section}>
+          <div className={wrap}>
+            <h2 id="lists-title" className={h2}>New launches and ready homes</h2>
+            {launches.length > 0 && (
+              <ul className="mt-4 flex list-none flex-wrap gap-2 p-0" data-testid="home-launches">
+                {launches.map((f) => <li key={f.path}><Link href={f.path} className={chip}>{f.label} ({f.count})</Link></li>)}
+              </ul>
+            )}
+            {ready.length > 0 && (
+              <ul className="mt-3 flex list-none flex-wrap gap-2 p-0">
+                {ready.map((f) => <li key={f.path}><Link href={f.path} className={chip}>{f.label} ({f.count})</Link></li>)}
+              </ul>
+            )}
+          </div>
+        </section>
+      )}
+
+      {brands.length > 0 && (
+        <section aria-labelledby="builders-title" className={wrap + ' ' + section}>
+          <h2 id="builders-title" className={h2}>Builders and their delivery records</h2>
+          <p className="mt-1 text-slate-700">Every Pune project of a builder in one place, with the possession dates they filed and how often those moved.</p>
+          <ul className="mt-4 grid list-none gap-2 p-0 sm:grid-cols-3 lg:grid-cols-4" data-testid="home-builders">
+            {brands.map((b) => (
+              <li key={b.slug}>
+                <Link href={`/builders/${b.slug}`} className={card + ' py-3'}>
+                  <span className="block font-semibold text-[#0f2340]">{b.name}</span>
+                  {' '}<span className="block text-sm text-slate-600">{b.projects} projects</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-4"><Link href="/builders" className="font-semibold text-[#0f2340] underline underline-offset-4">All builders in Pune</Link></p>
+        </section>
+      )}
+
+      <section aria-labelledby="check-title" className={'bg-[#0f2340] text-white ' + section}>
+        <div className={wrap}>
+          <h2 id="check-title" className="text-2xl font-extrabold sm:text-3xl">Check before you pay a token</h2>
+          <ul className="mt-4 grid list-none gap-3 p-0 sm:grid-cols-3">
+            <li><Link href="/check" className="block h-full rounded-2xl bg-white/10 p-4 text-white no-underline hover:bg-white/15"><b className="block">Check your project</b>{' '}<span className="text-sm text-white/80">Registration, possession filed, delays and cautions, in one page</span></Link></li>
+            <li><Link href="/pune-maharera-tracker" className="block h-full rounded-2xl bg-white/10 p-4 text-white no-underline hover:bg-white/15"><b className="block">Pune MahaRERA tracker</b>{' '}<span className="text-sm text-white/80">What was registered and what completes, area by area</span></Link></li>
+            <li><Link href="/insights" className="block h-full rounded-2xl bg-white/10 p-4 text-white no-underline hover:bg-white/15"><b className="block">Buyer guides</b>{' '}<span className="text-sm text-white/80">Offers, site visits, stamp duty and the questions to ask</span></Link></li>
+          </ul>
+        </div>
+      </section>
+
       <NewsSection />
 
-      <StickyJoinBar watchId="hero-ctas" formId="invite" href="/trial" label={L.sticky.cta} whatsappUrl={cfg.whatsappUrl} whatsappLabel={L.sticky.whatsapp} />
+      <section aria-label="For real estate agents" className={'border-t border-slate-200 ' + section}>
+        <div className={wrap + ' flex flex-wrap items-center justify-between gap-3'}>
+          <p className="text-slate-700"><b className="text-slate-900">Are you a real estate agent in Pune?</b> Get your own page, buyer enquiries and posts made for you.</p>
+          <Link href={AGENTS_PATH} className="inline-flex min-h-[48px] items-center rounded-xl border-2 border-[#0f2340] px-5 font-bold text-[#0f2340] no-underline hover:bg-[#0f2340] hover:text-white">For agents</Link>
+        </div>
+      </section>
     </MarketingShell>
   )
 }

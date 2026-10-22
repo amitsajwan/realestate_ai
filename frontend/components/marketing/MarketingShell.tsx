@@ -1,9 +1,10 @@
-import React from 'react'
+import React, { Suspense } from 'react'
 import SiteHeader, { type HeaderCta } from './SiteHeader'
 import SiteFooter from './SiteFooter'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { poppins } from '@/lib/marketing/font'
 import ChatWidget from '@/components/site/ChatWidget'
+import HotStrip from '@/components/site/HotStrip'
 
 /**
  * Standalone public surface in the Avasetu brand (navy, gold, cream, Poppins).
@@ -11,12 +12,18 @@ import ChatWidget from '@/components/site/ChatWidget'
  * The root layout already provides <main id="main-content">.
  * `cta` picks the header button by audience: 'buyer' (default: home, area guides, insights, news, posts, legal), 'agent' (/for-agents),
  * or 'none' (the invite form itself). `stickyBar` lifts the chat bubble on phones above a page's own bottom bar.
+ * `hot` is the hot projects banner under the header (components/site/HotStrip): `area` (slug) puts that area's projects first,
+ * `exclude` leaves out the page's own project; false hides it. Buyer pages show it by default, agent pages do not.
  */
-export default function MarketingShell({ children, cta = 'buyer', stickyBar = false }: { children: React.ReactNode; cta?: HeaderCta; stickyBar?: boolean }) {
+export type HotOptions = { area?: string | null; exclude?: string | null } | false
+
+export default function MarketingShell({ children, cta = 'buyer', stickyBar = false, hot }: { children: React.ReactNode; cta?: HeaderCta; stickyBar?: boolean; hot?: HotOptions }) {
   const cfg = getMarketingConfig()
+  const strip = hot ?? (cta === 'buyer' ? {} : false)
   return (
     <div data-surface="v2" lang="en" className={poppins.className + ' min-h-screen bg-white text-slate-900'}>
       <SiteHeader businessName={cfg.businessName} cta={cta} />
+      {strip && <Suspense fallback={null}><HotStrip area={strip.area} exclude={strip.exclude} /></Suspense>}
       {children}
       <div data-print="hide"><ChatWidget agentSlug={process.env.NEXT_PUBLIC_DEFAULT_AGENT_SLUG || 'avasetu'} bottomBar={stickyBar} /></div>
       <SiteFooter cfg={cfg} />

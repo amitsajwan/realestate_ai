@@ -613,3 +613,24 @@ body {
     }
   }
 }
+
+/* Hot projects banner (components/site/HotStrip.tsx): the track holds the list twice and slides by one copy, so the loop is seamless.
+   Pauses on hover, stops for keyboard focus; with reduced motion it stands still and scrolls sideways instead. */
+@keyframes hot-strip-roll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.hot-strip-track:has(.hot-strip-row + .hot-strip-row) {
+  animation: hot-strip-roll 40s linear infinite;
+}
+.hot-strip:hover .hot-strip-track {
+  animation-play-state: paused;
+}
+/* a keyboard user tabbing through: stop and let the focused link scroll into view */
+.hot-strip:focus-within .hot-strip-track { animation: none; }
+.hot-strip:focus-within .hot-strip-viewport { overflow-x: auto; }
+@media (prefers-reduced-motion: reduce) {
+  .hot-strip-track { animation: none !important; }
+  .hot-strip-track .hot-strip-row + .hot-strip-row { display: none; }
+  .hot-strip-viewport { overflow-x: auto; }
+}

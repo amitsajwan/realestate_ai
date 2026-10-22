@@ -20,6 +20,8 @@ const nextConfig = {
       // House Deal's account moved from /agent/sharad to /agent/house-deal (2026-10-03); old post links keep working
       { source: '/agent/sharad', destination: '/agent/house-deal', permanent: true },
       { source: '/agent/sharad/:path*', destination: '/agent/house-deal/:path*', permanent: true },
+      // the agents' home moved from / to /agents (2026-10-22); /agent with no name is the address people guess for it
+      { source: '/agent', destination: '/agents', permanent: true },
       // the old email/password app (its 'Forgot password' link was a 404): sign-in is the login code at /join, the app is /studio
       { source: '/login', destination: '/join', permanent: false },
       { source: '/register', destination: '/join', permanent: false },

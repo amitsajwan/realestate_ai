@@ -3,6 +3,7 @@
  * GET /api/v1/public/register/active?area=|place=   "Most active projects": one fact line each, never a score
  * GET /api/v1/public/register/near/{area}/{slug}    project pages near a neighbourhood guide
  * GET /api/v1/public/builders and /builders/{slug}  one page per builder from MahaRERA records
+ * GET /api/v1/public/register/spotlight?area=      the hot projects banner on every public page (owner's picks, then hot ones)
  * Lists come back empty on any failure; a builder page is null on a 404 and throws on an outage (never a cached 404).
  */
 import { serverApiBase } from './api'
@@ -77,6 +78,28 @@ export async function getActive(where: { area?: string; place?: string }, limit 
   if (!q) return []
   const r = await get<ActiveProject[]>(`/api/v1/public/register/active?${q}&limit=${limit}`)
   return r.ok && Array.isArray(r.data) ? r.data : []
+}
+
+/** One entry of the hot projects banner (backend areastats/spotlight.py): the owner's note, else one sourced fact; never a score. */
+export interface SpotlightProject {
+  slug: string; name: string; area: string | null; area_slug: string | null; note: string | null; fact: string; source: string; picked: boolean
+  /** the registrations the page stands for (its towers too) */
+  regnos?: string[]
+}
+
+/** The banner for a page; on an area's pages (area slug) that area's projects come first. Empty on any failure: never breaks a page. */
+export async function getSpotlight(area?: string | null): Promise<SpotlightProject[]> {
+  const q = area && SLUG.test(area) ? '?area=' + area : ''
+  const r = await get<SpotlightProject[]>('/api/v1/public/register/spotlight' + q)
+  return r.ok && Array.isArray(r.data) ? r.data : []
+}
+
+/** Registration number -> shared page slug of every project an agent lists (the register page 301s there). Kept 5 minutes like
+ *  the banner itself: lib/site/api's getCatalog keeps 30 s, and a page renders as often as its shortest-lived read. */
+export async function getListedSlugs(): Promise<Map<string, string>> {
+  const r = await get<{ items: { slug: string; rera_no?: string | null; agents?: unknown[] }[] }>('/api/v1/public/projects')
+  const items = r.ok && Array.isArray(r.data?.items) ? r.data.items : []
+  return new Map(items.filter((c) => c.agents?.length && c.rera_no).map((c) => [c.rera_no as string, c.slug]))
 }
 
 export async function getNearGuide(areaSlug: string, slug: string): Promise<ActiveProject[]> {

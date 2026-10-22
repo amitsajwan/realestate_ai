@@ -1,12 +1,11 @@
 import React from 'react'
 import { render, screen, within } from '@testing-library/react'
-import LandingPage from '@/app/page'
+import LandingPage from '@/app/agents/page'
 import RequestInvitePage from '@/app/request-invite/page'
 
 // PostsSection is an async server component (fetches /public/posts); it is covered in __tests__/posts.
 jest.mock('@/components/site/PostsSection', () => ({ __esModule: true, default: () => null }))
 jest.mock('@/components/news/NewsSection', () => ({ __esModule: true, default: () => null }))
-jest.mock('@/components/marketing/BuyerProjectLinks', () => ({ __esModule: true, default: () => null }))
 
 describe('landing page', () => {
   it('has one h1 and sends the join buttons to the form on the page', () => {
@@ -70,17 +69,9 @@ describe('landing page', () => {
     expect(order.indexOf('live')).toBeLessThan(order.indexOf('what-it-does'))
   })
 
-  it('links buyers to every area page, grouped by tier, then projects and news', () => {
+  it('sends a buyer who lands here to the buyers\' home', () => {
     render(<LandingPage />)
-    const strip = screen.getByRole('heading', { name: /buying a home in pune/i }).closest('section')!
-    expect(within(strip).getByRole('heading', { name: 'Affordable homes' })).toBeInTheDocument()
-    expect(within(strip).getByRole('heading', { name: 'IT corridor' })).toBeInTheDocument()
-    for (const [name, slug] of [['Wagholi', 'wagholi'], ['Lohegaon', 'lohegaon'], ['Keshav Nagar', 'keshav-nagar'], ['Hinjawadi', 'hinjawadi'], ['Baner', 'baner']]) {
-      expect(within(strip).getByRole('link', { name })).toHaveAttribute('href', `/localities/${slug}`)
-    }
-    expect(within(strip).getAllByRole('link').filter((l) => l.getAttribute('href')?.startsWith('/localities/'))).toHaveLength(8)
-    expect(within(strip).getByRole('link', { name: 'All projects' })).toHaveAttribute('href', '/projects')
-    expect(within(strip).getByRole('link', { name: 'News' })).toHaveAttribute('href', '/news')
+    expect(screen.getByRole('link', { name: /see projects, areas and builders/i })).toHaveAttribute('href', '/')
   })
 
   it('tells the create, get discovered, get qualified leads, close story in order', () => {
@@ -108,15 +99,10 @@ describe('landing page', () => {
     expect(bar.className).toMatch(/md:hidden/)
   })
 
-  it('renders standalone on the v2 surface and embeds Organization JSON-LD without contact invented', () => {
+  it('renders standalone on the v2 surface (the Organization JSON-LD is on the buyers\' home now)', () => {
     const { container } = render(<LandingPage />)
     expect(container.querySelector('[data-surface="v2"]')).not.toBeNull()
-    const ld = JSON.parse(container.querySelector('script[type="application/ld+json"]')!.textContent || '{}')
-    expect(ld['@type']).toBe('Organization')
-    expect(ld.name).toBeTruthy()
-    expect(ld.contactPoint).toBeUndefined()
-    expect(ld.telephone).toBeUndefined()
-    expect(ld.address).toBeUndefined()
+    expect(container.querySelector('script[type="application/ld+json"]')).toBeNull()
   })
 })
 

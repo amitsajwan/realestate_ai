@@ -139,7 +139,7 @@ export default async function LocalityPage({ params }: Props) {
     mainEntity: l.faqs.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
   }
   return (
-    <MarketingShell>
+    <MarketingShell hot={{ area: l.slug }}>
       <article className="mx-auto max-w-3xl px-4 py-10 sm:py-14">
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(faqLd) }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(breadcrumbJsonLd(getMarketingConfig().siteUrl, [

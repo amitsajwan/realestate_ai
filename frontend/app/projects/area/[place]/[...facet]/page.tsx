@@ -113,7 +113,7 @@ export default async function FacetPageView({ params }: Props) {
       ...(p.page_updated ? { dateModified: p.page_updated } : {}) },
   ]
   return (
-    <MarketingShell>
+    <MarketingShell hot={{ area: p.place.slug }}>
       <article className="mx-auto max-w-5xl px-4 py-8 sm:py-12" style={AVASETU_SITE_VARS}>
         {ld.map((x, i) => <script key={i} type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(x) }} />)}
         <nav aria-label="Breadcrumb" className="text-sm text-slate-600">
