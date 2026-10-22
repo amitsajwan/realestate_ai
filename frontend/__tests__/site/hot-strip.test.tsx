@@ -54,3 +54,21 @@ describe('hot projects banner', () => {
     expect(container).toBeEmptyDOMElement()
   })
 })
+
+describe('hot projects banner speed', () => {
+  it('rolls at a reading pace: about 80 s for six usual entries, longer for longer text, never under 20 s', async () => {
+    const { rollSeconds } = await import('@/components/site/HotStrip')
+    const six = Array.from({ length: 6 }, (_, i) => p(`project-${i}-kharadi`, { name: 'Lodha Camelot Tower ' + i, fact: '42 homes booked in the last 90 days' }))
+    const secs = rollSeconds(six)
+    expect(secs).toBeGreaterThanOrEqual(60)
+    expect(secs).toBeLessThanOrEqual(110)
+    expect(rollSeconds([...six, ...six])).toBeGreaterThan(secs)
+    expect(rollSeconds([p('x', { name: 'A', fact: 'b', source: 'c', area: null })])).toBe(20)
+  })
+
+  it('puts the loop length on the track', () => {
+    render(<HotStripView items={[p('a-kharadi'), p('b-kharadi')]} />)
+    const track = screen.getByTestId('hot-strip').querySelector('.hot-strip-track') as HTMLElement
+    expect(track.style.getPropertyValue('--hot-roll')).toMatch(/^\d+s$/)
+  })
+})

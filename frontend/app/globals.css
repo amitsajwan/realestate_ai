@@ -621,9 +621,12 @@ body {
   to { transform: translateX(-50%); }
 }
 .hot-strip-track:has(.hot-strip-row + .hot-strip-row) {
-  animation: hot-strip-roll 40s linear infinite;
+  /* the loop's length comes from the text (components/site/HotStrip.tsx rollSeconds): a steady reading speed */
+  animation: hot-strip-roll var(--hot-roll, 80s) linear infinite;
 }
-.hot-strip:hover .hot-strip-track {
+/* hover with a mouse, or a finger held on it on a phone, stops it to read */
+.hot-strip:hover .hot-strip-track,
+.hot-strip:active .hot-strip-track {
   animation-play-state: paused;
 }
 /* a keyboard user tabbing through: stop and let the focused link scroll into view */

@@ -7,6 +7,16 @@ import { getListedSlugs, getSpotlight, type SpotlightProject } from '@/lib/site/
  *  get crawled first). At most 6 links, inside <aside> with no heading, so it adds no headings or body text to the page.
  *  Rolls with CSS only (app/globals.css): pauses on hover, stops for keyboard focus, stands still (scrolls sideways) for reduced motion.
  *  The second copy of the list only closes the loop: hidden from screen readers and the tab order. Hidden when empty. */
+const PX_PER_CHAR = 7.5        // text-sm Poppins, on average
+const GAP_PX = 24              // gap-6 between entries
+const READ_PX_PER_S = 35       // slow enough to read a moving line on a phone (2026-10-22: 40 s a loop was far too fast)
+
+/** Seconds for one loop: the row's width at a steady reading speed, so a longer strip rolls longer, never faster. */
+export function rollSeconds(items: SpotlightProject[]): number {
+  const chars = items.reduce((n, p) => n + p.name.length + (p.area?.length ?? 0) + (p.note || `${p.fact} (${p.source})`).length + 4, 0)
+  return Math.max(20, Math.round((chars * PX_PER_CHAR + items.length * GAP_PX) / READ_PX_PER_S))
+}
+
 export function HotStripView({ items, areaName }: { items: SpotlightProject[]; areaName?: string | null }) {
   if (!items.length) return null
   const label = areaName && items[0].area === areaName ? `Hot in ${areaName}` : 'Hot in Pune'
@@ -29,7 +39,9 @@ export function HotStripView({ items, areaName }: { items: SpotlightProject[]; a
       <div className="mx-auto flex max-w-5xl items-center gap-3 px-4">
         <span className="shrink-0 rounded bg-[#f0b440] px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-[#0f2340]">{label}</span>
         <div className="hot-strip-viewport min-w-0 flex-1 overflow-hidden">
-          <div className="hot-strip-track flex w-max">{row(false)}{items.length > 1 && row(true)}</div>
+          <div className="hot-strip-track flex w-max" style={{ '--hot-roll': `${rollSeconds(items)}s` } as React.CSSProperties}>
+            {row(false)}{items.length > 1 && row(true)}
+          </div>
         </div>
       </div>
     </aside>
