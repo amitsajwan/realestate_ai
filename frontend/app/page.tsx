@@ -4,7 +4,7 @@ import type { Metadata } from 'next'
 import MarketingShell from '@/components/marketing/MarketingShell'
 import NewsSection from '@/components/news/NewsSection'
 import ProjectSearch from '@/components/site/ProjectSearch'
-import { AGENTS_PATH, buyerEnquirePath } from '@/components/marketing/siteLinks'
+import { AGENTS_PATH, agentAnchorForward, buyerEnquirePath } from '@/components/marketing/siteLinks'
 import { getCityStats, longDate } from '@/components/localities/areaStats'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { TIER_LABELS, localitiesByTier } from '@/lib/marketing/localities'
@@ -56,6 +56,8 @@ export default async function BuyerHome() {
 
   return (
     <MarketingShell hot={false}>
+      {/* old links to the agents' sections that were on this page (/#invite, /#faq) go on to /agents */}
+      <script dangerouslySetInnerHTML={{ __html: agentAnchorForward() }} />
       {ld.map((x, i) => <script key={i} type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(x) }} />)}
 
       <section aria-labelledby="home-title" className="bg-gradient-to-b from-[#0f2340] to-[#183a5d] pb-10 pt-10 text-white sm:pt-14">
