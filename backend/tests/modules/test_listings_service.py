@@ -298,3 +298,33 @@ async def test_sitemap_entries_skip_samples_private_demo_and_preview_sites():
     entries = await svc.sitemap_entries()
     assert [(e["agent_slug"], e["id"]) for e in entries] == [("rahul", real.id)]
     assert entries[0]["updated_at"] is not None and entries[0]["locality"] == "Baner"
+
+
+# ---- delete ----------------------------------------------------------------------------------
+async def test_delete_skips_posts_not_yet_out_and_closes_a_run_waiting_on_the_agent():
+    svc, db = await make()
+    lst = await live(svc)
+    runs, calendar = db.get_collection("marketing_runs"), db.get_collection("content_calendar")
+    await runs.insert_one({"_id": "r1", "listing_id": lst.id, "agent_id": "A1", "status": "asking"})
+    await runs.insert_one({"_id": "r0", "listing_id": lst.id, "agent_id": "A1", "status": "done"})
+    for i, status in enumerate(("planned", "approved", "scheduled", "published")):
+        await calendar.insert_one({"_id": f"c{i}", "listing_id": lst.id, "status": status, "history": []})
+    await calendar.insert_one({"_id": "other", "listing_id": "someone-else", "status": "planned", "history": []})
+    await svc.delete("A1", lst.id)
+    assert await db.get_collection("listings").find_one({"_id": lst.id}) is None
+    assert (await runs.find_one({"_id": "r1"}))["status"] == "cancelled" and (await runs.find_one({"_id": "r0"}))["status"] == "done"
+    skipped = {d["_id"] for d in calendar.docs if d["status"] == "skipped"}
+    assert skipped == {"c0", "c1", "c2"}                    # published posts stay up (their views count), others' are untouched
+    assert (await calendar.find_one({"_id": "c0"}))["history"][-1]["note"] == "listing deleted"
+
+
+async def test_delete_is_refused_while_marketing_is_making_posts():
+    svc, db = await make()
+    lst = await live(svc)
+    await db.get_collection("marketing_runs").insert_one({"_id": "r1", "listing_id": lst.id, "agent_id": "A1", "status": "posts"})
+    await db.get_collection("content_calendar").insert_one({"_id": "c0", "listing_id": lst.id, "status": "planned", "history": []})
+    with pytest.raises(ListingError) as e:
+        await svc.delete("A1", lst.id)
+    assert e.value.status_code == 409
+    assert await db.get_collection("listings").find_one({"_id": lst.id}) is not None
+    assert (await db.get_collection("content_calendar").find_one({"_id": "c0"}))["status"] == "planned"

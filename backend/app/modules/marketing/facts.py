@@ -1,5 +1,7 @@
 """Listing facts + formatting helpers + per-language word tables. Everything here is derived from the listing only."""
 from app.core import brand
+from app.modules.listings import homes as homes_mod
+from app.modules.listings.homes import bhk_range
 from app.platform.text import bhk_label, money, sqft
 import re
 from dataclasses import dataclass, field
@@ -104,7 +106,6 @@ class Facts:
     @classmethod
     def from_docs(cls, listing: dict, profile: Optional[dict], share_url: str) -> "Facts":
         profile = profile or {}
-        from app.modules.propertyfacts import homes as homes_mod   # here: propertyfacts imports marketing
         carpet, sba = listing.get("carpet_sqft"), listing.get("super_built_up_sqft")
         table = homes_mod.rows(listing) if listing.get("configurations") else []
         several = len(table) > 1
@@ -150,7 +151,6 @@ class Facts:
     @property
     def bhk_text(self) -> Optional[str]:
         if self.several:
-            from app.modules.propertyfacts.homes import bhk_range
             return bhk_range(self.homes) or None
         return bhk_label(self.bhk) if self.bhk else None
 

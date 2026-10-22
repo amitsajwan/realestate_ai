@@ -104,3 +104,18 @@ def test_marketing_reuses_claims_for_the_same_file(tmp_path):
     assert kept["claims"] == CLAIMS and kept["rera_no"] == "P52100012345" and not kept["rera_missing"]
     assert files.claims_for({**listing, "file_claims": {**listing["file_claims"], "brochure_url": "/uploads/documents/old.pdf"}},
                             pdf) is None
+
+
+def test_the_route_reads_our_register_as_wired(monkeypatch):
+    """app/wiring.py passes the newsroom's project register (inventory does not import it); no database: no register."""
+    from app.core import database
+    from app.modules.newsroom.store import Store
+    from .fakes import FakeDb
+    db = FakeDb()
+    monkeypatch.setattr(database, "get_database", lambda: db)
+    reg = r.get_register()
+    assert isinstance(reg, Store) and reg.db is db
+    def down():
+        raise RuntimeError("not connected")
+    monkeypatch.setattr(database, "get_database", down)
+    assert r.get_register() is None

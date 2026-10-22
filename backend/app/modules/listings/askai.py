@@ -11,10 +11,10 @@ fills with photos. The brochure stays stored on the listing but is not used here
 import json
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple
 
 from app.core.rera import SEARCH as RERA, find_all as reras
-from app.modules.creative.guards import numbers
+from app.platform.guards import numbers
 
 from .about import MAX_TEXT, _PHONE, _URL
 from .schemas import PICTURE_TYPES
@@ -80,19 +80,26 @@ def known(listing: dict, sheet: Optional[dict], web: Optional[dict]) -> Known:
                             *_facts_lines(sheet), *_web_lines(web)]))
 
 
+# Where the facts come from, passed in by app/wiring.py (docs/ARCHITECTURE.md §2: the property-facts sheet and the project
+# page are above inventory): facts_sheet(db, rera_no, project, locality) and web_facts(db, regno), each a dict or None.
+_sources: Dict[str, Any] = {"facts_sheet": None, "web_facts": None}
+
+
+def configure(facts_sheet: Callable[..., Awaitable[Optional[dict]]], web_facts: Callable[..., Awaitable[Optional[dict]]]) -> None:
+    _sources.update(facts_sheet=facts_sheet, web_facts=web_facts)
+
+
 async def gather(db, listing: dict) -> Tuple[Optional[dict], Optional[dict]]:
     """(MahaRERA-checked sheet, published web facts) for this listing. Each is optional; never raises."""
-    from app.modules.propertyfacts.store import FactsStore
     sheet = web = None
     try:
-        sheet = await FactsStore(db).find(listing.get("rera_no") or "", listing.get("project_name") or "", listing.get("locality") or "")
+        sheet = await _sources["facts_sheet"](db, listing.get("rera_no") or "", listing.get("project_name") or "", listing.get("locality") or "")
     except Exception:
         pass
     regno = (sheet or {}).get("rera_no") or listing.get("rera_no") or ""
     if regno:
         try:
-            from app.modules.areastats.pages import web_facts_for
-            web = await web_facts_for(db, regno)
+            web = await _sources["web_facts"](db, regno)
         except Exception:
             pass
     return sheet, web

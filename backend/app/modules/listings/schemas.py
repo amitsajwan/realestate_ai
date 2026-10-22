@@ -5,6 +5,8 @@ from typing import List, Literal, Optional, Union
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, field_validator, model_validator
 
 from .about import About, PublicAbout
+from .claims import clean_claims
+from .points import BANNED, clean_facts, parse_inr
 
 Status = Literal["draft", "live", "under_offer", "sold", "rented", "paused", "expired"]
 Visibility = Literal["private", "network", "public"]
@@ -105,7 +107,6 @@ class SellingPoint(BaseModel):
 
     @model_validator(mode="after")
     def _value(self):
-        from app.modules.propertyfacts.points import BANNED, parse_inr
         if BANNED.search(self.text) or (self.text_local and BANNED.search(self.text_local)):
             raise ValueError("a selling point cannot promise returns or income")
         if self.confirmed:  # ticked later in the listing: no longer set aside
@@ -249,13 +250,12 @@ class FileClaims(BaseModel):
     brochure: List[str] = Field(default_factory=list, max_length=25)
     rera_on_brochure: Optional[str] = Field(None, max_length=15)   # PR + 13 digits, the longer form
     brochure_url: Optional[str] = Field(None, max_length=2000)
-    brochure_facts: Optional[dict] = None   # structured facts as printed (propertyfacts/points.clean_facts)
+    brochure_facts: Optional[dict] = None   # structured facts as printed (listings/points.clean_facts)
     language: Optional[Literal["en", "mr", "hi"]] = None
 
     @field_validator("brochure_facts", mode="before")
     @classmethod
     def _facts(cls, v):
-        from app.modules.propertyfacts.points import clean_facts
         return clean_facts(v) if isinstance(v, dict) else None
 
     @field_validator("brochure", mode="before")
@@ -263,7 +263,6 @@ class FileClaims(BaseModel):
     def _claims(cls, v):
         if not isinstance(v, list):
             raise ValueError("brochure must be a list of claims")
-        from app.modules.propertyfacts.files import clean_claims
         return clean_claims(v)
 
     @field_validator("rera_on_brochure", mode="before")

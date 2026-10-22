@@ -1,6 +1,6 @@
 """POST /ai/draft (mounted under /listings): typed and/or spoken text -> AIDraft. Persists nothing."""
 import os
-from typing import Optional
+from typing import Any, Callable, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, ConfigDict, Field
@@ -38,12 +38,19 @@ def get_transcriber() -> Optional[Transcriber]:
     return default_transcriber()
 
 
+# Our MahaRERA register over a database (the newsroom Store, above inventory today), passed in by app/wiring.py
+_register: dict = {"over": None}
+
+
+def configure(register: Callable[[Any], Any]) -> None:
+    _register["over"] = register
+
+
 def get_register():
-    """Our MahaRERA register (newsroom Store) for the draft's project match; None when the database is not up."""
+    """Our MahaRERA register for the draft's project match; None when the database is not up."""
     try:
         from app.core.database import get_database
-        from app.modules.newsroom.store import Store
-        return Store(get_database())
+        return _register["over"](get_database())
     except Exception:
         return None
 

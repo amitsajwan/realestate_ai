@@ -48,14 +48,14 @@ async def queued(db, now: Optional[datetime] = None) -> Dict[str, int]:
     return {k: v for k, v in out.items() if v}
 
 
-async def drain(db) -> int:
+async def drain(db, make_runs: Callable[[], Any]) -> int:
     """The Cloud Run Job's whole life: clean up stale items once, then work through the three queues until they stay empty
-    for IDLE_CHECKS rounds. Returns how many items it took."""
+    for IDLE_CHECKS rounds. Returns how many items it took. `make_runs`: the marketing-run queue (propertyfacts.jobs
+    default_runs, passed in by app.worker: the app layer's queue is not imported from here)."""
     from app.modules.calendar.runner import prerender_reels
     from app.modules.calendar.store import Store
-    from app.modules.propertyfacts.jobs import default_runs
     from app.modules.reels.listing_reel import default_jobs
-    runs, reels = default_runs(), default_jobs()
+    runs, reels = make_runs(), default_jobs()
     for cleanup in (runs.fail_stale, reels.fail_stale):   # nothing else renders: an item left "making" by a cut job is stale
         try:
             await cleanup()

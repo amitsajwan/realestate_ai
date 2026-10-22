@@ -15,6 +15,13 @@ MHADA = {"_id": "cal-mhada", "slug": "mhada-pune-lottery-2026", "external_id": "
                          "Other districts such as Nashik come under other MHADA boards with their own lotteries.",
                          "The last date to apply online is 22 October 2026."],
          "reply_faq": [{"q": "Is it in Nashik?", "a": "No. Nashik has its own MHADA board."}], "creative": {"audience": "buyers"}}
+RING_ROAD = {"_id": "cal-ring", "slug": "pune-ring-road-objections-2026", "external_id": "18199779892370001",
+             "caption": "Pune ring road: how land owners can file an objection",
+             "reply_facts": ["The objections are for land owners along the planned western ring road.",
+                             "Objections are filed at the land acquisition office of the district collector.",
+                             "The last date to file an objection is 22 October 2026."],
+             "reply_faq": [{"q": "Is Wagholi on it?", "a": "No. Wagholi is on the eastern part, which has its own notice."}],
+             "creative": {"audience": "buyers"}}
 
 
 class FakeLLM:
@@ -45,19 +52,30 @@ def test_a_code_typed_alone_is_found_and_words_are_not():
     assert adapters.codes_in("interested in buying a flat in kharadi") == []
 
 
-async def test_a_dm_after_a_comment_is_answered_from_that_posts_sheet():
+async def dm_after_comment(post, comment):
     db = FakeDb()
-    db.get_collection("content_calendar").docs.append(MHADA)
-    db.get_collection("engage_comments").docs.append({"_id": "c1", "dm_recipient": IGSID, "calendar_id": "cal-mhada", "text": "नाशिक मध्ये आहे का",
+    db.get_collection("content_calendar").docs.append(post)
+    db.get_collection("engage_comments").docs.append({"_id": "c1", "dm_recipient": IGSID, "calendar_id": post["_id"], "text": comment,
                                                       "processed_at": None})
     svc, db, _, _ = make(c=cfg(), db=db)
     svc.llm = FakeLLM("other", "question")
     m = parse(event("When is the last date?", sender=IGSID, recipient=IG))
     assert await svc.claim("instagram", m)
     r = await svc.handle("instagram", m)
-    c = await db.get_collection("dm_conversations").find_one({"_id": f"instagram:{IGSID}"})
+    return r, await db.get_collection("dm_conversations").find_one({"_id": f"instagram:{IGSID}"})
+
+
+async def test_a_dm_after_a_comment_is_answered_from_that_posts_sheet():
+    r, c = await dm_after_comment(RING_ROAD, "वाघोली मध्ये आहे का")
     assert c["context"]["kind"] == "calendar" and c["context"]["came_from"].startswith("commented on our post")
     assert "22 October 2026" in r["reply"] and "buy or rent" not in r["reply"].lower()
+
+
+async def test_a_dm_after_a_mhada_comment_gets_only_the_safety_line_and_waits_for_a_person():
+    """MHADA stopped (owner 2026-10-20): payment questions were getting automatic answers with figures."""
+    r, c = await dm_after_comment(MHADA, "नाशिक मध्ये आहे का")
+    assert "We are not MHADA" in r["reply"] and "22 October 2026" not in r["reply"]
+    assert c["data"]["needs_human"] is True
 
 
 async def test_a_question_with_no_origin_finds_our_guide_post():

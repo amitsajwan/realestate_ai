@@ -5,7 +5,9 @@ Pune is the first city; area copy ('homes in Pune', 'Kharadi, Wagholi') is not t
 SITE comes from PUBLIC_SITE_URL so the move to a real domain is one setting.
 """
 import os
+import re
 from pathlib import Path
+from typing import Optional
 
 NAME = "Avasetu"
 NAME_DEVANAGARI = "आवासेतु"
@@ -50,3 +52,16 @@ def topic_page(slug: str) -> str:
 def footer(channel: str) -> str:
     """'Avasetu · <site>' for Facebook, 'Avasetu · link in our bio' for Instagram (captions cannot hold links)."""
     return f"{NAME} · link in our bio" if channel == "instagram" else f"{NAME} · {SITE}"
+
+
+WA_MARK = "\U0001F4AC"   # the speech bubble that starts the WhatsApp line of a caption (calendar.adapters finds it)
+
+
+def posts_whatsapp_number() -> Optional[str]:
+    """The WhatsApp number public posts show, as wa.me digits: WHATSAPP_PUBLIC_NUMBER only (never the website chat's
+    NEXT_PUBLIC_WHATSAPP_NUMBER, which may be a test number that answers only allowed phones). None: posts carry only the
+    tracked link."""
+    d = re.sub(r"\D", "", os.environ.get("WHATSAPP_PUBLIC_NUMBER") or "")
+    if re.fullmatch(r"[6-9]\d{9}", d):
+        d = "91" + d
+    return d if 11 <= len(d) <= 15 else None

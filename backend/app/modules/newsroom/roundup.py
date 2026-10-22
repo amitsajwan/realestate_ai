@@ -129,7 +129,8 @@ async def build(store: Store, now: datetime, checker: Optional[Callable] = None,
     if doc is None:
         raise NothingToPost(f"No project in our areas was {policy.MAHARERA_PHRASE} in the last {WINDOW_DAYS} days")
     if checker is None:
-        from .stages.check import check as checker
+        from .stages.check import check
+        checker = lambda d, f, r: check(d, f, r, now=now)  # noqa: E731  (the item's age is measured at `now`, not the clock)
     res = checker(codec.draft(doc), codec.facts(doc), codec.raw_item(doc))
     res = await res if inspect.isawaitable(res) else res
     if not res.ok:

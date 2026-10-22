@@ -1,5 +1,5 @@
 """The only Mongo file of the calendar. Collections: content_calendar, calendar_status.
-Uses only find/find_one/insert_one/update_one/count_documents with $set/$push so the in-memory test fakes work too."""
+Uses only find/find_one/insert_one/update_one/update_many/count_documents with $set/$push so the in-memory test fakes work too."""
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Callable, Dict, List, Optional, Tuple
@@ -11,6 +11,14 @@ STATUSES = ("planned", "approved", "scheduled", "published", "failed", "skipped"
 PUBLISHABLE = ("approved", "scheduled")   # the approval gate: nothing else is ever published
 OPEN = ("planned", "approved", "scheduled")  # not yet published, failed or skipped
 KINDS = ("post", "showcase", "reel")
+
+
+async def skip_listing_posts(db, agent_id: str, listing_id: str, now: datetime) -> None:
+    """A deleted listing's posts not yet out are skipped (listings.service, wired in app/wiring.py); published ones stay up,
+    their views count."""
+    await db.get_collection(COLLECTION).update_many(
+        {"listing_id": listing_id, "status": {"$in": list(OPEN)}},
+        {"$set": {"status": "skipped", "updated_at": now}, "$push": {"history": {"at": now, "status": "skipped", "note": "listing deleted"}}})
 
 
 def _utcnow() -> datetime:

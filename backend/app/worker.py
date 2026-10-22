@@ -244,9 +244,10 @@ async def _drain() -> int:
         return 2
     from app.wiring import wire
     wire()
+    from app.modules.propertyfacts.jobs import default_runs
     from app.modules.reels.render_job import drain
     try:
-        await drain(get_database())
+        await drain(get_database(), default_runs)
     finally:
         await close_database()
     return 0

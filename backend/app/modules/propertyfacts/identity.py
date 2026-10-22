@@ -7,8 +7,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional
 
+from app.core.brand import WA_MARK, posts_whatsapp_number  # noqa: F401  (moved: content uses them too)
 from app.modules.creative import i18n
 from app.modules.creative.models import CardBrand, Voice
+from app.platform.text import phone_label  # noqa: F401  (moved: Indian phone formatting is platform text)
 
 OFFICIAL_SLUG = os.environ.get("INTEREST_OWNER_SLUG") or "avasetu"
 CONTACT_LABELS = {
@@ -25,31 +27,10 @@ class Identity:
     contact: List[str] = field(default_factory=list)
 
 
-WA_MARK = "\U0001F4AC"   # the speech bubble that starts the WhatsApp line of a caption (calendar.adapters finds it)
-
-
-def posts_whatsapp_number() -> Optional[str]:
-    """The WhatsApp number public posts show, as wa.me digits: WHATSAPP_PUBLIC_NUMBER only (never the website chat's
-    NEXT_PUBLIC_WHATSAPP_NUMBER, which may be a test number that answers only allowed phones). None: posts carry only the
-    tracked link."""
-    d = re.sub(r"\D", "", os.environ.get("WHATSAPP_PUBLIC_NUMBER") or "")
-    if re.fullmatch(r"[6-9]\d{9}", d):
-        d = "91" + d
-    return d if 11 <= len(d) <= 15 else None
-
-
 def whatsapp_label() -> str:
     """Our public WhatsApp number as '+91 98765 43210', or '' when none is configured (then captions carry only the link)."""
     num = posts_whatsapp_number()
     return phone_label("+" + num) if num else ""
-
-
-def phone_label(raw: str) -> str:
-    """'+919921993099' -> '+91 99219 93099'; anything else is returned trimmed."""
-    d = re.sub(r"\D", "", raw or "")
-    if len(d) == 12 and d.startswith("91"):
-        d = d[2:]
-    return f"+91 {d[:5]} {d[5:]}" if len(d) == 10 else (raw or "").strip()
 
 
 def bare_url(u: str) -> str:
