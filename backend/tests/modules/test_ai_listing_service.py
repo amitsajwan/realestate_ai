@@ -437,7 +437,7 @@ async def test_fallback_llm_uses_the_next_provider_when_the_first_has_no_answer(
 
     class P:
         def __init__(self, out): self.out = out
-        async def json(self, s, u): return self.out
+        async def json(self, s, u, temperature=0): return self.out
         async def text(self, s, u, timeout=None): return self.out
 
     assert await FallbackLLM([P(None), P({"ok": 1})]).json("s", "u") == {"ok": 1}

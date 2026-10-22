@@ -85,7 +85,7 @@ def test_tip_is_evergreen_without_figures_names_or_predictions():
 async def test_build_creates_one_checked_pending_item_per_week_with_cards():
     store = await stored(SAMPLES)
     made = []
-    doc = await digest.build(store, SUNDAY_EVENING, check, render=lambda d: made.append(d["_id"]) or {"fb": "news/x-fb.jpg", "ig": ["news/x-ig-1.jpg"]})
+    doc = await digest.build(store, SUNDAY_EVENING, lambda d, f, r: check(d, f, r, now=SUNDAY_EVENING), render=lambda d: made.append(d["_id"]) or {"fb": "news/x-fb.jpg", "ig": ["news/x-ig-1.jpg"]})
     assert doc and (await store.get(doc["_id"]))["status"] == "pending_review" and doc["check"]["ok"] is True and made == [doc["_id"]]
     assert (await store.get(doc["_id"]))["card"]["fb"] == "news/x-fb.jpg"
     assert await digest.build(store, SUNDAY_EVENING + timedelta(hours=2), check) is None  # same week: no second digest

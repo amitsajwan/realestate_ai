@@ -54,7 +54,7 @@ def test_text_states_facts_only_and_passes_the_check():
     low = text.lower()
     for word in ("new launch", "newly", "launched", "just registered", "best", "price"):
         assert word not in low
-    res = check(codec.draft(doc), codec.facts(doc), codec.raw_item(doc))
+    res = check(codec.draft(doc), codec.facts(doc), codec.raw_item(doc), now=NOW)
     assert res.ok, res.problems
     assert doc["status"] == "pending_review" and doc["relevance"]["pillar"] == "new_supply"
     assert doc["relevance"]["areas"] == ["upper_kharadi", "kharadi", "wagholi"]
@@ -129,11 +129,17 @@ def client(monkeypatch):
         drawn.append(doc["_id"])
         return {"ig": [f"news/{doc['_id']}-ig-{i}.jpg" for i in range(1, 8)], "fb": f"news/{doc['_id']}-fb.jpg", "variant": "digest"}
     monkeypatch.setattr(adapters, "card_stage", fake_cards)
+
+    class AtNow(datetime):   # the route reads the clock; the projects are dated around NOW
+        @classmethod
+        def now(cls, tz=None):
+            return NOW.astimezone(tz) if tz else NOW
+    monkeypatch.setattr(nr, "datetime", AtNow)
     store = Store(FakeDb())
     app = FastAPI()
     app.include_router(nr.router, prefix="/newsroom")
     app.dependency_overrides[nr.get_store] = lambda: store
-    app.dependency_overrides[nr.get_checker] = lambda: check
+    app.dependency_overrides[nr.get_checker] = lambda: lambda d, f, r: check(d, f, r, now=NOW)
     app.dependency_overrides[current_active_user] = lambda: SimpleNamespace(id="OWNER", is_superuser=False)
     return TestClient(app), store, drawn
 
@@ -162,4 +168,4 @@ def test_link_follows_the_site_address(monkeypatch):
 
 async def test_captions_pass_the_check_with_our_own_name_in_the_footer():
     doc = roundup.compose(PROJECTS, NOW, "maharera-x")
-    assert await captions.verify(doc, check) == {"facebook": [], "instagram": []}
+    assert await captions.verify(doc, lambda d, f, r: check(d, f, r, now=NOW)) == {"facebook": [], "instagram": []}
