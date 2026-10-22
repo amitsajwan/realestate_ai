@@ -176,6 +176,13 @@ swapping), and a deploy that touched the frontend took ~20 minutes building Next
       avasetu`, keeps the latest 10 versions); GitHub signs in without a key (Workload Identity Federation, this repository
       only). `deploy.ps1` waits for that build, then the VM only pulls and restarts: 127 s end to end on the first run.
       `-Tag <sha>` rolls back; `-Build` is the old build-on-the-VM fallback.
+      **Automatic deploy: BUILT 2026-10-22, off until the owner runs `deploy/gcp/ci_deploy_setup.ps1` once.** After each
+      successful image build on main, `.github/workflows/deploy.yml` runs `deploy/gcp/ci_deploy.sh` on GitHub's machine: the
+      same VM steps as `deploy.ps1` (`deploy/gcp/vm_update.sh`), then the public health check; if it does not pass, the
+      previous commit is put back and the run fails (GitHub's failure email). One deploy at a time. SSH with a key made on
+      the VM for the deploy user (secret `DEPLOY_SSH_KEY`, host key pinned in `DEPLOY_KNOWN_HOSTS`); needs port 22 open to
+      GitHub (not IAP-only). Actions > Deploy > Run workflow redeploys main or rolls back to a given commit;
+      `ci_deploy_setup.ps1 -Off` turns it off. Not gated on the test workflows (main's suite has known failures).
    2. **Uploads to Cloud Storage: dropped for now (owner).** Uploads stay on the VM; a cleanup removes replaced voice versions
       and finished reels 60 days after posting (originals are kept).
    3. **Renderer on Cloud Run Jobs. TARGET.** Chosen over a spot VM (same cost at ~5 reels a day, ~$5 a month for ~1 hour of

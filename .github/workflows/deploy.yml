@@ -1,0 +1,112 @@
+name: Deploy
+
+# Puts each commit on main live once its images are built (images.yml): the same steps as deploy/gcp/deploy.ps1, run on
+# GitHub's machine by deploy/gcp/ci_deploy.sh, and the previous commit is put back if the site's health check does not pass.
+# Off until the owner turns it on once with deploy/gcp/ci_deploy_setup.ps1 (repository variable AUTO_DEPLOY=true, the ssh
+# key secret DEPLOY_SSH_KEY and the variables DEPLOY_SSH_USER, DEPLOY_SSH_HOST, DEPLOY_KNOWN_HOSTS).
+# Run it by hand (Actions > Deploy > Run workflow) to redeploy, or to roll back to the images of an older commit.
+on:
+  workflow_run:
+    workflows: ["Build app images"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'Commit to deploy (full 40-character sha; its images must be built). Empty: the newest commit on main.'
+        required: false
+        default: ''
+
+# one deploy at a time; a newer one waits for the running one, and only the newest waiting one runs
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # only builds of pushes to main that succeeded (never a fork's run), and only once the owner turned it on
+    if: >-
+      vars.AUTO_DEPLOY == 'true' && (
+        github.event_name == 'workflow_dispatch' ||
+        (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' &&
+         github.event.workflow_run.head_repository.full_name == github.repository)
+      )
+    steps:
+      - name: Pick the commit
+        id: pick
+        env:
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+          INPUT_SHA: ${{ inputs.sha }}
+          MAIN_SHA: ${{ github.sha }}
+        run: |
+          sha="${RUN_SHA:-${INPUT_SHA:-$MAIN_SHA}}"
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Not a full commit sha: '$sha'"; exit 1; }
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # the previous commit's deploy/ files too, for a rollback
+
+      - name: Check the images of this commit were built
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.pick.outputs.sha }}
+        run: |
+          ok="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow images.yml --commit "$SHA" --status success --limit 1 --json databaseId --jq length)"
+          [[ "$ok" == "1" ]] || { echo "::error::No successful image build for $SHA (Actions > Build app images)"; exit 1; }
+
+      - name: Set up ssh
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          [[ -n "$DEPLOY_SSH_KEY" && -n "$DEPLOY_KNOWN_HOSTS" ]] || { echo "::error::Run deploy/gcp/ci_deploy_setup.ps1 first (ssh key or host key missing)"; exit 1; }
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" | tr -d '\r' > ~/.ssh/deploy_key   # a key set from Windows may carry CRLF
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Deploy, check health, roll back if it fails
+        env:
+          SHA: ${{ steps.pick.outputs.sha }}
+          DEPLOY_SSH_USER: ${{ vars.DEPLOY_SSH_USER }}
+          DEPLOY_SSH_HOST: ${{ vars.DEPLOY_SSH_HOST }}
+          HEALTH_URL: https://${{ vars.SITE_HOST || 'avasetu.in' }}/api/v1/health
+        run: bash deploy/gcp/ci_deploy.sh
+
+      # the Cloud Run Job that draws the reels runs the same backend image: keep it on this commit too (as deploy.ps1 does).
+      # Skipped while the job does not exist or GitHub's Google account may not change it; the site deploy has already passed.
+      - id: auth
+        uses: google-github-actions/auth@v2
+        continue-on-error: true
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_IMAGE_BUILDER }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+        if: steps.auth.outcome == 'success'
+
+      - name: Point the renderer at this commit's image
+        if: steps.auth.outcome == 'success'
+        continue-on-error: true
+        env:
+          SHA: ${{ steps.pick.outputs.sha }}
+          REGISTRY: ${{ vars.IMAGE_REGISTRY }}
+        run: |
+          project="$(cut -d/ -f2 <<<"$REGISTRY")"
+          if gcloud run jobs describe renderer --project "$project" --region asia-south1 --format 'value(metadata.name)' >/dev/null 2>&1; then
+            gcloud run jobs update renderer --project "$project" --region asia-south1 --image "$REGISTRY/backend:$SHA" --quiet
+          else
+            echo "::notice::No renderer job (or no permission to read it): skipped"
+          fi
+
+      - name: Forget the key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
