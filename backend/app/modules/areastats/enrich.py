@@ -46,6 +46,7 @@ from app.modules.newsroom.store import Store
 from app.platform import trace
 
 from . import brands, hot, pages, prices, pricing, profile, searchconsole, webfacts
+from .websearch import mentions as websearch_mentions
 from .service import _day
 
 log = logging.getLogger(__name__)
@@ -340,6 +341,11 @@ async def write_text(llm, doc: dict, gathered: Optional[dict], web: Optional[dic
     draft = draft_of(out)
     whole = "\n\n".join([draft["text"]] + [x["text"] for x in draft["sections"]] + [draft["summary"] or ""])
     problems = list(dict.fromkeys(check_text(draft["text"], facts) + [p for p in check_text(whole, facts) if p != "too short"]))
+    # the name as the page shows it, in the paragraph and the search line (2026-10-22: "Prusin Adara" for Prasun Adara)
+    name = pages.names(doc)[0]
+    for part, said in (("paragraph", draft["text"]), ("summary", draft["summary"] or "")):
+        if said and not websearch_mentions(name, said):
+            problems.append(f"the {part} does not name {name}")
     if problems:
         log.info("enrich: draft for %s refused: %s", doc.get("_id"), "; ".join(problems))
         return None, problems

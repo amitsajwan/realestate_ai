@@ -34,6 +34,7 @@ import httpx
 from PIL import Image
 
 from app.core.areas import BY_KEY
+from app.modules.newsroom.store import PROJECTS
 
 from . import pages, webfacts, websearch
 
@@ -67,7 +68,8 @@ NOT_SAID = re.compile(r"₹|\brs\.?\s*\d|\blakh|\bcrore|\bprice|\bpossession|\bm
 NUM = re.compile(r"\d[\d,]*(?:\.\d+)?")
 PLAN = re.compile(r"floor[-_ ]?plan|unit[-_ ]?plan|typical[-_ ]?floor|\b[1-5](?:\.5)?[-_ ]?bhk\b|master[-_ ]?plan|site[-_ ]?plan|"
                   r"layout|cluster[-_ ]?plan|carpet", re.I)
-JUNK = re.compile(r"logo|icon|favicon|sprite|avatar|placeholder|loader|whatsapp|qr[-_]?code|award|certificate|team|director|"
+JUNK = re.compile(r"project[-_]?map|compare[-_]?modal|recommendation|"   # a portal's own page furniture (squareyards /assets/images)
+                  r"logo|icon|favicon|sprite|avatar|placeholder|loader|whatsapp|qr[-_]?code|award|certificate|team|director|"
                   r"chairman|testimonial|client|partner[-_]?logo|google[-_]?map|staticmap|badge|arrow|button|flag|blank|pixel|"
                   r"emoji|social|facebook|instagram|youtube|twitter|linkedin", re.I)
 EMBEDDED = re.compile(r"""https?://[^\s"'<>()\\]+?\.(?:jpe?g|png|webp)(?=["'?\s\\])""", re.I)
@@ -532,6 +534,9 @@ async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[webfacts.
             log.exception("profile: pictures failed for %s", regno)
             photos, plans, why = [], [], f"pictures failed ({type(e).__name__})"
     highlights = agree(readings)
+    shared = await others_pictures(store.db, doc)
+    plans = [x for x in plans if not generic(x, shared)]
+    photos = [x for x in photos if not generic(x, shared)]
     # the builder's site, then the brochure (its plans first: they are the builder's own), then other sites, then illustrations
     plans = (b_plans + plans)[:MAX_PLANS]
     photos = photos or b_photos
@@ -539,7 +544,9 @@ async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[webfacts.
     if sources and not photos and not plans:   # owner 2026-10-22: "or best we can find, unverified, from the web"
         try:
             photos, plans, also = await pictures(sources, raw_of, name, regno, image or fetch_bytes, media_dir, builder=False)
-            why = f"{why}; web: {also}"
+            n = len(photos) + len(plans)
+            photos, plans = [x for x in photos if not generic(x, shared)], [x for x in plans if not generic(x, shared)]
+            why = f"{why}; web: {also}" + (f", {n - len(photos) - len(plans)} on other projects too (dropped)" if n > len(photos) + len(plans) else "")
         except Exception as e:
             log.exception("profile: web pictures failed for %s", regno)
             why = f"{why}; web pictures failed ({type(e).__name__})"
@@ -556,6 +563,33 @@ async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[webfacts.
                "photos": photos or kept(old.get("photos")), "plans": plans or kept(old.get("plans"))}
     checked = f"{len(highlights)} highlights from {sum(1 for r in read if r['ok'])} of {len(read)} sites; {why}"
     return {"ok": bool(highlights or photos or plans), "at": now, "checked": checked}, {"profile": profile}
+
+
+def _hash_of(pic: dict) -> Optional[int]:
+    """The picture's dHash: its saved file is named by it (pictures, brochure and AI files are not)."""
+    m = re.fullmatch(r"([0-9a-f]{16})\.webp", str(pic.get("path") or pic.get("file") or "").rsplit("/", 1)[-1])
+    return int(m.group(1), 16) if m else None
+
+
+async def others_pictures(db, doc: dict) -> List[int]:
+    """The hashes of the pictures other projects show (not this project's tower group)."""
+    me = {doc.get("regno") or doc["_id"], doc.get("cluster_primary") or doc.get("regno") or doc["_id"]}
+    out = []
+    async for d in db.get_collection(PROJECTS).find(
+            {"$or": [{"profile.photos.0": {"$exists": True}}, {"profile.plans.0": {"$exists": True}}]},
+            {"regno": 1, "cluster_primary": 1, "profile.photos.path": 1, "profile.plans.path": 1}):
+        if {d.get("regno"), d.get("cluster_primary")} & me:
+            continue
+        out += [h for x in (d.get("profile") or {}).get("photos", []) + (d.get("profile") or {}).get("plans", [])
+                if (h := _hash_of(x)) is not None]
+    return out
+
+
+def generic(pic: dict, shared: List[int]) -> bool:
+    """A web picture another project shows too is a portal's or a builder's stock picture, not this project (2026-10-22:
+    magicbricks' "created by AI" banners on ten projects, Ekaanta's three photos among them)."""
+    h = _hash_of(pic)
+    return pic.get("source") == "web" and h is not None and any(bin(h ^ x).count("1") < NEAR for x in shared)
 
 
 def kept(pics: Optional[List[dict]]) -> List[dict]:
