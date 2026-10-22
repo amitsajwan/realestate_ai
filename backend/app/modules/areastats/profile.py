@@ -313,7 +313,8 @@ async def pictures(sources: List[dict], raw_of: Dict[str, str], name: str, regno
                    media_dir: Path = MEDIA_DIR, page: Optional[webfacts.Fetch] = None, builder: bool = True) -> tuple:
     """(photos, plans, why): saved pictures from the builder's own project page(s) and its gallery / plans pages, or with
     `builder=False` from other sites' pages about the project (source "web": shown as not checked by us)."""
-    pages_ = [s for s in sources if bool(s["official"]) == builder and raw_of.get(s["url"]) and project_page(s["url"], name)]
+    pages_ = [s for s in sources if bool(s["official"]) == builder and raw_of.get(s["url"])
+              and (s.get("pinned") or project_page(s["url"], name))]
     if not pages_:
         return [], [], "no builder page for the project" if builder else "no other page about the project"
     if page is not None and builder:   # its own gallery and plans pages first: the main page spends the budget on icons
@@ -497,7 +498,7 @@ async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[webfacts.
         return {"ok": False, "at": now, "checked": "no LLM key"}, {}
     name = pages.names(doc)[0]
     results = await webfacts.results_for(store, doc, name, search if search is not None else websearch.provider(), now)
-    sources = webfacts.pick_sources(results, name, webfacts.builder_words(doc), limit=webfacts.MAX_TRIES)
+    sources = webfacts.sources_for(doc, results, name, limit=webfacts.MAX_TRIES)
     regno = doc.get("regno") or doc["_id"]
     old = doc.get("profile") or {}
     try:   # an agent's uploaded brochure of this project (or of its group): the builder's own plans and renders
@@ -517,9 +518,9 @@ async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[webfacts.
                 read.append({"site": src["site"], "url": src["url"], "official": src["official"], "ok": False, "why": "page not read"})
                 continue
             text = webfacts.page_text(raw)
-            if not websearch.mentions(name, text):
-                read.append({"site": src["site"], "url": src["url"], "official": src["official"], "ok": False,
-                             "why": "page does not name the project"})
+            ok, not_ok = webfacts.about_project(doc, name, text, src)
+            if not ok:
+                read.append({"site": src["site"], "url": src["url"], "official": src["official"], "ok": False, "why": not_ok})
                 continue
             raw_of[src["url"]] = raw
             got, why_ = await read_highlights(llm, src, name, text)

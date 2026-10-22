@@ -155,6 +155,19 @@ built, all with model text, 40 with highlights, 2 with photos, 1 with plans.
   left out, and brochure pictures are read from the kit every round (never carried over), so a drop leaves the page. An upload,
   a registration answer or a dropped page asks the project for a round at once (`enrich_now`, by "brochure").
 
+### Top Kharadi / Upper Kharadi projects by hand (2026-10-22)
+
+Owner: "Kharadi and Upper Kharadi projects that launched recently or are very hot, top 10, extra care, on priority". Checked by hand:
+Lodha Camelot, My Home Upper Kharadi, Venkatesh Vanaya, Ekaanta, Purple Park Eden (MahaRERA "Park Eden Phase I", I Estates Infra
+LLP), August Towers Ph 2, Hemant, The Monarch, Prasun Adara, Ganga Avanta A2. Found and fixed:
+- Pages from other things with the same name fed three pages: a Chakan hotel (The Monarch: photos + 5 highlights), a Kharadi
+  dental clinic (Hemant: photos), a Haridwar retreat (Ekaanta). Now `webfacts.about_project` gates every source; bad pictures,
+  highlights and web facts already stored were purged and the pages rewritten.
+- Venkatesh Vanaya's page was its shops' wing (commercial). The group primary is now a homes registration.
+- Lodha Camelot and Godrej Ivara pages said Wagholi: `locality` now follows the hand-placed list.
+- Register fields set by hand: `builder_pages` (URLs checked to be the builder's page of THIS project, read first, count as
+  official) and `marketed_name_override`.
+
 TARGET: the owner's status list shows the profile check but no picture review yet.
 
 ## Learning from Housiey (2026-10-20)

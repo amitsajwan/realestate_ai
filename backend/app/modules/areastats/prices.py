@@ -223,7 +223,7 @@ async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[webfacts.
     if search is None and allow_search:
         search = websearch.provider()
     results = await webfacts.results_for(store, doc, name, search if allow_search else None, now)
-    sources = webfacts.pick_sources(results, name, webfacts.builder_words(doc), limit=webfacts.MAX_TRIES)
+    sources = webfacts.sources_for(doc, results, name, limit=webfacts.MAX_TRIES)
     if not sources:
         return {"ok": False, "at": now, "checked": "no web results name the project"}, {}
     fetch = fetch or webfacts.fetch_page
@@ -236,9 +236,9 @@ async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[webfacts.
             read.append({"site": src["site"], "url": src["url"], "official": src["official"], "ok": False, "why": "page not read"})
             continue
         text = webfacts.page_text(raw)
-        if not websearch.mentions(name, text):
-            read.append({"site": src["site"], "url": src["url"], "official": src["official"], "ok": False,
-                         "why": "page does not name the project"})
+        ok, not_ok = webfacts.about_project(doc, name, text, src)
+        if not ok:
+            read.append({"site": src["site"], "url": src["url"], "official": src["official"], "ok": False, "why": not_ok})
             continue
         got, why = await read_prices(llm, src, name, text)
         readings += got

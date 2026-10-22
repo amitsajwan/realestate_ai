@@ -20,7 +20,7 @@ import html
 import logging
 import re
 from datetime import datetime
-from typing import Any, Awaitable, Callable, Dict, List, Optional
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple
 
 import httpx
 
@@ -183,6 +183,16 @@ def pick_sources(results: List[dict], name: str, word, limit: int = MAX_SOURCES)
     return out
 
 
+def sources_for(doc: dict, results: List[dict], name: str, limit: int = MAX_SOURCES) -> List[dict]:
+    """pick_sources, after the builder pages checked by hand for this project (`builder_pages` on the register record, owner's
+    top projects 2026-10-22): those are read first, count as the builder's own and as the project's page (`pinned`)."""
+    pinned = [{"url": u, "site": websearch.site(u), "official": True, "pinned": True} for u in doc.get("builder_pages") or []
+              if isinstance(u, str) and u.startswith("http")]
+    seen = {p["site"] for p in pinned}
+    rest = [r for r in pick_sources(results, name, builder_words(doc), limit=limit) if r["site"] not in seen]
+    return (pinned + rest)[:max(limit, len(pinned))]
+
+
 SYSTEM = ("You read one web page about a housing project in Pune and pick out facts about THAT project only (not other projects "
           "on the page, not the builder company in general). For each key give the value and the exact sentence from the page "
           "it comes from, copied word for word. Leave out any key the page does not state for this project. Keys: "
@@ -193,14 +203,38 @@ SYSTEM = ("You read one web page about a housing project in Pune and pick out fa
           'Answer as JSON: {"facts": [{"key": "...", "value": ..., "quote": "..."}]}')
 
 
-async def read_source(llm, src: dict, name: str, fetch: Fetch) -> tuple:
+HOME_WORDS = re.compile(r"\b(?:\d(?:\.5)?\s*)?bhk\b|\bmaha\s*rera\b|\brera\b|\bcarpet\s+area\b", re.I)
+
+
+def about_project(doc: dict, name: str, text: str, src: Optional[dict] = None) -> Tuple[bool, str]:
+    """(ok, why not): the page is about THIS housing project. It names it, and either prints its MahaRERA number or reads as a
+    home listing in Pune (BHK, RERA or carpet-area words, and Pune or the area's name). A page checked by hand (`pinned`) passes
+    (the builder's page of "August Towers" stands for August Towers Ph 2). 2026-10-22: a Chakan hotel called The Monarch, a Kharadi dental clinic of a Dr Hemant and a Haridwar retreat
+    called Ekaanta named "the project" and gave pictures and highlights to three Kharadi pages."""
+    if (src or {}).get("pinned"):
+        return True, ""
+    if not websearch.mentions(name, text):
+        return False, "page does not name the project"
+    low = (text or "").lower()
+    regno = str(doc.get("regno") or doc.get("_id") or "").lower()
+    if regno and regno in low:
+        return True, ""
+    area = BY_KEY.get(doc.get("locality") or "")
+    places = ["pune"] + ([area.name.lower()] if area else [])
+    if HOME_WORDS.search(low) and any(p in low for p in places):
+        return True, ""
+    return False, "page is not a home listing in Pune"
+
+
+async def read_source(llm, src: dict, name: str, fetch: Fetch, doc: Optional[dict] = None) -> tuple:
     """(readings, why): readings are [{key, value, quote, site, url, official}] that passed the page checks."""
     raw = await fetch(src["url"])
     if not raw:
         return [], "page not read"
     text = page_text(raw)
-    if not websearch.mentions(name, text):
-        return [], "page does not name the project"
+    ok, why = about_project(doc or {}, name, text, src)
+    if not ok:
+        return [], why
     part = relevant(text, name)
     if not part:
         return [], "no lines with facts"
@@ -330,14 +364,14 @@ async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[Fetch] = 
         return {"ok": False, "at": now, "checked": "no LLM key"}, {}
     name = pages.names(doc)[0]
     results = await results_for(store, doc, name, search if search is not None else websearch.provider(), now)
-    sources = pick_sources(results, name, builder_words(doc), limit=MAX_TRIES)
+    sources = sources_for(doc, results, name, limit=MAX_TRIES)
     if not sources:
         return {"ok": False, "at": now, "checked": "no web results name the project"}, {}
     readings, read = [], []
     for src in sources:
         if sum(1 for r in read if r["why"] != "page not read") >= MAX_SOURCES:
             break
-        got, why = await read_source(llm, src, name, fetch or fetch_page)
+        got, why = await read_source(llm, src, name, fetch or fetch_page, doc)
         readings += got
         read.append({"site": src["site"], "url": src["url"], "official": src["official"], "ok": bool(got), "why": why})
     facts, disagree = agree(readings)

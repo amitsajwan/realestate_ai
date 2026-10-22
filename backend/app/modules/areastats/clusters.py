@@ -113,17 +113,25 @@ def compute_clusters(docs: List[dict], confirmed: Dict[str, List[str]]) -> Dict[
     return clusters
 
 
+def commercial(doc: dict) -> bool:
+    """A registration of shops or offices only: MahaRERA's PC numbers, or buildings with no homes."""
+    t = doc.get("building_totals") or {}
+    return str(doc.get("regno") or doc.get("_id") or "").upper().startswith("PC") or (bool(t.get("units_other")) and not t.get("units_residential"))
+
+
 def _primary_for(members: List[str], by_id: Dict[str, dict]) -> str:
     """The primary registration: one search may list (a served, indexable record) first, then one with a page we serve, then
-    the oldest `registered_on` date, then the alphabetically first regno. A primary that cannot host the group's pages leaves
-    the whole cluster alone (assign_clusters), so no tower loses its page to a record that is not in the sitemap."""
+    a homes registration before a commercial one, then the oldest `registered_on` date, then the alphabetically first regno.
+    A primary that cannot host the group's pages leaves the whole cluster alone (assign_clusters), so no tower loses its page
+    to a record that is not in the sitemap. 2026-10-22: Venkatesh Vanaya's 12 towers of homes were described from its shops'
+    wing (PC1261012601213, 16 shops), the oldest registration."""
     from .pages import _served, can_host
 
-    def sort_key(regno: str) -> Tuple[int, str, str]:
+    def sort_key(regno: str) -> Tuple[int, int, str, str]:
         doc = by_id.get(regno, {})
         rank = 0 if can_host(doc) else (1 if _served(doc) else 2)
         date = str(doc.get("registered_on") or "9999-99-99")[:10]
-        return (rank, date, regno)
+        return (rank, 1 if commercial(doc) else 0, date, regno)
 
     return min(members, key=sort_key)
 

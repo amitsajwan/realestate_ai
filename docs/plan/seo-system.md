@@ -117,6 +117,12 @@ their fetchers, and leading each page with the answer. What we run:
 ## 5. On-page rules every page follows (LIVE)
 
 - **One page per project**: tower and phase records are grouped (`areastats/clusters.py`); members answer 301 to the primary.
+  The primary is a homes registration before a shops/offices one (PC numbers), so a housing project is never described as
+  commercial (2026-10-22, Venkatesh Vanaya).
+- **Only this project's pages feed it** (2026-10-22): web facts, highlights, prices and pictures are read only from pages that
+  print the MahaRERA number or read as a home listing in Pune (BHK/RERA/carpet-area words and Pune or the area), or that were
+  checked by hand (`builder_pages`); travel, health and directory sites never. Buyers' names set by hand in
+  `marketed_name_override` (Purple Park Eden). Hand-placed projects (`pune_places.VERIFIED`) take that area as `locality`.
 - **Titles from real searches**: a page's target search (Search Console) becomes its title only when every word is the project's
   own name, area or builder (`seo/targets.py`); MahaRERA's spelling stays in the body and JSON-LD.
 - **Text from facts**: page writer v3 (summary + "The homes and the building", "Location", "Amenities and features" + search
@@ -238,6 +244,7 @@ measure (Search Console, Serper, URL Inspection) → choose (near page one, Magi
 | 2026-10-20 | e2b36b07, c59b8eef | Builder brands on pages; site polish (branded 404, old CSS removed) |
 | 2026-10-20 | 7c6ef9cd | Price sheet on project pages |
 | 2026-10-21 | 81263539..02d8154b | Coverage 1,800/day, MagicBricks scoreboard, weekly owner note + Ask Google to index, audit second read |
+| 2026-10-22 | (this) | Homes registration as group primary; this-project-only page gate; hand-checked builder pages, names, places |
 | 2026-10-21 | 9cbba482, 0d55a7ca | Doctor rival fix (+ price refresh), Indexed by area, panel of target searches |
 | 2026-10-21 | 886047b | Place pages say "flats" in title, H1 and description |
 | 2026-10-21 | aaf7c45 | Search phrases name a place however it is spelt (`pune_places.in_search`) |

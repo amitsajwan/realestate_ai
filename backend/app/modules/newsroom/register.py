@@ -9,6 +9,7 @@ from datetime import datetime
 from typing import List, Optional, Tuple
 
 from app.core import pune_places
+from app.core.areas import BY_KEY
 
 from .policy import AREA_PINCODES, NAME_ONLY_PINCODE_PREFIXES, SHARED_PINCODES, UPPER_KHARADI_PINCODES
 from .stages.filter import named_areas, other_locality_named
@@ -22,7 +23,11 @@ MIN_NAME_WORDS = 2  # specific words a name needs before a story that merely con
 
 
 def locality(p: MahaReraProject) -> Optional[Tuple[str, str]]:
-    """(area, how we know) for a project in our areas, else None."""
+    """(area, how we know) for a project in our areas, else None. A project placed by hand (pune_places.VERIFIED) in one of
+    our areas is there: Lodha Camelot's towers were "Wagholi" by their shared pincode on pages sold as Upper Kharadi."""
+    hand = pune_places.VERIFIED.get(p.regno)
+    if hand in BY_KEY:
+        return hand, "checked by hand"
     return locality_of(p.name, p.pincode)
 
 
