@@ -129,3 +129,14 @@ async def public_builder(slug: str, response: Response, db=Depends(get_db)) -> d
         raise HTTPException(status_code=404, detail="Unknown builder")
     response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
     return out
+
+
+# ---- the hot projects banner on every public page (spotlight.py) -------------------------------------------------------------
+from . import spotlight  # noqa: E402
+
+
+@public_router.get("/register/spotlight")
+async def public_spotlight(response: Response, area: Optional[str] = None, db=Depends(get_db)) -> list:
+    """The banner for a page (on an area's pages, that area first): [{slug, name, area, area_slug, note, fact, source, picked}]."""
+    response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
+    return await spotlight.public(db, area=area)

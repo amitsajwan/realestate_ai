@@ -38,7 +38,7 @@ export default function LandingPage() {
   const cfg = getMarketingConfig()
   const H = L.hero
   return (
-    <MarketingShell cta="agent" stickyBar>
+    <MarketingShell cta="agent" stickyBar hot={{}}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(organizationJsonLd(cfg, L.metaOrgDescription, Object.values(socialLinks()))) }} />
 
       {/* Hero: the promise, one gold button, the lead card */}

@@ -8,6 +8,7 @@ import { timeAgo } from '@/lib/app/format'
 import { useAsync } from '@/lib/app/useAsync'
 import { BRAND_NAME } from '@/lib/brand'
 import { AddAgentSheet } from '../agents/AddAgentSheet'
+import { SpotlightEditor } from './SpotlightEditor'
 import { NavyBtn } from '../agents/InviteRequests'
 import { ProgressRing } from '../agents/ProgressRing'
 import { Btn, ErrorBox, Spinner } from '../ui'
@@ -201,6 +202,10 @@ export function AdminScreen() {
             })}
           </ul>
         )}
+      </Section>
+
+      <Section title="Hot projects banner" id="spotlight">
+        <SpotlightEditor />
       </Section>
 
       <Section title="Health" id="health">

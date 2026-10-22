@@ -4,7 +4,7 @@ import MarketingShell from '@/components/marketing/MarketingShell'
 /** One post loading: the shape of the page (title, picture, text), not the list's grid. */
 export default function Loading() {
   return (
-    <MarketingShell>
+    <MarketingShell hot={false}>
       <div className="mx-auto max-w-3xl px-4 py-8 sm:py-12" aria-busy="true" data-testid="post-skeleton">
         <div className="h-4 w-24 rounded bg-slate-200" />
         <div className="mt-6 h-8 w-3/4 rounded bg-slate-200" />

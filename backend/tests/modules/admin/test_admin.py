@@ -314,3 +314,18 @@ def test_neighbourhood_article_row():
     assert row(articles_on=True, articles={"found": 0})["text"].startswith("On, finding")
     r = row(articles_on=True, articles={"found": 9, "published": 4, "last_note": "Ubale Nagar: too few facts"})
     assert r["text"] == "4 published of 9 neighbourhoods found" and r["fix"] == "Last one held back: Ubale Nagar: too few facts"
+
+
+# ---- hot projects banner (areastats/spotlight.py) --------------------------------------------------------------------------
+def test_the_owner_sets_the_hot_projects_banner_and_sees_what_it_shows():
+    from app.modules.newsroom.store import Store
+    c, db, _ = client(OWNER)
+    asyncio.run(Store(db).projects.insert_one({"_id": "P1", "regno": "P1", "name": "Camelot", "locality": "kharadi", "news": [],
+                                               "page_slug": "camelot-kharadi", "promoter": "Lodha", "completion_now": "2029-10-30"}))
+    assert c.put("/admin/spotlight", json={"items": [{"slug": "nope"}]}).status_code == 400   # never a link to a missing page
+    r = c.put("/admin/spotlight", json={"auto": False, "items": [{"slug": "camelot-kharadi", "area": "kharadi", "note": "New tower"}]})
+    assert r.status_code == 200
+    body = c.get("/admin/spotlight").json()
+    assert body["auto"] is False and body["items"][0]["area"] == "kharadi" and body["updated_by"] == "OWNER"
+    assert body["preview"] == []   # an area pick is not shown on pages with no area
+    assert client(AGENT)[0].put("/admin/spotlight", json={"items": []}).status_code == 403

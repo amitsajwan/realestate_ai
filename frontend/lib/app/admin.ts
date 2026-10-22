@@ -71,6 +71,31 @@ export interface AdminOverview {
 }
 export type InvitedRequest = CreatedAgent & { request: InviteRequest }
 
+/** One project the owner put in the hot projects banner (backend areastats/spotlight.py). */
+export interface SpotlightPick {
+  /** the project page's slug: /projects/<slug> */
+  slug: string
+  /** area key (backend/app/core/areas.py): shown only on that area's pages, first there; null = every page */
+  area: string | null
+  /** one short line shown instead of the project's MahaRERA fact */
+  note: string
+  /** last day shown (YYYY-MM-DD), or null */
+  until: string | null
+}
+/** What the banner shows: the owner's note, else one MahaRERA fact (never a score). */
+export interface SpotlightEntry {
+  slug: string; name: string; area: string | null; area_slug: string | null; note: string | null; fact: string; source: string; picked: boolean
+}
+export interface SpotlightConfig {
+  /** fill the banner with the hottest projects (by MahaRERA bookings, launches, news, searches) after the picks */
+  auto: boolean
+  items: SpotlightPick[]
+  updated_at: string | null
+  updated_by: string | null
+  /** the banner as pages with no area show it now */
+  preview: SpotlightEntry[]
+}
+
 export interface AdminApi {
   overview(): Promise<AdminOverview>
   setControls(changes: Partial<Record<ControlFlag, boolean>>): Promise<AdminControls>
@@ -78,6 +103,8 @@ export interface AdminApi {
   trialSignups(): Promise<TrialSignup[]>
   invite(id: string): Promise<InvitedRequest>
   dismiss(id: string): Promise<InviteRequest>
+  spotlight(): Promise<SpotlightConfig>
+  setSpotlight(body: { auto: boolean; items: SpotlightPick[] }): Promise<SpotlightConfig>
 }
 
 /** What each pause switch does, in plain words (shown on the switch and in its confirmation). */
@@ -145,6 +172,8 @@ export function createAdminApi(opts: { getToken: () => string | null; baseUrl?: 
     trialSignups: async () => (await request<{ items: TrialSignup[] }>('/trial-signups')).items ?? [],
     invite: (id) => request<InvitedRequest>(`${r(id)}/invite`, { method: 'POST' }),
     dismiss: (id) => request<InviteRequest>(`${r(id)}/dismiss`, { method: 'POST' }),
+    spotlight: () => request<SpotlightConfig>('/spotlight'),
+    setSpotlight: (body) => request<SpotlightConfig>('/spotlight', { method: 'PUT', json: body }),
   }
 }
 
@@ -185,6 +214,14 @@ export function createFixtureAdminApi(): AdminApi {
     if (!req) throw new ApiError(404, 'Invite request not found')
     return req
   }
+  let spot: SpotlightConfig = {
+    auto: true, items: [{ slug: 'lodha-camelot-kharadi', area: 'kharadi', note: 'New tower registered', until: null }],
+    updated_at: null, updated_by: null,
+    preview: [
+      { slug: 'lodha-camelot-kharadi', name: 'Lodha Camelot', area: 'Kharadi', area_slug: 'kharadi', note: 'New tower registered', fact: '42 homes booked in 90 days', source: 'MahaRERA', picked: true },
+      { slug: 'rohan-abhilasha-4-wagholi', name: 'Rohan Abhilasha 4', area: 'Wagholi', area_slug: 'wagholi', note: null, fact: '18 homes booked in 90 days', source: 'MahaRERA', picked: false },
+    ],
+  }
   const drop = (id: string) => {
     state.invite_requests = state.invite_requests.filter((x) => x.id !== id)
     state.waiting.invite_requests = state.invite_requests.length
@@ -212,6 +249,11 @@ export function createFixtureAdminApi(): AdminApi {
       drop(id)
       return { ...req, status: 'dismissed' }
     },
+    spotlight: async () => ({ ...spot }),
+    setSpotlight: async (body) => {
+      spot = { ...spot, ...body, updated_at: new Date().toISOString(), updated_by: 'owner' }
+      return { ...spot }
+    },
   }
 }
 
@@ -227,4 +269,6 @@ export const adminApi: AdminApi = {
   trialSignups: () => impl().trialSignups(),
   invite: (id) => impl().invite(id),
   dismiss: (id) => impl().dismiss(id),
+  spotlight: () => impl().spotlight(),
+  setSpotlight: (b) => impl().setSpotlight(b),
 }

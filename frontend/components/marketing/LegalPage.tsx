@@ -8,7 +8,7 @@ import MarketingShell from './MarketingShell'
 /** Shared layout for /privacy, /terms and /data-deletion. */
 export default function LegalPage({ doc, cfg }: { doc: LegalDoc; cfg: MarketingConfig }) {
   return (
-    <MarketingShell>
+    <MarketingShell hot={false}>
       <article className="mx-auto max-w-3xl px-4 py-10 sm:py-14">
         <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">{doc.title}</h1>
         <p className="mt-2 text-sm text-slate-600">

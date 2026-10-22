@@ -96,7 +96,7 @@ export default async function SharedProjectPage({ params }: Props) {
     if (listed) permanentRedirect(`/projects/${listed.slug}`)
     const facts = await getPropertyFacts({ rera: r.regno, project: r.name, locality: r.area?.name }).catch(() => null)
     return (
-      <MarketingShell>
+      <MarketingShell hot={{ area: r.area?.slug, exclude: r.slug }}>
         <RegisterProjectPage p={r} siteUrl={getMarketingConfig().siteUrl} facts={facts}
           lists={r.pune_place ? (await getFacets()).filter((f) => f.place === r.pune_place?.key && f.indexable && !f.builder) : []} />
       </MarketingShell>
@@ -122,7 +122,7 @@ export default async function SharedProjectPage({ params }: Props) {
   ]
 
   return (
-    <MarketingShell>
+    <MarketingShell hot={{ area: area?.slug, exclude: p.slug }}>
       <div className="mx-auto max-w-5xl space-y-8 px-4 py-8 sm:py-10" style={AVASETU_SITE_VARS}>
         {ld.map((x, i) => <script key={i} type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(x) }} />)}
         <nav aria-label="Breadcrumb" className="text-sm">
