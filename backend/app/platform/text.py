@@ -105,12 +105,37 @@ def sqft(n: int) -> str:
     return f"{n:,} sq ft"
 
 
+def price_label(price_inr: int, transaction: str = "sale") -> str:
+    """8500000 -> "₹85 lakh", 12500000 -> "₹1.25 crore"; rent 25000 -> "₹25,000 a month" (the posts' price words; `money` is
+    the cards')."""
+    n = int(price_inr)
+    if transaction == "rent":
+        return f"₹{n:,} a month"
+    if n >= 1_00_00_000:
+        return f"₹{_two_places(n / 1_00_00_000)} crore"
+    if n >= 1_00_000:
+        return f"₹{_two_places(n / 1_00_000)} lakh"
+    return f"₹{n:,}"
+
+
+def _two_places(x: float) -> str:
+    return f"{x:.2f}".rstrip("0").rstrip(".")
+
+
 def bhk_label(b: float) -> str:
     return f"{int(b)} BHK" if float(b).is_integer() else f"{b:g} BHK"
 
 
 # ---- Indian mobile numbers ---------------------------------------------------------------------------------------------
 _INDIAN_MOBILE = re.compile(r"^[6-9]\d{9}$")
+
+
+def phone_label(raw: str) -> str:
+    """'+919921993099' -> '+91 99219 93099'; anything else is returned trimmed."""
+    d = re.sub(r"\D", "", raw or "")
+    if len(d) == 12 and d.startswith("91"):
+        d = d[2:]
+    return f"+91 {d[:5]} {d[5:]}" if len(d) == 10 else (raw or "").strip()
 
 
 def normalize_indian_mobile(raw: str) -> str:

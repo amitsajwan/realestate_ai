@@ -4,6 +4,8 @@ Every number the copy may use is written here as the same human string the copy 
 "2 BHK"), so the no-invented-number guard accepts listing facts and still rejects anything else."""
 from typing import Any, Dict, List
 
+from app.platform.text import price_label  # noqa: F401  (moved to the platform; callers here keep this name)
+
 from .models import Brief, Voice
 
 _TYPE_LABEL = {"apartment": "flat", "villa": "villa", "house": "independent house", "plot": "plot",
@@ -12,18 +14,6 @@ _TYPE_LABEL = {"apartment": "flat", "villa": "villa", "house": "independent hous
 
 def _num(x: float) -> str:
     return f"{x:.2f}".rstrip("0").rstrip(".")
-
-
-def price_label(price_inr: int, transaction: str = "sale") -> str:
-    """8500000 -> "₹85 lakh", 12500000 -> "₹1.25 crore"; rent 25000 -> "₹25,000 a month"."""
-    n = int(price_inr)
-    if transaction == "rent":
-        return f"₹{n:,} a month"
-    if n >= 1_00_00_000:
-        return f"₹{_num(n / 1_00_00_000)} crore"
-    if n >= 1_00_000:
-        return f"₹{_num(n / 1_00_000)} lakh"
-    return f"₹{n:,}"
 
 
 def _bhk(bhk: Any) -> str:

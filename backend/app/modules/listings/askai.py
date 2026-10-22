@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from app.core.rera import SEARCH as RERA, find_all as reras
-from app.modules.creative.guards import numbers
+from app.platform.guards import numbers
 
 from .about import MAX_TEXT, _PHONE, _URL
 from .schemas import PICTURE_TYPES

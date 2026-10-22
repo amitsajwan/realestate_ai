@@ -5,7 +5,7 @@ import logging
 from typing import Any, Dict, Optional
 
 from app.core import pune_places, rera
-from app.modules.propertyfacts.registration import CANDIDATES, _words, core
+from app.core.rera import CANDIDATES, _words, core
 
 log = logging.getLogger(__name__)
 

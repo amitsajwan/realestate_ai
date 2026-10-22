@@ -36,3 +36,20 @@ def find_all(text: Optional[str]) -> List[str]:
         if v not in out:
             out.append(v)
     return out
+
+
+# ---- project names: how a listing's project is matched to a register record (propertyfacts.registration, ai_listing.register)
+CANDIDATES = 3   # same-named projects offered when a name alone cannot tell them apart
+
+
+def _words(s: str) -> str:
+    return " ".join(re.findall(r"[a-z0-9]+", (s or "").lower()))
+
+
+GENERIC = {"plots", "plot", "na", "phase", "layout", "project", "projects", "wing", "wings", "apartment", "apartments",
+           "bungalows", "villas", "row", "houses", "the", "i", "ii", "iii", "1", "2", "3", "a", "b", "c"}
+
+
+def core(s: str) -> str:
+    """The name without generic words ("Gulmohar City Plots" -> "gulmohar city"), for close matches only."""
+    return " ".join(w for w in _words(s).split() if w not in GENERIC)

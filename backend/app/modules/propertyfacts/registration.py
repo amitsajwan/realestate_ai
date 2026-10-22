@@ -15,6 +15,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Awaitable, Callable, List, Optional, Tuple
 from urllib.parse import quote
 
+from app.core.rera import CANDIDATES, GENERIC, _words, core  # noqa: F401  (moved: the AI draft matches names the same way)
 from app.modules.agentprojects.maharera import MahaReraError, parse_general
 from app.modules.newsroom.register import maharera_id
 from app.modules.newsroom.sources.maharera import PUNE_DISTRICT, SEARCH, parse_projects, parse_total
@@ -43,19 +44,6 @@ class Match:
 def search_url(name: str, district: int = PUNE_DISTRICT) -> str:
     # spaces must be %20: the site finds nothing for "gulmohar+city" (verified 2026-10-06)
     return SEARCH.format(district=district, page=1).replace("project_name=", "project_name=" + quote(name.strip(), safe=""))
-
-
-def _words(s: str) -> str:
-    return " ".join(re.findall(r"[a-z0-9]+", (s or "").lower()))
-
-
-GENERIC = {"plots", "plot", "na", "phase", "layout", "project", "projects", "wing", "wings", "apartment", "apartments",
-           "bungalows", "villas", "row", "houses", "the", "i", "ii", "iii", "1", "2", "3", "a", "b", "c"}
-
-
-def core(s: str) -> str:
-    """The name without generic words ("Gulmohar City Plots" -> "gulmohar city"), for close matches only."""
-    return " ".join(w for w in _words(s).split() if w not in GENERIC)
 
 
 def same_name(a: MahaReraProject, name: str) -> bool:
@@ -127,9 +115,6 @@ def readings(card: MahaReraProject, general: Optional[dict], fetched_at: datetim
         if moved is not None:
             out.append(r("possession_moved_months", moved, "calc"))
     return [x for x in out if x.value not in (None, "")]
-
-
-CANDIDATES = 3
 
 
 def card_of(d: dict) -> MahaReraProject:
