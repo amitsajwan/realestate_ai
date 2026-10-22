@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Deploy from Google Cloud Shell: works from a phone (shell.cloud.google.com, or the Google Cloud app > Cloud Shell), where
-# gcloud is already signed in to the project. The same steps as deploy.ps1 (deploy/ files to the VM, the images of the commit,
+# gcloud is already signed in to the project. Also runs ON THE VM itself (the console's SSH button): then it works locally,
+# without gcloud (the VM may not ask Google about itself). The same steps as deploy.ps1 (deploy/ files to the VM, the images of the commit,
 # restart via vm_update.sh), then the public health check; if it does not pass, the commit the VM ran before is put back.
 # Paste in Cloud Shell:
 #   git clone -q --filter=blob:none https://github.com/amitsajwan/realestate_ai.git 2>/dev/null; cd realestate_ai && git pull -q && bash deploy/gcp/cloudshell_deploy.sh
@@ -24,12 +25,17 @@ echo "==> Deploying $SHA ($(git log -1 --format=%s "$SHA" | cut -c1-70))"
 
 if [[ -z "${SKIP_IMAGE_CHECK:-}" ]]; then
   echo "==> Checking GitHub built its images"
-  built="$(curl -fsS "https://api.github.com/repos/$REPO/actions/workflows/images.yml/runs?head_sha=$SHA&status=success&per_page=1" | jq '.total_count')"
+  built="$(curl -fsS "https://api.github.com/repos/$REPO/actions/workflows/images.yml/runs?head_sha=$SHA&status=success&per_page=1" | jq '.total_count')" \
+    || { echo "Could not ask GitHub about the image build. Check GitHub > Actions > Build app images is green for $SHA, then run with SKIP_IMAGE_CHECK=1." >&2; exit 1; }
   [[ "$built" -ge 1 ]] || { echo "No successful image build for $SHA yet (GitHub > Actions > Build app images): wait for it, then run this again." >&2; exit 1; }
 fi
 
 G=(--project "$PROJECT" --zone "$ZONE" --quiet)
-on_vm() { gcloud compute ssh "$INSTANCE" "${G[@]}" --command "$1"; }
+ON_VM=""
+[[ "$(hostname -s)" == "$INSTANCE" ]] && ON_VM=1
+[[ -n "$ON_VM" ]] && echo "==> Running on the VM itself"
+on_vm() { if [[ -n "$ON_VM" ]]; then (cd ~ && bash -c "$1"); else gcloud compute ssh "$INSTANCE" "${G[@]}" --command "$1"; fi; }
+to_vm() { if [[ -n "$ON_VM" ]]; then cp "$1" ~/"$2"; else gcloud compute scp "${G[@]}" "$1" "$INSTANCE:$2"; fi; }
 
 # The app lives in the home of the user deploy.ps1 signs in as; Cloud Shell may sign in as another user, so find it and work
 # with sudo, then give the files back to their owner.
@@ -46,7 +52,7 @@ ship() {
   cp "$HERE/vm_update.sh" "$dir/deploy/gcp/vm_update.sh"   # a commit from before vm_update.sh existed still deploys
   tar czf "$bundle" -C "$dir" deploy
   rm -rf "$dir"
-  gcloud compute scp "${G[@]}" "$bundle" "$INSTANCE:deploy-bundle.tgz"
+  to_vm "$bundle" deploy-bundle.tgz
   rm -f "$bundle"
   on_vm "set -e; owner=\$(sudo stat -c %U $APP); sudo tar xzf ~/deploy-bundle.tgz --no-same-owner -C $APP; sudo chown -R \$owner: $APP/deploy; rm -f ~/deploy-bundle.tgz; sudo bash $APP/deploy/gcp/vm_update.sh $sha"
 }
