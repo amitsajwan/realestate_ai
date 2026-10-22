@@ -211,6 +211,8 @@ class Ctx:
         self.kind = "plot" if self.plot else "home"
         bhk = self.v.get("bhk")   # one flat is named as buyers search it ("3 BHK"); a project's many stay "homes"
         self.unit = bhk_label(float(bhk)) if bhk and not self.plot and self.v.get("listing_scope") != "layout" else self.kind
+        # the facts name the unit as the hook does, or the guard refuses the hook's BHK as a number not in the facts
+        self.unit_kind = f"{self.unit} {self.kind}" if self.unit != self.kind else self.kind
         # a project's many, named by the listed BHK when there is one: "3 BHK homes from ₹2.24 crore onwards", not "Homes"
         self.units = f"{bhk_label(float(bhk))} {self.kind}s" if bhk and not self.plot else f"{self.kind.capitalize()}s"
         self.layout = self.v.get("listing_scope") == "layout"   # a whole project: the price is a starting price
@@ -305,7 +307,7 @@ def price_reveal(c: Ctx) -> Optional[Brief]:
                        topic=f"Starting price at {c.where}", short="starting price", stat_value=price,
                        stat_label="onwards", facts=[line],   # "from ₹2.24 crore" did not fit the big number; "onwards" says it
                        tip="Ask what the price includes: development charges, stamp duty and registration.", prefer="stat")
-    line = f"A {c.sqft:,} sq ft {c.kind} at {c.where} is listed at {price}."
+    line = f"A {c.sqft:,} sq ft {c.unit_kind} at {c.where} is listed at {price}."
     c.used.add("price")
     return c.brief(angle="price_reveal", hook=f"{price} for a {c.unit} in {c.project or c.locality}", topic=f"Price of a {c.kind} at {c.where}", short=f"{c.kind} price", stat_value=price,
                    stat_label=f"for this {c.kind}", facts=[line],
@@ -610,7 +612,7 @@ def overview(c: Ctx) -> Optional[Brief]:
         sqft = f"{c.sqft:,} sq ft" if c.sqft else ""
         lead = (f"{c.unit}, {sqft}" if sqft else c.unit) if c.unit != c.kind else " ".join(w for w in ("A", sqft, c.kind) if w)
     hook = f"{lead} at {c.project or c.locality}" if (c.project or c.locality) else lead
-    facts = [f"{c.kind.capitalize()}s at {c.where} start at {price}." if c.layout else f"This {c.kind} at {c.where} is listed at {price}."] if price else []
+    facts = [f"{c.kind.capitalize()}s at {c.where} start at {price}." if c.layout else f"This {c.unit_kind} at {c.where} is listed at {price}."] if price else []
     return c.brief(angle="overview", hook=hook, topic=f"{c.where or 'This property'} at a glance", short="property overview",
                    steps=steps, facts=facts + steps, tip="Visit the site and match every detail with MahaRERA.", prefer="carousel")
 def _postable(items: Any, limit: int = 8) -> List[str]:
