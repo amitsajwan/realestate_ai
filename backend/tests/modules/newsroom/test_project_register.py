@@ -304,3 +304,12 @@ async def test_maharera_projects_fill_the_register_and_none_becomes_news():
     await run(store, site({1291: page}))
     assert await in_area(store) == 3
     assert await store.items.count_documents({"status": "relevant"}) == 0
+
+
+def test_412207_projects_sold_as_upper_kharadi_are_placed_there_and_the_rest_stay_in_wagholi():
+    # 31 Palma Drive Phase 2 and Lodha's Kharadi New Project Tower 9 were "Wagholi" by their shared pincode (2026-10-23)
+    for regno, name in (("PR1261012601574", "31 Palma Drive Phase 2"), ("PR1260002602168", "Kharadi New Project -Tower 9")):
+        assert register.locality_of(name, "412207", regno) == ("upper_kharadi", "checked by hand")
+        assert register.place_fields(name, "412207", regno)["pune_place"] == "upper_kharadi"
+    # only housing.com's area tag said Upper Kharadi: not placed
+    assert register.locality_of("PRIME ANGAN", "412207", "P52100025067") == ("wagholi", "pincode")

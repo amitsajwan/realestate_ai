@@ -156,6 +156,45 @@ VERIFIED: Dict[str, str] = {
     # Godrej Ivara: MahaRERA's card shows the promoter's Mumbai PIN (400079); portals and the builder sell it on Upper Kharadi
     # Main Road, Wagholi side (2026-10-19)
     "PR1260002502426": "upper_kharadi",
+    # 412207 projects the builder, or two or more listings, place in Upper Kharadi (Upper Kharadi Main Road, Ubale Nagar,
+    # Vitthal Nagar), read 2026-10-23 from our stored Google results and portal pages; a group's phases move together.
+    # Left in Wagholi with only housing.com's area tag or a hashtag: Prime Angan, SB Sai Sanskruti, Springshire, Ganga Pavitra.
+    "PR1260002501224": "upper_kharadi",  # 31 Palma Drive Phase 1: builder's site, housiey, punepropertyinvestor
+    "PR1261012601574": "upper_kharadi",  # 31 Palma Drive Phase 2
+    "P52100080905": "upper_kharadi",     # Saina Serenity: builder's site "located in Upper Kharadi", housing.com
+    "P52100023185": "upper_kharadi",     # Menlo Business Hub: builder's address "Nagar Road, Upper Kharadi"
+    "P52100078861": "upper_kharadi",     # iLIFE Business Zone: its own Instagram and video, "Upper Kharadi"
+    # Lodha Kharadi Pune (sold as Giardino / Estilo): JLL, HomeBazaar, PropHunt "Upper Kharadi Main Rd", Camelot's land
+    "P52100047587": "upper_kharadi",     # Phase I Tower 1 to 4
+    "P52100048326": "upper_kharadi",     # Phase I Tower 5
+    "P52100051552": "upper_kharadi",     # Phase II Tower 6
+    "P52100050123": "upper_kharadi",     # Phase II Tower 7
+    "P52100079422": "upper_kharadi",     # Phase II Tower 8
+    "P52100078396": "upper_kharadi",     # P1
+    "P52100052703": "upper_kharadi",     # P2
+    "P52100054436": "upper_kharadi",     # P3
+    # Kharadi New Project Towers 5, 6, 9: Camelot's site, so Upper Kharadi; still NOT part of Camelot (owner, 2026-10-13)
+    "PR1260002502039": "upper_kharadi",  # Tower 5
+    "PR1260002602176": "upper_kharadi",  # Tower 6
+    "PR1260002602168": "upper_kharadi",  # Tower 9
+    # VJ Yashwin Enchante and UK1321 (same promoter and land): JLL, HomeBazaar "Upper Kharadi Main Road"
+    "P52100046510": "upper_kharadi",     # Yashwin Enchante Phase 1
+    "P52100077455": "upper_kharadi",     # Yashwin Enchante Phase 2
+    "P52100049638": "upper_kharadi",     # UK1321 Inclusive Housing
+    # Majestique Towers East: most listings "Upper Kharadi Main Road, Vitthal Nagar", the builder's own video
+    "P52100015020": "upper_kharadi",     # Phase 1
+    "P52100015183": "upper_kharadi",     # Phase 2
+    "P52100028815": "upper_kharadi",     # Phase 3
+    "P52100046709": "upper_kharadi",     # Phase 5
+    "P52100053786": "upper_kharadi",     # Phase 6
+    "P52100078306": "upper_kharadi",     # Phase 7
+    "PR1260002600313": "upper_kharadi",  # Phase 8
+    "PR1260002503000": "upper_kharadi",  # Phase 9
+    # Pristine O2 World: listings "Upper Kharadi Main Road, Ubale Nagar, Wagholi"
+    "P52100054937": "upper_kharadi",     # Part 1
+    "P52100066545": "upper_kharadi",     # Part 2
+    "P52100079026": "upper_kharadi",     # Part 3
+    "P52100079395": "upper_kharadi",     # Part 4
 }
 
 BY_KEY: Dict[str, Place] = {p.key: p for p in PLACES}
