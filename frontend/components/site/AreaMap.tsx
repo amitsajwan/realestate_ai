@@ -1,12 +1,12 @@
 import React from 'react'
 import Link from 'next/link'
-import type { AreaMapData } from '@/lib/site/hubs'
+import type { AreaMapData, ListedProject } from '@/lib/site/hubs'
 import AreaMapView, { type Shown } from './AreaMapView'
 
 /** "Most active projects in <area>" on the area's street map (backend areastats/areamap.py; docs/plan/area-maps.md). Only projects
  *  whose position was checked are pinned; the rest are counted under the map. An agent-listed project links its shared page
  *  directly (its register page 301s there) and wears a gold ring. The page fetches the map (getAreaMap) and the listed slugs
- *  (getListedSlugs) with its other data; with no map, or fewer than MIN pins (`showsMap`), it shows its plain list instead. */
+ *  (getListed) with its other data; with no map, or fewer than MIN pins (`showsMap`), it shows its plain list instead. */
 const MIN = 3
 
 /** Whether an area has a map worth showing (the page then leaves out its plain "Most active" list). */
@@ -15,10 +15,11 @@ export function showsMap(data: AreaMapData | null): data is AreaMapData {
 }
 
 export default function AreaMap({ data, listed, allHref, className = 'mt-9' }:
-  { data: AreaMapData; listed: Map<string, string>; allHref?: string; className?: string }) {
+  { data: AreaMapData; listed: Map<string, ListedProject>; allHref?: string; className?: string }) {
   const items: Shown[] = data.items.map((p) => {
     const own = p.regnos.map((r) => listed.get(r)).find(Boolean)
-    return { ...p, href: `/projects/${own ?? p.slug}`, listed: Boolean(own) }
+    return own ? { ...p, href: `/projects/${own.slug}`, listed: true, price_from: own.price_min ?? p.price_from }
+      : { ...p, href: `/projects/${p.slug}`, listed: false }
   })
   return (
     <section className={className} aria-labelledby="area-map-title" data-testid="area-map">

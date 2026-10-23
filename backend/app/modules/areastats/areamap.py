@@ -140,8 +140,11 @@ async def public(db, area: Optional[str], now: Optional[datetime] = None, limit:
             continue
         seen.add(key)
         group = [by_regno[r] for r in regnos if r in by_regno and not is_old(by_regno[r])] or [d]
-        total = sum(_count(x.get("units_total")) or 0 for x in group)
-        sold = sum(booked(x) or 0 for x in group)
+        # only phases MahaRERA gives both numbers for: Majestique's older phases report no bookings, and counting their homes
+        # read "21 of 1,184 booked" (2026-10-23)
+        known = [x for x in group if booked(x) is not None and _count(x.get("units_total"))]
+        total = sum(_count(x.get("units_total")) for x in known)
+        sold = sum(booked(x) for x in known)
         prices = [p for p in (price_from(x) for x in group) if p]
         st = stage(d, now.date() if isinstance(now, datetime) else date.today())
         items.append({"n": len(items) + 1, "slug": d["page_slug"], "name": name, "builder": d.get("promoter") or None,

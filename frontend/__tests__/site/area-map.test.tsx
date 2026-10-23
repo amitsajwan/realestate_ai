@@ -1,5 +1,6 @@
 import React from 'react'
 import { fireEvent, render, screen, within } from '@testing-library/react'
+import AreaMap from '@/components/site/AreaMap'
 import AreaMapView, { pct, placeLabels, type Shown } from '@/components/site/AreaMapView'
 import type { AreaMapData } from '@/lib/site/hubs'
 
@@ -57,5 +58,16 @@ describe('area map', () => {
     expect(pct({ booked: 887, total: 941 })).toBe(94)
     expect(pct({ booked: null, total: 941 })).toBeNull()
     expect(pct({ booked: 3, total: 0 })).toBeNull()
+  })
+
+  it('an agent-listed project links its own page and quotes the from price of its listing', () => {
+    const camelot = { ...ITEMS[1], regnos: ['PR1260002501386'], href: undefined, listed: undefined, price_from: 27700000 }
+    const data = { ...DATA, items: [{ ...ITEMS[0], regnos: ['X1'] }, camelot, ITEMS[2]] as unknown as AreaMapData['items'] }
+    render(<AreaMap data={data} listed={new Map([['PR1260002501386', { slug: 'lodha-camelot', price_min: 22400000 }]])} />)
+    fireEvent.click(screen.getByRole('button', { name: /^2\. Lodha Camelot/ }))
+    const card = screen.getByTestId('area-map-card')
+    expect(card.textContent).toContain('₹2.24 Cr')
+    expect(within(card).getByRole('link', { name: 'See Lodha Camelot' })).toHaveAttribute('href', '/projects/lodha-camelot')
+    expect(within(screen.getByTestId('area-map-list')).getAllByRole('link')[0]).toHaveAttribute('href', '/projects/godrej-ivara')
   })
 })

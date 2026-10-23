@@ -11,7 +11,7 @@ import { LOCALITIES, type Locality, type LocalityTier, getLocality, localitiesBy
 import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/seo'
 import ProjectCard from '@/components/site/ProjectCard'
 import ActiveProjects from '@/components/site/ActiveProjects'
-import { getActive, getAreaMap, getListedSlugs } from '@/lib/site/hubs'
+import { getActive, getAreaMap, getListed, type ListedProject } from '@/lib/site/hubs'
 import AreaMap, { showsMap } from '@/components/site/AreaMap'
 import AreaLatest from '@/components/localities/AreaLatest'
 import AreaRecords from '@/components/localities/AreaRecords'
@@ -129,7 +129,7 @@ export default async function LocalityPage({ params }: Props) {
     l.fallback ? Promise.resolve([]) : getActive({ area: l.key }),
     l.fallback ? Promise.resolve([]) : getFacets(),
     l.fallback ? Promise.resolve(null) : getAreaMap(l.key),
-    l.fallback ? Promise.resolve(new Map<string, string>()) : getListedSlugs(),
+    l.fallback ? Promise.resolve(new Map<string, ListedProject>()) : getListed(),
   ])
   // the area's own lists (new launches, 2 BHK flats ...) and the agents' pages that still answer here
   const lists = [...siblings(facets, l.key).map((f) => ({ path: f.path, title: f.label, count: f.count })),

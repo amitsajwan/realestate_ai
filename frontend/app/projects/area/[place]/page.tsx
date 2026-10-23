@@ -17,7 +17,7 @@ import type { PlacePrices } from '@/lib/site/facets'
 import { placeAnswer, placeFaq, placeUpdated } from '@/lib/site/placeFacts'
 import { livePages } from '@/lib/site/filters'
 import { formatPrice } from '@/lib/site/format'
-import { getActive, getAreaMap, getListedSlugs } from '@/lib/site/hubs'
+import { getActive, getAreaMap, getListed } from '@/lib/site/hubs'
 import { displayName, getRegisterPlaces, longDay, getRegisterProjects, placePath, projectSummary, STAGE_LABEL, STAGE_NOTE, STAGES } from '@/lib/site/register'
 import type { RegisterListItem, RegisterPlace } from '@/lib/site/register'
 
@@ -115,7 +115,7 @@ export default async function PlaceProjectsPage({ params }: Props) {
   const { place, projects } = got
   const cfg = getMarketingConfig()
   const [active, facets, catalog, prices, map, listed] = await Promise.all([getActive({ place: place.key }), getFacets(), getCatalog().catch(() => []),
-    getPlacePrices(place.slug), getAreaMap(place.key), getListedSlugs()])
+    getPlacePrices(place.slug), getAreaMap(place.key), getListed()])
   const chips = placeChips(place, facets, livePages(catalog), getLocality(place.slug) ? `/localities/${place.slug}` : null)
   const launches = facets.some((f) => f.place === place.key && f.intent === 'new-launches' && !f.possession && !f.builder && f.indexable)
   const building = projects.filter((r) => r.active !== false && !r.sold_out).sort((a, b) => displayName(a).localeCompare(displayName(b)))

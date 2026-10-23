@@ -120,9 +120,17 @@ export async function getSpotlight(area?: string | null): Promise<SpotlightProje
 /** Registration number -> shared page slug of every project an agent lists (the register page 301s there). Kept 5 minutes like
  *  the banner itself: lib/site/api's getCatalog keeps 30 s, and a page renders as often as its shortest-lived read. */
 export async function getListedSlugs(): Promise<Map<string, string>> {
-  const r = await get<{ items: { slug: string; rera_no?: string | null; agents?: unknown[] }[] }>('/api/v1/public/projects')
+  return new Map([...(await getListed())].map(([regno, c]) => [regno, c.slug]))
+}
+
+/** The same, with the listing's lowest price: an area map's card quotes the agent's own "from" price for a listed project, as its
+ *  page and the banner do (the register's lowest asked price can differ: Camelot ₹2.77 Cr vs the listing's ₹2.24 Cr). */
+export interface ListedProject { slug: string; price_min: number | null }
+export async function getListed(): Promise<Map<string, ListedProject>> {
+  const r = await get<{ items: { slug: string; rera_no?: string | null; agents?: unknown[]; price_min?: number | null }[] }>('/api/v1/public/projects')
   const items = r.ok && Array.isArray(r.data?.items) ? r.data.items : []
-  return new Map(items.filter((c) => c.agents?.length && c.rera_no).map((c) => [c.rera_no as string, c.slug]))
+  return new Map(items.filter((c) => c.agents?.length && c.rera_no)
+    .map((c) => [c.rera_no as string, { slug: c.slug, price_min: typeof c.price_min === 'number' && c.price_min > 0 ? c.price_min : null }]))
 }
 
 export async function getNearGuide(areaSlug: string, slug: string): Promise<ActiveProject[]> {

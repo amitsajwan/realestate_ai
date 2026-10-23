@@ -43,10 +43,11 @@ async def test_only_checked_positions_make_pins_in_most_active_order_and_the_res
 
 async def test_phases_sold_under_one_name_are_one_pin_with_their_homes_added_up():
     db = await seeded(("P52100054937", "pristine-o2-world-part-1", {"hot_score": 12, "units_total": 610, "units_booked": 548}),
-                      ("P52100079026", "pristine-o2-world-part-3", {"hot_score": 12, "units_total": 612, "units_booked": 168}))
+                      ("P52100079026", "pristine-o2-world-part-3", {"hot_score": 12, "units_total": 612, "units_booked": 168}),
+                      ("P52100066545", "pristine-o2-world-part-2", {"hot_score": 12, "units_total": 408}))   # bookings not reported
     items = (await areamap.public(db, "upper_kharadi", NOW))["items"]
     assert len(items) == 1 and items[0]["name"] == "Pristine O2 World"
-    assert (items[0]["booked"], items[0]["total"]) == (716, 1222)
+    assert (items[0]["booked"], items[0]["total"]) == (716, 1222)   # a phase without a booking count is left out of both
     assert set(items[0]["regnos"]) >= {"P52100054937", "P52100079026"}
 
 
