@@ -25,16 +25,17 @@ MIN_NAME_WORDS = 2  # specific words a name needs before a story that merely con
 def locality(p: MahaReraProject) -> Optional[Tuple[str, str]]:
     """(area, how we know) for a project in our areas, else None. A project placed by hand (pune_places.VERIFIED) in one of
     our areas is there: Lodha Camelot's towers were "Wagholi" by their shared pincode on pages sold as Upper Kharadi."""
-    hand = pune_places.VERIFIED.get(p.regno)
+    return locality_of(p.name, p.pincode, p.regno)
+
+
+def locality_of(name: str, pincode: str, regno: str = "") -> Optional[Tuple[str, str]]:
+    """(area key, how we know) from a project's name and pincode, else None. A project placed by hand in one of our areas
+    (pune_places.VERIFIED) is there. An area's own pincode wins over the name (unless the name says Upper Kharadi, the finer
+    answer, or names only a locality we do not cover); on a shared pincode the name must say which of its areas; elsewhere a
+    name alone counts only near Pune city."""
+    hand = pune_places.VERIFIED.get(regno or "")
     if hand in BY_KEY:
         return hand, "checked by hand"
-    return locality_of(p.name, p.pincode)
-
-
-def locality_of(name: str, pincode: str) -> Optional[Tuple[str, str]]:
-    """(area key, how we know) from a project's name and pincode, else None. An area's own pincode wins over the name
-    (unless the name says Upper Kharadi, the finer answer, or names only a locality we do not cover); on a shared pincode the
-    name must say which of its areas; elsewhere a name alone counts only near Pune city."""
     named = named_areas(name)
     pin = (pincode or "").strip()
     by_pin = AREA_PINCODES.get(pin)

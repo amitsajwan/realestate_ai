@@ -56,7 +56,7 @@ async def watch(store: Store, item: WatchItem, source: str, now: datetime) -> bo
         if not item.maharera_id:
             return False
         # the area rules decide at once (a project found in Kharadi gets its area, and so its page slug, on day one)
-        area, how = register.locality_of(item.name, item.pincode) or (None, "watched, not in our areas")
+        area, how = register.locality_of(item.name, item.pincode, regno) or (None, "watched, not in our areas")
         await store.record_projects([{
             "regno": regno, "name": item.name or regno, "pincode": item.pincode, "locality": area,
             "locality_from": how, "source": "MahaRERA", "source_url": f"{DETAIL}{int(item.maharera_id)}",

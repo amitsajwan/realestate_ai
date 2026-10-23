@@ -49,12 +49,13 @@ async def test_a_number_is_found_by_name_and_reaches_the_register_with_its_area_
     doc = await store.db.get_collection(DISCOVERED).find_one({"_id": "PR1260002501386"})
     assert doc["status"] == "found" and doc["maharera_id"] == 66815 and doc["pincode"] == "411014"
 
-    # the watch source hands it to the register: Kharadi at once (pincode), and its own page
+    # the watch source hands it to the register: its area at once (PR1260002501386 is placed by hand in Upper Kharadi,
+    # pune_places.VERIFIED), and its own page
     watch.add_source(discover.SOURCE, lambda: discover.watch_items(store.db))
     await watch.sync(store, NOW)
     await pages.assign_all(store)
     p = await store.project("PR1260002501386")
-    assert p["locality"] == "kharadi" and p["watched_by"] == ["web_discovered"] and p["page_slug"] == "lodha-camelot-kharadi"
+    assert p["locality"] == "upper_kharadi" and p["watched_by"] == ["web_discovered"] and p["page_slug"] == "lodha-camelot-upper-kharadi"
     assert await discover.resolve(store, site({}, asked), NOW + timedelta(days=2)) == {"tried": None}   # nothing left to find
 
 
@@ -103,4 +104,4 @@ async def test_the_refresh_step_runs_discovery_before_the_watch_list():
         return None
     out = await refresh.step(store, get, fetch, NOW, pages=1, limit=1)
     assert out["discover"]["found"] == "LODHA CAMELOT" and out["watch"]["watched"] == 1
-    assert (await store.project("PR1260002501386"))["page_slug"] == "lodha-camelot-kharadi"
+    assert (await store.project("PR1260002501386"))["page_slug"] == "lodha-camelot-upper-kharadi"

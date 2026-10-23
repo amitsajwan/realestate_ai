@@ -307,6 +307,16 @@ SYSTEM = ("You write the description on a property website's page about one hous
           'Answer as JSON: {"summary": "...", "sections": [{"heading": "...", "text": "..."}], "search_summary": "..."}')
 
 
+# a section that only says there is nothing to say, or repeats the warning every page carries (2026-10-22: "No specific
+# clubhouse, amenities, or specifications are mentioned in the provided facts.", "Location: Kharadi, Pune.")
+NOTHING = re.compile(r"provided facts|not (?:mentioned|specified|available|stated)|no (?:specific|information|details)|"
+                     r"check the maharera record before you book", re.I)
+
+
+def empty_section(text: str) -> bool:
+    return bool(NOTHING.search(text)) or len(text) < 60
+
+
 def draft_of(out: Any) -> dict:
     """{text, sections, summary} from the model's answer; an answer in the first writer's shape ({"text"}) is a summary alone."""
     out = out if isinstance(out, dict) else {}
@@ -319,6 +329,7 @@ def draft_of(out: Any) -> dict:
     sections: List[dict] = []
     for sec in out.get("sections") or []:
         if isinstance(sec, dict) and sec.get("heading") in SECTIONS and tidy(sec.get("text")) \
+                and not empty_section(tidy(sec.get("text"))) \
                 and sec["heading"] not in {x["heading"] for x in sections}:
             sections.append({"heading": sec["heading"], "text": tidy(sec["text"])})
     summary = tidy(out.get("search_summary"))
@@ -543,6 +554,10 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime, reread: bool =
     if text:
         fields.update(page_text=text, page_text_at=now, page_text_version=TEXT_VERSION, page_sections=draft["sections"],
                       page_summary=draft["summary"])
+    elif doc.get("page_text") and not websearch_mentions(pages.names(doc)[0], doc["page_text"]):
+        # a kept text that does not name the project (a model's misspelling) gives way to the code-written paragraph
+        fields.update(page_text=None, page_sections=None, page_summary=None)
+        notes.append("old text dropped: it does not name the project")
     await store.set_project(doc["_id"], **fields)
     await store.db.get_collection(REQUESTS).delete_one({"_id": regno})
     return {"regno": regno, "text": bool(text), "gathered": bool(gathered), "notes": notes, "score": enrichment["score"]}

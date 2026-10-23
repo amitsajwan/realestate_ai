@@ -103,7 +103,7 @@ async def relabel(store: Store, docs: Optional[List[dict]] = None) -> int:
     """Give each record the area the current rules say (None when it is no longer ours); returns how many changed."""
     changed = 0
     for d in docs if docs is not None else await store.all_projects():
-        where = register.locality_of(d.get("name", ""), d.get("pincode", ""))
+        where = register.locality_of(d.get("name", ""), d.get("pincode", ""), d.get("regno") or d["_id"])
         area, how = (where or (None, "not in our areas"))
         place = register.place_fields(d.get("name", ""), d.get("pincode", ""), d["_id"], d.get("taluka", ""))
         if d.get("locality") != area or d.get("locality_from") != how or any(d.get(k) != v for k, v in place.items()):
