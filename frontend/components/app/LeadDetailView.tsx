@@ -18,6 +18,21 @@ import type { LeadDetail, LeadPatch, Listing, OutcomeInput, Stage } from '@/lib/
 
 type Sheet = 'won' | 'lost' | null
 
+/** The site pages named in a line ("enquired on /projects/x") open the page itself, so the owner sees what the buyer saw. */
+function PageLinks({ text }: { text: string }) {
+  return (
+    <>
+      {text.split(/(\/[^\s·()]+)/).map((part, i) =>
+        part.startsWith('/') ? (
+          <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-blue-700 underline">{part}</a>
+        ) : (
+          part
+        ),
+      )}
+    </>
+  )
+}
+
 export function LeadDetailView({ id }: { id: string }) {
   const { data, error, loading, setData } = useAsync(async () => {
     const [lead, listings, threads] = await Promise.all([api.getLead(id), api.listListings().catch(() => [] as Listing[]),
@@ -119,7 +134,7 @@ export function LeadDetailView({ id }: { id: string }) {
       </div>
       <p className="text-gray-600">{displayPhone(lead.phone)}</p>
       {contact && <p className={`rounded-xl px-3 py-2 text-sm font-semibold ${CONTACT_TONE[contact.tone]}`}>{contact.text}</p>}
-      {cameFromLine(lead) && <p className="break-words text-sm text-gray-600">{cameFromLine(lead)}</p>}
+      {cameFromLine(lead) && <p className="break-words text-sm text-gray-600"><PageLinks text={cameFromLine(lead)} /></p>}
 
       {lead.outcome && (lead.stage === 'won' || lead.stage === 'lost') && (
         <OutcomeSummary
