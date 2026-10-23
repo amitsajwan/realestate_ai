@@ -153,7 +153,8 @@ async def test_next_action_rules_in_order():
     lid = await lead_id(svc)
     assert (await svc.lead_detail("A1", lid))["next_action"]["type"] == "follow_up"  # warm, fresh, no timeline
     await svc.capture_inquiry(inquiry(listing_id=None, phone="9123456780", anon_id="anon-visitor-2", timeline="now"))
-    assert (await svc.lead_detail("A1", await lead_id(svc, idx=1)))["next_action"]["type"] == "whatsapp"
+    # buying now counts in the score (scoring.TIMELINE_POINTS): this one is hot, first in the list, and a visit beats WhatsApp options
+    assert (await svc.lead_detail("A1", await lead_id(svc, idx=0)))["next_action"]["type"] == "schedule_visit"
     clock.advance(hours=25)
     na = (await svc.lead_detail("A1", lid))["next_action"]
     assert na["type"] == "call" and "respond within a day" in na["reason"]  # beats timeline rule

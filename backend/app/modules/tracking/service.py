@@ -162,7 +162,7 @@ class TrackingService:
 
     def _view(self, c: dict, contact: Optional[dict] = None) -> dict:
         now = self.now()
-        value = scoring.score(c.get("score_base", 0), c["last_activity_at"], now)
+        value = scoring.score(c.get("score_base", 0), c["last_activity_at"], now, (c.get("requirement") or {}).get("timeline"))
         return {
             "id": c["_id"], "name": c["name"], "phone": c["phone"], "stage": c["stage"],
             "source": c.get("source"), "message": c.get("last_message") or c.get("message"),

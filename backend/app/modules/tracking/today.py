@@ -34,7 +34,7 @@ async def build_today(svc, agent_id: str) -> dict:
     listings = await svc._agent_listings(agent_id)
     rows = []
     for c in contacts:
-        value = scoring.score(c.get("score_base", 0), c["last_activity_at"], now)
+        value = scoring.score(c.get("score_base", 0), c["last_activity_at"], now, (c.get("requirement") or {}).get("timeline"))
         rows.append((c, value, scoring.temperature(value)))
     open_rows = [r for r in rows if r[0]["stage"] not in CLOSED]
 

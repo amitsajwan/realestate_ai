@@ -23,7 +23,7 @@ def blank_counts() -> dict:
 def tally_enquiry(s: dict, c: dict, now) -> None:
     """Count one lead against the listing it first enquired about (shared with the per-listing activity view)."""
     s["enquiries"] += 1
-    value = scoring.score(c.get("score_base", 0), c["last_activity_at"], now)
+    value = scoring.score(c.get("score_base", 0), c["last_activity_at"], now, (c.get("requirement") or {}).get("timeline"))
     if is_qualified(c, scoring.temperature(value)):
         s["qualified"] += 1
     if c["stage"] in VISIT_STAGES:

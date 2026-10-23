@@ -110,6 +110,7 @@ def test_the_worker_runs_the_fourteen_loops_under_the_api_lease_names():
     from app.modules.whatsapp.jobs import loop as inbound_loop
     from app.services.token_cleanup_service import loop as token_cleanup_loop
     from app.modules.reels.render_job import dispatch_loop
+    from app.modules.inbox.followups import loop as lead_followups_loop
     assert worker.loops() == {"render_dispatch": dispatch_loop, "engage": engage_loop, "newsroom": newsroom_loop, "calendar": calendar_loop,
                               "calendar_reels": calendar_reels_loop, "listing_reels": listing_reel.loop,
                               "marketing_runs": marketing_loop,
@@ -117,7 +118,7 @@ def test_the_worker_runs_the_fourteen_loops_under_the_api_lease_names():
                               "answer_gaps": gaps_loop, "inbound_messages": inbound_loop,
                               "token_cleanup": token_cleanup_loop, "radar": radar_loop,
                               "seo": seo_loop, "communities": communities_loop,
-                              "knowledge_index": knowledge_index_loop}
+                              "knowledge_index": knowledge_index_loop, "lead_followups": lead_followups_loop}
 
 
 def test_worker_roles_partition_every_loop_once():
@@ -125,7 +126,7 @@ def test_worker_roles_partition_every_loop_once():
     assigned = [name for role, names in worker.ROLE_LOOPS.items() if role != "dispatch" for name in names]
     assert sorted(assigned) == sorted(worker.ALL_LOOP_NAMES)
     assert len(assigned) == len(set(assigned))
-    assert worker.requested_loop_names("conversations") == ("engage", "answer_gaps", "inbound_messages")
+    assert worker.requested_loop_names("conversations") == ("engage", "answer_gaps", "inbound_messages", "lead_followups")
     assert worker.requested_loop_names("dispatch") == ("render_dispatch",)
     assert "render_dispatch" not in worker.ALL_LOOP_NAMES
 

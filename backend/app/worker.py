@@ -28,10 +28,10 @@ from app.platform.leases import run_as_leader
 LoopTable = Dict[str, Callable[[], Awaitable[Any]]]
 ALL_LOOP_NAMES = (
     "engage", "newsroom", "calendar", "calendar_reels", "listing_reels", "marketing_runs", "project_enrich", "insights",
-    "answer_gaps", "inbound_messages", "token_cleanup", "radar", "seo", "communities", "knowledge_index",
+    "answer_gaps", "inbound_messages", "token_cleanup", "radar", "seo", "communities", "knowledge_index", "lead_followups",
 )   # render_dispatch is not among them: only the `dispatch` role starts it (it calls Cloud Run; development has none)
 ROLE_LOOPS = {
-    "conversations": ("engage", "answer_gaps", "inbound_messages"),
+    "conversations": ("engage", "answer_gaps", "inbound_messages", "lead_followups"),
     "newsroom": ("newsroom", "seo", "communities", "project_enrich", "radar", "insights", "calendar", "token_cleanup",
                  "knowledge_index"),
     "media": ("calendar_reels", "listing_reels", "marketing_runs"),
@@ -46,6 +46,7 @@ def loops() -> LoopTable:
     from app.modules.calendar.runner import loop as calendar_loop
     from app.modules.calendar.runner import render_loop as calendar_reels_loop
     from app.modules.engage.runner import loop as engage_loop
+    from app.modules.inbox.followups import loop as lead_followups_loop
     from app.modules.insights.collector import loop as insights_loop
     from app.modules.knowledge.gaps import loop as gaps_loop
     from app.modules.knowledge.index import loop as knowledge_index_loop
@@ -63,7 +64,8 @@ def loops() -> LoopTable:
             "marketing_runs": marketing_loop, "project_enrich": enrich_loop, "insights": insights_loop,
             "answer_gaps": gaps_loop, "inbound_messages": inbound_loop, "token_cleanup": token_cleanup_loop,
             "radar": radar_loop, "seo": seo_loop,
-            "communities": communities_loop, "knowledge_index": knowledge_index_loop, "render_dispatch": dispatch_loop}
+            "communities": communities_loop, "knowledge_index": knowledge_index_loop, "render_dispatch": dispatch_loop,
+            "lead_followups": lead_followups_loop}
 
 
 def requested_loop_names(role: Optional[str] = None, value: Optional[str] = None) -> Tuple[str, ...]:
@@ -128,6 +130,7 @@ def expected_intervals() -> Dict[str, Optional[float]]:
     from app.modules.calendar.config import load as calendar_cfg
     from app.modules.calendar.runner import PRERENDER_INTERVAL_S
     from app.modules.engage.config import load as engage_cfg
+    from app.modules.inbox.followups import INTERVAL_S as LEAD_FOLLOWUPS_INTERVAL_S
     from app.modules.insights.collector import INTERVAL_S as INSIGHTS_INTERVAL_S
     from app.modules.insights.collector import enabled as insights_on
     from app.modules.knowledge.gaps import INTERVAL_S as GAPS_INTERVAL_S
@@ -163,6 +166,7 @@ def expected_intervals() -> Dict[str, Optional[float]]:
         "communities": float(COMMUNITIES_POLL_S) if communities_on() else None,  # COMMUNITY_ARTICLES_ENABLED
         "knowledge_index": float(KNOWLEDGE_INDEX_INTERVAL_S) if knowledge_index_on() else None,  # QDRANT_URL + EMBEDDER_URL
         "render_dispatch": float(DISPATCH_EVERY_S),  # always on where the dispatch role runs
+        "lead_followups": float(LEAD_FOLLOWUPS_INTERVAL_S),  # always on (waiting alerts); LEAD_AUTO_FOLLOWUP adds the auto template
     }
 
 

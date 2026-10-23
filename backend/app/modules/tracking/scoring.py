@@ -12,6 +12,9 @@ POINTS = {
 }
 LISTING_VIEW_CAP = 5  # views of one listing stop adding after this many
 REPEAT_VIEW_BONUS = 2  # extra for coming back to the same listing
+# How soon they want to buy, added at read time (2026-10-23: a "buying now" lead scored 25 = warm, below a 3-6 month one that
+# had sent the form twice)
+TIMELINE_POINTS = {"now": 20, "1_3_months": 10, "3_6_months": 5, "exploring": 0}
 HOT_AT = 35  # e.g. an enquiry plus a WhatsApp click or a couple of return visits
 WARM_AT = 15
 
@@ -33,8 +36,8 @@ def recency_factor(last_activity: datetime, now: datetime) -> float:
     return 0.4
 
 
-def score(base: int, last_activity: datetime, now: datetime) -> int:
-    return round(base * recency_factor(last_activity, now))
+def score(base: int, last_activity: datetime, now: datetime, timeline: str = None) -> int:
+    return round((base + TIMELINE_POINTS.get(timeline or "", 0)) * recency_factor(last_activity, now))
 
 
 def temperature(value: int) -> str:

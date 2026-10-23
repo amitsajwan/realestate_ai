@@ -48,7 +48,7 @@ class ReportService:
         for c in new:
             if c.get("first_listing_id"):
                 enquiries[c["first_listing_id"]] = enquiries.get(c["first_listing_id"], 0) + 1
-        qualified = sum(1 for c in new if is_qualified(c, scoring.temperature(scoring.score(c.get("score_base", 0), c["last_activity_at"], now))))
+        qualified = sum(1 for c in new if is_qualified(c, scoring.temperature(scoring.score(c.get("score_base", 0), c["last_activity_at"], now, (c.get("requirement") or {}).get("timeline")))))
         interest = [c for c in comments if c.get("intent") in ("interested", "question")]
         numbers = {
             "visitors": len(visitors), "listing_views": sum(views.values()), "new_enquiries": len(new), "qualified_enquiries": qualified,

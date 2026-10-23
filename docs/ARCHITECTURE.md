@@ -14,7 +14,8 @@ scaling boundaries.
 Production roles:
 - **web**: Next.js, stateless and suitable for CDN-backed public routes.
 - **api**: FastAPI HTTP only; `RUN_BACKGROUND_LOOPS=false` in production.
-- **conversations**: `engage`, `answer_gaps`, `inbound_messages` (Meta webhooks saved by the api, handled here).
+- **conversations**: `engage`, `answer_gaps`, `inbound_messages` (Meta webhooks saved by the api, handled here), `lead_followups`
+  (alert on leads waiting 2 h+; WhatsApp follow-up template to fresh form leads when `LEAD_AUTO_FOLLOWUP=true`).
 - **newsroom**: `newsroom`, `seo`, `communities`, `project_enrich`, `radar`, `insights`, `calendar`, `token_cleanup`.
 - **media**: `calendar_reels`, `listing_reels`, `marketing_runs`; the highest CPU and memory allowance.
 
