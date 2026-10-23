@@ -9,6 +9,7 @@ import { useAsync } from '@/lib/app/useAsync'
 import { BRAND_NAME } from '@/lib/brand'
 import { AddAgentSheet } from '../agents/AddAgentSheet'
 import { SpotlightEditor } from './SpotlightEditor'
+import { MapPinsReview } from './MapPinsReview'
 import { NavyBtn } from '../agents/InviteRequests'
 import { ProgressRing } from '../agents/ProgressRing'
 import { Btn, ErrorBox, Spinner } from '../ui'
@@ -206,6 +207,10 @@ export function AdminScreen() {
 
       <Section title="Hot projects banner" id="spotlight">
         <SpotlightEditor />
+      </Section>
+
+      <Section title="Map pins to check" id="map-pins">
+        <MapPinsReview />
       </Section>
 
       <Section title="Health" id="health">

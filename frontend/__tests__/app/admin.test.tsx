@@ -1,13 +1,14 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import React from 'react'
 import AdminPage from '@/app/studio/admin/page'
+import { MapPinsReview } from '@/components/app/admin/MapPinsReview'
 import { ApiError } from '@/lib/app/api'
 import { createAdminApi, createFixtureAdminApi, fixtureOverview, setupHints } from '@/lib/app/admin'
-import type { AdminOverview } from '@/lib/app/admin'
+import type { AdminOverview, MapPinWaiting } from '@/lib/app/admin'
 import { fixtureAgents } from '@/lib/app/concierge'
 
 const mockAdmin: Record<string, jest.Mock> = {}
-;['overview', 'setControls', 'inviteRequests', 'invite', 'dismiss'].forEach((n) => (mockAdmin[n] = jest.fn()))
+;['overview', 'setControls', 'inviteRequests', 'invite', 'dismiss', 'mapPins', 'decideMapPin'].forEach((n) => (mockAdmin[n] = jest.fn()))
 const mockCreate = jest.fn()
 
 jest.mock('next/navigation', () => ({ usePathname: () => '/studio/admin' }))
@@ -140,12 +141,40 @@ describe('Admin home', () => {
   })
 })
 
+describe('Map pins to check', () => {
+  const PIN: MapPinWaiting = {
+    regno: 'PR1', project: 'Majestique Tower East Phase-8', registered_name: 'Majestique Tower East Phase-8', promoter: 'Sharad Shree',
+    area: 'Upper Kharadi', slug: 'majestique-tower-east-phase-8', sold_as: 'Majestique Towers East', google_name: 'Majestique Towers',
+    address: 'Upper Kharadi Main Rd, Vitthal Nagar', lat: 18.55882, lon: 73.95986, why: 'shares majestique',
+    maps_url: 'https://www.google.com/maps/search/?api=1&query=18.55882,73.95986',
+  }
+
+  it('shows the place Google gave with a link to check it, and Yes or No clears it from the list', async () => {
+    mockAdmin.mapPins.mockResolvedValue([PIN, { ...PIN, regno: 'PR2', project: 'Pristine O2 World' }])
+    mockAdmin.decideMapPin.mockResolvedValue([{ ...PIN, regno: 'PR2', project: 'Pristine O2 World' }])
+    render(<MapPinsReview />)
+    const first = (await screen.findAllByTestId('map-pin'))[0]
+    expect(first.textContent).toContain('Majestique Towers')
+    expect(first.textContent).toContain('Searched as “Majestique Towers East”')
+    expect(within(first).getByRole('link', { name: 'See it on Google Maps' })).toHaveAttribute('href', PIN.maps_url)
+    fireEvent.click(within(first).getByTestId('map-pin-yes'))
+    await waitFor(() => expect(screen.getAllByTestId('map-pin')).toHaveLength(1))
+    expect(mockAdmin.decideMapPin).toHaveBeenCalledWith('PR1', true)
+  })
+
+  it('says so when nothing waits', async () => {
+    mockAdmin.mapPins.mockResolvedValue([])
+    render(<MapPinsReview />)
+    expect(await screen.findByTestId('map-pins-empty')).toHaveTextContent('Nothing to check.')
+  })
+})
+
 describe('admin client and fixtures', () => {
   it('calls the /admin endpoints with the token', async () => {
     const calls: Array<[string, RequestInit]> = []
     const fetchImpl = jest.fn(async (url: string, init: RequestInit) => {
       calls.push([url, init])
-      return { ok: true, status: 200, text: async () => (url.endsWith('/invite-requests') ? '{"items":[]}' : '{}') } as Response
+      return { ok: true, status: 200, text: async () => (url.endsWith('/invite-requests') || url.includes('/map-pins') ? '{"items":[]}' : '{}') } as Response
     }) as unknown as typeof fetch
     const api = createAdminApi({ getToken: () => 'T', baseUrl: 'https://b', fetchImpl })
     await api.overview()
@@ -153,10 +182,14 @@ describe('admin client and fixtures', () => {
     await api.inviteRequests()
     await api.invite('r 1')
     await api.dismiss('r1')
+    await api.mapPins()
+    await api.decideMapPin('PR1', false)
     expect(calls.map(([u, i]) => `${i.method} ${u}`)).toEqual([
       'GET https://b/api/v1/admin/overview', 'POST https://b/api/v1/admin/controls', 'GET https://b/api/v1/admin/invite-requests',
       'POST https://b/api/v1/admin/invite-requests/r%201/invite', 'POST https://b/api/v1/admin/invite-requests/r1/dismiss',
+      'GET https://b/api/v1/admin/map-pins', 'POST https://b/api/v1/admin/map-pins/PR1',
     ])
+    expect(calls[6][1].body).toBe('{"approve":false}')
     expect(calls[1][1].body).toBe('{"comments_paused":true}')
     expect((calls[0][1].headers as Record<string, string>).Authorization).toBe('Bearer T')
   })

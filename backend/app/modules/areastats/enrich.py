@@ -37,7 +37,7 @@ import os
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Any, Awaitable, Callable, Dict, List, Optional
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple
 
 from app.core.areas import BY_KEY
 from app.modules.agentprojects import maharera as project_api
@@ -93,6 +93,16 @@ PincodeCentre = Callable[..., Awaitable[Optional[tuple]]]   # centre(db, pincode
 SheetOf = Callable[..., Awaitable[Optional[dict]]]          # sheet(db, regno) -> the kept property-facts document or None
 _deps: Dict[str, Any] = {"gather": None, "pincode_centre": None, "sheet": None,
                          "general": project_api.make_fetch(), "buildings": project_api.make_fetch_buildings()}
+
+
+# fn(store, now): a pass run on every turn of the loop that keeps its own pace (the area maps' pins, areastats.mappins); added
+# by wiring.py, since those modules sit on top of this one (mappins -> areamap -> hubs -> enrich)
+Daily = Callable[[Store, datetime], Awaitable[Any]]
+_daily: List[Tuple[str, Daily]] = []
+
+
+def add_daily(name: str, fn: Daily) -> None:
+    _daily.append((name, fn))
 
 
 def configure(gather: Optional[Gather] = None, pincode_centre: Optional[PincodeCentre] = None, sheet: Optional[SheetOf] = None,
@@ -714,6 +724,11 @@ async def loop() -> None:
                             log.info("enrich: hot projects %s", scored)
                     except Exception:
                         log.exception("enrich: hot projects scoring failed")
+                    for name, daily in _daily:   # passes other parts of areastats add (each keeps its own once-a-day mark)
+                        try:
+                            await daily(Store(get_database()), now)
+                        except Exception:
+                            log.exception("enrich: %s round failed", name)
                     llm = default_llm()
                     out = await step(Store(get_database()), llm, now, last_regular, cfg.every)
                     if out:   # enrich_one logged it (pipeline=enrich)

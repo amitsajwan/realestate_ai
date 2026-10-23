@@ -96,6 +96,17 @@ export interface SpotlightConfig {
   preview: SpotlightEntry[]
 }
 
+/** A pin for an area map the daily round was not sure of (backend areastats/mappins.py): the owner says yes or no. */
+export interface MapPinWaiting {
+  regno: string; project: string; registered_name: string | null; promoter: string | null; area: string | null; slug: string | null
+  /** the name the project is sold under that Google was asked for */
+  sold_as: string | null
+  google_name: string | null; address: string | null; lat: number; lon: number
+  /** why it is in doubt ("shares 'majestique' with 'Majestique Towers East'") */
+  why: string | null
+  maps_url: string
+}
+
 export interface AdminApi {
   overview(): Promise<AdminOverview>
   setControls(changes: Partial<Record<ControlFlag, boolean>>): Promise<AdminControls>
@@ -105,6 +116,8 @@ export interface AdminApi {
   dismiss(id: string): Promise<InviteRequest>
   spotlight(): Promise<SpotlightConfig>
   setSpotlight(body: { auto: boolean; items: SpotlightPick[] }): Promise<SpotlightConfig>
+  mapPins(): Promise<MapPinWaiting[]>
+  decideMapPin(regno: string, approve: boolean): Promise<MapPinWaiting[]>
 }
 
 /** What each pause switch does, in plain words (shown on the switch and in its confirmation). */
@@ -174,6 +187,9 @@ export function createAdminApi(opts: { getToken: () => string | null; baseUrl?: 
     dismiss: (id) => request<InviteRequest>(`${r(id)}/dismiss`, { method: 'POST' }),
     spotlight: () => request<SpotlightConfig>('/spotlight'),
     setSpotlight: (body) => request<SpotlightConfig>('/spotlight', { method: 'PUT', json: body }),
+    mapPins: async () => (await request<{ items: MapPinWaiting[] }>('/map-pins')).items ?? [],
+    decideMapPin: async (regno, approve) =>
+      (await request<{ items: MapPinWaiting[] }>(`/map-pins/${encodeURIComponent(regno)}`, { method: 'POST', json: { approve } })).items ?? [],
   }
 }
 
@@ -222,6 +238,13 @@ export function createFixtureAdminApi(): AdminApi {
       { slug: 'rohan-abhilasha-4-wagholi', name: 'Rohan Abhilasha 4', area: 'Wagholi', area_slug: 'wagholi', note: null, fact: '18 homes booked in 90 days', source: 'MahaRERA', picked: false },
     ],
   }
+  let pins: MapPinWaiting[] = [{
+    regno: 'PR1260002600313', project: 'Majestique Tower East Phase-8', registered_name: 'Majestique Tower East Phase-8',
+    promoter: 'Sharad Shree Enterprises', area: 'Upper Kharadi', slug: 'majestique-tower-east-phase-8', sold_as: 'Majestique Towers East',
+    google_name: 'Majestique Towers', address: 'Gat No. 1284B, Upper Kharadi Main Rd, Vitthal Nagar, Kharadi, Pune 412207',
+    lat: 18.55882, lon: 73.95986, why: "Google Maps: Majestique Towers (shares 'majestique' with 'Majestique Towers East')",
+    maps_url: 'https://www.google.com/maps/search/?api=1&query=18.55882,73.95986',
+  }]
   const drop = (id: string) => {
     state.invite_requests = state.invite_requests.filter((x) => x.id !== id)
     state.waiting.invite_requests = state.invite_requests.length
@@ -254,6 +277,11 @@ export function createFixtureAdminApi(): AdminApi {
       spot = { ...spot, ...body, updated_at: new Date().toISOString(), updated_by: 'owner' }
       return { ...spot }
     },
+    mapPins: async () => [...pins],
+    decideMapPin: async (regno) => {
+      pins = pins.filter((x) => x.regno !== regno)
+      return [...pins]
+    },
   }
 }
 
@@ -271,4 +299,6 @@ export const adminApi: AdminApi = {
   dismiss: (id) => impl().dismiss(id),
   spotlight: () => impl().spotlight(),
   setSpotlight: (b) => impl().setSpotlight(b),
+  mapPins: () => impl().mapPins(),
+  decideMapPin: (regno, approve) => impl().decideMapPin(regno, approve),
 }

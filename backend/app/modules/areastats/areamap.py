@@ -70,6 +70,10 @@ MAPS: Dict[str, AreaMap] = {
             Pin("Gera's Avive Towers", 18.54002, 73.98640, ("PR1261012500289",), _UK + ": \"Gera's Avive Towers, Kharadi Annex\""),
             Pin("Saina Serenity", 18.56778, 73.95501, ("P52100080905",), _UK + ": 'Saina Serenity, Upper Kharadi Main Rd'"),
         )),
+    # boxes from where the area's projects with a checked Google place sit (5th to 95th percentile, 2026-10-23), made square;
+    # their pins come from the daily round (mappins) and the owner's yes in Studio, none by hand yet
+    "wagholi": AreaMap(key="wagholi", picture="/maps/wagholi.svg", box=(18.541, 73.952, 18.609, 74.024), pins=()),
+    "kharadi": AreaMap(key="kharadi", picture="/maps/kharadi.svg", box=(18.5275, 73.904, 18.5795, 73.959), pins=()),
 }
 
 ATTRIBUTION = "Map data © OpenStreetMap contributors"
@@ -117,6 +121,35 @@ def _homes(d: dict) -> bool:
     return "commercial" not in str(d.get("project_type") or "").lower()
 
 
+def ranked(docs: List[dict], key: str, now: datetime) -> List[dict]:
+    """An area's live project pages, homes only, most active first (as hubs.active: the page doctor's link slots, then hot score,
+    then Google impressions). `docs` are page primaries."""
+    live = [d for d in docs if d.get("locality") == key and indexable(d) and not is_old(d) and _homes(d)]
+    return sorted(live, key=lambda d: (not _slot(d, now), -(d.get("hot_score") or 0), -int(d.get("gsc_impressions") or 0),
+                                       d.get("name", "")))
+
+
+def hand_pinned(m: AreaMap, d: dict) -> Optional[Pin]:
+    regno = d.get("regno") or d["_id"]
+    return next((p for p in m.pins if regno in p.regnos), None)
+
+
+def resolve(m: AreaMap, d: dict) -> Optional[Tuple[str, str, float, float]]:
+    """(group key, name on the map, lat, lon) from a checked position, else None. Order: a pin checked by hand, the pin the
+    daily round found by the name it is sold under (mappins: `auto`, or `approved` by the owner; never `doubtful`), the
+    project's own Google place from enrichment. Phases on the same Google place share a key, so they are one pin."""
+    pin = hand_pinned(m, d)
+    if pin is not None:
+        return "hand:" + pin.name, pin.name, pin.lat, pin.lon
+    mp = d.get("map_pin") or {}
+    if mp.get("status") in ("auto", "approved") and mp.get("lat") is not None and mp.get("lon") is not None:
+        return "place:" + str(mp.get("place_id")), mp.get("name") or link_name(d), float(mp["lat"]), float(mp["lon"])
+    g = _google(d)
+    if g is not None:
+        return "geo:" + (d.get("regno") or d["_id"]), link_name(d), g[0], g[1]
+    return None
+
+
 async def public(db, area: Optional[str], now: Optional[datetime] = None, limit: int = LIMIT) -> Optional[dict]:
     m = area_of(area)
     if m is None:
@@ -124,28 +157,34 @@ async def public(db, area: Optional[str], now: Optional[datetime] = None, limit:
     now = now or datetime.now(timezone.utc)
     every = await Store(db).shared_projects()
     by_regno = {d.get("regno") or d["_id"]: d for d in every if _served(d)}
-    live = [d for d in _primaries(every) if d.get("locality") == m.key and indexable(d) and not is_old(d) and _homes(d)]
-    live.sort(key=lambda d: (not _slot(d, now), -(d.get("hot_score") or 0), -int(d.get("gsc_impressions") or 0), d.get("name", "")))
-    pin_of = {r: p for p in m.pins for r in p.regnos}
+    towers: Dict[str, List[dict]] = {}
+    for x in every:
+        if x.get("cluster_primary"):
+            towers.setdefault(x["cluster_primary"], []).append(x)
+    groups: Dict[str, dict] = {}      # key -> {name, lat, lon, docs}, in most-active order of their first record
+    left = 0
+    for d in ranked(_primaries(every), m.key, now):
+        got = resolve(m, d)
+        if got is None or xy(m, got[2], got[3]) is None:
+            left += 1
+            continue
+        # one pin per name, the one checked by hand first: Lodha's Towers 5/6/9 page is also called "Lodha Camelot" (kept apart by
+        # the owner) and ranks above it
+        same = next((k for k, x in groups.items() if k != got[0] and x["name"].lower() == got[1].lower()), None)
+        if same is not None:
+            if not (got[0].startswith("hand:") and not same.startswith("hand:")):
+                continue
+            groups = {(got[0] if k == same else k): ({"name": got[1], "lat": got[2], "lon": got[3], "docs": []} if k == same else x)
+                      for k, x in groups.items()}   # takes the other's place in the order
+        g = groups.setdefault(got[0], {"name": got[1], "lat": got[2], "lon": got[3], "docs": []})
+        g["docs"].append(d)
     items: List[dict] = []
-    seen, left = set(), []
-    for d in live:
-        regno = d.get("regno") or d["_id"]
-        pin = pin_of.get(regno)
-        if pin is not None:
-            key, name, lat, lon, regnos = pin.name, pin.name, pin.lat, pin.lon, list(pin.regnos)
-        elif (g := _google(d)) is not None:
-            key, name, (lat, lon), regnos = regno, link_name(d), g, [regno]
-        else:
-            left.append(link_name(d))
-            continue
-        at = xy(m, lat, lon)
-        if key in seen or at is None or len(items) >= limit:
-            if key not in seen and at is None:
-                left.append(name)
-            continue
-        seen.add(key)
-        group = [by_regno[r] for r in regnos if r in by_regno and not is_old(by_regno[r])] or [d]
+    for key, g in list(groups.items())[:limit]:
+        d = g["docs"][0]
+        pin = hand_pinned(m, d)
+        members = ([by_regno[r] for r in pin.regnos if r in by_regno] if pin else
+                   [x for doc in g["docs"] for x in [doc, *towers.get(doc["_id"], [])]])
+        group = [x for x in members if not is_old(x)] or [d]
         # only phases whose bookings MahaRERA really reports: Majestique Towers East Phase 3 (registered 2021, due Oct 2026) shows
         # 0 booked, i.e. none filed, and counting such phases read "21 of 1,184 booked" (2026-10-23). A 0 from a launch under a
         # year old can be true.
@@ -153,14 +192,14 @@ async def public(db, area: Optional[str], now: Optional[datetime] = None, limit:
         total = sum(_count(x.get("units_total")) for x in known)
         sold = sum(booked(x) for x in known)
         prices = [p for p in (price_from(x) for x in group) if p]
-        st = stage(d, now.date() if isinstance(now, datetime) else date.today())
-        items.append({"n": len(items) + 1, "slug": d["page_slug"], "name": name, "builder": d.get("promoter") or None,
-                      "regnos": regnos, "lat": lat, "lon": lon, "x": at[0], "y": at[1],
+        st = stage(d, now.date())
+        at = xy(m, g["lat"], g["lon"])
+        items.append({"n": len(items) + 1, "slug": d["page_slug"], "name": g["name"], "builder": d.get("promoter") or None,
+                      "regnos": [x.get("regno") or x["_id"] for x in group], "lat": g["lat"], "lon": g["lon"], "x": at[0], "y": at[1],
                       "stage": st, "stage_label": STAGES.get(st or "", "Being built"),
                       "booked": sold if total else None, "total": total or None,
                       "completion": _day(d.get("completion_now")), "price_from": min(prices) if prices else None,
                       "photo": _photo(group)})
     a = BY_KEY[m.key]
-    names_left = list(dict.fromkeys(n for n in left if n not in seen))
     return {"area": m.key, "area_slug": a.slug, "name": a.name, "map": m.picture, "box": list(m.box), "attribution": ATTRIBUTION,
-            "items": items, "left_out": len(names_left)}
+            "items": items, "left_out": left}

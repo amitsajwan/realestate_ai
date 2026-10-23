@@ -71,3 +71,12 @@ async def test_a_phase_years_old_showing_0_booked_is_unreported_not_empty():
                                                                           "completion_now": "2026-10-30", "units_total": 184, "units_booked": 0}))
     m = (await areamap.public(db, "upper_kharadi", NOW))["items"][0]
     assert (m["name"], m["booked"], m["total"]) == ("Majestique Towers East", 21, 192)
+
+
+async def test_a_second_page_with_the_same_name_is_not_a_second_pin_and_adds_nothing_to_the_first():
+    # Lodha's Towers 5/6/9 page is called "Lodha Camelot" too; the daily round found Camelot's own place for it
+    db = await seeded(("PR1260002501386", "lodha-camelot", {"hot_score": 10, "units_total": 88, "units_booked": 45}),
+                      ("PR1260002502039", "kharadi-new-project-tower-5", {"hot_score": 14, "units_total": 4, "units_booked": 0,
+                       "map_pin": {"status": "auto", "name": "Lodha Camelot", "place_id": "camelot", "lat": 18.5676, "lon": 73.9683}}))
+    items = (await areamap.public(db, "upper_kharadi", NOW))["items"]
+    assert [(i["name"], i["booked"], i["total"]) for i in items] == [("Lodha Camelot", 45, 88)]

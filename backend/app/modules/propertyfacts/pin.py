@@ -131,6 +131,25 @@ class Pins:
         except ValueError:
             return None
 
+    async def search(self, query: str, centre: Optional[tuple] = None, radius_m: float = BIAS_M) -> Optional[List[dict]]:
+        """Google's candidates for a free query near a centre, unjudged: [{name, address, lat, lon, place_id, types}]. The area
+        maps (areastats.mappins) judge them by the name a project is sold under. None without a key or when Google did not answer."""
+        if not self.key or not (query or "").strip():
+            return None
+        body: dict = {"textQuery": query, "regionCode": "IN", "pageSize": 5}
+        if centre:
+            body["locationBias"] = {"circle": {"center": {"latitude": centre[0], "longitude": centre[1]}, "radius": radius_m}}
+        got = await self._call("POST", SEARCH, SEARCH_FIELDS, body)
+        if got is None:
+            return None
+        out = []
+        for c in got.get("places") or []:
+            loc = c.get("location") or {}
+            if isinstance(loc.get("latitude"), (int, float)) and isinstance(loc.get("longitude"), (int, float)) and c.get("id"):
+                out.append({"name": ((c.get("displayName") or {}).get("text") or "").strip(), "address": c.get("formattedAddress") or "",
+                            "lat": loc["latitude"], "lon": loc["longitude"], "place_id": c["id"], "types": list(c.get("types") or [])})
+        return out
+
     async def find(self, key: str, project: str, locality: str, pincode: str = "", centre: Optional[tuple] = None,
                    now: Optional[datetime] = None) -> tuple:
         """(Pin or None, a plain note on how it was found or why not)."""

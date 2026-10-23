@@ -161,3 +161,30 @@ async def put_spotlight(body: SpotlightIn, user: User = Depends(owner_only), svc
     except spotlight.SpotlightError as e:
         raise HTTPException(400, str(e))
     return {**cfg, "preview": await spotlight.public(svc.db)}
+
+
+# ---- pins for the area maps waiting for the owner (areastats/mappins.py) ----------------------------------------------------
+from app.modules.areastats import mappins  # noqa: E402
+
+
+class MapPinDecisionIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    approve: bool
+
+
+@router.get("/map-pins")
+async def get_map_pins(user: User = Depends(owner_only), svc: AdminService = Depends(get_service)) -> dict:
+    """Pins the daily round was not sure of: the project, the Google place, why it is in doubt and a Google Maps link."""
+    return {"items": await mappins.doubtful(svc.db)}
+
+
+@router.post("/map-pins/{regno}")
+async def decide_map_pin(regno: str, body: MapPinDecisionIn, user: User = Depends(owner_only),
+                         svc: AdminService = Depends(get_service)) -> dict:
+    """Approve (on the map at once) or reject (never offered again for this project; the next round looks for another place)."""
+    limiter.check(str(user.id), "admin-map-pins", 60, 60.0)
+    try:
+        await mappins.decide(svc.db, regno, body.approve, str(user.id), svc.now())
+    except mappins.PinError as e:
+        raise HTTPException(404, str(e))
+    return {"items": await mappins.doubtful(svc.db)}

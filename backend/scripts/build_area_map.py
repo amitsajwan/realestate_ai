@@ -34,13 +34,22 @@ ROADS = {"motorway": (13, 10), "trunk": (13, 10), "primary": (12, 9), "secondary
 # where OSM files it as a smaller road: Upper Kharadi Main Rd is "tertiary")
 LABELS = {"upper_kharadi": {"Nagar Road": "Pune–Nagar Road", "Upper Kharadi Main Rd": "Upper Kharadi Main Road",
                             "Manjari - Wagholi Road": "Manjari–Wagholi Road", "Lohgaon - Wagholi Road": "Lohegaon–Wagholi Road",
-                            "Kharadi South Main Road": "Kharadi South Main Road"}}
-SPINE = {"upper_kharadi": ("Upper Kharadi Main Rd",)}
+                            "Kharadi South Main Road": "Kharadi South Main Road"},
+          "wagholi": {"Nagar Road": "Pune–Nagar Road", "Manjari - Wagholi Road": "Manjari–Wagholi Road",
+                      "Lohgaon - Wagholi Road": "Lohegaon–Wagholi Road", "Bakori Road": "Bakori Road",
+                      "Upper Kharadi Main Rd": "Upper Kharadi Main Road"},
+          "kharadi": {"Nagar Road": "Pune–Nagar Road", "Kharadi Bypass": "Kharadi Bypass", "Mundhwa Road": "Mundhwa Road",
+                      "Kharadi South Main Road": "Kharadi South Main Road", "Viman Nagar Road": "Viman Nagar Road"}}
+SPINE = {"upper_kharadi": ("Upper Kharadi Main Rd",), "wagholi": ("Upper Kharadi Main Rd",), "kharadi": ("Kharadi Bypass",)}
 # the area's own place names and landmarks: (text, lat, lon, kind)
 PLACES = {
     "upper_kharadi": [("KHARADI", 18.5585, 73.9455, "area"), ("WAGHOLI", 18.5810, 73.9880, "area"),
                       ("MANJARI", 18.5365, 73.9700, "area"), ("EON IT Park", 18.5520, 73.9508, "landmark"),
                       ("← Viman Nagar, Phoenix Marketcity", 18.5640, 73.9400, "edge")],
+    "wagholi": [("WAGHOLI", 18.5860, 73.9930, "area"), ("UPPER KHARADI", 18.5640, 73.9690, "area"),
+                ("← Kharadi", 18.5560, 73.9520, "edge")],
+    "kharadi": [("KHARADI", 18.5530, 73.9370, "area"), ("VIMAN NAGAR", 18.5700, 73.9120, "area"), ("MUNDHWA", 18.5395, 73.9150, "area"),
+                ("EON IT Park", 18.5520, 73.9508, "landmark"), ("Phoenix Marketcity", 18.5622, 73.9167, "landmark")],
 }
 LAND, PARK, WATER, ROAD, CASING, TEXT = "#f3eddf", "#e1e9d6", "#c7dcea", "#ffffff", "#e2d4b2", "#6b6250"
 

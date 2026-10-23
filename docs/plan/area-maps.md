@@ -2,7 +2,7 @@
 
 Owner, 2026-10-23: on the Upper Kharadi page, show a map of the area with only its most active projects on it.
 
-## What a buyer sees (LIVE for Upper Kharadi)
+## What a buyer sees (LIVE: Upper Kharadi; Wagholi and Kharadi as their pins come in)
 
 - On the area's buyer guide (`/localities/<area>`, right after the intro) and on its project list (`/projects/area/<area>`, in place
   of the plain "Most active" list): a street map with up to 10 numbered pins, the picked project's card (photo, price from,
@@ -15,10 +15,10 @@ Owner, 2026-10-23: on the Upper Kharadi page, show a map of the area with only i
 
 ## Rules
 
-- **Only checked positions.** A pin is a Google Maps place found for the name the project is sold under and checked by hand
-  against the builder's or the listings' address (`areastats/areamap.py`, `MAPS[area].pins`, each with how it was checked), or
-  the project's own Google place from enrichment (`geo.located_from == "google"`, places check passed). Never the locality's
-  centre (28 of 39 Upper Kharadi records sat on that one point) and never a sales gallery.
+- **Only checked positions**, in this order: a pin checked by hand (`areastats/areamap.py`, `MAPS[area].pins`, each with how it
+  was checked); a pin the daily round found by the name the project is sold under (`map_pin`, `auto` or `approved`); the
+  project's own Google place from enrichment (`geo.located_from == "google"`, places check passed). Never the locality's centre
+  (28 of 39 Upper Kharadi records sat on that one point), never a sales gallery or office, never a `doubtful` pin.
 - One pin per name sold: phases and towers are one pin with their homes added up (Pristine O2 World Part 1 to 4).
 - Ranking is "most active" as on every page (`hubs.active`: doctor's link slots, hot score, Google impressions). Homes only.
 - No prices on pins, no area boundary (nobody agrees on one), no embedded Google map (fees per view, slower, every portal's look).
@@ -32,10 +32,29 @@ Owner, 2026-10-23: on the Upper Kharadi page, show a map of the area with only i
 - Data: `GET /api/v1/public/register/map?area=` (`areamap.public`), 404 for an area without a drawn map.
 - Page: `components/site/AreaMap.tsx` (section) + `AreaMapView.tsx` (pins, card, list; `placeLabels` decides the labels).
 
+## Pins by themselves (LIVE)
+
+`areastats/mappins.py`, once a day inside the enrichment loop (registered through wiring.py: `enrich.add_daily`):
+- takes the 25 most active projects of each mapped area that have no checked position, and asks Google Places for the names they
+  are sold under (`names_for`: owner's override, group name, search name, marketed name, each also without its "Phase 8" /
+  "Tower 5"; a name with nothing distinctive left, like "Kharadi New Project", is never searched); at most 40 searches a day;
+- `auto` when Google's place carries every distinctive word of a sold-under name, is inside the map and is not a gallery, office
+  or shop; `doubtful` when it shares a distinctive word (not the builder's) but not all; else nothing, tried again in 90 days;
+- doubtful pins wait in Studio > Admin > **Map pins to check** with a Google Maps link: Yes puts the pin on the map at once; No
+  puts the place on the project's `refused` list and the next round looks for another.
+
+## Areas
+
+| Area | Map | Pins |
+|---|---|---|
+| Upper Kharadi | LIVE | 10 by hand, the rest by the daily round |
+| Wagholi | LIVE (drawn 2026-10-23) | daily round + Studio |
+| Kharadi | LIVE (drawn 2026-10-23) | daily round + Studio |
+| Lohegaon | TARGET: Overpass was at capacity on 2026-10-23; run the script when it answers | |
+
+A map shows on the area's pages once it has 3 pins (`showsMap`); until then the page keeps its plain list.
+
 ## Next (TARGET)
 
-- Kharadi, Wagholi, Lohegaon: draw the map, then check pins for their active projects (Google place by marketed name, by hand).
-- A pin step in enrichment that searches the marketed name (`marketed_name_override`, group name) instead of MahaRERA's working
-  name ("Kharadi Pune Phase I"), so hand checks are only for the doubtful ones.
 - Lodha Kharadi New Project Towers 5/6/9 are named "Lodha Camelot" on their page (search name) though the owner kept them out of
   Camelot (2026-10-13): not pinned until that is settled.

@@ -50,6 +50,10 @@ def wire() -> None:
     from app.modules.areastats import enrich as project_enrich
     project_enrich.configure(gather=_gather_project, sheet=_project_sheet, pincode_centre=_pincode_centre)
     register_watch.add_source("property_facts", _property_facts_watch)  # every project we gathered facts for to market it
+    # area maps: pins found by the name a project is sold under (areastats.mappins), through propertyfacts' Google Places client
+    from app.modules.areastats import mappins
+    mappins.configure(search=_places_search)
+    project_enrich.add_daily("map pins", mappins.refresh)
     # hot projects (areastats.hot): outside signals beyond MahaRERA, news and Search Console; YouTube is on with YOUTUBE_API_KEY
     from app.modules.areastats import hot as hot_projects
     hot_projects.add_signal("youtube", hot_projects.youtube_signal())
@@ -152,6 +156,14 @@ async def _project_sheet(db, regno):
     from app.modules.propertyfacts.store import FactsStore
 
     return await FactsStore(db).find(regno)
+
+
+async def _places_search(db, query, centre):
+    """Google Places Text Search candidates near a centre, unjudged (propertyfacts.pin.Pins.search); None without a key."""
+    from app.core.config import settings
+    from app.modules.propertyfacts.pin import Pins
+
+    return await Pins(db, settings.google_maps_api_key).search(query, centre)
 
 
 async def _pincode_centre(db, pincode):
