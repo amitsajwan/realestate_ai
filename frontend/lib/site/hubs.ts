@@ -152,3 +152,24 @@ export async function getBuilder(slug: string): Promise<BuilderPage | { redirect
   if (r.notFound) return null
   throw new Error('Builder data is temporarily unavailable')
 }
+
+/** An upcoming project MahaRERA has not registered yet (backend areastats/upcoming.py): no prices; facts carry their source. */
+export interface UpcomingProject {
+  slug: string; name: string; builder: string; area: string; area_name: string; area_slug: string; address: string
+  summary: string; note: string; registered: false; updated_at: string | null
+  facts: { label: string; value: string; source: string; to_confirm: boolean }[]
+  homes: { bhk: number; carpet_sqft: string; source: string; to_confirm: boolean }[]
+  highlights: string[]; amenities: string[]
+  nearby: { name: string; km: number | null; source: string }[]
+  pictures: { url: string; caption: string; illustrative: boolean }[]
+  sources: { name: string; url: string; read_on: string }[]
+}
+
+/** null when there is no such live upcoming project; throws on any other failure so the page shows its error, not a 404. */
+export async function getUpcoming(slug: string): Promise<UpcomingProject | null> {
+  if (!SLUG.test(slug)) return null
+  const r = await get<UpcomingProject>('/api/v1/public/register/upcoming/' + slug)
+  if (r.ok) return r.data
+  if (r.notFound) return null
+  throw new Error('upcoming project ' + slug + ' could not be read')
+}

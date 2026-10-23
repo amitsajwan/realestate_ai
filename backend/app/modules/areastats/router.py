@@ -150,3 +150,17 @@ async def public_spotlight(response: Response, area: Optional[str] = None, db=De
     """The banner for a page (on an area's pages, that area first): [{slug, name, area, area_slug, note, fact, source, picked}]."""
     response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
     return await spotlight.public(db, area=area)
+
+
+# ---- an upcoming project MahaRERA has not registered yet (upcoming.py): its own noindex page --------------------------------------
+from . import upcoming  # noqa: E402
+
+
+@public_router.get("/register/upcoming/{slug}")
+async def public_upcoming(slug: str, response: Response, db=Depends(get_db)) -> dict:
+    """An upcoming project's page: facts with their sources, no prices; 404 unless it is live."""
+    u = await upcoming.get(db, slug)
+    if not u:
+        raise HTTPException(status_code=404, detail="Upcoming project not found")
+    response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
+    return u

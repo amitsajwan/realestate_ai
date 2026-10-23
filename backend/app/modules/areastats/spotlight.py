@@ -11,6 +11,9 @@ link to a 404 or a noindex page. Each entry carries the owner's note, else one s
 - public(db, area, now): the strip for one page: [{slug, name, area, area_slug, regnos, note, fact, source, picked}]. `regnos` are
   the registrations the page stands for (its towers too), so the site can link an agent-listed project's own page directly
   instead of through its 301.
+
+The owner may also pick an upcoming project MahaRERA has not registered yet (upcoming.py), as slug "upcoming/<slug>": its page is
+/projects/upcoming/<slug>, noindex, and its fact says it is not registered. Never filled in by `auto`.
 """
 from datetime import date, datetime, timezone
 from typing import Dict, List, Optional
@@ -18,7 +21,7 @@ from typing import Dict, List, Optional
 from app.core.areas import BY_KEY
 from app.modules.newsroom.store import Store
 
-from . import hot
+from . import hot, upcoming
 from .hubs import _primaries, fact_line, link_name
 from .pages import indexable, is_old
 
@@ -67,9 +70,12 @@ async def set_config(db, body: Dict, by: str, now: datetime) -> Dict:
         slug = str(it.get("slug") or "").strip().strip("/").removeprefix("projects/")
         if not slug or slug in seen:
             continue
-        if slug not in pages:
+        if slug.startswith(upcoming.PREFIX):
+            if not await upcoming.get(db, slug.removeprefix(upcoming.PREFIX)):
+                raise SpotlightError(f"No upcoming project page /projects/{slug}")
+        elif slug not in pages:
             raise SpotlightError(f"No project page /projects/{slug}")
-        if not indexable(pages[slug]):
+        elif not indexable(pages[slug]):
             raise SpotlightError(f"/projects/{slug} is not in search yet (no filed completion date or promoter): it cannot be shown")
         area = it.get("area") or None
         if area and area_key(area) is None:
@@ -92,6 +98,12 @@ def _entry(d: dict, now: datetime, regnos: List[str], note: str = "", picked: bo
             "regnos": regnos, "note": note or None, **fact_line(d, now), "picked": picked}
 
 
+def _upcoming_entry(slug: str, u: dict, note: str) -> dict:
+    return {"slug": slug, "name": u["name"], "area": u["area_name"], "area_slug": u["area_slug"], "regnos": [],
+            "note": note or u.get("note") or None, "fact": "coming soon, not yet registered with MahaRERA", "source": "builder",
+            "picked": True}
+
+
 async def public(db, area: Optional[str] = None, now: Optional[datetime] = None, limit: int = MAX) -> List[dict]:
     """The strip for a page: on an area's pages that area's picks first, then picks for everywhere, then (auto) hot projects of
     the area, then hot projects anywhere. Expired, unknown, old and noindex projects are left out."""
@@ -104,6 +116,8 @@ async def public(db, area: Optional[str] = None, now: Optional[datetime] = None,
     for d in every:
         if d.get("cluster_primary"):
             regnos.setdefault(d["cluster_primary"], []).append(d.get("regno") or d["_id"])
+    for u in await upcoming.live(db):
+        docs[upcoming.PREFIX + u["slug"]] = {"upcoming": u}
     own = lambda d: [d.get("regno") or d["_id"], *regnos.get(d["_id"], [])]  # noqa: E731
     today = now.date().isoformat()
     live = [it for it in cfg["items"] if it["slug"] in docs and not (it.get("until") and it["until"] < today)]
@@ -112,10 +126,11 @@ async def public(db, area: Optional[str] = None, now: Optional[datetime] = None,
     for it in picks:
         if it["slug"] not in seen:
             d = docs[it["slug"]]
-            out.append(_entry(d, now, own(d), it.get("note") or "", picked=True))
+            out.append(_upcoming_entry(it["slug"], d["upcoming"], it.get("note") or "") if "upcoming" in d
+                       else _entry(d, now, own(d), it.get("note") or "", picked=True))
             seen.add(it["slug"])
     if cfg["auto"] and len(out) < limit:
-        hot_docs = sorted((d for d in docs.values() if (d.get("hot_score") or 0) >= hot.HOT_MIN and d["page_slug"] not in seen),
+        hot_docs = sorted((d for d in docs.values() if "upcoming" not in d and (d.get("hot_score") or 0) >= hot.HOT_MIN and d["page_slug"] not in seen),
                           key=lambda d: (not (key and d.get("locality") == key), -(d.get("hot_score") or 0), d.get("name", "")))
         out += [_entry(d, now, own(d)) for d in hot_docs[:limit - len(out)]]
     return out[:limit]

@@ -81,7 +81,7 @@ Each domain is a package under `backend/app/modules/`. A domain is made of one o
 | Domain | What it does | Today's modules | Owns (only writer) |
 |---|---|---|---|
 | **identity** | Users, phone OTP, invites, agent profile and site settings | onboarding, waitlist, old `agent_public` | `users`, `otp_codes`, `invites`, `invite_requests`, `agent_public_profiles` |
-| **inventory** | Listings, freshness, the MahaRERA project register, partner imports (T3) | listings, newsroom's `register.py`, the importer | `listings`, `projects` |
+| **inventory** | Listings, freshness, the MahaRERA project register, partner imports (T3) | listings, newsroom's `register.py`, the importer | `listings`, `projects`, `upcoming_projects` |
 | **buyers** | Contacts, requirements, events, scoring, matching, alerts (T2.4), agent reports | tracking, interest, report | `contacts`, `events`, `inquiry_log`, `interest_*`, `hub_items` |
 | **distribution** | One way out (`send` + publish ledger), one adapter per channel (Facebook, Instagram, WhatsApp, YouTube), publication log, tracked links | social (incl. the reel publisher; **only it** imports the Graph client) | `publications`, `publish_ledger` |
 | **content** | Sources → drafts → review → ready to publish; the render kit (brand, layouts, cards, reels) | newsroom, calendar, showcase, marketing packs, creative, reels, photoquality | `newsroom_*`, `content_calendar`, `calendar_status`, `marketing_packs`, `reel_jobs` |

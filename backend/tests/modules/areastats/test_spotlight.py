@@ -6,13 +6,16 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.modules.areastats import router as ar
-from app.modules.areastats import spotlight
+from app.modules.areastats import spotlight, upcoming
 from app.modules.newsroom.store import Store
 
 from ..fakes import FakeDb
 
 NOW = datetime(2026, 10, 22, 9, 0, tzinfo=timezone.utc)
 PAGE = {"promoter": "Some Builder", "completion_now": "2029-10-30"}
+UPCOMING = {"slug": "esbee-upper-kharadi", "name": "Esbee Upper Kharadi", "builder": "Esbee Realty", "area": "upper_kharadi",
+            "summary": "An upcoming project the builder has announced and MahaRERA has not registered yet.",
+            "note": "2 & 3 BHK · coming soon", "sources": [{"name": "Builder's blog", "read_on": "2026-10-23"}]}
 
 
 async def seeded(*docs):
@@ -81,3 +84,24 @@ async def test_the_public_endpoint_serves_the_strip_with_a_cache_header():
     app.dependency_overrides[ar.get_db] = lambda: db
     r = TestClient(app).get("/api/v1/public/register/spotlight", params={"area": "wagholi"})
     assert r.status_code == 200 and r.json()[0]["slug"] == "busy-wagholi" and "max-age" in r.headers["cache-control"]
+
+
+async def test_a_picked_upcoming_project_shows_as_not_registered_and_auto_never_adds_one():
+    db = await world()
+    await upcoming.put(db, UPCOMING, NOW)
+    await upcoming.put(db, {**UPCOMING, "slug": "other-upcoming"}, NOW)
+    await spotlight.set_config(db, {"auto": True, "items": [{"slug": "/projects/upcoming/esbee-upper-kharadi/"}]}, "owner", NOW)
+    got = await spotlight.public(db, now=NOW)
+    assert [e["slug"] for e in got] == ["upcoming/esbee-upper-kharadi", "camelot-kharadi", "busy-wagholi"]
+    assert got[0]["fact"] == "coming soon, not yet registered with MahaRERA" and got[0]["note"] == "2 & 3 BHK · coming soon"
+    assert got[0]["area"] == "Upper Kharadi" and got[0]["regnos"] == [] and got[0]["picked"] is True
+
+
+async def test_a_hidden_or_unknown_upcoming_project_cannot_be_picked_and_drops_off_the_strip():
+    db = await world()
+    with pytest.raises(spotlight.SpotlightError, match="No upcoming project"):
+        await spotlight.set_config(db, {"items": [{"slug": "upcoming/esbee-upper-kharadi"}]}, "owner", NOW)
+    await upcoming.put(db, UPCOMING, NOW)
+    await spotlight.set_config(db, {"items": [{"slug": "upcoming/esbee-upper-kharadi"}]}, "owner", NOW)
+    await upcoming.put(db, {**UPCOMING, "status": "hidden"}, NOW)
+    assert "upcoming/esbee-upper-kharadi" not in [e["slug"] for e in await spotlight.public(db, now=NOW)]

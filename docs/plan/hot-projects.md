@@ -52,6 +52,17 @@ and a last day), then, with "Fill up with hot projects" on, the hottest ones (ho
   agents' trial page. robots.txt and the sitemaps are unchanged (`__tests__/marketing/robots-guard.test.ts` keeps every public
   page family open).
 
+### Upcoming, not yet registered (areastats/upcoming.py, 2026-10-23) LIVE
+Owner asked for Esbee's announced Upper Kharadi project on the banner before MahaRERA has it, under Avasetu (not an agent).
+The RERA Act bars advertising or selling an unregistered project, so the owner chose a "coming soon" page without prices:
+- `upcoming_projects` (areastats owns it), written by `upcoming.put` from a script; `status` hidden takes the page down.
+- `/projects/upcoming/<slug>` (`GET /api/v1/public/register/upcoming/<slug>`): badge "Coming soon · Not yet registered with
+  MahaRERA", a "before you pay anything" box, homes by BHK and carpet with no price (the schema has no price field), facts with
+  their source and a "to be confirmed" tag when only one listing says it or sources differ, pictures badged "Illustration, not
+  this project's design" unless they are the builder's own, and one ask: "Tell me when it registers" (Avasetu's enquiry form).
+- noindex and in no sitemap. The owner picks it on the banner as `upcoming/<slug>`; `auto` never adds one.
+- When the project registers: hide the record, the register page takes over (and the banner pick moves to its slug).
+
 ## Next (same pattern: one `hot.add_signal(name, fn)` each)
 1. Instagram: hashtag search through the Graph API on our business account (30 hashtags a week): reels and posts per project.
 2. Done (areastats/discover.py): each register step looks up one `discovered_projects` number on MahaRERA by names taken from
