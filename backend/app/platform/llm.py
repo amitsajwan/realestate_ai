@@ -48,7 +48,7 @@ def groq_api_key() -> Optional[str]:
 
 
 class LLM(Protocol):
-    async def json(self, system: str, user: str) -> Optional[dict[str, Any]]:
+    async def json(self, system: str, user: str, temperature: float = 0) -> Optional[dict[str, Any]]:
         """JSON-mode completion: one JSON object, or None on any failure."""
 
     async def text(self, system: str, user: str, timeout: Optional[float] = None) -> Optional[str]:

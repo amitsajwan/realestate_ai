@@ -12,7 +12,14 @@ export interface SiteLink {
   external?: boolean
 }
 
-export const FOR_AGENTS_PATH = '/for-agents'
+export const FOR_AGENTS_PATH = '/for-agents'   // the printable one-page pitch (its QR code is on paper)
+export const AGENTS_PATH = '/agents'           // the agents' home
+/** Sections of the agents' page that lived on / until 2026-10-22 (#invite, #faq, ...): links people kept or shared to them are
+ *  sent on to /agents with the same section (app/page.tsx). The part after # never reaches the server, so this is done on the page. */
+export const AGENT_ANCHORS = ['invite', 'live', 'what-it-does', 'cost', 'faq', 'hero-ctas']
+/** The script that does it: before anything paints, with history replaced so Back does not return to the wrong page. */
+export const agentAnchorForward = (): string =>
+  `(function(){var h=location.hash.slice(1);if(${JSON.stringify(AGENT_ANCHORS)}.indexOf(h)>-1||/^lp-/.test(h))location.replace('${AGENTS_PATH}#'+h)})()`
 export const INVITE_PATH = '/trial'   // 'Claim your free trial' (WhatsApp TRIAL); the call-back form stays at /request-invite
 /** Studio is the agent's app; it sends a signed-out visitor to the sign-in screen (/join). */
 export const SIGN_IN_PATH = '/studio'
@@ -24,7 +31,7 @@ export type Audience = 'buyer' | 'agent'
 
 export function siteLinks() {
   const { instagram, facebook } = socialLinks()
-  const forAgents: SiteLink = { href: FOR_AGENTS_PATH, label: 'For agents' }
+  const forAgents: SiteLink = { href: AGENTS_PATH, label: 'For agents' }
   const demo: SiteLink = { href: demoAgentPath(), label: 'See a sample agent page' }
   const news: SiteLink = { href: '/news', label: 'News' }
   const posts: SiteLink = { href: '/posts', label: 'Posts' }
@@ -41,7 +48,7 @@ export function siteLinks() {
   return {
     forAgents, demo, news, posts, areas, projects, builders, check, insights, invite, signIn, need, instagram: ig, facebook: fb,
     /** Header, wide screens, by audience (the buyer or invite button sits next to these; 'For agents' is always there). */
-    headerWide: { buyer: [projects, areas, news, forAgents], agent: [projects, forAgents, demo, areas] } as Record<Audience, SiteLink[]>,
+    headerWide: { buyer: [projects, builders, areas, news, forAgents], agent: [projects, forAgents, demo, areas] } as Record<Audience, SiteLink[]>,
     /** Header menu on phones: everything. */
     menu: [projects, builders, check, areas, news, insights, posts, forAgents, demo, signIn, ig, fb],
     footerAgents: [forAgents, demo, invite, signIn],

@@ -176,6 +176,13 @@ swapping), and a deploy that touched the frontend took ~20 minutes building Next
       avasetu`, keeps the latest 10 versions); GitHub signs in without a key (Workload Identity Federation, this repository
       only). `deploy.ps1` waits for that build, then the VM only pulls and restarts: 127 s end to end on the first run.
       `-Tag <sha>` rolls back; `-Build` is the old build-on-the-VM fallback.
+      **Automatic deploy: BUILT 2026-10-22, off until the owner runs `deploy/gcp/ci_deploy_setup.ps1` once.** After each
+      successful image build on main, `.github/workflows/deploy.yml` runs `deploy/gcp/ci_deploy.sh` on GitHub's machine: the
+      same VM steps as `deploy.ps1` (`deploy/gcp/vm_update.sh`), then the public health check; if it does not pass, the
+      previous commit is put back and the run fails (GitHub's failure email). One deploy at a time. SSH with a key made on
+      the VM for the deploy user (secret `DEPLOY_SSH_KEY`, host key pinned in `DEPLOY_KNOWN_HOSTS`); needs port 22 open to
+      GitHub (not IAP-only). Actions > Deploy > Run workflow redeploys main or rolls back to a given commit;
+      `ci_deploy_setup.ps1 -Off` turns it off. Not gated on the test workflows (main's suite has known failures).
    2. **Uploads to Cloud Storage: dropped for now (owner).** Uploads stay on the VM; a cleanup removes replaced voice versions
       and finished reels 60 days after posting (originals are kept).
    3. **Renderer on Cloud Run Jobs. TARGET.** Chosen over a spot VM (same cost at ~5 reels a day, ~$5 a month for ~1 hour of
@@ -233,6 +240,7 @@ swapping), and a deploy that touched the frontend took ~20 minutes building Next
 
 | Date | Step | Change |
 |---|---|---|
+| 2026-10-22 | 1, 3 | Import rules green again (broken since 8 Oct, so CI had not run the backend tests for two weeks: 15 wrong-way imports, mostly lower modules reaching into `propertyfacts`). Pure helpers moved down with shims at the old paths: copy guards to `platform.guards`; `price_label`, `phone_label` to `platform.text`; our public WhatsApp number to `core.brand`; project-name matching to `core.rera`; a listing's selling points, home types and claim cleaning to `listings`. Cross-domain calls became callbacks in `app/wiring.py`: listing delete (marketing runs and calendar each write their own), Ask AI's fact sources, the draft's project register, the knowledge index's topic and post readers, newsroom research's area guide; the renderer's drain gets the marketing queue from the worker. 9 failing tests fixed (stale fakes, clock-dependent checks, one real regression: a 2 BHK's overview and price posts were dropped by the copy guard) |
 | 2026-10-16 | Deployment 0 | One backend image split into conversations, newsroom and media roles; role-scoped heartbeat checks and per-role resource limits; Meta webhooks, calendar reel pre-render and token clean-up moved to durable loops; the API's rollback mode runs the worker's full loop table. Built, not yet deployed |
 | 2026-10-07 | 7, 8 (marketing part) | Old posting stack deleted: 6 endpoint groups (`/social-publishing`, `/publishing`, `/publishing-logs`, `/content`, `/enhanced-posts` and `/enhanced-post-management`, `/enhanced-templates`), 13 services, 4 schemas, 3 quarantined tests; the old dashboard's Property Marketing Hub, AI posting hub and publish workflow with the old clients that only they used (27 frontend files). None of it used the ledger. Studio and the public site never called it. The rest of the old app (`/dashboard`, `/login`, old Facebook connect, analytics, branding, ai-unified) is still to do. `docs/MARKETING.md` describes what remains |
 | 2026-10-03 | 5 | Publish ledger (`distribution.send`): every post at most once per key, across all 5 publishing paths; only distribution imports the Graph client (7th import rule); last import-rule exception cleared; rollback `PUBLISH_LEDGER=off` |

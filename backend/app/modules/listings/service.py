@@ -3,7 +3,7 @@ returns 404 (never 403) for other agents' listings."""
 import re
 import uuid
 from datetime import datetime
-from typing import Callable, List, Optional
+from typing import Awaitable, Callable, List, Optional, Sequence, Tuple
 
 from .freshness import LIVE_STATUSES, freshness_of, is_hidden
 from .schemas import (PUBLIC_STATUSES, PUBLIC_VISIBILITIES, Listing, ListingCreate, ListingUpdate,
@@ -22,6 +22,17 @@ TRANSITIONS = {
 FINGERPRINT_FIELDS = ("city", "locality", "project_name", "bhk", "carpet_sqft", "transaction")
 CARPET_BUCKET = 50
 MAX_PUBLIC = 500  # public listings considered per agent site
+
+# What other modules do when an agent deletes a listing, in order, passed in by app/wiring.py (docs/ARCHITECTURE.md §2):
+# each is `async (db, agent_id, listing_id, now)`, writes only its own collections, and may raise ListingError to refuse the
+# delete (a refusing step comes first, so nothing has changed yet).
+BeforeDelete = Callable[..., Awaitable[None]]
+_before_delete: Tuple[BeforeDelete, ...] = ()
+
+
+def configure(before_delete: Sequence[BeforeDelete] = ()) -> None:
+    global _before_delete
+    _before_delete = tuple(before_delete)
 
 
 def indexable(profile: dict) -> bool:
@@ -123,19 +134,11 @@ class ListingService:
     async def delete(self, agent_id: str, listing_id: str) -> None:
         """Gone for good: off the website, and its posts not yet out are skipped. Posts already on Facebook/Instagram stay
         (their views count), and so do its leads. Refused while a marketing run is still making its posts; a run only
-        waiting on the agent's answers is closed."""
-        from app.modules.calendar.store import COLLECTION as CALENDAR, OPEN
-        from app.modules.propertyfacts.jobs import ACTIVE, COLLECTION as RUNS
+        waiting on the agent's answers is closed (the marketing and calendar steps: configure)."""
         await self._mine(agent_id, listing_id)
         now = self.now()
-        runs = self.db.get_collection(RUNS)
-        flt = {"listing_id": listing_id, "agent_id": agent_id}
-        if await runs.find_one({**flt, "status": {"$in": [s for s in ACTIVE if s != "asking"]}}):
-            raise ListingError("Marketing is still making posts for this listing. Delete it once they are ready.", 409)
-        await runs.update_many({**flt, "status": "asking"}, {"$set": {"status": "cancelled", "finished_at": now}})
-        await self.db.get_collection(CALENDAR).update_many(
-            {"listing_id": listing_id, "status": {"$in": list(OPEN)}},
-            {"$set": {"status": "skipped", "updated_at": now}, "$push": {"history": {"at": now, "status": "skipped", "note": "listing deleted"}}})
+        for step in _before_delete:
+            await step(self.db, agent_id, listing_id, now)
         await self.listings.delete_one({"_id": listing_id, "agent_id": agent_id})
 
     async def change_status(self, agent_id: str, listing_id: str, target: str) -> Listing:

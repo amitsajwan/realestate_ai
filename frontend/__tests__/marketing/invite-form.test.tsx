@@ -60,7 +60,7 @@ describe('RequestInviteForm', () => {
       name: 'Rahul Sharma', phone: '+919876543210', city: 'Pune', message: 'Baner and Wakad', consent: true, website: '',
     })
     expect(screen.getByText(/\+91 98765 43210/)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /back to the home page/i })).toHaveAttribute('href', '/')
+    expect(screen.getByRole('link', { name: /back to the agents' page/i })).toHaveAttribute('href', '/agents')
   })
 
   it('omits an empty message', async () => {

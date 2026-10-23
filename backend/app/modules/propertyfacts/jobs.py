@@ -21,6 +21,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence
 
+from app.modules.listings.service import ListingError
 from app.platform import trace
 
 from . import campaign, identity, listing_posts, points, room, understand, voiceover
@@ -1475,6 +1476,16 @@ class MarketingRuns:
 
 
 # ---- the background worker --------------------------------------------------------------------------------------------
+async def listing_deleted(db, agent_id: str, listing_id: str, now: datetime) -> None:
+    """An agent is deleting a listing (listings.service, wired in app/wiring.py): refused while a run is still making its
+    posts; a run only waiting on the agent's answers is closed."""
+    runs = db.get_collection(COLLECTION)
+    flt = {"listing_id": listing_id, "agent_id": agent_id}
+    if await runs.find_one({**flt, "status": {"$in": [s for s in ACTIVE if s != "asking"]}}):
+        raise ListingError("Marketing is still making posts for this listing. Delete it once they are ready.", 409)
+    await runs.update_many({**flt, "status": "asking"}, {"$set": {"status": "cancelled", "finished_at": now}})
+
+
 def default_runs() -> MarketingRuns:
     from app.core.config import settings
     from app.core.database import get_database

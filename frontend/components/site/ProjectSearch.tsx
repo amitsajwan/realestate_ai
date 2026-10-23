@@ -30,7 +30,10 @@ export function SearchHitRow({ it }: { it: RegisterSearchHit }) {
  * (GET /api/v1/public/register/search), so the page never ships the whole register. Without JavaScript the box is a plain GET
  * form to /projects?q=, which the page answers on the server (initialQ / initialHits).
  */
-export default function ProjectSearch({ initialQ = '', initialHits = [] }: { initialQ?: string; initialHits?: RegisterSearchHit[] }) {
+/** One empty list for the default: a new [] on each render would re-run the search effect, which sets state, forever. */
+const NO_HITS: RegisterSearchHit[] = []
+
+export default function ProjectSearch({ initialQ = '', initialHits = NO_HITS }: { initialQ?: string; initialHits?: RegisterSearchHit[] }) {
   const [q, setQ] = useState(initialQ)
   const [hits, setHits] = useState<RegisterSearchHit[]>(initialHits)
   const [done, setDone] = useState(initialQ.trim().length >= 2)

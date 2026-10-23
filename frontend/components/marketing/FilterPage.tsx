@@ -47,7 +47,7 @@ export default async function FilterPage({ filter, areaSlug }: { filter: AnyFilt
   const path = filterPath(filter, area)
   const rows = matches.flatMap((m) => m.homes.map((h) => ({ p: m.project, h })))
   return (
-    <MarketingShell>
+    <MarketingShell hot={{ area: area.slug }}>
       <div className="mx-auto max-w-5xl px-4 py-10 sm:py-14" style={AVASETU_SITE_VARS}>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(breadcrumbJsonLd(cfg.siteUrl, [
           { name: 'Home', path: '/' }, { name: 'Area guides', path: '/localities' }, { name: `${area.name}, Pune`, path: `/localities/${area.slug}` }, { name: title, path },

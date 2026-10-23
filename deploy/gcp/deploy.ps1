@@ -7,6 +7,8 @@
        secrets is untouched) and sets IMAGE_TAG in that .env to the commit,
     3. pulls the images and restarts the containers (no build on the VM), then checks the public health address.
   Old images unused for 3 days are removed from the VM (any of them can be pulled again from Artifact Registry).
+  The same VM steps run by themselves after every push to main once the automatic deploy is on (.github/workflows/deploy.yml,
+  deploy/gcp/ci_deploy.sh and vm_update.sh; turn on with ci_deploy_setup.ps1): keep vm_update.sh in step with step 3 here.
 
   Usage (from the repo root, with your changes COMMITTED and PUSHED):
     .\deploy\gcp\deploy.ps1 -DryRun     # prints every step, contacts nothing

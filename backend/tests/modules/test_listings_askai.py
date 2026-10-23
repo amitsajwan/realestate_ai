@@ -1,6 +1,10 @@
 """Ask AI prompts are steps: each says which of the agent's AIs suits it, what to paste back and what Studio does with it.
 The order is the sequence: research comes first when we hold few facts."""
-from app.modules.listings.askai import prompts
+from datetime import datetime, timezone
+
+from app.modules.listings.askai import gather, prompts
+
+from .fakes import FakeDb
 
 FIELDS = ("id", "title", "use", "text", "best", "best_note", "paste", "after")
 AIS = {"ChatGPT", "Claude", "Gemini"}
@@ -37,3 +41,16 @@ def test_the_plan_prompt_still_asks_for_the_parts_the_reader_splits():
     plan = next(p for p in prompts(LISTING, SHEET, None) if p["id"] == "plan")["text"]
     for heading in ("HEADLINE:", "PICTURES:", "CAPTIONS:", "REEL:", "STILL MISSING:"):
         assert heading in plan
+
+
+async def test_gather_reads_the_checked_sheet_by_number_and_its_published_web_facts():
+    """Ask AI's two sources: the property-facts sheet and the project page's web facts (passed in by app/wiring.py)."""
+    db = FakeDb()
+    await db.get_collection("property_facts").insert_one({"_id": "P52100012345", "rera_no": "P52100012345", "facts": {"possession": "Dec 2027"}})
+    await db.get_collection("projects").insert_one({"_id": "P52100012345", "web_facts": {"at": datetime(2026, 10, 1, tzinfo=timezone.utc),
+        "facts": [{"key": "towers", "label": "Towers", "value": 4, "text": "4 towers", "official": False, "sources": ["x.test"]}]}})
+    sheet, web = await gather(db, {"rera_no": "P52100012345", "project_name": "Sky Heights", "locality": "Baner"})
+    assert sheet["facts"] == {"possession": "Dec 2027"}
+    assert web == {"read_at": "2026-10-01", "facts": [{"key": "towers", "label": "Towers", "value": 4, "text": "4 towers", "official": False,
+                                                       "sources": ["x.test"]}]}
+    assert await gather(FakeDb(), {"project_name": "Unknown"}) == (None, None)   # nothing known: no sources, no error

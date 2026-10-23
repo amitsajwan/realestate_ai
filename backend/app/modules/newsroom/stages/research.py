@@ -133,18 +133,22 @@ def _is_google(url: str) -> bool:
     return "news.google.com" in (url or "").lower()
 
 
+# Our verified area guide (knowledge.areas), passed in by app/wiring.py since content never imports conversations:
+# area_facts(area key) -> its fact sentences. Unwired, a story is still written, without background.
+_guide: dict = {"area_facts": lambda key: ()}
+
+
+def configure(area_facts: Callable[[str], Sequence[str]]) -> None:
+    _guide["area_facts"] = area_facts
+
+
 def background_for(areas: Sequence[str], story: str, limit: int = MAX_BACKGROUND) -> List[str]:
     """Sentences from our verified area guide for the story's areas that share a topic word with the story (metro with metro, airport
     with airport), at most `limit`. Advice lines and 'check the status' notes are left out: background is context, not advice."""
-    try:
-        from app.modules.knowledge.areas import AREAS
-    except Exception:  # the guide is optional context: a story is still written without it
-        return []
     topic = _words(story) - _GENERIC
     out: List[str] = []
     for key in areas:
-        facts = getattr(AREAS.get(key), "facts", ()) or ()
-        for f in facts:
+        for f in _guide["area_facts"](key):
             if _NOT_BACKGROUND.search(f) or f in out:
                 continue
             if (_words(f) - _GENERIC) & topic:

@@ -613,3 +613,44 @@ body {
     }
   }
 }
+
+/* Hot projects banner (components/site/HotStrip.tsx): the track holds the list twice and slides by one copy, so the loop is seamless.
+   Pauses on hover, stops for keyboard focus; with reduced motion it stands still and scrolls sideways instead. */
+@keyframes hot-strip-roll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.hot-strip-track:has(.hot-strip-row + .hot-strip-row) {
+  /* the loop's length comes from the text (components/site/HotStrip.tsx rollSeconds): a steady reading speed */
+  animation: hot-strip-roll var(--hot-roll, 80s) linear infinite;
+}
+/* hover with a mouse, or a finger held on it on a phone, stops it to read */
+.hot-strip:hover .hot-strip-track,
+.hot-strip:active .hot-strip-track {
+  animation-play-state: paused;
+}
+/* a keyboard user tabbing through: stop and let the focused link scroll into view */
+.hot-strip:focus-within .hot-strip-track { animation: none; }
+.hot-strip:focus-within .hot-strip-viewport { overflow-x: auto; }
+@media (prefers-reduced-motion: reduce) {
+  .hot-strip-track { animation: none !important; }
+  .hot-strip-track .hot-strip-row + .hot-strip-row { display: none; }
+  .hot-strip-viewport { overflow-x: auto; }
+}
+/* Phones: a rolling line crosses a ~250 px window in a few seconds, too fast to read. One project at a time instead, name over
+   fact, in a swipeable snap row; components/site/HotStripStepper.tsx moves it on every few seconds. */
+@media (max-width: 767px) {
+  .hot-strip-track, .hot-strip-track:has(.hot-strip-row + .hot-strip-row) { animation: none !important; }
+  .hot-strip-track .hot-strip-row + .hot-strip-row { display: none; }
+  .hot-strip-viewport {
+    container-type: inline-size;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+  .hot-strip-viewport::-webkit-scrollbar { display: none; }
+  .hot-strip-row { gap: 0; padding-right: 0; }
+  .hot-strip-row > li { width: 100cqw; scroll-snap-align: start; }
+  .hot-strip-link { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 0; min-height: 44px; padding: 4px 0; line-height: 1.3; }
+  .hot-strip-line { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+}

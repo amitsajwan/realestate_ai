@@ -28,7 +28,7 @@ export default async function TrialPage({ searchParams }: { searchParams: Promis
   const src = tag((await searchParams).src) || 'trial'
   const claim = claimHref(src, process.env.NEXT_PUBLIC_WHATSAPP_NUMBER)
   return (
-    <MarketingShell>
+    <MarketingShell hot={false}>
       <section aria-labelledby="trial-title" className="bg-gradient-to-b from-[#0f2340] to-[#183a5d] text-white">
         <div className="mx-auto grid max-w-5xl items-center gap-8 px-4 py-10 sm:py-14 md:grid-cols-[1fr_0.9fr]">
           <div>

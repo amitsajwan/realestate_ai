@@ -30,7 +30,7 @@ class Provider:
     def resting(self):
         return self._resting
 
-    async def json(self, system, user):
+    async def json(self, system, user, temperature=0):
         self.calls.append(self.name)
         return {"by": self.name} if self.answer else None
 

@@ -174,7 +174,7 @@ async def test_a_brochure_plan_campaign_renders_guard_clean(tmp_path):
               {"kind": "render", "path": plan_file(tmp_path, "i1.jpg"), "configs": []}]
     dropped = {}
     packs = dict(await campaign.make(listing_sheet(), tmp_path / "out", dropped=dropped, images=images))
-    assert {"floor_plan", "first_look"} <= set(packs), dropped
+    assert {"overview", "price_reveal", "floor_plan", "first_look"} <= set(packs), dropped   # a 2 BHK's hooks name it; so do its facts
     assert packs["floor_plan"].design["layout"] == "plan_full" and packs["floor_plan"].design["format"] == "plan"
     assert "650 sq ft" in packs["floor_plan"].caption
 

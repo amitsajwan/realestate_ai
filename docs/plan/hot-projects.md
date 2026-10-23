@@ -38,6 +38,20 @@ instead of 60. `hot.top(store, area)` gives the list with reasons, for agents' b
 Also fixed: the register refresh step never gave new projects their page slug (a `pages` batch-size argument hid the pages
 module), so newly swept projects got no /projects page and were never enriched.
 
+## Hot projects banner on every buyer page (areastats/spotlight.py, 2026-10-22)
+A rolling strip of up to 6 project links under the header (`components/site/HotStrip.tsx`, in `MarketingShell`). The owner sets
+it in Studio > Admin > Hot projects banner: picked projects first (each optionally for one area's pages only, with a short note
+and a last day), then, with "Fill up with hot projects" on, the hottest ones (hot_score >= HOT_MIN), the page's area first.
+- Public: `GET /api/v1/public/register/spotlight?area=<slug>`; owner: `GET`/`PUT /api/v1/admin/spotlight` (stored in
+  `site_settings`, `_id: spotlight`).
+- SEO: plain server-rendered links in an `<aside>` with no heading, so they are internal links Google follows into the hottest
+  project pages, adding no headings or text to the page. Only live, indexable, not-finished project pages are shown (a pick that
+  is not in search is refused on save), an agent-listed project links its shared page directly (never through the 301), and the
+  page's own project is left out. Each entry shows the owner's note or one MahaRERA fact, never a score.
+- Never breaks a page: the read has no retries and an empty answer hides the strip. Not on loading screens, legal pages or the
+  agents' trial page. robots.txt and the sitemaps are unchanged (`__tests__/marketing/robots-guard.test.ts` keeps every public
+  page family open).
+
 ## Next (same pattern: one `hot.add_signal(name, fn)` each)
 1. Instagram: hashtag search through the Graph API on our business account (30 hashtags a week): reels and posts per project.
 2. Done (areastats/discover.py): each register step looks up one `discovered_projects` number on MahaRERA by names taken from

@@ -23,8 +23,10 @@ from app.modules.creative.models import Brief, CreativePack
 from app.modules.reels import compose as _reel_compose
 from app.modules.social import reel_publish as _reel_publish
 from app.modules.reels import templates as _reel_templates
+from app.core.brand import WA_MARK, posts_whatsapp_number
 from app.platform.meta_graph.config import SocialConfig
 from app.platform.meta_graph.publisher import PublishError, Result
+from app.platform.text import phone_label
 
 from . import render as _cards
 from .library import SITE, Entry
@@ -445,7 +447,6 @@ def whatsapp_lines(caption: str, code: str, channel: str, language: str = "en", 
     link, so it says what to send. Without our number configured the WhatsApp line is dropped and the interest link remains."""
     from urllib.parse import quote
 
-    from app.modules.propertyfacts.identity import WA_MARK, phone_label, posts_whatsapp_number
     num = posts_whatsapp_number()
     line = ""
     if num and channel == "facebook":
@@ -587,7 +588,6 @@ async def with_interest(db, doc: dict) -> dict:
             if shown.get("page_url"):  # the agent's site line points at this listing, not the agent's home page
                 caption = re.sub(r"(\U0001F3E0[^\n]*?)\b(?:https?://)?[\w.-]+/agent/[\w-]+/?(?=\s|$)",
                                  lambda m: m.group(1) + shown["page_url"].split("://", 1)[-1], caption)
-            from app.modules.propertyfacts.identity import WA_MARK, posts_whatsapp_number
             if channel == "instagram" and posts_whatsapp_number():
                 # a WhatsApp line with this post's code (whatsapp_lines words it), unless the caption already has one to rewrite
                 line = "" if any(ln.strip().startswith(WA_MARK) for ln in caption.splitlines()) else f"{WA_MARK} WhatsApp"

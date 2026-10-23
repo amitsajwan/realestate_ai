@@ -127,3 +127,37 @@ async def invite(id: str, user: User = Depends(owner_only), svc: AdminService = 
 @router.post("/invite-requests/{id}/dismiss")
 async def dismiss(id: str, user: User = Depends(owner_only), svc: AdminService = Depends(get_service)) -> dict:
     return await _run(svc.dismiss(id, str(user.id)))
+
+
+# ---- hot projects banner on the public site (areastats/spotlight.py) ---------------------------------------------------------
+from app.modules.areastats import spotlight  # noqa: E402
+
+
+class SpotlightItemIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    slug: str
+    area: Optional[str] = None
+    note: Optional[str] = None
+    until: Optional[str] = None
+
+
+class SpotlightIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    auto: bool = True
+    items: list[SpotlightItemIn] = []
+
+
+@router.get("/spotlight")
+async def get_spotlight(user: User = Depends(owner_only), svc: AdminService = Depends(get_service)) -> dict:
+    """The owner's picks, plus what the strip shows right now on pages with no area (to check the result)."""
+    return {**await spotlight.get_config(svc.db), "preview": await spotlight.public(svc.db)}
+
+
+@router.put("/spotlight")
+async def put_spotlight(body: SpotlightIn, user: User = Depends(owner_only), svc: AdminService = Depends(get_service)) -> dict:
+    limiter.check(str(user.id), "admin-spotlight", 30, 60.0)
+    try:
+        cfg = await spotlight.set_config(svc.db, body.model_dump(), str(user.id), svc.now())
+    except spotlight.SpotlightError as e:
+        raise HTTPException(400, str(e))
+    return {**cfg, "preview": await spotlight.public(svc.db)}
