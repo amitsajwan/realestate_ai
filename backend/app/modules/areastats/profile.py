@@ -146,9 +146,14 @@ async def read_highlights(llm, src: dict, name: str, text: str) -> tuple:
     return readings, f"{len(readings)} highlights" + (f", {refused} refused" if refused else "")
 
 
+# a bullet that says what is not known ("Number of towers not specified", 2026-10-22) is not a highlight
+VAGUE = re.compile(r"not (?:specified|mentioned|available|disclosed|stated|known)|no (?:specific|information|details)", re.I)
+
+
 def agree(readings: List[dict]) -> List[dict]:
     """One bullet per topic: the builder's site's, else one two sites both state (the first site's wording)."""
     out = []
+    readings = [r for r in readings if not VAGUE.search(r["text"])]
     for topic in TOPICS:
         rs = [r for r in readings if r["topic"] == topic]
         own = [r for r in rs if r["official"]]
