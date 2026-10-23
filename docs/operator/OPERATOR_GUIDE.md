@@ -553,6 +553,9 @@ while it lasts, and once on recovery. In the app, **Admin → Health** shows the
 - `backup.sh` (cron, nightly 21:30 UTC = 03:00 IST) dumps the database with `mongodump --archive --gzip` into
   `~/backups/YYYY-MM-DD.archive.gz`, keeps the newest 14 and logs to `~/backup.log`. The password is read inside the mongo container.
 - **Uploaded photos are not in the dump.** They are on the `uploads` volume, covered by the daily disk snapshot.
+- **Drawn reel videos are not kept.** The `video_cleanup` loop (newsroom role) deletes mp4s under `reels/`, `campaigns/` and
+  `calendar/{reels,slidereels,guides,trend}` 2 days after they were drawn; Instagram and Facebook keep the posted copy. Agents'
+  walkthrough uploads (`videos/`), covers and pictures stay. Container logs are capped at 3 x 20 MB per service in compose.
 - `bash restore_test.sh` restores the newest archive into a throwaway database, compares collection counts with live, then drops it.
   "OK ... restores cleanly" is a pass. Run it after installing and then monthly.
 - Copy a backup off the VM regularly (it holds leads' personal data; store it privately):

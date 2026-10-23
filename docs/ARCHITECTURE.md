@@ -16,7 +16,7 @@ Production roles:
 - **api**: FastAPI HTTP only; `RUN_BACKGROUND_LOOPS=false` in production.
 - **conversations**: `engage`, `answer_gaps`, `inbound_messages` (Meta webhooks saved by the api, handled here), `lead_followups`
   (alert on leads waiting 2 h+; WhatsApp follow-up template to fresh form leads when `LEAD_AUTO_FOLLOWUP=true`).
-- **newsroom**: `newsroom`, `seo`, `communities`, `project_enrich`, `radar`, `insights`, `calendar`, `token_cleanup`.
+- **newsroom**: `newsroom`, `seo`, `communities`, `project_enrich`, `radar`, `insights`, `calendar`, `token_cleanup`, `knowledge_index`, `video_cleanup` (deletes drawn reel mp4s 2 days old; videos an open calendar row will post are kept).
 - **media**: `calendar_reels`, `listing_reels`, `marketing_runs`; the highest CPU and memory allowance.
 
 The three worker roles run the same backend image with different `python -m app.worker --role ...` commands. An explicit `--loops`

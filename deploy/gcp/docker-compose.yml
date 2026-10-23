@@ -2,10 +2,18 @@
 # deploy.ps1 -Build builds here instead (the fallback).
 # Avasetu on a single GCP VM: Caddy (auto-HTTPS) -> frontend + backend, MongoDB private.
 # Only Caddy publishes ports; Mongo, backend, the worker roles and frontend are reachable only on the internal network.
+# Container logs are capped at 3 x 20 MB each: Mongo alone wrote ~60 MB a day of connection lines into an unrotated log (2026-10-23).
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "3"
+
 services:
   mongo:
     image: mongo:7
     restart: unless-stopped
+    logging: *logging
     environment:
       MONGO_INITDB_ROOT_USERNAME: app
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
@@ -25,6 +33,7 @@ services:
     build: ../../backend
     image: ${IMAGE_REGISTRY:-asia-south1-docker.pkg.dev/trader-502012/avasetu}/backend:${IMAGE_TAG:-latest}
     restart: unless-stopped
+    logging: *logging
     env_file: .env
     environment: &backend_env
       MONGODB_URL: mongodb://app:${MONGO_PASSWORD}@mongo:27017/?authSource=admin
@@ -48,6 +57,7 @@ services:
   qdrant:
     image: qdrant/qdrant:v1.13.6
     restart: unless-stopped
+    logging: *logging
     volumes:
       - qdrant_data:/qdrant/storage
     environment:
@@ -59,6 +69,7 @@ services:
     image: ${IMAGE_REGISTRY:-asia-south1-docker.pkg.dev/trader-502012/avasetu}/backend:${IMAGE_TAG:-latest}
     command: ["uvicorn", "app.modules.knowledge.embedder:app", "--host", "0.0.0.0", "--port", "8090", "--workers", "1"]
     restart: unless-stopped
+    logging: *logging
     environment:
       UPLOAD_DIRECTORY: /app/uploads
     volumes:
@@ -74,6 +85,7 @@ services:
     image: ${IMAGE_REGISTRY:-asia-south1-docker.pkg.dev/trader-502012/avasetu}/backend:${IMAGE_TAG:-latest}
     command: ["python", "-m", "app.worker", "--role", "conversations"]
     restart: unless-stopped
+    logging: *logging
     env_file: .env
     environment:
       <<: *backend_env
@@ -94,6 +106,7 @@ services:
     image: ${IMAGE_REGISTRY:-asia-south1-docker.pkg.dev/trader-502012/avasetu}/backend:${IMAGE_TAG:-latest}
     command: ["python", "-m", "app.worker", "--role", "newsroom"]
     restart: unless-stopped
+    logging: *logging
     env_file: .env
     environment:
       <<: *backend_env
@@ -116,6 +129,7 @@ services:
     # job (reels/render_job.py). MEDIA_ROLE=media (the default) draws here, as before; it is also the rollback.
     command: ["python", "-m", "app.worker", "--role", "${MEDIA_ROLE:-media}"]
     restart: unless-stopped
+    logging: *logging
     env_file: .env
     environment:
       <<: *backend_env
@@ -145,6 +159,7 @@ services:
         NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION: ${NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION:-}
         NEXT_PUBLIC_BING_SITE_VERIFICATION: ${NEXT_PUBLIC_BING_SITE_VERIFICATION:-}
     restart: unless-stopped
+    logging: *logging
     environment:
       SITE_API_URL: http://backend:8000
     depends_on:
@@ -153,6 +168,7 @@ services:
   caddy:
     image: caddy:2
     restart: unless-stopped
+    logging: *logging
     ports:
       - "80:80"
       - "443:443"
