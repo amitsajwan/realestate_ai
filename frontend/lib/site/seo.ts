@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { formatPrice, truncate, bhkLabel } from './format'
 import { agentPath, siteOrigin } from './slug'
+import { monthsLater } from './check'
 import { formatDay } from './projects'
 import type { AgentProfile, CatalogProject, PublicListing, PublicProject } from './types'
 import { earliestPossession, webFact, type WebFacts } from './webfacts'
@@ -121,7 +122,9 @@ export function catalogProjectMetadata(p: CatalogProject, priceText: string, web
   const title = options.find((t) => t.length <= 60) ?? `${p.name}, ${p.locality}`
   const regs = (p.registrations ?? []).filter((r) => r.completion)
   const later = regs.filter((r) => r.completion && formatDay(r.completion.slice(0, 7)) !== when)
-  const moved = p.rera?.completion_at_registration && p.rera.completion_now && p.rera.completion_at_registration !== p.rera.completion_now
+  // net of MahaRERA's 2026 blanket extension, as on the page (possessionLines)
+  const moved = p.rera?.completion_at_registration && p.rera.completion_now
+    && monthsLater(p.rera.completion_now, p.rera.completion_at_registration, p.rera.registered_on)
     ? `, moved from ${formatDay(p.rera.completion_at_registration.slice(0, 7))}` : ''
   const land = webFact(web, 'land_acres'), open = webFact(web, 'open_space_pct')
   const description = truncate([

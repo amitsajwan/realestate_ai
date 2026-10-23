@@ -1,3 +1,4 @@
+import { extensionMonths, monthsLater } from './check'
 import { formatPrice } from './format'
 import type { CatalogProject, FactSource, PublicProject } from './types'
 
@@ -51,7 +52,15 @@ export function possessionLines(p: PublicProject, agentName: string): string[] {
     lines.push(tower
       ? `${tower}'s date filed with MahaRERA: ${now}. Each tower has its own date (see MahaRERA registrations above); it is the date the builder has committed to under RERA.`
       : `Date filed with MahaRERA: ${now}. This is the date the builder has committed to under RERA.`)
-    if (then && then !== now) lines.push(`At registration the MahaRERA date was ${then}; it has since moved to ${now}.`)
+    if (then && then !== now) {
+      // MahaRERA's own 2026 extension (Order 66/2026) is not the builder moving the date (2026-10-23: Lodha Camelot's page said "moved")
+      const ext = extensionMonths(p.rera?.completion_now, p.rera?.registered_on)
+      const later = monthsLater(p.rera?.completion_now, p.rera?.completion_at_registration, p.rera?.registered_on)
+      lines.push(ext && later === 0
+        ? `At registration the MahaRERA date was ${then}. MahaRERA itself added ${ext} months to most projects' dates in August 2026 (Order 66/2026), so it now reads ${now}; the builder has not moved it.`
+        : `At registration the MahaRERA date was ${then}; it has since moved to ${now}` +
+          (ext ? `, ${ext} months of that from MahaRERA's own August 2026 extension (Order 66/2026).` : '.'))
+    }
     const gap = monthsBetween(p.possession_target, p.rera?.completion_now)
     if (target && gap != null && gap >= 3) {
       lines.push(`The two dates are about ${gap} months apart. Plan your rent, loan and move around the MahaRERA date, and ask for the possession date in writing in your agreement for sale.`)

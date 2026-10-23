@@ -45,7 +45,11 @@ describe('project helpers', () => {
     const lines = possessionLines(P, 'House Deal')
     expect(lines[0]).toBe("Builder's target: Mar 2028 (as quoted by House Deal).")
     expect(lines.join(' ')).toContain('Date filed with MahaRERA: 30 Apr 2029')
-    expect(lines.join(' ')).toContain('it has since moved to 30 Apr 2029')
+    // 31 Dec 2028 -> 30 Apr 2029 is exactly MahaRERA's own 2026 extension: never "moved"
+    expect(lines.join(' ')).toContain("MahaRERA itself added 4 months to most projects' dates in August 2026 (Order 66/2026), so it now reads 30 Apr 2029; the builder has not moved it.")
+    expect(lines.join(' ')).not.toContain('since moved')
+    const builderMoved = possessionLines({ ...P, rera: { ...P.rera!, completion_now: '2029-10-31' } }, 'House Deal').join(' ')
+    expect(builderMoved).toContain("it has since moved to 31 Oct 2029, 4 months of that from MahaRERA's own August 2026 extension (Order 66/2026).")
     expect(lines.join(' ')).toContain('about 13 months apart')
     expect(lines.join(' ').toLowerCase()).not.toMatch(/\b(late|delayed)\b/)
     expect(possessionLines({ ...P, rera: null }, 'House Deal')).toHaveLength(1)

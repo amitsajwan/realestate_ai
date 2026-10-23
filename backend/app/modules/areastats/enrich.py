@@ -246,6 +246,8 @@ def facts_text(doc: dict, gathered: Optional[dict], web: Optional[dict] = None, 
         lines.append(f"Completion date filed with MahaRERA now: {pages._long(now)}")
     if first and first != now:
         lines.append(f"Completion date filed when the project was registered: {pages._long(first)} (this is a completion date, not the registration date)")
+        if pages.extension_months(doc) and pages.months_later(doc) == 0:
+            lines.append(f"{pages.EXTENSION_NOTE}: that is the whole difference between the two dates; the builder did not move it")
     t = doc.get("building_totals") or {}
     if t.get("towers"):
         lines.append(f"Buildings registered with MahaRERA: {t['towers']}" + (f", up to {t['max_floors']} floors" if t.get("max_floors") else ""))
@@ -313,6 +315,10 @@ NOTHING = re.compile(r"provided facts|not (?:mentioned|specified|available|state
                      r"check the maharera record before you book", re.I)
 
 
+# a draft saying the filed date moved; "has not moved" / "not been moved" are fine
+MOVED = re.compile(r"(?<!not )(?<!never )(?<!not been )\b(?:moved|pushed|postponed|delayed|revised|shifted)\b", re.I)
+
+
 def empty_section(text: str) -> bool:
     return bool(NOTHING.search(text)) or len(text) < 60
 
@@ -357,6 +363,13 @@ async def write_text(llm, doc: dict, gathered: Optional[dict], web: Optional[dic
     for part, said in (("paragraph", draft["text"]), ("summary", draft["summary"] or "")):
         if said and not websearch_mentions(name, said):
             problems.append(f"the {part} does not name {name}")
+    # 2026-10-22: "Godrej Ivara Godrej Properties Godrej Ivara, developed by ..." opened a live page
+    first_sentence = re.split(r"(?<=[.!?])\s", draft["text"], maxsplit=1)[0]
+    if name and first_sentence.lower().count(name.lower()) > 1:
+        problems.append(f"the first sentence names {name} twice")
+    # MahaRERA's own 2026 extension is not the builder moving the date (2026-10-22: "was moved from 16 Aug 2032 to 16 Dec 2032")
+    if pages.extension_months(doc) and pages.months_later(doc) == 0 and MOVED.search(whole):
+        problems.append("says the date moved, but the only change is MahaRERA's 2026 extension")
     if problems:
         log.info("enrich: draft for %s refused: %s", doc.get("_id"), "; ".join(problems))
         return None, problems

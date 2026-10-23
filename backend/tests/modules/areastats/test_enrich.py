@@ -249,3 +249,43 @@ def test_our_areas_outward_from_kharadi_and_new_launches_or_hot_first():
     upper = {**base, "_id": "U", "locality": "upper_kharadi", "pune_place": "upper_kharadi"}
     order = sorted([(enrich.priority(d, set(), NOW), d["_id"]) for d in (wakad, lohegaon, kharadi_old, kharadi_new, upper)])
     assert [k[1] for k in order] == ["W", "U", "N", "K", "L"]                  # hot first in every area, then outward from Kharadi
+
+
+# Godrej Ivara on 2026-10-22: registered Feb 2026, MahaRERA's Order 66/2026 added 4 months, the builder moved nothing
+IVARA = {"_id": "PR1260002502426", "regno": "PR1260002502426", "name": "Godrej Ivara", "locality": "upper_kharadi",
+         "promoter": "Manjari Housing Projects LLP", "registered_on": "2026-02-20", "completion_at_registration": "2032-08-16",
+         "completion_now": "2032-12-16", "units_total": 2792, "units_booked": 489}
+
+
+class DraftLLM:
+    def __init__(self, summary):
+        self.summary = summary
+
+    async def json(self, system, user):
+        return {"summary": self.summary, "sections": [], "search_summary": "Godrej Ivara, Upper Kharadi: homes by Manjari Housing, completion 16 Dec 2032"}
+
+
+async def test_a_draft_calling_maharera_s_blanket_extension_a_move_is_refused():
+    moved = ("Godrej Ivara is a housing project by Manjari Housing Projects LLP in Upper Kharadi, Pune. The MahaRERA-filed "
+             "completion date was moved from 16 Aug 2032 to 16 Dec 2032. 489 of the 2792 homes were booked.")
+    draft, refused = await enrich.write_text(DraftLLM(moved), IVARA, None)
+    assert draft is None
+    assert any("2026 extension" in r for r in refused)
+    fine = moved.replace("was moved from 16 Aug 2032 to 16 Dec 2032", "is 16 Dec 2032 and the builder has not moved it")
+    draft, refused = await enrich.write_text(DraftLLM(fine), IVARA, None)
+    assert refused == [] and draft["text"] == fine
+
+
+async def test_a_draft_whose_first_sentence_repeats_the_name_is_refused():
+    garbled = ("Godrej Ivara Godrej Properties Godrej Ivara, developed by Manjari Housing Projects LLP, is a housing project in "
+               "Upper Kharadi, Pune. Its completion date filed with MahaRERA is 16 Dec 2032. 489 of the 2792 homes were booked.")
+    draft, refused = await enrich.write_text(DraftLLM(garbled), IVARA, None)
+    assert draft is None
+    assert "the first sentence names Godrej Ivara twice" in refused
+
+
+def test_the_writer_is_told_the_blanket_extension_is_the_whole_difference():
+    facts = enrich.facts_text(IVARA, None)
+    assert "the builder did not move it" in facts
+    builder_moved = {**IVARA, "completion_now": "2033-06-16"}
+    assert "the builder did not move it" not in enrich.facts_text(builder_moved, None)
