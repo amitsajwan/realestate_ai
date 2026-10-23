@@ -320,8 +320,23 @@ export interface Lead {
   requirement_line?: string | null
   /** Set when the lead is won or lost; null otherwise. Absent on older backends. */
   outcome?: LeadOutcome | null
+  /** Has anyone reached them, and who is waiting for whom; worked out by the server. Absent on older backends. */
+  contact?: ContactStatus | null
   created_at: string
   last_activity_at: string
+}
+
+/**
+ * not_contacted: nothing sent, no call (at = when the lead came in) · waiting_you: their message is the last one ·
+ * no_reply: we wrote, they never answered · no_answer: last call not picked up · in_touch: talking ·
+ * contacted: moved on by hand · closed: won or lost
+ */
+export type ContactState = 'not_contacted' | 'waiting_you' | 'no_reply' | 'no_answer' | 'in_touch' | 'contacted' | 'closed'
+export interface ContactStatus {
+  state: ContactState
+  at: string | null
+  by: 'them' | 'bot' | 'you' | null
+  channel: string | null
 }
 
 export type Timeline = 'now' | '1_3_months' | '3_6_months' | 'exploring'
@@ -363,6 +378,8 @@ export interface LeadPatch {
   stage?: Stage
   note?: string
   follow_up_at?: string
+  /** A person logged a call: a New lead moves to Contacted; no answer sets a follow-up for tomorrow. */
+  call?: 'answered' | 'no_answer'
   /** Only together with stage won or lost. */
   outcome?: OutcomeInput
 }

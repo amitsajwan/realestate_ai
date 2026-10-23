@@ -2,13 +2,14 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import React, { useState } from 'react'
+import { LeadConversations } from '@/components/app/LeadConversations'
 import { AiSummaryCard, DraftPanel, FollowUpDue, MatchesList, RequirementChips } from '@/components/app/LeadPanels'
 import { DealClosedSheet, LostReasonSheet, MarkSoldPrompt, OutcomeSummary } from '@/components/app/OutcomeSheets'
 import { Btn, ErrorBox, LinkBtn, STAGES, Spinner, TempChip, inputCls } from '@/components/app/ui'
 import { api, errorMessage } from '@/lib/app/client'
 import { displayPhone, timeAgo, waDigits } from '@/lib/app/format'
-import { cameFromLine, eventLabel } from '@/lib/app/leads'
-import { inboxApi } from '@/lib/app/inbox'
+import { cameFromLine, CONTACT_TONE, contactLine, eventLabel } from '@/lib/app/leads'
+import { inboxApi, type InboxThreadFull } from '@/lib/app/inbox'
 import { dealListings } from '@/lib/app/outcomes'
 import { whatsappChatUrl } from '@/lib/app/share'
 import { t } from '@/lib/app/strings'
@@ -19,8 +20,10 @@ type Sheet = 'won' | 'lost' | null
 
 export function LeadDetailView({ id }: { id: string }) {
   const { data, error, loading, setData } = useAsync(async () => {
-    const [lead, listings] = await Promise.all([api.getLead(id), api.listListings().catch(() => [] as Listing[])])
-    return { lead, listings, titles: Object.fromEntries(listings.map((l) => [l.id, l.title])) as Record<string, string> }
+    const [lead, listings, threads] = await Promise.all([api.getLead(id), api.listListings().catch(() => [] as Listing[]),
+      // the chats are extra: without them the lead still shows
+      inboxApi.forLead(id).catch(() => [] as InboxThreadFull[])])
+    return { lead, listings, threads, titles: Object.fromEntries(listings.map((l) => [l.id, l.title])) as Record<string, string> }
   }, [id])
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
@@ -32,7 +35,8 @@ export function LeadDetailView({ id }: { id: string }) {
 
   if (loading && !data) return <Spinner />
   if (error || !data) return <ErrorBox message={error ?? t('notFound')} />
-  const { lead, titles, listings } = data
+  const { lead, titles, listings, threads } = data
+  const contact = contactLine(lead.contact)
 
   /** Returns the updated lead, or null when the request failed (the message is in `err`). */
   async function patch(p: LeadPatch, clearNote = false): Promise<LeadDetail | null> {
@@ -114,6 +118,7 @@ export function LeadDetailView({ id }: { id: string }) {
         <TempChip temperature={lead.temperature} score={lead.score} />
       </div>
       <p className="text-gray-600">{displayPhone(lead.phone)}</p>
+      {contact && <p className={`rounded-xl px-3 py-2 text-sm font-semibold ${CONTACT_TONE[contact.tone]}`}>{contact.text}</p>}
       {cameFromLine(lead) && <p className="break-words text-sm text-gray-600">{cameFromLine(lead)}</p>}
 
       {lead.outcome && (lead.stage === 'won' || lead.stage === 'lost') && (
@@ -140,12 +145,22 @@ export function LeadDetailView({ id }: { id: string }) {
           {t('whatsappMyPhone')}
         </LinkBtn>
       </div>
+      <div className="space-y-1">
+        <p className="text-sm font-semibold text-gray-800">Called them? Log it</p>
+        <div className="grid grid-cols-2 gap-3">
+          <Btn variant="secondary" disabled={busy} onClick={() => patch({ call: 'answered' })}>Answered</Btn>
+          <Btn variant="secondary" disabled={busy} onClick={() => patch({ call: 'no_answer' })}>No answer</Btn>
+        </div>
+        <p className="text-xs text-gray-500">No answer sets a follow-up for tomorrow. A note about the call goes in Add note below.</p>
+      </div>
       {waDigits(lead.phone) && (
         <div className="space-y-1">
           <Btn variant="whatsapp" disabled={busy} onClick={messageFromBrand}>{busy ? t('sending') : t('whatsappFromBrand')}</Btn>
           <p className="text-xs text-gray-500">{t('whatsappFromBrandHint')}</p>
         </div>
       )}
+
+      <LeadConversations threads={threads} />
 
       <RequirementChips requirement={lead.requirement} />
       <MatchesList matches={lead.matches} />

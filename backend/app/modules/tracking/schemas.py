@@ -72,6 +72,7 @@ class StageUpdate(BaseModel):
     outcome: Optional[OutcomeIn] = None
     note: Optional[str] = Field(None, max_length=500)
     follow_up_at: Optional[datetime] = None
+    call: Optional[Literal["answered", "no_answer"]] = None   # a person logged a call on the lead
 
     @field_validator("follow_up_at")
     @classmethod
@@ -93,8 +94,8 @@ class StageUpdate(BaseModel):
 
     @model_validator(mode="after")
     def _something(self):
-        if self.stage is None and not self.note and self.follow_up_at is None:
-            raise ValueError("Provide stage, note or follow_up_at")
+        if self.stage is None and not self.note and self.follow_up_at is None and self.call is None:
+            raise ValueError("Provide stage, note, follow_up_at or call")
         return self
 
 

@@ -97,6 +97,9 @@ export const inboxApi = {
   /** A comment thread was answered on Facebook/Instagram (or needs no answer). */
   done: (id: string) => call<InboxThreadFull>(`/${encodeURIComponent(id)}/done`, { method: 'POST' }),
   agents: async (): Promise<PassAgent[]> => (await call<{ items: PassAgent[] }>('/agents')).items ?? [],
+  /** Every chat with this lead (WhatsApp, Messenger/Instagram, website chat), newest first. */
+  forLead: async (leadId: string): Promise<InboxThreadFull[]> =>
+    (isFixtureMode() ? [] : (await call<{ items: InboxThreadFull[] }>(`/lead/${encodeURIComponent(leadId)}`)).items ?? []),
   /** Message a lead from our WhatsApp number: the thread id; when they have not written in 24 hours, the approved follow-up goes out first. */
   startWithLead: (leadId: string) => call<{ id: string; sent: boolean }>(`/lead/${encodeURIComponent(leadId)}/whatsapp`, { method: 'POST' }),
   pass: (id: string, agentId: string) => call<PassResult>(`/${encodeURIComponent(id)}/pass`, { method: 'POST', json: { agent_id: agentId } }),

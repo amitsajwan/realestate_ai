@@ -7,19 +7,27 @@ import { OutcomeBadge } from '@/components/app/OutcomeSheets'
 import { ErrorBox, PageTitle, STAGES, Spinner, TempChip } from '@/components/app/ui'
 import { api } from '@/lib/app/client'
 import { displayPhone, timeAgo } from '@/lib/app/format'
-import { buildWhatsappUrl, channelLabel, originKey, sortLeads, sourceLabel } from '@/lib/app/leads'
+import { buildWhatsappUrl, channelLabel, CONTACT_TONE, contactLine, originKey, sortLeads, sourceLabel } from '@/lib/app/leads'
 import { t } from '@/lib/app/strings'
 import { useAsync } from '@/lib/app/useAsync'
 import type { Lead, TodayFollowUp } from '@/lib/app/types'
 
-/** Tabs: follow-ups due today first, then the stages, then everything. Kept in the address as ?tab= (and ?hot=1). */
-const TABS = ['today', ...STAGES.map((s) => s.key as string), 'all']
+/** Tabs: leads waiting on us first, follow-ups due today, then the stages, then everything. Kept in the address as ?tab= (and ?hot=1). */
+const TABS = ['needs', 'today', ...STAGES.map((s) => s.key as string), 'all']
 /** Home tiles and older links used ?filter=: they still land on the right tab. */
 const LEGACY: Record<string, { tab: string; hot?: boolean }> = {
   new: { tab: 'new' }, hot: { tab: 'all', hot: true }, site_visit: { tab: 'site_visit' }, followups: { tab: 'today' },
 }
 const SHORT: Record<string, string> = { site_visit: 'Visit', negotiating: 'Talks' }
-const EMPTY: Record<string, string> = { today: 'No follow-ups due today.', all: t('noLeads') }
+const EMPTY: Record<string, string> = { needs: 'Everyone has been contacted, and nobody is waiting for a reply.', today: 'No follow-ups due today.', all: t('noLeads') }
+/** Nobody reached them yet, or their message is unanswered (2026-10-23: two form leads sat for 10 hours and 3 days). */
+const needsYou = (l: Lead) => l.contact?.state === 'not_contacted' || l.contact?.state === 'waiting_you'
+
+function ContactLine({ lead }: { lead: Lead }) {
+  const c = contactLine(lead.contact)
+  if (!c) return null
+  return <p className={`mt-1 truncate rounded-lg px-2 py-0.5 text-xs font-semibold ${CONTACT_TONE[c.tone]}`}>{c.text}</p>
+}
 
 const isOpen = (l: Lead) => l.stage !== 'won' && l.stage !== 'lost'
 
@@ -60,6 +68,7 @@ function LeadRow({ lead, title, due }: { lead: Lead; title?: string; due?: Today
             <span className="truncate">{due.reason}</span>
           </p>
         )}
+        <ContactLine lead={lead} />
         {lead.requirement_line && <p className="truncate text-sm font-medium text-gray-800">{lead.requirement_line}</p>}
         <p className="text-sm text-gray-500">{displayPhone(lead.phone)}</p>
         {lead.message && <p className="mt-1 truncate text-sm text-gray-700">“{plainMessage(lead.message)}”</p>}
@@ -110,7 +119,7 @@ function LeadsList() {
   // The default (Follow up today when something is due, else All) is fixed once the list loads.
   const [initial, setInitial] = useState<string | null>(null)
   React.useEffect(() => {
-    if (data && initial === null) setInitial(data.followUps.length ? 'today' : 'all')
+    if (data && initial === null) setInitial(data.leads.some(needsYou) ? 'needs' : data.followUps.length ? 'today' : 'all')
   }, [data, initial])
   const [tab, setTab] = useUrlTab('tab', legacy?.tab ?? initial ?? 'all', TABS)
 
@@ -135,6 +144,7 @@ function LeadsList() {
   const due = new Map((data?.followUps ?? []).map((f) => [f.id, f]))
   const inTab = (k: string) =>
     k === 'all' ? leads
+      : k === 'needs' ? leads.filter(needsYou).sort((a, b) => (a.contact?.at ?? '').localeCompare(b.contact?.at ?? ''))   // longest waiting first
       : k === 'today' ? (data?.followUps ?? []).map((f) => leads.find((l) => l.id === f.id)).filter((l): l is Lead => !!l)
         : leads.filter((l) => l.stage === k)
   const shown = inTab(tab)
@@ -144,6 +154,7 @@ function LeadsList() {
       <PageTitle>{t('leads')}</PageTitle>
       {data && (
         <TabBar label="Leads" value={tab} onChange={setTab} tabs={[
+          { key: 'needs', label: 'Needs you', count: inTab('needs').length, tone: 'urgent' },
           { key: 'today', label: 'Today', count: inTab('today').length, tone: 'urgent' },
           // short labels and no empty stage tabs (except New and the open one), so the row fits a phone without scrolling
           ...STAGES.map((s) => ({ key: s.key as string, label: SHORT[s.key] ?? s.label, count: inTab(s.key).length, hideWhenEmpty: s.key !== 'new' && s.key !== tab })),

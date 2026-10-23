@@ -12,7 +12,9 @@ A thread id is "<kind>-<base64url of the stored _id>" (kind: wa, dm, web; cm: "<
 "Needs you" = the last message is theirs: nobody (bot or person) has answered it.
 A person's reply goes out only on WhatsApp, only inside the 24-hour window, through WhatsAppService._send (same caps, dry run and
 records); the bot then stays quiet in that chat for HUMAN_HOLD, so it does not talk over the person. Outside the window a person can
-start (or restart) a chat from a lead with the approved follow-up template, once per 24 hours (start).
+start (or restart) a chat from a lead with the approved follow-up template, once per 24 hours (start). The template alone does not
+hold the bot back: their answer to it gets the bot's reply at once (2026-10-23: Rahul's "Hi" sat unanswered for hours because the
+template started the 12-hour hold and nobody was watching). Messaging a New lead moves it to Contacted.
 """
 import base64
 import binascii
@@ -312,9 +314,40 @@ class InboxService:
             raise InboxError(f"Not sent: {rec.get('error') or rec['status']}", 502)
         msgs = (conv.get("messages") or []) + [{"role": "agent", "sent_by": by, "text": text, "ts": now, "status": rec["status"]}]
         await self.c("whatsapp_conversations").update_one({"_id": cid}, {"$set": {
-            "messages": msgs[-20:], "lead_id": conv.get("lead_id") or lead_id, "template_sent_at": now,
-            "human_until": now + HUMAN_HOLD, "updated_at": now}})
+            "messages": msgs[-20:], "lead_id": conv.get("lead_id") or lead_id, "template_sent_at": now, "updated_at": now}})
+        if lead.get("stage", "new") == "new":
+            await self.c("contacts").update_one({"_id": lead_id, "agent_id": agent_id, "stage": "new"}, {"$set": {
+                "stage": "contacted", "contacted_at": now, "follow_up_due_at": now + timedelta(days=2), "last_activity_at": now}})
         return {"id": tid, "sent": True}
+
+    # ---- a lead's conversations (the lead page shows them) -----------------------------------------------------------
+    async def for_lead(self, agent_id: str, lead_id: str) -> List[dict]:
+        """Every chat with this lead, newest first: WhatsApp (by lead or by their mobile on our number), Messenger/Instagram (by
+        lead), website chat (by the number they gave). Same thread shape as the inbox."""
+        lead = await self.c("contacts").find_one({"_id": lead_id, "agent_id": agent_id})
+        if not lead:
+            raise InboxError("Lead not found", 404)
+        tids = []
+        for d in await self.c("whatsapp_conversations").find({"lead_id": lead_id}).to_list(20):
+            tids.append(_enc("wa", str(d["_id"])))
+        digits = _wa_digits(lead.get("phone"))
+        if digits:
+            for d in await self.c("whatsapp_conversations").find({"wa_id": digits}).to_list(20):
+                tids.append(_enc("wa", str(d["_id"])))
+        for d in await self.c("dm_conversations").find({"lead_id": lead_id}).to_list(20):
+            tids.append(_enc("dm", str(d["_id"])))
+        slug = await self._slug(agent_id)
+        if slug and lead.get("phone"):
+            for d in await self.c("chat_sessions").find({"agent_slug": slug, "data.phone": lead["phone"]}).to_list(20):
+                tids.append(_enc("web", str(d["_id"])))
+        out = []
+        for tid in dict.fromkeys(tids):
+            try:
+                out.append(await self.thread(agent_id, tid))
+            except InboxError:
+                continue   # passed to another agent, or no longer this viewer's
+        out.sort(key=lambda r: r["last_at"] or "", reverse=True)
+        return out
 
     # ---- the owner passes a buyer to an agent -----------------------------------------------------------------------
     # The conversation and its lead move to the agent (his Inbox and Leads; WhatsApp routing keeps them with him, since

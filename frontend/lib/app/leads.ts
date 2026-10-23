@@ -1,7 +1,7 @@
 import { formatInr, timeAgo, waDigits } from './format'
 import { whatsappChatUrl } from './share'
 import { t } from './strings'
-import type { Financing, Lead, LeadChannel, LeadEvent, NextActionType, Requirement, Timeline } from './types'
+import type { ContactStatus, Financing, Lead, LeadChannel, LeadEvent, NextActionType, Requirement, Timeline } from './types'
 
 const VERBS: Record<string, string> = {
   page_view: 'Visited your website',
@@ -10,6 +10,8 @@ const VERBS: Record<string, string> = {
   call_click: 'Tapped Call on',
   whatsapp_click: 'Tapped WhatsApp on',
   inquiry: 'Sent an enquiry about',
+  call_answered: 'You called: answered',
+  call_no_answer: 'You called: no answer',
 }
 
 const SOURCES: Record<string, string> = {
@@ -47,6 +49,7 @@ export function originKey(lead: Pick<Lead, 'source' | 'first_touch'>): string {
 
 /** "Viewed 2 BHK in Baner - Instagram - 2h ago" */
 export function eventLabel(ev: LeadEvent, listingTitle?: string | null, now?: Date): string {
+  if (ev.type.startsWith('call_')) return [VERBS[ev.type] ?? 'You called', timeAgo(ev.ts, now)].join(' - ')
   const verb = ev.type === 'page_view' && ev.path ? 'Opened' : VERBS[ev.type] ?? ev.type.replace(/_/g, ' ')
   const what = ev.type === 'page_view' ? (ev.path ? ` ${ev.path}` : '') : ` ${listingTitle || (ev.listing_id ? 'a listing' : ev.path || 'your site')}`
   return [`${verb}${what}`, sourceLabel(ev.source), timeAgo(ev.ts, now)].filter(Boolean).join(' - ')
@@ -149,4 +152,35 @@ export const NEXT_ACTION_LABEL: Record<NextActionType, Parameters<typeof t>[0]> 
   whatsapp: 'actWhatsapp',
   schedule_visit: 'actScheduleVisit',
   follow_up: 'actFollowUp',
+}
+
+const VIA: Record<string, string> = { whatsapp: 'WhatsApp', messenger: 'Messenger', instagram: 'Instagram', website: 'website chat', call: 'phone' }
+const HOURS_BEFORE_LATE = 2
+/** Colours for contactLine's tone (like CHANNEL_CHIP in inbox.ts). */
+export const CONTACT_TONE = { bad: 'bg-red-50 text-red-700', action: 'bg-[#f0b440] text-[#0f2340]', wait: 'bg-blue-50 text-blue-800', ok: 'bg-green-50 text-green-800' }
+
+/**
+ * One line for "who is waiting for whom", and how loud to show it: bad = someone is waiting on us (a new lead nobody reached in
+ * 2 hours, or their message unanswered), action = waiting on us but fresh, wait = we are waiting on them, ok = talking.
+ */
+export function contactLine(c: ContactStatus | null | undefined, now: Date = new Date()): { text: string; tone: 'bad' | 'action' | 'wait' | 'ok' } | null {
+  if (!c || c.state === 'closed') return null
+  const ago = c.at ? timeAgo(c.at, now) : ''
+  // naive UTC from the server, like timeAgo
+  const late = !!c.at && now.getTime() - Date.parse(/[zZ]|[+-]\d\d:?\d\d$/.test(c.at) ? c.at : c.at + 'Z') > HOURS_BEFORE_LATE * 3600 * 1000
+  const via = c.channel ? VIA[c.channel] ?? c.channel : ''
+  switch (c.state) {
+    case 'not_contacted':
+      return { text: `Not contacted yet · came in ${ago}`, tone: late ? 'bad' : 'action' }
+    case 'waiting_you':
+      return { text: `They replied on ${via} ${ago} · waiting for you`, tone: late ? 'bad' : 'action' }
+    case 'no_reply':
+      return { text: `${c.by === 'bot' ? 'Bot' : 'You'} messaged on ${via} ${ago} · no reply yet`, tone: 'wait' }
+    case 'no_answer':
+      return { text: `Called ${ago} · no answer`, tone: 'wait' }
+    case 'in_touch':
+      return { text: c.channel === 'call' ? `Spoke on the phone ${ago}` : `In touch on ${via} · last word ${c.by === 'bot' ? 'from the bot' : 'from you'} ${ago}`, tone: 'ok' }
+    default:
+      return { text: 'Contacted', tone: 'ok' }
+  }
 }

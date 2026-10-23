@@ -2,28 +2,12 @@
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import React from 'react'
+import { Bubble } from '@/components/app/ChatBubble'
 import { Btn, ErrorBox, PageTitle, Spinner, inputCls } from '@/components/app/ui'
 import { errorMessage } from '@/lib/app/client'
 import { BRAND_NAME } from '@/lib/brand'
 import { timeAgo } from '@/lib/app/format'
-import { CHANNEL_CHIP, CHANNEL_LABEL, inboxApi, isComment, type InboxMessage, type InboxThreadFull, type PassAgent, type PassResult } from '@/lib/app/inbox'
-
-const STATUS: Record<string, string> = { failed: 'Not delivered', refused: 'Not sent', dry_run: 'Test mode, not sent' }
-
-function Bubble({ m }: { m: InboxMessage }) {
-  const them = m.from === 'them'
-  const tone = them ? 'bg-white border border-gray-200 text-gray-900' : m.from === 'you' ? 'bg-green-100 text-green-950' : 'bg-blue-50 text-blue-950'
-  const bad = m.status && STATUS[m.status]
-  return (
-    <li className={'flex ' + (them ? 'justify-start' : 'justify-end')}>
-      <div className={'max-w-[85%] space-y-1 rounded-2xl px-3 py-2 ' + tone}>
-        <p className="text-xs font-semibold opacity-70">{them ? 'They wrote' : m.from === 'you' ? 'You' : 'Bot'}{m.at ? ` · ${timeAgo(m.at)}` : ''}</p>
-        <p className="whitespace-pre-wrap break-words text-sm">{m.text}</p>
-        {bad && <p className="text-xs font-semibold text-red-700">{bad}{m.error ? `: ${m.error}` : ''}</p>}
-      </div>
-    </li>
-  )
-}
+import { CHANNEL_CHIP, CHANNEL_LABEL, inboxApi, isComment, type InboxThreadFull, type PassAgent, type PassResult } from '@/lib/app/inbox'
 
 /**
  * Owner only: pass this buyer to an agent. The chat and lead move to the agent (he gets an alert in Studio), and the owner gets a

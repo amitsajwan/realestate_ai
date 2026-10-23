@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Callable, Optional
 
-from . import limits, matching, origin, outcomes, requirement as reqmod, scoring, summary
+from . import contact as contactmod, limits, matching, origin, outcomes, requirement as reqmod, scoring, summary
 from .followup import Polish, build_draft, listing_label, polish_safely, whatsapp_url
 from .schemas import DraftIn, EventIn, InquiryIn, StageUpdate
 
@@ -160,7 +160,7 @@ class TrackingService:
 
     # ---- agent-facing (owner scoped) ----
 
-    def _view(self, c: dict) -> dict:
+    def _view(self, c: dict, contact: Optional[dict] = None) -> dict:
         now = self.now()
         value = scoring.score(c.get("score_base", 0), c["last_activity_at"], now)
         return {
@@ -172,6 +172,7 @@ class TrackingService:
             "requirement_line": reqmod.requirement_line(reqmod.public(c.get("requirement"))),
             "outcome": outcomes.public(c.get("outcome")),
             "created_at": c["created_at"], "last_activity_at": c["last_activity_at"],
+            "contact": contact,
         }
 
     async def list_leads(self, agent_id: str, stage: Optional[str] = None, limit: int = 50) -> list:
@@ -179,7 +180,8 @@ class TrackingService:
         if stage:
             flt["stage"] = stage
         docs = await self.contacts.find(flt).sort("last_activity_at", -1).limit(min(limit, 200)).to_list(200)
-        views = [self._view(d) for d in docs]  # already most-recent first
+        convs = await contactmod.conversations_by_lead(self.db, docs)
+        views = [self._view(d, contactmod.state_of(d, convs[d["_id"]])) for d in docs]  # already most-recent first
         return sorted(views, key=lambda v: -v["score"])  # stable: hottest first, ties stay most-recent first
 
     async def origins(self, agent_id: str, days: int = 7) -> dict:
@@ -244,16 +246,18 @@ class TrackingService:
             raise TrackingError("Lead not found", 404)
         events = await self.events.find({"agent_id": agent_id, "contact_id": contact_id}).sort("ts", 1).to_list(500)
         listings = await self._agent_listings(agent_id)
-        view = self._view(contact)
+        convs = await contactmod.conversations_by_lead(self.db, [contact])
+        view = self._view(contact, contactmod.state_of(contact, convs[contact_id]))
         req = reqmod.public(contact.get("requirement"))
         titles = {l["_id"]: l.get("title") for l in listings if l.get("title")}
         counts = summary.event_counts(events, titles)
         return {
             **view, "notes": contact.get("notes", []),
             "consent": contact.get("consent"),
-            "timeline": [{"type": e["type"], "listing_id": e.get("listing_id"), "source": e.get("source"),
-                          "path": e.get("path"), "ts": e["ts"]}
-                         for e in events],
+            "timeline": sorted([{"type": e["type"], "listing_id": e.get("listing_id"), "source": e.get("source"),
+                                 "path": e.get("path"), "ts": e["ts"]} for e in events]
+                               + [{"type": f"call_{k['outcome']}", "listing_id": None, "source": None, "path": None, "ts": k["ts"]}
+                                  for k in contact.get("calls") or []], key=lambda t: t["ts"]),
             "requirement": req,
             "ai_summary": summary.ai_summary(req, counts, contact.get("source"), contact["stage"], view["temperature"]),
             "next_action": summary.next_action(contact, view["temperature"], req, self.now()),
@@ -286,11 +290,22 @@ class TrackingService:
             if u.stage == "contacted" and (contact["stage"] != "contacted" or not contact.get("follow_up_due_at")):
                 changes["contacted_at"] = now
                 changes["follow_up_due_at"] = now + timedelta(days=FOLLOW_UP_DAYS)
+        if u.call:
+            # a logged call is contact: a New lead moves to Contacted; nobody picked up -> try again tomorrow unless a date is set
+            if not u.stage and contact["stage"] == "new":
+                changes.update(stage="contacted", contacted_at=now, follow_up_due_at=now + timedelta(days=FOLLOW_UP_DAYS))
+            if u.call == "no_answer" and u.follow_up_at is None:
+                changes["follow_up_due_at"] = now + timedelta(days=1)
         if u.follow_up_at is not None:
             changes["follow_up_due_at"] = u.follow_up_at
         upd = {"$set": changes}
+        push = {}
         if u.note:
-            upd["$push"] = {"notes": {"text": u.note, "ts": now, "stage": u.stage or contact["stage"]}}
+            push["notes"] = {"text": u.note, "ts": now, "stage": u.stage or changes.get("stage") or contact["stage"]}
+        if u.call:
+            push["calls"] = {"outcome": u.call, "ts": now}
+        if push:
+            upd["$push"] = push
         await self.contacts.update_one({"_id": contact_id, "agent_id": agent_id}, upd)
         detail = await self.lead_detail(agent_id, contact_id)
         if won_listing is not None:
