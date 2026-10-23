@@ -35,6 +35,11 @@ LIVE 3af3d9ce (2026-10-23): items 5, 6 (messages shown on the lead, reply stays 
 "call back at" = the existing follow-up date) and the lead-page half of 9. Contact status = tracking/contact.py. The follow-up
 template no longer starts the 12-hour bot hold (only a person's typed reply does), and moves a New lead to Contacted.
 
+LIVE 52588f4d (2026-10-23): items 1 (auto follow-up, LEAD_AUTO_FOLLOWUP=true on the VM, owner's form leads, 2 min after they
+come in, leads of the last 24 h only), 3 (one Studio alert per 2 h+ wait, kind lead_waiting; Home "Needs you now" counts waiting
+leads live; no owner WhatsApp/email yet: that needs a paid alert template) and 11 (timeline points in the score). Loop:
+inbox/followups.py, role conversations.
+
 TARGET, in this order:
 5. **Contact status on every lead**, worked out by code, shown on the list row and the lead page:
    "Not contacted · 14 h" (red after 2 h) / "Follow-up sent 7:45, no reply" / "Replied 9:08 · waiting for you" / "Bot is talking".
