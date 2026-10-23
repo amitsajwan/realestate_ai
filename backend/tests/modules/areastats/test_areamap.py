@@ -61,3 +61,13 @@ async def test_an_area_without_a_drawn_map_has_none_and_the_route_says_404():
     assert c.get("/register/map?area=baner").status_code == 404
     ok = c.get("/register/map?area=upper-kharadi")
     assert ok.status_code == 200 and ok.json()["items"] == []
+
+
+async def test_a_phase_years_old_showing_0_booked_is_unreported_not_empty():
+    # Majestique Towers East on 2026-10-23: Phase 3 (registered 2021) shows 0 booked; Phase 8 (2026) shows 21 of 192
+    db = await seeded(("PR1260002600313", "majestique-tower-east-phase-8", {"hot_score": 40, "registered_on": "2026-04-30",
+                                                                          "units_total": 192, "units_booked": 21}),
+                      ("P52100028815", "majestique-towers-east-phase-3", {"hot_score": 5, "registered_on": "2021-03-30",
+                                                                          "completion_now": "2026-10-30", "units_total": 184, "units_booked": 0}))
+    m = (await areamap.public(db, "upper_kharadi", NOW))["items"][0]
+    assert (m["name"], m["booked"], m["total"]) == ("Majestique Towers East", 21, 192)

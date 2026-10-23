@@ -107,6 +107,12 @@ def _photo(docs: List[dict]) -> Optional[dict]:
     return None
 
 
+def _young(d: dict, now: datetime) -> bool:
+    """Registered within the last year: a 0 booked can be true, not just unreported."""
+    reg = _day(d.get("registered_on"))
+    return bool(reg) and (now.date() - date.fromisoformat(reg)).days <= 365
+
+
 def _homes(d: dict) -> bool:
     return "commercial" not in str(d.get("project_type") or "").lower()
 
@@ -140,9 +146,10 @@ async def public(db, area: Optional[str], now: Optional[datetime] = None, limit:
             continue
         seen.add(key)
         group = [by_regno[r] for r in regnos if r in by_regno and not is_old(by_regno[r])] or [d]
-        # only phases MahaRERA gives both numbers for: Majestique's older phases report no bookings, and counting their homes
-        # read "21 of 1,184 booked" (2026-10-23)
-        known = [x for x in group if booked(x) is not None and _count(x.get("units_total"))]
+        # only phases whose bookings MahaRERA really reports: Majestique Towers East Phase 3 (registered 2021, due Oct 2026) shows
+        # 0 booked, i.e. none filed, and counting such phases read "21 of 1,184 booked" (2026-10-23). A 0 from a launch under a
+        # year old can be true.
+        known = [x for x in group if booked(x) is not None and _count(x.get("units_total")) and (booked(x) or _young(x, now))]
         total = sum(_count(x.get("units_total")) for x in known)
         sold = sum(booked(x) for x in known)
         prices = [p for p in (price_from(x) for x in group) if p]
