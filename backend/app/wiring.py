@@ -54,6 +54,10 @@ def wire() -> None:
     from app.modules.areastats import mappins
     mappins.configure(search=_places_search)
     project_enrich.add_daily("map pins", mappins.refresh)
+    # areas by place: a pinned project belongs to the area it is in (areastats.placement, app/core/area_bounds.py)
+    from app.modules.areastats import placement
+    placement.configure(pin_address=_pin_address)
+    project_enrich.add_daily("area placement", placement.refresh)
     # hot projects (areastats.hot): outside signals beyond MahaRERA, news and Search Console; YouTube is on with YOUTUBE_API_KEY
     from app.modules.areastats import hot as hot_projects
     hot_projects.add_signal("youtube", hot_projects.youtube_signal())
@@ -164,6 +168,14 @@ async def _places_search(db, query, centre):
     from app.modules.propertyfacts.pin import Pins
 
     return await Pins(db, settings.google_maps_api_key).search(query, centre)
+
+
+async def _pin_address(db, regno):
+    """The address Google gave for a project's own pin (propertyfacts keeps the pins), or None."""
+    from app.modules.propertyfacts.pin import COLLECTION
+
+    doc = await db.get_collection(COLLECTION).find_one({"_id": regno}) or {}
+    return doc.get("address") or None
 
 
 async def _pincode_centre(db, pincode):

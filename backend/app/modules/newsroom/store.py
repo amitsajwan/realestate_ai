@@ -157,7 +157,8 @@ class Store:
         out = {"new": 0, "updated": 0}
         for r in records:
             key = {"_id": r["regno"]}
-            if await self.projects.find_one(key) is None:
+            have = await self.projects.find_one(key)
+            if have is None:
                 try:
                     await self.projects.insert_one({**key, **r, "first_seen": r["checked_at"], "news": []})
                     out["new"] += 1
@@ -165,6 +166,9 @@ class Store:
                 except Exception as e:  # inserted meanwhile by another run: refresh it instead
                     if "duplicate" not in f"{type(e).__name__} {e}".lower():
                         raise
+            if (have or {}).get("locality_from") == "position" and r.get("locality_from") != "checked by hand":
+                # placed by where it is (areastats.placement): the pincode does not move it back; a hand placement still wins
+                r = {k: v for k, v in r.items() if k not in ("locality", "locality_from", "pune_place", "pune_place_name")}
             await self.projects.update_one(key, {"$set": r})
             out["updated"] += 1
         return out

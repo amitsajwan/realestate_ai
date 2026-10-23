@@ -43,6 +43,23 @@ Owner, 2026-10-23: on the Upper Kharadi page, show a map of the area with only i
 - doubtful pins wait in Studio > Admin > **Map pins to check** with a Google Maps link: Yes puts the pin on the map at once; No
   puts the place on the project's `refused` list and the next round looks for another.
 
+## Areas by place (LIVE)
+
+Decided 2026-10-23 (owner asked "Ekaanta shows on the Kharadi map but is in Viman Nagar"; left the call to us): a project whose
+position was checked belongs to the area it is IN, on the maps AND on the area pages, lists and counts. The pincode only decides
+for projects without a checked position. Why: 411014 is Kharadi, Viman Nagar and Wadgaon Sheri; 27 of 67 pinned "Kharadi"
+projects were elsewhere by Google's own address.
+
+- Boundaries: `app/core/area_bounds.py`, one polygon per area (Kharadi, Upper Kharadi, Wagholi, Lohegaon), drawn over the pinned
+  projects coloured by Google's neighbourhood. They overlap on purpose where both names are used (Upper Kharadi with Kharadi's
+  east edge and Wagholi's west). Areas without one (Hinjawadi, Wakad, Baner) stay by pincode.
+- `areastats/placement.py`, daily: keeps a project's area when its pin is inside that boundary or within 500 m (an edge is not a
+  wall); else the boundary that holds it; else out of our areas, its Pune place from Google's address (Viman Nagar ...). Hand
+  placements (`pune_places.VERIFIED`) never move. `also_areas`: other boundaries within 500 m, so it shows on those maps too.
+- The register sweep keeps a position-placed area (`locality_from: "position"`); a hand placement still wins.
+- First run moved 20 projects out of Kharadi (12 Wadgaon Sheri, 6 Viman Nagar, 2 Kalyani Nagar), Ekaanta among them; nothing
+  else moved. Kharadi's map was re-centred on its boundary.
+
 ## Areas
 
 | Area | Map | Pins |

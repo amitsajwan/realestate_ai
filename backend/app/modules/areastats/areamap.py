@@ -73,7 +73,8 @@ MAPS: Dict[str, AreaMap] = {
     # boxes from where the area's projects with a checked Google place sit (5th to 95th percentile, 2026-10-23), made square;
     # their pins come from the daily round (mappins) and the owner's yes in Studio, none by hand yet
     "wagholi": AreaMap(key="wagholi", picture="/maps/wagholi.svg", box=(18.541, 73.952, 18.609, 74.024), pins=()),
-    "kharadi": AreaMap(key="kharadi", picture="/maps/kharadi.svg", box=(18.5275, 73.904, 18.5795, 73.959), pins=()),
+    # Kharadi: re-centred on its boundary (app/core/area_bounds.py) once Viman Nagar and Wadgaon Sheri left it (2026-10-23)
+    "kharadi": AreaMap(key="kharadi", picture="/maps/kharadi.svg", box=(18.5265, 73.922, 18.5755, 73.974), pins=()),
 }
 
 ATTRIBUTION = "Map data © OpenStreetMap contributors"
@@ -122,9 +123,10 @@ def _homes(d: dict) -> bool:
 
 
 def ranked(docs: List[dict], key: str, now: datetime) -> List[dict]:
-    """An area's live project pages, homes only, most active first (as hubs.active: the page doctor's link slots, then hot score,
+    """An area's live project pages (its own and its neighbours' near the boundary), homes only, most active first (as hubs.active: the page doctor's link slots, then hot score,
     then Google impressions). `docs` are page primaries."""
-    live = [d for d in docs if d.get("locality") == key and indexable(d) and not is_old(d) and _homes(d)]
+    live = [d for d in docs if (d.get("locality") == key or key in (d.get("also_areas") or [])) and indexable(d) and not is_old(d)
+            and _homes(d)]   # also_areas: on or near this area's boundary, placed in the next one (areastats.placement)
     return sorted(live, key=lambda d: (not _slot(d, now), -(d.get("hot_score") or 0), -int(d.get("gsc_impressions") or 0),
                                        d.get("name", "")))
 
@@ -138,8 +140,8 @@ def resolve(m: AreaMap, d: dict) -> Optional[Tuple[str, str, float, float]]:
     """(group key, name on the map, lat, lon) from a checked position, else None. Order: a pin checked by hand, the pin the
     daily round found by the name it is sold under (mappins: `auto`, or `approved` by the owner; never `doubtful`), the
     project's own Google place from enrichment. Phases on the same Google place share a key, so they are one pin."""
-    pin = hand_pinned(m, d)
-    if pin is not None:
+    pin = hand_pinned(m, d) or next((p for other in MAPS.values() for p in [hand_pinned(other, d)] if p), None)
+    if pin is not None:   # a pin checked by hand on any area's map: Godrej Ivara's is in Upper Kharadi's list, on Kharadi's too
         return "hand:" + pin.name, pin.name, pin.lat, pin.lon
     mp = d.get("map_pin") or {}
     if mp.get("status") in ("auto", "approved") and mp.get("lat") is not None and mp.get("lon") is not None:
@@ -181,7 +183,7 @@ async def public(db, area: Optional[str], now: Optional[datetime] = None, limit:
     items: List[dict] = []
     for key, g in list(groups.items())[:limit]:
         d = g["docs"][0]
-        pin = hand_pinned(m, d)
+        pin = next((p for other in MAPS.values() for p in [hand_pinned(other, d)] if p), None)
         members = ([by_regno[r] for r in pin.regnos if r in by_regno] if pin else
                    [x for doc in g["docs"] for x in [doc, *towers.get(doc["_id"], [])]])
         group = [x for x in members if not is_old(x)] or [d]

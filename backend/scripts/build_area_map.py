@@ -48,8 +48,8 @@ PLACES = {
                       ("← Viman Nagar, Phoenix Marketcity", 18.5640, 73.9400, "edge")],
     "wagholi": [("WAGHOLI", 18.5860, 73.9930, "area"), ("UPPER KHARADI", 18.5640, 73.9690, "area"),
                 ("← Kharadi", 18.5560, 73.9520, "edge")],
-    "kharadi": [("KHARADI", 18.5530, 73.9370, "area"), ("VIMAN NAGAR", 18.5700, 73.9120, "area"), ("MUNDHWA", 18.5395, 73.9150, "area"),
-                ("EON IT Park", 18.5520, 73.9508, "landmark"), ("Phoenix Marketcity", 18.5622, 73.9167, "landmark")],
+    "kharadi": [("KHARADI", 18.5530, 73.9370, "area"), ("← Wadgaon Sheri, Viman Nagar", 18.5590, 73.9225, "edge"), ("MUNDHWA", 18.5300, 73.9330, "area"),
+                ("EON IT Park", 18.5520, 73.9508, "landmark"), ("UPPER KHARADI", 18.5640, 73.9640, "area")],
 }
 LAND, PARK, WATER, ROAD, CASING, TEXT = "#f3eddf", "#e1e9d6", "#c7dcea", "#ffffff", "#e2d4b2", "#6b6250"
 
@@ -124,6 +124,8 @@ def draw(osm: dict, box, places, labels=None, spine=()) -> str:
         hw = tags.get("highway")
         minor = hw in ("living_street", "residential", "unclassified")
         pts = simplify([to(g["lat"], g["lon"]) for g in geom], tol=1.6 if minor else 0.9)
+        if all(x < -40 or x > WIDTH + 40 or y < -40 or y > height + 40 for x, y in pts):
+            continue   # wholly outside the picture (a saved answer can cover more than the box)
         if hw in roads:
             if tags.get("name") in spine:
                 hw = "secondary"
