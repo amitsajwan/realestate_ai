@@ -7,8 +7,8 @@ an `auto`/`approved` map pin, or the project's own Google place) in or around an
 - else it moves to the first boundary that holds it, or, in none of ours, out of our areas: `locality` None and its Pune place
   from the neighbourhood in Google's address (Wadgaon Sheri, Viman Nagar ...), so its page stays and the area lists drop it;
 - a project placed by hand (pune_places.VERIFIED) is never moved;
-- `also_areas`: every other area whose boundary holds it or passes within EDGE_KM, so it shows on those maps too (Godrej Ivara is
-  on the Kharadi and the Upper Kharadi map).
+- `also_areas`: every other area whose boundary holds it, so it shows on those maps too, after their own projects (Godrej Ivara
+  is on the Kharadi and the Upper Kharadi map).
 A moved record says so (`locality_from` "position", `position` {lat, lon, was, at}); the register sweep keeps it (newsroom.store).
 Writes only `locality`, `locality_from`, `pune_place`, `pune_place_name`, `position` and `also_areas` on register records.
 """
@@ -59,7 +59,9 @@ def decide(label: Optional[str], lat: float, lon: float, by_hand: bool = False) 
     else:
         holds = area_bounds.containing(lat, lon)
         area = holds[0] if holds else None
-    return area, [k for k in near if k != area]
+    # other maps only where the pin is INSIDE their boundary: the 500 m edge put Kharadi's busiest projects at the top of Upper
+    # Kharadi's map, above its own (2026-10-23)
+    return area, [k for k in area_bounds.containing(lat, lon) if k != area]
 
 
 def place_from_address(address: str) -> Optional[pune_places.Place]:

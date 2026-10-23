@@ -18,8 +18,9 @@ from typing import Dict, List, Sequence, Tuple
 Poly = Tuple[Tuple[float, float], ...]
 
 BOUNDS: Dict[str, Poly] = {
+    # east edge at 73.970: Godrej Ivara (73.9689) is Kharadi by Google's address and Upper Kharadi as sold, so on both maps
     "kharadi": ((18.5345, 73.9275), (18.5625, 73.9275), (18.5655, 73.9450), (18.5675, 73.9550), (18.5600, 73.9620),
-                (18.5530, 73.9680), (18.5450, 73.9680), (18.5455, 73.9580), (18.5420, 73.9500), (18.5355, 73.9460)),
+                (18.5530, 73.9700), (18.5450, 73.9700), (18.5455, 73.9580), (18.5420, 73.9500), (18.5355, 73.9460)),
     # west edge east of EON IT Park (Kharadi's): Saina Serenity (73.9550) is the westernmost project sold as Upper Kharadi
     "upper_kharadi": ((18.5420, 73.9620), (18.5500, 73.9580), (18.5660, 73.9535), (18.5800, 73.9580), (18.5815, 73.9720),
                       (18.5780, 73.9780), (18.5600, 73.9760), (18.5460, 73.9750)),
@@ -28,7 +29,7 @@ BOUNDS: Dict[str, Poly] = {
     "lohegaon": ((18.5830, 73.8950), (18.6250, 73.8950), (18.6250, 73.9580), (18.5980, 73.9560), (18.5900, 73.9450),
                  (18.5830, 73.9400)),
 }
-EDGE_KM = 0.5          # this close to another area's boundary, a project is shown on that area's map too
+EDGE_KM = 0.5          # this close to its own area's boundary, a project keeps that area (an edge is not a wall)
 KM_PER_DEG = 111.32
 
 

@@ -127,8 +127,9 @@ def ranked(docs: List[dict], key: str, now: datetime) -> List[dict]:
     then Google impressions). `docs` are page primaries."""
     live = [d for d in docs if (d.get("locality") == key or key in (d.get("also_areas") or [])) and indexable(d) and not is_old(d)
             and _homes(d)]   # also_areas: on or near this area's boundary, placed in the next one (areastats.placement)
-    return sorted(live, key=lambda d: (not _slot(d, now), -(d.get("hot_score") or 0), -int(d.get("gsc_impressions") or 0),
-                                       d.get("name", "")))
+    # the area's own projects first, its neighbours inside the boundary after them
+    return sorted(live, key=lambda d: (d.get("locality") != key, not _slot(d, now), -(d.get("hot_score") or 0),
+                                       -int(d.get("gsc_impressions") or 0), d.get("name", "")))
 
 
 def hand_pinned(m: AreaMap, d: dict) -> Optional[Pin]:

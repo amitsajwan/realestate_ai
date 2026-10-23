@@ -86,3 +86,17 @@ async def test_the_relabel_pass_does_not_move_a_placed_project_back():
     e = await store.project("PR1260002600747")
     assert (e["locality"], e["pune_place"], e["locality_from"]) == (None, "viman_nagar", "position")
     assert (await store.project("P9"))["locality"] == "kharadi"          # the pincode still decides for an unplaced one
+
+
+
+async def test_an_areas_own_projects_come_first_and_a_neighbour_only_counts_inside_its_boundary():
+    # 2026-10-23: Kharadi's busiest projects within 500 m of the edge pushed Camelot off Upper Kharadi's top 10
+    db, store = await seeded(("P1", "Panchshil Towers", "kharadi", {**google(18.5560, 73.9500), "hot_score": 90}),   # 400 m outside
+                             ("P2", "Inside Corridor", "kharadi", {**google(18.5600, 73.9650), "hot_score": 80}),   # inside both
+                             ("P3", "Saina Serenity", "upper_kharadi", {**google(18.5678, 73.9550), "hot_score": 0}))
+    await placement.refresh(store, NOW)
+    assert (await store.project("P1")).get("also_areas") in (None, [])
+    from app.modules.newsroom import store as s
+    s._SHARED.clear()
+    names = [i["name"] for i in (await areamap.public(db, "upper_kharadi", NOW))["items"]]
+    assert names == ["Saina Serenity", "Inside Corridor"]
