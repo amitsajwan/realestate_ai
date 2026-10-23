@@ -75,3 +75,14 @@ async def test_the_register_sweep_does_not_move_a_placed_project_back_but_a_hand
     hand = [{**register.records([card], NOW)[0], "locality": "kharadi", "locality_from": "checked by hand"}]
     await store.record_projects(hand)
     assert (await store.project("PR1260002600747"))["locality"] == "kharadi"
+
+
+async def test_the_relabel_pass_does_not_move_a_placed_project_back():
+    # 2026-10-23: the placement moved Ekaanta to Viman Nagar and the pincode relabel put it back in Kharadi minutes later
+    from app.modules.areastats import refresh
+    db, store = await seeded(("PR1260002600747", "Ekaanta", None, {"locality_from": "position", "pune_place": "viman_nagar"}),
+                             ("P9", "Plain Kharadi Project", None, {}))
+    await refresh.relabel(store)
+    e = await store.project("PR1260002600747")
+    assert (e["locality"], e["pune_place"], e["locality_from"]) == (None, "viman_nagar", "position")
+    assert (await store.project("P9"))["locality"] == "kharadi"          # the pincode still decides for an unplaced one
