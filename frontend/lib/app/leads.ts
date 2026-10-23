@@ -64,7 +64,7 @@ function referrerHost(url: string): string {
   }
 }
 
-/** "Enquiry form · Came from Google (www.google.com) · landed on /projects/x · enquired on /agent/avasetu". */
+/** "Enquiry form · Came from Google (www.google.com) · landed on /projects/x · enquired on /agent/avasetu"; one page: "enquired on /projects/x (their first page)". */
 export function cameFromLine(lead: Pick<Lead, 'source' | 'first_touch' | 'channel'>): string {
   const ft = lead.first_touch
   const key = originKey(lead)
@@ -74,8 +74,9 @@ export function cameFromLine(lead: Pick<Lead, 'source' | 'first_touch' | 'channe
   else if (key === 'direct') from = 'Came directly (no referring site: typed, saved, or an app that hides it)'
   else if (key === 'unknown') from = 'Where they came from was not recorded (before 17 Oct)'
   else from = `Came from ${sourceLabel(key)}`
-  const landed = ft?.landing ? `landed on ${ft.landing}` : ''
-  const enquired = ft?.enquiry_page && ft.enquiry_page !== ft.landing ? `enquired on ${ft.enquiry_page}` : ''
+  // the enquiry page is always named: when it was also the first page, "landed on" alone read as "page unknown" (owner, 2026-10-23)
+  const landed = ft?.landing && ft.landing !== ft.enquiry_page ? `landed on ${ft.landing}` : ''
+  const enquired = ft?.enquiry_page ? `enquired on ${ft.enquiry_page}${ft.enquiry_page === ft.landing ? ' (their first page)' : ''}` : ''
   return [channelLabel(lead.channel), from, landed, enquired].filter(Boolean).join(' · ')
 }
 
