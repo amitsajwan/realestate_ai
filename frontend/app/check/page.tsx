@@ -32,7 +32,7 @@ export default async function CheckPage({ searchParams }: Props) {
   const q = (Array.isArray(raw) ? raw[0] : raw ?? '').trim().slice(0, 80)
   const hits = q.length >= 2 ? await searchRegister(q, 12) : []
   return (
-    <MarketingShell>
+    <MarketingShell search={false}>
       <div className="bg-[#0f2340] px-4 pb-10 pt-8 text-white sm:pb-14 sm:pt-12">
         <div className="mx-auto max-w-xl">
           <p className="text-sm font-semibold uppercase tracking-wide text-amber-300">Free · Pune · from MahaRERA</p>

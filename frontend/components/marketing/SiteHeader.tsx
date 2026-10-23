@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { NAV, PATHS } from '@/lib/marketing/strings'
 import { LOGO } from '@/lib/brand'
 import { siteLinks, type Audience, type SiteLink } from './siteLinks'
+import HeaderSearch from '@/components/site/HeaderSearch'
 
 function NavLink({ l, className }: { l: SiteLink; className: string }) {
   return l.external ? (
@@ -20,8 +21,9 @@ export type HeaderCta = Audience | 'none'
 const button = 'flex min-h-[44px] items-center whitespace-nowrap rounded-lg bg-[#f0b440] px-3 font-bold text-[#0f2340] no-underline hover:bg-[#f5c75e] sm:px-4'
 
 /** Navy header: mark + name, the main links on wide screens, a Menu disclosure on phones (no JavaScript needed), and one gold button
- *  chosen by the page's audience: buyer pages (the default) ask what the visitor needs, agent pages offer the invite. */
-export default function SiteHeader({ businessName, cta = 'buyer' }: { businessName: string; cta?: HeaderCta }) {
+ *  chosen by the page's audience: buyer pages (the default) ask what the visitor needs, agent pages offer the invite. `search` adds
+ *  the project search (components/site/HeaderSearch) in front of the links. */
+export default function SiteHeader({ businessName, cta = 'buyer', search = false }: { businessName: string; cta?: HeaderCta; search?: boolean }) {
   const s = siteLinks()
   const wide = 'hidden min-h-[44px] items-center whitespace-nowrap px-2 font-medium text-white/90 no-underline hover:text-white lg:flex xl:px-3'
   const item = 'flex min-h-[48px] items-center border-b border-white/10 px-1 font-medium text-white no-underline last:border-b-0'
@@ -34,6 +36,7 @@ export default function SiteHeader({ businessName, cta = 'buyer' }: { businessNa
           {businessName}
         </Link>
         <nav aria-label={NAV.primaryLabel} className="flex items-center gap-1 text-sm">
+          {search && <HeaderSearch askHref={s.need.href} />}
           {s.headerWide[cta === 'agent' ? 'agent' : 'buyer'].map((l) => <NavLink key={l.href} l={l} className={wide} />)}
           <NavLink l={s.signIn} className={wide} />
           {cta === 'buyer' && (
@@ -55,7 +58,8 @@ export default function SiteHeader({ businessName, cta = 'buyer' }: { businessNa
                 <path d="M4 7h16M4 12h16M4 17h16" className="group-open:hidden" />
                 <path d="M6 6l12 12M18 6L6 18" className="hidden group-open:block" />
               </svg>
-              Menu
+              {/* the search icon takes its room on the narrowest phones: the word goes, the name stays */}
+              <span className="max-[379px]:sr-only">Menu</span>
             </summary>
             <div className="absolute right-0 top-full mt-2 w-64 rounded-2xl border border-white/15 bg-[#0f2340] p-3 shadow-2xl">
               <ul className="m-0 list-none p-0">

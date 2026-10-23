@@ -56,7 +56,7 @@ export default async function ProjectsPage({ searchParams }: Props) {
   const byArea = LOCALITIES.map((l) => ({ l, hub: hubFor(l), items: register.filter((r) => r.area === l.key).sort(byUnits) }))
     .filter((g) => g.items.length > 0)
   return (
-    <MarketingShell>
+    <MarketingShell search={false}>
       <div className="mx-auto max-w-5xl px-4 py-10 sm:py-14" style={AVASETU_SITE_VARS}>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(breadcrumbJsonLd(cfg.siteUrl, [
           { name: 'Home', path: '/' }, { name: 'Projects', path: '/projects' },

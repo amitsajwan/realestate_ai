@@ -654,3 +654,6 @@ body {
   .hot-strip-link { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 0; min-height: 44px; padding: 4px 0; line-height: 1.3; }
   .hot-strip-line { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 }
+
+/* The header search's phone sheet covers the page (components/site/HeaderSearch): the chat bubble would sit on top of it. */
+html[data-search="open"] [data-chat-bubble] { display: none; }
