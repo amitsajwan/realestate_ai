@@ -30,7 +30,7 @@ export default function SiteHeader({ businessName, cta = 'buyer', search = false
   return (
     <header data-print="hide" className="sticky top-0 z-30 border-b border-[#1d3a63] bg-[#0f2340] text-white">
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-2 px-4 py-1.5">
-        <Link href={PATHS.home} className="flex min-h-[44px] items-center gap-2 whitespace-nowrap text-base font-bold text-white no-underline sm:text-lg">
+        <Link href={PATHS.home} className="flex min-h-[44px] shrink-0 items-center gap-2 whitespace-nowrap text-base font-bold text-white no-underline sm:text-lg">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={LOGO.mark} alt="" width={32} height={32} className="h-8 w-8" />
           {businessName}

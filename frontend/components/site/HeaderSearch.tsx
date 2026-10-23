@@ -50,7 +50,7 @@ function Row({ it, q, onPick }: { it: RegisterSearchHit; q: string; onPick: () =
 
 /**
  * Project search from every buyer page's header (one search over the register, GET /api/v1/public/register/search). On a phone a
- * magnifier opens a full-screen sheet (a modal dialog: focus kept inside, the chat bubble hidden); from lg up a field-shaped button
+ * magnifier opens a full-screen sheet (a modal dialog: focus kept inside, the chat bubble hidden); from lg up a 'Search' pill
  * opens a panel under it, and '/' opens it too. Results go to the project page, each with a 'Check' block for its MahaRERA card.
  * Without JavaScript the trigger is a link to the search on /projects, and Enter in the box submits to /projects?q= either way.
  * `askHref` is the header's Enquire link, offered when nothing matches.
@@ -123,10 +123,10 @@ export default function HeaderSearch({ askHref }: { askHref: string }) {
     <div ref={wrap} className="relative">
       <a ref={trigger} href="/projects#project-search" aria-label="Search projects" aria-expanded={open} data-testid="header-search"
         onClick={(e) => { e.preventDefault(); if (open) close(false); else show() }}
-        className="flex min-h-[44px] min-w-[44px] items-center justify-center gap-2 rounded-lg text-white no-underline hover:text-white lg:w-[220px] lg:justify-start lg:bg-white/10 lg:px-3 lg:ring-1 lg:ring-inset lg:ring-white/20 lg:hover:bg-white/15">
-        <Glass className="h-5 w-5 flex-none lg:h-4 lg:w-4 lg:text-white/80" />
-        <span className="hidden flex-1 text-left text-sm text-white/80 lg:inline">Search projects</span>
-        <kbd aria-hidden="true" className="hidden rounded border border-white/30 px-1.5 font-sans text-xs text-white/70 lg:inline">/</kbd>
+        className="flex min-h-[44px] min-w-[44px] items-center justify-center gap-1.5 whitespace-nowrap rounded-lg text-white no-underline hover:text-white lg:bg-white/10 lg:px-3 lg:ring-1 lg:ring-inset lg:ring-white/20 lg:hover:bg-white/15">
+        {/* a short pill, not a wide field: beside the name and five links a 220 px field ran over the name (2026-10-23) */}
+        <Glass className="h-5 w-5 flex-none lg:h-4 lg:w-4" />
+        <span className="hidden text-sm font-medium lg:inline">Search</span>
       </a>
       {open && (
         <div ref={panel} role="dialog" aria-modal={modal || undefined} aria-label="Search projects" onKeyDown={onPanelKey} data-testid="header-search-panel"

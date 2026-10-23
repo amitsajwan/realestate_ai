@@ -637,6 +637,8 @@ body {
   .hot-strip-track .hot-strip-row + .hot-strip-row { display: none; }
   .hot-strip-viewport { overflow-x: auto; }
 }
+/* standing still (reduced motion, keyboard focus) it scrolls sideways: a thin, quiet bar, not the browser's grey slab */
+.hot-strip-viewport { scrollbar-width: thin; scrollbar-color: rgb(255 255 255 / 0.3) transparent; }
 /* Phones: a rolling line crosses a ~250 px window in a few seconds, too fast to read. One project at a time instead, name over
    fact, in a swipeable snap row; components/site/HotStripStepper.tsx moves it on every few seconds. */
 @media (max-width: 767px) {
