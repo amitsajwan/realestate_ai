@@ -31,6 +31,10 @@ Two misses on 2026-10-22/23, found by the owner:
 LIVE today: Leads = form/chat leads with stage, temperature, notes, site-visit timeline (events only). Inbox = conversations
 (WhatsApp, DMs, comments, web chat). The two are separate, so a lead page does not show what was said to the person.
 
+LIVE 3af3d9ce (2026-10-23): items 5, 6 (messages shown on the lead, reply stays in the Inbox thread), 7 (Answered / No answer;
+"call back at" = the existing follow-up date) and the lead-page half of 9. Contact status = tracking/contact.py. The follow-up
+template no longer starts the 12-hour bot hold (only a person's typed reply does), and moves a New lead to Contacted.
+
 TARGET, in this order:
 5. **Contact status on every lead**, worked out by code, shown on the list row and the lead page:
    "Not contacted · 14 h" (red after 2 h) / "Follow-up sent 7:45, no reply" / "Replied 9:08 · waiting for you" / "Bot is talking".
