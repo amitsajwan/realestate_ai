@@ -637,3 +637,20 @@ body {
   .hot-strip-track .hot-strip-row + .hot-strip-row { display: none; }
   .hot-strip-viewport { overflow-x: auto; }
 }
+/* Phones: a rolling line crosses a ~250 px window in a few seconds, too fast to read. One project at a time instead, name over
+   fact, in a swipeable snap row; components/site/HotStripStepper.tsx moves it on every few seconds. */
+@media (max-width: 767px) {
+  .hot-strip-track, .hot-strip-track:has(.hot-strip-row + .hot-strip-row) { animation: none !important; }
+  .hot-strip-track .hot-strip-row + .hot-strip-row { display: none; }
+  .hot-strip-viewport {
+    container-type: inline-size;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+  .hot-strip-viewport::-webkit-scrollbar { display: none; }
+  .hot-strip-row { gap: 0; padding-right: 0; }
+  .hot-strip-row > li { width: 100cqw; scroll-snap-align: start; }
+  .hot-strip-link { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 0; min-height: 44px; padding: 4px 0; line-height: 1.3; }
+  .hot-strip-line { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+}

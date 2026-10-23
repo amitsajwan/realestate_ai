@@ -1,11 +1,14 @@
 import React from 'react'
 import Link from 'next/link'
 import { getListedSlugs, getSpotlight, type SpotlightProject } from '@/lib/site/hubs'
+import HotStripStepper from './HotStripStepper'
 
 /** The hot projects banner under the header of every public page (backend areastats/spotlight.py; picked in Studio > Admin).
  *  Server-rendered plain links, so Google reads them as internal links into the hottest project pages (that is how those pages
  *  get crawled first). At most 6 links, inside <aside> with no heading, so it adds no headings or body text to the page.
- *  Rolls with CSS only (app/globals.css): pauses on hover, stops for keyboard focus, stands still (scrolls sideways) for reduced motion.
+ *  From md up it rolls with CSS only (app/globals.css): pauses on hover, stops for keyboard focus, stands still (scrolls sideways)
+ *  for reduced motion. On a phone a rolling line crosses the narrow screen too fast to read, so there it shows one project at a
+ *  time on two lines, a swipeable row that HotStripStepper moves on every few seconds.
  *  The second copy of the list only closes the loop: hidden from screen readers and the tab order. Hidden when empty. */
 const PX_PER_CHAR = 7.5        // text-sm Poppins, on average
 const GAP_PX = 24              // gap-6 between entries
@@ -25,10 +28,10 @@ export function HotStripView({ items, areaName }: { items: SpotlightProject[]; a
       {items.map((p) => (
         <li key={p.slug} className="whitespace-nowrap">
           <Link href={`/projects/${p.slug}`} tabIndex={copy ? -1 : undefined} data-testid={copy ? undefined : 'hot-strip-link'}
-            className="inline-flex min-h-[40px] items-center gap-1 text-sm text-white no-underline hover:underline focus-visible:underline">
-            <span className="font-semibold">{p.name}</span>
-            {p.area && p.area !== areaName && <span className="text-white/70">· {p.area}</span>}
-            {' '}<span className="text-[#f5c75e]">{p.note || `${p.fact} (${p.source})`}</span>
+            className="hot-strip-link inline-flex min-h-[40px] items-center gap-1 text-sm text-white no-underline hover:underline focus-visible:underline">
+            <span className="hot-strip-line"><span className="font-semibold">{p.name}</span>
+              {p.area && p.area !== areaName && <span className="text-white/70"> · {p.area}</span>}</span>
+            {' '}<span className="hot-strip-line text-[#f5c75e]">{p.note || `${p.fact} (${p.source})`}</span>
           </Link>
         </li>
       ))}
@@ -44,6 +47,7 @@ export function HotStripView({ items, areaName }: { items: SpotlightProject[]; a
           </div>
         </div>
       </div>
+      {items.length > 1 && <HotStripStepper />}
     </aside>
   )
 }
