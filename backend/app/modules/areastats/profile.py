@@ -167,6 +167,20 @@ def agree(readings: List[dict]) -> List[dict]:
 
 # ---- pictures --------------------------------------------------------------------------------------------------------------
 
+# words too common to tell one project from another in a picture's address
+COMMON = {"the", "by", "and", "of", "at", "in", "pune", "phase", "project", "tower", "towers", "wing", "building", "park", "city",
+          "heights", "residency", "residences", "homes", "home", "green", "greens", "royal", "new", "one", "sai", "shree", "shri",
+          "sky", "life", "living", "nagar", "kharadi", "upper", "east", "west"}
+
+
+def names_project(url: str, name: str) -> bool:
+    """A picture from another site is this project's only when its address names it (2026-10-22: squareyards' Sai Hemant page
+    also showed Godrej Aqua Vista, Raichandani One and Lodha Camelot; casafy's Park Eden page a VTP villa and brochure filler)."""
+    path = re.sub(r"[^a-z0-9]", "", urlparse(url).path.lower())
+    words = [w for w in re.findall(r"[a-z0-9]+", (name or "").lower()) if w not in COMMON and not w.isdigit() and len(w) >= 4]
+    return any(w in path for w in words)
+
+
 def project_page(url: str, name: str) -> bool:
     """The builder's page for this project, not its home page or a list: the address's path names the project."""
     path = re.sub(r"[^a-z0-9]", "", urlparse(url).path.lower())
@@ -334,6 +348,8 @@ async def pictures(sources: List[dict], raw_of: Dict[str, str], name: str, regno
     photos, plans, hashes, tried = [], [], [], 0
     for src in pages_:
         for c in candidates(raw_of[src["url"]], src["url"]):
+            if not builder and not names_project(c["url"], name):
+                continue   # a portal page also shows other projects (squareyards' "similar projects", brochure filler)
             kind = kind_of(c)
             room = (plans if kind == "plan" else photos)
             if tried >= MAX_CANDIDATES or len(photos) >= MAX_PHOTOS and len(plans) >= MAX_PLANS:

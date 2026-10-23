@@ -165,6 +165,13 @@ LLP), August Towers Ph 2, Hemant, The Monarch, Prasun Adara, Ganga Avanta A2. Fo
   highlights and web facts already stored were purged and the pages rewritten.
 - Venkatesh Vanaya's page was its shops' wing (commercial). The group primary is now a homes registration.
 - Lodha Camelot and Godrej Ivara pages said Wagholi: `locality` now follows the hand-placed list.
+- Pictures from other sites: kept only when the picture's own address names the project (`profile.names_project`; squareyards'
+  Sai Hemant page carried Godrej Aqua Vista, Raichandani One and Lodha Camelot pictures) and no unrelated project shows the same
+  picture (`profile.generic`; magicbricks "created by AI" banners on 25 projects). Squareyards page furniture (map, compare box)
+  is junk.
+- Text: a section that only says nothing is known is left out; a kept text that misspells the project is dropped for the
+  code-written paragraph when the rewrite fails ("Prusin Adara").
+- Bramhacorp's site refuses crawlers; we identify ourselves and respect it (August Towers waits for a brochure).
 - Register fields set by hand: `builder_pages` (URLs checked to be the builder's page of THIS project, read first, count as
   official) and `marketed_name_override`.
 
