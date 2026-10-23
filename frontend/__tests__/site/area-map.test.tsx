@@ -1,7 +1,7 @@
 import React from 'react'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import AreaMap from '@/components/site/AreaMap'
-import AreaMapView, { pct, placeLabels, type Shown } from '@/components/site/AreaMapView'
+import AreaMapView, { pct, placeLabels, toMiddle, type Shown } from '@/components/site/AreaMapView'
 import type { AreaMapData } from '@/lib/site/hubs'
 
 const item = (n: number, name: string, x: number, y: number, extra: Partial<Shown> = {}): Shown => ({
@@ -52,6 +52,11 @@ describe('area map', () => {
     expect(within(card).getByRole('link', { name: 'See Lodha Camelot' })).toHaveAttribute('href', '/projects/lodha-camelot')
     fireEvent.click(screen.getByRole('button', { name: /^3\. Yashwin/ }))
     expect(screen.getByTestId('area-map-card').textContent).toContain('FromAsk')   // no published price: never a guess
+  })
+
+  it('on a phone the picked pin is named on the side facing the middle, so the name stays on the map', () => {
+    expect(toMiddle({ x: 0.2 })).toBe('right')     // 2026-10-23: a left label read "...ique Towers East", cut at the edge
+    expect(toMiddle({ x: 0.8 })).toBe('left')
   })
 
   it('booked share is only shown when MahaRERA gives both numbers', () => {

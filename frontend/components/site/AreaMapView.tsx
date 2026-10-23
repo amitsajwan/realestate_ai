@@ -39,6 +39,9 @@ export function placeLabels(items: Pick<AreaMapItem, 'n' | 'name' | 'x' | 'y'>[]
   return out
 }
 
+/** The side of a pin facing the map's middle: a label there stays on the map even on a phone's narrow map. */
+export const toMiddle = (p: Pick<AreaMapItem, 'x'>): 'right' | 'left' => (p.x < 0.5 ? 'right' : 'left')
+
 function pinColours(p: Shown, on: boolean): string {
   if (on) return 'bg-[#0f2340] text-white border-white'
   if (p.stage === 'new') return 'bg-[#f0b440] text-[#0f2340] border-white'
@@ -64,7 +67,9 @@ export default function AreaMapView({ data, items }: { data: AreaMapData; items:
           <img src={data.map} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full" />
           {items.map((x) => {
             const on = x.n === p.n || x.n === lit
-            const side = x.n === p.n ? (labels[x.n] ?? 'right') : labels[x.n]
+            const side = x.n === p.n ? (labels[x.n] ?? toMiddle(x)) : labels[x.n]
+            // on a phone only the picked pin is named, on the side towards the map's middle (the laptop's side could run off it)
+            const phone = x.n === p.n && side !== toMiddle(x)
             return (
               <button key={x.n} type="button" onClick={() => setPicked(x.n)} aria-pressed={x.n === p.n}
                 aria-label={`${x.n}. ${x.name}${pct(x) != null ? `, ${pct(x)}% booked` : ''}`} data-testid="area-map-pin"
@@ -72,7 +77,12 @@ export default function AreaMapView({ data, items }: { data: AreaMapData; items:
                 style={{ left: `${x.x * 100}%`, top: `${x.y * 100}%` }}>
                 <span aria-hidden="true" className={`flex h-7 w-7 items-center justify-center rounded-full border-2 text-xs font-bold shadow ${pinColours(x, on)} ${x.listed ? 'ring-[3px] ring-[#f0b440]' : ''} ${on ? 'scale-110' : ''}`}>{x.n}</span>
                 {side && (
-                  <span aria-hidden="true" className={`pointer-events-none absolute top-1/2 -translate-y-1/2 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold shadow ${side === 'right' ? 'left-[38px]' : 'right-[38px]'} ${x.n === p.n ? 'flex bg-[#0f2340] text-white' : `hidden md:flex ${on ? 'bg-[#0f2340] text-white' : 'bg-white/95 text-[#0f2340]'}`}`}>
+                  <span aria-hidden="true" className={`pointer-events-none absolute top-1/2 -translate-y-1/2 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold shadow ${side === 'right' ? 'left-[38px]' : 'right-[38px]'} ${x.n === p.n ? `${phone ? 'hidden md:flex' : 'flex'} bg-[#0f2340] text-white` : `hidden md:flex ${on ? 'bg-[#0f2340] text-white' : 'bg-white/95 text-[#0f2340]'}`}`}>
+                    {x.name}
+                  </span>
+                )}
+                {phone && (
+                  <span aria-hidden="true" className={`pointer-events-none absolute top-1/2 flex -translate-y-1/2 whitespace-nowrap rounded-full bg-[#0f2340] px-2.5 py-1 text-xs font-semibold text-white shadow md:hidden ${toMiddle(x) === 'right' ? 'left-[38px]' : 'right-[38px]'}`}>
                     {x.name}
                   </span>
                 )}
