@@ -4,11 +4,27 @@
  * GET /api/v1/public/register/near/{area}/{slug}    project pages near a neighbourhood guide
  * GET /api/v1/public/builders and /builders/{slug}  one page per builder from MahaRERA records
  * GET /api/v1/public/register/spotlight?area=      the hot projects banner on every public page (owner's picks, then hot ones)
+ * GET /api/v1/public/register/map?area=            an area's most active projects on its street map (areastats/areamap.py)
  * Lists come back empty on any failure; a builder page is null on a 404 and throws on an outage (never a cached 404).
  */
 import { serverApiBase } from './api'
 
 export interface ActiveProject { slug: string; name: string; fact: string; source: string; km?: number }
+
+/** One project on an area's map. x, y: where its checked position falls on the drawn map (0..1 of its width and height);
+ *  stage is by dates (backend pages.stage); booked/total add up every phase sold under the name. */
+export interface AreaMapItem {
+  n: number; slug: string; name: string; builder: string | null; regnos: string[]
+  lat: number; lon: number; x: number; y: number
+  stage: 'new' | 'early' | 'mid' | 'advanced' | 'passed' | null; stage_label: string
+  booked: number | null; total: number | null; completion: string | null; price_from: number | null
+  photo: { url: string; alt: string; source: string } | null
+}
+
+export interface AreaMapData {
+  area: string; area_slug: string; name: string; map: string; box: number[]; attribution: string
+  items: AreaMapItem[]; left_out: number
+}
 
 export interface BuilderCard {
   slug: string; name: string; projects: number; indexable: boolean; page_updated: string | null
@@ -71,6 +87,13 @@ async function get<T>(path: string): Promise<{ ok: true; data: T } | { ok: false
   } finally {
     clearTimeout(timer)
   }
+}
+
+/** An area's map, or null when it has none (only areas with a drawn street map and checked pins) or on any failure. */
+export async function getAreaMap(area: string): Promise<AreaMapData | null> {
+  if (!SLUG.test(area.replace(/_/g, '-'))) return null
+  const r = await get<AreaMapData>('/api/v1/public/register/map?area=' + encodeURIComponent(area))
+  return r.ok && Array.isArray(r.data?.items) ? r.data : null
 }
 
 export async function getActive(where: { area?: string; place?: string }, limit = 8): Promise<ActiveProject[]> {

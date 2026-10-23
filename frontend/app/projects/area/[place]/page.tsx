@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import MarketingShell from '@/components/marketing/MarketingShell'
 import ActiveProjects from '@/components/site/ActiveProjects'
+import AreaMap, { showsMap } from '@/components/site/AreaMap'
 import CheckBadge from '@/components/site/CheckBadge'
 import FacetChips from '@/components/site/FacetChips'
 import { getLocality } from '@/lib/marketing/localities'
@@ -16,7 +17,7 @@ import type { PlacePrices } from '@/lib/site/facets'
 import { placeAnswer, placeFaq, placeUpdated } from '@/lib/site/placeFacts'
 import { livePages } from '@/lib/site/filters'
 import { formatPrice } from '@/lib/site/format'
-import { getActive } from '@/lib/site/hubs'
+import { getActive, getAreaMap, getListedSlugs } from '@/lib/site/hubs'
 import { displayName, getRegisterPlaces, longDay, getRegisterProjects, placePath, projectSummary, STAGE_LABEL, STAGE_NOTE, STAGES } from '@/lib/site/register'
 import type { RegisterListItem, RegisterPlace } from '@/lib/site/register'
 
@@ -113,7 +114,8 @@ export default async function PlaceProjectsPage({ params }: Props) {
   if (!got) notFound()
   const { place, projects } = got
   const cfg = getMarketingConfig()
-  const [active, facets, catalog, prices] = await Promise.all([getActive({ place: place.key }), getFacets(), getCatalog().catch(() => []), getPlacePrices(place.slug)])
+  const [active, facets, catalog, prices, map, listed] = await Promise.all([getActive({ place: place.key }), getFacets(), getCatalog().catch(() => []),
+    getPlacePrices(place.slug), getAreaMap(place.key), getListedSlugs()])
   const chips = placeChips(place, facets, livePages(catalog), getLocality(place.slug) ? `/localities/${place.slug}` : null)
   const launches = facets.some((f) => f.place === place.key && f.intent === 'new-launches' && !f.possession && !f.builder && f.indexable)
   const building = projects.filter((r) => r.active !== false && !r.sold_out).sort((a, b) => displayName(a).localeCompare(displayName(b)))
@@ -167,7 +169,9 @@ export default async function PlaceProjectsPage({ params }: Props) {
 
         {prices && prices.sizes.length > 0 && <Prices place={place} prices={prices} />}
 
-        <ActiveProjects title={`Most active projects in ${place.name}`} items={active} className="mt-10" />
+        {showsMap(map)
+          ? <AreaMap data={map} listed={listed} className="mt-10" />
+          : <ActiveProjects title={`Most active projects in ${place.name}`} items={active} className="mt-10" />}
 
         {building.length > 0 && (
           <section aria-labelledby="building-title" className="mt-10">

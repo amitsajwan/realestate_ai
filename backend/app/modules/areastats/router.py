@@ -97,7 +97,7 @@ async def public_places(response: Response, db=Depends(get_db)) -> list:
 
 
 # ---- internal links and builder pages (docs/plan/rank-loop.md R5, R6) -------------------------------------------------------
-from . import hubs  # noqa: E402
+from . import areamap, hubs  # noqa: E402
 
 
 @public_router.get("/register/active")
@@ -106,6 +106,16 @@ async def public_active(response: Response, area: Optional[str] = None, place: O
     """"Most active projects" for an area (key or slug) or a Pune place: [{slug, name, fact, source}]; never a score."""
     response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
     return await hubs.active(db, area=area, place=place, limit=max(1, min(limit, 20)))
+
+
+@public_router.get("/register/map")
+async def public_area_map(area: str, response: Response, db=Depends(get_db)) -> dict:
+    """An area's most active projects on its street map (areamap.py): only checked positions, homes only. 404: no map yet."""
+    out = await areamap.public(db, area)
+    if out is None:
+        raise HTTPException(status_code=404, detail="No map for this area")
+    response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
+    return out
 
 
 @public_router.get("/register/near/{area_slug}/{slug}")

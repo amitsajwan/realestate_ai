@@ -4,7 +4,7 @@ import React from 'react'
 // A place page answers every way buyers search for it (docs/plan/seo-system.md, "Every way buyers search"): projects, flats,
 // property, prices by size, and the other spellings of its name; old /2-bhk/<area> URLs give way to the size page.
 jest.mock('@/lib/site/api', () => ({ getCatalog: async () => [] }))
-jest.mock('@/lib/site/hubs', () => ({ getActive: async () => [] }))
+jest.mock('@/lib/site/hubs', () => ({ getActive: async () => [], getAreaMap: async () => null, getListedSlugs: async () => new Map() }))
 jest.mock('@/components/marketing/MarketingShell', () => ({ __esModule: true, default: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }))
 jest.mock('next/navigation', () => ({ notFound: () => { throw new Error('NOT_FOUND') }, usePathname: () => '/' }))
 const FACETS = [

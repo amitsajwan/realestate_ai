@@ -11,7 +11,8 @@ import { LOCALITIES, type Locality, type LocalityTier, getLocality, localitiesBy
 import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/seo'
 import ProjectCard from '@/components/site/ProjectCard'
 import ActiveProjects from '@/components/site/ActiveProjects'
-import { getActive } from '@/lib/site/hubs'
+import { getActive, getAreaMap, getListedSlugs } from '@/lib/site/hubs'
+import AreaMap, { showsMap } from '@/components/site/AreaMap'
 import AreaLatest from '@/components/localities/AreaLatest'
 import AreaRecords from '@/components/localities/AreaRecords'
 import { getAreaNews, getAreaPosts } from '@/components/localities/areaFeed'
@@ -121,12 +122,14 @@ export default async function LocalityPage({ params }: Props) {
   const slug = (await params).slug
   if (!validSlug(slug)) notFound()
   const l = pageLocality(slug)
-  const [listings, projects, stats, posts, news, hoods, active, facets] = await Promise.all([
+  const [listings, projects, stats, posts, news, hoods, active, facets, map, listed] = await Promise.all([
     getLocalityListings(l.listingName), getCatalog(l.listingName), l.fallback ? Promise.resolve(null) : getAreaStats(l.slug),
     l.fallback ? Promise.resolve([]) : getAreaPosts(l, 6), l.fallback ? Promise.resolve([]) : getAreaNews(l, 5),
     l.fallback ? Promise.resolve([]) : getCommunities(l.key),
     l.fallback ? Promise.resolve([]) : getActive({ area: l.key }),
     l.fallback ? Promise.resolve([]) : getFacets(),
+    l.fallback ? Promise.resolve(null) : getAreaMap(l.key),
+    l.fallback ? Promise.resolve(new Map<string, string>()) : getListedSlugs(),
   ])
   // the area's own lists (new launches, 2 BHK flats ...) and the agents' pages that still answer here
   const lists = [...siblings(facets, l.key).map((f) => ({ path: f.path, title: f.label, count: f.count })),
@@ -151,6 +154,8 @@ export default async function LocalityPage({ params }: Props) {
         {l.updated && l.updatedLabel && <p className="mt-2 text-sm text-slate-600">Last updated: <time dateTime={l.updated}>{l.updatedLabel}</time></p>}
         <p className="mt-5 text-lg leading-relaxed text-slate-800">{l.summary}</p>
         <a href={l.fallback ? fallbackEnquireHref(l.slug) : enquireHref(l)} className="mt-5 inline-flex min-h-[48px] items-center rounded-full bg-amber-400 px-6 font-bold text-slate-900 no-underline">Tell us what you are looking for</a>
+        {/* the area's most active projects on its street map, first thing after the intro (only areas with a drawn map) */}
+        {showsMap(map) && <AreaMap data={map} listed={listed} allHref={`/projects/area/${l.slug}`} className="mt-10" />}
 
         <section className="mt-10"><h2 className="text-xl font-semibold text-slate-900">Who {l.name} suits</h2>
           <ul className="mt-3 list-disc space-y-2 pl-6 leading-relaxed text-slate-800">{l.suits.map((s) => <li key={s}>{s}</li>)}</ul></section>
@@ -191,7 +196,7 @@ export default async function LocalityPage({ params }: Props) {
             <p className="mt-3"><Link href={l.fallback ? '/projects' : `/projects/area/${l.slug}`} className="font-semibold text-[#0f2340] underline underline-offset-2">{l.fallback ? 'All projects' : `All projects and flats in ${l.name}`}</Link></p>
           </section>
         )}
-        <ActiveProjects title={`Most active projects in ${l.name}`} items={active} />
+        {!showsMap(map) && <ActiveProjects title={`Most active projects in ${l.name}`} items={active} />}
         <AreaLatest name={l.name} posts={posts} news={news} />
 
         <section className="mt-9"><h2 className="text-xl font-semibold text-slate-900">Homes in {l.name}</h2>
