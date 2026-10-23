@@ -26,7 +26,7 @@ function Column({ title, links }: { title: string; links: SiteLink[] }) {
   )
 }
 
-/** Cream footer: name and tagline with the phone-free contact block, then For agents / Explore / Legal link columns. */
+/** Cream footer: name and tagline with the phone-free contact block, then Explore / For agents / Legal link columns. */
 export default function SiteFooter({ cfg }: { cfg: MarketingConfig }) {
   const s = siteLinks()
   return (
@@ -39,8 +39,8 @@ export default function SiteFooter({ cfg }: { cfg: MarketingConfig }) {
           <div className="mt-5"><ContactBlock tone="light" /></div>
         </div>
         <nav aria-label={NAV.footerLabel} className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3">
-          <Column title="For agents" links={s.footerAgents} />
           <Column title="Explore" links={s.footerExplore} />
+          <Column title="For agents" links={s.footerAgents} />
           <Column title="Legal" links={NAV.legal} />
         </nav>
       </div>

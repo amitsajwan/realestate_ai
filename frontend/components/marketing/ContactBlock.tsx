@@ -17,12 +17,13 @@ export default function ContactBlock({ tone = 'light' }: { tone?: 'light' | 'dar
       <h2 className={'text-sm font-semibold uppercase tracking-wide ' + (dark ? 'text-[var(--site-accent)]' : 'text-slate-600')}>{CONTACT.heading}</h2>
       <p className={'mt-2 max-w-md ' + (dark ? 'text-slate-200' : 'text-slate-800')}>
         {CONTACT.before}
-        <Link href={PATHS.invite} className={a}>{CONTACT.invite}</Link>
-        {CONTACT.middle}
         <a href={facebook} target="_blank" rel="noopener noreferrer" className={a}>{CONTACT.facebook}</a>
         {CONTACT.and}
         <a href={instagram} target="_blank" rel="noopener noreferrer" className={a}>{CONTACT.instagram}</a>
         {CONTACT.after}
+        {CONTACT.agents}
+        <Link href={PATHS.invite} className={a}>{CONTACT.invite}</Link>
+        {CONTACT.end}
       </p>
       <SocialStrip tone={tone} className="mt-3" />
     </div>

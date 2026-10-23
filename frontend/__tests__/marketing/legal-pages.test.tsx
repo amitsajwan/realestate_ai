@@ -55,7 +55,7 @@ describe('terms page', () => {
     sharedChecks(/terms of service/i)
     headings([/who may use it/i, /what agents are responsible for/i, /how agents may use buyer data/i, /service provided as is/i, /liability/i, /governing law/i])
     expect(screen.getByText(/Courts in Pune/)).toBeInTheDocument()
-    expect(screen.getByText(/RERA/)).toBeInTheDocument()
+    expect(screen.getByText(/including RERA registration/)).toBeInTheDocument()
   })
 })
 

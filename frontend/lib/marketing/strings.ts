@@ -31,7 +31,7 @@ export const NAV = {
 }
 
 export const FOOTER = {
-  tagline: 'आवास (home) + सेतु (bridge). ' + TAGLINE + '. Free trial for real estate agents in Pune: 1 month free for the first 20 agents.',
+  tagline: 'आवास (home) + सेतु (bridge). ' + TAGLINE + ' in Pune: new projects checked against MahaRERA, with the filed possession date, homes booked and prices in one place.',
   contactUnset: 'Contact details are shared when you request an invite.',
   contactHeading: 'Contact',
 }

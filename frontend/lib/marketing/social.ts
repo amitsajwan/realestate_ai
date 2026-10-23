@@ -18,13 +18,14 @@ export function socialLinks(): { facebook: string; instagram: string } {
 
 export const CONTACT = {
   heading: `Contact ${BRAND_NAME}`,
-  // buyers first (tap I am interested, or the chat); agents ask for an invite
-  before: `Contact ${BRAND_NAME} via this website (tap I am interested on any home or use the chat; agents can `,
-  invite: 'request an invite',
-  middle: '), ',
+  // buyers first (tap I am interested, or the chat), then the social profiles; agents last, in one short line
+  before: 'Ask about any home on this website: tap I am interested, or use the chat. You can also message us on ',
   facebook: 'Facebook',
-  and: ' and ',
+  and: ' or ',
   instagram: 'Instagram',
-  after: '.',
+  after: '. ',
+  agents: 'Agents can ',
+  invite: 'request an invite',
+  end: '.',
   follow: 'Follow us',
 }
