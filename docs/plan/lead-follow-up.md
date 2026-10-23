@@ -26,6 +26,12 @@ Two misses on 2026-10-22/23, found by the owner:
 4. **DM delivery check.** Admin health shows the time of the last webhook POST per platform and whether App Review is approved, so
    "the bot did not reply" is visible as "Meta is not sending us messages" without reading logs.
 
+## Ice breakers OFF (2026-10-23)
+
+The three DM starter buttons (scripts/set_dm_menu.py) were removed from Messenger and Instagram on 23 Oct: a tap sent a message
+nobody could answer while Meta does not deliver public DMs. /check stays reachable as a link (Instagram profile Links). After
+App Review is approved and a non-role test DM reaches the webhook, put them back with `python -m scripts.set_dm_menu --apply`.
+
 ## Owner (not code)
 
 - Meta App Review: check Messenger status (App Review > Requests); submit Instagram (instagram_manage_messages, instagram_basic).
