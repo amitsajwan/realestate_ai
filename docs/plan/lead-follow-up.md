@@ -4,7 +4,7 @@ Two misses on 2026-10-22/23, found by the owner:
 
 - **Akshay Manjarekar** tapped the "🔍 Check my project's MahaRERA status" ice breaker on Facebook and Instagram (23 Oct, 7:05 IST).
   Meta never called our webhook (no POST to /messenger/webhook, last dm_messages row 18 Oct). The app still receives DMs only from
-  app-role users: Messenger App Review submitted 18 Oct, Instagram not submitted. Owner replied by hand.
+  app-role users: Messenger App Review submitted 18 Oct, Instagram not submitted. Owner to reply by hand.
 - **Rahul Thombare** (Hot 50) asked for the floor plans of Puraniks Abitante Fiore Phase 2A from the project page form (22 Oct, 22:15 IST,
   from Google): 2 BHK, Rs 50-80 L, 3-6 months, home loan. Nothing went to him until the follow-up template was sent by hand on 23 Oct.
 
