@@ -5,7 +5,7 @@ code, pages or plans updates this page in the same commit (section 11 gets a lin
 history; when they and this page disagree, this page is right.
 
 Labels: **LIVE** = running in production · **TARGET** = to build · **OWNER** = done by hand · **DROPPED** = decided against.
-Last updated 2026-10-22 (buyers' home at `/`, agents at `/agents`, hot projects banner).
+Last updated 2026-10-25 (Ask-Google order, gaps from our own searches, 160-character descriptions, Serper use per day).
 
 ## 1. Goal and scorecard
 
@@ -33,7 +33,7 @@ By area (2026-10-21, of pages checked): core pages 21/25, Wagholi 26/76, Kharadi
 | Area list pages that grew from searches (hold / never) | Insights → **Pages** |
 | Hot projects, refresh a page now | Insights → **Hot** |
 | What Google shows for our areas | Insights → **Found on Google** |
-| Loop health, Serper credits and searches per day | Insights → **System** |
+| Loop health, Serper credits and searches per day (rank checks + prices round) | Insights → **System** |
 | Weekly SEO note | Studio **Home** → "Needs you now" (once a week; opening Rankings clears it) |
 | Google's own view | Search Console, property `sc-domain:avasetu.in` (owner's Google account) |
 | Weekly site audit | GitHub → Actions → "SEO audit (live site)" |
@@ -134,7 +134,8 @@ their fetchers, and leading each page with the answer. What we run:
 - **Nearby places** measured from the project's own Google pin, never the locality centre (`areastats/pin.py`).
 - **Buyer FAQ** from "People also ask" questions our facts answer, with FAQPage data (`seo/questions.py`); price questions never
   answered from the web.
-- **Search description**: the doctor's when set, else the page summary.
+- **Search description**: the doctor's when set, else the page summary; at most 160 characters and titles built by code at most 70
+  (`fitDescription` / `fitTitle` in `frontend/lib/site/format.ts` drop the least useful clauses first, never cut mid-word).
 - **Freshness**: a page's sitemap date moves only on a real change (`pages.page_updated`), never MahaRERA's own dates; IndexNow
   sends what changed.
 - **Links**: every page within 3 clicks of home (measured 2026-10-18): home → areas → place page → every project; each project
@@ -157,7 +158,7 @@ All in the `newsroom` worker role (seo loop every 30 minutes; each step runs onl
 | Target searches + titles | daily | target search per project page; title rule above; site snapshot for the weekly numbers | `seo/targets.py` |
 | Page doctor | daily, at most 15 pages | one fix per page per 28 days, measured at 14 and 28 days, title/description undone if the page lost 5+ places. Fixes: title, buyer questions, link slot, refresh facts, description, **rival** (MagicBricks just above: description led by the facts their result shows; if they show a price we lack, refresh first) | `seo/doctor.py`, `seo/actions.py`, `seo/rival.py` |
 | Google searches | daily, ~25 | 6 area (7 phrasings per area: new launch, upcoming, top, ready to move, flats, 2 BHK flats, property rates) + 8 project searches, 6 re-checks of doctored pages, 5 **panel** target searches (every target once in 14 days); new MahaRERA numbers found go to the register | `areastats/websearch.py` |
-| Search gaps | weekly | searches that show us with no page in the top 20 | `seo/gaps.py` |
+| Search gaps | weekly | buyer searches where we are not in the top 20: Search Console's, and our own Serper searches of the last 28 days where we are absent (judged by the phrase's words, so one project's name is not a gap); each matched to an existing page type, our areas first | `seo/gaps.py` |
 | Area list pages grow | weekly, at most 10 new | from real searches once they pass demand, supply (3+ projects) and overlap checks (a size page is compared only with pages of the same size); seeds: new launches, top, ready to move, 1/2/3 BHK for every place; autocomplete seeds take turns: new projects / flats / 2 bhk flats / property in <area> | `seo/grow.py`, `seo/facets.py`, `seo/phrases.py` |
 | MagicBricks scoreboard | weekly | our place vs MagicBricks, 99acres, Housing for every search run in 28 days; "win next" list; history per week | `seo/scoreboard.py` |
 | Prices round | one project every 15 min (`PRICES_EVERY_MINUTES`), inside the enrich loop | prices only (builder's site, or two agreeing sites); Upper Kharadi → Kharadi → Wagholi → Keshav Nagar → Lohegaon → Baner → Wakad → Hinjawadi → everywhere else, new launches and hot projects first in each area, 90%+ booked last, completed projects never; never read first, re-read every 30 days (before a price lapses at 45), 14 days after a read that found none; at most 10 new Serper searches a day (`PRICES_SEARCHES_PER_DAY`), waits while the free model tiers rest; coverage per area on Insights → Pages | `areastats/pricing.py` |
@@ -170,7 +171,8 @@ All in the `newsroom` worker role (seo loop every 30 minutes; each step runs onl
 ## 7. What the owner does by hand (OWNER)
 
 - **Request indexing, ~10 a day**: Search Console → URL inspection → paste → Request indexing, from Rankings → "Ask Google to
-  index" (our areas first, list and guide pages before projects). The only way to jump the crawl queue.
+  index" (in order: our areas' place pages and guides, their area lists, hot projects in our areas, builders and other areas,
+  other projects, neighbourhood guides last). The only way to jump the crawl queue.
 - **Resubmit `/sitemap.xml`** after a deploy that adds a page type.
 - **Outside links** (the biggest lever): Google Business Profile for Avasetu; Pune property directories; agents' own sites
   linking to their project pages; offer the MahaRERA tracker to journalists and bloggers.
@@ -248,6 +250,7 @@ measure (Search Console, Serper, URL Inspection) → choose (near page one, Magi
 | 2026-10-21 | 81263539..02d8154b | Coverage 1,800/day, MagicBricks scoreboard, weekly owner note + Ask Google to index, audit second read |
 | 2026-10-22 | (this) | Homes registration as group primary; this-project-only page gate; hand-checked builder pages, names, places |
 | 2026-10-21 | 9cbba482, 0d55a7ca | Doctor rival fix (+ price refresh), Indexed by area, panel of target searches |
+| 2026-10-25 | 20d88ba7..6e68f483 | Ask-Google list ordered by value; gaps from our own Serper searches; descriptions within 160 characters; Serper per day counts the prices round (35) |
 | 2026-10-21 | 886047b | Place pages say "flats" in title, H1 and description |
 | 2026-10-21 | aaf7c45 | Search phrases name a place however it is spelt (`pune_places.in_search`) |
 | 2026-10-21 | f43252f, 1ab4a00 | Every way buyers search: size pages from published prices, "Flat prices in X", Place `alternateName`, flats wording and links, owner map, rank watch for the families |
