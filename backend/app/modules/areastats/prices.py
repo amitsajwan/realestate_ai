@@ -11,13 +11,16 @@ For one project (a tower group is read once, on its primary record):
    ('3 BHK Luxe' is a 3 BHK). Kept only when each quote is a line of the page, the low price is an amount CODE reads from
    from_quote and the high one from to_quote ("1.25 Cr" -> 12500000): the model never supplies a number. A size row's lines
    must name that size and no line may name several ("30 L - 49 L Dec 2019 1, 1.5, 2 BHK" is a list of other projects), and a
-   size priced under PLAUSIBLE of the page's own overall price is dropped (another project's line).
+   size priced under PLAUSIBLE of the page's own overall price is dropped (another project's line). When the line states the
+   home's size in sq ft, the price per sq ft must be inside RATE_PER_SQFT (a misread unit, a whole building's price); `public`
+   runs the same check on stored rows, so a price read before it goes from the pages at once.
 3. published per size when the builder's site states it; or two sites give prices within AGREE of each other (the lower one);
    or one site gives it and another site's price for the project takes it in (its overall range, within AGREE). Both sites
    are the sources. Never a price from the model's own knowledge.
 Stored on the register record as `prices` = {at, rows: [{bhk, from_inr, to_inr, official, sources: [{site, url, official,
 quote}]}], read: [{site, url, ok, why}]}. A round that finds nothing keeps the last rows while they are under KEEP_DAYS old:
-prices change, an old one goes. `public` is what the pages show; `price_from` the lowest, for the area lists.
+prices change, an old one goes. `public` is what the pages show (with `sqft`, the size the lowest price is for, when its
+line states it); `price_from` the lowest, for the area lists.
 """
 import logging
 import re
@@ -34,12 +37,19 @@ AGREE = 0.15                          # two sites' prices within 15% of each oth
 PLAUSIBLE = 0.7                       # a size priced under 70% of the page's own overall price is another project's
 KEEP_DAYS = 45
 MIN_INR, MAX_INR = 1_000_000, 500_000_000   # 10 lakh .. 50 crore: outside is a misread (a booking amount, a per-sq.ft rate)
+# a price is checked against the size its own line states (owner 2026-10-24: "correct prices"): a 750 sq ft 2 BHK read at
+# ₹9.6 Cr is a misread unit or another project's line. Wide on purpose: sites mix carpet and saleable area, and Pune runs from
+# about ₹4,000 a sq ft at the edges to ₹30,000 in the costliest streets.
+RATE_PER_SQFT = (2_500, 40_000)
+AREA_SQFT = (200, 10_000)             # a home's size; outside is a plot, a township's acreage or a misread
 SIZES = ("1 RK", "1 BHK", "1.5 BHK", "2 BHK", "2.5 BHK", "3 BHK", "3.5 BHK", "4 BHK", "4.5 BHK", "5 BHK", "Plot", "All homes")
 
 AMOUNT = re.compile(r"(?:₹|rs\.?|inr)?\s*(\d{1,3}(?:,\d{2,3})+|\d+(?:\.\d+)?)\s*(crores?|cr\.?|lakhs?|lacs?|lac|l\b|l\*)?", re.I)
 PRICE_LINE = re.compile(r"(?:₹|\brs\.?\s*\d|\binr\s*\d|\d\s*(?:crores?|cr\b|lakhs?|lacs?|l\b|l\*))", re.I)
 PER_UNIT = re.compile(r"/\s*sq|per\s*sq|psf|/\s*month|per\s*month", re.I)
 NOT_PRICE = re.compile(r"\b(emi|booking|token|down\s*payment|rent(?:al)?|offer|discount|cashback|stamp\s*duty|gst)\b", re.I)
+AREA = re.compile(r"(?<![\d,.])(\d{1,2},\d{3}|\d{3,5})(?:\.\d+)?\s*(?:(?:-|–|to)\s*(\d{1,2},\d{3}|\d{3,5})(?:\.\d+)?\s*)?"
+                  r"(?:sq\.?\s*\.?\s*f(?:ee)?t\b\.?|sqft\b|sft\b|square\s*f(?:ee|oo)t\b)", re.I)
 SIZE_IN = re.compile(r"((?:\d(?:\.5)?\s*(?:,|/|&|and|or)\s*)*\d(?:\.5)?)\s*(bhk|rk)\b", re.I)
 
 SYSTEM = ("You read the lines of one web page that mention prices, for a housing project in Pune. Give the prices asked for "
@@ -130,7 +140,8 @@ def row_ok(row: dict, page: str) -> Optional[dict]:
     if lo is None:
         return None
     hi = _amount_in(row.get("to_inr"), hi_q) if row.get("to_inr") else None
-    return {"bhk": size, "from_inr": lo, "to_inr": hi if hi and hi > lo else None, "quote": " / ".join(quotes)[:300]}
+    got = {"bhk": size, "from_inr": lo, "to_inr": hi if hi and hi > lo else None, "quote": " / ".join(quotes)[:300]}
+    return got if rate_ok(got, " / ".join(quotes)) else None
 
 
 def plausible(readings: List[dict]) -> List[dict]:
@@ -140,6 +151,34 @@ def plausible(readings: List[dict]) -> List[dict]:
         return readings
     floor = PLAUSIBLE * min(overall)
     return [r for r in readings if r["bhk"] == "All homes" or r["from_inr"] >= floor]
+
+
+def areas_in(quote: str) -> List[int]:
+    """The home sizes in sq ft a line states: '2 BHK 740 - 957 sq.ft ₹72 L' -> [740, 957]. A rate ('₹12,000 per sq ft',
+    '₹9,500/sq ft') is not a size, and neither is a number outside AREA_SQFT."""
+    out = []
+    for m in AREA.finditer(quote or ""):
+        if re.search(r"(?:₹|rs\.?|inr)\s*$", quote[max(0, m.start() - 5):m.start()], re.I):
+            continue
+        out += [int(g.replace(",", "")) for g in m.groups() if g and AREA_SQFT[0] <= int(g.replace(",", "")) <= AREA_SQFT[1]]
+    return out
+
+
+def rate_ok(row: dict, quote: str) -> bool:
+    """A price fits the size its own line states: price / sq ft inside RATE_PER_SQFT. The smallest size goes with the lowest
+    price and the largest with the highest. A line with no size, and a plot, are not checked (nothing to divide by)."""
+    sizes = areas_in(quote)
+    if not sizes or row.get("bhk") == "Plot":
+        return True
+    lo, hi = RATE_PER_SQFT
+    pairs = [(row["from_inr"], min(sizes))] + ([(row["to_inr"], max(sizes))] if row.get("to_inr") else [])
+    return all(lo <= price / sqft <= hi for price, sqft in pairs)
+
+
+def sqft_of(row: dict, quote: str) -> Optional[int]:
+    """The size its lowest price is for, as the line states it (carpet or saleable: sites differ); None when not stated."""
+    sizes = areas_in(quote)
+    return min(sizes) if sizes and row.get("bhk") != "Plot" else None
 
 
 async def read_prices(llm, src: dict, name: str, text: str) -> tuple:
@@ -266,10 +305,22 @@ def public(prices: Optional[dict], now: Optional[datetime] = None) -> Optional[d
     if not prices or not prices.get("rows") or not _fresh(prices.get("at"), now or datetime.now(timezone.utc)):
         return None
     at = prices["at"]
+    # rows read before the size check are checked here too, on the line they were read from (no re-read needed)
+    rows = [(r, _quote(r)) for r in prices["rows"]]
+    rows = [(r, q) for r, q in rows if rate_ok(r, q)]
+    if not rows:
+        return None
     return {"read_at": at.date().isoformat(),
             "rows": [{"bhk": r["bhk"], "from_inr": r["from_inr"], "to_inr": r.get("to_inr"), "official": r.get("official", False),
+                      "sqft": sqft_of(r, q),
                       "sources": [{"site": s["site"], "url": s["url"] if s.get("official") else None} for s in r.get("sources") or []]}
-                     for r in prices["rows"]]}
+                     for r, q in rows]}
+
+
+def _quote(row: dict) -> str:
+    """The line the shown price was read from: the first source is the one picked (agree)."""
+    sources = row.get("sources") or []
+    return str(sources[0].get("quote") or "") if sources else ""
 
 
 def price_from(doc: dict, now: Optional[datetime] = None) -> Optional[int]:

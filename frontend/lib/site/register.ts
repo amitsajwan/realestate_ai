@@ -207,7 +207,8 @@ export const STAGE_NOTE = 'Stage by dates: how much of the time between MahaRERA
 export interface ProjectPrices {
   read_at: string | null
   /** url only for the builder's own site: property sites are named, not linked */
-  rows: { bhk: string; from_inr: number; to_inr: number | null; official: boolean; sources: { site: string; url: string | null }[] }[]
+  /** sqft: the size the lowest price is for, when the site's line states it (carpet or saleable: sites differ) */
+  rows: { bhk: string; from_inr: number; to_inr: number | null; official: boolean; sqft?: number | null; sources: { site: string; url: string | null }[] }[]
 }
 
 export interface RegisterListItem {

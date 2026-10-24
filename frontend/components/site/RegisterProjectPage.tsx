@@ -10,7 +10,9 @@ import type { RegisterProject } from '@/lib/site/register'
 import type { FacetLink } from '@/lib/site/facets'
 import WebFactsBox from '@/components/site/WebFactsBox'
 import ProjectProfile from '@/components/site/ProjectProfile'
+import CostBreakdown from '@/components/site/CostBreakdown'
 import PriceBox from '@/components/site/PriceBox'
+import type { Stage } from '@/lib/site/allin'
 import { areaName, askedPrices, displayName, longDay, monthYear, otherNames, projectFaq, placePath, STAGE_LABEL, STAGE_NOTE } from '@/lib/site/register'
 import type { EnrichCheck, Faq } from '@/lib/site/register'
 import type { PropertyFactsView } from '@/lib/site/types'
@@ -38,10 +40,12 @@ function bhkRange(homes: { label: string }[]): string {
   return (nums.length > 1 ? `${nums.slice(0, -1).join(', ')} & ${nums[nums.length - 1]}` : nums[0]) + ' BHK'
 }
 
-function OfferBox({ facts }: { facts: PropertyFactsView | null }) {
+function OfferBox({ facts, stage }: { facts: PropertyFactsView | null; stage: Stage }) {
   const o = (facts as unknown as { offer?: Offer } | null)?.offer
   if (!o || !(o.price_inr || o.plot_sqft || o.carpet_sqft || o.bhk)) return null
   const sheet = o.homes && o.homes.length > 1 ? o.homes : null
+  // the home the headline price is for: its size decides the affordable GST rate, so it is never taken from another home
+  const priced = sheet ? sheet.find((h) => h.price_inr === o.price_inr) : null
   const sizes = (sheet || []).map((h) => h.carpet_sqft || 0).filter(Boolean)
   const what = sheet
     ? [bhkRange(sheet), o.property_type ? `${o.property_type}s` : null,
@@ -83,9 +87,13 @@ function OfferBox({ facts }: { facts: PropertyFactsView | null }) {
       ) : null}
       {o.price_inr && o.transaction !== 'rent' ? (
         <p className="mt-2 text-sm text-slate-800" data-testid="own-cash">
-          With a home loan, your own cash{sheet ? ` for the ${sheet[0].label}` : ''}: about <strong>{formatPrice(ownCash(o.price_inr))}</strong>
+          With a home loan, your own cash{priced ? ` for the ${priced.label}` : ''}: about <strong>{formatPrice(ownCash(o.price_inr))}</strong>
           <span className="mt-1 block text-xs text-slate-600">{OWN_CASH_NOTE}</span>
         </p>
+      ) : null}
+      {o.price_inr && o.transaction !== 'rent' && !/plot/i.test(o.property_type || '') ? (
+        <CostBreakdown price={o.price_inr} stage={stage} sqft={sheet ? priced?.carpet_sqft : o.carpet_sqft}
+          what={`${priced ? `the ${priced.label}` : 'this home'} at ${formatPrice(o.price_inr)}`} />
       ) : null}
       <p className="mt-2 text-xs text-slate-600">From {o.source || "the agent's listing"}{o.read_at ? `, ${longDay(o.read_at)}` : ''}. Prices change: confirm before you book.</p>
     </section>
@@ -476,6 +484,8 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
   const url = `${siteUrl}/projects/${p.slug}`
   const moved = p.completion_now && p.completion_at_registration && p.completion_now !== p.completion_at_registration
   const shown = displayName(p)
+  // GST is added only while MahaRERA's completion date is ahead; past it (or not yet read) the OC decides, so the page asks
+  const stage: Stage = p.completion_now && !p.completion_passed ? 'building' : 'completion_passed'
   // the Pune place page listing this project's neighbours (every Pune district project has one)
   const placeName = p.pune_place?.name ?? null
   const placeHref = p.pune_place ? placePath(p.pune_place.key.replace(/_/g, '-')) : null
@@ -540,7 +550,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
           </section>
 
           <ProjectProfile profile={p.profile} name={shown} part="highlights" />
-          <PriceBox prices={p.prices} name={shown} />
+          <PriceBox prices={p.prices} name={shown} stage={stage} />
           <ProjectProfile profile={p.profile} name={shown} part="plans" lead={{ agentSlug: HOUSE_AGENT, agentName: 'Avasetu',
             topic: `${p.name} (MahaRERA ${p.regno})`, waMessage: `Hi, I want to know about ${p.name} (MahaRERA ${p.regno}): ${url}` }} />
 
@@ -616,7 +626,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
         <aside className="min-w-0 space-y-6 lg:sticky lg:top-20 lg:self-start">
           {/* the side column stays in view on desktop, so the ask does too; phones get the bottom bar instead */}
           <div className="hidden lg:block"><AskPrompt name={shown} note={ASK_NOTE} whatsappUrl={whatsappUrl} compact /></div>
-          <OfferBox facts={facts} />
+          <OfferBox facts={facts} stage={stage} />
           <ChecksPanel p={p} />
           <VerifiedFacts f={facts} hideNearby />
         </aside>
