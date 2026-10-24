@@ -4,8 +4,11 @@ Once a week (inside the seo loop, app/modules/seo/runner.py) every owner (INSIGH
 concierge's) gets one Studio notification (`seo_week`, shown on Home under "Needs you now", opening Insights → Rankings): the
 week's numbers beside last week's, and how many pages wait for "Request indexing". Search Console allows that request only by
 hand (no API for our page types), so `request_list` picks the pages worth the owner's ~10 clicks a day: sitemap pages Google has
-not indexed, list and guide pages first (they link many pages; place pages before their sub-lists), then project pages buyers look
-at (hot score, then impressions); our own areas (app.core.areas) first within each.
+not indexed, in `_rank` order: our areas' place pages, guides and area guides; our area list pages; hot projects in our areas;
+builder pages and other areas' hubs; the other project pages (seen on Google first); tiny neighbourhood guides
+(/localities/<area>/<community>) last. A hub is ours by the area segment in its place (the one after /projects/area/ or
+/localities/), not by any segment, so /localities/lohegaon/viman-nagar is Lohegaon's. Pages since dropped from the sitemap are
+still offered: knowing the sitemap needs a network read, which this list does not do.
 """
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
@@ -23,13 +26,36 @@ KIND = "seo_week"
 EVERY = timedelta(days=7)
 PER_DAY = 10
 WAITING = ("Discovered - currently not indexed", "URL is unknown to Google", "Crawled - currently not indexed")
-HUBS = ("/projects/area/", "/localities/", "/guides/", "/builders/")
 
 
 def _aware(d) -> Optional[datetime]:
     if not isinstance(d, datetime):
         return None
     return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
+
+
+def _rank(path: str, p: dict) -> tuple:
+    """Sort key and label for one waiting page; `p` is its register record when it is a project page."""
+    segs = [x for x in path.split("/") if x]
+    if path.startswith("/projects/area/") and len(segs) >= 3:
+        ours, deep = segs[2] in BY_SLUG, len(segs) - 3
+        if not ours:
+            return (4, len(segs), path), "other area list" if deep else "other area page"
+        return ((1, 0, path), "area page") if not deep else ((2, deep, path), "area list")
+    if path.startswith("/localities/") and len(segs) >= 2:
+        if len(segs) > 2:
+            return (6, segs[1] not in BY_SLUG, path), "neighbourhood guide"
+        return ((1, 1, path), "area guide") if segs[1] in BY_SLUG else ((4, 2, path), "other area guide")
+    if path.startswith("/guides/"):
+        return (1, 2, path), "guide"
+    if path.startswith("/builders/"):
+        return (4, 0, path), "builder page"
+    if len(segs) <= 1 and not p:
+        return (1, 3, path), "links many pages"
+    hot, seen = float(p.get("hot_score") or 0), int(p.get("gsc_impressions") or 0)
+    if hot and p.get("locality") in BY_KEY:
+        return (3, -hot, -seen, path), "hot project"
+    return (5, -seen, p.get("locality") not in BY_KEY, path), "seen on Google" if seen else "project page"
 
 
 async def request_list(store: Store, n: int = PER_DAY * 7) -> List[dict]:
@@ -39,23 +65,13 @@ async def request_list(store: Store, n: int = PER_DAY * 7) -> List[dict]:
         return []
     by_slug = {d.get("page_slug"): d for d in await store.shared_projects() if d.get("page_slug")}
 
-    def rank(doc: dict):
-        path = urlparse(doc["_id"]).path
-        if path.startswith(HUBS) or path.count("/") <= 1:
-            ours = any(seg in BY_SLUG for seg in path.split("/"))
-            return (0, not ours, path.count("/"), path)
+    def ranked(doc: dict):
+        path = urlparse(doc["_id"]).path.rstrip("/") or "/"
         p = (by_slug.get(path.rsplit("/", 1)[-1]) if path.startswith("/projects/") else None) or {}
-        return (1, p.get("locality") not in BY_KEY, -float(p.get("hot_score") or 0), -int(p.get("gsc_impressions") or 0), path)
+        return _rank(path, p)
 
-    def why(doc: dict) -> str:
-        path = urlparse(doc["_id"]).path
-        if path.startswith(HUBS) or path.count("/") <= 1:
-            return "links many pages"
-        p = by_slug.get(path.rsplit("/", 1)[-1]) or {}
-        return "hot project" if p.get("hot_score") else ("seen on Google" if p.get("gsc_impressions") else "project page")
-
-    docs.sort(key=rank)
-    return [{"url": d["_id"], "state": d.get("state"), "why": why(d)} for d in docs[:n]]
+    rows = sorted(((ranked(d), d) for d in docs), key=lambda r: r[0][0])
+    return [{"url": d["_id"], "state": d.get("state"), "why": why} for (_, why), d in rows[:n]]
 
 
 def summary(week: Optional[dict], ago: Optional[dict], cov: dict, board: dict, waiting: int) -> str:
