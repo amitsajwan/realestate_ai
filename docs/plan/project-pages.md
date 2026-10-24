@@ -229,7 +229,17 @@ under the same checks as the highlights.
    "from ₹X" per project.
 3. LIVE: property sites are named, not linked (web facts, highlights, prices); only the builder's own site and MahaRERA are
    links. We do not send buyers to portals.
-4. TARGET: agent price sheets (agentprojects configurations) first on the register page and in "from ₹X" when a project has one.
+4. BUILT 2026-10-25 (branch work/project-page-price-hero, not deployed yet): one price per register page. When the property's
+   fact sheet has an agent offer with a sale price (`offerPrice` in `frontend/lib/site/register.ts`), the hero's "Asking
+   price", the FAQ price answer, the search title and description quote it, and the portals' "Prices of <name>" box is not
+   shown; the all-in cost is the offer's. A rent offer, or none, keeps the portals' prices. Place pages' "from ₹X" still use the
+   portals' price (TARGET).
+5. BUILT 2026-10-25 with 4 (design review of godrej-ivara-pune: the phone page was ~15,700 px with 20 H2s): the offer box is
+   the main column's first block, right after the pictures, at every width (it was in the side column, ~11,200 px down on a
+   phone); the hero opens with the builder's first picture (never an AI one; the gallery starts from the next), shows the
+   registration once, the brand without the SPV, no "Registered" tile and the stage in plain words (how it is worked out is
+   the badge's title); "The record" and "Project details" are one section; the tower and building tables fold into "Tower by
+   tower". Cautions, location, FAQ and the internal links stay.
 
 ## Correct prices: size check and all-in cost (2026-10-24, LIVE)
 

@@ -13,32 +13,12 @@ import ProjectProfile from '@/components/site/ProjectProfile'
 import CostBreakdown from '@/components/site/CostBreakdown'
 import PriceBox from '@/components/site/PriceBox'
 import type { Stage } from '@/lib/site/allin'
-import { areaName, askedPrices, displayName, longDay, monthYear, otherNames, projectFaq, placePath, STAGE_LABEL, STAGE_NOTE } from '@/lib/site/register'
-import type { EnrichCheck, Faq } from '@/lib/site/register'
+import { areaName, askedPrices, bhkRange, displayName, longDay, monthYear, offerPrice, otherNames, projectFaq, placePath, STAGE_LABEL, STAGE_NOTE } from '@/lib/site/register'
+import type { EnrichCheck, Faq, Offer } from '@/lib/site/register'
+import type { ProfilePicture } from '@/lib/site/profile'
 import type { PropertyFactsView } from '@/lib/site/types'
 import { formatPrice } from '@/lib/site/format'
 import { OWN_CASH_NOTE, ownCash } from '@/lib/site/upfront'
-
-/** The agent's offer as kept on the property's fact sheet (propertyfacts public view): what campaign posts quote. */
-interface Offer {
-  transaction?: string | null
-  property_type?: string | null
-  price_inr?: number | null
-  plot_sqft?: number | null
-  carpet_sqft?: number | null
-  bhk?: number | null
-  source?: string | null
-  read_at?: string | null
-  /** the live listing's price sheet: every home type with its size and price (a project listed with several) */
-  homes?: { bhk: number; label: string; carpet_sqft?: number | null; price_inr?: number | null }[] | null
-  payment_plan?: string | null
-}
-
-function bhkRange(homes: { label: string }[]): string {
-  const nums = Array.from(new Set(homes.map((h) => h.label.replace(' BHK', '')).filter((x) => /^[\d.]+$/.test(x))))
-  if (!nums.length) return ''
-  return (nums.length > 1 ? `${nums.slice(0, -1).join(', ')} & ${nums[nums.length - 1]}` : nums[0]) + ' BHK'
-}
 
 function OfferBox({ facts, stage }: { facts: PropertyFactsView | null; stage: Stage }) {
   const o = (facts as unknown as { offer?: Offer } | null)?.offer
@@ -117,15 +97,6 @@ const H2 = 'text-xl font-semibold text-slate-900'
 const n = (v: number | null | undefined) => (v == null ? null : v.toLocaleString('en-IN'))
 const months = (m: number) => `${m} month${m === 1 ? '' : 's'}`
 
-function Cell({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3">
-      <dt className="text-xs text-slate-600">{label}</dt>
-      <dd className="mt-0.5 text-lg font-semibold text-slate-900">{value}</dd>
-    </div>
-  )
-}
-
 type Source = 'rera' | 'checked' | 'unchecked'
 
 /** Where a block's facts come from: MahaRERA (the regulator's own record), gathered from other sources and checked by us, or not checked. */
@@ -140,10 +111,10 @@ function SourceTag({ kind, children }: { kind: Source; children?: React.ReactNod
   )
 }
 
-function SectionHead({ id, title, kind, tag }: { id: string; title: string; kind?: Source; tag?: React.ReactNode }) {
+function SectionHead({ id, title, kind, tag, sub }: { id: string; title: string; kind?: Source; tag?: React.ReactNode; sub?: boolean }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-2">
-      <h2 id={id} className={H2}>{title}</h2>
+      {sub ? <h3 id={id} className="text-lg font-semibold text-slate-900">{title}</h3> : <h2 id={id} className={H2}>{title}</h2>}
       {kind && <SourceTag kind={kind}>{tag}</SourceTag>}
     </div>
   )
@@ -159,43 +130,57 @@ function Stat({ label, value, sub }: { label: string; value: React.ReactNode; su
   )
 }
 
-/** "by Goyal Properties (My Home), filed by GODIVA PROMOTERS LLP": the brand buyers know, and the company MahaRERA has. */
+/** "by Goyal Properties": the brand buyers know. The company MahaRERA has (often an SPV such as "Manjari Housing Projects LLP")
+ *  is in the record's promoter row; in the headline it read as a second builder (design review 2026-10-25). */
 function brandLine(p: RegisterProject): string | null {
-  const brand = p.builder?.name
-  if (brand && p.promoter && brand.toLowerCase() !== p.promoter.toLowerCase()) return `by ${brand}, filed by ${p.promoter}`
-  return p.promoter ? `by ${p.promoter}` : null
+  const brand = p.builder?.name || p.promoter
+  return brand ? `by ${brand}` : null
 }
 
-/** The page's opening: name, builder, area and registration on a dark band, with the headline numbers from MahaRERA. */
-function Hero({ p }: { p: RegisterProject }) {
+/** The page's opening: the builder's first picture, then name, builder, area and registration on a dark band, with the headline
+ *  numbers. The picture comes first on phones because a navy card of numbers was all the first screen showed (design review
+ *  2026-10-25); it is only ever the builder's own picture, never an AI illustration standing in for a real one. */
+function Hero({ p, price, photo }: { p: RegisterProject; price: { from: string; bhks: string } | null; photo: ProfilePicture | null }) {
   const d = p.details
   const moved = d?.completion_moved_months
   const stats: [string, React.ReactNode, React.ReactNode?][] = []
-  const asked = askedPrices(p)
-  if (asked) stats.push(['Asking price', `from ${asked.from}`, asked.bhks])
+  // the agent's live sheet when there is one, else the portals' prices: one price on the page, never both
+  const asked = price ?? askedPrices(p)
+  if (asked) stats.push(['Asking price', `from ${asked.from}`, asked.bhks || undefined])
   if (p.completion_now) stats.push(['Completion filed', longDay(p.completion_now),
     moved != null ? (moved > 0 ? `moved ${months(moved)} later` : 'not moved') : undefined])
   if (d?.booked_pct != null) stats.push(['Booked', `${d.booked_pct}%`, p.units_booked != null && p.units_total ? `${n(p.units_booked)} of ${n(p.units_total)}` : undefined])
   else if (p.units_total) stats.push(['Units', n(p.units_total)])
   if (d?.towers) stats.push(['Towers', n(d.towers), d.max_floors ? `up to ${d.max_floors} floors` : undefined])
-  if (d?.registered_on) stats.push(['Registered', longDay(d.registered_on)])
   const where = p.area ? `${p.area.name}, Pune` : [p.pune_place?.name ?? p.place, p.taluka, 'Pune district'].filter(Boolean).join(', ')
   const shown = displayName(p)
   const area = areaName(p)
   const aka = otherNames(p, [p.name])   // the legal name has its own line
+  const legal = p.name.trim().toLowerCase() !== shown.trim().toLowerCase()
   return (
-    <header id="project-hero" className="overflow-hidden rounded-3xl bg-[#0f2340] px-5 py-7 text-white shadow-lg sm:px-8 sm:py-9">
+    <header id="project-hero" className={`overflow-hidden rounded-3xl bg-[#0f2340] text-white shadow-lg ${photo ? 'lg:grid lg:grid-cols-5' : ''}`}>
+      {photo && (
+        <figure className="relative m-0 aspect-[16/9] bg-slate-800 lg:order-last lg:col-span-2 lg:aspect-auto lg:h-full" data-testid="hero-photo">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={photo.url} alt={photo.alt} width={photo.width ?? undefined} height={photo.height ?? undefined}
+            loading="eager" fetchPriority="high" decoding="async" className="h-full w-full object-cover" />
+          <figcaption className="absolute bottom-2 right-2 rounded bg-black/60 px-2 py-0.5 text-xs text-white">
+            The builder&apos;s picture{photo.site ? `, ${photo.site}` : ''}
+          </figcaption>
+        </figure>
+      )}
+      <div className="px-5 py-7 sm:px-8 sm:py-9 lg:col-span-3">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/15 px-3 py-1 text-xs font-semibold text-emerald-200 ring-1 ring-inset ring-emerald-300/30">
-          <span aria-hidden>✓</span> MahaRERA registered
+        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/15 px-3 py-1 text-xs font-semibold text-emerald-200 ring-1 ring-inset ring-emerald-300/30" data-testid="regno">
+          <span aria-hidden>✓</span> MahaRERA registered <span className="font-mono font-normal text-slate-200">{p.regno}</span>
         </span>
-        <span className="rounded-full bg-white/10 px-3 py-1 font-mono text-xs text-slate-200">{p.regno}</span>
         {p.completion_passed && <span className="rounded-full bg-amber-400/20 px-3 py-1 text-xs font-semibold text-amber-200">Completion date passed</span>}
-        {p.stage && p.stage !== 'passed' && <span className="rounded-full bg-sky-400/20 px-3 py-1 text-xs font-semibold text-sky-100" title={STAGE_NOTE} data-testid="stage">{STAGE_LABEL[p.stage]} (by dates)</span>}
+        {/* plain words on the badge; how the stage is worked out (by dates, not a site check) is its title */}
+        {p.stage && p.stage !== 'passed' && <span className="rounded-full bg-sky-400/20 px-3 py-1 text-xs font-semibold text-sky-100" title={STAGE_NOTE} data-testid="stage">{STAGE_LABEL[p.stage]}</span>}
         {p.sold_out && <span className="rounded-full bg-rose-400/20 px-3 py-1 text-xs font-semibold text-rose-100">Sold out on MahaRERA</span>}
       </div>
       <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">{shown}{area && !shown.toLowerCase().includes(area.toLowerCase()) ? `, ${area}` : ''}</h1>
-      <p className="mt-2 text-sm text-slate-300" data-testid="legal-name">Filed on MahaRERA as {p.name} · {p.regno}</p>
+      {legal && <p className="mt-2 text-sm text-slate-300" data-testid="legal-name">Filed on MahaRERA as {p.name}</p>}
       {aka.length > 0 && <p className="mt-1 text-sm text-slate-300" data-testid="aka">Also known as: {aka.join(', ')}</p>}
       {p.group && (
         <p className="mt-2 text-base text-white" data-testid="group">
@@ -216,6 +201,7 @@ function Hero({ p }: { p: RegisterProject }) {
             MahaRERA record<span className="sr-only"> (opens in a new tab)</span>
           </a>
         )}
+      </div>
       </div>
     </header>
   )
@@ -268,31 +254,6 @@ function ChecksPanel({ p }: { p: RegisterProject }) {
   )
 }
 
-/** Towers, floors, flats, booked share, dates: from MahaRERA's buildings summary and the register record. */
-function DetailsGrid({ p }: { p: RegisterProject }) {
-  const d = p.details
-  if (!d) return null
-  const moved = d.completion_moved_months
-  const cells: [string, React.ReactNode][] = []
-  if (d.towers) cells.push(['Towers', n(d.towers)])
-  if (d.max_floors) cells.push(['Floors (tallest)', n(d.max_floors)])
-  if (d.units_total) cells.push(['Units', n(d.units_total)])
-  if (d.units_residential != null && d.towers) cells.push(['Residential units', n(d.units_residential)])
-  if (d.units_other) cells.push(['Other units (shops, offices)', n(d.units_other)])
-  if (d.booked_pct != null) cells.push(['Booked', `${d.booked_pct}%`])
-  if (d.registered_on) cells.push(['Registered on', longDay(d.registered_on)])
-  if (p.completion_now) cells.push(['Completion filed', <>{longDay(p.completion_now)}{moved != null && <span className="block text-xs font-normal text-slate-600">{moved > 0 ? `moved ${months(moved)} later since registration` : 'not moved since registration'}</span>}</>])
-  if (cells.length < 2) return null
-  return (
-    <section aria-labelledby="details-title">
-      <SectionHead id="details-title" title="Project details" kind="rera" />
-      <dl className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-        {cells.map(([label, value]) => <Cell key={label} label={label} value={value} />)}
-      </dl>
-    </section>
-  )
-}
-
 /** 'Check before you book': the weak points the record shows, each with what to ask (backend areastats/cautions.py). */
 function Cautions({ p }: { p: RegisterProject }) {
   const rows = p.cautions ?? []
@@ -319,7 +280,7 @@ function BuildingsTable({ p }: { p: RegisterProject }) {
   if (!rows.length) return null
   return (
     <section aria-labelledby="buildings-title">
-      <SectionHead id="buildings-title" title="Buildings" kind="rera" />
+      <SectionHead id="buildings-title" title="Buildings" kind="rera" sub />
       <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200">
         <table className="w-full text-left text-sm">
           <thead className="bg-slate-50 text-slate-600">
@@ -350,7 +311,7 @@ function TowersTable({ p }: { p: RegisterProject }) {
   const sold = rows.every((t) => t.units_booked != null) ? rows.reduce((s, t) => s + (t.units_booked ?? 0), 0) : null
   return (
     <section aria-labelledby="towers-title" data-testid="towers">
-      <SectionHead id="towers-title" title={`Towers and phases (${rows.length} registrations)`} kind="rera" />
+      <SectionHead id="towers-title" title={`Towers and phases (${rows.length} registrations)`} kind="rera" sub />
       <p className="mt-2 text-slate-800">
         MahaRERA holds {displayName(p)} as {rows.length} registrations.
         {total > 0 && <> Together they list {n(total)} homes{sold != null ? `, ${n(sold)} booked` : ''}.</>}
@@ -379,6 +340,28 @@ function TowersTable({ p }: { p: RegisterProject }) {
       </div>
       <p className="mt-2 text-xs text-slate-500">Each row is its own MahaRERA registration, as filed.</p>
     </section>
+  )
+}
+
+/** The tower and building tables, folded: long on a big project and the numbers a buyer checks last, so the page stays short on a
+ *  phone (design review 2026-10-25: 15,700 px). Folded content is still in the page, so search engines read it. */
+function TowerByTower({ p }: { p: RegisterProject }) {
+  const towers = (p.towers ?? []).length >= 2
+  const buildings = (p.buildings ?? []).length > 0
+  if (!towers && !buildings) return null
+  return (
+    <details className="group rounded-2xl border border-slate-200 bg-white p-4 sm:p-5" data-testid="tower-by-tower">
+      <summary className="flex min-h-[44px] cursor-pointer items-center justify-between gap-2 text-xl font-semibold text-slate-900">
+        <h2 className="m-0 text-xl font-semibold">Tower by tower</h2>
+        <span className="text-sm font-normal text-slate-600">
+          {[towers ? `${p.towers!.length} registrations` : null, buildings ? `${p.buildings!.length} building${p.buildings!.length === 1 ? '' : 's'}` : null].filter(Boolean).join(', ')}
+        </span>
+      </summary>
+      <div className="mt-4 space-y-8">
+        <TowersTable p={p} />
+        <BuildingsTable p={p} />
+      </div>
+    </details>
   )
 }
 
@@ -494,7 +477,9 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
     ...(p.area ? [{ name: p.area.name, path: `/localities/${p.area.slug}` }] : placeName && placeHref ? [{ name: placeName, path: placeHref }] : []),
     { name: shown, path: `/projects/${p.slug}` }]
   const alternateName = otherNames(p)
-  const ownPhotos = (p.profile?.photos ?? []).filter((x) => (x.source ?? 'builder') === 'builder')
+  const ownPhotos = (p.profile?.photos ?? []).filter((x) => (x.source ?? 'builder') === 'builder' && !!x.url)
+  // the hero's picture: the builder's first one; the gallery below starts from the next, so it is not shown twice
+  const heroPhoto = ownPhotos[0] ?? null
   const ld = {
     '@context': 'https://schema.org', '@type': 'ApartmentComplex', name: shown, url,
     ...(alternateName.length ? { alternateName } : {}),
@@ -512,7 +497,11 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
   }
   const nearby = (facts as unknown as { nearby?: Near[] } | null)?.nearby ?? []
   const offer = (facts as unknown as { offer?: Offer } | null)?.offer
-  const faq = projectFaq(p, nearby, offer?.price_inr ? formatPrice(offer.price_inr) : null)
+  // the agent's live price sheet is the page's one price: the hero quotes it and the portals' prices are not shown beside it
+  const price = offerPrice(offer)
+  const faq = projectFaq(p, nearby, offer?.price_inr ? `${offer.homes && offer.homes.length > 1 ? 'from ' : ''}${formatPrice(offer.price_inr)}` : null)
+  const d = p.details
+  const movedMonths = d?.completion_moved_months
   const byPromoter = (p.same_promoter ?? []).filter((x) => x.slug && x.slug !== p.slug)
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8" style={AVASETU_SITE_VARS}>
@@ -530,13 +519,16 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
         {!p.area && placeName && placeHref && <> <span aria-hidden className="px-1 text-slate-400">/</span> <Link href={placeHref} className="text-[#0f2340] underline underline-offset-2">{placeName}</Link></>}
       </nav>
 
-      <Hero p={p} />
+      <Hero p={p} price={price} photo={heroPhoto} />
 
       {/* pictures first: what a buyer looks for before reading (owner 2026-10-20) */}
-      <div className="mt-8"><ProjectProfile profile={p.profile} name={shown} part="photos" /></div>
+      <div className="mt-8"><ProjectProfile profile={p.profile} name={shown} part="photos" skip={heroPhoto?.url} /></div>
 
       <div className="mt-8 grid gap-8 lg:grid-cols-3">
         <div className="min-w-0 space-y-10 lg:col-span-2">
+          {/* the agent's price sheet right after the pictures, at every width: in the side column a phone reached it at ~11,200 px
+              (design review 2026-10-25) */}
+          <OfferBox facts={facts} stage={stage} />
           <section aria-labelledby="about-title">
             <SectionHead id="about-title" title={`About ${shown}`} kind={p.text_checked ? 'checked' : 'rera'}
               tag={p.text_checked ? 'Written from checked facts' : 'From MahaRERA'} />
@@ -550,16 +542,23 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
           </section>
 
           <ProjectProfile profile={p.profile} name={shown} part="highlights" />
-          <PriceBox prices={p.prices} name={shown} stage={stage} />
+          {!price && <PriceBox prices={p.prices} name={shown} stage={stage} />}
           <ProjectProfile profile={p.profile} name={shown} part="plans" lead={{ agentSlug: HOUSE_AGENT, agentName: 'Avasetu',
             topic: `${p.name} (MahaRERA ${p.regno})`, waMessage: `Hi, I want to know about ${p.name} (MahaRERA ${p.regno}): ${url}` }} />
 
+          {/* one record: the register's facts and MahaRERA's buildings summary used to be two sections ("The record" and
+              "Project details") repeating the same dates and counts (design review 2026-10-25) */}
           <section aria-labelledby="facts-title">
             <SectionHead id="facts-title" title="The record" kind="rera" tag={p.details_read_at ? `From MahaRERA, read ${longDay(p.details_read_at)}` : 'From MahaRERA'} />
             <dl className="mt-2 grid gap-x-6 sm:grid-cols-2">
               {p.completion_now && <Row label="Completion date filed with MahaRERA" value={longDay(p.completion_now)}
-                note={moved ? `At registration: ${longDay(p.completion_at_registration)}.` : undefined} />}
+                note={moved ? `At registration: ${longDay(p.completion_at_registration)}.` : movedMonths === 0 ? 'Not moved since registration.' : undefined} />}
               {p.units_total ? <Row label="Homes booked" value={p.units_booked != null ? `${p.units_booked} of ${p.units_total}` : `Not reported (${p.units_total} homes)`} /> : null}
+              {d?.towers ? <Row label="Towers" value={n(d.towers)} note={d.max_floors ? `The tallest has ${d.max_floors} floors.` : undefined} /> : null}
+              {/* the total is in "Homes booked" already: a row of its own only for the split, or when bookings are not there */}
+              {d?.units_total && (d.units_other || !p.units_total) ? <Row label="Units" value={n(d.units_total)}
+                note={d.units_other ? `${n(d.units_residential ?? d.units_total - d.units_other)} homes, ${n(d.units_other)} shops or offices.` : undefined} /> : null}
+              {d?.registered_on && <Row label="Registered on" value={longDay(d.registered_on)} />}
               <Row label="MahaRERA registration" value={p.regno} note={p.listed_or_updated ? `Listed or updated on MahaRERA ${longDay(p.listed_or_updated)}.` : undefined} />
               {p.promoter && <Row label="Promoter (builder)" value={p.promoter} />}
               {p.pincode && <Row label="Pincode" value={p.pincode} />}
@@ -570,10 +569,8 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
 
           <AskPrompt name={shown} note={ASK_NOTE} whatsappUrl={whatsappUrl} />
 
-          <DetailsGrid p={p} />
           <Cautions p={p} />
-          <TowersTable p={p} />
-          <BuildingsTable p={p} />
+          <TowerByTower p={p} />
           <MapBox p={p} nearby={nearby} />
           <BuilderBox p={p} />
           <WebFactsBox web={p.web_facts} name={displayName(p)} />
@@ -626,7 +623,6 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
         <aside className="min-w-0 space-y-6 lg:sticky lg:top-20 lg:self-start">
           {/* the side column stays in view on desktop, so the ask does too; phones get the bottom bar instead */}
           <div className="hidden lg:block"><AskPrompt name={shown} note={ASK_NOTE} whatsappUrl={whatsappUrl} compact /></div>
-          <OfferBox facts={facts} stage={stage} />
           <ChecksPanel p={p} />
           <VerifiedFacts f={facts} hideNearby />
         </aside>

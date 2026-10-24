@@ -19,7 +19,8 @@ import { getCatalog, getCatalogProject, getPropertyFacts } from '@/lib/site/api'
 import { getFacets } from '@/lib/site/facets'
 import RegisterProjectPage from '@/components/site/RegisterProjectPage'
 import { pageMetadata } from '@/lib/marketing/seo'
-import { getRegisterProject, registerDescription, registerTitle } from '@/lib/site/register'
+import { getRegisterProject, offerPrice, registerDescription, registerTitle } from '@/lib/site/register'
+import type { Offer } from '@/lib/site/register'
 import { bhkRange, mainAgent, priceRange, projectWhatsAppMessage } from '@/lib/site/projects'
 import { catalogProjectMetadata, projectJsonLd } from '@/lib/site/seo'
 import { showDirectContact, whatsappLink } from '@/lib/site/links'
@@ -76,9 +77,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!r) return { title: 'Project not found', robots: { index: false } }
   // the first builder picture is the preview of a shared link and the page's image in search, else the brand card
   const photo = r.profile?.photos?.find((x) => (x.source ?? 'builder') === 'builder' && x.url.startsWith('/') && x.width && x.height)
+  // an agent's live price sheet is the page's price, so the search result quotes it too (the same fetch as the page's)
+  const facts = await getPropertyFacts({ rera: r.regno, project: r.name, locality: r.area?.name }).catch(() => null)
+  const price = offerPrice((facts as unknown as { offer?: Offer } | null)?.offer)
   const meta = pageMetadata(getMarketingConfig(), {
-    title: registerTitle(r),
-    description: registerDescription(r),
+    title: registerTitle(r, price),
+    description: registerDescription(r, price),
     path: `/projects/${r.slug}`,
     ...(photo ? { image: { path: photo.url, width: photo.width as number, height: photo.height as number, alt: photo.alt } } : {}),
   })

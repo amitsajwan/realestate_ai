@@ -374,17 +374,51 @@ export function askedPrices(p: Pick<RegisterProject, 'prices'>): { rows: { bhk: 
   }
 }
 
-/** Search result title, aiming at 60 characters: "{Marketed} {Area}: Price, Possession {Mon YYYY}, MahaRERA", dropping parts for long names. */
-export function registerTitle(p: RegisterProject): string {
+/** The agent's offer as kept on the property's fact sheet (propertyfacts public view): what campaign posts quote. */
+export interface Offer {
+  transaction?: string | null
+  property_type?: string | null
+  price_inr?: number | null
+  plot_sqft?: number | null
+  carpet_sqft?: number | null
+  bhk?: number | null
+  source?: string | null
+  read_at?: string | null
+  /** the live listing's price sheet: every home type with its size and price (a project listed with several) */
+  homes?: { bhk: number; label: string; carpet_sqft?: number | null; price_inr?: number | null }[] | null
+  payment_plan?: string | null
+}
+
+/** "2, 3 & 4 BHK" from a price sheet's home labels; "" when none is a BHK. */
+export function bhkRange(homes: { label: string }[]): string {
+  const nums = Array.from(new Set(homes.map((h) => h.label.replace(' BHK', '')).filter((x) => /^[\d.]+$/.test(x))))
+  if (!nums.length) return ''
+  return (nums.length > 1 ? `${nums.slice(0, -1).join(', ')} & ${nums[nums.length - 1]}` : nums[0]) + ' BHK'
+}
+
+/** The page's price when an agent's live sheet has one: the sheet is what the agent sells at today, so the portal prices are not
+ *  shown beside it (a design review 2026-10-25 found ₹1.29 Cr in the hero and ₹1.2 Cr in the offer on one page). `from` is the
+ *  offer's headline price, the one its all-in cost is worked out on. A rent is not a sale price: null, and the page keeps the portals'. */
+export function offerPrice(o: Offer | null | undefined): { from: string; bhks: string; inr: number } | null {
+  if (!o?.price_inr || o.price_inr <= 0 || o.transaction === 'rent') return null
+  const sheet = o.homes && o.homes.length > 1 ? o.homes : null
+  const bhks = sheet ? bhkRange(sheet) : o.bhk ? `${o.bhk} BHK` : /plot/i.test(o.property_type || '') ? 'Plot' : ''
+  return { from: formatPrice(o.price_inr), bhks, inr: o.price_inr }
+}
+
+/** Search result title, aiming at 60 characters: "{Marketed} {Area}: Price, Possession {Mon YYYY}, MahaRERA", dropping parts for long names.
+ *  `price`: the agent's offer (offerPrice) when it has one, so the title quotes the price the page shows. */
+export function registerTitle(p: RegisterProject, price?: { from: string; bhks: string } | null): string {
   const shown = displayName(p)
   const area = areaName(p)
   const at = area && !shown.toLowerCase().includes(area.toLowerCase()) ? `${shown} ${area}` : shown
   const when = monthYear(p.completion_now)
-  const asked = askedPrices(p)
+  const asked = price ?? askedPrices(p)
+  const lead = asked?.bhks ? `${asked.bhks} from` : 'from'
   // the price is what buyers search and click on: first when we publish one
-  const priced = asked ? (when ? [`${at}: ${asked.bhks} from ${asked.from}, Possession ${when}`, `${shown}: ${asked.bhks} from ${asked.from}, Possession ${when}`,
+  const priced = asked ? (when ? [`${at}: ${lead} ${asked.from}, Possession ${when}`, `${shown}: ${lead} ${asked.from}, Possession ${when}`,
     `${at}: from ${asked.from}, Possession ${when}`, `${shown}: from ${asked.from}, Possession ${when}`]
-    : [`${at}: ${asked.bhks} from ${asked.from}`, `${shown}: from ${asked.from}`]) : []
+    : [`${at}: ${lead} ${asked.from}`, `${shown}: from ${asked.from}`]) : []
   const options = [...priced, ...(when
     ? [`${at}: Price, Possession ${when}, MahaRERA`, `${at}: Possession ${when}, MahaRERA`, `${at}: Possession ${when}`, `${shown}: Possession ${when}`]
     : [`${at}: Price, Possession, MahaRERA`, `${at}: Price, MahaRERA`])]
@@ -394,8 +428,8 @@ export function registerTitle(p: RegisterProject): string {
 /** Search result description: "{Marketed} ({Legal}) by {Builder}, {Area}, Pune. Possession {Mon YYYY}, moved from X, b/t homes booked,
  *  MahaRERA {regno}." Over Google's ~160 characters the legal name goes first, then the builder, the bookings, the "moved from":
  *  the price, possession and MahaRERA number always stay. */
-export function registerDescription(p: RegisterProject): string {
-  const asked = askedPrices(p)
+export function registerDescription(p: RegisterProject, price?: { from: string; bhks: string } | null): string {
+  const asked = price ?? askedPrices(p)
   if (p.search_description && !asked) return clipWords(p.search_description)
   const shown = displayName(p)
   const legal = shown.toLowerCase() !== p.name.toLowerCase() ? ` (${p.name})` : ''
@@ -404,7 +438,7 @@ export function registerDescription(p: RegisterProject): string {
   const from = p.completion_at_registration && p.completion_now && monthYear(p.completion_at_registration) !== monthYear(p.completion_now)
     && p.details?.completion_moved_months !== 0 ? `, moved from ${monthYear(p.completion_at_registration)}` : ''
   return fitDescription((has) => {
-    const head = `${shown}${has(1) ? legal : ''}${by && has(2) ? ` by ${by}` : ''}${area ? `, ${area}` : ''}, Pune.${asked ? ` ${asked.bhks} from ${asked.from}.` : ''}`
+    const head = `${shown}${has(1) ? legal : ''}${by && has(2) ? ` by ${by}` : ''}${area ? `, ${area}` : ''}, Pune.${asked ? (asked.bhks ? ` ${asked.bhks} from ${asked.from}.` : ` From ${asked.from}.`) : ''}`
     const parts = [p.completion_now ? `Possession ${monthYear(p.completion_now)}${has(4) ? from : ''}` : null,
       p.units_total && p.units_booked != null && has(3) ? `${p.units_booked}/${p.units_total} homes booked` : null, `MahaRERA ${p.regno}`]
     return `${head} ${parts.filter(Boolean).join(', ')}.`

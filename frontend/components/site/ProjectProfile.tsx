@@ -6,14 +6,15 @@ import FloorPlansLock, { type PlansLead } from '@/components/site/FloorPlansLock
 
 /** Highlights, the builder's pictures and floor plans of a project still being built (backend areastats/profile.py). `part` shows
  * one of them, so a page can put the pictures first and the plans next to the prices. Floor plans are always behind a short
- * form (owner 2026-10-22: "floor plans locked, ask for the form"): shown only with `lead`, even when we have none yet. */
-export default function ProjectProfile({ profile, name, part, lead }: {
-  profile: Profile | null | undefined; name: string; part?: 'highlights' | 'photos' | 'plans'; lead?: PlansLead
+ * form (owner 2026-10-22: "floor plans locked, ask for the form"): shown only with `lead`, even when we have none yet. `skip` is a
+ * picture already shown elsewhere on the page (the register page's hero), so the gallery does not repeat it. */
+export default function ProjectProfile({ profile, name, part, lead, skip }: {
+  profile: Profile | null | undefined; name: string; part?: 'highlights' | 'photos' | 'plans'; lead?: PlansLead; skip?: string | null
 }) {
   const showPlans = (!part || part === 'plans') && !!lead
   if (!profile) return showPlans && lead ? <FloorPlansLock plans={[]} name={name} lead={lead} /> : null
   const highlights = !part || part === 'highlights' ? profile.highlights : []
-  const photos = !part || part === 'photos' ? profile.photos : []
+  const photos = !part || part === 'photos' ? (profile.photos ?? []).filter((x) => !skip || x.url !== skip) : []
   const drawn = photos.length > 0 && photos.every((p) => sourceOf(p) === 'ai')
   return (
     <>

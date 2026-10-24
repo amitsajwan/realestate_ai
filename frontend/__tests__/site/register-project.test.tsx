@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react'
 import React from 'react'
 import RegisterProjectPage from '@/components/site/RegisterProjectPage'
-import { longDay, registerDescription, registerTitle } from '@/lib/site/register'
+import { longDay, offerPrice, registerDescription, registerTitle } from '@/lib/site/register'
 import type { RegisterProject } from '@/lib/site/register'
 
 jest.mock('@/components/site/EnquiryForm', () => ({ __esModule: true, default: (p: { topic?: string }) => <div data-testid="enquiry">{p.topic}</div> }))
@@ -49,7 +49,7 @@ describe('Avasetu project page from the MahaRERA register', () => {
       same_promoter: [{ name: 'GERAS SONG OF JOY', marketed_name: 'Gera Song of Joy', slug: 'gera-song-of-joy', completion_now: '2027-06-30' }] }
     const { container } = render(<RegisterProjectPage p={g} siteUrl="https://avasetu.in" facts={null} />)
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Gera World of Joy, Wagholi')
-    expect(screen.getByTestId('legal-name')).toHaveTextContent('Filed on MahaRERA as Geras World of Joy M · P52100080076')
+    expect(screen.getByTestId('legal-name')).toHaveTextContent('Filed on MahaRERA as Geras World of Joy M')
     expect(screen.getByTestId('aka')).toHaveTextContent('Also known as: World of Joy Kharadi')
     expect(within(screen.getByTestId('same-promoter')).getByRole('link', { name: /Gera Song of Joy/ })).toHaveAttribute('href', '/projects/gera-song-of-joy')
     const lds = [...container.querySelectorAll('script[type="application/ld+json"]')].map((s) => JSON.parse(s.textContent || '{}'))
@@ -99,5 +99,97 @@ describe('asking about a project without scrolling to the end', () => {
     render(<RegisterProjectPage p={P} siteUrl="https://avasetu.in" facts={null} whatsappUrl="https://wa.me/919800000000" />)
     expect(within(screen.getByTestId('ask-prompt')).getByText('WhatsApp').closest('a')).toHaveAttribute('href', 'https://wa.me/919800000000')
     expect(within(screen.getByTestId('sticky-join')).getByText('WhatsApp').closest('a')).toHaveAttribute('href', 'https://wa.me/919800000000')
+  })
+})
+
+const PORTAL = { read_at: '2026-10-20', rows: [{ bhk: '2 BHK', from_inr: 12_900_000, to_inr: null, official: false,
+  sources: [{ site: 'a.example', url: null }, { site: 'b.example', url: null }] }] }
+const OFFER = { property_type: 'apartment', price_inr: 12_000_000, source: "the agent's listing",
+  homes: [{ bhk: 2, label: '2 BHK', carpet_sqft: 760, price_inr: 12_000_000 }, { bhk: 3, label: '3 BHK', carpet_sqft: 1050, price_inr: 16_500_000 },
+    { bhk: 4, label: '4 BHK', carpet_sqft: 1400, price_inr: 22_000_000 }] }
+const SHEET = { offer: OFFER } as never
+
+describe('one price on the page', () => {
+  it("quotes the agent's price sheet in the hero and leaves the portals' prices out", () => {
+    const { container } = render(<RegisterProjectPage p={{ ...P, prices: PORTAL }} siteUrl="https://avasetu.in" facts={SHEET} />)
+    const hero = document.getElementById('project-hero')!
+    expect(hero).toHaveTextContent('from ₹1.2 Cr')
+    expect(hero).toHaveTextContent('2, 3 & 4 BHK')
+    expect(container).not.toHaveTextContent('₹1.29 Cr')
+    expect(screen.queryByTestId('prices')).toBeNull()
+    const faq = [...container.querySelectorAll('script[type="application/ld+json"]')].map((s) => JSON.parse(s.textContent || '{}'))
+      .find((x) => x['@type'] === 'FAQPage').mainEntity[0]
+    expect(faq.acceptedAnswer.text).toMatch(/quotes from ₹1.2 Cr/)
+    expect(registerTitle({ ...P, prices: PORTAL }, offerPrice(OFFER))).toBe('Rohan Abhilasha 4 Wagholi: from ₹1.2 Cr, Possession Oct 2029')
+    expect(registerDescription({ ...P, prices: PORTAL }, offerPrice(OFFER))).toMatch(/2, 3 & 4 BHK from ₹1.2 Cr/)
+  })
+
+  it("keeps the portals' prices when no agent has a sheet, or the offer is a rent", () => {
+    const { unmount } = render(<RegisterProjectPage p={{ ...P, prices: PORTAL }} siteUrl="https://avasetu.in" facts={null} />)
+    expect(document.getElementById('project-hero')).toHaveTextContent('from ₹1.29 Cr')
+    expect(screen.getByTestId('prices')).toBeInTheDocument()
+    unmount()
+    expect(offerPrice({ transaction: 'rent', price_inr: 30_000 })).toBeNull()
+  })
+
+  it('puts the price sheet in the main column right after the pictures, before About', () => {
+    render(<RegisterProjectPage p={P} siteUrl="https://avasetu.in" facts={SHEET} />)
+    const offer = screen.getByTestId('offer')
+    expect(offer.closest('aside')).toBeNull()
+    const about = screen.getByRole('heading', { name: /About Rohan Abhilasha 4/ })
+    expect(offer.compareDocumentPosition(about) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+})
+
+const PHOTO = (url: string, source?: 'builder' | 'ai') => ({ url, alt: url, width: 1600, height: 900, site: 'rohan.example', page_url: null, source })
+
+describe('the hero', () => {
+  it("opens with the builder's first picture, and the gallery starts from the next one", () => {
+    const profile = { highlights: [], plans: [], read_at: null, photos: [PHOTO('/m/a.webp', 'builder'), PHOTO('/m/b.webp', 'builder'), PHOTO('/m/c.webp', 'builder')] } as never
+    render(<RegisterProjectPage p={{ ...P, profile }} siteUrl="https://avasetu.in" facts={null} />)
+    const img = within(screen.getByTestId('hero-photo')).getByRole('img')
+    expect(img).toHaveAttribute('src', '/m/a.webp')
+    expect(img).toHaveAttribute('loading', 'eager')
+    const gallery = within(screen.getByTestId('photos')).getAllByRole('img').map((x) => x.getAttribute('src'))
+    expect(gallery).toEqual(['/m/b.webp', '/m/c.webp'])
+  })
+
+  it('never puts an AI illustration in the hero as if it were a picture of the project', () => {
+    const profile = { highlights: [], plans: [], read_at: null, photos: [PHOTO('/m/ai.webp', 'ai')] } as never
+    render(<RegisterProjectPage p={{ ...P, profile }} siteUrl="https://avasetu.in" facts={null} />)
+    expect(screen.queryByTestId('hero-photo')).toBeNull()
+    expect(within(screen.getByTestId('photos')).getAllByRole('img')).toHaveLength(1)
+  })
+
+  it('shows the registration once, the brand without the SPV, no Registered tile and a plain stage', () => {
+    const p: RegisterProject = { ...P, promoter: 'Manjari Housing Projects LLP', stage: 'early',
+      builder: { name: 'Godrej Properties', count: 1, with_dates: 0, moved_later: 0, avg_months_later: null, projects: [] },
+      details: { towers: 4, max_floors: 30, units_total: 416, units_residential: 400, units_other: 16, booked_pct: 59, registered_on: '2025-01-10', completion_moved_months: 10 } }
+    render(<RegisterProjectPage p={p} siteUrl="https://avasetu.in" facts={null} />)
+    const hero = document.getElementById('project-hero')!
+    expect(hero.textContent!.split('P52100080076')).toHaveLength(2)
+    expect(hero).toHaveTextContent('by Godrej Properties')
+    expect(hero).not.toHaveTextContent('Manjari Housing')
+    expect(within(hero).queryByText('Registered')).toBeNull()
+    expect(screen.getByTestId('stage')).toHaveTextContent(/^Early stage$/)
+    expect(screen.getByTestId('stage')).toHaveAttribute('title', expect.stringMatching(/Stage by dates/))
+    // the details sit in the one record now
+    expect(screen.queryByRole('heading', { name: 'Project details' })).toBeNull()
+    expect(screen.getByText('Registered on')).toBeInTheDocument()
+    expect(screen.getByText('400 homes, 16 shops or offices.')).toBeInTheDocument()
+  })
+})
+
+describe('a shorter page', () => {
+  it('folds the tower and building tables into "Tower by tower"', () => {
+    const tower = (regno: string) => ({ regno, name: regno, completion_now: null, completion_at_registration: null, units_total: 10, units_booked: 2, registered_on: null, maharera_url: null })
+    const p: RegisterProject = { ...P, buildings: [{ name: 'A', wing: null, floors: 20, units_residential: 80, units_other: 0, units_total: 80 }],
+      towers: [tower('P1'), tower('P2')] }
+    render(<RegisterProjectPage p={p} siteUrl="https://avasetu.in" facts={null} />)
+    const fold = screen.getByTestId('tower-by-tower')
+    expect(fold.tagName).toBe('DETAILS')
+    expect(fold).not.toHaveAttribute('open')
+    expect(within(fold).getByTestId('towers')).toBeInTheDocument()
+    expect(within(fold).getByRole('heading', { name: 'Buildings' })).toBeInTheDocument()
   })
 })
