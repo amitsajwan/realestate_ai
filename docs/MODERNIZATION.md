@@ -176,7 +176,7 @@ swapping), and a deploy that touched the frontend took ~20 minutes building Next
       avasetu`, keeps the latest 10 versions); GitHub signs in without a key (Workload Identity Federation, this repository
       only). `deploy.ps1` waits for that build, then the VM only pulls and restarts: 127 s end to end on the first run.
       `-Tag <sha>` rolls back; `-Build` is the old build-on-the-VM fallback.
-      **Automatic deploy: BUILT 2026-10-22, off until the owner runs `deploy/gcp/ci_deploy_setup.ps1` once.** After each
+      **Automatic deploy: BUILT 2026-10-22, ON since 2026-10-25 (`deploy/gcp/ci_deploy_setup.ps1` run; how it works: the `deploy` skill).** After each
       successful image build on main, `.github/workflows/deploy.yml` runs `deploy/gcp/ci_deploy.sh` on GitHub's machine: the
       same VM steps as `deploy.ps1` (`deploy/gcp/vm_update.sh`), then the public health check; if it does not pass, the
       previous commit is put back and the run fails (GitHub's failure email). One deploy at a time. SSH with a key made on

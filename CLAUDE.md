@@ -87,4 +87,5 @@ Don't touch:
 ## Skills
 
 The procedures live in `.claude/skills/`: `add-module` (a new domain module or endpoint), `add-background-loop` (a worker
-loop), `fix-failing-test`.
+loop), `fix-failing-test`, `deploy` (a push to `main` goes live by itself once its images and both test runs are green;
+deploying or rolling back by hand; checking a release).

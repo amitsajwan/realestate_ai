@@ -488,46 +488,48 @@ backend and the worker and prints a status line. They never print a secret, and 
   right after the deploy (sections 3 and 4); a missing optional key only leaves its feature off.
 
 ### 5.2 Deploy
-```
-git checkout main
-git pull
-.\deploy\gcp\deploy.ps1 -DryRun      # prints every step, contacts nothing, still builds the local bundle
-.\deploy\gcp\deploy.ps1              # for real; note the "Deploying commit <id>" line
-```
-✅ What it does: refuses to run with uncommitted changes to tracked files; bundles **git HEAD** of `deploy/`, `backend/` and `frontend/`
-(tracked files only, so no `.env`, `node_modules` or uploads leave your PC; `frontend/e2e` and `frontend/screenshots` are left out);
-copies it to the VM and unpacks it into `~/app` (the VM's `.env` is kept); runs `sudo docker compose up -d --build`; then polls the
-public `/api/v1/health` until it says "healthy". For another install pass `-Project`, `-Zone`, `-Instance` and `-HealthUrl`.
+**Automatic (ON since 2026-10-25).** Merge or push to `main`: GitHub builds the images (`images.yml`) and runs both checks; when
+all three are green and the commit is still the newest on `main`, `deploy.yml` puts it live over ssh and checks
+`/api/v1/health`, putting the previous commit back if that fails. About 10 minutes from push. Each commit shows three Deploy
+runs: two say "Waiting for ...", the last deploys. A red check means nothing deploys (fix and push again).
 
-Notes from the pilot:
+**By hand** (a redeploy, a rollback, or while the automatic deploy is off):
+```
+gh workflow run deploy.yml                          # the newest commit on main, on GitHub's machine
+gh workflow run deploy.yml -f sha=<40-char sha>     # roll back to an older commit (its images must be built)
+.\deploy\gcp\deploy.ps1                            # from this PC, from a clean checkout of the commit (~2 min)
+.\deploy\gcp\deploy.ps1 -Tag <sha>                 # roll back from this PC
+```
+The VM never builds: it pulls the images tagged with the commit and restarts (`deploy/gcp/vm_update.sh`); the Cloud Run Job
+`renderer` is pointed at the same image. The VM's `.env` is kept. Turn the automatic deploy on or off with
+`.\deploy\gcp\ci_deploy_setup.ps1` (`-DryRun` checks only, `-Off` turns it off and removes GitHub's key from the VM).
+
+Notes:
 - **Exit code 1 with `NativeCommandError` is noise** when the output still ends with "Healthy: ..." and "Done.": `gcloud` writes its
   progress to stderr, which PowerShell reports as an error. Read the output, not the exit code.
-- **Confirm the containers were rebuilt**: on the VM, `sudo docker compose ps` should show `frontend` and `backend` created a few minutes
-  ago. If a container is old, run `sudo docker compose up -d --build <service>`.
-- The frontend builds with `next build --webpack` inside its Dockerfile (`npm run build`). `NEXT_PUBLIC_*` values are baked in then.
-- After `sudo docker builder prune` (to free disk), the **first build is slow** (no cache: `npm ci` and `pip install` run again).
-- To change only a backend setting, edit `.env` and run `sudo docker compose up -d backend worker` (no deploy needed).
+- **Confirm the new images run**: on the VM, `sudo docker ps --format '{{.Names}} {{.Image}}'` shows every app container on `:<sha>`.
+- `NEXT_PUBLIC_*` values are baked into the frontend image when GitHub builds it (repository variables).
+- To change only a backend setting, edit `.env` on the VM and restart that container (no deploy needed).
 
 ### 5.3 After: check the release
 | Check | How | Pass |
 |---|---|---|
 | Health | `deploy.ps1` printed "Healthy"; on the VM `bash health_check.sh --verbose` | no FAIL line |
-| Rebuilt | on the VM `sudo docker compose ps` | `backend`, `worker`, `frontend` created minutes ago |
+| New images | on the VM `sudo docker ps --format '{{.Names}} {{.Image}}'` | every app container on `:<sha>` |
 | Loops | on the VM `sudo docker compose exec -T backend python -m app.worker --check` | exit 0 |
 | Keys | `.\deploy\gcp\keys.ps1 -Verify` (when keys changed) | OK for every key set |
 | The change itself | open the page or feature the pull request changed | it works on a phone |
 | Logs | `sudo docker compose logs --tail 100 backend worker` | no new tracebacks |
 
 ### 5.4 Roll back ⚠️
-A deploy ships one commit, so rolling back is deploying the previous good commit:
+A deploy ships one commit, so rolling back is deploying the previous good commit's images:
 ```
-git log --oneline -5 main            # find the last good commit (the one before the release)
-git checkout <good commit id>
-.\deploy\gcp\deploy.ps1
-git checkout main                    # back to normal; then fix forward in a new pull request
+git log --oneline -5 main                           # find the last good commit (the one before the release)
+gh workflow run deploy.yml -f sha=<full sha>        # or: .\deploy\gcp\deploy.ps1 -Tag <full sha>
 ```
-Code is rolled back; data is not. A release that changed stored data (a new field, a migration script) may need its own undo: read
-its pull request first. A setting added to `.env` is harmless to keep.
+The automatic deploy also rolls back by itself when a new commit fails the health check. Then fix forward: the next green push
+to `main` deploys. Code is rolled back; data is not. A release that changed stored data (a new field, a migration script) may
+need its own undo: read its pull request first. A setting added to `.env` is harmless to keep.
 
 ---
 
