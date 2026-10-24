@@ -231,6 +231,40 @@ under the same checks as the highlights.
    links. We do not send buyers to portals.
 4. TARGET: agent price sheets (agentprojects configurations) first on the register page and in "from ₹X" when a project has one.
 
+## Correct prices: size check and all-in cost (2026-10-24, LIVE)
+
+Owner: "a way we get correct prices for our pages and projects ... maharera reports may be missing stamp duty etc.". No single
+source has the price a buyer pays (it moves with floor, view, date and bargaining); what a page can give is a price that is
+sourced, dated and complete. Where each part comes from:
+
+| Part | Source | Exact? |
+|---|---|---|
+| Price (agreement value) | Agent's sheet (On offer box), else the web price (areastats/prices.py) | As quoted, on that date |
+| GST, stamp duty, registration | Worked out by code from the price (`frontend/lib/site/allin.ts`) | Yes, once the price is known |
+| Parking, club, deposits, legal | Only the builder's cost sheet | Never guessed: the page says "ask" |
+
+MahaRERA publishes no prices at all (carpet areas, bookings and dates only), so it checks prices, it does not supply them.
+
+1. LIVE, backend: a price must fit the size its own line states. When the line names the home's size in sq ft ("2 BHK 750 sq
+   ft ₹96 L"), price / sq ft must be inside `RATE_PER_SQFT` (₹2,500 to ₹40,000: wide, since sites mix carpet and saleable
+   area). A line with no size, and a plot, are not checked. `prices.public` runs the same check on the stored line, so a price
+   read before the check left the pages, the area lists and "from ₹X" at once, without re-reading anything. Public rows carry
+   `sqft`, the size the lowest price is for.
+2. LIVE, frontend: every price on a register page (each size in "Prices of <name>", and the agent's offer) folds out "All-in
+   cost of the 2 BHK at ₹96 L: about ₹1.08 Cr": price, GST, stamp duty, registration, total, then the builder charges left to
+   the cost sheet. The rules, in `allin.ts`:
+   - GST 5% while MahaRERA's completion date is ahead; 1% only when the price is up to ₹45 L AND the stated size is up to 90
+     sq m (968 sq ft; Pune is outside the six metro cities, where the limit is 60 sq m). An unknown size never gets the 1% rate.
+     Past the completion date, or before it is read, GST is left out of the total and marked "Ask": the occupancy certificate
+     decides it.
+   - Stamp duty 7% (PMC and PCMC limits; 6% if a woman buys; on the ready reckoner value when that is higher).
+   - Registration 1%, at most ₹30,000.
+   - Plots and rents get no breakdown.
+   The agent's offer is worked out on the home whose price is the headline price; when none matches, no home is named and no
+   size is assumed.
+3. TARGET: registered sale prices (IGR Index-II) beside the asking price. The free e-Search is one search at a time behind a
+   captcha and is not to be scraped; it needs a licensed Index-II data feed (owner to decide).
+
 ## Enrichment that improves, fails forward and sells (2026-10-20, LIVE)
 Owner, 2026-10-20: enrichment runs again when we improve it, get more info or a better model; a project that fails is noted
 and the loop moves on (fixed offline later), with a cut-off; think SEO always; make the paragraph, lines and highlights better.

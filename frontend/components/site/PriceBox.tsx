@@ -1,11 +1,14 @@
 import React from 'react'
+import CostBreakdown from '@/components/site/CostBreakdown'
+import type { Stage } from '@/lib/site/allin'
 import { formatPrice } from '@/lib/site/format'
 import { formatDay } from '@/lib/site/projects'
 import type { ProjectPrices } from '@/lib/site/register'
 
 /** Asked prices per home size (backend areastats/prices.py): from the builder's own site, or two property sites that agree.
- *  Only the builder's site is linked; a property site is named, not linked (owner 2026-10-20: we do not send buyers to portals). */
-export default function PriceBox({ prices, name }: { prices: ProjectPrices | null | undefined; name: string }) {
+ *  Only the builder's site is linked; a property site is named, not linked (owner 2026-10-20: we do not send buyers to portals).
+ *  Each price folds out its all-in cost (CostBreakdown); a plot's does not (GST and the affordable rate work differently). */
+export default function PriceBox({ prices, name, stage }: { prices: ProjectPrices | null | undefined; name: string; stage: Stage }) {
   if (!prices || !prices.rows.length) return null
   return (
     <section aria-labelledby="prices-title" data-testid="prices">
@@ -26,6 +29,10 @@ export default function PriceBox({ prices, name }: { prices: ProjectPrices | nul
                 </React.Fragment>
               ))}
             </dd>
+            {r.bhk !== 'Plot' && (
+              <dd><CostBreakdown price={r.from_inr} stage={stage} sqft={r.sqft}
+                what={`${r.bhk === 'All homes' ? 'a home' : `the ${r.bhk}`} at ${formatPrice(r.from_inr)}`} /></dd>
+            )}
           </div>
         ))}
       </dl>
