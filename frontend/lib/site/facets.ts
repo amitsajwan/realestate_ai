@@ -41,7 +41,6 @@ export interface FacetRow {
   source: string
   price_from?: number | null
   price_to?: number | null
-  price_source?: string | null
 }
 
 export interface FacetChange { at: string; text: string; slug: string; source: string }

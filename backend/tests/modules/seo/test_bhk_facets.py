@@ -37,11 +37,11 @@ def test_url_key_and_parse_round_trip():
     assert f.parent() == Facet("lohegaon")
 
 
-def test_members_cheapest_first_with_sourced_reason():
+def test_members_cheapest_first_with_the_price_as_reason_and_no_site_named():
     listed = facets.members(Facet("lohegaon", "all", bhk=2), DOCS, NOW)
     assert [d["_id"] for d, _ in listed] == ["P2", "P1", "P3"]
-    assert listed[0][1] == "2 BHK from ₹69 lakh (the builder's site)"
-    assert listed[1][1] == "2 BHK ₹78 lakh to ₹85 lakh (site-a.com and site-b.com)"
+    assert listed[0][1] == "2 BHK from ₹69 lakh"
+    assert listed[1][1] == "2 BHK ₹78 lakh to ₹85 lakh"
 
 
 def test_view_title_h1_answer_and_prices():
@@ -50,6 +50,7 @@ def test_view_title_h1_answer_and_prices():
     assert v["h1"] == "2 BHK flats in new projects in Lohegaon, Pune"
     assert v["indexable"] and v["bhk"] == 2 and v["rows"][0]["price_from"] == 6_900_000
     assert "3 projects" in v["answer"] and "₹69 lakh to ₹91 lakh" in v["answer"]
+    assert all("site" not in str(r) for r in v["rows"]) and "price_source" not in v["rows"][0]
 
 
 def test_intent_with_size_keeps_the_intent_order():

@@ -204,9 +204,10 @@ def inr(v: int) -> str:
 
 
 def _price_why(sp: dict, bhk: int) -> str:
+    # no source on the card: which sites we read is said once under "How this list is made" (owner 2026-10-25: naming portals
+    # on every row reads as if Avasetu only repeats them)
     rng = f"{inr(sp['from_inr'])} to {inr(sp['to_inr'])}" if sp.get("to_inr") else f"from {inr(sp['from_inr'])}"
-    src = "the builder's site" if sp["official"] else " and ".join(sp["sites"][:2]) or "two property sites"
-    return f"{bhk} BHK {rng} ({src})"
+    return f"{bhk} BHK {rng}"
 
 
 def members(f: Facet, docs: List[dict], now: datetime) -> List[Tuple[dict, str]]:
@@ -307,9 +308,7 @@ def _row(d: dict, why: str, n: int) -> dict:
 
 def _price_row(row: dict, d: dict, bhk: int, now: datetime) -> dict:
     sp = size_price(d, bhk, now) or {}
-    return {**row, "price_from": sp.get("from_inr"), "price_to": sp.get("to_inr"),
-            "price_source": ("builder's site" if sp.get("official") else ", ".join(sp.get("sites") or [])) or None,
-            "source": "MahaRERA; price from " + ("the builder's site" if sp.get("official") else "property sites")}
+    return {**row, "price_from": sp.get("from_inr"), "price_to": sp.get("to_inr")}
 
 
 def answer(f: Facet, place: str, rows: List[dict], as_of: str) -> str:

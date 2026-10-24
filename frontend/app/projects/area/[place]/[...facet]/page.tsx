@@ -58,7 +58,7 @@ function moved(r: FacetRow): string | null {
   return `moved from ${monthYear(r.completion_at_registration)}`
 }
 
-function Row({ r }: { r: FacetRow }) {
+function Row({ r, priceList }: { r: FacetRow; priceList: boolean }) {
   const m = moved(r)
   return (
     <li className="flex gap-3 rounded-xl border border-slate-200 bg-white p-3 sm:p-4">
@@ -68,9 +68,10 @@ function Row({ r }: { r: FacetRow }) {
         {r.promoter && (
           <span className="text-slate-700"> by {r.builder_slug ? <Link href={`/builders/${r.builder_slug}`} className="text-[#0f2340] underline underline-offset-2">{r.promoter}</Link> : r.promoter}</span>
         )}
-        <p className="mt-1 text-sm font-medium text-slate-800">{r.reason} <span className="font-normal text-slate-500">({r.source})</span></p>
+        {/* on a size list the reason is the price, which the Price cell already shows */}
+        {!priceList && <p className="mt-1 text-sm font-medium text-slate-800">{r.reason}</p>}
         <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-slate-700 sm:grid-cols-4">
-          {r.price_from != null && <div><dt className="text-xs text-slate-500">Price</dt><dd>{formatPrice(r.price_from)}{r.price_to ? ` to ${formatPrice(r.price_to)}` : ''}{r.price_source ? <span className="block text-xs text-slate-500">{r.price_source}</span> : null}</dd></div>}
+          {r.price_from != null && <div><dt className="text-xs text-slate-500">Price</dt><dd><span className="font-semibold text-slate-900">{formatPrice(r.price_from)}{r.price_to ? ` to ${formatPrice(r.price_to)}` : ''}</span></dd></div>}
           {r.registered_on && <div><dt className="text-xs text-slate-500">Registered</dt><dd>{monthYear(r.registered_on)}</dd></div>}
           {r.completion_now && <div><dt className="text-xs text-slate-500">Possession filed</dt><dd>{monthYear(r.completion_now)}{m ? <span className="block text-xs text-amber-800">{m}</span> : null}</dd></div>}
           {r.units_total != null && <div><dt className="text-xs text-slate-500">Homes</dt><dd>{n(r.units_total)}</dd></div>}
@@ -129,7 +130,7 @@ export default async function FacetPageView({ params }: Props) {
           <section aria-labelledby="list-title" className="mt-8">
             <h2 id="list-title" className="text-2xl font-bold text-slate-900">{p.count} project{p.count === 1 ? '' : 's'}{p.count > p.rows.length ? `, first ${p.rows.length}` : ''}</h2>
             <ol className="mt-3 grid list-none gap-3 p-0" data-testid="facet-rows">
-              {p.rows.map((r) => <Row key={r.slug} r={r} />)}
+              {p.rows.map((r) => <Row key={r.slug} r={r} priceList={!!p.bhk && p.intent === 'all'} />)}
             </ol>
           </section>
         ) : (
