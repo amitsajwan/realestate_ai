@@ -12,7 +12,7 @@ import { getCatalog } from '@/lib/site/api'
 import { facetFaq, getFacet, getFacets, placeChips } from '@/lib/site/facets'
 import type { FacetPage, FacetRow } from '@/lib/site/facets'
 import { livePages } from '@/lib/site/filters'
-import { formatPrice } from '@/lib/site/format'
+import { fitDescription, formatPrice } from '@/lib/site/format'
 import { getRegisterPlaces, longDay, monthYear, placePath } from '@/lib/site/register'
 
 // Area list pages (docs/plan/area-intent-pages.md): New launches, Top projects, Ready to move, Possession <year>, by builder, for
@@ -33,14 +33,19 @@ async function load(params: Props['params']): Promise<FacetPage | null> {
   return got
 }
 
+// Over ~160 characters the date read (or price source) goes first, then the third and second project names, "Registration date",
+// "MahaRERA's records" becomes "MahaRERA", and last the first name: the count, possession and bookings always stay
 function description(p: FacetPage): string {
-  const names = p.rows.slice(0, 3).map((r) => r.name).join(', ')
   const lows = p.rows.map((r) => r.price_from).filter((v): v is number => v != null)
+  const names = (has: (n: number) => boolean) => {
+    const shown = p.rows.slice(0, has(2) ? 3 : has(3) ? 2 : has(6) ? 1 : 0).map((r) => r.name).join(', ')
+    return shown ? `: ${shown}` : ''
+  }
   if (p.bhk && lows.length) {
-    return `${p.count} new projects in ${p.place.name}, Pune with ${p.bhk} BHK flats from ${formatPrice(Math.min(...lows))}${names ? `: ${names}` : ''}. Price from the builder's site, possession filed with MahaRERA and homes booked.`.slice(0, 300)
+    return fitDescription((has) => `${p.count} new projects in ${p.place.name}, Pune with ${p.bhk} BHK flats from ${formatPrice(Math.min(...lows))}${names(has)}. ${has(1) ? "Price from the builder's site, possession" : 'Possession'} filed with MahaRERA and homes booked.`)
   }
   const what = { 'new-launches': 'new launch projects and flats', top: 'top residential projects', 'ready-to-move': 'ready to move flats and projects', all: 'projects' }[p.intent]
-  return `${p.count} ${what} in ${p.place.name}, Pune from MahaRERA's records${names ? `: ${names}` : ''}. Registration date, possession filed and whether it moved, homes booked, read ${longDay(p.as_of)}.`.slice(0, 300)
+  return fitDescription((has) => `${p.count} ${what} in ${p.place.name}, Pune ${has(5) ? "from MahaRERA's records" : 'on MahaRERA'}${names(has)}. ${has(4) ? 'Registration date, possession' : 'Possession'} filed and whether it moved, homes booked${has(1) ? `, read ${longDay(p.as_of)}` : ''}.`)
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {

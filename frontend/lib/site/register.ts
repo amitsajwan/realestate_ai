@@ -6,7 +6,7 @@ import { serverApiBase } from './api'
 import { badStatus, failed, withRetry, type Got } from './retry'
 import type { WebFacts } from './webfacts'
 import type { ProjectProfile } from './profile'
-import { formatPrice } from './format'
+import { clipWords, fitDescription, formatPrice } from './format'
 
 export interface RegisterProject {
   slug: string
@@ -391,20 +391,24 @@ export function registerTitle(p: RegisterProject): string {
   return options.find((t) => t.length <= 60) ?? at
 }
 
-/** Search result description: "{Marketed} ({Legal}) by {Builder}, {Area}, Pune. Possession {Mon YYYY}, moved from X, b/t homes booked, MahaRERA {regno}." */
+/** Search result description: "{Marketed} ({Legal}) by {Builder}, {Area}, Pune. Possession {Mon YYYY}, moved from X, b/t homes booked,
+ *  MahaRERA {regno}." Over Google's ~160 characters the legal name goes first, then the builder, the bookings, the "moved from":
+ *  the price, possession and MahaRERA number always stay. */
 export function registerDescription(p: RegisterProject): string {
   const asked = askedPrices(p)
-  if (p.search_description && !asked) return p.search_description
+  if (p.search_description && !asked) return clipWords(p.search_description)
   const shown = displayName(p)
   const legal = shown.toLowerCase() !== p.name.toLowerCase() ? ` (${p.name})` : ''
   const area = areaName(p)
   const by = p.builder?.name && p.builder.name !== p.promoter ? p.builder.name : p.promoter
-  const head = `${shown}${legal}${by ? ` by ${by}` : ''}${area ? `, ${area}` : ''}, Pune.${asked ? ` ${asked.bhks} from ${asked.from}.` : ''}`
   const from = p.completion_at_registration && p.completion_now && monthYear(p.completion_at_registration) !== monthYear(p.completion_now)
     && p.details?.completion_moved_months !== 0 ? `, moved from ${monthYear(p.completion_at_registration)}` : ''
-  const parts = [p.completion_now ? `Possession ${monthYear(p.completion_now)}${from}` : null,
-    p.units_total && p.units_booked != null ? `${p.units_booked}/${p.units_total} homes booked` : null, `MahaRERA ${p.regno}`]
-  return `${head} ${parts.filter(Boolean).join(', ')}.`
+  return fitDescription((has) => {
+    const head = `${shown}${has(1) ? legal : ''}${by && has(2) ? ` by ${by}` : ''}${area ? `, ${area}` : ''}, Pune.${asked ? ` ${asked.bhks} from ${asked.from}.` : ''}`
+    const parts = [p.completion_now ? `Possession ${monthYear(p.completion_now)}${has(4) ? from : ''}` : null,
+      p.units_total && p.units_booked != null && has(3) ? `${p.units_booked}/${p.units_total} homes booked` : null, `MahaRERA ${p.regno}`]
+    return `${head} ${parts.filter(Boolean).join(', ')}.`
+  })
 }
 
 /** One hit from GET /api/v1/public/register/search. */

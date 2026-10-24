@@ -16,7 +16,7 @@ import { getFacets, getPlacePrices, placeChips } from '@/lib/site/facets'
 import type { PlacePrices } from '@/lib/site/facets'
 import { placeAnswer, placeFaq, placeUpdated } from '@/lib/site/placeFacts'
 import { livePages } from '@/lib/site/filters'
-import { formatPrice } from '@/lib/site/format'
+import { fitDescription, fitTitle, formatPrice } from '@/lib/site/format'
 import { getActive, getAreaMap, getListed } from '@/lib/site/hubs'
 import { displayName, getRegisterPlaces, longDay, getRegisterProjects, placePath, projectSummary, STAGE_LABEL, STAGE_NOTE, STAGES } from '@/lib/site/register'
 import type { RegisterListItem, RegisterPlace } from '@/lib/site/register'
@@ -44,8 +44,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const meta = pageMetadata(getMarketingConfig(), {
     // "flats" is in the title because people also search "flats in <place>" and "properties in <place>": Google did not show
     // this page for those while every word on it said "projects"
-    title: launches ? `Flats & Residential Projects in ${place.name}, Pune: all ${place.projects} on MahaRERA`
-      : `New Projects & Flats in ${place.name}, Pune: Price, Possession, MahaRERA (${place.projects})`,
+    // Google shows about 70 characters: a long place name keeps the search words and drops the tail
+    title: fitTitle(launches
+      ? [`Flats & Residential Projects in ${place.name}, Pune: all ${place.projects} on MahaRERA`,
+        `Flats & Residential Projects in ${place.name}, Pune: ${place.projects} on MahaRERA`, `Flats & Residential Projects in ${place.name}, Pune`]
+      : [`New Projects & Flats in ${place.name}, Pune: Price, Possession, MahaRERA (${place.projects})`,
+        `New Projects & Flats in ${place.name}, Pune: Price, Possession, RERA (${place.projects})`,
+        `New Projects & Flats in ${place.name}, Pune: Price, Possession`, `New Projects & Flats in ${place.name}, Pune`]),
     description: placeDescription(place, launches, (await getActive({ place: place.key })).slice(0, 2).map((a) => a.name), await getPlacePrices(place.slug)),
     path: placePath(place.slug),
   })
@@ -54,13 +59,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 // Google rewrote the old generic description from page text ("Lodha Camelot completion filed ..."): this one starts with the
-// words people search ("projects in Upper Kharadi") and names the most active projects, so it is the better snippet to keep
+// words people search ("projects in Upper Kharadi") and names the most active projects, so it is the better snippet to keep.
+// Over ~160 characters the "what to check" tail goes first, then the second and first project names, then the second price
 function placeDescription(place: RegisterPlace, launches: boolean, names: string[], prices: PlacePrices | null): string {
   const kind = launches ? 'residential' : 'new'
-  const incl = names.length ? `, including ${names.join(' and ')}` : ''
   // a price is what most "flats in <place>" and "property rates in <place>" searchers want first: lead with it when we have one
-  const from = (prices?.sizes ?? []).slice(0, 2).map((s) => `${s.bhk} BHK from ${formatPrice(s.low)}`).join(', ')
-  return `${place.projects} ${kind} projects and flats in ${place.name}, Pune${incl}${from ? `; ${from}` : ''}: possession date filed with MahaRERA, whether it moved, homes booked, and what to check before you buy property here.`
+  const sizes = (prices?.sizes ?? []).slice(0, 2).map((s) => `${s.bhk} BHK from ${formatPrice(s.low)}`)
+  return fitDescription((has) => {
+    const shown = names.slice(0, has(2) ? 2 : has(3) ? 1 : 0)
+    const incl = shown.length ? `, including ${shown.join(' and ')}` : ''
+    const from = sizes.slice(0, has(4) ? 2 : 1).join(', ')
+    return `${place.projects} ${kind} projects and flats in ${place.name}, Pune${incl}${from ? `; ${from}` : ''}: MahaRERA possession date, whether it moved, homes booked${has(1) ? ', what to check before you buy property' : ''}.`
+  })
 }
 
 /** "Flat prices in <place>": per home size, the range of starting prices among projects being sold, with a link to its list. */

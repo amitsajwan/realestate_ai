@@ -30,6 +30,9 @@ beforeEach(() => {
 describe("buyers' home", () => {
   it('is about new projects in Pune, for Google and for people', async () => {
     expect(String(metadata.title)).toMatch(/^New Projects in Pune/)
+    // Google shows about 70 and 160 characters: nothing past that is read in a search result
+    expect(String(metadata.title).length).toBeLessThanOrEqual(70)
+    expect(String(metadata.description).length).toBeLessThanOrEqual(160)
     expect(metadata.alternates?.canonical).toMatch(/\/?$/)
     render(await BuyerHome())
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)

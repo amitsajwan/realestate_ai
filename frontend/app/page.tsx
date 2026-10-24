@@ -21,8 +21,9 @@ import { getRegisterPlaces, placePath } from '@/lib/site/register'
 // breaks; kept 5 minutes like the lists it links.
 export const revalidate = 300
 
-const TITLE = 'New Projects in Pune, Checked on MahaRERA: Possession, Bookings, Builders'
-const DESCRIPTION = 'Every new project in Kharadi, Wagholi, Lohegaon, Hinjawadi, Wakad, Baner and more: the possession date filed with MahaRERA and whether it moved, homes booked, builders\' delivery records and prices quoted by local agents.'
+// Google shows about 70 characters of a title and 160 of a description: both fit, so none of the facts is cut off
+const TITLE = 'New Projects in Pune, MahaRERA Checked: Possession, Bookings, Builders'
+const DESCRIPTION = 'Every new project in Kharadi, Wagholi, Lohegaon, Hinjawadi, Wakad and more: possession filed with MahaRERA, whether it moved, homes booked, builders\' records.'
 
 export const metadata: Metadata = pageMetadata(getMarketingConfig(), {
   title: TITLE,

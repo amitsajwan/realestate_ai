@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { formatPrice, truncate, bhkLabel } from './format'
+import { bhkLabel, fitDescription, formatPrice, truncate } from './format'
 import { agentPath, siteOrigin } from './slug'
 import { monthsLater } from './check'
 import { formatDay } from './projects'
@@ -127,13 +127,14 @@ export function catalogProjectMetadata(p: CatalogProject, priceText: string, web
     && monthsLater(p.rera.completion_now, p.rera.completion_at_registration, p.rera.registered_on)
     ? `, moved from ${formatDay(p.rera.completion_at_registration.slice(0, 7))}` : ''
   const land = webFact(web, 'land_acres'), open = webFact(web, 'open_space_pct')
-  const description = truncate([
+  // over ~160 characters the land and open space go first, then the other towers' dates, the bookings, the "moved from"
+  const description = fitDescription((has) => [
     priceText,
-    when ? `MahaRERA possession ${when}${later.length ? ` (${later.map((r) => `${r.tower}: ${formatDay(r.completion!.slice(0, 7))}`).join(', ')})` : ''}${moved}` : '',
-    p.rera?.units_total ? `${p.rera.units_booked ?? 0} of ${p.rera.units_total} homes booked` : '',
-    land || open ? [land?.text, open ? open.text + ' open space' : ''].filter(Boolean).join(', ') : '',
+    when ? `MahaRERA possession ${when}${later.length && has(2) ? ` (${later.map((r) => `${r.tower}: ${formatDay(r.completion!.slice(0, 7))}`).join(', ')})` : ''}${has(4) ? moved : ''}` : '',
+    p.rera?.units_total && has(3) ? `${p.rera.units_booked ?? 0} of ${p.rera.units_total} homes booked` : '',
+    (land || open) && has(1) ? [land?.text, open ? open.text + ' open space' : ''].filter(Boolean).join(', ') : '',
     'MahaRERA ' + p.rera_no,
-  ].filter(Boolean).join('. '), 160)
+  ].filter(Boolean).join('. '))
   const image = p.media.find((m) => m.kind === 'image' && !m.slide)?.url
   return build(title, description, '/projects/' + p.slug, image ? absolute(image) : undefined)
 }
