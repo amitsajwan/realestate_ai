@@ -13,7 +13,7 @@ import httpx
 
 from app.modules.newsroom.store import Store
 
-from . import discover, enrich, hot as hotmod, websearch
+from . import discover, enrich, hot as hotmod, pricing, websearch
 
 HOT_LIMIT = 60
 
@@ -85,6 +85,13 @@ async def serper_credits(transport: Optional[httpx.AsyncBaseTransport] = None) -
         return None
 
 
+def serper_split() -> List[dict]:
+    """Every round that spends Serper searches up to a fixed daily cap: the Google results round (areas, projects, rank checks
+    and the panel) and the prices round. Leaving prices out made the credits look like they last half as long again."""
+    results = websearch.AREA_PER_DAY + websearch.PROJECT_PER_DAY + websearch.TARGET_PER_DAY + websearch.PANEL_PER_DAY
+    return [{"name": "rank checks", "per_day": results}, {"name": "prices", "per_day": pricing.searches_per_day()}]
+
+
 async def system(store: Store, now: datetime, intervals: Dict[str, Optional[float]]) -> dict:
     """O6: one row per background loop (`intervals` as `python -m app.worker --check` expects them), the register's report and
     Serper credits. The caller passes the intervals: this module never imports the worker."""
@@ -107,6 +114,6 @@ async def system(store: Store, now: datetime, intervals: Dict[str, Optional[floa
         register: List[str] = await refresh.status(store, now)
     except Exception as e:                  # the screen still shows the loops
         register = [f"WARN could not read the register ({type(e).__name__})"]
+    split = serper_split()
     return {"loops": loops, "register": register, "marks": marks, "serper_credits": await serper_credits(),
-            "serper_per_day": websearch.AREA_PER_DAY + websearch.PROJECT_PER_DAY + websearch.TARGET_PER_DAY
-                           + websearch.PANEL_PER_DAY}
+            "serper_per_day": sum(s["per_day"] for s in split), "serper_split": split}

@@ -51,6 +51,7 @@ export interface SystemView {
   marks: Record<string, string | null>
   serper_credits: number | null
   serper_per_day: number
+  serper_split?: { name: string; per_day: number }[]   // what makes up serper_per_day, e.g. rank checks and prices
 }
 
 async function call<T>(path: string, body?: unknown): Promise<T> {

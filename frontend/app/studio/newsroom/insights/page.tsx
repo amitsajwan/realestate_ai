@@ -155,13 +155,14 @@ function SystemTab() {
   const order = { stale: 0, error: 1, ok: 2, off: 3 }
   const loops = [...d.loops].sort((a, b) => order[a.state] - order[b.state])
   const credits = d.serper_credits
+  const split = d.serper_split?.length ? ` (${d.serper_split.map((s) => `${s.per_day} ${s.name}`).join(', ')})` : ''
   return (
     <>
       <div className={card}>
         <p className="font-semibold text-gray-900">Google searches (Serper)</p>
         <p className="text-sm text-gray-700">
           {credits == null ? 'Credits unknown (no key, or Serper did not answer).' :
-            `${credits.toLocaleString('en-IN')} credits left, about ${Math.floor(credits / d.serper_per_day)} days at ${d.serper_per_day} searches a day.`}
+            `${credits.toLocaleString('en-IN')} credits left, about ${Math.floor(credits / d.serper_per_day)} days at ${d.serper_per_day} searches a day${split}.`}
         </p>
         <p className="text-xs text-gray-600">
           {d.marks.web_search ? `Last searched ${timeAgo(d.marks.web_search)}` : 'Not searched yet'}
