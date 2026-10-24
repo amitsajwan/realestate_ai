@@ -268,3 +268,8 @@ possession date and homes booked had to scroll the whole page to ask. Both kinds
   scrolled away and hides while the form is on screen. `MarketingShell stickyBar` lifts the chat bubble above it.
 - WhatsApp: the site's public number (`whatsappUrl`, from `NEXT_PUBLIC_CONTACT_WHATSAPP`) on register pages; the main
   agent's number on agent-listed pages, only when direct contact is shown (`NEXT_PUBLIC_SHOW_AGENT_PHONE`).
+- MahaRERA tracker (2026-10-24, page review): right under the hero, `ProjectTracker` shows the filed date's path
+  (at registration ➔ filed now, split into Order 66/2026's blanket months and the builder's own `completion_moved_months`, or
+  "Not moved since registration") and homes booked as a bar (95%+ "nearly sold out: mostly resale", under 30% "most homes not
+  yet booked", the guides' bands). "Not moved" is about the completion date only; it says nothing about sales. The side column
+  ends with `AgentBridge`, a link to `/trial?src=project-page` for agents who sell the project.

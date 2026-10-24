@@ -22,7 +22,7 @@ describe('Avasetu project page from the MahaRERA register', () => {
     expect(screen.getByTestId('paragraph')).toHaveTextContent(/registered with MahaRERA as P52100080076/)
     expect(screen.getAllByText('30 Oct 2029').length).toBeGreaterThan(0)
     expect(screen.getByText(/At registration: 31 Dec 2028./)).toBeInTheDocument()
-    expect(screen.getByText('244 of 416')).toBeInTheDocument()
+    expect(within(screen.getByRole('heading', { name: 'The record' }).closest('section')!).getByText('244 of 416')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Kesnand Greens/ })).toHaveAttribute('href', '/projects/kesnand-greens-wagholi')
     expect(screen.getAllByRole('link', { name: /Wagholi/ })[0]).toHaveAttribute('href', '/localities/wagholi')
     expect(screen.getByTestId('enquiry')).toHaveTextContent('Rohan Abhilasha 4 (MahaRERA P52100080076)')
@@ -98,5 +98,51 @@ describe('asking about a project without scrolling to the end', () => {
     render(<RegisterProjectPage p={P} siteUrl="https://avasetu.in" facts={null} whatsappUrl="https://wa.me/919800000000" />)
     expect(within(screen.getByTestId('ask-prompt')).getByText('WhatsApp').closest('a')).toHaveAttribute('href', 'https://wa.me/919800000000')
     expect(within(screen.getByTestId('sticky-join')).getByText('WhatsApp').closest('a')).toHaveAttribute('href', 'https://wa.me/919800000000')
+  })
+})
+
+describe('MahaRERA tracker at the top of a project page', () => {
+  const details = { towers: 2, max_floors: 14, units_total: 86, units_residential: 86, units_other: 0, booked_pct: 12, registered_on: '2025-11-03' }
+
+  it('splits a moved date into the blanket extension and the builder\'s own move', () => {
+    render(<RegisterProjectPage p={{ ...P, completion_at_registration: '2030-12-30', completion_now: '2031-04-30', units_total: 86, units_booked: 10,
+      details: { ...details, completion_moved_months: 0, extension_months: 4 } }} siteUrl="https://avasetu.in" facts={null} />)
+    const trail = screen.getByTestId('date-trail')
+    expect(trail).toHaveTextContent(/At registration\s*30 Dec 2030/)
+    expect(trail).toHaveTextContent(/Filed now \(extension added\)\s*30 Apr 2031/)
+    expect(trail).toHaveTextContent("+4 months: MahaRERA's blanket extension (Order 66/2026), not the builder's request")
+    expect(trail).not.toHaveTextContent('moved later by the builder')
+  })
+
+  it('names the builder\'s own months when the date moved beyond the extension', () => {
+    render(<RegisterProjectPage p={{ ...P, details: { ...details, completion_moved_months: 6, extension_months: 4 } }} siteUrl="https://avasetu.in" facts={null} />)
+    expect(screen.getByTestId('date-trail')).toHaveTextContent('+6 months: moved later by the builder')
+  })
+
+  it('says a date that never moved has not moved, and nothing about sales', () => {
+    render(<RegisterProjectPage p={{ ...P, completion_at_registration: '2030-12-31', completion_now: '2030-12-31',
+      details: { ...details, completion_moved_months: 0 } }} siteUrl="https://avasetu.in" facts={null} />)
+    expect(screen.getByTestId('date-trail')).toHaveTextContent('✓ Not moved since registration')
+    expect(screen.getByTestId('tracker')).not.toHaveTextContent(/velocity|sales/i)
+  })
+
+  it('draws homes booked as a bar with what is still open', () => {
+    render(<RegisterProjectPage p={{ ...P, units_total: 86, units_booked: 10 }} siteUrl="https://avasetu.in" facts={null} />)
+    const bar = screen.getByTestId('booked-bar')
+    expect(within(bar).getByRole('meter')).toHaveAttribute('aria-valuenow', '12')
+    expect(bar).toHaveTextContent('10 of 86 booked (12%) · 76 not yet booked')
+    expect(bar).toHaveTextContent('Most homes not yet booked')
+  })
+
+  it('keeps a space between the filed date and its note in the details grid', () => {
+    render(<RegisterProjectPage p={{ ...P, completion_now: '2030-12-31', details: { ...details, completion_moved_months: 0 } }} siteUrl="https://avasetu.in" facts={null} />)
+    const grid = screen.getByRole('heading', { name: 'Project details' }).closest('section') as HTMLElement
+    const cell = within(grid).getByText('Completion filed').closest('div') as HTMLElement
+    expect(cell.textContent).toContain('31 Dec 2030 Not moved since registration')
+  })
+
+  it('offers an agent browsing the project the free trial', () => {
+    render(<RegisterProjectPage p={P} siteUrl="https://avasetu.in" facts={null} />)
+    expect(within(screen.getByTestId('agent-bridge')).getByRole('link', { name: 'Try it free for a month' })).toHaveAttribute('href', '/trial?src=project-page')
   })
 })

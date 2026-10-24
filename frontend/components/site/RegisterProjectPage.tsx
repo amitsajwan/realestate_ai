@@ -11,6 +11,7 @@ import type { FacetLink } from '@/lib/site/facets'
 import WebFactsBox from '@/components/site/WebFactsBox'
 import ProjectProfile from '@/components/site/ProjectProfile'
 import PriceBox from '@/components/site/PriceBox'
+import ProjectTracker, { AgentBridge } from '@/components/site/ProjectTracker'
 import { areaName, askedPrices, displayName, longDay, monthYear, otherNames, projectFaq, placePath, STAGE_LABEL, STAGE_NOTE } from '@/lib/site/register'
 import type { EnrichCheck, Faq } from '@/lib/site/register'
 import type { PropertyFactsView } from '@/lib/site/types'
@@ -273,7 +274,7 @@ function DetailsGrid({ p }: { p: RegisterProject }) {
   if (d.units_other) cells.push(['Other units (shops, offices)', n(d.units_other)])
   if (d.booked_pct != null) cells.push(['Booked', `${d.booked_pct}%`])
   if (d.registered_on) cells.push(['Registered on', longDay(d.registered_on)])
-  if (p.completion_now) cells.push(['Completion filed', <>{longDay(p.completion_now)}{moved != null && <span className="block text-xs font-normal text-slate-600">{moved > 0 ? `moved ${months(moved)} later since registration` : 'not moved since registration'}</span>}</>])
+  if (p.completion_now) cells.push(['Completion filed', <>{longDay(p.completion_now)}{moved != null && <>{' '}<span className="block text-xs font-normal text-slate-600">{moved > 0 ? `Moved ${months(moved)} later since registration` : 'Not moved since registration'}</span></>}</>])
   if (cells.length < 2) return null
   return (
     <section aria-labelledby="details-title">
@@ -522,6 +523,8 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
 
       <Hero p={p} />
 
+      <div className="mt-6"><ProjectTracker p={p} /></div>
+
       {/* pictures first: what a buyer looks for before reading (owner 2026-10-20) */}
       <div className="mt-8"><ProjectProfile profile={p.profile} name={shown} part="photos" /></div>
 
@@ -618,6 +621,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
           <div className="hidden lg:block"><AskPrompt name={shown} note={ASK_NOTE} whatsappUrl={whatsappUrl} compact /></div>
           <OfferBox facts={facts} />
           <ChecksPanel p={p} />
+          <AgentBridge name={shown} />
           <VerifiedFacts f={facts} hideNearby />
         </aside>
       </div>
