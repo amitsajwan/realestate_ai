@@ -128,10 +128,10 @@ describe('shared project pages', () => {
     }
     const ask = screen.getByTestId('ask-prompt')
     expect(ask.compareDocumentPosition(screen.getByRole('heading', { name: /Questions buyers ask/ })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(within(ask).getByRole('link', { name: 'Ask about this project' })).toHaveAttribute('href', '#enquire')
+    expect(within(ask).getByRole('link', { name: 'Get price sheet & floor plans' })).toHaveAttribute('href', '#enquire')
     expect(within(ask).getByText(/An enquiry here goes to House Deal/)).toBeInTheDocument()
     expect(within(ask).getByText('WhatsApp').closest('a')?.getAttribute('href')).toMatch(/^https:\/\/wa\.me\/919876543210\?text=/)
-    expect(within(screen.getByTestId('sticky-join')).getByText('Ask about this project')).toHaveAttribute('href', '#enquire')
+    expect(within(screen.getByTestId('sticky-join')).getByText('Get price & plans')).toHaveAttribute('href', '#enquire')
   })
 
   it('redirects an agent\'s own slug to the shared address and 404s unknown or malformed slugs', async () => {

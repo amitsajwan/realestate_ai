@@ -25,6 +25,7 @@ import { bhkRange, mainAgent, priceRange, projectWhatsAppMessage } from '@/lib/s
 import { catalogProjectMetadata, projectJsonLd } from '@/lib/site/seo'
 import { showDirectContact, whatsappLink } from '@/lib/site/links'
 import { agentPath } from '@/lib/site/slug'
+import { PROJECT_CTA } from '@/lib/site/strings'
 import { catalogFaq, getWebFacts } from '@/lib/site/webfacts'
 import { getProfile } from '@/lib/site/profile'
 import ProjectProfile from '@/components/site/ProjectProfile'
@@ -152,7 +153,10 @@ export default async function SharedProjectPage({ params }: Props) {
               </Link>
             </p>
           )}
-          <div className="mt-4 max-w-sm">
+          <a href="#enquire" className="mt-4 inline-flex min-h-[48px] items-center rounded-full bg-[#f0b440] px-6 font-bold text-[#0f2340] no-underline">
+            {PROJECT_CTA.full}
+          </a>
+          <div className="mt-3 max-w-sm">
             <ContactButtons agentSlug={main.slug} phone={main.phone ?? undefined} waMessage={msg} size="md" />
           </div>
         </header>
@@ -202,9 +206,10 @@ export default async function SharedProjectPage({ params }: Props) {
           </section>
         )}
 
-        <EnquiryForm agentSlug={main.slug} agentName={BRAND_NAME} agentPhone={main.phone ?? undefined} topic={`${p.name} (${p.rera_no})`} waMessage={msg} id="enquire" />
+        <EnquiryForm agentSlug={main.slug} agentName={BRAND_NAME} agentPhone={main.phone ?? undefined} topic={`${p.name} (${p.rera_no})`} waMessage={msg} id="enquire"
+          title={PROJECT_CTA.formTitle(p.name)} submitLabel={PROJECT_CTA.full} />
       </div>
-      <StickyJoinBar watchId="project-hero" formId="enquire" label="Ask about this project" whatsappUrl={wa} whatsappLabel="WhatsApp" />
+      <StickyJoinBar watchId="project-hero" formId="enquire" label={PROJECT_CTA.short} whatsappUrl={wa} whatsappLabel="WhatsApp" />
     </MarketingShell>
   )
 }

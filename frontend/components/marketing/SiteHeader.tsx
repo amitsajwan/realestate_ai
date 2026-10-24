@@ -22,8 +22,10 @@ const button = 'flex min-h-[44px] items-center whitespace-nowrap rounded-lg bg-[
 
 /** Navy header: mark + name, the main links on wide screens, a Menu disclosure on phones (no JavaScript needed), and one gold button
  *  chosen by the page's audience: buyer pages (the default) ask what the visitor needs, agent pages offer the invite. `search` adds
- *  the project search (components/site/HeaderSearch) in front of the links. */
-export default function SiteHeader({ businessName, cta = 'buyer', search = false }: { businessName: string; cta?: HeaderCta; search?: boolean }) {
+ *  the project search (components/site/HeaderSearch) in front of the links. `bottomBar` is set on buyer pages that have their own
+ *  phone bottom bar (project pages): there the bar and the hero carry the one action, so the header's gold button leaves phones
+ *  rather than show a second amber button for the same thing. */
+export default function SiteHeader({ businessName, cta = 'buyer', search = false, bottomBar = false }: { businessName: string; cta?: HeaderCta; search?: boolean; bottomBar?: boolean }) {
   const s = siteLinks()
   const wide = 'hidden min-h-[44px] items-center whitespace-nowrap px-2 font-medium text-white/90 no-underline hover:text-white lg:flex xl:px-3'
   const item = 'flex min-h-[48px] items-center border-b border-white/10 px-1 font-medium text-white no-underline last:border-b-0'
@@ -42,7 +44,7 @@ export default function SiteHeader({ businessName, cta = 'buyer', search = false
           {cta === 'buyer' && (
             // the accessible name contains both visible labels ('Enquire' on phones, the full label on wider screens), so
             // voice control users can say what they see
-            <a href={s.need.href} aria-label={`Enquire: ${s.need.label.toLowerCase()}`} data-testid="header-cta" className={button}>
+            <a href={s.need.href} aria-label={`Enquire: ${s.need.label.toLowerCase()}`} data-testid="header-cta" className={button + (bottomBar ? ' max-md:hidden' : '')}>
               <span className="sm:hidden">Enquire</span><span className="hidden sm:inline">{s.need.label}</span>
             </a>
           )}

@@ -1,8 +1,10 @@
 import React from 'react'
+import { PROJECT_CTA } from '@/lib/site/strings'
 
 /**
  * The ask placed where a buyer has just read the facts (possession, homes booked), so they need not scroll past every section to
- * the form at the end. It jumps to the page's enquiry form (`#enquire`); WhatsApp shows only when the page has a number for it.
+ * the form at the end. It jumps to the page's enquiry form (`#enquire`) under the page's one action label; WhatsApp is the second
+ * action and shows only when the page has a number for it.
  * `compact` is the desktop version at the top of the sticky side column.
  */
 export default function AskPrompt({ name, note, whatsappUrl, compact = false }: {
@@ -15,7 +17,7 @@ export default function AskPrompt({ name, note, whatsappUrl, compact = false }: 
       <p className="mt-1 text-sm text-slate-700">Ask about prices, floor plans, offers or a site visit. {note}</p>
       <div className={'mt-3 flex gap-2 ' + (compact ? 'flex-col' : 'flex-wrap')}>
         <a href="#enquire" className="inline-flex min-h-[48px] items-center justify-center rounded-full bg-[#0f2340] px-6 font-bold text-white no-underline">
-          Ask about this project
+          {PROJECT_CTA.full}
         </a>
         {whatsappUrl && (
           <a href={whatsappUrl} target="_blank" rel="noopener noreferrer"

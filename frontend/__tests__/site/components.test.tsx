@@ -45,9 +45,29 @@ describe('EnquiryForm', () => {
     fireEvent.click(screen.getByRole('checkbox'))
   }
 
+  it('keeps budget, move-in, payment and the note behind a closed disclosure', () => {
+    render(<EnquiryForm {...props} />)
+    const more = screen.getByText('Add budget, move-in or a note (optional)')
+    const details = more.closest('details')!
+    expect(details).not.toHaveAttribute('open')
+    for (const g of ['Budget', 'Move in', 'Payment']) expect(details).toContainElement(screen.getByRole('group', { name: g }))
+    expect(details).toContainElement(screen.getByLabelText('Note'))
+    expect(details).not.toContainElement(screen.getByRole('checkbox'))
+    expect(screen.getByRole('checkbox')).not.toBeChecked()
+    expect(screen.getByLabelText('Mobile number').className).toContain('placeholder:text-slate-400')
+  })
+
+  it('says the Avasetu team, not a bare brand, for the house account', async () => {
+    render(<EnquiryForm {...props} agentName="Avasetu" />)
+    expect(screen.getByText('I agree to be contacted by the Avasetu team about this enquiry.')).toBeInTheDocument()
+    fill()
+    fireEvent.click(screen.getByRole('button', { name: /send enquiry/i }))
+    expect(await screen.findByText('The Avasetu team will call or WhatsApp you soon.')).toBeInTheDocument()
+  })
+
   it('renders the optional block; BHK asked only off listing pages', () => {
     const { unmount } = render(<EnquiryForm {...props} agentName="Priya Sharma" />)
-    expect(screen.getByText('Help Priya Sharma find the right property (optional)')).toBeInTheDocument()
+    expect(screen.getByText('Add budget, move-in or a note (optional)')).toBeInTheDocument()
     expect(screen.queryByRole('group', { name: 'BHK' })).toBeNull()
     unmount()
     render(<EnquiryForm {...props} listingId={undefined} />)

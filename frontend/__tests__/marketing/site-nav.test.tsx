@@ -45,6 +45,14 @@ describe('site header', () => {
     expect(hrefOf(header, /^for agents$/i)).toBe('/agents')  // still a normal link
   })
 
+  it('buyer pages with their own phone bottom bar keep the header button off phones only', () => {
+    const { unmount } = render(<SiteHeader businessName="Avasetu" bottomBar />)
+    expect(within(screen.getByRole('banner')).getByTestId('header-cta').className).toContain('max-md:hidden')
+    unmount()
+    render(<SiteHeader businessName="Avasetu" />)
+    expect(within(screen.getByRole('banner')).getByTestId('header-cta').className).not.toContain('max-md:hidden')
+  })
+
   it('agent pages get "Claim your free trial"; the invite page itself gets no button', () => {
     const { unmount } = render(<SiteHeader businessName="Avasetu" cta="agent" />)
     const cta = within(screen.getByRole('banner')).getByTestId('header-cta')
