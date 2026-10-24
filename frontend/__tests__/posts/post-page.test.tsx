@@ -151,7 +151,8 @@ describe('sitemap', () => {
     global.fetch = jest.fn(async (url: string) => {
       calls.push(String(url))
       const posts = String(url).includes('/public/posts')
-      return { ok: posts, status: posts ? 200 : 503, json: async () => [FULL, { ...FULL, id: 'r2', slug: null }] } as unknown as Response
+      // the other sources have nothing (404): a 503 would read as a restarting API and wait ~10 s for it (lib/site/retry.ts)
+      return { ok: posts, status: posts ? 200 : 404, json: async () => [FULL, { ...FULL, id: 'r2', slug: null }] } as unknown as Response
     }) as unknown as typeof fetch
     const map = await sitemap()
     const entry = map.find((e) => e.url === 'https://avasetu.in/posts/' + SLUG)

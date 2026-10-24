@@ -47,7 +47,7 @@ it('offers Start marketing when nothing ran yet, then shows step 1 working', asy
   startMarketingRun.mockResolvedValue(base)
   render(<MarketingRunCard listingId="L1" />)
   fireEvent.click(await screen.findByRole('button', { name: 'Start marketing' }))
-  expect(startMarketingRun).toHaveBeenCalledWith('L1', false, 'en')
+  expect(startMarketingRun).toHaveBeenCalledWith('L1', false, 'en', undefined)
   expect(await screen.findByText(/Reading the listing, its files and MahaRERA/)).toBeInTheDocument()
   expect(screen.getAllByText(/Working/)).toHaveLength(2)   // Discovery and Facts share the facts step
   expect(screen.getAllByText(/Waiting/)).toHaveLength(4)   // Plan, Content, Design, Reels wait
@@ -150,7 +150,7 @@ it('makes the posts in the language picked, and keeps that language for a remake
   fireEvent.click(await screen.findByRole('radio', { name: 'मराठी' }))
   expect(screen.getByRole('radio', { name: 'मराठी' })).toHaveAttribute('aria-checked', 'true')
   fireEvent.click(screen.getByRole('button', { name: 'Start marketing' }))
-  expect(startMarketingRun).toHaveBeenCalledWith('L1', false, 'mr')
+  expect(startMarketingRun).toHaveBeenCalledWith('L1', false, 'mr', undefined)
   fireEvent.click(await screen.findByRole('button', { name: 'Check again and remake' }))
-  expect(startMarketingRun).toHaveBeenLastCalledWith('L1', true, 'mr')
+  expect(startMarketingRun).toHaveBeenLastCalledWith('L1', true, 'mr', undefined)
 })

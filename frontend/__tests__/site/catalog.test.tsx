@@ -57,9 +57,9 @@ const WAGHOLI = [
   project('rohan-abhilasha-4', 'Wagholi', [[2, 70 * L], [2.5, 82 * L]]),
   project('triaa-kosmic', 'Wagholi', [[3, 98 * L]]),
 ]
-const GOYAL = project('goyal-my-home', 'Upper Kharadi', [[2, 97 * L], [3, 125 * L]], {
+const GOYAL = project('goyal-my-home-kharadi', 'Upper Kharadi', [[2, 97 * L], [3, 125 * L]], {
   agents: [
-    { slug: 'house-deal', name: 'House Deal', phone: '+919876543210', project_slug: 'goyal-my-home' },
+    { slug: 'house-deal', name: 'House Deal', phone: '+919876543210', project_slug: 'goyal-my-home-kharadi' },
     { slug: 'zeta', name: 'Zeta Homes', phone: null, project_slug: 'my-home-upper-kharadi' },
   ],
 })
@@ -104,17 +104,18 @@ describe('shared project pages', () => {
     expect(byLocality(ALL).map(([l, items]) => [l, items.length])).toEqual([['Upper Kharadi', 1], ['Wagholi', 4]])
     render(await ProjectsPage({}))
     expect(screen.getByRole('heading', { name: 'Projects in Wagholi' })).toBeInTheDocument()
-    expect(screen.getAllByTestId('project-card')[0]).toHaveAttribute('href', '/projects/goyal-my-home')
+    expect(screen.getAllByTestId('project-card')[0]).toHaveAttribute('href', '/projects/goyal-my-home-kharadi')
     expect(screen.getByRole('link', { name: 'Wagholi buyer guide' })).toHaveAttribute('href', '/localities/wagholi')
   })
 
   it('shows the project with every agent, sends enquiries to the agent whose facts it shows, and links its area', async () => {
     expect(mainAgent(GOYAL).slug).toBe('house-deal')
-    render(await SharedProjectPage({ params: Promise.resolve({ slug: 'goyal-my-home' }) }))
-    expect(screen.getByRole('heading', { level: 1, name: 'goyal my home' })).toBeInTheDocument()
+    render(await SharedProjectPage({ params: Promise.resolve({ slug: 'goyal-my-home-kharadi' }) }))
+    expect(screen.getByRole('heading', { level: 1, name: 'goyal my home kharadi' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Agents for this project' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: "goyal my home on Zeta Homes's page" })).toHaveAttribute('href', '/agent/zeta/projects/my-home-upper-kharadi')
-    expect(screen.getByText(/An enquiry here goes to House Deal/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: "goyal my home kharadi on Zeta Homes's page" })).toHaveAttribute('href', '/agent/zeta/projects/my-home-upper-kharadi')
+    // the ask box after the facts says it too (9052d168); the agents section is where it names who gets the enquiry
+    expect(within(screen.getByRole('region', { name: 'Agents for this project' })).getByText(/An enquiry here goes to House Deal/)).toBeInTheDocument()
     expect(screen.getAllByRole('link', { name: /Buyer guide to Upper Kharadi/ })[0]).toHaveAttribute('href', '/localities/upper-kharadi')
   })
 
@@ -134,19 +135,21 @@ describe('shared project pages', () => {
   })
 
   it('redirects an agent\'s own slug to the shared address and 404s unknown or malformed slugs', async () => {
-    await expect(SharedProjectPage({ params: Promise.resolve({ slug: 'my-home-upper-kharadi' }) })).rejects.toThrow('REDIRECT /projects/goyal-my-home')
+    await expect(SharedProjectPage({ params: Promise.resolve({ slug: 'my-home-upper-kharadi' }) })).rejects.toThrow('REDIRECT /projects/goyal-my-home-kharadi')
+    // House Deal's catalog pages were taken down on 2026-10-20: the old address goes to the project's own page
+    await expect(SharedProjectPage({ params: Promise.resolve({ slug: 'goyal-my-home' }) })).rejects.toThrow('REDIRECT /projects/my-home-upper-kharadi')
     await expect(SharedProjectPage({ params: Promise.resolve({ slug: 'nope' }) })).rejects.toThrow('NOT_FOUND')
     await expect(SharedProjectPage({ params: Promise.resolve({ slug: 'Bad Slug' }) })).rejects.toThrow('NOT_FOUND')
     expect(mockOne).not.toHaveBeenCalledWith('Bad Slug')
   })
 
   it('has its own canonical address, and the agent copy points there', async () => {
-    const md = await generateMetadata({ params: Promise.resolve({ slug: 'goyal-my-home' }) })
-    expect(md.alternates?.canonical).toBe('https://avasetu.in/projects/goyal-my-home')
+    const md = await generateMetadata({ params: Promise.resolve({ slug: 'goyal-my-home-kharadi' }) })
+    expect(md.alternates?.canonical).toBe('https://avasetu.in/projects/goyal-my-home-kharadi')
     expect(String(md.title)).toContain('Possession')
     const agent = { agent_name: 'House Deal', slug: 'house-deal', branding_data: {} } as never
-    expect(projectMetadata(agent, GOYAL, '').alternates?.canonical).toBe('https://avasetu.in/projects/goyal-my-home')
-    expect(projectMetadata(agent, { ...GOYAL, catalog_slug: null }, '').alternates?.canonical).toBe('https://avasetu.in/agent/house-deal/projects/goyal-my-home')
+    expect(projectMetadata(agent, GOYAL, '').alternates?.canonical).toBe('https://avasetu.in/projects/goyal-my-home-kharadi')
+    expect(projectMetadata(agent, { ...GOYAL, catalog_slug: null }, '').alternates?.canonical).toBe('https://avasetu.in/agent/house-deal/projects/goyal-my-home-kharadi')
   })
 
   it('dates a register page by its last change, so Google re-reads it after we improve it', async () => {
@@ -163,7 +166,7 @@ describe('shared project pages', () => {
 
   it('puts shared pages and live filter pages in the sitemap', async () => {
     const urls = (await sitemap()).map((s) => s.url)
-    expect(urls.some((u) => u.endsWith('/projects/goyal-my-home'))).toBe(true)
+    expect(urls.some((u) => u.endsWith('/projects/goyal-my-home-kharadi'))).toBe(true)
     expect(urls.some((u) => u.endsWith('/2-bhk/wagholi'))).toBe(true)
     expect(urls.some((u) => u.endsWith('/3-bhk/wagholi'))).toBe(false)
   })
