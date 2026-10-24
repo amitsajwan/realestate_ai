@@ -11,6 +11,7 @@ import type { RegisterProject } from '@/lib/site/register'
 import type { FacetLink } from '@/lib/site/facets'
 import WebFactsBox from '@/components/site/WebFactsBox'
 import ProjectProfile from '@/components/site/ProjectProfile'
+import { distinctPhotos } from '@/components/site/ProfilePictures'
 import CostBreakdown from '@/components/site/CostBreakdown'
 import PriceBox from '@/components/site/PriceBox'
 import type { Stage } from '@/lib/site/allin'
@@ -479,7 +480,8 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
     ...(p.area ? [{ name: p.area.name, path: `/localities/${p.area.slug}` }] : placeName && placeHref ? [{ name: placeName, path: placeHref }] : []),
     { name: shown, path: `/projects/${p.slug}` }]
   const alternateName = otherNames(p)
-  const ownPhotos = (p.profile?.photos ?? []).filter((x) => (x.source ?? 'builder') === 'builder' && !!x.url)
+  // the same copies the gallery keeps (a render saved twice shows once), so the hero's picture is the one the gallery skips
+  const ownPhotos = distinctPhotos(p.profile?.photos ?? []).filter((x) => (x.source ?? 'builder') === 'builder' && !!x.url)
   // the hero's picture: the builder's first one; the gallery below starts from the next, so it is not shown twice
   const heroPhoto = ownPhotos[0] ?? null
   const ld = {

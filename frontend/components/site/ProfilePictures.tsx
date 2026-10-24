@@ -4,6 +4,28 @@ import type { ProfilePicture } from '@/lib/site/profile'
 /** A project's pictures and where they came from (backend areastats/profile.py): used by ProjectProfile and FloorPlansLock. */
 export const sourceOf = (p: ProfilePicture) => p.source ?? 'builder'
 
+/** The dHash a saved picture is named by ("…/9d0e0e4d29202c29.webp"), as two 32-bit halves; null for brochure and AI files. */
+const hashOf = (p: ProfilePicture): [number, number] | null => {
+  const m = /\/([0-9a-f]{16})\.webp$/.exec(p.url)
+  return m ? [parseInt(m[1].slice(0, 8), 16), parseInt(m[1].slice(8), 16)] : null
+}
+const bits = (n: number) => { let c = 0; for (let x = n >>> 0; x; x &= x - 1) c++; return c }
+const RANK: Record<string, number> = { builder: 0, brochure: 1, web: 2, ai: 3 }
+
+/** Photos with near-duplicates dropped (the same render twice, under 21 of 64 bits apart), as the backend's
+ * profile.distinct_photos does: profiles saved before that rule still hold both copies until they are read again. */
+export function distinctPhotos(photos: ProfilePicture[]): ProfilePicture[] {
+  const groups: ProfilePicture[][] = []
+  for (const p of photos) {
+    const h = hashOf(p)
+    const g = h && groups.find((g) => g.some((x) => { const k = hashOf(x); return !!k && bits(h[0] ^ k[0]) + bits(h[1] ^ k[1]) < 21 }))
+    if (g) g.push(p)
+    else groups.push([p])
+  }
+  const score = (p: ProfilePicture) => (RANK[sourceOf(p)] ?? 9) * 1e9 - (p.width ?? 0) * (p.height ?? 0)
+  return groups.map((g) => g.reduce((a, b) => (score(b) < score(a) ? b : a)))
+}
+
 export function Picture({ pic, eager }: { pic: ProfilePicture; eager?: boolean }) {
   return (
     <a href={pic.url} target="_blank" rel="noopener" className="relative block h-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50">

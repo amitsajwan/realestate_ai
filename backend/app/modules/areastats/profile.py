@@ -51,6 +51,10 @@ MIN_PHOTO_W, MIN_PHOTO_H = 800, 450
 MIN_PLAN_SIDE = 500
 KEEP_SIDE = 1600                      # longest side kept
 NEAR = 10                             # dHash bits under which two pictures are the same
+# Photos only: the same render saved at another crop or size moves more bits (Godrej Ivara's pool render twice, 17 bits apart,
+# while its six other pictures sit 25 to 39 apart). Plans keep NEAR: one tower's floor plans look alike to a dHash.
+PHOTO_NEAR = 21
+SOURCE_RANK = {"builder": 0, "brochure": 1, "web": 2, "ai": 3}   # which copy of a duplicate photo stays, best first
 # topic -> label; the model must use one of these
 TOPICS: Dict[str, str] = {
     "homes": "Homes on offer (BHK types, sizes)",
@@ -367,15 +371,24 @@ async def pictures(sources: List[dict], raw_of: Dict[str, str], name: str, regno
             if got is None:
                 continue
             im, h = got
-            if any(bin(h ^ x).count("1") < NEAR for x in hashes):
+            at = len(room)
+            twin = None if kind == "plan" else next((p for p in photos if same_photo(h, _hash_of(p))), None)
+            if any(bin(h ^ x).count("1") < NEAR for x in hashes if twin is None or x != _hash_of(twin)):
                 continue
+            if twin is not None:   # the same render again: the larger copy stays, in the first one's place
+                if im.size[0] * im.size[1] <= (twin["width"] or 0) * (twin["height"] or 0):
+                    continue
+                at = photos.index(twin)
+                photos.remove(twin)
+                hashes.remove(_hash_of(twin))
+                (tmp / twin["file"]).unlink(missing_ok=True)
             hashes.append(h)
             file = f"{h:016x}.webp"
             im.save(tmp / file, "WEBP", quality=82, method=4)
-            room.append({"file": file, "width": im.size[0], "height": im.size[1],
-                         "alt": _caption(c, kind, name) if builder else f"{name}, from {src['site']}",
-                         "image_url": c["url"], "page_url": src["url"], "site": src["site"],
-                         "source": "builder" if builder else "web"})
+            room.insert(at, {"file": file, "width": im.size[0], "height": im.size[1],
+                             "alt": _caption(c, kind, name) if builder else f"{name}, from {src['site']}",
+                             "image_url": c["url"], "page_url": src["url"], "site": src["site"],
+                             "source": "builder" if builder else "web"})
     if not photos and not plans:
         shutil.rmtree(tmp, ignore_errors=True)
         return [], [], f"no usable pictures ({tried} tried)"
@@ -581,7 +594,7 @@ async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[webfacts.
     profile = {"at": now, "name": name, "read": read, "pictures": why,
                # a round that finds nothing keeps the last good ones (a builder's site that is down for a day)
                "highlights": highlights or old.get("highlights") or [],
-               "photos": photos or kept(old.get("photos")), "plans": plans or kept(old.get("plans"))}
+               "photos": distinct_photos(photos or kept(old.get("photos"))), "plans": plans or kept(old.get("plans"))}
     checked = f"{len(highlights)} highlights from {sum(1 for r in read if r['ok'])} of {len(read)} sites; {why}"
     return {"ok": bool(highlights or photos or plans), "at": now, "checked": checked}, {"profile": profile}
 
@@ -590,6 +603,26 @@ def _hash_of(pic: dict) -> Optional[int]:
     """The picture's dHash: its saved file is named by it (pictures, brochure and AI files are not)."""
     m = re.fullmatch(r"([0-9a-f]{16})\.webp", str(pic.get("path") or pic.get("file") or "").rsplit("/", 1)[-1])
     return int(m.group(1), 16) if m else None
+
+
+def same_photo(a: Optional[int], b: Optional[int]) -> bool:
+    """Two photo hashes close enough to be one render (a recrop or resize of it); unhashed pictures are never the same."""
+    return a is not None and b is not None and bin(a ^ b).count("1") < PHOTO_NEAR
+
+
+def distinct_photos(photos: List[dict]) -> List[dict]:
+    """The photos with near-duplicates dropped: of each set of copies the builder's, then the largest, stays, in the place of
+    the first copy. Profiles saved before PHOTO_NEAR still hold both copies, so this also runs when a page reads one."""
+    groups: List[List[dict]] = []
+    for p in photos:
+        h = _hash_of(p)
+        group = next((g for g in groups if any(same_photo(h, _hash_of(x)) for x in g)), None)
+        if group is None:
+            groups.append([p])
+        else:
+            group.append(p)
+    return [min(g, key=lambda p: (SOURCE_RANK.get(p.get("source") or "builder", 9),
+                                  -(p.get("width") or 0) * (p.get("height") or 0))) for g in groups]
 
 
 async def others_pictures(db, doc: dict) -> List[int]:
@@ -638,5 +671,5 @@ def public(profile: Optional[dict]) -> Optional[dict]:
             "highlights": [{"topic": h["topic"], "text": h["text"], "official": h.get("official", False),
                             "sources": [{"site": s["site"], "url": s["url"]} for s in h.get("sources") or []]}
                            for h in profile.get("highlights") or []],
-            "photos": [pic(p) for p in profile.get("photos") or [] if p.get("path")],
+            "photos": [pic(p) for p in distinct_photos([p for p in profile.get("photos") or [] if p.get("path")])],
             "plans": [pic(p) for p in profile.get("plans") or [] if p.get("path")]}

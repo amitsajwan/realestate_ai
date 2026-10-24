@@ -20,27 +20,38 @@ export function rollSeconds(items: SpotlightProject[]): number {
   return Math.max(20, Math.round((chars * PX_PER_CHAR + items.length * GAP_PX) / READ_PX_PER_S))
 }
 
+/** [lead, rest] of an entry's second line: a note's parts before the one with the price ("New launch · ") are its lead, which a
+ *  phone leaves out so the price is not cut off by the ellipsis (2026-10-25: "3 & 4 BHK from …" on Lodha Camelot). */
+export function factParts(p: SpotlightProject): [string, string] {
+  const line = p.note || `${p.fact} (${p.source})`
+  const parts = line.split(' · ')
+  const at = p.note ? parts.findIndex((s) => s.includes('₹')) : -1
+  return at > 0 ? [parts.slice(0, at).join(' · ') + ' · ', parts.slice(at).join(' · ')] : ['', line]
+}
+
 export function HotStripView({ items, areaName }: { items: SpotlightProject[]; areaName?: string | null }) {
   if (!items.length) return null
-  const label = areaName && items[0].area === areaName ? `Hot in ${areaName}` : 'Hot in Pune'
+  const place = areaName && items[0].area === areaName ? areaName : 'Pune'
+  const label = `Hot in ${place}`
   const row = (copy: boolean) => (
     <ul className="hot-strip-row flex shrink-0 list-none items-center gap-6 p-0 pr-6" aria-hidden={copy || undefined}>
-      {items.map((p) => (
+      {items.map((p) => { const [lead, rest] = factParts(p); return (
         <li key={p.slug} className="whitespace-nowrap">
           <Link href={`/projects/${p.slug}`} tabIndex={copy ? -1 : undefined} data-testid={copy ? undefined : 'hot-strip-link'}
             className="hot-strip-link inline-flex min-h-[40px] items-center gap-1 text-sm text-white no-underline hover:underline focus-visible:underline">
             <span className="hot-strip-line"><span className="font-semibold">{p.name}</span>
               {p.area && p.area !== areaName && <span className="text-white/70"> · {p.area}</span>}</span>
-            {' '}<span className="hot-strip-line text-[#f5c75e]">{p.note || `${p.fact} (${p.source})`}</span>
+            {' '}<span className="hot-strip-line text-[#f5c75e]">{lead && <span className="hot-strip-lead">{lead}</span>}{rest}</span>
           </Link>
         </li>
-      ))}
+      ) })}
     </ul>
   )
   return (
     <aside aria-label={label} data-print="hide" data-testid="hot-strip" className="hot-strip border-b border-[#1d3a63] bg-[#16305a] text-white">
       <div className="mx-auto flex max-w-5xl items-center gap-3 px-4">
-        <span className="shrink-0 rounded bg-[#f0b440] px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-[#0f2340]">{label}</span>
+        <span className="hot-strip-label shrink-0 rounded bg-[#f0b440] px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-[#0f2340]">
+          Hot in <span className="hot-strip-place">{place}</span></span>
         <div className="hot-strip-viewport min-w-0 flex-1 overflow-hidden">
           <div className="hot-strip-track flex w-max" style={{ '--hot-roll': `${rollSeconds(items)}s` } as React.CSSProperties}>
             {row(false)}{items.length > 1 && row(true)}

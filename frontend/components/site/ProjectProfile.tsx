@@ -1,7 +1,7 @@
 import React from 'react'
 import { formatDay } from '@/lib/site/projects'
 import type { ProjectProfile as Profile } from '@/lib/site/profile'
-import { Credit, Picture, sourceOf } from '@/components/site/ProfilePictures'
+import { Credit, Picture, distinctPhotos, sourceOf } from '@/components/site/ProfilePictures'
 import FloorPlansLock, { type PlansLead } from '@/components/site/FloorPlansLock'
 
 /** Highlights, the builder's pictures and floor plans of a project still being built (backend areastats/profile.py). `part` shows
@@ -14,7 +14,7 @@ export default function ProjectProfile({ profile, name, part, lead, skip }: {
   const showPlans = (!part || part === 'plans') && !!lead
   if (!profile) return showPlans && lead ? <FloorPlansLock plans={[]} name={name} lead={lead} /> : null
   const highlights = !part || part === 'highlights' ? profile.highlights : []
-  const photos = !part || part === 'photos' ? (profile.photos ?? []).filter((x) => !skip || x.url !== skip) : []
+  const photos = !part || part === 'photos' ? distinctPhotos(profile.photos ?? []).filter((x) => !skip || x.url !== skip) : []
   const drawn = photos.length > 0 && photos.every((p) => sourceOf(p) === 'ai')
   return (
     <>

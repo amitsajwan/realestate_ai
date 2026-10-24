@@ -121,7 +121,9 @@ read again and again, but only for projects whose completion date is still to co
   Never prices, possession dates or travel times. The highlights also go to the page-text model, so the summary names them.
 - Pictures: only the builder's own site, only its page for this project (the path names the project) plus that page's own
   gallery / plans sub-pages (up to 3). Junk (logos, icons, maps, awards) left out by address; photos >= 800x450 landscape,
-  plans >= 500 px; near-duplicates dropped (dHash); up to 8 photos and 8 plans, saved as WebP <= 1600 px under
+  plans >= 500 px; near-duplicates dropped (dHash, file named by it: plans under 10 of 64 bits apart, photos under 21, as
+  one render recropped moved 17 bits on Godrej Ivara while different renders sit 25+ apart; the builder's, then the larger copy
+  stays, and pages apply the photo rule again to profiles saved before it); up to 8 photos and 8 plans, saved as WebP <= 1600 px under
   uploads/project_media/<regno>/ (the new set replaces the old; a round that finds nothing keeps the last good set). Plan
   captions from the file name ("3 BHK with study floor plan", "master plan").
 - Shown on register pages (`profile` in the page payload) and agent-listed pages (`GET /public/register/profile/{regno}`):

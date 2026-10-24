@@ -55,6 +55,24 @@ describe('hot projects banner', () => {
   })
 })
 
+describe('hot projects banner on a phone', () => {
+  it("keeps a note's price: the words before it are a lead a phone hides, the whole note still reads on a laptop", () => {
+    render(<HotStripView items={[p('lodha-camelot', { area: 'Upper Kharadi', note: 'New launch · 3 & 4 BHK from ₹2.05 Cr' }),
+      p('ivara', { area: 'Upper Kharadi', note: 'Tower C launched' })]} areaName="Upper Kharadi" />)
+    const [camelot, ivara] = screen.getAllByTestId('hot-strip-link')
+    expect(camelot).toHaveTextContent('New launch · 3 & 4 BHK from ₹2.05 Cr')
+    expect(camelot.querySelector('.hot-strip-lead')).toHaveTextContent(/^New launch ·$/)
+    expect(ivara.querySelector('.hot-strip-lead')).toBeNull()   // no price: nothing is hidden
+    expect(screen.getByTestId('hot-strip').querySelector('.hot-strip-place')).toHaveTextContent('Upper Kharadi')
+  })
+
+  it('never hides part of a sourced fact', async () => {
+    const { factParts } = await import('@/components/site/HotStrip')
+    expect(factParts(p('x', { fact: 'from ₹1.2 Cr · 2 BHK' }))).toEqual(['', 'from ₹1.2 Cr · 2 BHK (MahaRERA)'])
+    expect(factParts(p('x', { note: '₹1.2 Cr · 2 BHK' }))).toEqual(['', '₹1.2 Cr · 2 BHK'])
+  })
+})
+
 describe('hot projects banner speed', () => {
   it('rolls at a reading pace: about 80 s for six usual entries, longer for longer text, never under 20 s', async () => {
     const { rollSeconds } = await import('@/components/site/HotStrip')
