@@ -55,7 +55,10 @@ PREV="$(vm "grep -m1 '^IMAGE_TAG=' $REMOTE_DIR/deploy/gcp/.env | cut -d= -f2 || 
   || { echo "::error::Cannot reach $TARGET over ssh: nothing was changed"; exit 1; }
 PREV="$(echo "$PREV" | tr -d '[:space:]')"
 echo "The VM runs ${PREV:-an unknown commit}; deploying $SHA"
-if [[ "$PREV" == "$SHA" ]]; then echo "Already on $SHA: restarting it anyway"; fi
+if [[ "$PREV" == "$SHA" ]]; then
+  if [[ -n "${SKIP_IF_LIVE:-}" ]]; then echo "::notice::Already on $SHA: nothing to do"; exit 0; fi
+  echo "Already on $SHA: restarting it anyway"
+fi
 
 ship "$SHA"
 if healthy; then

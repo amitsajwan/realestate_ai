@@ -182,7 +182,10 @@ swapping), and a deploy that touched the frontend took ~20 minutes building Next
       previous commit is put back and the run fails (GitHub's failure email). One deploy at a time. SSH with a key made on
       the VM for the deploy user (secret `DEPLOY_SSH_KEY`, host key pinned in `DEPLOY_KNOWN_HOSTS`); needs port 22 open to
       GitHub (not IAP-only). Actions > Deploy > Run workflow redeploys main or rolls back to a given commit;
-      `ci_deploy_setup.ps1 -Off` turns it off. Not gated on the test workflows (main's suite has known failures).
+      `ci_deploy_setup.ps1 -Off` turns it off. **Gated on the tests since 2026-10-25** (main green from f52edce0): each of
+      the three runs (images, frontend, backend) wakes the workflow, and a `gate` job deploys only when all three are green
+      for the commit and it is still main's newest, so a red commit never goes live and a late older commit never replaces a
+      newer one; a commit already live is not restarted. A run by hand passes the gate (rollbacks to pre-green commits).
    2. **Uploads to Cloud Storage: dropped for now (owner).** Uploads stay on the VM; a cleanup removes replaced voice versions
       and finished reels 60 days after posting (originals are kept).
    3. **Renderer on Cloud Run Jobs. TARGET.** Chosen over a spot VM (same cost at ~5 reels a day, ~$5 a month for ~1 hour of

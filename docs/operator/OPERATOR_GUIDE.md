@@ -470,8 +470,12 @@ backend and the worker and prints a status line. They never print a secret, and 
 
 ### 5.1 Before: the change and its checks
 - Every change goes in through a **pull request against `main`**. `main` is what gets deployed; never deploy a feature branch.
-- GitHub runs two checks on every pull request (and on every push to `main`). Both must be green before merging. `deploy.yml` and
-  `e2e-tests.yml` run only when started by hand (Actions → the workflow → Run workflow): the real deploy is `deploy.ps1`, below.
+- GitHub runs two checks on every pull request (and on every push to `main`). Both must be green before merging.
+  `e2e-tests.yml` runs only when started by hand (Actions → the workflow → Run workflow).
+- **Automatic deploy** (`deploy.yml`): once switched on with `deploy/gcp/ci_deploy_setup.ps1`, a push to `main` goes live by
+  itself when its images are built **and both checks are green**, and only if it is still the newest commit on `main`. A red
+  commit is never deployed (the run shows a warning naming the failed check). While it is off (`AUTO_DEPLOY` not `true`),
+  every Deploy run shows "skipped" and `deploy.ps1`, below, is the deploy.
 
 | Check | Workflow | Runs |
 |---|---|---|

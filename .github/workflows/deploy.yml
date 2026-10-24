@@ -1,13 +1,16 @@
 name: Deploy
 
-# Puts each commit on main live once its images are built (images.yml): the same steps as deploy/gcp/deploy.ps1, run on
-# GitHub's machine by deploy/gcp/ci_deploy.sh, and the previous commit is put back if the site's health check does not pass.
+# Puts each commit on main live once its images are built (images.yml) AND both test runs passed (ci.yml, architecture.yml):
+# the same steps as deploy/gcp/deploy.ps1, run on GitHub's machine by deploy/gcp/ci_deploy.sh, and the previous commit is put
+# back if the site's health check does not pass. The three runs finish in any order; each one wakes this workflow, and the
+# gate deploys only when all three are green for the commit and it is still the newest on main (so a red commit never goes
+# live, and an older commit whose runs finish late never replaces a newer one).
 # Off until the owner turns it on once with deploy/gcp/ci_deploy_setup.ps1 (repository variable AUTO_DEPLOY=true, the ssh
 # key secret DEPLOY_SSH_KEY and the variables DEPLOY_SSH_USER, DEPLOY_SSH_HOST, DEPLOY_KNOWN_HOSTS).
 # Run it by hand (Actions > Deploy > Run workflow) to redeploy, or to roll back to the images of an older commit.
 on:
   workflow_run:
-    workflows: ["Build app images"]
+    workflows: ["Build app images", "Frontend tests and build", "Architecture and backend tests"]
     types: [completed]
     branches: [main]
   workflow_dispatch:
@@ -27,16 +30,54 @@ permissions:
   id-token: write
 
 jobs:
-  deploy:
+  # A pushed commit goes on only when its images and both test runs are green and it is still main's newest commit. A run
+  # that is not the last to finish says which one it waits for; a red run says so as a warning (its own failure email
+  # already went out). Run by hand (a redeploy or a rollback), the gate passes: older commits predate green tests.
+  gate:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    # only builds of pushes to main that succeeded (never a fork's run), and only once the owner turned it on
+    timeout-minutes: 5
+    # only pushes to main (never a fork's run), and only once the owner turned it on
     if: >-
       vars.AUTO_DEPLOY == 'true' && (
         github.event_name == 'workflow_dispatch' ||
         (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' &&
          github.event.workflow_run.head_repository.full_name == github.repository)
       )
+    outputs:
+      go: ${{ steps.check.outputs.go }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          if [[ "$EVENT" == "workflow_dispatch" ]]; then echo "go=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          head="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)"
+          if [[ "$head" != "$SHA" ]]; then
+            echo "::notice::$SHA is no longer the newest commit on main ($head): that one deploys instead"
+            echo "go=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          for wf in images.yml ci.yml architecture.yml; do
+            run="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "$wf" --commit "$SHA" --event push --limit 1 --json status,conclusion --jq '.[0] // {} | "\(.status // "missing") \(.conclusion // "")"')"
+            read -r status conclusion <<<"$run"
+            if [[ "$status" != "completed" ]]; then
+              echo "::notice::Waiting for $wf ($status): the last run to finish deploys"
+              echo "go=false" >> "$GITHUB_OUTPUT"; exit 0
+            fi
+            if [[ "$conclusion" != "success" ]]; then
+              echo "::warning::$wf ended '$conclusion' for $SHA: not deployed. Fix it and push again."
+              echo "go=false" >> "$GITHUB_OUTPUT"; exit 0
+            fi
+          done
+          echo "::notice::Images and both test runs are green for $SHA: deploying"
+          echo "go=true" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    needs: gate
+    if: needs.gate.outputs.go == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Pick the commit
         id: pick
@@ -79,6 +120,8 @@ jobs:
           DEPLOY_SSH_USER: ${{ vars.DEPLOY_SSH_USER }}
           DEPLOY_SSH_HOST: ${{ vars.DEPLOY_SSH_HOST }}
           HEALTH_URL: https://${{ vars.SITE_HOST || 'avasetu.in' }}/api/v1/health
+          # a pushed commit already live (two runs finishing together both passed the gate) is not restarted
+          SKIP_IF_LIVE: ${{ github.event_name == 'workflow_run' && '1' || '' }}
         run: bash deploy/gcp/ci_deploy.sh
 
       # the Cloud Run Job that draws the reels runs the same backend image: keep it on this commit too (as deploy.ps1 does).
