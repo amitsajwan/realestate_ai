@@ -18,6 +18,12 @@ sign-up, no selling ("this is information to public, they will never buy our fla
   18 Oct, static in the file), prices with their source, metro status, a checklist. Sections may carry `text` (lead paragraph)
   and `table` ({columns, rows: [{cells, href}], note}); a row's `href` links to our project page. Four English reels
   (`guides/upper-kharadi-*-en.json`, 19/20/22/24 Oct 19:30) use screenshots of the page, every line locked.
+- Review fixes (2026-10-24): a section can hold several titled tables under `tables` (prices are now "Locality averages" and
+  "Project specifics"); a row's `tag` (`resale` 95%+ booked, `limited`, `open` under 30%) tints it and adds an Availability
+  pill; an item or lead paragraph starting `**Lead:**` shows the lead-in bold; a section's `cta` ({text, button, message}) puts
+  a banner after it whose button opens the site chat with `message` already sent (`openChat` in `lib/site/chatApi.ts`). Only
+  buyer topics carry a cta; the MHADA page stays information only. `tests/modules/calendar/test_topics.py` checks that cells
+  line up with columns, no row repeats in a section and every tag matches its booked share.
 - Own screenshot frames: put the picture BELOW y=370 of the 1080x1920 canvas. The renderer draws its progress bar and logo row
   across the top, which looked like a strike-through on a page title.
 - Our register has no village field: "Wagholi" on a project page is from the PIN (412207). Say "Wagholi PIN", not "Wagholi village".

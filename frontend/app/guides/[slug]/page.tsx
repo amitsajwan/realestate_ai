@@ -3,19 +3,26 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import MarketingShell from '@/components/marketing/MarketingShell'
 import PostsGrid from '@/components/site/PostsGrid'
+import TopicCta from '@/components/site/TopicCta'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { articleJsonLd, breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/seo'
 import Link from 'next/link'
-import { fetchTopic, say, sayList, topicPath, type Text, type Topic, type TopicTable } from '@/lib/site/topics'
+import { fetchTopic, leadIn, say, sayList, sectionTables, topicPath, type Availability, type Text, type Topic, type TopicTable } from '@/lib/site/topics'
 
 export const revalidate = 60
 
 type Props = { params: Promise<{ slug: string }> }
 
 const STATE: Record<Topic['dates'][number]['state'], Text> = {
-  confirmed: { mr: 'निश्चित', hi: 'तय', en: 'confirmed' },
-  planned: { mr: 'नियोजित', hi: 'प्रस्तावित', en: 'planned' },
-  unconfirmed: { mr: 'निश्चित नाही', hi: 'तय नहीं', en: 'not confirmed' },
+  confirmed: { mr: 'निश्चित', hi: 'तय', en: 'Confirmed' },
+  planned: { mr: 'नियोजित', hi: 'प्रस्तावित', en: 'Planned' },
+  unconfirmed: { mr: 'निश्चित नाही', hi: 'तय नहीं', en: 'Not confirmed' },
+}
+// a project row's tint and tag, from the booked share it shows (the topic file sets `tag`; a backend test keeps it honest)
+const AVAILABILITY: Record<Availability, { label: Text; row: string; pill: string }> = {
+  resale: { label: { en: '95%+ booked: mostly resale' }, row: 'bg-rose-50', pill: 'bg-rose-100 text-rose-900' },
+  limited: { label: { en: 'Limited availability' }, row: 'bg-amber-50', pill: 'bg-amber-100 text-amber-900' },
+  open: { label: { en: 'Under 30% booked: high availability' }, row: 'bg-emerald-50', pill: 'bg-emerald-100 text-emerald-900' },
 }
 const UI = {
   checked: { mr: 'शेवटची तपासणी', hi: 'आख़िरी जाँच', en: 'Last checked' },
@@ -25,6 +32,7 @@ const UI = {
   official: { mr: 'अधिकृत लिंक', hi: 'आधिकारिक लिंक', en: 'Official links' },
   english: { mr: 'Read this in English', hi: 'Read this in English', en: '' },
   sources: { mr: 'स्रोत', hi: 'स्रोत', en: 'Sources' },
+  availability: { mr: 'उपलब्धता', hi: 'उपलब्धता', en: 'Availability' },
 } satisfies Record<string, Text>
 
 function day(iso: string | null, lang: string): string {
@@ -42,31 +50,54 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return pageMetadata(getMarketingConfig(), { title: t.title.en, description: `${say(t.summary, t.lang)} ${t.summary.en}`.slice(0, 300), path: topicPath(t.slug) })
 }
 
-/** A section's facts table; scrolls sideways on a phone instead of squeezing. A row with `href` links its first cell to our page. */
+/** A section's facts table; scrolls sideways on a phone instead of squeezing. A row with `href` links its first cell to our page;
+ *  rows with an availability `tag` get a tint and an Availability column, with the tags explained under the table. */
 function FactTable({ table, lang }: { table: TopicTable; lang: Topic['lang'] }) {
+  const tagged = table.rows.some((r) => r.tag)
+  const shown = (Object.keys(AVAILABILITY) as Availability[]).filter((k) => table.rows.some((r) => r.tag === k))
   return (
     <div className="mt-3">
+      {table.title && <h3 className="mb-2 font-semibold text-slate-900">{say(table.title, lang)}</h3>}
       <div className="overflow-x-auto rounded-xl border border-slate-200">
         <table className="min-w-full text-left text-sm">
           <thead className="bg-slate-50 text-slate-700">
-            <tr>{table.columns.map((c) => <th key={c} scope="col" className="whitespace-nowrap px-3 py-2 font-semibold">{c}</th>)}</tr>
+            <tr>
+              {table.columns.map((c) => <th key={c} scope="col" className="whitespace-nowrap px-3 py-2 font-semibold">{c}</th>)}
+              {tagged && <th scope="col" className="whitespace-nowrap px-3 py-2 font-semibold">{say(UI.availability, lang)}</th>}
+            </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 text-slate-800">
             {table.rows.map((r, i) => (
-              <tr key={i}>
+              <tr key={i} className={r.tag ? AVAILABILITY[r.tag].row : ''}>
                 {r.cells.map((c, j) => (
                   <td key={j} className={`px-3 py-2 ${j === 0 ? 'font-semibold' : ''} ${j > 1 ? 'whitespace-nowrap' : ''}`}>
-                    {j === 0 && r.href ? <Link href={r.href} className="text-[#0f2340] underline underline-offset-2">{c}</Link> : c}
+                    {j === 0 && r.href ? <Link href={r.href} className="text-[#0f2340] underline decoration-2 underline-offset-2 hover:text-[#1d4ed8]">{c}</Link> : c}
                   </td>
                 ))}
+                {tagged && (
+                  <td className="whitespace-nowrap px-3 py-2">
+                    {r.tag && <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${AVAILABILITY[r.tag].pill}`}>{say(AVAILABILITY[r.tag].label, lang)}</span>}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      {shown.length > 0 && (
+        <ul className="mt-2 flex flex-wrap gap-2 text-xs" aria-label={say(UI.availability, lang)}>
+          {shown.map((k) => <li key={k} className={`rounded-full px-2 py-0.5 font-semibold ${AVAILABILITY[k].pill}`}>{say(AVAILABILITY[k].label, lang)}</li>)}
+        </ul>
+      )}
       {table.note && <p className="mt-2 text-sm text-slate-600">{say(table.note, lang)}</p>}
     </div>
   )
+}
+
+/** A list item or lead paragraph; "**Lead:** rest" shows the lead-in bold so a dense block scans. */
+function Lead({ text }: { text: string }) {
+  const { lead, rest } = leadIn(text)
+  return lead ? <><strong className="font-semibold text-slate-900">{lead}</strong> {rest}</> : <>{text}</>
 }
 
 /** One language's whole body: status, dates, sections, results, FAQ, links, warning. The page shows its own language; the English
@@ -93,11 +124,12 @@ function Body({ t, lang }: { t: Topic; lang: Topic['lang'] }) {
       {t.sections.map((sec) => (
         <section key={sec.id} className="mt-8">
           <h2 className="text-xl font-bold text-[#0f2340]">{s(sec.heading)}</h2>
-          {sec.text && <p className="mt-3 text-slate-800">{s(sec.text)}</p>}
-          {sec.table && <FactTable table={sec.table} lang={lang} />}
+          {sec.text && <p className="mt-3 text-slate-800"><Lead text={s(sec.text)} /></p>}
+          {sectionTables(sec).map((tb, i) => <FactTable key={i} table={tb} lang={lang} />)}
           <ul className="mt-3 list-disc space-y-2 pl-5 text-slate-800">
-            {sayList(sec.items, lang).map((x, i) => <li key={i}>{x}</li>)}
+            {sayList(sec.items, lang).map((x, i) => <li key={i}><Lead text={x} /></li>)}
           </ul>
+          {sec.cta && <TopicCta text={s(sec.cta.text)} button={s(sec.cta.button)} message={s(sec.cta.message)} />}
         </section>
       ))}
 

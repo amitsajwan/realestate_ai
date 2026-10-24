@@ -72,6 +72,21 @@ def _both(v) -> str:
     return str(v or "")
 
 
+def _tables(section: dict) -> List[dict]:
+    """A section's fact tables: one `table`, or several under `tables` (a page splits averages from project figures)."""
+    return ([section["table"]] if section.get("table") else []) + list(section.get("tables") or [])
+
+
+def _rows(table: dict) -> str:
+    return " ".join("; ".join(f"{c}: {v}" for c, v in zip(table.get("columns", []), r["cells"])) + "."
+                    for r in table.get("rows", []))
+
+
+def _unbold(text: str) -> str:
+    """The page bolds an item's lead-in with **...**; a chat reply quoting it should not show the asterisks."""
+    return text.replace("**", "")
+
+
 def topic_chunks() -> Iterable[dict]:
     for slug, t in _content["topics"]().items():
         title, url = t["title"].get("en", slug), f"/guides/{slug}"
@@ -81,12 +96,11 @@ def topic_chunks() -> Iterable[dict]:
                      f"{_both(t.get('summary'))} {_both(t.get('status_line'))} Key dates: {dates}. {dates_mr}. "
                      f"Checked on {t.get('checked_on')}.", url)
         for s in t.get("sections", []):
-            items, table = s.get("items") or {}, s.get("table") or {}
-            rows = " ".join("; ".join(f"{c}: {v}" for c, v in zip(table.get("columns", []), r["cells"])) + "."
-                            for r in table.get("rows", []))
-            yield _chunk(f"topic:{slug}:{s['id']}", "topic", f"{title}: {s['heading'].get('en')}",
-                         f"{_both(s.get('text'))} {rows} {_both(table.get('note'))} {' '.join(items.get('en', []))} "
-                         f"{s['heading'].get('mr', '')}: {' '.join(items.get('mr', []))}", url)
+            items = s.get("items") or {}
+            tables = " ".join(f"{_both(tb.get('title'))} {_rows(tb)} {_both(tb.get('note'))}" for tb in _tables(s))
+            text = (f"{_both(s.get('text'))} {tables} {' '.join(items.get('en', []))} "
+                    f"{s['heading'].get('mr', '')}: {' '.join(items.get('mr', []))}")
+            yield _chunk(f"topic:{slug}:{s['id']}", "topic", f"{title}: {s['heading'].get('en')}", _unbold(text), url)
         for i, f in enumerate(t.get("faq", [])):
             yield _chunk(f"topic:{slug}:faq{i}", "topic", f"{title}: {f['q'].get('en')}",
                          f"{f['a'].get('en')} {f['q'].get('mr', '')} {f['a'].get('mr', '')}", url)

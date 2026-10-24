@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { API_BASE_URL } from '@/lib/config/api'
 import { getAnonId, readAttribution, readVisitPages } from '@/lib/site/tracking'
 import { chatContextFromPath } from '@/lib/site/chatContext'
-import { cardFacts, parseChatReply, WHATSAPP_QUICK, type ChatCard } from '@/lib/site/chatApi'
+import { cardFacts, OPEN_CHAT_EVENT, parseChatReply, WHATSAPP_QUICK, type ChatCard } from '@/lib/site/chatApi'
 import { BRAND_NAME } from '@/lib/brand'
 
 interface Msg { role: 'bot' | 'you'; text: string; cards?: ChatCard[] }
@@ -123,6 +123,19 @@ export default function ChatWidget({ agentSlug, bottomBar = true }: { agentSlug:
     setOpen(next)
     if (next && msgs.length === 0) void send('hi')
   }
+
+  // a CTA on the page (openChat) opens the chat and asks its question for the visitor; the ref keeps the listener on the latest state
+  const onOpenChat = useRef<(message?: string) => void>(() => {})
+  onOpenChat.current = (message) => {
+    setOpen(true)
+    if (message) void send(message)
+    else if (msgs.length === 0) void send('hi')
+  }
+  useEffect(() => {
+    const listen = (e: Event) => onOpenChat.current((e as CustomEvent<{ message?: string }>).detail?.message)
+    window.addEventListener(OPEN_CHAT_EVENT, listen)
+    return () => window.removeEventListener(OPEN_CHAT_EVENT, listen)
+  }, [])
 
   return (
     <div className={'fixed right-3 z-40 sm:right-4 ' + (bottomBar ? CHAT_BOTTOM.withBar : CHAT_BOTTOM.withoutBar)} data-testid="chat-widget">

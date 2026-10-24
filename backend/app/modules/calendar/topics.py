@@ -1,9 +1,13 @@
 """Topic pages: one public page per subject our guide reels keep coming back to (first: the MHADA Pune lottery, whose Marathi
-reels got most of our views in October 2026). Information only: no sign-up, no selling (owner 2026-10-18: "this is information
-to public, they will never buy our flats").
+reels got most of our views in October 2026). The MHADA page is information only: no sign-up, no selling (owner 2026-10-18:
+"this is information to public, they will never buy our flats"). Buyer topics such as Upper Kharadi may end a section with a
+`cta` banner that opens our chat.
 
 A topic is a file in topics/<slug>.json: status line, key dates, sections, results, FAQ, official links and sources, each text
-as {"mr": ..., "en": ...}. Edit the file when a date changes and the page follows; `checked_on` says when it was last true.
+as {"mr": ..., "en": ...}. A section may carry fact tables (`table`, or several titled ones under `tables`) whose rows can link
+to our project page (`href`) and carry an availability `tag` (resale: 95%+ booked, open: under 30%, limited: in between); an
+item's lead-in can be bolded with **...**. Edit the file when a date changes and the page follows; `checked_on` says when it
+was last true.
 Its updates are the reels already posted about it: published calendar rows whose slug starts with one of `row_prefixes`, or
 whose creative names the topic (a guide JSON with "topic": "<slug>"), shown the way the posts feed shows them.
 

@@ -42,3 +42,10 @@ async def test_published_posts_become_passages_without_hashtags_and_never_a_samp
     c = out[0]
     assert c["title"] == "Kharadi metro update 🚇" and "#Pune" not in c["text"] and "line 3 reaches Kharadi by 2027" in c["text"]
     assert c["url"] == "https://fb.test/p1" and c["area"] == "kharadi"
+
+
+def test_a_topic_passage_reads_every_table_and_drops_the_bold_markers():
+    chunks = {c["id"]: c for c in index.topic_chunks()}
+    prices = chunks["topic:upper-kharadi:prices"]["text"]
+    assert "Locality averages" in prices and "Project specifics" in prices and "Lodha Camelot 3 BHK" in prices
+    assert "**" not in chunks["topic:upper-kharadi:where"]["text"]

@@ -82,3 +82,10 @@ export function cardFacts(c: ChatCard): string {
   const area = c.carpet_sqft ? `${Math.round(c.carpet_sqft).toLocaleString('en-IN')} sq ft` : ''
   return [c.locality || '', bhk, area].filter(Boolean).join(' · ')
 }
+
+/** A page's own "Chat with us" button (a guide's CTA) opens the floating chat with this event; `message` is sent as the visitor's first line. */
+export const OPEN_CHAT_EVENT = 'avasetu:open-chat'
+
+export function openChat(message?: string): void {
+  window.dispatchEvent(new CustomEvent(OPEN_CHAT_EVENT, { detail: { message } }))
+}

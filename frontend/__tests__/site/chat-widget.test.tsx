@@ -1,7 +1,7 @@
 import React from 'react'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import ChatWidget, { ChatHomeCard } from '@/components/site/ChatWidget'
-import { cardFacts, parseChatReply } from '@/lib/site/chatApi'
+import { cardFacts, openChat, parseChatReply } from '@/lib/site/chatApi'
 
 jest.mock('@/lib/site/tracking', () => ({
   readAttribution: () => ({ source: 'chat' }), getAnonId: () => 'anon12345', readVisitPages: () => ({ path: '/agent/rahul', landing: '/agent/rahul' }),
@@ -87,6 +87,15 @@ describe('ChatWidget', () => {
 })
 
 describe('ChatWidget bubble', () => {
+  it('opens from a page call to action and sends its question as the first message', async () => {
+    const fetchMock = jest.fn(() => reply({ reply: 'Which tower? Send me its name.', quick_replies: [] }))
+    global.fetch = fetchMock as unknown as typeof fetch
+    render(<ChatWidget agentSlug="avasetu" bottomBar={false} />)
+    act(() => openChat('I want the MahaRERA details for a tower in Upper Kharadi'))
+    await screen.findByText('Which tower? Send me its name.')
+    expect(screen.getByText('I want the MahaRERA details for a tower in Upper Kharadi')).toBeInTheDocument()
+    expect(JSON.parse((fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1].body as string).message).toBe('I want the MahaRERA details for a tower in Upper Kharadi')
+  })
   it('is a small round icon button on phones, named "Chat with us", with the words only from 640 px up', () => {
     render(<ChatWidget agentSlug="rahul" />)
     const btn = screen.getByRole('button', { name: 'Chat with us' })

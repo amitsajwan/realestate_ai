@@ -13,10 +13,21 @@ import { serverApiBase } from './api'
 export type Text = { mr?: string; hi?: string; en: string }
 export type TextList = { mr?: string[]; hi?: string[]; en: string[] }
 
+/** How much of a project is still for sale, from the booked share filed on MahaRERA: resale 95%+, open under 30%, limited between. */
+export type Availability = 'resale' | 'limited' | 'open'
+
 export interface TopicTable {
+  title?: Text
   columns: string[]
-  rows: Array<{ cells: string[]; href?: string }>
+  rows: Array<{ cells: string[]; href?: string; tag?: Availability }>
   note?: Text
+}
+
+/** A banner at the end of a section: its button opens our chat with `message` as the visitor's first line. */
+export interface TopicCta {
+  text: Text
+  button: Text
+  message: Text
 }
 
 export interface TopicSummary {
@@ -31,8 +42,9 @@ export interface TopicSummary {
 export interface Topic extends TopicSummary {
   status_line: Text
   dates: Array<{ label: Text; value: Text; state: 'confirmed' | 'planned' | 'unconfirmed' }>
-  /** `text` is a lead paragraph; `table` rows are facts (numbers, names) in one language, `href` links a row to our own page. */
-  sections: Array<{ id: string; heading: Text; text?: Text; items: TextList; table?: TopicTable }>
+  /** `text` is a lead paragraph; `table` rows are facts (numbers, names) in one language, `href` links a row to our own page.
+   *  A section with more than one table lists them under `tables`. An item may open with a **bold lead-in:**. */
+  sections: Array<{ id: string; heading: Text; text?: Text; items: TextList; table?: TopicTable; tables?: TopicTable[]; cta?: TopicCta }>
   results: { heading: Text; text: Text; links: Array<{ label: Text; url: string }> } | null
   faq: Array<{ q: Text; a: Text }>
   links: Array<{ label: Text; url: string }>
@@ -89,3 +101,14 @@ export function sayList(t: TextList | undefined, lang: Topic['lang']): string[] 
 }
 
 export const topicPath = (slug: string) => `/guides/${slug}`
+
+/** A section's tables in order: the single `table`, then any under `tables`. */
+export function sectionTables(sec: Topic['sections'][number]): TopicTable[] {
+  return [...(sec.table ? [sec.table] : []), ...(sec.tables ?? [])]
+}
+
+/** "**Lead:** rest" split for a bold lead-in; a text without one has lead null. */
+export function leadIn(text: string): { lead: string | null; rest: string } {
+  const m = /^\*\*(.+?)\*\*\s*([\s\S]*)$/.exec(text)
+  return m ? { lead: m[1], rest: m[2] } : { lead: null, rest: text }
+}
