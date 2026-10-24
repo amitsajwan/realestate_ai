@@ -70,3 +70,33 @@ describe('Avasetu project page from the MahaRERA register', () => {
     expect(longDay(null)).toBe('')
   })
 })
+
+describe('asking about a project without scrolling to the end', () => {
+  it('puts the ask right after the record, before the long sections, and it jumps to the form', () => {
+    render(<RegisterProjectPage p={P} siteUrl="https://avasetu.in" facts={null} />)
+    const ask = screen.getByTestId('ask-prompt')
+    const record = screen.getByRole('heading', { name: 'The record' })
+    const faq = screen.getByRole('heading', { name: 'FAQ' })
+    expect(record.compareDocumentPosition(ask) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(ask.compareDocumentPosition(faq) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(within(ask).getByRole('link', { name: 'Ask about this project' })).toHaveAttribute('href', '#enquire')
+    expect(within(ask).getByText(/never share your number without your OK/)).toBeInTheDocument()
+  })
+
+  it('keeps the ask in the desktop side column and gives phones a bottom bar to the form', () => {
+    render(<RegisterProjectPage p={P} siteUrl="https://avasetu.in" facts={null} />)
+    expect(screen.getByTestId('ask-prompt-side').closest('aside')).not.toBeNull()
+    const bar = screen.getByTestId('sticky-join')
+    expect(within(bar).getByText('Ask about this project')).toHaveAttribute('href', '#enquire')
+    expect(document.getElementById('project-hero')?.tagName).toBe('HEADER')
+  })
+
+  it('offers WhatsApp only when the site has a number for it', () => {
+    const { unmount } = render(<RegisterProjectPage p={P} siteUrl="https://avasetu.in" facts={null} />)
+    expect(within(screen.getByTestId('ask-prompt')).queryByText('WhatsApp')).toBeNull()
+    unmount()
+    render(<RegisterProjectPage p={P} siteUrl="https://avasetu.in" facts={null} whatsappUrl="https://wa.me/919800000000" />)
+    expect(within(screen.getByTestId('ask-prompt')).getByText('WhatsApp').closest('a')).toHaveAttribute('href', 'https://wa.me/919800000000')
+    expect(within(screen.getByTestId('sticky-join')).getByText('WhatsApp').closest('a')).toHaveAttribute('href', 'https://wa.me/919800000000')
+  })
+})

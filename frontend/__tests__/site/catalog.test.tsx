@@ -118,6 +118,21 @@ describe('shared project pages', () => {
     expect(screen.getAllByRole('link', { name: /Buyer guide to Upper Kharadi/ })[0]).toHaveAttribute('href', '/localities/upper-kharadi')
   })
 
+  it('asks right after the project details, and gives phones a bottom bar to the form', async () => {
+    process.env.NEXT_PUBLIC_SHOW_AGENT_PHONE = 'true'
+    try {
+      render(await SharedProjectPage({ params: Promise.resolve({ slug: 'rohan-abhilasha-4' }) }))
+    } finally {
+      delete process.env.NEXT_PUBLIC_SHOW_AGENT_PHONE
+    }
+    const ask = screen.getByTestId('ask-prompt')
+    expect(ask.compareDocumentPosition(screen.getByRole('heading', { name: /Questions buyers ask/ })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(within(ask).getByRole('link', { name: 'Ask about this project' })).toHaveAttribute('href', '#enquire')
+    expect(within(ask).getByText(/An enquiry here goes to House Deal/)).toBeInTheDocument()
+    expect(within(ask).getByText('WhatsApp').closest('a')?.getAttribute('href')).toMatch(/^https:\/\/wa\.me\/919876543210\?text=/)
+    expect(within(screen.getByTestId('sticky-join')).getByText('Ask about this project')).toHaveAttribute('href', '#enquire')
+  })
+
   it('redirects an agent\'s own slug to the shared address and 404s unknown or malformed slugs', async () => {
     await expect(SharedProjectPage({ params: Promise.resolve({ slug: 'my-home-upper-kharadi' }) })).rejects.toThrow('REDIRECT /projects/goyal-my-home')
     await expect(SharedProjectPage({ params: Promise.resolve({ slug: 'nope' }) })).rejects.toThrow('NOT_FOUND')

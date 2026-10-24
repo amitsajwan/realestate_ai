@@ -3,6 +3,8 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound, permanentRedirect } from 'next/navigation'
 import MarketingShell from '@/components/marketing/MarketingShell'
+import StickyJoinBar from '@/components/marketing/StickyJoinBar'
+import AskPrompt from '@/components/site/AskPrompt'
 import ContactButtons from '@/components/site/ContactButtons'
 import EnquiryForm from '@/components/site/EnquiryForm'
 import ProjectCard from '@/components/site/ProjectCard'
@@ -20,6 +22,7 @@ import { pageMetadata } from '@/lib/marketing/seo'
 import { getRegisterProject, registerDescription, registerTitle } from '@/lib/site/register'
 import { bhkRange, mainAgent, priceRange, projectWhatsAppMessage } from '@/lib/site/projects'
 import { catalogProjectMetadata, projectJsonLd } from '@/lib/site/seo'
+import { showDirectContact, whatsappLink } from '@/lib/site/links'
 import { agentPath } from '@/lib/site/slug'
 import { catalogFaq, getWebFacts } from '@/lib/site/webfacts'
 import { getProfile } from '@/lib/site/profile'
@@ -96,8 +99,8 @@ export default async function SharedProjectPage({ params }: Props) {
     if (listed) permanentRedirect(`/projects/${listed.slug}`)
     const facts = await getPropertyFacts({ rera: r.regno, project: r.name, locality: r.area?.name }).catch(() => null)
     return (
-      <MarketingShell hot={{ area: r.area?.slug, exclude: r.slug }}>
-        <RegisterProjectPage p={r} siteUrl={getMarketingConfig().siteUrl} facts={facts}
+      <MarketingShell hot={{ area: r.area?.slug, exclude: r.slug }} stickyBar>
+        <RegisterProjectPage p={r} siteUrl={getMarketingConfig().siteUrl} facts={facts} whatsappUrl={getMarketingConfig().whatsappUrl}
           lists={r.pune_place ? (await getFacets()).filter((f) => f.place === r.pune_place?.key && f.indexable && !f.builder) : []} />
       </MarketingShell>
     )
@@ -107,6 +110,8 @@ export default async function SharedProjectPage({ params }: Props) {
   const main = mainAgent(p)
   const url = cfg.siteUrl + '/projects/' + p.slug
   const msg = projectWhatsAppMessage(p, url)
+  const wa = showDirectContact() ? whatsappLink(main.phone, msg) : null
+  const askNote = `An enquiry here goes to ${main.name}.`
   const area = localityByName(p.locality)
   const others = (await getCatalog()).filter((x) => x.slug !== p.slug)
   const similar = [...others.filter((x) => x.locality === p.locality), ...others.filter((x) => x.locality !== p.locality)].slice(0, 3)
@@ -122,7 +127,7 @@ export default async function SharedProjectPage({ params }: Props) {
   ]
 
   return (
-    <MarketingShell hot={{ area: area?.slug, exclude: p.slug }}>
+    <MarketingShell hot={{ area: area?.slug, exclude: p.slug }} stickyBar>
       <div className="mx-auto max-w-5xl space-y-8 px-4 py-8 sm:py-10" style={AVASETU_SITE_VARS}>
         {ld.map((x, i) => <script key={i} type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(x) }} />)}
         <nav aria-label="Breadcrumb" className="text-sm">
@@ -130,7 +135,7 @@ export default async function SharedProjectPage({ params }: Props) {
           {area && <> <span aria-hidden className="px-1 text-slate-400">/</span> <Link href={`/localities/${area.slug}`} className="inline-flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2">{area.name}</Link></>}
         </nav>
 
-        <header>
+        <header id="project-hero">
           <p className="text-sm font-bold uppercase tracking-wide text-[var(--site-accent-text)]">{p.locality}, Pune</p>
           <h1 className="mt-1 text-3xl font-extrabold leading-tight text-slate-900">{p.name}</h1>
           <p className="mt-1 text-slate-600">by {p.builder}{p.rera?.promoter ? ` (promoter on MahaRERA: ${p.rera.promoter})` : ''}</p>
@@ -152,6 +157,8 @@ export default async function SharedProjectPage({ params }: Props) {
           lead={{ agentSlug: main.slug, agentName: BRAND_NAME, agentPhone: main.phone, topic: `${p.name} (${p.rera_no})`, waMessage: msg }} />
 
         <ProjectDetails p={p} agentName={main.name} />
+
+        <AskPrompt name={p.name} note={askNote} whatsappUrl={wa} />
 
         <WebFactsBox web={web} name={p.name} />
 
@@ -179,7 +186,7 @@ export default async function SharedProjectPage({ params }: Props) {
               </li>
             ))}
           </ul>
-          <p className="mt-2 text-xs text-slate-600">An enquiry here goes to {main.name}.</p>
+          <p className="mt-2 text-xs text-slate-600">{askNote}</p>
         </section>
 
         {similar.length > 0 && (
@@ -193,6 +200,7 @@ export default async function SharedProjectPage({ params }: Props) {
 
         <EnquiryForm agentSlug={main.slug} agentName={BRAND_NAME} agentPhone={main.phone ?? undefined} topic={`${p.name} (${p.rera_no})`} waMessage={msg} id="enquire" />
       </div>
+      <StickyJoinBar watchId="project-hero" formId="enquire" label="Ask about this project" whatsappUrl={wa} whatsappLabel="WhatsApp" />
     </MarketingShell>
   )
 }

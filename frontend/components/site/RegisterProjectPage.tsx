@@ -1,6 +1,8 @@
 import React from 'react'
 import Link from 'next/link'
+import AskPrompt from '@/components/site/AskPrompt'
 import EnquiryForm from '@/components/site/EnquiryForm'
+import StickyJoinBar from '@/components/marketing/StickyJoinBar'
 import VerifiedFacts from '@/components/site/VerifiedFacts'
 import { breadcrumbJsonLd, jsonLdString } from '@/lib/marketing/seo'
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
@@ -91,6 +93,7 @@ function OfferBox({ facts }: { facts: PropertyFactsView | null }) {
 }
 
 const HOUSE_AGENT = process.env.NEXT_PUBLIC_DEFAULT_AGENT_SLUG || 'avasetu'
+const ASK_NOTE = 'A local agent calls you back; we never share your number without your OK.'
 
 function Row({ label, value, note }: { label: string; value: React.ReactNode; note?: string }) {
   return (
@@ -173,7 +176,7 @@ function Hero({ p }: { p: RegisterProject }) {
   const area = areaName(p)
   const aka = otherNames(p, [p.name])   // the legal name has its own line
   return (
-    <header className="overflow-hidden rounded-3xl bg-[#0f2340] px-5 py-7 text-white shadow-lg sm:px-8 sm:py-9">
+    <header id="project-hero" className="overflow-hidden rounded-3xl bg-[#0f2340] px-5 py-7 text-white shadow-lg sm:px-8 sm:py-9">
       <div className="flex flex-wrap items-center gap-2">
         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/15 px-3 py-1 text-xs font-semibold text-emerald-200 ring-1 ring-inset ring-emerald-300/30">
           <span aria-hidden>✓</span> MahaRERA registered
@@ -469,7 +472,7 @@ function FaqBox({ faq }: { faq: Faq[] }) {
 }
 
 /** Avasetu's own page for a MahaRERA project: our facts first (each with source and date), then the official record. */
-export default function RegisterProjectPage({ p, siteUrl, facts, lists = [] }: { p: RegisterProject; siteUrl: string; facts: PropertyFactsView | null; lists?: FacetLink[] }) {
+export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], whatsappUrl }: { p: RegisterProject; siteUrl: string; facts: PropertyFactsView | null; lists?: FacetLink[]; whatsappUrl?: string | null }) {
   const url = `${siteUrl}/projects/${p.slug}`
   const moved = p.completion_now && p.completion_at_registration && p.completion_now !== p.completion_at_registration
   const shown = displayName(p)
@@ -555,6 +558,8 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [] }: {
             {!p.completion_now && <p className="mt-3 text-sm text-slate-600">We are still reading this project&apos;s details from MahaRERA; this page fills in by itself.</p>}
           </section>
 
+          <AskPrompt name={shown} note={ASK_NOTE} whatsappUrl={whatsappUrl} />
+
           <DetailsGrid p={p} />
           <Cautions p={p} />
           <TowersTable p={p} />
@@ -609,6 +614,8 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [] }: {
         </div>
 
         <aside className="min-w-0 space-y-6 lg:sticky lg:top-20 lg:self-start">
+          {/* the side column stays in view on desktop, so the ask does too; phones get the bottom bar instead */}
+          <div className="hidden lg:block"><AskPrompt name={shown} note={ASK_NOTE} whatsappUrl={whatsappUrl} compact /></div>
           <OfferBox facts={facts} />
           <ChecksPanel p={p} />
           <VerifiedFacts f={facts} hideNearby />
@@ -618,7 +625,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [] }: {
       <div className="mt-10 space-y-8">
       <section id="enquire" aria-labelledby="enq-title" className="scroll-mt-20 rounded-2xl border border-slate-200 bg-white p-4 sm:p-6">
         <h2 id="enq-title" className="text-xl font-semibold text-slate-900">Ask about {p.name}</h2>
-        <p className="mt-1 text-sm text-slate-600">Tell us what you are looking for. A local agent calls you back; we never share your number without your OK.</p>
+        <p className="mt-1 text-sm text-slate-600">Tell us what you are looking for. {ASK_NOTE}</p>
         <div className="mt-4">
           <EnquiryForm agentSlug={HOUSE_AGENT} agentName="Avasetu" topic={`${p.name} (MahaRERA ${p.regno})`}
             waMessage={`Hi, I want to know about ${p.name} (MahaRERA ${p.regno}): ${url}`} />
@@ -631,6 +638,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [] }: {
         {' '}Facts can change; check the record and your agreement before you book.
       </footer>
       </div>
+      <StickyJoinBar watchId="project-hero" formId="enquire" label="Ask about this project" whatsappUrl={whatsappUrl} whatsappLabel="WhatsApp" />
     </div>
   )
 }

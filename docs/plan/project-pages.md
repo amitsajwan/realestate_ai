@@ -256,3 +256,15 @@ and the loop moves on (fixed offline later), with a cut-off; think SEO always; m
   and writes no amenities section when there are highlights. Floor plans sit after the prices.
 - TARGET: builder sites that load pictures by script (godrejproperties.com gives none): read them in a browser; per-step model
   name on the record.
+
+## Asking without scrolling to the end (2026-10-24)
+
+The enquiry form sat after every section (about 15 on a register page), and phones had no bar, so a buyer who read the
+possession date and homes booked had to scroll the whole page to ask. Both kinds of project page now ask where the facts are read:
+- `AskPrompt` ("Planning to buy here?", a button to `#enquire`, WhatsApp only when the page has a number) right after "The record"
+  on a register page and after the project details on an agent-listed page; on desktop a compact copy tops the register page's
+  sticky side column.
+- On phones the `StickyJoinBar` ("Ask about this project", plus WhatsApp when there is a number) shows once the header has
+  scrolled away and hides while the form is on screen. `MarketingShell stickyBar` lifts the chat bubble above it.
+- WhatsApp: the site's public number (`whatsappUrl`, from `NEXT_PUBLIC_CONTACT_WHATSAPP`) on register pages; the main
+  agent's number on agent-listed pages, only when direct contact is shown (`NEXT_PUBLIC_SHOW_AGENT_PHONE`).
