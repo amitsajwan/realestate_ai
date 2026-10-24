@@ -9,6 +9,8 @@ import { BRAND_NAME } from '@/lib/brand'
 interface Msg { role: 'bot' | 'you'; text: string; cards?: ChatCard[] }
 const SID_KEY = 'pp_chat_sid'
 const LOG_KEY = 'pp_chat_log'
+/** Dispatched on window with { message } to open the bubble and ask that question. */
+export const OPEN_CHAT_EVENT = 'avasetu:open-chat'
 
 function sessionId(): string {
   try {
@@ -117,6 +119,18 @@ export default function ChatWidget({ agentSlug, bottomBar = true }: { agentSlug:
       setBusy(false)
     }
   }
+
+  // a page's "Chat with us" button (OpenChatButton) opens the bubble with its question already asked
+  useEffect(() => {
+    function onAsk(e: Event) {
+      const q = (e as CustomEvent<{ message?: string }>).detail?.message || 'hi'
+      setOpen(true)
+      started.current = true
+      void send(q)
+    }
+    window.addEventListener(OPEN_CHAT_EVENT, onAsk)
+    return () => window.removeEventListener(OPEN_CHAT_EVENT, onAsk)
+  })
 
   function toggle() {
     const next = !open

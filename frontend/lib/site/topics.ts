@@ -13,10 +13,21 @@ import { serverApiBase } from './api'
 export type Text = { mr?: string; hi?: string; en: string }
 export type TextList = { mr?: string[]; hi?: string[]; en: string[] }
 
+/** How much is left to book, from the share filed on MahaRERA: resale 95%+, open under 30%, limited in between. */
+export type Availability = 'resale' | 'limited' | 'open'
+
 export interface TopicTable {
+  title?: Text
   columns: string[]
-  rows: Array<{ cells: string[]; href?: string }>
+  rows: Array<{ cells: string[]; href?: string; tag?: Availability }>
   note?: Text
+}
+
+/** A banner that opens our chat with `message` already sent. */
+export interface TopicCta {
+  text: Text
+  button: Text
+  message: Text
 }
 
 export interface TopicSummary {
@@ -31,8 +42,9 @@ export interface TopicSummary {
 export interface Topic extends TopicSummary {
   status_line: Text
   dates: Array<{ label: Text; value: Text; state: 'confirmed' | 'planned' | 'unconfirmed' }>
-  /** `text` is a lead paragraph; `table` rows are facts (numbers, names) in one language, `href` links a row to our own page. */
-  sections: Array<{ id: string; heading: Text; text?: Text; items: TextList; table?: TopicTable }>
+  /** `text` is a lead paragraph; `table` rows are facts (numbers, names) in one language, `href` links a row to our own page;
+   *  `tables` are several titled tables in place of one; an item may start with a **bold lead-in:**; `cta` follows the items. */
+  sections: Array<{ id: string; heading: Text; text?: Text; items: TextList; table?: TopicTable; tables?: TopicTable[]; cta?: TopicCta }>
   results: { heading: Text; text: Text; links: Array<{ label: Text; url: string }> } | null
   faq: Array<{ q: Text; a: Text }>
   links: Array<{ label: Text; url: string }>

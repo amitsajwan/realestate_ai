@@ -3,7 +3,10 @@ reels got most of our views in October 2026). Information only: no sign-up, no s
 to public, they will never buy our flats").
 
 A topic is a file in topics/<slug>.json: status line, key dates, sections, results, FAQ, official links and sources, each text
-as {"mr": ..., "en": ...}. Edit the file when a date changes and the page follows; `checked_on` says when it was last true.
+as {"mr": ..., "en": ...}. A section may carry fact tables (`table`, or several titled ones under `tables`) whose rows can link
+our project page (`href`) and carry an availability `tag` from the booked share (resale: 95%+, open: under 30%, limited: between),
+and one `cta` that opens our chat with its question; an item can bold its lead-in with **...**. Only buyer topics (Upper
+Kharadi) carry a cta: the MHADA page stays information only. Edit the file when a date changes and the page follows; `checked_on` says when it was last true.
 Its updates are the reels already posted about it: published calendar rows whose slug starts with one of `row_prefixes`, or
 whose creative names the topic (a guide JSON with "topic": "<slug>"), shown the way the posts feed shows them.
 
