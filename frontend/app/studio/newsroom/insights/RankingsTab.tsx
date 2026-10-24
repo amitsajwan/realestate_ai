@@ -283,7 +283,9 @@ export default function RankingsTab() {
         <ul className="space-y-2 p-0">
           {d.gaps.items.map((g) => (
             <li key={g.phrase} className={card}>
-              <p className="font-semibold text-gray-900">&quot;{g.phrase}&quot; · {g.impressions} impressions · {pos(g.position)}{g.rising ? ' · rising' : ''}</p>
+              <p className="font-semibold text-gray-900">&quot;{g.phrase}&quot; · {g.source === 'searched'
+                ? <>our Google search · {g.position == null ? 'we are not in the results' : pos(g.position)}</>
+                : <>{g.impressions} impressions · {pos(g.position)}</>}{g.rising ? ' · rising' : ''}</p>
               <div className="text-xs text-gray-700">{g.page ? <>Our page for it: <LinkOut href={SITE + g.page}>{g.page}</LinkOut></> : g.action}</div>
             </li>
           ))}

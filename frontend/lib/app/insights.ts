@@ -125,7 +125,8 @@ export interface RankTarget {
 
 export interface RankConflict { phrase: string; impressions: number; position: number | null; pages: string[] }
 
-export interface RankGap { phrase: string; impressions: number; position: number | null; rising: boolean; page: string | null; shown_pages: string[]; action: string }
+/** source: 'search_console' (Search Console impressions) or 'searched' (our own Google search, where we are absent or below 20). */
+export interface RankGap { phrase: string; impressions: number; position: number | null; rising: boolean; page: string | null; shown_pages: string[]; action: string; source?: 'search_console' | 'searched'; area?: string | null }
 
 export interface BoardRow { query: string; kind: string | null; at: string | null; ours: number | null; magicbricks: number | null; acres99: number | null; housing: number | null }
 
