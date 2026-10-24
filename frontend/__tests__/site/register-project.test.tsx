@@ -4,7 +4,10 @@ import RegisterProjectPage from '@/components/site/RegisterProjectPage'
 import { longDay, registerDescription, registerTitle } from '@/lib/site/register'
 import type { RegisterProject } from '@/lib/site/register'
 
-jest.mock('@/components/site/EnquiryForm', () => ({ __esModule: true, default: (p: { topic?: string }) => <div data-testid="enquiry">{p.topic}</div> }))
+// the stand-in renders the section the real form does (id, heading, note, button), so the page's one-section rule can be checked
+jest.mock('@/components/site/EnquiryForm', () => ({ __esModule: true, default: (p: { topic?: string; title?: string; note?: string; submitLabel?: string; agentName: string }) => (
+  <section id="enquire" data-testid="enquiry" data-agent={p.agentName}><h2>{p.title}</h2><p>{p.note}</p><button>{p.submitLabel}</button>{p.topic}</section>
+) }))
 
 const P: RegisterProject = {
   slug: 'rohan-abhilasha-4-wagholi', name: 'Rohan Abhilasha 4', regno: 'P52100080076', promoter: 'Rohan Builders', pincode: '412207',
@@ -80,7 +83,7 @@ describe('asking about a project without scrolling to the end', () => {
     const faq = screen.getByRole('heading', { name: 'FAQ' })
     expect(record.compareDocumentPosition(ask) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(ask.compareDocumentPosition(faq) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(within(ask).getByRole('link', { name: 'Ask about this project' })).toHaveAttribute('href', '#enquire')
+    expect(within(ask).getByRole('link', { name: 'Get price sheet & floor plans' })).toHaveAttribute('href', '#enquire')
     expect(within(ask).getByText(/never share your number without your OK/)).toBeInTheDocument()
   })
 
@@ -88,8 +91,22 @@ describe('asking about a project without scrolling to the end', () => {
     render(<RegisterProjectPage p={P} siteUrl="https://avasetu.in" facts={null} />)
     expect(screen.getByTestId('ask-prompt-side').closest('aside')).not.toBeNull()
     const bar = screen.getByTestId('sticky-join')
-    expect(within(bar).getByText('Ask about this project')).toHaveAttribute('href', '#enquire')
+    expect(within(bar).getByText('Get price & plans')).toHaveAttribute('href', '#enquire')
     expect(document.getElementById('project-hero')?.tagName).toBe('HEADER')
+  })
+
+  it('has one enquiry section with one heading, and every way in uses the same words', () => {
+    render(<RegisterProjectPage p={P} siteUrl="https://avasetu.in" facts={null} />)
+    expect(document.querySelectorAll('[id="enquire"]')).toHaveLength(1)
+    const form = document.getElementById('enquire')!
+    expect(within(form).getAllByRole('heading')).toHaveLength(1)
+    expect(within(form).getByRole('heading').textContent).toBe(`Get the price sheet and floor plans for ${P.name}`)
+    expect(within(form).getByRole('button', { name: 'Get price sheet & floor plans' })).toBeInTheDocument()
+    expect(within(document.getElementById('project-hero')!).getByRole('link', { name: 'Get price sheet & floor plans' })).toHaveAttribute('href', '#enquire')
+    // the promise above the form and in the form name the same people
+    expect(within(form).getByText(/The Avasetu team calls or WhatsApps you back/)).toBeInTheDocument()
+    expect(form).toHaveAttribute('data-agent', 'Avasetu')  // which the form words as "the Avasetu team" (components.test)
+    expect(screen.queryByText(/local agent calls/)).toBeNull()
   })
 
   it('offers WhatsApp only when the site has a number for it', () => {

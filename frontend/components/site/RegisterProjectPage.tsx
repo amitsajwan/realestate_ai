@@ -3,6 +3,7 @@ import Link from 'next/link'
 import AskPrompt from '@/components/site/AskPrompt'
 import EnquiryForm from '@/components/site/EnquiryForm'
 import StickyJoinBar from '@/components/marketing/StickyJoinBar'
+import { PROJECT_CTA } from '@/lib/site/strings'
 import VerifiedFacts from '@/components/site/VerifiedFacts'
 import { breadcrumbJsonLd, jsonLdString } from '@/lib/marketing/seo'
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
@@ -101,7 +102,8 @@ function OfferBox({ facts, stage }: { facts: PropertyFactsView | null; stage: St
 }
 
 const HOUSE_AGENT = process.env.NEXT_PUBLIC_DEFAULT_AGENT_SLUG || 'avasetu'
-const ASK_NOTE = 'A local agent calls you back; we never share your number without your OK.'
+// enquiries here go to the house account (HOUSE_AGENT), so the team is who gets back to the buyer
+const ASK_NOTE = 'The Avasetu team calls or WhatsApps you back; we never share your number without your OK.'
 
 function Row({ label, value, note }: { label: string; value: React.ReactNode; note?: string }) {
   return (
@@ -210,7 +212,7 @@ function Hero({ p }: { p: RegisterProject }) {
         </dl>
       )}
       <div className="mt-6 flex flex-wrap gap-3">
-        <a href="#enquire" className="inline-flex min-h-[48px] items-center rounded-full bg-amber-400 px-6 font-bold text-slate-900 no-underline">Ask about this project</a>
+        <a href="#enquire" className="inline-flex min-h-[48px] items-center rounded-full bg-amber-400 px-6 font-bold text-slate-900 no-underline">{PROJECT_CTA.full}</a>
         {p.maharera_url && (
           <a href={p.maharera_url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-[48px] items-center rounded-full px-5 font-semibold text-white no-underline ring-1 ring-inset ring-white/30 hover:bg-white/10">
             MahaRERA record<span className="sr-only"> (opens in a new tab)</span>
@@ -633,14 +635,9 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
       </div>
 
       <div className="mt-10 space-y-8">
-      <section id="enquire" aria-labelledby="enq-title" className="scroll-mt-20 rounded-2xl border border-slate-200 bg-white p-4 sm:p-6">
-        <h2 id="enq-title" className="text-xl font-semibold text-slate-900">Ask about {p.name}</h2>
-        <p className="mt-1 text-sm text-slate-600">Tell us what you are looking for. {ASK_NOTE}</p>
-        <div className="mt-4">
-          <EnquiryForm agentSlug={HOUSE_AGENT} agentName="Avasetu" topic={`${p.name} (MahaRERA ${p.regno})`}
-            waMessage={`Hi, I want to know about ${p.name} (MahaRERA ${p.regno}): ${url}`} />
-        </div>
-      </section>
+      <EnquiryForm agentSlug={HOUSE_AGENT} agentName="Avasetu" topic={`${p.name} (MahaRERA ${p.regno})`}
+        waMessage={`Hi, I want to know about ${p.name} (MahaRERA ${p.regno}): ${url}`}
+        title={PROJECT_CTA.formTitle(p.name)} note={ASK_NOTE} submitLabel={PROJECT_CTA.full} />
 
       <footer className="border-t border-slate-200 pt-4 text-sm text-slate-600">
         Source: {p.source}.{' '}
@@ -648,7 +645,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
         {' '}Facts can change; check the record and your agreement before you book.
       </footer>
       </div>
-      <StickyJoinBar watchId="project-hero" formId="enquire" label="Ask about this project" whatsappUrl={whatsappUrl} whatsappLabel="WhatsApp" />
+      <StickyJoinBar watchId="project-hero" formId="enquire" label={PROJECT_CTA.short} whatsappUrl={whatsappUrl} whatsappLabel="WhatsApp" />
     </div>
   )
 }
