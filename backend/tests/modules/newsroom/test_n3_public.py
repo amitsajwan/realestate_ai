@@ -107,3 +107,14 @@ async def test_buyer_line_is_the_caption_line_per_pillar_and_none_without_one():
     assert listed["d4e5f6"]["buyer_line"] == policy.BUYER_LINES[("new_supply", "maharera")]
     assert listed["e5f6a7"]["buyer_line"] == policy.BUYER_LINES[("rules_money", "loan")]  # repo rate
     assert listed["b8c9d0"]["buyer_line"] is None  # education: already a tip
+
+
+async def test_a_story_lists_the_projects_it_names_that_have_a_page():
+    c, store = setup()
+    await put(store, SAMPLES[0], "published")
+    link = {"item_id": SAMPLES[0]["_id"], "title": "t", "url": "u", "source": "s", "published_at": None, "matched_by": "project name"}
+    await store.projects.insert_one({"_id": "P52100080076", "page_slug": "rohan-abhilasha-4-wagholi", "news": [link]})
+    await store.projects.insert_one({"_id": "P52100000001", "news": [link]})   # no page of its own yet: not linked
+    await store.projects.insert_one({"_id": "P52100000002", "page_slug": "other-wagholi", "news": [{**link, "item_id": "zz"}]})
+    r = c.get(f"/public/news/{SAMPLES[0]['_id']}").json()
+    assert r["projects"] == [{"regno": "P52100080076", "slug": "rohan-abhilasha-4-wagholi"}]

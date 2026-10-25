@@ -9,9 +9,13 @@ _ids = itertools.count(1)
 
 
 def _get(doc, key):
-    """A field, following dotted paths ("dm.id") as Mongo does."""
+    """A field, following dotted paths ("dm.id") as Mongo does; through a list of documents ("news.item_id") it gives the list of
+    their values, which the array-membership match in `_match` then reads."""
     val = doc
     for part in key.split("."):
+        if isinstance(val, list):
+            val = [x.get(part) for x in val if isinstance(x, dict)]
+            continue
         if not isinstance(val, dict):
             return None
         val = val.get(part)

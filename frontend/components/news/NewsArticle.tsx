@@ -1,6 +1,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { formatNewsDate, NEWS_TEXT, newsPath, type NewsItem } from '@/lib/news/data'
+import type { StoryProject } from '@/lib/news/projects'
 import { policyDisclaimer } from '@/lib/news/disclaimer'
 import BuyerLine from './BuyerLine'
 import InterestStrip from './InterestStrip'
@@ -9,8 +10,8 @@ import { TEAM } from '@/lib/brand'
 const CHANNEL = { facebook: 'Facebook', instagram: 'Instagram' } as const
 
 /** The detail view of one news item: headline, our summary, the full story in sections when there is one and its 'Worth checking' line, our labelled view, what to check, the source (as a named link, never a bare URL),
- *  the standing disclaimer and the interest strip. */
-export default function NewsArticle({ item }: { item: NewsItem }) {
+ *  the projects it names (each linked to its page), the standing disclaimer and the interest strip. */
+export default function NewsArticle({ item, projects = [] }: { item: NewsItem; projects?: StoryProject[] }) {
   const date = formatNewsDate(item.as_of)
   const digest = item.kind === 'digest'
   // a researched article has paragraphs after its standfirst and may be written from several reports
@@ -128,6 +129,20 @@ export default function NewsArticle({ item }: { item: NewsItem }) {
             </a>
           ))}
         </p>
+      )}
+
+      {projects.length > 0 && (
+        <section className="mt-6" aria-labelledby="projects-h" data-testid="news-projects">
+          <h2 id="projects-h" className="text-lg font-semibold text-slate-900">{NEWS_TEXT.projectsHeading(projects.length)}</h2>
+          <ul className="mt-2 list-none space-y-2 p-0">
+            {projects.map((p) => (
+              <li key={p.slug}>
+                <Link href={`/projects/${p.slug}`} className="inline-flex min-h-[44px] items-center font-semibold text-[#0f2340] underline underline-offset-4">{p.name}</Link>
+                {p.line && <p className="text-sm text-slate-600">{p.line}</p>}
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       {item.areas.length > 0 && (

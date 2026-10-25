@@ -208,6 +208,11 @@ class Store:
         """Append one change of the filed completion date ({from, to, seen_at}) to the record's `completion_history`."""
         await self.projects.update_one({"_id": regno}, {"$push": {"completion_history": move}})
 
+    async def projects_named_by(self, item_id: str, limit: int = 5) -> List[dict]:
+        """The register records a news item was linked to (`link_news`): their numbers and page slugs, those with a page only."""
+        docs = await self.projects.find({"news.item_id": item_id}, {"_id": 1, "page_slug": 1}).to_list(limit * 4)
+        return [d for d in docs if d.get("page_slug")][:limit]
+
     async def link_news(self, regno: str, link: dict) -> bool:
         """Add a news item to a project's `news` once; False when it was already linked or the project is unknown."""
         doc = await self.projects.find_one({"_id": regno})

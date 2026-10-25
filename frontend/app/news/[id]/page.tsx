@@ -7,6 +7,7 @@ import { NewsEmpty } from '@/components/news/NewsGrid'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { breadcrumbJsonLd, jsonLdString } from '@/lib/marketing/seo'
 import { fetchNewsItem, newsPath } from '@/lib/news/data'
+import { storyProjects } from '@/lib/news/projects'
 import { newsJsonLd, newsMetadata } from '@/lib/news/seo'
 
 export const revalidate = 60
@@ -30,6 +31,7 @@ export default async function NewsItemPage({ params }: Props) {
   // an older address (the stored id that captions already posted link to, or an older slug): one permanent (308) hop to the current one
   if (res.ok && res.item.id !== decoded(id)) permanentRedirect(newsPath(res.item.id))
   const cfg = getMarketingConfig()
+  const projects = res.ok ? await storyProjects(res.item) : []
   return (
     <MarketingShell>
       {res.ok ? (
@@ -38,7 +40,7 @@ export default async function NewsItemPage({ params }: Props) {
           <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(breadcrumbJsonLd(cfg.siteUrl, [
             { name: 'Home', path: '/' }, { name: 'News', path: '/news' }, { name: res.item.headline, path: newsPath(res.item.id) },
           ])) }} />
-          <NewsArticle item={res.item} />
+          <NewsArticle item={res.item} projects={projects} />
         </>
       ) : (
         <div className="mx-auto max-w-3xl px-4 py-12"><NewsEmpty failed /></div>

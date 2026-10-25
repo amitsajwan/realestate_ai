@@ -224,4 +224,7 @@ async def public_news_item(item_id: str, response: Response, store: Store = Depe
             return JSONResponse({"moved_to": moved}, status_code=410, headers={"Cache-Control": f"public, max-age={CACHE_SECONDS}"})
         raise HTTPException(404, "Not found")
     response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
-    return view(doc, item_ids=await _story_ids(store, doc) if _is_digest(doc) else None)
+    out = view(doc, item_ids=await _story_ids(store, doc) if _is_digest(doc) else None)
+    # the projects the story clearly names (pipeline._link_projects): the site links their pages, the names come from the pages
+    out["projects"] = [{"regno": p["_id"], "slug": p["page_slug"]} for p in await store.projects_named_by(doc["_id"])]
+    return out

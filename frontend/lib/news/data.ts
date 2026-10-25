@@ -40,6 +40,9 @@ export interface NewsItem {
   tip: string
   /** The full story in sections (detail only); empty when the source gave too little for more than the short version. */
   article: Array<{ heading: string; paragraphs: string[] }>
+  /** The projects the story clearly names (by MahaRERA number, or full name in a story about their area), detail only: the page
+   *  links their project pages. Absent from older replies and fixtures. */
+  projects?: Array<{ regno: string; slug: string }>
 }
 
 export type NewsListResult = { ok: true; items: NewsItem[] } | { ok: false; items: [] }
@@ -88,6 +91,10 @@ export function cleanNewsItem(raw: unknown): NewsItem | null {
         ? [{ name: o.name.trim(), url: https(o.url) ? o.url : null, is_redirect: o.is_redirect === true }] : []
     }),
     disclaimer: str(r.disclaimer), items, tip: str(r.tip), article,
+    projects: (Array.isArray(r.projects) ? r.projects : []).flatMap((x): NonNullable<NewsItem['projects']> => {
+      const o = x as Record<string, unknown>
+      return o && typeof o.regno === 'string' && typeof o.slug === 'string' && /^[a-z0-9-]+$/.test(o.slug) ? [{ regno: o.regno, slug: o.slug }] : []
+    }),
   }
 }
 
@@ -184,6 +191,7 @@ export const NEWS_TEXT = {
   pageTitle: `Pune property news | ${BRAND_NAME}`,
   pageDescription: 'Short summaries of Pune property news in plain words: roads, metro, approvals and rules, each with its source and date.',
   moreAbout: (area: string) => `More about ${area}`,
+  projectsHeading: (n: number) => (n === 1 ? 'The project in this story' : 'Projects in this story'),
   all: 'All news',
   digestHeading: 'In this digest',
   tipHeading: 'Buyer tip',
