@@ -22,6 +22,7 @@ class ChatContext(BaseModel):
     listing_id: Optional[str] = Field(None, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
     post_id: Optional[str] = Field(None, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
     locality: Optional[str] = Field(None, max_length=40, pattern=r"^[A-Za-z][A-Za-z _-]+$")
+    project: Optional[str] = Field(None, max_length=120, pattern=r"^[a-z0-9][a-z0-9-]+$")
 
 
 class MessageIn(BaseModel):

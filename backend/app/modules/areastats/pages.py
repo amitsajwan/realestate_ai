@@ -559,6 +559,17 @@ def _area_of(doc: dict) -> tuple:
     return None, None
 
 
+async def chat_brief(db, slug: str) -> Optional[dict]:
+    """A project page as the website chat sees it: the name shown on the page, its area, the MahaRERA number and the page's own
+    paragraph. One record is read, never the whole register (a chat message must stay cheap). None when the slug is not a page."""
+    doc = await Store(db).projects.find_one({"page_slug": slug})
+    if doc is None or not in_register(doc):
+        return None
+    area = BY_KEY.get(doc.get("locality") or "")
+    return {"slug": slug, "name": names(doc)[0], "regno": doc.get("regno") or doc["_id"],
+            "area": area.name if area else (doc.get("pune_place_name") or None), "paragraph": paragraph(doc)}
+
+
 async def project_page(db, slug: str, now: Optional[datetime] = None) -> Optional[dict]:
     """The page for a slug. A tower's slug gets its project's primary page, whose own slug the frontend redirects to (301).
     `now` is for the prices' freshness (tests); the clock otherwise."""

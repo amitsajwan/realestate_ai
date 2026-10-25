@@ -47,6 +47,9 @@ FIELD_WORDS = {"tx": "whether they want to buy or rent", "locality": "which area
                "size_budget": "how many bedrooms (BHK) and their budget, in one short question"}
 ASKS = ("locality", "bhk", "budget")   # the only details we ask for, once each (anything else they tell us is still kept)
 MAX_TURNS = 8                          # visitor messages before the bot hands the chat to the team
+# what a hand-off is for, read from the message (a visit comes from the model's intent): its closing line names it
+ASK_FOR = (("plans", re.compile(r"floor\s*plans?|layout|brochure|\bplans?\b|नक्शा|प्लान|प्लॅन", re.I)),
+           ("prices", re.compile(r"price|\brates?\b|\bcost|kitne ka|kimat|kiti|कीमत|किंमत", re.I)))
 WEB = "web"                            # channel: the website chat; "message" = WhatsApp and DMs (we already have their number there)
 AREA_NAMES = sorted({a.name for a in area_registry.AREAS})
 
@@ -93,7 +96,9 @@ How to reply:
    them, say in one short sentence that you do not have that (our code adds that the team will get back) and set "needs_team": true.
    We find and show homes; we do not give home loans, legal work, discounts, offers or anything KNOWLEDGE does not describe: never offer,
    promise or say we can arrange one (for a loan: the buyer's bank decides; the agent can tell them which banks the project works with).
-   Floor plans and brochures: never describe a layout; say the agent sends the project's floor plans on WhatsApp and set "needs_team": true.
+   Floor plans, brochures, today's price sheet and site visits: never describe a layout or give a price that is not in HOMES; say in one
+   short sentence that you will get it for them (name the project when the visitor is on a project's page), never who sends it or how
+   (our code adds that line), and set "needs_team": true. On a project's page these are about that project: never ask which area.
 3. HOMES are shown as cards right under your message: point to them ("the home below", "these two"), do not list every detail again.
    A home marked SAMPLE is an illustration, never for sale. A card marked PROJECT is one of our project pages in their area: never say it
    fits or matches their BHK or budget; say these are projects there and the agent can tell the sizes and current prices. Do not repeat a price or detail you already said in CONVERSATION unless asked.
@@ -158,7 +163,9 @@ def _handoff(d: dict, channel: str, answer: str = "", cards: Optional[List[dict]
     quick: List[str] = []
     d["asked"] = None
     if first and channel == WEB and not _has_number(d) and "phone" not in d["declined"] and not d.get("pending_phone"):
-        line = say("handoff_web", lang, team=brand.NAME)
+        ask_for, project = d.get("ask_for"), d.get("project")
+        line = say(f"handoff_web_{ask_for}", lang, team=brand.NAME, of=f" of {project}" if project else "",
+                   to=f" to {project}" if project else "") if ask_for else say("handoff_web", lang, team=brand.NAME)
         if not d.get("consent_shown"):
             d["consent_shown"] = True
             line = f"{line} {say('consent', lang)}"
@@ -405,6 +412,7 @@ async def _turn(d: dict, text: str, llm, grounding, finder, whatsapp: bool, hist
     if nxt == "none":
         question = ""
     if r.get("needs_team") is True or needs_human or intent == "visit" or (not handed and turns >= MAX_TURNS):
+        d["ask_for"] = "visit" if intent == "visit" else next((k for k, rx in ASK_FOR if rx.search(text)), None)
         if r.get("needs_team") is True:
             d.setdefault("missing", []).append(text[:100])
             d["gaps"] = (d.get("gaps") or [])[-19:] + [{"q": text[:200], "topics": ["other"]}]

@@ -8,7 +8,8 @@ from datetime import datetime, timedelta
 from typing import Callable, List, Optional
 
 from app.core import brand
-from app.modules.knowledge.grounding import Ref, facts_for
+from app.modules.areastats import pages as project_pages
+from app.modules.knowledge.grounding import Grounding, Ref, facts_for
 from app.modules.listings.freshness import is_hidden
 from app.platform.text import money
 from app.modules.notifications.service import notify
@@ -24,6 +25,7 @@ log = logging.getLogger(__name__)
 SESSION_RX = re.compile(r"^[A-Za-z0-9_-]{12,64}$")
 ID_RX = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 AREA_RX = re.compile(r"^[A-Za-z][A-Za-z _-]{1,39}$")
+PROJECT_RX = re.compile(r"^[a-z0-9][a-z0-9-]{1,119}$")
 MAX_TEXT = 500
 MAX_PER_HOUR = 60
 MAX_MESSAGES_KEPT = 40
@@ -93,8 +95,15 @@ class ChatService:
             return None
         return await self.listings.find_one({"_id": str(lid), **PUBLIC})
 
+    async def _project(self, context: Optional[dict]) -> Optional[dict]:
+        slug = (context or {}).get("project")
+        if not slug or not PROJECT_RX.match(str(slug)):
+            return None
+        return await project_pages.chat_brief(self.db, str(slug))
+
     async def grounding_for(self, context: Optional[dict]):
-        """What we know about the page the visitor is on: a public listing, a published post, or an area (in that order). None when unknown.
+        """What we know about the page the visitor is on: a public listing, a published post, a project page or an area (in that order).
+        None when unknown.
         The context comes from the browser, so every id is looked up and checked here; nothing in it is trusted."""
         ctx = context or {}
         lid, pid, loc = ctx.get("listing_id"), ctx.get("post_id"), ctx.get("locality")
@@ -105,6 +114,11 @@ class ChatService:
                 doc = await self.calendar.find_one({"_id": str(pid), "status": "published"})
                 if doc:
                     return await facts_for(Ref.calendar(str(pid)), self.db)
+            p = await self._project(context)
+            if p:   # 'book a visit' or 'floor plans' on a project page is about that project (2026-10-25: it asked which area)
+                where = f" in {p['area']}, Pune" if p.get("area") else ", Pune"
+                return Grounding(subject=p["name"], kind="project", locality=p.get("area"),
+                                 facts=[f"The visitor is on the page of {p['name']}{where}, MahaRERA {p['regno']}.", p["paragraph"]])
             if loc and AREA_RX.match(str(loc)):
                 return await facts_for(Ref.area(str(loc)), self.db)
         except Exception as e:  # knowledge is a help, never a reason to fail a chat message
@@ -119,6 +133,8 @@ class ChatService:
             return {"kind": "listing", "listing_id": doc["_id"], "agent_id": doc.get("agent_id"), "bhk": doc.get("bhk"), "locality": doc.get("locality"),
                     "carpet_sqft": doc.get("carpet_sqft"), "transaction": doc.get("transaction") or "sale", "sample": is_sample(doc),
                     "title": doc.get("title")}
+        if grounding is not None and getattr(grounding, "kind", None) == "project":
+            return {"kind": "project", "name": grounding.subject, "locality": grounding.locality}
         if grounding is not None and getattr(grounding, "kind", None) == "area" and grounding.locality:
             return {"kind": "area", "locality": grounding.locality}
         return None
@@ -155,6 +171,8 @@ class ChatService:
             link = await self.db.get_collection("interest_links").find_one({"kind": "listing", "ref": page["listing_id"]})
             what = (page.get("title") or "this home")[:80]
             msg = f"Hi {brand.NAME}, I am interested in {what}" + (f" (ref {link['code']})" if link and link.get("code") else f" ({page['listing_id']})") + "."
+        elif page and page.get("kind") == "project":
+            msg = f"Hi {brand.NAME}, I am interested in {page['name'][:80]}."
         else:
             want = ", ".join(x for x in (rq.bhk_text(data.get("bhk")), data.get("locality") if data.get("locality") != "Other" else None,
                                         engine._budget_text(data)) if x)
@@ -194,6 +212,10 @@ class ChatService:
         page = await self.page_for(context, grounding)
         data = s["data"]
         data["page"] = page
+        if page and page.get("kind") == "project":   # the project's area stands for theirs until they name another, so it is not asked
+            data["project"] = page["name"]
+            if page.get("locality") and not data.get("locality"):
+                data["locality"], data["locality_src"] = page["locality"], "page"
         homes_agent, homes_slug = await self.homes_agent(profile, page)
         wa_number = platform_whatsapp_number()
         had_name = bool(data.get("name"))
