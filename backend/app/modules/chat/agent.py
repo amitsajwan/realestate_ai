@@ -141,10 +141,15 @@ async def turn(d: dict, text: str, llm, grounding=None, finder: Optional[engine.
         if t.needs_human or work.get("handed_off"):   # 'I do not want to guess...' read as useless in real chats (2026-10-20)
             d.clear()
             d.update(work)
+            d["ask_for"] = _ask_for(text)
             return _handoff(d, channel)
     d.clear()
     d.update(work)
     return t
+
+
+def _ask_for(text: str) -> Optional[str]:
+    return next((k for k, rx in ASK_FOR if rx.search(text)), None)
 
 
 def _has_number(d: dict) -> bool:
@@ -163,9 +168,9 @@ def _handoff(d: dict, channel: str, answer: str = "", cards: Optional[List[dict]
     quick: List[str] = []
     d["asked"] = None
     if first and channel == WEB and not _has_number(d) and "phone" not in d["declined"] and not d.get("pending_phone"):
-        ask_for, project = d.get("ask_for"), d.get("project")
-        line = say(f"handoff_web_{ask_for}", lang, team=brand.NAME, of=f" of {project}" if project else "",
-                   to=f" to {project}" if project else "") if ask_for else say("handoff_web", lang, team=brand.NAME)
+        # the model's reply already names the project, so the line does not say it again
+        ask_for = d.get("ask_for")
+        line = say(f"handoff_web_{ask_for}", lang, team=brand.NAME) if ask_for else say("handoff_web", lang, team=brand.NAME)
         if not d.get("consent_shown"):
             d["consent_shown"] = True
             line = f"{line} {say('consent', lang)}"
@@ -412,7 +417,7 @@ async def _turn(d: dict, text: str, llm, grounding, finder, whatsapp: bool, hist
     if nxt == "none":
         question = ""
     if r.get("needs_team") is True or needs_human or intent == "visit" or (not handed and turns >= MAX_TURNS):
-        d["ask_for"] = "visit" if intent == "visit" else next((k for k, rx in ASK_FOR if rx.search(text)), None)
+        d["ask_for"] = "visit" if intent == "visit" else _ask_for(text)
         if r.get("needs_team") is True:
             d.setdefault("missing", []).append(text[:100])
             d["gaps"] = (d.get("gaps") or [])[-19:] + [{"q": text[:200], "topics": ["other"]}]

@@ -75,23 +75,23 @@ P: Dict[str, Dict[str, str]] = {
         "mr_latn": "Mi he {team} team kade pathavle aahe. Tumcha mobile number dya, te tumhala call kinva WhatsApp kartil.",
     },
     # the hand-off on the website when the buyer asked for one thing: the line says what the team sends, so floor plans, the price sheet
-    # and a visit do not all end in the same sentence (2026-10-25). {of}/{to}: " of <project>" / " to <project>" on a project page (English)
+    # and a visit do not all end in the same sentence (2026-10-25)
     "handoff_web_plans": {
-        "en": "Share your mobile number and the {team} team will WhatsApp you the floor plans{of}.",
+        "en": "Share your mobile number and the {team} team will WhatsApp you the floor plans.",
         "hinglish": "Apna mobile number share karein, {team} team aapko floor plans WhatsApp karegi.",
         "hi": "अपना मोबाइल नंबर दें, {team} टीम आपको फ्लोर प्लान WhatsApp करेगी।",
         "mr": "तुमचा मोबाइल नंबर द्या, {team} टीम तुम्हाला फ्लोर प्लॅन WhatsApp करेल.",
         "mr_latn": "Tumcha mobile number dya, {team} team tumhala floor plan WhatsApp karel.",
     },
     "handoff_web_prices": {
-        "en": "Share your mobile number and the {team} team will WhatsApp you today's price sheet{of}.",
+        "en": "Share your mobile number and the {team} team will WhatsApp you today's price sheet.",
         "hinglish": "Apna mobile number share karein, {team} team aapko aaj ki price sheet WhatsApp karegi.",
         "hi": "अपना मोबाइल नंबर दें, {team} टीम आपको आज की प्राइस शीट WhatsApp करेगी।",
         "mr": "तुमचा मोबाइल नंबर द्या, {team} टीम तुम्हाला आजची प्राइस शीट WhatsApp करेल.",
         "mr_latn": "Tumcha mobile number dya, {team} team tumhala aajchi price sheet WhatsApp karel.",
     },
     "handoff_web_visit": {
-        "en": "Share your mobile number and the {team} team will call you to fix your site visit{to}.",
+        "en": "Share your mobile number and the {team} team will call you to fix your site visit.",
         "hinglish": "Apna mobile number share karein, {team} team aapko call karke site visit fix karegi.",
         "hi": "अपना मोबाइल नंबर दें, {team} टीम आपको कॉल करके साइट विज़िट तय करेगी।",
         "mr": "तुमचा मोबाइल नंबर द्या, {team} टीम तुम्हाला कॉल करून साइट व्हिजिट ठरवेल.",
