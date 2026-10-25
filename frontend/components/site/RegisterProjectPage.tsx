@@ -5,7 +5,8 @@ import EnquiryForm from '@/components/site/EnquiryForm'
 import StickyJoinBar from '@/components/marketing/StickyJoinBar'
 import { PROJECT_CTA } from '@/lib/site/strings'
 import VerifiedFacts from '@/components/site/VerifiedFacts'
-import { breadcrumbJsonLd, jsonLdString } from '@/lib/marketing/seo'
+import { jsonLdString } from '@/lib/marketing/seo'
+import { registerProjectJsonLd } from '@/lib/site/projectSeo'
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
 import type { RegisterProject } from '@/lib/site/register'
 import type { FacetLink } from '@/lib/site/facets'
@@ -476,30 +477,10 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
   // the Pune place page listing this project's neighbours (every Pune district project has one)
   const placeName = p.pune_place?.name ?? null
   const placeHref = p.pune_place ? placePath(p.pune_place.key.replace(/_/g, '-')) : null
-  // the same levels as the visible breadcrumb below
-  const crumbs = [{ name: 'Home', path: '/' }, { name: 'Projects', path: '/projects' },
-    ...(p.area ? [{ name: p.area.name, path: `/localities/${p.area.slug}` }] : placeName && placeHref ? [{ name: placeName, path: placeHref }] : []),
-    { name: shown, path: `/projects/${p.slug}` }]
-  const alternateName = otherNames(p)
   // the same copies the gallery keeps (a render saved twice shows once), so the hero's picture is the one the gallery skips
   const ownPhotos = distinctPhotos(p.profile?.photos ?? []).filter((x) => (x.source ?? 'builder') === 'builder' && !!x.url)
   // the hero's picture: the builder's first one; the gallery below starts from the next, so it is not shown twice
   const heroPhoto = ownPhotos[0] ?? null
-  const ld = {
-    '@context': 'https://schema.org', '@type': 'ApartmentComplex', name: shown, url,
-    ...(alternateName.length ? { alternateName } : {}),
-    address: { '@type': 'PostalAddress', addressLocality: p.area ? p.area.name : 'Pune', addressRegion: 'Maharashtra', postalCode: p.pincode || undefined, addressCountry: 'IN' },
-    ...(p.units_total ? { numberOfAccommodationUnits: p.units_total } : {}),
-    identifier: { '@type': 'PropertyValue', propertyID: 'MahaRERA registration', value: p.regno },
-    ...(p.map ? { geo: { '@type': 'GeoCoordinates', latitude: p.map.lat, longitude: p.map.lon } } : {}),
-    ...(p.promoter ? { builder: { '@type': 'Organization', name: p.builder?.name || p.promoter } } : {}),
-    // the builder's pictures we keep (profile): Google can show them with the page (never illustrations or unchecked ones)
-    ...(ownPhotos.length ? { image: ownPhotos.slice(0, 6).map((x) => (x.url.startsWith('/') ? siteUrl + x.url : x.url)) } : {}),
-    ...(p.maharera_url ? { sameAs: p.maharera_url } : {}),
-    // one tower of a marketed project registered tower by tower: the whole project is the place this one is in
-    ...(p.group ? { containedInPlace: { '@type': 'ApartmentComplex', name: p.group.name, url: siteUrl + p.group.path } } : {}),
-    description: p.paragraph,
-  }
   const nearby = (facts as unknown as { nearby?: Near[] } | null)?.nearby ?? []
   const offer = (facts as unknown as { offer?: Offer } | null)?.offer
   // the agent's live price sheet is the page's one price: the hero quotes it and the portals' prices are not shown beside it
@@ -513,15 +494,9 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
   const byPromoter = (p.same_promoter ?? []).filter((x) => x.slug && x.slug !== p.slug)
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8" style={AVASETU_SITE_VARS}>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(ld) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(breadcrumbJsonLd(siteUrl, crumbs)) }} />
-      {faq.length > 0 && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString({
-        '@context': 'https://schema.org', '@type': 'FAQPage',
-        mainEntity: faq.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
-      }) }} />}
-      {updated && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString({
-        '@context': 'https://schema.org', '@type': 'WebPage', url, name: shown, dateModified: updated,
-      }) }} />}
+      {registerProjectJsonLd({ p, siteUrl, faq, photos: ownPhotos, offer, updated }).map((x, i) => (
+        <script key={i} type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(x) }} />
+      ))}
       <nav aria-label="Breadcrumb" className="mb-4 text-sm">
         <Link href="/" className="text-[#0f2340] underline underline-offset-2">Home</Link>
         <span aria-hidden className="px-1 text-slate-400">/</span>

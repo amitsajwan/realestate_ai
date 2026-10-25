@@ -1,7 +1,8 @@
 import { render, screen, within } from '@testing-library/react'
 import React from 'react'
 import RegisterProjectPage from '@/components/site/RegisterProjectPage'
-import { longDay, offerPrice, registerDescription, registerTitle } from '@/lib/site/register'
+import { longDay, offerPrice } from '@/lib/site/register'
+import { registerDescription, registerTitle } from '@/lib/site/projectSeo'
 import type { RegisterProject } from '@/lib/site/register'
 
 // the stand-in renders the section the real form does (id, heading, note, button), so the page's one-section rule can be checked
@@ -64,9 +65,9 @@ describe('Avasetu project page from the MahaRERA register', () => {
     const faq = lds.find((x) => x['@type'] === 'FAQPage').mainEntity[0]
     expect(faq.name).toBe('What is the price of Gera World of Joy?')
     expect(screen.getByText(faq.acceptedAnswer.text)).toBeInTheDocument()   // the same words on the page
-    expect(registerTitle(g)).toBe('Gera World of Joy Wagholi: Possession Oct 2029, MahaRERA')
+    expect(registerTitle(g)).toBe('Gera World of Joy Wagholi: possession Oct 2029, MahaRERA')
     // with the legal name it runs past the ~160 characters Google shows, so the description leaves it to the page
-    expect(registerDescription(g)).toBe('Gera World of Joy by Rohan Builders, Wagholi, Pune. Possession Oct 2029, moved from Dec 2028, 244/416 homes booked, MahaRERA P52100080076.')
+    expect(registerDescription(g)).toBe('Gera World of Joy by Rohan Builders, Wagholi, Pune. Possession Oct 2029, 244 of 416 homes booked. MahaRERA P52100080076, checked by Avasetu.')
   })
 
   it('formats days', () => {
@@ -137,7 +138,7 @@ describe('one price on the page', () => {
     const faq = [...container.querySelectorAll('script[type="application/ld+json"]')].map((s) => JSON.parse(s.textContent || '{}'))
       .find((x) => x['@type'] === 'FAQPage').mainEntity[0]
     expect(faq.acceptedAnswer.text).toMatch(/quotes from ₹1.2 Cr/)
-    expect(registerTitle({ ...P, prices: PORTAL }, offerPrice(OFFER))).toBe('Rohan Abhilasha 4 Wagholi: from ₹1.2 Cr, Possession Oct 2029')
+    expect(registerTitle({ ...P, prices: PORTAL }, offerPrice(OFFER))).toBe('Rohan Abhilasha 4 Wagholi: from ₹1.2 Cr, possession Oct 2029')
     expect(registerDescription({ ...P, prices: PORTAL }, offerPrice(OFFER))).toMatch(/2, 3 & 4 BHK from ₹1.2 Cr/)
   })
 
