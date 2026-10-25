@@ -12,7 +12,9 @@ const API: Record<string, unknown> = {
   '/public/register/places': [{ key: 'kharadi', slug: 'kharadi', name: 'Kharadi', zone: 'East', projects: 66, indexable: 40 },
     { key: 'wagholi', slug: 'wagholi', name: 'Wagholi', zone: 'East', projects: 80, indexable: 0 }],
   '/public/facets': [
-    { key: 'k1', path: '/projects/area/kharadi/new-launches', place: 'kharadi', place_slug: 'kharadi', intent: 'new-launches', possession: null, builder: null, label: 'New launches in Kharadi', count: 7, indexable: true, page_updated: null },
+    { key: 'k1', path: '/projects/area/kharadi/new-launches', place: 'kharadi', place_slug: 'kharadi', intent: 'new-launches', possession: null, builder: null, label: 'New launch projects', count: 7, indexable: true, page_updated: null },
+    { key: 'w1', path: '/projects/area/wagholi/new-launches', place: 'wagholi', place_slug: 'wagholi', intent: 'new-launches', possession: null, builder: null, label: 'New launch projects', count: 9, indexable: true, page_updated: null },
+    { key: 'r1', path: '/projects/area/viman-nagar/ready-to-move', place: 'viman_nagar', place_slug: 'viman-nagar', intent: 'ready-to-move', possession: null, builder: null, label: 'Ready to move projects', count: 4, indexable: true, page_updated: null },
     { key: 'k2', path: '/projects/area/kharadi/new-launches/by-lodha', place: 'kharadi', place_slug: 'kharadi', intent: 'new-launches', possession: null, builder: 'lodha', label: 'x', count: 3, indexable: true, page_updated: null },
   ],
   '/public/register/spotlight': [{ slug: 'lodha-camelot-kharadi', name: 'Lodha Camelot', area: 'Kharadi', area_slug: 'kharadi', note: 'New tower registered', fact: 'f', source: 'MahaRERA', picked: true }],
@@ -53,7 +55,10 @@ describe("buyers' home", () => {
     // an area whose list is not in search yet links its guide, never a noindex page
     expect(within(screen.getByTestId('home-areas-affordable')).getByRole('link', { name: 'Wagholi' })).toHaveAttribute('href', '/localities/wagholi')
     const launches = within(screen.getByTestId('home-launches')).getAllByRole('link')
-    expect(launches.map((a) => a.getAttribute('href'))).toEqual(['/projects/area/kharadi/new-launches'])   // builder lists stay on their place
+    expect(launches.map((a) => a.getAttribute('href'))).toEqual(['/projects/area/wagholi/new-launches', '/projects/area/kharadi/new-launches'])   // builder lists stay on their place
+    // every list has the same label, so each chip names its area or they all read alike
+    expect(launches.map((a) => a.textContent)).toEqual(['New launches in Wagholi (9)', 'New launches in Kharadi (7)'])
+    expect(screen.getByRole('link', { name: 'Ready to move in Viman Nagar (4)' })).toHaveAttribute('href', '/projects/area/viman-nagar/ready-to-move')
     const builders = within(screen.getByTestId('home-builders')).getAllByRole('link')
     expect(builders.map((a) => a.getAttribute('href'))).toEqual(['/builders/lodha'])
   })

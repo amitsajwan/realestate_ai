@@ -42,6 +42,9 @@ export default async function BuyerHome() {
   const cfg = getMarketingConfig()
   const [city, places, facets, hot, builders] = await Promise.all([getCityStats(), getRegisterPlaces(), getFacets(), getSpotlight(), getBuilders()])
   const placeOf = (l: { key: string; name: string }) => places.find((p) => p.key === l.key || p.name.toLowerCase() === l.name.toLowerCase())
+  // a list's own label says what it is, not where ("New launch projects"): side by side here, each chip has to name its area
+  const where = (f: { place: string; place_slug: string }) => places.find((p) => p.key === f.place)?.name
+    ?? f.place_slug.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
   const launches = facets.filter((f) => f.intent === 'new-launches' && f.indexable && !f.builder && !f.possession && !f.bhk)
     .sort((a, b) => b.count - a.count).slice(0, 12)
   const ready = facets.filter((f) => f.intent === 'ready-to-move' && f.indexable && !f.builder && !f.possession && !f.bhk)
@@ -136,12 +139,12 @@ export default async function BuyerHome() {
             <h2 id="lists-title" className={h2}>New launches and ready homes</h2>
             {launches.length > 0 && (
               <ul className="mt-4 flex list-none flex-wrap gap-2 p-0" data-testid="home-launches">
-                {launches.map((f) => <li key={f.path}><Link href={f.path} className={chip}>{f.label} ({f.count})</Link></li>)}
+                {launches.map((f) => <li key={f.path}><Link href={f.path} className={chip}>New launches in {where(f)} ({f.count})</Link></li>)}
               </ul>
             )}
             {ready.length > 0 && (
               <ul className="mt-3 flex list-none flex-wrap gap-2 p-0">
-                {ready.map((f) => <li key={f.path}><Link href={f.path} className={chip}>{f.label} ({f.count})</Link></li>)}
+                {ready.map((f) => <li key={f.path}><Link href={f.path} className={chip}>Ready to move in {where(f)} ({f.count})</Link></li>)}
               </ul>
             )}
           </div>
