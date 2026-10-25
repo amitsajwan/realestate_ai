@@ -17,6 +17,7 @@ from app.core import brand
 from app.core.areas import BY_KEY
 from app.modules.newsroom.store import Store
 
+from . import pagefacts
 from .service import _count, _day
 from .text import ascii_text, builder_slug, promoter_key, words
 
@@ -281,6 +282,13 @@ def months_later(doc: dict) -> Optional[int]:
     return max(0, n - extension_months(doc)) if now > first else 0
 
 
+def extension_only(doc: dict) -> bool:
+    """The filed completion date changed and MahaRERA's 2026 blanket extension is the whole change: the builder moved nothing,
+    so the page must not say the date moved."""
+    now, first = _day(doc.get("completion_now")), _day(doc.get("completion_at_registration"))
+    return bool(now and first and now != first and extension_months(doc) and months_later(doc) == 0)
+
+
 def _served(d: dict) -> bool:
     return bool(d.get("page_slug")) and in_register(d)
 
@@ -404,7 +412,7 @@ def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None) ->
         "pune_place": {"key": doc["pune_place"], "name": doc.get("pune_place_name")} if doc.get("pune_place") else None,
         "completion_now": _day(doc.get("completion_now")), "completion_at_registration": _day(doc.get("completion_at_registration")),
         "units_total": _count(doc.get("units_total")), "units_booked": booked(doc), "completion_passed": completion_passed(doc),
-        "stage": stage(doc), "sold_out": sold_out(doc),
+        "stage": stage(doc), "sold_out": sold_out(doc), "extension_only": extension_only(doc),
         "details_read_at": read.date().isoformat() if isinstance(read, datetime) and doc.get("details_ok") else None,
         "listed_or_updated": _day(doc.get("last_modified")), "maharera_url": doc.get("source_url") or None,
         # the enriched text (model-written from gathered facts, checked) when there is one, else the code-written paragraph
@@ -539,8 +547,19 @@ def cluster_updated(doc: dict, docs: List[dict], stamps: Optional[dict] = None) 
     return (stamps if stamps is not None else cluster_stamps(docs)).get(cid) or page_updated(doc)
 
 
-async def project_page(db, slug: str) -> Optional[dict]:
-    """The page for a slug. A tower's slug gets its project's primary page, whose own slug the frontend redirects to (301)."""
+def _area_of(doc: dict) -> tuple:
+    """(field, display name) of the area a page's rate is for: its Pune place when it has one, else its locality."""
+    if doc.get("pune_place"):
+        return "pune_place", doc.get("pune_place_name") or doc["pune_place"]
+    if doc.get("locality"):
+        area = BY_KEY.get(doc["locality"])
+        return "locality", area.name if area else doc["locality"]
+    return None, None
+
+
+async def project_page(db, slug: str, now: Optional[datetime] = None) -> Optional[dict]:
+    """The page for a slug. A tower's slug gets its project's primary page, whose own slug the frontend redirects to (301).
+    `now` is for the prices' freshness (tests); the clock otherwise."""
     store = Store(db)
     doc = await store.projects.find_one({"page_slug": slug})
     if doc is None or not in_register(doc):
@@ -549,14 +568,28 @@ async def project_page(db, slug: str) -> Optional[dict]:
     doc = primary_of(doc, docs)
     key = "locality" if doc.get("locality") else "pune_place"
     peers = [d for d in docs if doc.get(key) and d.get(key) == doc[key] and not d.get("cluster_primary")]
-    out = view(doc, _similar(doc, peers), docs)
+    similar = _similar(doc, peers)
+    out = view(doc, similar, docs)
     out["towers"] = towers(doc, docs)
     out["page_updated"] = cluster_updated(doc, docs)
-    out["web_facts"] = web_public(group_primary(doc, docs).get("web_facts"))
+    # a count on the builder's or a property site said with its scope: the whole project's, or this registration's
+    out["web_facts"] = pagefacts.with_scope(web_public(group_primary(doc, docs).get("web_facts")), out["details"])
     from .profile import public as profile_public
     out["profile"] = profile_public(group_primary(doc, docs).get("profile"))
     from .prices import public as prices_public   # asked prices per home size, from the builder's site or two sites
-    out["prices"] = prices_public(group_primary(doc, docs).get("prices"))
+    out["prices"] = prices_public(group_primary(doc, docs).get("prices"), now)
+    # the compare list: each other project's lowest published price and the sizes it is priced for
+    for row, s in zip(out["same_area"], similar):
+        shown = prices_public(s.get("prices"), now)
+        row["price_from"], row["bhk"] = pagefacts.price_from(shown), pagefacts.sizes_label(shown)
+    # the area's ₹ per sq ft from the other projects' published prices (each project once: its group's primary record)
+    field, place = _area_of(doc)
+    mine = doc.get("cluster_primary") or doc["_id"]
+    others = [d for d in docs if field and d.get(field) == doc[field] and not d.get("cluster_primary") and d["_id"] != mine
+              and d.get("prices")]
+    out["area_rate"] = pagefacts.area_rate(place, (prices_public(d.get("prices"), now) for d in others))
+    out["sales"] = pagefacts.sales(doc)
+    out["commute"] = pagefacts.commute(out["map"])
     from .cautions import cautions   # 'Check before you book' (docs/plan/project-pages.md)
     out["cautions"] = cautions(doc, out["towers"], out["web_facts"])
     try:   # the neighbourhood guide nearest the project (rank-loop R5): a link both ways
