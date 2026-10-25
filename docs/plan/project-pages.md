@@ -303,9 +303,9 @@ and the loop moves on (fixed offline later), with a cut-off; think SEO always; m
 - TARGET: builder sites that load pictures by script (godrejproperties.com gives none): read them in a browser; per-step model
   name on the record.
 
-## Two lanes: facts often, the model by cost (2026-10-25, PLAN)
-The enrichment round is to be split into a facts lane with no model (one project every 5 minutes) and a reading lane that
-calls the model only for changed pages, within a daily budget: docs/plan/enrich-lanes.md.
+## Facts often, the model by budget (2026-10-25, BUILT)
+The enrichment runs a facts round with no model every 5 minutes and a reading round that
+calls the model only for changed pages and facts, within a daily budget (Gemini at most Rs 50): docs/plan/enrich-lanes.md.
 
 ## Asking without scrolling to the end (2026-10-24)
 

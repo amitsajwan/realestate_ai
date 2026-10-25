@@ -175,7 +175,8 @@ async def test_a_round_stores_buildings_and_the_checks(monkeypatch):
         return {"rera_no": regno, "facts": [{"key": "lat", "value": 18.59, "usable": True}, {"key": "lon", "value": 73.99, "usable": True}]}
     for k, v in (("general", general), ("buildings", buildings), ("pincode_centre", centre), ("sheet", sheet)):
         monkeypatch.setitem(enrich._deps, k, v)
-    db, store = await ready(("P1", "Rohan Abhilasha 4", "wagholi", {**FULL}))
+    # the register's own read is older than DETAILS_FRESH_DAYS: the round reads MahaRERA's general record itself
+    db, store = await ready(("P1", "Rohan Abhilasha 4", "wagholi", {**FULL, "details_checked_at": NOW - timedelta(days=40)}))
     out = await enrich.step(store, FakeLLM(GOOD), NOW, None, timedelta(minutes=10))
     doc = await store.project("P1")
     assert out["score"] == "4/4" and enrich.status_of(doc) == "ok"
@@ -289,3 +290,88 @@ def test_the_writer_is_told_the_blanket_extension_is_the_whole_difference():
     assert "the builder did not move it" in facts
     builder_moved = {**IVARA, "completion_now": "2033-06-16"}
     assert "the builder did not move it" not in enrich.facts_text(builder_moved, None)
+
+
+# ---- facts often, the model by budget (docs/plan/enrich-lanes.md) ------------------------------------------------------------
+
+def _maharera(monkeypatch, reads):
+    async def general(mid):
+        reads.append("general")
+        return GENERAL
+
+    async def buildings(mid):
+        reads.append("buildings")
+        return BUILDINGS
+    monkeypatch.setitem(enrich._deps, "general", general)
+    monkeypatch.setitem(enrich._deps, "buildings", buildings)
+
+
+async def test_a_recent_register_read_and_buildings_are_used_without_asking_maharera_again(monkeypatch):
+    reads = []
+    _maharera(monkeypatch, reads)
+    db, store = await ready(("P1", "Rohan Abhilasha 4", "wagholi", {**FULL}))   # the register read it 3 days ago
+    await enrich.enrich_one(store, await store.project("P1"), FakeLLM(GOOD), NOW)
+    assert reads == ["buildings"]
+    steps = (await store.project("P1"))["enrichment"]["steps"]
+    assert steps["maharera_general"]["ok"] and "the register's read of 2026-10-03" in steps["maharera_general"]["checked"]
+    await enrich.enrich_one(store, await store.project("P1"), FakeLLM(GOOD), NOW + timedelta(days=1))
+    assert reads == ["buildings"]                                                 # buildings read a day ago: kept
+    await enrich.enrich_one(store, await store.project("P1"), FakeLLM(GOOD), NOW + timedelta(days=1), urgent=True)
+    assert reads == ["buildings", "general", "buildings"]                         # a campaign gets fresh reads
+
+
+async def test_without_a_model_the_facts_round_runs_and_the_reading_is_put_off_not_failed(gatherer):
+    db, store = await ready(("P1", "Rohan Abhilasha 4", "wagholi", {**FULL, "promoter": "Rohan Builders"}))
+    out = await enrich.step(store, None, NOW, None, timedelta(minutes=5))
+    doc = await store.project("P1")
+    assert gatherer == ["P1"] and out["reading_due"] and doc["reading_due"] and "page_text" not in doc
+    assert any("reading put off (no LLM key)" in n for n in doc["enrich_notes"])
+    # waiting for a model is not a service failure (those are retried daily, MahaRERA reads and all)
+    assert not enrich.unanswered({"enrichment": {"steps": {"web": {"ok": False, "checked": "no LLM key"}}}})
+    assert enrich.reading_key(doc, NOW) is not None
+    # a model is set up: the reading turn writes the text from the kept facts, without gathering again
+    out = await enrich.read_step(store, FakeLLM(GOOD), NOW + timedelta(minutes=1), None, timedelta(minutes=10))
+    doc = await store.project("P1")
+    assert out["reading"] and out["text"] and doc["page_text"] == GOOD and not doc["reading_due"]
+    assert gatherer == ["P1"] and doc["enriched_at"] == NOW and doc["read_at"] == NOW + timedelta(minutes=1)
+    assert await enrich.read_step(store, FakeLLM(GOOD), NOW + timedelta(hours=1), None, timedelta(minutes=10)) is None
+
+
+class Spent:
+    """A budgeted model with no room left today (areastats.budget.Reader's shape)."""
+    budgeted, deferred = True, 0
+
+    def can_read(self, tier):
+        return False
+
+
+async def test_a_spent_budget_puts_the_reading_off_and_the_reading_turn_waits_for_room():
+    db, store = await ready(("P1", "Rohan Abhilasha 4", "wagholi", {**FULL, "promoter": "Rohan Builders",
+                                                                     "page_text": GOOD, "page_text_version": enrich.TEXT_VERSION}))
+    out = await enrich.step(store, Spent(), NOW, None, timedelta(minutes=5))
+    doc = await store.project("P1")
+    assert out["reading_due"] and doc["page_text"] == GOOD                       # the last text stays
+    assert any("model budget for today is spent" in n for n in doc["enrich_notes"])
+    assert await enrich.read_step(store, Spent(), NOW, None, timedelta(minutes=10)) is None
+
+
+async def test_a_question_put_off_half_way_keeps_that_steps_last_result():
+    from app.modules.areastats import budget
+    db, store = await ready(("P1", "Rohan Abhilasha 4", "wagholi", {**FULL, "promoter": "Rohan Builders"}))
+    kept_text = {"ok": True, "at": NOW - timedelta(days=9), "refused_reasons": []}
+    await store.set_project("P1", enrichment={"steps": {"text": kept_text}}, page_text=GOOD)
+    reader = await budget.Reader(db, NOW, free=None, gemini=None, lite=None).start()
+    reader.can_read = lambda tier: True        # room at the start of the round, none by the time the text is asked
+    out = await enrich.enrich_one(store, await store.project("P1"), reader, NOW)
+    doc = await store.project("P1")
+    assert out["reading_due"] and doc["enrichment"]["steps"]["text"] == kept_text and doc["page_text"] == GOOD
+
+
+def test_premium_projects_are_hot_shown_by_google_or_in_the_first_areas():
+    from app.modules.areastats import budget
+    base = {"page_slug": "x", **FULL}
+    assert enrich.tier_of({**base, "locality": "wakad"}) == budget.PLAIN
+    assert enrich.tier_of({**base, "locality": "wakad", "hot_score": 99}) == budget.PREMIUM
+    assert enrich.tier_of({**base, "locality": "wakad", "gsc_impressions": 3}) == budget.PREMIUM
+    assert enrich.tier_of({**base, "locality": "kharadi"}) == budget.PREMIUM
+    assert enrich.tier_of({**base, "locality": "wakad"}, urgent=True) == budget.URGENT

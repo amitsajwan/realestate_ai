@@ -27,7 +27,7 @@ from typing import List, Optional
 from app.core.areas import AREAS
 from app.modules.newsroom.store import Store
 
-from . import hot, pages, prices, websearch
+from . import budget, hot, pages, prices, websearch
 
 log = logging.getLogger(__name__)
 
@@ -82,6 +82,14 @@ def selling(d: dict, now: datetime) -> bool:
             and not pages.completion_passed(d, now.date()) and not pages.sold_out(d))
 
 
+def tier_of(d: dict) -> str:
+    """How much a project's model reading may spend (areastats.budget.route): premium when people look at it (hot, shown by
+    Google) or it is in the FIRST areas, where a price matters most; plain otherwise."""
+    if int(d.get("hot_score") or 0) >= hot.HOT_MIN or int(d.get("gsc_impressions") or 0) > 0 or area_rank(d) < len(FIRST):
+        return budget.PREMIUM
+    return budget.PLAIN
+
+
 def unanswered(d: dict) -> bool:
     """The last read failed for a service (no model key, a crash), not for the project: tried again after RETRY_DAYS."""
     why = str(d.get("prices_checked") or "")
@@ -129,12 +137,18 @@ async def step(store: Store, llm, now: datetime, last: Optional[datetime], busy:
     """One project's prices when EVERY has passed since the last round; None when not due, nothing is due or the models rest."""
     if last is not None and now - _aware(last) < every():
         return None
-    if busy:
+    if busy or llm is None:   # no model: prices wait (nothing is recorded as tried)
         return None
     docs = await store.all_projects()
     doc = next_project(docs, now)
     if doc is None:
         return None
+    if hasattr(llm, "ask"):   # the enrichment's budget (areastats.budget): Gemini for the premium projects' prices
+        tier = tier_of(doc)
+        if not any(llm.allowed(p, tier) for p in budget.route(tier, "prices")):
+            return None
+        llm = llm.ask(tier, "prices")
+    put_off = int(getattr(llm, "deferred", 0) or 0)
     mark = await store.get_mark(MARK)
     day = now.date().isoformat()
     used = int(mark.get("searches") or 0) if mark.get("day") == day else 0
@@ -154,6 +168,9 @@ async def step(store: Store, llm, now: datetime, last: Optional[datetime], busy:
     except Exception as e:
         log.exception("prices: round failed for %s", regno)
         st, fields = {"ok": False, "at": now, "checked": f"failed ({type(e).__name__})"}, {}
+    if int(getattr(llm, "deferred", 0) or 0) > put_off:   # the day's budget ran out half way: read again when it has room
+        log.info("prices: %s put off, the model budget for today is spent", regno)
+        return None
     await store.set_project(doc["_id"], **fields, prices_tried_at=now, prices_checked=st.get("checked"))
     docs = [({**d, **fields, "prices_tried_at": now} if d["_id"] == doc["_id"] else d) for d in docs]
     await store.set_mark(MARK, at=now, day=day, searches=used + counted["n"], last={"regno": regno, "place": place_of(doc),
