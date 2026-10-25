@@ -49,7 +49,7 @@ const ROW = { official: false, sources: [{ site: 'a.example', url: null }, { sit
 
 describe('prices on a project page fold out their all-in cost', () => {
   it('shows each home size with the taxes added and the builder charges left to the cost sheet', () => {
-    render(<PriceBox name="Kesnand Greens" stage="building" prices={{ read_at: '2026-10-20', rows: [
+    render(<PriceBox stage="building" prices={{ read_at: '2026-10-20', rows: [
       { ...ROW, bhk: '2 BHK', from_inr: 9_600_000, to_inr: null, sqft: 750 },
       { ...ROW, bhk: '1 BHK', from_inr: 4_000_000, to_inr: null, sqft: 650 },
     ] }} />)
@@ -63,14 +63,14 @@ describe('prices on a project page fold out their all-in cost', () => {
   })
 
   it('says "+ GST if any" and asks about GST when the completion date has passed', () => {
-    render(<PriceBox name="X" stage="completion_passed" prices={{ read_at: null, rows: [{ ...ROW, bhk: '3 BHK', from_inr: 9_600_000, to_inr: null }] }} />)
+    render(<PriceBox stage="completion_passed" prices={{ read_at: null, rows: [{ ...ROW, bhk: '3 BHK', from_inr: 9_600_000, to_inr: null }] }} />)
     const box = screen.getByTestId('all-in')
     expect(box).toHaveTextContent('about ₹1.03 Cr + GST if any')
     expect(within(box).getByText('Ask')).toBeInTheDocument()
   })
 
   it('gives a plot no breakdown', () => {
-    render(<PriceBox name="X" stage="building" prices={{ read_at: null, rows: [{ ...ROW, bhk: 'Plot', from_inr: 2_000_000, to_inr: null }] }} />)
+    render(<PriceBox stage="building" prices={{ read_at: null, rows: [{ ...ROW, bhk: 'Plot', from_inr: 2_000_000, to_inr: null }] }} />)
     expect(screen.queryByTestId('all-in')).toBeNull()
   })
 })

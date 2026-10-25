@@ -5,8 +5,8 @@ import { longDay, offerPrice, registerDescription, registerTitle } from '@/lib/s
 import type { RegisterProject } from '@/lib/site/register'
 
 // the stand-in renders the section the real form does (id, heading, note, button), so the page's one-section rule can be checked
-jest.mock('@/components/site/EnquiryForm', () => ({ __esModule: true, default: (p: { topic?: string; title?: string; note?: string; submitLabel?: string; agentName: string }) => (
-  <section id="enquire" data-testid="enquiry" data-agent={p.agentName}><h2>{p.title}</h2><p>{p.note}</p><button>{p.submitLabel}</button>{p.topic}</section>
+jest.mock('@/components/site/EnquiryForm', () => ({ __esModule: true, default: (p: { id?: string; topic?: string; title?: string; note?: string; submitLabel?: string; agentName: string }) => (
+  <section id={p.id ?? 'enquire'} data-testid={p.id ? 'enquiry-' + p.id : 'enquiry'} data-agent={p.agentName}><h2>{p.title}</h2><p>{p.note}</p><button>{p.submitLabel}</button>{p.topic}</section>
 ) }))
 
 const P: RegisterProject = {
@@ -22,7 +22,9 @@ describe('Avasetu project page from the MahaRERA register', () => {
   it('shows our facts with source and date, then the official record last', () => {
     render(<RegisterProjectPage p={P} siteUrl="https://avasetu.in" facts={null} />)
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Rohan Abhilasha 4')
-    expect(screen.getByTestId('paragraph')).toHaveTextContent(/registered with MahaRERA as P52100080076/)
+    // the code's answer says it once; the model's old summary (paragraph) is not shown any more
+    expect(screen.getByTestId('project-answer')).toHaveTextContent(/registered with MahaRERA as P52100080076/)
+    expect(screen.queryByText(P.paragraph)).toBeNull()
     expect(screen.getAllByText('30 Oct 2029').length).toBeGreaterThan(0)
     expect(screen.getByText(/At registration: 31 Dec 2028./)).toBeInTheDocument()
     expect(screen.getByText('244 of 416')).toBeInTheDocument()
@@ -83,7 +85,7 @@ describe('asking about a project without scrolling to the end', () => {
     const faq = screen.getByRole('heading', { name: 'FAQ' })
     expect(record.compareDocumentPosition(ask) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(ask.compareDocumentPosition(faq) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(within(ask).getByRole('link', { name: 'Get price sheet & floor plans' })).toHaveAttribute('href', '#enquire')
+    expect(within(ask).getByRole('link', { name: "Get today's price sheet & floor plans" })).toHaveAttribute('href', '#enquire')
     expect(within(ask).getByText(/never share your number without your OK/)).toBeInTheDocument()
   })
 
@@ -101,8 +103,8 @@ describe('asking about a project without scrolling to the end', () => {
     const form = document.getElementById('enquire')!
     expect(within(form).getAllByRole('heading')).toHaveLength(1)
     expect(within(form).getByRole('heading').textContent).toBe(`Get the price sheet and floor plans for ${P.name}`)
-    expect(within(form).getByRole('button', { name: 'Get price sheet & floor plans' })).toBeInTheDocument()
-    expect(within(document.getElementById('project-hero')!).getByRole('link', { name: 'Get price sheet & floor plans' })).toHaveAttribute('href', '#enquire')
+    expect(within(form).getByRole('button', { name: "Get today's price sheet & floor plans" })).toBeInTheDocument()
+    expect(within(document.getElementById('project-hero')!).getByRole('link', { name: "Get today's price sheet & floor plans" })).toHaveAttribute('href', '#enquire')
     // the promise above the form and in the form name the same people
     expect(within(form).getByText(/The Avasetu team calls or WhatsApps you back/)).toBeInTheDocument()
     expect(form).toHaveAttribute('data-agent', 'Avasetu')  // which the form words as "the Avasetu team" (components.test)
@@ -149,12 +151,16 @@ describe('one price on the page', () => {
     expect(offerPrice({ transaction: 'rent', price_inr: 30_000 })).toBeNull()
   })
 
-  it('puts the price sheet in the main column right after the pictures, before About', () => {
-    render(<RegisterProjectPage p={P} siteUrl="https://avasetu.in" facts={SHEET} />)
+  it('puts the price sheet first in the main column, in "<name> price", before the location and About', () => {
+    render(<RegisterProjectPage p={{ ...P, sections: [{ heading: 'The project', text: 'Two towers on the main road.' }] }} siteUrl="https://avasetu.in" facts={SHEET} />)
     const offer = screen.getByTestId('offer')
     expect(offer.closest('aside')).toBeNull()
+    expect(within(screen.getByTestId('prices-section')).getByRole('heading', { level: 2 })).toHaveTextContent('Rohan Abhilasha 4 price')
+    expect(screen.getByTestId('prices-section')).toContainElement(offer)
+    const location = screen.getByRole('heading', { name: 'Rohan Abhilasha 4 location' })
     const about = screen.getByRole('heading', { name: /About Rohan Abhilasha 4/ })
-    expect(offer.compareDocumentPosition(about) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(offer.compareDocumentPosition(location) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(location.compareDocumentPosition(about) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 })
 
@@ -212,7 +218,7 @@ describe('a shorter page', () => {
 })
 
 describe('the project page leads its text with a dated answer', () => {
-  it('opens "About" with the answer and our last change, and says the same day in WebPage dateModified', () => {
+  it('opens the page with the answer and our last change, and says the same day in WebPage dateModified', () => {
     const { container } = render(<RegisterProjectPage p={{ ...P, page_updated: '2026-10-21' }} siteUrl="https://avasetu.in" facts={null} />)
     expect(screen.getByTestId('project-answer')).toHaveTextContent(/^As of 3 Oct 2026, Rohan Abhilasha 4 by Rohan Builders in Wagholi, Pune is registered with MahaRERA as P52100080076\./)
     expect(screen.getByTestId('updated')).toHaveTextContent('Updated 21 Oct 2026')
@@ -225,5 +231,174 @@ describe('the project page leads its text with a dated answer', () => {
     expect(screen.queryByTestId('project-answer')).toBeNull()
     expect(screen.queryByTestId('updated')).toBeNull()
     expect(container.innerHTML).not.toContain('"WebPage"')
+  })
+})
+
+// Park Eden Phase I, Kharadi (owner 2026-10-25: "why we have duplicate"): the page v2 of docs/plan/project-page-v2.md
+const SRC = [{ site: 'parkeden.example', url: 'https://parkeden.example/eden' }]
+const EDEN: RegisterProject = {
+  ...P, slug: 'park-eden-phase-i-kharadi', name: 'PARK EDEN PHASE I', marketed_name: 'Park Eden', regno: 'P52100055555',
+  area: { key: 'kharadi', slug: 'kharadi', name: 'Kharadi' }, completion_at_registration: '2030-10-31', completion_now: '2031-02-28',
+  units_total: 249, units_booked: 27, extension_only: true,
+  paragraph: 'Park Eden Phase I has 249 homes are available in Kharadi.',
+  details: { towers: 2, max_floors: 32, units_total: 249, units_residential: 249, units_other: 0, booked_pct: 11, registered_on: '2024-11-02',
+    completion_moved_months: 4, extension_months: 4 },
+  prices: { read_at: '2026-10-20', rows: [
+    { bhk: '3 BHK', from_inr: 19_900_000, to_inr: 23_000_000, official: true, sqft: 1_150, per_sqft: 17_304, sources: SRC },
+    { bhk: '4 BHK', from_inr: 29_000_000, to_inr: null, official: true, sqft: 1_600, per_sqft: 18_125, sources: SRC }] },
+  area_rate: { place: 'Kharadi', per_sqft: 12_400, projects: 14 },
+  sales: { booked: 11, days: 60, since: '2026-08-21' },
+  commute: [{ name: 'EON IT Park', km: 3.2 }, { name: 'World Trade Center', km: 4 }],
+  map: { lat: 18.55, lon: 73.94 },
+  web_facts: { read_at: '2026-10-19', facts: [
+    { key: 'towers', label: 'Towers', text: '5', official: true, sources: [{ ...SRC[0], quote: '5 towers' }], scope: 'project' },
+    { key: 'land_acres', label: 'Land', text: '7 acres', official: true, sources: [{ ...SRC[0], quote: '7 acres' }] }] },
+  cautions: [{ key: 'early', text: 'Early stage: ask for the construction schedule.', source: 'rera' }],
+  buildings: [{ name: 'A', wing: null, floors: 32, units_residential: 125, units_other: 0, units_total: 125 },
+    { name: 'B', wing: null, floors: 30, units_residential: 124, units_other: 0, units_total: 124 }],
+  builder: { name: 'Eden Developers', count: 6, record_ok: true, with_dates: 5, moved_later: 1, avg_months_later: 6, projects: [] },
+  same_area: [
+    { name: 'Gera World of Joy', slug: 'gera-world-of-joy', completion_now: '2029-06-30', price_from: 9_500_000, bhk: '2, 3 BHK' },
+    { name: 'Kharadi Heights', slug: 'kharadi-heights', completion_now: null }],
+  profile: { read_at: '2026-10-19', photos: [], plans: [], highlights: [
+    { topic: 'homes', text: '3 and 4 BHK homes', official: true, sources: SRC },
+    { topic: 'clubhouse', text: 'A 30,000 sq ft clubhouse', official: true, sources: SRC }] },
+}
+
+describe('project page v2: each fact once, in the order a buyer asks', () => {
+  it('heads the page with the marketed name and phase, the area and the MahaRERA number, and the four chips', () => {
+    render(<RegisterProjectPage p={EDEN} siteUrl="https://avasetu.in" facts={null} />)
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Park Eden Phase I, Kharadi')
+    expect(screen.getByTestId('regno')).toHaveTextContent('P52100055555')
+    expect(screen.getByTestId('chip-bhk')).toHaveTextContent('3, 4 BHK')
+    expect(screen.getByTestId('chip-price')).toHaveTextContent('from ₹1.99 Cr')
+    expect(screen.getByTestId('chip-possession')).toHaveTextContent('Feb 2031')
+    expect(screen.getByTestId('chip-booked')).toHaveTextContent('27 of 249 booked')
+    expect(screen.getByTestId('chip-booked')).toHaveTextContent('11 booked in the last 60 days')
+    const hero = document.getElementById('project-hero')!
+    expect(within(hero).getByRole('link', { name: "Get today's price sheet & floor plans" })).toHaveAttribute('href', '#enquire')
+    expect(within(hero).getByRole('link', { name: 'Book a site visit' })).toHaveAttribute('href', '#visit')
+  })
+
+  it('books a site visit through the same enquiry plumbing, with the visit as its topic', () => {
+    render(<RegisterProjectPage p={EDEN} siteUrl="https://avasetu.in" facts={null} />)
+    const visit = screen.getByTestId('enquiry-visit')
+    expect(visit).toHaveAttribute('id', 'visit')
+    expect(visit).toHaveTextContent('Book a site visit to PARK EDEN PHASE I')
+    expect(visit).toHaveTextContent('Site visit: PARK EDEN PHASE I (MahaRERA P52100055555)')
+  })
+
+  it('never says the date moved when MahaRERA\'s extension is the only change, and never "homes are available"', () => {
+    const { container } = render(<RegisterProjectPage p={EDEN} siteUrl="https://avasetu.in" facts={null} />)
+    const ext = "The completion date filed with MahaRERA is 28 Feb 2031; MahaRERA's August 2026 order added 4 months to it (the builder has not moved it)."
+    expect(screen.getByTestId('project-answer')).toHaveTextContent(ext)
+    expect(screen.getByTestId('project-answer')).toHaveTextContent('MahaRERA shows 27 of 249 homes booked.')
+    expect(screen.getByTestId('possession')).toHaveTextContent(ext)
+    expect(within(screen.getByTestId('possession')).getByRole('heading', { level: 3 })).toHaveTextContent('Park Eden possession date')
+    // what the reader sees (the structured data is the SEO work's, and keeps the old summary as its description for now)
+    const seen = container.cloneNode(true) as HTMLElement
+    seen.querySelectorAll('script').forEach((s) => s.remove())
+    expect(seen).not.toHaveTextContent(/moved from|Moved \d+ months? later|homes are available/)
+    // the FAQ (on the page and in FAQPage) says it the same way
+    expect(screen.getByText(/^The completion date filed with MahaRERA is 28 Feb 2031; .*Ask the builder/)).toBeInTheDocument()
+  })
+
+  it('shows prices and sizes with ₹ per sq ft, the source and day, the area rate and the ask for the offer', () => {
+    render(<RegisterProjectPage p={EDEN} siteUrl="https://avasetu.in" facts={null} />)
+    const rows = screen.getAllByTestId('price-row')
+    expect(rows[0]).toHaveTextContent('3 BHK')
+    expect(rows[0]).toHaveTextContent('₹1.99 Cr – ₹2.3 Cr')
+    expect(rows[0]).toHaveTextContent('from 1,150 sq ft · ₹17,304/sq ft')
+    expect(rows[0]).toHaveTextContent('As listed on parkeden.example (the builder\'s site), 20 Oct 2026')
+    expect(screen.getByTestId('area-rate')).toHaveTextContent('Kharadi average ₹12,400/sq ft across 14 projects')
+    expect(screen.getByTestId('ask-offer')).toHaveTextContent('Ask for the current offer')
+    expect(screen.getByTestId('ask-offer')).toHaveAttribute('href', '#enquire')
+  })
+
+  it('shows an "All homes" price as "Homes", with no BHK chip and no "All homes BHK"', () => {
+    const p: RegisterProject = { ...EDEN, prices: { read_at: null, rows: [{ bhk: 'All homes', from_inr: 19_900_000, to_inr: null, official: true, sources: SRC }] } }
+    const { container } = render(<RegisterProjectPage p={p} siteUrl="https://avasetu.in" facts={null} />)
+    expect(container).not.toHaveTextContent('All homes BHK')
+    expect(screen.queryByTestId('chip-bhk')).toBeNull()
+    expect(screen.getByTestId('chip-price')).toHaveTextContent('from ₹1.99 Cr')
+    expect(screen.getByTestId('price-row')).toHaveTextContent(/^Homes/)
+    expect(screen.getByTestId('project-answer')).toHaveTextContent('Homes from ₹1.99 Cr')
+  })
+
+  it('gives the location its work hubs (straight line, said so) before what is nearby', () => {
+    const facts = { nearby: [{ label: 'Hospital', name: 'Columbia Asia', km: 1.4 }], nearby_sources: [{ name: 'OpenStreetMap', url: 'https://osm.org' }] } as never
+    render(<RegisterProjectPage p={EDEN} siteUrl="https://avasetu.in" facts={facts} />)
+    const commute = screen.getByTestId('commute')
+    expect(commute).toHaveTextContent('EON IT Park3.2 km')
+    expect(commute.compareDocumentPosition(screen.getByTestId('nearby')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.getByTestId('distance-note')).toHaveTextContent(/Straight-line distances/)
+  })
+
+  it('lists the amenities without a bullet repeating the BHK chip', () => {
+    render(<RegisterProjectPage p={EDEN} siteUrl="https://avasetu.in" facts={null} />)
+    const h = screen.getByTestId('highlights')
+    expect(within(h).getByRole('heading', { level: 2 })).toHaveTextContent('Park Eden amenities')
+    expect(h).toHaveTextContent('A 30,000 sq ft clubhouse')
+    expect(h).not.toHaveTextContent('3 and 4 BHK homes')
+  })
+
+  it('shows the model\'s sections under About and never the old summary; with no sections there is no About', () => {
+    const { unmount } = render(<RegisterProjectPage p={{ ...EDEN, sections: [{ heading: 'Location', text: 'On the road to the IT parks.' }] }} siteUrl="https://avasetu.in" facts={null} />)
+    expect(within(screen.getByTestId('about')).getByRole('heading', { level: 2 })).toHaveTextContent('About Park Eden')
+    expect(screen.getByTestId('about')).toHaveTextContent('On the road to the IT parks.')
+    expect(screen.queryByText(EDEN.paragraph)).toBeNull()
+    unmount()
+    render(<RegisterProjectPage p={EDEN} siteUrl="https://avasetu.in" facts={null} />)
+    expect(screen.queryByTestId('about')).toBeNull()
+    expect(screen.queryByRole('heading', { name: /^About / })).toBeNull()
+  })
+
+  it('checks everything in one "RERA details" section, the whole project\'s count labelled beside the registration\'s', () => {
+    const facts = { maharera: { rera_no: 'P52100055555', url: 'https://x', project_type: 'Residential' } } as never
+    render(<RegisterProjectPage p={EDEN} siteUrl="https://avasetu.in" facts={facts} />)
+    const record = screen.getByTestId('record')
+    expect(within(record).getByRole('heading', { level: 2 })).toHaveTextContent('Park Eden RERA details')
+    expect(record).toHaveTextContent('Checked by us')
+    for (const id of ['possession', 'checks', 'cautions', 'tower-by-tower', 'web-facts']) expect(record).toContainElement(screen.getByTestId(id))
+    expect(within(record).getByText('2 in this registration')).toBeInTheDocument()
+    expect(record).toHaveTextContent("5 in the whole project (builder's site)")
+    expect(within(screen.getByTestId('web-facts')).queryByText('Towers')).toBeNull()   // said once, beside MahaRERA's count
+    expect(screen.getByTestId('web-facts')).toHaveTextContent('7 acres')
+    expect(record).toHaveTextContent('Eden Developers: track record')
+    expect(within(record).getByText('Residential')).toBeInTheDocument()
+    // the old side-column blocks are gone: no second "checked" panel and no separate web-facts or builder section
+    expect(screen.queryByRole('heading', { name: 'Checked for you' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'About the builder' })).toBeNull()
+  })
+
+  it('compares the area\'s other projects by price from, BHK and possession', () => {
+    render(<RegisterProjectPage p={EDEN} siteUrl="https://avasetu.in" facts={null} />)
+    const compare = screen.getByTestId('compare')
+    expect(within(compare).getByRole('heading', { level: 2 })).toHaveTextContent('Other projects in Kharadi')
+    expect(within(compare).getByRole('link', { name: /Gera World of Joy/ })).toHaveTextContent('2, 3 BHK · from ₹95 L · possession Jun 2029')
+    expect(within(compare).getByRole('link', { name: /Kharadi Heights/ })).toHaveTextContent(/^Kharadi Heights$/)
+  })
+
+  it('keeps the sections in the v2 order', () => {
+    const profile = { ...EDEN.profile!, photos: [PHOTO('/m/a.webp', 'builder'), PHOTO('/m/b.webp', 'builder')] }
+    render(<RegisterProjectPage p={{ ...EDEN, profile, sections: [{ heading: 'The project', text: 'x' }] }} siteUrl="https://avasetu.in" facts={null} />)
+    const order = [document.getElementById('project-hero')!, screen.getByTestId('project-answer'), screen.getByTestId('photos'),
+      screen.getByTestId('prices-section'), screen.getByTestId('plans'), screen.getByRole('heading', { name: 'Park Eden location' }),
+      screen.getByTestId('highlights'), screen.getByTestId('about'), screen.getByTestId('record'), screen.getByTestId('compare'),
+      screen.getByRole('heading', { name: 'FAQ' }), document.getElementById('enquire')!, document.getElementById('visit')!]
+    order.slice(1).forEach((el, i) => expect(order[i].compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy())
+    expect(screen.getByTestId('plans')).toHaveTextContent('Park Eden floor plans')
+  })
+
+  it('shows nothing for the new fields when the backend has not sent them', () => {
+    const p: RegisterProject = { ...P, prices: { read_at: null, rows: [{ bhk: '2 BHK', from_inr: 6_900_000, to_inr: null, official: false,
+      sources: [{ site: 'a.example', url: null }] }] } }
+    const { container } = render(<RegisterProjectPage p={p} siteUrl="https://avasetu.in" facts={null} />)
+    expect(screen.queryByTestId('area-rate')).toBeNull()
+    expect(screen.queryByTestId('commute')).toBeNull()
+    expect(screen.getByTestId('chip-booked')).toHaveTextContent(/^Booked244 of 416 booked$/)
+    expect(screen.getByTestId('price-row')).not.toHaveTextContent('/sq ft')
+    expect(within(screen.getByTestId('compare')).getByRole('link', { name: /Kesnand Greens/ })).toHaveTextContent('possession Mar 2029')
+    expect(container).not.toHaveTextContent(/undefined|null|NaN/)
   })
 })

@@ -80,7 +80,7 @@ export default function FloorPlansLock({ plans, name, lead }: { plans: ProfilePi
   const field = 'mt-1 block min-h-[48px] w-full rounded-lg border border-slate-300 bg-white px-3 text-base text-slate-900 placeholder:text-slate-400'
   return (
     <section aria-labelledby="plans-title" data-testid="plans" id="floor-plans" className="scroll-mt-20">
-      <h2 id="plans-title" className="text-xl font-bold">Floor plans of {name}</h2>
+      <h2 id="plans-title" className="text-xl font-bold">{name} floor plans</h2>
       {open ? (
         plans.length > 0 ? (
           <>
