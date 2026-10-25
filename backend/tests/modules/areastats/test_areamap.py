@@ -51,6 +51,17 @@ async def test_phases_sold_under_one_name_are_one_pin_with_their_homes_added_up(
     assert set(items[0]["regnos"]) >= {"P52100054937", "P52100079026"}
 
 
+async def test_the_card_names_the_one_phase_page_it_links_and_how_many_phases_its_homes_add_up():
+    # 2026-10-25: Majestique's card read "21 of 384 booked" and opened Phase 9's page, which says 0 of 192
+    db = await seeded(("PR1260002503000", "majestique-tower-east-phase-9", {"hot_score": 40, "registered_on": "2026-03-01",
+                                                                          "units_total": 192, "units_booked": 0}),
+                      ("PR1260002600313", "majestique-tower-east-phase-8", {"hot_score": 30, "registered_on": "2026-04-30",
+                                                                          "units_total": 192, "units_booked": 21}))
+    m = (await areamap.public(db, "upper_kharadi", NOW))["items"][0]
+    assert (m["name"], m["booked"], m["total"], m["phases"]) == ("Majestique Towers East", 21, 384, 2)
+    assert (m["slug"], m["page_name"]) == ("majestique-tower-east-phase-9", "Majestique Tower East Phase 9")
+
+
 async def test_an_area_without_a_drawn_map_has_none_and_the_route_says_404():
     db = await seeded()
     assert await areamap.public(db, "baner", NOW) is None

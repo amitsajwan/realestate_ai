@@ -119,10 +119,10 @@ export default function AreaMapView({ data, items }: { data: AreaMapData; items:
             {share != null && (
               <>
                 <div className="mt-2 h-1.5 rounded-full bg-[#ece5d3]" aria-hidden="true"><div className="h-1.5 rounded-full bg-[#2f5fa7]" style={{ width: `${share}%` }} /></div>
-                <p className="m-0 mt-1 text-xs text-slate-600">{p.booked!.toLocaleString('en-IN')} of {p.total!.toLocaleString('en-IN')} homes booked on MahaRERA</p>
+                <p className="m-0 mt-1 text-xs text-slate-600">{p.booked!.toLocaleString('en-IN')} of {p.total!.toLocaleString('en-IN')} homes booked on MahaRERA{(p.phases ?? 1) > 1 ? `, all ${p.phases} phases` : ''}</p>
               </>
             )}
-            <Link href={p.href} className="mt-3 flex min-h-[44px] items-center justify-center rounded-xl bg-[#0f2340] text-sm font-semibold text-white no-underline hover:bg-[#16305a]">See {p.name}</Link>
+            <Link href={p.href} className="mt-3 flex min-h-[44px] items-center justify-center rounded-xl bg-[#0f2340] text-sm font-semibold text-white no-underline hover:bg-[#16305a]">See {p.listed ? p.name : (p.page_name || p.name)}</Link>
             <a href={`https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lon}`} target="_blank" rel="noopener noreferrer"
               className="mt-1 flex min-h-[44px] items-center justify-center text-sm font-semibold text-[#0f2340] underline underline-offset-2">Directions in Google Maps</a>
           </div>

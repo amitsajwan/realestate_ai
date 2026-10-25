@@ -54,6 +54,17 @@ describe('area map', () => {
     expect(screen.getByTestId('area-map-card').textContent).toContain('FromAsk')   // no published price: never a guess
   })
 
+  it('a pin over several phases says its homes add them up and names the one phase page it opens', () => {
+    // 2026-10-25: "21 of 384 booked" opened Majestique's Phase 9 page, which says 0 of 192
+    const m = item(1, 'Majestique Towers East', 0.4, 0.5, { booked: 21, total: 384, phases: 2, page_name: 'Majestique Tower East Phase-9',
+      href: '/projects/majestique-tower-east-phase-9-wagholi' })
+    render(<AreaMapView data={{ ...DATA, items: [m] }} items={[m]} />)
+    const card = screen.getByTestId('area-map-card')
+    expect(card.textContent).toContain('21 of 384 homes booked on MahaRERA, all 2 phases')
+    expect(within(card).getByRole('link', { name: 'See Majestique Tower East Phase-9' }))
+      .toHaveAttribute('href', '/projects/majestique-tower-east-phase-9-wagholi')
+  })
+
   it('on a phone the picked pin is named on the side facing the middle, so the name stays on the map', () => {
     expect(toMiddle({ x: 0.2 })).toBe('right')     // 2026-10-23: a left label read "...ique Towers East", cut at the edge
     expect(toMiddle({ x: 0.8 })).toBe('left')

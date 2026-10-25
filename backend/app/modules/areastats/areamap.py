@@ -197,7 +197,10 @@ async def public(db, area: Optional[str], now: Optional[datetime] = None, limit:
         prices = [p for p in (price_from(x) for x in group) if p]
         st = stage(d, now.date())
         at = xy(m, g["lat"], g["lon"])
-        items.append({"n": len(items) + 1, "slug": d["page_slug"], "name": g["name"], "builder": d.get("promoter") or None,
+        # the card links ONE phase's page (the most active), so it names that page and says how many phases its homes add up: a
+        # card reading "21 of 384 booked" opened Phase 9's page, "0 of 192 booked" (2026-10-25)
+        items.append({"n": len(items) + 1, "slug": d["page_slug"], "name": g["name"], "page_name": d.get("name") or link_name(d),
+                      "phases": len(known), "builder": d.get("promoter") or None,
                       "regnos": [x.get("regno") or x["_id"] for x in group], "lat": g["lat"], "lon": g["lon"], "x": at[0], "y": at[1],
                       "stage": st, "stage_label": STAGES.get(st or "", "Being built"),
                       "booked": sold if total else None, "total": total or None,

@@ -12,9 +12,10 @@ import { serverApiBase } from './api'
 export interface ActiveProject { slug: string; name: string; fact: string; source: string; km?: number }
 
 /** One project on an area's map. x, y: where its checked position falls on the drawn map (0..1 of its width and height);
- *  stage is by dates (backend pages.stage); booked/total add up every phase sold under the name. */
+ *  stage is by dates (backend pages.stage); booked/total add up `phases` phases sold under the name, while slug/page_name are
+ *  the one phase's page the card links. */
 export interface AreaMapItem {
-  n: number; slug: string; name: string; builder: string | null; regnos: string[]
+  n: number; slug: string; name: string; page_name?: string; phases?: number; builder: string | null; regnos: string[]
   lat: number; lon: number; x: number; y: number
   stage: 'new' | 'early' | 'mid' | 'advanced' | 'passed' | null; stage_label: string
   booked: number | null; total: number | null; completion: string | null; price_from: number | null
