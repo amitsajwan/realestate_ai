@@ -19,7 +19,7 @@ import { getCatalog, getCatalogProject, getPropertyFacts } from '@/lib/site/api'
 import { getFacets } from '@/lib/site/facets'
 import RegisterProjectPage from '@/components/site/RegisterProjectPage'
 import { pageMetadata } from '@/lib/marketing/seo'
-import { getRegisterProject, offerPrice, registerDescription, registerTitle } from '@/lib/site/register'
+import { getRegisterProject, longDay, offerPrice, registerDescription, registerTitle } from '@/lib/site/register'
 import type { Offer } from '@/lib/site/register'
 import { bhkRange, mainAgent, priceRange, projectWhatsAppMessage } from '@/lib/site/projects'
 import { catalogProjectMetadata, projectJsonLd } from '@/lib/site/seo'
@@ -27,6 +27,7 @@ import { showDirectContact, whatsappLink } from '@/lib/site/links'
 import { agentPath } from '@/lib/site/slug'
 import { PROJECT_CTA } from '@/lib/site/strings'
 import { catalogFaq, getWebFacts } from '@/lib/site/webfacts'
+import { catalogAnswer, projectUpdated } from '@/lib/site/projectFacts'
 import { getProfile } from '@/lib/site/profile'
 import ProjectProfile from '@/components/site/ProjectProfile'
 import type { CatalogProject } from '@/lib/site/types'
@@ -122,6 +123,9 @@ export default async function SharedProjectPage({ params }: Props) {
   const similar = [...others.filter((x) => x.locality === p.locality), ...others.filter((x) => x.locality !== p.locality)].slice(0, 3)
   const [web, profile] = await Promise.all([getWebFacts(p.rera_no), getProfile(p.rera_no)])
   const faq = catalogFaq(p, web)
+  // the dated answer AI answers and snippets quote (lib/site/projectFacts), and the page's own last change
+  const answer = catalogAnswer(p)
+  const updated = projectUpdated(p)
   const ld = [
     projectJsonLd(p, url),
     { '@context': 'https://schema.org', '@type': 'FAQPage',
@@ -129,6 +133,7 @@ export default async function SharedProjectPage({ params }: Props) {
     breadcrumbJsonLd(cfg.siteUrl, [
       { name: 'Home', path: '/' }, { name: 'Projects', path: '/projects' }, { name: p.name, path: '/projects/' + p.slug },
     ]),
+    ...(updated ? [{ '@context': 'https://schema.org', '@type': 'WebPage', url, name: p.name, dateModified: updated }] : []),
   ]
 
   return (
@@ -146,6 +151,8 @@ export default async function SharedProjectPage({ params }: Props) {
           <p className="mt-1 text-slate-600">by {p.builder}{p.rera?.promoter ? ` (promoter on MahaRERA: ${p.rera.promoter})` : ''}</p>
           <p className="mt-3 text-2xl font-extrabold text-[var(--site-primary)]">{priceRange(p)} <span className="text-base font-semibold text-slate-700">· {bhkRange(p.bhk_options)}</span></p>
           {p.positioning && <p className="mt-2 max-w-2xl text-lg text-slate-800">{p.positioning}</p>}
+          <p className="mt-3 max-w-3xl leading-relaxed text-slate-900" data-testid="project-answer">{answer}</p>
+          {updated && <p className="mt-1 text-sm text-slate-600">Updated {longDay(updated)}</p>}
           {area && (
             <p className="mt-2 text-sm">
               <Link href={`/localities/${area.slug}`} className="inline-flex min-h-[44px] items-center font-semibold text-[var(--site-primary)] underline underline-offset-2">

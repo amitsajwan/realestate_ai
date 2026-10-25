@@ -21,6 +21,7 @@ import type { ProfilePicture } from '@/lib/site/profile'
 import type { PropertyFactsView } from '@/lib/site/types'
 import { formatPrice } from '@/lib/site/format'
 import { OWN_CASH_NOTE, ownCash } from '@/lib/site/upfront'
+import { projectUpdated, registerAnswer } from '@/lib/site/projectFacts'
 
 function OfferBox({ facts, stage }: { facts: PropertyFactsView | null; stage: Stage }) {
   const o = (facts as unknown as { offer?: Offer } | null)?.offer
@@ -504,6 +505,9 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
   // the agent's live price sheet is the page's one price: the hero quotes it and the portals' prices are not shown beside it
   const price = offerPrice(offer)
   const faq = projectFaq(p, nearby, offer?.price_inr ? `${offer.homes && offer.homes.length > 1 ? 'from ' : ''}${formatPrice(offer.price_inr)}` : null)
+  // the dated answer AI answers and snippets quote, first in the page's text; only once the record's dates or homes are read
+  const answer = p.completion_now || p.units_total ? registerAnswer(p, price) : null
+  const updated = projectUpdated(p)
   const d = p.details
   const movedMonths = d?.completion_moved_months
   const byPromoter = (p.same_promoter ?? []).filter((x) => x.slug && x.slug !== p.slug)
@@ -514,6 +518,9 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
       {faq.length > 0 && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString({
         '@context': 'https://schema.org', '@type': 'FAQPage',
         mainEntity: faq.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
+      }) }} />}
+      {updated && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString({
+        '@context': 'https://schema.org', '@type': 'WebPage', url, name: shown, dateModified: updated,
       }) }} />}
       <nav aria-label="Breadcrumb" className="mb-4 text-sm">
         <Link href="/" className="text-[#0f2340] underline underline-offset-2">Home</Link>
@@ -536,6 +543,8 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
           <section aria-labelledby="about-title">
             <SectionHead id="about-title" title={`About ${shown}`} kind={p.text_checked ? 'checked' : 'rera'}
               tag={p.text_checked ? 'Written from checked facts' : 'From MahaRERA'} />
+            {updated && <p className="mt-1 text-sm text-slate-600" data-testid="updated">Updated {longDay(updated)}</p>}
+            {answer && <p className="mt-3 text-lg font-medium leading-relaxed text-slate-900" data-testid="project-answer">{answer}</p>}
             <p className="mt-3 text-lg leading-relaxed text-slate-800" data-testid="paragraph">{p.paragraph}</p>
             {(p.sections ?? []).map((x) => (
               <div key={x.heading} className="mt-5">

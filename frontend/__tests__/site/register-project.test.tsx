@@ -210,3 +210,20 @@ describe('a shorter page', () => {
     expect(within(fold).getByRole('heading', { name: 'Buildings' })).toBeInTheDocument()
   })
 })
+
+describe('the project page leads its text with a dated answer', () => {
+  it('opens "About" with the answer and our last change, and says the same day in WebPage dateModified', () => {
+    const { container } = render(<RegisterProjectPage p={{ ...P, page_updated: '2026-10-21' }} siteUrl="https://avasetu.in" facts={null} />)
+    expect(screen.getByTestId('project-answer')).toHaveTextContent(/^As of 3 Oct 2026, Rohan Abhilasha 4 by Rohan Builders in Wagholi, Pune is registered with MahaRERA as P52100080076\./)
+    expect(screen.getByTestId('updated')).toHaveTextContent('Updated 21 Oct 2026')
+    const lds = [...container.querySelectorAll('script[type="application/ld+json"]')].map((s) => JSON.parse(s.textContent || '{}'))
+    expect(lds.find((x) => x['@type'] === 'WebPage')).toMatchObject({ url: 'https://avasetu.in/projects/rohan-abhilasha-4-wagholi', dateModified: '2026-10-21' })
+  })
+
+  it('a page with no dates or homes read yet has no answer and no made-up update day', () => {
+    const { container } = render(<RegisterProjectPage p={{ ...P, completion_now: null, completion_at_registration: null, units_total: null, units_booked: null }} siteUrl="https://avasetu.in" facts={null} />)
+    expect(screen.queryByTestId('project-answer')).toBeNull()
+    expect(screen.queryByTestId('updated')).toBeNull()
+    expect(container.innerHTML).not.toContain('"WebPage"')
+  })
+})
