@@ -303,6 +303,10 @@ and the loop moves on (fixed offline later), with a cut-off; think SEO always; m
 - TARGET: builder sites that load pictures by script (godrejproperties.com gives none): read them in a browser; per-step model
   name on the record.
 
+## Two lanes: facts often, the model by cost (2026-10-25, PLAN)
+The enrichment round is to be split into a facts lane with no model (one project every 5 minutes) and a reading lane that
+calls the model only for changed pages, within a daily budget: docs/plan/enrich-lanes.md.
+
 ## Asking without scrolling to the end (2026-10-24)
 
 The enquiry form sat after every section (about 15 on a register page), and phones had no bar, so a buyer who read the
