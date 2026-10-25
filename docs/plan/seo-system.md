@@ -112,9 +112,10 @@ their fetchers, and leading each page with the answer. What we run:
 | AI visit log | every page request from an AI fetcher (ChatGPT-User / Perplexity-User / Claude-User = "read to answer a question"; OAI-SearchBot, PerplexityBot, Bingbot, Googlebot = search crawlers; GPTBot, ClaudeBot, CCBot = training) and every visit from an AI answer (chatgpt.com, perplexity.ai, copilot, gemini, claude.ai, `utm_source=chatgpt.com`), counted per day with the pages for answers and referrals. By user agent as sent (no reverse DNS): trends, not proof | `frontend/proxy.ts` → `/internal/seo/visit` (outside `/api`, so never reachable from the public site) → `seo/aivisits.py` |
 | AI fetcher audit | the weekly site audit reads 12 sampled pages again as OAI-SearchBot, ChatGPT-User, PerplexityBot and bingbot: error on a robots.txt block, another status, another page (bot shield) or no `<h1>` text in the HTML | `seo/audit.py` |
 | robots.txt | every crawler allowed, AI ones included (decision: being read beats being private; GPTBot training kept allowed so models know the brand) | `frontend/app/robots.ts` |
-| `/llms.txt` | a map of the site for assistants (our areas, their lists, guides, the MahaRERA tracker), from the sitemap's lists. A hint some read, not a ranking signal | `frontend/app/llms.txt/route.ts` |
+| `/llms.txt` | a map of the site for assistants (our areas, their lists, up to 60 project pages in our areas, guides, the MahaRERA tracker), from the sitemap's lists. Projects: agent-listed first, then the register's being built (not sold out), priced ones and the newest changes first, each with builder, possession, homes booked, MahaRERA number and price. A hint some read, not a ranking signal | `frontend/app/llms.txt/route.ts` |
 | Bing | IndexNow sends changes (LIVE); `NEXT_PUBLIC_BING_SITE_VERIFICATION` puts the `msvalidate.01` tag in every page | `seo/indexnow.py`, `frontend/app/layout.tsx` |
-| Quotable pages | place pages open with a paragraph written by code from the numbers ("As of 21 Oct 2026, MahaRERA lists 14 housing projects in Lohegaon … 2 BHK flats start from ₹69 lakh"), then a FAQ from the same lists (FAQPage) and "Updated <day>" (WebPage dateModified); list pages already had both | `frontend/lib/site/placeFacts.ts` |
+| Quotable pages | place pages open with a paragraph written by code from the numbers ("As of 21 Oct 2026, MahaRERA lists 14 housing projects in Lohegaon … 2 BHK flats start from ₹69 lakh"), then a FAQ from the same lists (FAQPage) and "Updated <day>" (WebPage dateModified); list pages already had both. Project pages (2026-10-25) open "About" (register pages) or the header (agent-listed pages) with the same kind of paragraph from their own record ("As of 3 Oct 2026, Rohan Abhilasha 4 by Rohan Builders in Wagholi, Pune is registered with MahaRERA as P52100080076. The completion date filed … moved from … 244 of its 416 homes are booked. 2 BHK from ₹69 L, as listed on …"), dated by the day the record was read, with "Updated <page_updated>" and WebPage dateModified; MahaRERA's 2026 blanket extension is named so a 4-month move does not read as a delay | `frontend/lib/site/placeFacts.ts`, `frontend/lib/site/projectFacts.ts` |
+| News → projects | a story's page links the projects it clearly names (the newsroom's existing match: MahaRERA number, or the full specific name in a story about that area, kept in `projects.news`): `GET /public/news/{id}` returns `projects` [{regno, slug}], the page names each from its own project page, once per project | `newsroom/public.py`, `newsroom/store.projects_named_by`, `frontend/lib/news/projects.ts` |
 
 ## 5. On-page rules every page follows (LIVE)
 
@@ -198,7 +199,7 @@ All in the `newsroom` worker role (seo loop every 30 minutes; each step runs onl
    (`enrich.priority`); take our 8 areas' pages first, so each page Google reads there has a summary, dates and nearby places.
 5. **Target searches for list pages**: only project pages get a target search and title from Search Console; give place, area
    list, BHK and budget pages the same (rank-loop R1 left them out).
-6. **News stories link the projects they name** (insights-and-seo S4): a story about a project links its page.
+6. ~~News stories link the projects they name~~ BUILT 2026-10-25 (insights-and-seo S4; "News → projects" above).
 7. **Area list pages, weeks 3-4** (area-intent-pages section 11): retire with 301 after 180 idle days, learn which page types
    earn, landmark lists, Pune-wide lists, a monthly round-up story, vocabulary proposals; a "New launches by area" strip on home.
 8. **Page speed**: the Baner place page is 0.9 MB; uncached project pages 0.45-0.8 s.
@@ -256,6 +257,7 @@ measure (Search Console, Serper, URL Inspection) → choose (near page one, Magi
 | 2026-10-21 | f43252f, 1ab4a00 | Every way buyers search: size pages from published prices, "Flat prices in X", Place `alternateName`, flats wording and links, owner map, rank watch for the families |
 | 2026-10-21 | 7720a6d, d730c5c, 7abbe6f + this | AI search: AI visit log, AI fetcher audit, `/llms.txt`, Bing verification tag, quotable place pages (answer, FAQ, updated date) |
 | 2026-10-21 | this | Prices round (own turn, every 15 min); enrichment and prices skip completed projects, put 90%+ booked last, and go area by area outward from Kharadi with new launches and hot projects first |
+| 2026-10-25 | this | Project pages open with a dated answer + "Updated" (WebPage dateModified); news stories link the projects they name; `/llms.txt` lists project pages |
 | 2026-10-22 | this | `/` is the buyers' home (one topic: new projects in Pune); the agents' home moved to `/agents`. Hot projects banner on every buyer page, set in Studio (`hot-projects.md`); robots guard test |
 
 ## 12. Detail and history
