@@ -808,14 +808,17 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
       </div>
 
       <div className="mt-10 space-y-8">
-      <div className="grid gap-6 lg:grid-cols-2">
-        <EnquiryForm agentSlug={HOUSE_AGENT} agentName="Avasetu" topic={enquiryTopic}
+      {/* One form for the hero's two actions (two side-by-side copies read as a duplicate): the buyer picks price sheet or visit in
+          it, `#visit` opens it on the visit, and a visit carries its own topic so the team knows what to arrange. */}
+      <div className="max-w-2xl">
+        <EnquiryForm agentSlug={HOUSE_AGENT} agentName="Avasetu" note={ASK_NOTE} topic={enquiryTopic}
           waMessage={`Hi, I want to know about ${p.name} (MahaRERA ${p.regno}): ${url}`}
-          title={PROJECT_CTA.formTitle(p.name)} note={ASK_NOTE} submitLabel={PROJECT_CTA.today} />
-        {/* the hero's second action: the same lead plumbing, with the visit as its topic so the team knows what to arrange */}
-        <EnquiryForm id="visit" agentSlug={HOUSE_AGENT} agentName="Avasetu" topic={`Site visit: ${enquiryTopic}`}
-          waMessage={`Hi, I want to book a site visit to ${p.name} (MahaRERA ${p.regno}): ${url}`}
-          title={PROJECT_CTA.visitTitle(p.name)} note={ASK_NOTE} submitLabel={PROJECT_CTA.visit} />
+          choices={[
+            { anchor: 'enquire', label: PROJECT_CTA.pricesChoice, title: PROJECT_CTA.formTitle(p.name), topic: enquiryTopic,
+              waMessage: `Hi, I want to know about ${p.name} (MahaRERA ${p.regno}): ${url}`, submitLabel: PROJECT_CTA.today },
+            { anchor: 'visit', label: PROJECT_CTA.visitChoice, title: PROJECT_CTA.visitTitle(p.name), topic: `Site visit: ${enquiryTopic}`,
+              waMessage: `Hi, I want to book a site visit to ${p.name} (MahaRERA ${p.regno}): ${url}`, submitLabel: PROJECT_CTA.visit },
+          ]} />
       </div>
 
       <footer className="border-t border-slate-200 pt-4 text-sm text-slate-600">

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { normalizeIndianMobile } from '@/lib/site/phone'
 import { whatsappLink } from '@/lib/site/links'
 import { submitInquiry, trackEvent } from '@/lib/site/tracking'
@@ -32,6 +32,17 @@ function ChipGroup<T extends string | number>({ label, options, value, onPick }:
   )
 }
 
+/** One ask a form can carry (a project page's price sheet or its site visit). The buyer picks one in the form, and a link to
+ *  `#<anchor>` opens the form on it, so two buttons up the page need one form, not two copies of it. */
+export interface EnquiryChoice {
+  label: string
+  anchor: string
+  title: string
+  topic: string
+  waMessage: string
+  submitLabel: string
+}
+
 interface Props {
   agentSlug: string
   agentName: string
@@ -48,12 +59,42 @@ interface Props {
   note?: string
   /** The send button's words. Project pages repeat their one action. */
   submitLabel?: string
+  /** When set, the form asks which of these the buyer wants, and the heading, topic, WhatsApp message and button follow the pick. */
+  choices?: EnquiryChoice[]
 }
 
 type Errors = { name?: string; phone?: string; consent?: string; form?: string }
 
-export default function EnquiryForm({ agentSlug, agentName, agentPhone, listingId, topic, waMessage, id = 'enquire', title, note,
-  submitLabel = 'Send enquiry' }: Props) {
+export default function EnquiryForm({ agentSlug, agentName, agentPhone, listingId, topic: baseTopic, waMessage: baseWa, id = 'enquire',
+  title: baseTitle, note, submitLabel: baseSubmit = 'Send enquiry', choices }: Props) {
+  const [picked, setPicked] = useState(choices?.[0]?.anchor)
+  const choice = choices?.find((c) => c.anchor === picked)
+  const topic = choice?.topic ?? baseTopic
+  const waMessage = choice?.waMessage ?? baseWa
+  const title = choice?.title ?? baseTitle
+  const submitLabel = choice?.submitLabel ?? baseSubmit
+  // a link to one of the choices' anchors (the hero's "Book a site visit") switches the form to it; clicks are watched as well as
+  // the hash, because clicking a link to the hash already in the address bar fires no hashchange
+  useEffect(() => {
+    if (!choices?.length) return
+    const anchors = choices.map((c) => c.anchor)
+    const fromHash = () => {
+      const h = window.location.hash.slice(1)
+      if (anchors.includes(h)) setPicked(h)
+    }
+    const onClick = (e: MouseEvent) => {
+      const a = (e.target as Element | null)?.closest?.('a[href^="#"]')
+      const h = a?.getAttribute('href')?.slice(1)
+      if (h && anchors.includes(h)) setPicked(h)
+    }
+    fromHash()
+    window.addEventListener('hashchange', fromHash)
+    document.addEventListener('click', onClick)
+    return () => {
+      window.removeEventListener('hashchange', fromHash)
+      document.removeEventListener('click', onClick)
+    }
+  }, [choices])
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [message, setMessage] = useState('')
@@ -116,9 +157,13 @@ export default function EnquiryForm({ agentSlug, agentName, agentPhone, listingI
   // One section, one heading and one id: pages link to `#enquire`, and the phone's bottom bar hides while it is on screen.
   return (
     <section id={id} aria-labelledby={id + '-title'} className="scroll-mt-20 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      {choices?.filter((c) => c.anchor !== id).map((c) => <span key={c.anchor} id={c.anchor} className="block scroll-mt-20" />)}
       <h2 id={id + '-title'} className="text-xl font-bold">{title ?? 'Enquire with ' + agentName}</h2>
       {note && <p className="mt-1 text-sm text-slate-600">{note}</p>}
       <form onSubmit={onSubmit} noValidate className="mt-3 space-y-4">
+        {choices && choices.length > 1 && (
+          <ChipGroup label={S.want} options={choices.map((c) => ({ value: c.anchor, label: c.label }))} value={picked ?? null} onPick={setPicked} />
+        )}
         <div>
           <label htmlFor={id + '-name'} className="font-medium">Your name</label>
           <input id={id + '-name'} name="name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)}

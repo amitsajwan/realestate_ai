@@ -10,6 +10,7 @@ export const QUALIFY_STRINGS = {
   timeline: 'Move in',
   financing: 'Payment',
   bhk: 'BHK',
+  want: 'What would you like?',
   savedNote: "Thanks - we've noted your preferences.",
   savedNoteBudgetTimeline: "Thanks - we've noted your budget and timeline.",
 }
@@ -25,6 +26,9 @@ export const PROJECT_CTA = {
   /** its second action, and the site-visit form it opens */
   visit: 'Book a site visit',
   visitTitle: (name: string) => `Book a site visit to ${name}`,
+  /** the two asks as the one form's choice chips */
+  pricesChoice: 'Price sheet & floor plans',
+  visitChoice: 'Site visit',
   /** under the published prices: they are the sites', the offer of the day is the builder's */
   offer: 'Ask for the current offer',
 }

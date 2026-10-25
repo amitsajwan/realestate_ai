@@ -6,9 +6,17 @@ import { registerDescription, registerTitle } from '@/lib/site/projectSeo'
 import type { RegisterProject } from '@/lib/site/register'
 
 // the stand-in renders the section the real form does (id, heading, note, button), so the page's one-section rule can be checked
-jest.mock('@/components/site/EnquiryForm', () => ({ __esModule: true, default: (p: { id?: string; topic?: string; title?: string; note?: string; submitLabel?: string; agentName: string }) => (
-  <section id={p.id ?? 'enquire'} data-testid={p.id ? 'enquiry-' + p.id : 'enquiry'} data-agent={p.agentName}><h2>{p.title}</h2><p>{p.note}</p><button>{p.submitLabel}</button>{p.topic}</section>
-) }))
+type Choice = { anchor: string; label: string; title: string; topic: string; submitLabel: string }
+jest.mock('@/components/site/EnquiryForm', () => ({ __esModule: true, default: (p: { id?: string; topic?: string; title?: string; note?: string; submitLabel?: string; agentName: string; choices?: Choice[] }) => {
+  // with choices the real form opens on the first and shows the others' anchors and topics only when picked
+  const first = p.choices?.[0]
+  return (
+    <section id={p.id ?? 'enquire'} data-testid={p.id ? 'enquiry-' + p.id : 'enquiry'} data-agent={p.agentName}>
+      {p.choices?.slice(1).map((c) => <span key={c.anchor} id={c.anchor} data-testid={'choice-' + c.anchor} data-title={c.title} data-topic={c.topic} data-submit={c.submitLabel} />)}
+      <h2>{first?.title ?? p.title}</h2><p>{p.note}</p><button>{first?.submitLabel ?? p.submitLabel}</button>{first?.topic ?? p.topic}
+    </section>
+  )
+} }))
 
 const P: RegisterProject = {
   slug: 'rohan-abhilasha-4-wagholi', name: 'Rohan Abhilasha 4', regno: 'P52100080076', promoter: 'Rohan Builders', pincode: '412207',
@@ -281,12 +289,14 @@ describe('project page v2: each fact once, in the order a buyer asks', () => {
     expect(within(hero).getByRole('link', { name: 'Book a site visit' })).toHaveAttribute('href', '#visit')
   })
 
-  it('books a site visit through the same enquiry plumbing, with the visit as its topic', () => {
+  it('books a site visit as a choice in the one enquiry form, with the visit as its topic', () => {
     render(<RegisterProjectPage p={EDEN} siteUrl="https://avasetu.in" facts={null} />)
-    const visit = screen.getByTestId('enquiry-visit')
-    expect(visit).toHaveAttribute('id', 'visit')
-    expect(visit).toHaveTextContent('Book a site visit to PARK EDEN PHASE I')
-    expect(visit).toHaveTextContent('Site visit: PARK EDEN PHASE I (MahaRERA P52100055555)')
+    expect(document.querySelectorAll('section[id="enquire"], section[id="visit"]')).toHaveLength(1)
+    const visit = document.getElementById('visit')!
+    expect(document.getElementById('enquire')).toContainElement(visit)
+    expect(visit).toHaveAttribute('data-title', 'Book a site visit to PARK EDEN PHASE I')
+    expect(visit).toHaveAttribute('data-topic', 'Site visit: PARK EDEN PHASE I (MahaRERA P52100055555)')
+    expect(visit).toHaveAttribute('data-submit', 'Book a site visit')
   })
 
   it('never says the date moved when MahaRERA\'s extension is the only change, and never "homes are available"', () => {
@@ -386,7 +396,7 @@ describe('project page v2: each fact once, in the order a buyer asks', () => {
     const order = [document.getElementById('project-hero')!, screen.getByTestId('project-answer'), screen.getByTestId('photos'),
       screen.getByTestId('prices-section'), screen.getByTestId('plans'), screen.getByRole('heading', { name: 'Park Eden location' }),
       screen.getByTestId('highlights'), screen.getByTestId('about'), screen.getByTestId('record'), screen.getByTestId('compare'),
-      screen.getByRole('heading', { name: 'FAQ' }), document.getElementById('enquire')!, document.getElementById('visit')!]
+      screen.getByRole('heading', { name: 'FAQ' }), document.getElementById('enquire')!]
     order.slice(1).forEach((el, i) => expect(order[i].compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy())
     expect(screen.getByTestId('plans')).toHaveTextContent('Park Eden floor plans')
   })
