@@ -70,3 +70,30 @@ def test_a_stored_profile_with_both_copies_shows_one_on_the_page_and_keeps_its_p
     assert len(shown["photos"]) == 7
     assert not any("cc1d0e0e4929202c" in p["url"] for p in shown["photos"])
     assert len(shown["plans"]) == 2   # floor plans look alike to a dHash: only the photo rule is wider
+
+
+async def test_without_a_model_the_builders_pictures_are_still_taken_and_the_highlights_stay(tmp_path):
+    from app.modules.newsroom.store import Store
+    from ..fakes import FakeDb
+    base = "https://www.godrejproperties.com/pune/residential/godrej-ivara"
+    files = {f"{base}/tower.jpg": _jpeg("tower", (1600, 900)), f"{base}/pool.jpg": _jpeg("pool", (1600, 900))}
+    raw = "<p>Godrej Ivara, 2 and 3 BHK homes in Upper Kharadi, Pune.</p>" + \
+        "".join(f'<img src="{u}" alt="Godrej Ivara {u.rsplit("/", 1)[-1][:-4]}">' for u in files)
+
+    async def page(url):
+        return raw if url == base else None
+
+    async def image(url):
+        return files.get(url)
+
+    async def nothing_drawn(prompt):
+        return None
+    kept = [{"topic": "clubhouse", "text": "A clubhouse", "official": True, "sources": []}]
+    doc = {"_id": "PR1260002502426", "regno": "PR1260002502426", "name": "Godrej Ivara", "locality": "upper_kharadi",
+           "completion_now": "2032-12-16", "builder_pages": [base], "profile": {"highlights": kept}}
+    step, fields = await profile.gather(Store(FakeDb()), doc, None, NOW, fetch=page, image=image,
+                                        media_dir=tmp_path / "project_media", draw=nothing_drawn)
+    shown = fields["profile"]
+    assert sorted(p["image_url"].rsplit("/", 1)[-1] for p in shown["photos"]) == ["pool.jpg", "tower.jpg"]
+    assert shown["highlights"] == kept and step["ok"]
+    assert "highlights not read: no LLM key" in step["checked"]

@@ -1,4 +1,4 @@
-"""Slow, steady enrichment of our project pages (docs/plan/project-pages.md): one project every EVERY_MINUTES, urgent ones at once.
+"""Steady enrichment of our project pages (docs/plan/project-pages.md): one project every EVERY_MINUTES, urgent ones at once.
 
 Each round picks ONE project (`next_project`): an urgent request first (a campaign about to post), then hot projects (areastats.hot:
 selling, in the news, searched for; refreshed every HOT_REFRESH_DAYS), then the pages Google already shows (Search Console
@@ -28,6 +28,14 @@ west side), and in each area new launches and hot projects first (owner 2026-10-
 3. stored on the register record: `page_text` (when accepted), `enriched_at`, `enrich_notes`, `geo` (the gathered position,
    checked to be within NEAR_KM of the pincode's centre) and `enrichment` = {at, steps: {maharera_general, buildings, places,
    text}: each {ok, at, checked...}, score "n/4"}; `status_list` is the owner's view of it (Studio > Newsroom > Project pages).
+Facts often, the model by budget (owner 2026-10-25; docs/plan/enrich-lanes.md). Steps 0, 1, the place check and the pictures
+need no model and run every EVERY_MINUTES (5); MahaRERA's general record is not read again while the register's own read
+(areastats.refresh) is under DETAILS_FRESH_DAYS old, the buildings while under BUILDINGS_FRESH_DAYS. The model steps (2, 2b, 2c's
+highlights, 2d) go through areastats.budget: an answer to the same question (an unchanged page, unchanged facts) is kept and
+costs no call; Gemini is metered in rupees a day and spent first on campaigns, hot projects, pages Google shows and the first
+areas (`tier_of`); the rest goes to the free tiers. When no model has room (or there is no key) the reading is put off, not
+failed: the last results stay and `reading_due` is set; `read_step` takes those projects, premium first, every
+READ_EVERY_MINUTES when the budget has room, from the facts the facts round kept (no gathering again).
 Nothing runs until PROJECT_ENRICH_ENABLED is on. A campaign calls `enrich_now(db, regno)`; the loop takes it within a minute.
 """
 import asyncio
@@ -45,13 +53,16 @@ from app.modules.newsroom import register
 from app.modules.newsroom.store import Store
 from app.platform import trace
 
-from . import brands, hot, pages, prices, pricing, profile, searchconsole, webfacts
+from . import brands, budget, hot, pages, prices, pricing, profile, searchconsole, webfacts
 from .websearch import mentions as websearch_mentions
 from .service import _day
 
 log = logging.getLogger(__name__)
 
-EVERY_MINUTES = 30                    # one project every half hour (urgent campaign requests go first)
+EVERY_MINUTES = 5                     # a facts round every 5 minutes (urgent campaign requests go first); no model needed
+READ_EVERY_MINUTES = 10               # a reading round (model) for a project whose reading was put off, when the budget has room
+DETAILS_FRESH_DAYS = 30               # the register's own MahaRERA read (areastats.refresh) this recent is used as it is
+BUILDINGS_FRESH_DAYS = 30             # the building/wing summary is read again after this
 PAUSE = 2.0                           # seconds between our two MahaRERA reads in a round (one after the other, never parallel)
 NEAR_KM = 15.0                        # the located place must be this close to the pincode's centre
 STEPS = ("maharera_general", "buildings", "places", "text")
@@ -91,7 +102,8 @@ NUM = re.compile(r"\d[\d,]*(?:\.\d+)?")
 Gather = Callable[..., Awaitable[Optional[dict]]]   # gather(db, regno, name, locality, city="Pune", now=None) -> {"view", "notes", ...}
 PincodeCentre = Callable[..., Awaitable[Optional[tuple]]]   # centre(db, pincode) -> (lat, lon) or None
 SheetOf = Callable[..., Awaitable[Optional[dict]]]          # sheet(db, regno) -> the kept property-facts document or None
-_deps: Dict[str, Any] = {"gather": None, "pincode_centre": None, "sheet": None,
+KeptView = Callable[..., Awaitable[Optional[dict]]]         # view(db, regno) -> the public view of the kept facts sheet, or None
+_deps: Dict[str, Any] = {"gather": None, "pincode_centre": None, "sheet": None, "view": None,
                          "general": project_api.make_fetch(), "buildings": project_api.make_fetch_buildings()}
 
 
@@ -106,9 +118,10 @@ def add_daily(name: str, fn: Daily) -> None:
 
 
 def configure(gather: Optional[Gather] = None, pincode_centre: Optional[PincodeCentre] = None, sheet: Optional[SheetOf] = None,
-              general: Optional[project_api.Fetch] = None, buildings: Optional[project_api.Fetch] = None) -> None:
+              general: Optional[project_api.Fetch] = None, buildings: Optional[project_api.Fetch] = None,
+              view: Optional[KeptView] = None) -> None:
     for k, v in (("gather", gather), ("pincode_centre", pincode_centre), ("sheet", sheet), ("general", general),
-                 ("buildings", buildings)):
+                 ("buildings", buildings), ("view", view)):
         if v is not None:
             _deps[k] = v
 
@@ -117,12 +130,14 @@ def configure(gather: Optional[Gather] = None, pincode_centre: Optional[PincodeC
 class Config:
     enabled: bool = False
     every: timedelta = timedelta(minutes=EVERY_MINUTES)
+    read_every: timedelta = timedelta(minutes=READ_EVERY_MINUTES)
 
 
 def load() -> Config:
     on = (os.environ.get("PROJECT_ENRICH_ENABLED") or "").strip().lower() in ("1", "true", "yes", "on")
     mins = int(os.environ.get("PROJECT_ENRICH_EVERY_MINUTES") or EVERY_MINUTES)
-    return Config(enabled=on, every=timedelta(minutes=max(5, mins)))
+    read = int(os.environ.get("PROJECT_READ_EVERY_MINUTES") or READ_EVERY_MINUTES)
+    return Config(enabled=on, every=timedelta(minutes=max(1, mins)), read_every=timedelta(minutes=max(1, read)))
 
 
 def _aware(d: datetime) -> datetime:
@@ -133,7 +148,8 @@ def _ours(d: dict) -> bool:
     return bool(d.get("page_slug")) and (d.get("locality") in BY_KEY or bool(d.get("watched_by")))
 
 
-_UNANSWERED = ("did not answer", "model call failed", "no model answer", "no LLM key")
+# "no LLM key" is not among them: a round without a model puts its reading off (reading_due) instead of failing
+_UNANSWERED = ("did not answer", "model call failed", "no model answer")
 
 
 def unanswered(d: dict) -> bool:
@@ -484,14 +500,57 @@ def score(steps: dict) -> str:
     return f"{sum(1 for k in STEPS if (steps.get(k) or {}).get('ok'))}/{len(STEPS)}"
 
 
-async def enrich_one(store: Store, doc: dict, llm, now: datetime, reread: bool = True) -> dict:
-    """One round for one project. `reread=False` (a rewrite for a newer writer, sources_fresh): the web facts and profile kept
-    from the last round are used as they are, and their steps are carried over."""
+def tier_of(doc: dict, urgent: bool = False) -> str:
+    """How much a project's reading may spend (areastats.budget.route): a campaign about to post, then the premium ones (hot,
+    shown by Google, the first areas: pricing.tier_of), then the rest."""
+    return budget.URGENT if urgent else pricing.tier_of(doc)
+
+
+def _ask(llm, tier: str, step: str):
+    """The client one step uses: the budgeted Reader's view for that step, or a plain client as it is (tests, scripts)."""
+    return llm.ask(tier, step) if hasattr(llm, "ask") else llm
+
+
+def can_read(llm, tier: str) -> bool:
+    """A model may be asked this round: there is one, and (budgeted) today's pools have room for a project of this tier."""
+    if llm is None:
+        return False
+    return llm.can_read(tier) if hasattr(llm, "can_read") else True
+
+
+def _deferred(llm) -> int:
+    return int(getattr(llm, "deferred", 0) or 0)
+
+
+def details_fresh(doc: dict, now: datetime) -> bool:
+    """The register's own details read (areastats.refresh) is recent and good: the round uses it instead of reading MahaRERA's
+    general record again."""
+    at = doc.get("details_checked_at")
+    return bool(doc.get("details_ok")) and isinstance(at, datetime) and now - _aware(at) < timedelta(days=DETAILS_FRESH_DAYS)
+
+
+def buildings_fresh(doc: dict, now: datetime) -> bool:
+    st = (((doc.get("enrichment") or {}).get("steps") or {}).get("buildings") or {})
+    return bool(st.get("ok")) and isinstance(st.get("at"), datetime) and now - _aware(st["at"]) < timedelta(days=BUILDINGS_FRESH_DAYS)
+
+
+async def enrich_one(store: Store, doc: dict, llm, now: datetime, reread: bool = True, facts: bool = True,
+                     urgent: bool = False) -> dict:
+    """One round for one project. `facts`: the steps that need no model (MahaRERA, the gatherer, the place, the pictures); a
+    reading round (`facts=False`, read_step) uses what the last facts round kept. The model steps (web facts, highlights,
+    prices, the page text) run when a model may be asked (`can_read`); otherwise, or when today's budget runs out half way
+    (areastats.budget), they are put off: the last round's results stay, `reading_due` says the reading waits, and nothing
+    counts as failed. `reread=False` (a rewrite for a newer writer, sources_fresh): the web facts and profile kept from the
+    last round are used as they are, and their steps are carried over."""
     regno = doc.get("regno") or doc["_id"]
     gather = _deps["gather"]
-    gathered, notes, steps = None, [], {}
+    gathered, notes, steps, placed = None, [], {}, {}
+    kept_steps = (doc.get("enrichment") or {}).get("steps") or {}
+    kept_versions = (doc.get("enrichment") or {}).get("versions") or {}
     mid = register.maharera_id(doc.get("source_url", ""))
     sheet_of = _deps["sheet"]
+    tier = tier_of(doc, urgent)
+    reading = can_read(llm, tier)
 
     async def sheet() -> Optional[dict]:
         if sheet_of is None:
@@ -502,88 +561,138 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime, reread: bool =
             log.exception("enrich: fact sheet read failed for %s", regno)
             return None
 
-    fill = place_fill(doc, await sheet())
-    if fill:
-        await store.set_project(doc["_id"], **fill)
-        doc = {**doc, **fill}
-    # MahaRERA, one read after the other (it is a public service)
-    steps["maharera_general"], general = await check_general(doc, regno, mid, now)
-    if general:
-        await store.set_project(doc["_id"], **general)
-        doc = {**doc, **general}
-    await asyncio.sleep(PAUSE)
-    steps["buildings"], built = await check_buildings(regno, mid, now)
-    if built:
-        await store.set_project(doc["_id"], **built)
-        doc = {**doc, **built}
-    area = BY_KEY.get(doc.get("locality") or "")
-    where, located_from = ((area.name, "locality") if area else (doc["place_locality"], "listing") if doc.get("place_locality")
-                           else (doc["pincode"], "pincode") if doc.get("pincode") else (None, ""))
-    if gather is not None:
-        try:
-            got = await gather(store.db, regno, doc.get("name", ""), where, now=now) or {}
-            # propertyfacts.enrich.gather_project: {"key", "view" (the public facts view), "notes", "match"}; a plain view is accepted too
-            gathered = got.get("view") if "view" in got else (got or None)
-            notes += [str(n) for n in got.get("notes") or []][:5]
-        except Exception as e:
-            log.exception("enrich: gathering failed for %s", regno)
-            notes.append(f"gathering failed ({type(e).__name__})")
+    if facts:
+        fill = place_fill(doc, await sheet())
+        if fill:
+            await store.set_project(doc["_id"], **fill)
+            doc = {**doc, **fill}
+        # MahaRERA, one read after the other (it is a public service); the register's own recent read is used as it is
+        read_maharera = False
+        if not urgent and details_fresh(doc, now):
+            steps["maharera_general"] = _step(True, now, checked="regno matches (the register's read of "
+                                              f"{_aware(doc['details_checked_at']).date().isoformat()})")
+        else:
+            steps["maharera_general"], general = await check_general(doc, regno, mid, now)
+            read_maharera = mid is not None
+            if general:
+                await store.set_project(doc["_id"], **general)
+                doc = {**doc, **general}
+        if not urgent and buildings_fresh(doc, now):
+            steps["buildings"] = kept_steps["buildings"]
+        else:
+            if read_maharera:
+                await asyncio.sleep(PAUSE)
+            steps["buildings"], built = await check_buildings(regno, mid, now)
+            if built:
+                await store.set_project(doc["_id"], **built)
+                doc = {**doc, **built}
+        area = BY_KEY.get(doc.get("locality") or "")
+        where, located_from = ((area.name, "locality") if area else (doc["place_locality"], "listing") if doc.get("place_locality")
+                               else (doc["pincode"], "pincode") if doc.get("pincode") else (None, ""))
+        if gather is not None:
+            try:
+                got = await gather(store.db, regno, doc.get("name", ""), where, now=now) or {}
+                # propertyfacts.enrich.gather_project: {"key", "view" (the public facts view), "notes", "match"}; a plain view is accepted too
+                gathered = got.get("view") if "view" in got else (got or None)
+                notes += [str(n) for n in got.get("notes") or []][:5]
+            except Exception as e:
+                log.exception("enrich: gathering failed for %s", regno)
+                notes.append(f"gathering failed ({type(e).__name__})")
+        else:
+            notes.append("no gatherer configured")
+        steps["places"], placed = await check_places(store, doc, await sheet(), located_from, now)
     else:
-        notes.append("no gatherer configured")
-    steps["places"], placed = await check_places(store, doc, await sheet(), located_from, now)
+        for k in ("maharera_general", "buildings", "places"):
+            steps[k] = kept_steps.get(k) or {}
+        if _deps["view"] is not None:
+            try:
+                gathered = await _deps["view"](store.db, regno)
+            except Exception:
+                log.exception("enrich: kept facts read failed for %s", regno)
     fetch = webfacts.memo(webfacts.fetch_page)   # the web facts and the profile read the same pages: each once
-    kept_steps = (doc.get("enrichment") or {}).get("steps") or {}
-    web, prof = {}, {}
+    web, prof, put_off = {}, {}, []
+    ran = set()
+
+    async def model_step(key: str, run) -> dict:
+        """Run a model step; a step whose questions were put off for the budget keeps the last round's result."""
+        ask = _ask(llm, tier, key)
+        before = _deferred(ask)
+        try:
+            st, fields = await asyncio.wait_for(run(ask), STEP_SECONDS)
+        except Exception as e:
+            log.exception("enrich: %s failed for %s", key, regno)
+            st, fields = _step(False, now, checked=f"failed ({type(e).__name__})"), {}
+        if _deferred(ask) > before:
+            put_off.append(key)
+            if key != "profile":   # the profile keeps its new pictures and its last highlights itself
+                steps[key] = kept_steps.get(key) or {}
+                return {}
+        steps[key] = st
+        ran.add(key)
+        if fields:
+            await store.set_project(doc["_id"], **fields)
+        return fields
+
     if not reread:
         steps["web"], steps["profile"] = kept_steps.get("web") or {}, kept_steps.get("profile") or {}
         steps["prices"] = kept_steps.get("prices") or {}
+    elif reading:
+        web = await model_step("web", lambda a: webfacts.gather(store, doc, a, now, fetch=fetch))
+        prof = await model_step("profile", lambda a: profile.gather(store, doc, a, now, fetch=fetch))
+        await model_step("prices", lambda a: prices.gather(store, doc, a, now, fetch=fetch))
+    else:   # no model may be asked: the pictures are still read (code), the rest waits
+        put_off += ["web", "prices"]
+        steps["web"], steps["prices"] = kept_steps.get("web") or {}, kept_steps.get("prices") or {}
+        if facts:
+            prof = await model_step("profile", lambda a: profile.gather(store, doc, None, now, fetch=fetch))
+        else:
+            steps["profile"] = kept_steps.get("profile") or {}
+    pinned = ((placed or {}).get("geo") or doc.get("geo") or {}).get("located_from") == "google"
+    draft, text = None, None
+    if reading:
+        ask = _ask(llm, tier, "text")
+        before = _deferred(ask)
+        draft, refused = await write_text(ask, doc, gathered, (web or {}).get("web_facts") or doc.get("web_facts"),
+                                          (prof or {}).get("profile") or doc.get("profile"), pinned)
+        if _deferred(ask) > before:
+            put_off.append("text")
+            steps["text"] = kept_steps.get("text") or {}
+        else:
+            text = (draft or {}).get("text")
+            steps["text"] = _step(bool(text), now, refused_reasons=refused)
+            ran.add("text")
+            if text is None:
+                notes.extend(refused)
+                notes.append("kept the code-written paragraph")
     else:
-        try:
-            steps["web"], web = await asyncio.wait_for(webfacts.gather(store, doc, llm, now, fetch=fetch), STEP_SECONDS)
-        except Exception as e:
-            log.exception("enrich: web facts failed for %s", regno)
-            steps["web"], web = _step(False, now, checked=f"failed ({type(e).__name__})"), {}
-        if web:
-            await store.set_project(doc["_id"], **web)
-        try:
-            steps["profile"], prof = await asyncio.wait_for(profile.gather(store, doc, llm, now, fetch=fetch), STEP_SECONDS)
-        except Exception as e:
-            log.exception("enrich: profile failed for %s", regno)
-            steps["profile"], prof = _step(False, now, checked=f"failed ({type(e).__name__})"), {}
-        if prof:
-            await store.set_project(doc["_id"], **prof)
-        try:   # areastats.prices: the same pages again (fetched once), only their price lines
-            steps["prices"], priced = await asyncio.wait_for(prices.gather(store, doc, llm, now, fetch=fetch), STEP_SECONDS)
-        except Exception as e:
-            log.exception("enrich: prices failed for %s", regno)
-            steps["prices"], priced = _step(False, now, checked=f"failed ({type(e).__name__})"), {}
-        if priced:
-            await store.set_project(doc["_id"], **priced)
-    pinned = ((placed or {}).get("geo") or {}).get("located_from") == "google"
-    draft, refused = await write_text(llm, doc, gathered, (web or {}).get("web_facts") or doc.get("web_facts"),
-                                      (prof or {}).get("profile") or doc.get("profile"), pinned)
-    text = (draft or {}).get("text")
-    steps["text"] = _step(bool(text), now, refused_reasons=refused)
-    if text is None:
-        notes.extend(refused)
-        notes.append("kept the code-written paragraph")
+        put_off.append("text")
+        steps["text"] = kept_steps.get("text") or {}
+    if put_off:
+        why = "no LLM key" if llm is None else "the model budget for today is spent"
+        notes.append(f"reading put off ({why}): {', '.join(dict.fromkeys(put_off))}")
     # the versions the reading steps ran with (a carried-over step keeps the version it was read with)
-    versions = {k: (VERSIONS[k] if reread else int(((doc.get("enrichment") or {}).get("versions") or {}).get(k) or 1)) for k in VERSIONS}
+    versions = {k: (VERSIONS[k] if k in ran else int(kept_versions.get(k) or 1)) for k in VERSIONS}
     enrichment = {"at": now, "steps": steps, "score": score(steps), "versions": versions}
     trace.event(log, "enrich", regno, "done", trace.OK if text and gathered else trace.FALLBACK, text="model" if text else "code",
                 facts="gathered" if gathered else "none", score=enrichment["score"], notes="; ".join(notes) or None)
-    fields = {"enriched_at": now, "enrich_notes": notes, "enrich_gathered": bool(gathered), "enrichment": enrichment, **placed,
+    fields = {"enrich_notes": notes, "enrichment": enrichment, **placed, "reading_due": bool(put_off),
               "enrich_fails": 0, "enrich_error": None, "enrich_parked_until": None}
+    if facts:
+        fields.update(enriched_at=now, enrich_gathered=bool(gathered))
+    if not put_off:
+        fields["read_at"] = now
     if text:
         fields.update(page_text=text, page_text_at=now, page_text_version=TEXT_VERSION, page_sections=draft["sections"],
                       page_summary=draft["summary"])
-    elif doc.get("page_text") and not websearch_mentions(pages.names(doc)[0], doc["page_text"]):
+    elif "text" in ran and doc.get("page_text") and not websearch_mentions(pages.names(doc)[0], doc["page_text"]):
         # a kept text that does not name the project (a model's misspelling) gives way to the code-written paragraph
         fields.update(page_text=None, page_sections=None, page_summary=None)
         notes.append("old text dropped: it does not name the project")
     await store.set_project(doc["_id"], **fields)
-    await store.db.get_collection(REQUESTS).delete_one({"_id": regno})
-    return {"regno": regno, "text": bool(text), "gathered": bool(gathered), "notes": notes, "score": enrichment["score"]}
+    if facts:
+        await store.db.get_collection(REQUESTS).delete_one({"_id": regno})
+    return {"regno": regno, "text": bool(text), "gathered": bool(gathered), "notes": notes, "score": enrichment["score"],
+            "reading_due": bool(put_off)}
 
 
 # ---- the owner's view: what is enriched and checked ------------------------------------------------------------------------
@@ -627,9 +736,13 @@ async def status_list(store: Store, status: Optional[str] = None, limit: int = 3
             "page": f"/projects/{d['page_slug']}" if d.get("page_slug") else None,
             "error": d.get("enrich_error"), "fails": int(d.get("enrich_fails") or 0),
             "parked_until": _iso(d.get("enrich_parked_until")), "outdated": outdated(d),
+            "reading_due": bool(d.get("reading_due")), "read_at": _iso(d.get("read_at")),
         })
     items.sort(key=lambda x: x["enriched_at"] or "", reverse=True)
-    return {"counts": counts, "items": items[:max(1, limit)]}
+    now = datetime.now(timezone.utc)
+    waiting = sum(1 for d in docs if reading_key(d, now) is not None)
+    return {"counts": counts, "items": items[:max(1, limit)], "reading_waiting": waiting,
+            "budget": await budget.today(store.db, now)}
 
 
 async def enrich_now(db, regno: str, by: str = "campaign") -> bool:
@@ -647,16 +760,12 @@ async def enrich_now(db, regno: str, by: str = "campaign") -> bool:
     return True
 
 
-def busy(llm) -> bool:
-    """More than half the text providers are resting after a 429 or a timeout (platform.llm.ModelHealth): a rewrite that can
-    wait does, so the free tiers keep room for chat and content and the page is not rewritten from half-read sources."""
-    providers = getattr(llm, "providers", None) or ([llm] if llm is not None else [])
-    resting = sum(1 for p in providers if getattr(p, "resting", lambda: False)())
-    return bool(providers) and resting * 2 > len(providers)
+busy = budget.busy   # moved to areastats.budget; kept here for callers of the old name
 
 
 async def step(store: Store, llm, now: datetime, last_regular: Optional[datetime], every: timedelta) -> Optional[dict]:
-    """Urgent requests always; otherwise one project when `every` has passed since the last regular one."""
+    """The facts turn: urgent requests always; otherwise one project when `every` has passed since the last regular one. Its
+    reading runs in the same round when a model may be asked, else it is put off (read_step takes it later)."""
     urgent = await store.db.get_collection(REQUESTS).count_documents({})
     if not urgent and last_regular is not None and now - _aware(last_regular) < every:
         return None
@@ -664,20 +773,61 @@ async def step(store: Store, llm, now: datetime, last_regular: Optional[datetime
     if doc is None:
         return None
     reread = True
-    if not urgent and (_priority(doc, now) or (0,))[0] == BACKFILL:   # the group of the key before the area and launch order
+    is_urgent = bool(urgent) and (doc.get("regno") or doc["_id"]) in await _urgent(store)
+    if not is_urgent and (_priority(doc, now) or (0,))[0] == BACKFILL:   # the group of the key before the area and launch order
         reread = not sources_fresh(doc, now) or bool(outdated(doc))
         if reread and last_regular is not None and now - _aware(last_regular) < BACKFILL_EVERY:
             return None
-        if busy(llm):
-            log.info("enrich: rewrite for %s waits: most free model tiers are resting", doc.get("_id"))
+        if not can_read(llm, tier_of(doc)) or busy(llm):   # a rewrite is reading only: it waits for a model with room
+            log.info("enrich: rewrite for %s waits: no model has room", doc.get("_id"))
             return None
     try:
-        out = await asyncio.wait_for(enrich_one(store, doc, llm, now, reread=reread), ROUND_SECONDS)
+        out = await asyncio.wait_for(enrich_one(store, doc, llm, now, reread=reread, urgent=is_urgent), ROUND_SECONDS)
     except asyncio.CancelledError:
         raise
     except Exception as e:   # noted on the record and the next project goes on; the request does not keep the loop busy
         out = await failed_round(store, doc, now, e)
     out["urgent"] = bool(urgent)
+    return out
+
+
+async def _urgent(store: Store) -> set:
+    return {r["_id"] for r in await store.db.get_collection(REQUESTS).find({}).to_list(200)}
+
+
+def reading_key(d: dict, now: datetime) -> Optional[tuple]:
+    """Sort key (lower first) for a project whose reading was put off, or None when it has none waiting: premium projects
+    first (hot, then Google's), then our areas outward from Kharadi, oldest wait first."""
+    if not d.get("reading_due") or parked(d, now) or pages.completion_passed(d, now.date()):
+        return None
+    failed = d.get("read_failed_at")
+    if isinstance(failed, datetime) and now - _aware(failed) < MIN_GAP:
+        return None
+    tier = tier_of(d)
+    return (0 if tier == budget.PREMIUM else 1, -int(d.get("hot_score") or 0), -int(d.get("gsc_impressions") or 0),
+            pricing.area_rank(d), _aware(d["enriched_at"]).timestamp() if isinstance(d.get("enriched_at"), datetime) else 0)
+
+
+async def read_step(store: Store, llm, now: datetime, last_read: Optional[datetime], every: timedelta) -> Optional[dict]:
+    """The reading turn: one project whose reading was put off (no model, or the day's budget was spent), the most valuable
+    first, when `every` has passed and today's budget has room for it. Uses the facts the last facts round kept."""
+    if llm is None or last_read is not None and now - _aware(last_read) < every:
+        return None
+    ranked = sorted(((k, d) for d in await store.all_projects() if _ours(d) and (k := reading_key(d, now)) is not None),
+                    key=lambda x: x[0])
+    doc = next((d for _, d in ranked if can_read(llm, tier_of(d))), None)
+    if doc is None:
+        return None
+    try:
+        out = await asyncio.wait_for(enrich_one(store, doc, llm, now, facts=False), ROUND_SECONDS)
+    except asyncio.CancelledError:
+        raise
+    except Exception as e:
+        log.exception("enrich: reading round failed for %s", doc.get("regno") or doc["_id"])
+        await store.set_project(doc["_id"], read_failed_at=now, enrich_error=f"reading failed ({type(e).__name__})")
+        out = {"regno": doc.get("regno") or doc["_id"], "text": False, "notes": [f"reading failed ({type(e).__name__})"],
+               "score": None, "reading_due": True}
+    out["reading"] = True
     return out
 
 
@@ -701,11 +851,12 @@ async def failed_round(store: Store, doc: dict, now: datetime, e: Exception) -> 
 async def loop() -> None:
     from app.core.database import get_database
     from app.platform.heartbeats import heartbeat
-    from app.platform.llm import default_llm
 
     log.info("enrich: loop started")
     last_regular: Optional[datetime] = None
+    last_read: Optional[datetime] = None
     last_prices: Optional[datetime] = None
+    pruned_day: Optional[str] = None
     while True:
         cfg = load()
         try:
@@ -729,13 +880,25 @@ async def loop() -> None:
                             await daily(Store(get_database()), now)
                         except Exception:
                             log.exception("enrich: %s round failed", name)
-                    llm = default_llm()
+                    if pruned_day != budget.day_of(now):
+                        try:   # kept model answers nobody asked for in a long while
+                            await budget.prune(get_database(), now)
+                            pruned_day = budget.day_of(now)
+                        except Exception:
+                            log.exception("enrich: pruning kept answers failed")
+                    # today's model budget (areastats.budget): None when no model key is set at all
+                    llm = await budget.reader(get_database(), now)
                     out = await step(Store(get_database()), llm, now, last_regular, cfg.every)
                     if out:   # enrich_one logged it (pipeline=enrich)
                         if not out["urgent"]:
                             last_regular = now
+                    try:   # a project whose reading was put off, when today's budget has room
+                        if await read_step(Store(get_database()), llm, datetime.now(timezone.utc), last_read, cfg.read_every):
+                            last_read = now
+                    except Exception:
+                        log.exception("enrich: reading round failed")
                     try:   # prices on their own turn, Upper Kharadi, Kharadi and Wagholi first (areastats.pricing)
-                        if await pricing.step(Store(get_database()), llm, datetime.now(timezone.utc), last_prices, busy=busy(llm)):
+                        if await pricing.step(Store(get_database()), llm, datetime.now(timezone.utc), last_prices):
                             last_prices = now
                     except Exception:
                         log.exception("enrich: prices round failed")

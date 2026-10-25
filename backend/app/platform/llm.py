@@ -5,12 +5,13 @@ Moved from ai_listing/llm.py (MODERNIZATION step 2); the listing extraction and 
 """
 import asyncio
 import base64
+import contextvars
 import itertools
 import json
 import logging
 import os
 import time
-from typing import Any, Optional, Protocol
+from typing import Any, Callable, Optional, Protocol
 
 import httpx
 
@@ -45,6 +46,28 @@ def groq_api_key() -> Optional[str]:
         except Exception:  # settings unavailable -> deterministic only
             key = None
     return key or None
+
+
+# Who wants to know what each answer cost: a caller sets it around its calls (areastats.budget meters the enrichment's Gemini
+# spend). It gets {"url", "model", "prompt_tokens", "output_tokens"} for every answer that came back; output counts thinking
+# too where the provider reports it (Gemini bills its thinking as output). A context variable, so concurrent callers each see
+# only their own answers.
+UsageHook = Callable[[dict], None]
+USAGE: contextvars.ContextVar[Optional[UsageHook]] = contextvars.ContextVar("llm_usage", default=None)
+
+
+def _report_usage(url: str, model: str, r: httpx.Response) -> None:
+    hook = USAGE.get()
+    if hook is None:
+        return
+    try:
+        u = r.json().get("usage") or {}
+        prompt = int(u.get("prompt_tokens") or 0)
+        total = int(u.get("total_tokens") or 0)
+        out = max(total - prompt, int(u.get("completion_tokens") or 0))
+        hook({"url": url, "model": model, "prompt_tokens": prompt, "output_tokens": out})
+    except Exception:   # a meter must never cost the answer
+        log.exception("LLM usage hook failed")
 
 
 class LLM(Protocol):
@@ -180,8 +203,10 @@ class GroqLLM:
     async def _chat(self, system: str, user: str, temperature: float = 0) -> Optional[dict[str, Any]]:
         order = model_order(self.model)
         headers = {"Authorization": f"Bearer {self.api_key}"}
+        sent = {"model": order[0] if order else ""}
 
         async def send(model: str, timeout: float) -> httpx.Response:
+            sent["model"] = model
             # max_tokens: some providers default to ~256 (Cloudflare), which cut a campaign brief or pitch short
             body = {"model": model, "temperature": temperature, "response_format": {"type": "json_object"}, "max_tokens": JSON_MAX_TOKENS,
                     "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
@@ -196,6 +221,7 @@ class GroqLLM:
             r = await post_with_failover(order, send, per_attempt=self.timeout / 2 if len(set(order)) > 1 else self.timeout,
                                          budget=self.timeout, health=self.health, url=self.health_key)
             r.raise_for_status()
+            _report_usage(self.url, sent["model"], r)
             data = json.loads(_json_text(r.json()["choices"][0]["message"]["content"]))
             return data if isinstance(data, dict) else None
         except Exception as e:  # timeout, HTTP, bad JSON: caller falls back silently
@@ -208,8 +234,10 @@ class GroqLLM:
         budget = timeout or max(self.timeout, 30.0)
         order = model_order(self.model)
         headers = {"Authorization": f"Bearer {self.api_key}"}
+        sent = {"model": order[0] if order else ""}
 
         async def send(model: str, t: float) -> httpx.Response:
+            sent["model"] = model
             body = {"model": model, "temperature": 0.4,
                     "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
             if self._client:
@@ -221,6 +249,7 @@ class GroqLLM:
             r = await post_with_failover(order, send, per_attempt=budget / 2 if len(set(order)) > 1 else budget, budget=budget,
                                          health=self.health, url=self.health_key)
             r.raise_for_status()
+            _report_usage(self.url, sent["model"], r)
             return (r.json()["choices"][0]["message"]["content"] or "").strip() or None
         except Exception as e:
             status = getattr(getattr(e, "response", None), "status_code", None)
@@ -416,6 +445,28 @@ def critical_llm() -> Optional[LLM]:
     if not providers:
         return None
     return providers[0] if len(providers) == 1 else OrderedLLM(providers)
+
+
+GEMINI_LITE_MODEL = "gemini-flash-lite-latest"
+
+
+def gemini_llm(lite: bool = False) -> Optional["GroqLLM"]:
+    """Gemini alone, for a caller that pays for it on purpose and meters it (areastats.budget): the critical models, or the
+    lite one (AI_GEMINI_LITE_MODEL). None without GEMINI_API_KEY."""
+    gkey = os.environ.get("GEMINI_API_KEY")
+    if not gkey:
+        return None
+    model = (os.environ.get("AI_GEMINI_LITE_MODEL", GEMINI_LITE_MODEL) if lite
+             else os.environ.get("AI_CRITICAL_MODEL", GEMINI_CRITICAL_MODEL))
+    return GroqLLM(gkey, model=model, url=GEMINI_OPENAI_URL)
+
+
+def free_llm() -> Optional[LLM]:
+    """Every text provider but Gemini (the free tiers), round-robin like default_llm; None when none is set."""
+    providers = [p for p in text_providers() if p.url != GEMINI_OPENAI_URL]
+    if not providers:
+        return None
+    return providers[0] if len(providers) == 1 else FallbackLLM(providers)
 
 
 def default_llm() -> Optional[LLM]:

@@ -530,8 +530,9 @@ async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[webfacts.
         return {"ok": True, "at": now, "checked": "read on the group's primary record"}, {}
     if pages.completion_passed(doc):
         return {"ok": True, "at": now, "checked": "completion date passed: profile no longer read"}, {}
-    if llm is None:
-        return {"ok": False, "at": now, "checked": "no LLM key"}, {}
+    # no model (no key, or today's budget spent: areastats.budget): the pictures are code and still read; the highlights stay
+    # as the last round found them
+    deferred = getattr(llm, "deferred", 0)
     name = pages.names(doc)[0]
     results = await webfacts.results_for(store, doc, name, search if search is not None else websearch.provider(), now)
     sources = webfacts.sources_for(doc, results, name, limit=webfacts.MAX_TRIES)
@@ -559,6 +560,9 @@ async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[webfacts.
                 read.append({"site": src["site"], "url": src["url"], "official": src["official"], "ok": False, "why": not_ok})
                 continue
             raw_of[src["url"]] = raw
+            if llm is None:
+                read.append({"site": src["site"], "url": src["url"], "official": src["official"], "ok": False, "why": "no model"})
+                continue
             got, why_ = await read_highlights(llm, src, name, text)
             readings += got
             read.append({"site": src["site"], "url": src["url"], "official": src["official"], "ok": bool(got), "why": why_})
@@ -568,6 +572,9 @@ async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[webfacts.
             log.exception("profile: pictures failed for %s", regno)
             photos, plans, why = [], [], f"pictures failed ({type(e).__name__})"
     highlights = agree(readings)
+    put_off = llm is None or getattr(llm, "deferred", 0) > deferred
+    if put_off and old.get("highlights"):   # some pages were not read: the last full reading stands
+        highlights = []
     shared = await others_pictures(store.db, doc)
     plans = [x for x in plans if not generic(x, shared)]
     photos = [x for x in photos if not generic(x, shared)]
@@ -596,7 +603,9 @@ async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[webfacts.
                "highlights": highlights or old.get("highlights") or [],
                "photos": distinct_photos(photos or kept(old.get("photos"))), "plans": plans or kept(old.get("plans"))}
     checked = f"{len(highlights)} highlights from {sum(1 for r in read if r['ok'])} of {len(read)} sites; {why}"
-    return {"ok": bool(highlights or photos or plans), "at": now, "checked": checked}, {"profile": profile}
+    if put_off:
+        checked += "; highlights not read: " + ("no LLM key" if llm is None else "the model budget is spent")
+    return {"ok": bool(highlights or photos or plans or put_off and profile["highlights"]), "at": now, "checked": checked}, {"profile": profile}
 
 
 def _hash_of(pic: dict) -> Optional[int]:

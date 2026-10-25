@@ -48,7 +48,7 @@ def wire() -> None:
     register_watch.add_source("agent_projects", _agent_project_watch)
     # project pages are enriched slowly in the background with the property-facts gatherer (areastats.enrich, PROJECT_ENRICH_*)
     from app.modules.areastats import enrich as project_enrich
-    project_enrich.configure(gather=_gather_project, sheet=_project_sheet, pincode_centre=_pincode_centre)
+    project_enrich.configure(gather=_gather_project, sheet=_project_sheet, pincode_centre=_pincode_centre, view=_project_view)
     register_watch.add_source("property_facts", _property_facts_watch)  # every project we gathered facts for to market it
     # area maps: pins found by the name a project is sold under (areastats.mappins), through propertyfacts' Google Places client
     from app.modules.areastats import mappins
@@ -160,6 +160,14 @@ async def _project_sheet(db, regno):
     from app.modules.propertyfacts.store import FactsStore
 
     return await FactsStore(db).find(regno)
+
+
+async def _project_view(db, regno):
+    """The public view of a project's kept property-facts sheet, for a reading round that does not gather again (areastats.enrich)."""
+    from app.modules.propertyfacts.public import view
+    from app.modules.propertyfacts.store import FactsStore
+
+    return view(await FactsStore(db).find(regno))
 
 
 async def _places_search(db, query, centre):

@@ -81,3 +81,23 @@ async def test_a_round_reads_one_project_keeps_the_search_budget_and_the_coverag
     assert cov["baner"]["priced"] == 1
     p2 = await store.projects.find_one({"_id": "P2"})
     assert p2["prices_tried_at"] == NOW and p2["prices_checked"] == "1 prices from 1 of 2 sites"
+
+
+async def test_a_price_read_put_off_for_the_budget_is_not_recorded_as_tried(monkeypatch):
+    from app.modules.areastats import budget
+    store = Store(FakeDb())
+    await store.projects.insert_one(doc(2, "upper_kharadi"))
+    asked = []
+
+    async def fake_gather(store_, d, llm, now, fetch=None, search=None, allow_search=True):
+        asked.append(llm.tier)
+        await llm.json("sys", "page")          # no pool has room: put off
+        return {"ok": False, "at": now, "checked": "0 prices from 0 of 1 sites"}, {}
+    monkeypatch.setattr(prices, "gather", fake_gather)
+    reader = await budget.Reader(store.db, NOW, free=None, gemini=None, lite=None).start()
+    checks = []
+    reader.allowed = lambda pool, tier: checks.append(pool) or len(checks) == 1   # room when the round starts, none after
+    assert await pricing.step(store, reader, NOW, None) is None
+    assert asked == [budget.PREMIUM]           # Upper Kharadi: a premium project's prices
+    assert "prices_tried_at" not in await store.projects.find_one({"_id": "P2"})
+    assert await pricing.step(store, None, NOW, None) is None   # no model at all: prices wait

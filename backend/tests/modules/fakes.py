@@ -31,6 +31,8 @@ def _match(doc, flt):
                     return False
                 if op == "$gt" and not (val is not None and val > arg):
                     return False
+                if op == "$lt" and not (val is not None and val < arg):
+                    return False
                 if op == "$in" and val not in arg:
                     return False
                 if op == "$nin" and val in arg:
@@ -63,6 +65,13 @@ class _Cursor:
 
     async def to_list(self, length=None):
         return [copy.deepcopy(d) for d in self.docs]
+
+    def __aiter__(self):
+        return self._each()
+
+    async def _each(self):
+        for d in self.docs:
+            yield copy.deepcopy(d)
 
 
 class _UpdateResult:
@@ -124,6 +133,11 @@ class FakeCollection:
                 del self.docs[i]
                 return type("R", (), {"deleted_count": 1})
         return type("R", (), {"deleted_count": 0})
+
+    async def delete_many(self, flt):
+        before = len(self.docs)
+        self.docs = [d for d in self.docs if not _match(d, flt)]
+        return type("R", (), {"deleted_count": before - len(self.docs)})
 
     async def update_one(self, flt, update, upsert=False):
         for d in self.docs:

@@ -241,7 +241,10 @@ def agree(readings: List[dict]) -> List[dict]:
 
 
 def _model(llm):
-    """The critical model (Gemini first, then every provider) for prices: a price is the fact a buyer acts on."""
+    """The critical model (Gemini first, then every provider) for prices: a price is the fact a buyer acts on. The enrichment's
+    budgeted client (areastats.budget) already sends prices to Gemini for the projects that matter and meters it: kept."""
+    if getattr(llm, "budgeted", False):
+        return llm
     try:
         from app.platform.llm import critical_llm
         return critical_llm() or llm
