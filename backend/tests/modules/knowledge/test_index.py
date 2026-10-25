@@ -49,3 +49,16 @@ def test_a_topic_passage_reads_every_titled_table_and_drops_the_bold_markers():
     prices = chunks["topic:upper-kharadi:prices"]["text"]
     assert "Locality averages" in prices and "Project specifics" in prices and "Lodha Camelot 3 BHK" in prices
     assert "**" not in chunks["topic:upper-kharadi:where"]["text"]
+
+
+def test_a_projects_sections_are_indexed_once_and_its_record_paragraph_opens():
+    sections = [{"heading": "The project", "text": "Park Eden Phase I is the first phase of Park Eden in Kharadi, Pune."},
+                {"heading": "Location", "text": "The project is in Kharadi, on the eastern side of Pune."}]
+    doc = {"_id": "P1", "regno": "P1", "name": "Park Eden Phase I", "locality": "kharadi", "page_slug": "park-eden-phase-i-kharadi",
+           "page_text": "\n\n".join(s["text"] for s in sections), "page_sections": sections}
+    texts = [c["text"] for c in index.project_chunks(doc)]
+    assert texts[0].startswith("Park Eden Phase I is a project in Kharadi, Pune, registered with MahaRERA as P1.")
+    assert sum(sections[0]["text"] in t for t in texts) == 1
+    # an older writer's summary still opens the project's passages
+    old = {**doc, "page_text": "Park Eden Phase I is a housing project in Kharadi."}
+    assert index.project_chunks(old)[0]["text"].startswith("Park Eden Phase I is a housing project in Kharadi.")

@@ -20,7 +20,7 @@ For one project (a tower group is read once, on its primary record):
 Stored on the register record as `prices` = {at, rows: [{bhk, from_inr, to_inr, official, sources: [{site, url, official,
 quote}]}], read: [{site, url, ok, why}]}. A round that finds nothing keeps the last rows while they are under KEEP_DAYS old:
 prices change, an old one goes. `public` is what the pages show (with `sqft`, the size the lowest price is for, when its
-line states it); `price_from` the lowest, for the area lists.
+line states it, and `per_sqft`, that price over that size); `price_from` the lowest, for the area lists.
 """
 import logging
 import re
@@ -315,9 +315,9 @@ def public(prices: Optional[dict], now: Optional[datetime] = None) -> Optional[d
         return None
     return {"read_at": at.date().isoformat(),
             "rows": [{"bhk": r["bhk"], "from_inr": r["from_inr"], "to_inr": r.get("to_inr"), "official": r.get("official", False),
-                      "sqft": sqft_of(r, q),
+                      "sqft": sqft, "per_sqft": round(r["from_inr"] / sqft) if sqft else None,
                       "sources": [{"site": s["site"], "url": s["url"] if s.get("official") else None} for s in r.get("sources") or []]}
-                     for r, q in rows]}
+                     for r, q in rows for sqft in (sqft_of(r, q),)]}
 
 
 def _quote(row: dict) -> str:

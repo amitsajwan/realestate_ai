@@ -20,6 +20,13 @@ export const PROJECT_CTA = {
   full: 'Get price sheet & floor plans',
   short: 'Get price & plans',
   formTitle: (name: string) => `Get the price sheet and floor plans for ${name}`,
+  /** the register project page's main action: the price sheet is the day's, which is why a buyer asks rather than reads */
+  today: "Get today's price sheet & floor plans",
+  /** its second action, and the site-visit form it opens */
+  visit: 'Book a site visit',
+  visitTitle: (name: string) => `Book a site visit to ${name}`,
+  /** under the published prices: they are the sites', the offer of the day is the builder's */
+  offer: 'Ask for the current offer',
 }
 
 /** Who the buyer is told will contact them. Enquiries to the house account are followed up by the team, and messages to leads are

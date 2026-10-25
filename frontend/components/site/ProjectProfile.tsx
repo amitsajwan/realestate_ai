@@ -7,20 +7,22 @@ import FloorPlansLock, { type PlansLead } from '@/components/site/FloorPlansLock
 /** Highlights, the builder's pictures and floor plans of a project still being built (backend areastats/profile.py). `part` shows
  * one of them, so a page can put the pictures first and the plans next to the prices. Floor plans are always behind a short
  * form (owner 2026-10-22: "floor plans locked, ask for the form"): shown only with `lead`, even when we have none yet. `skip` is a
- * picture already shown elsewhere on the page (the register page's hero), so the gallery does not repeat it. */
-export default function ProjectProfile({ profile, name, part, lead, skip }: {
+ * picture already shown elsewhere on the page (the register page's hero), so the gallery does not repeat it. `omit` leaves out
+ * highlight topics the page already says (the register page's hero names the BHK types, so its "homes" bullet would repeat them). */
+export default function ProjectProfile({ profile, name, part, lead, skip, omit = [] }: {
   profile: Profile | null | undefined; name: string; part?: 'highlights' | 'photos' | 'plans'; lead?: PlansLead; skip?: string | null
+  omit?: string[]
 }) {
   const showPlans = (!part || part === 'plans') && !!lead
   if (!profile) return showPlans && lead ? <FloorPlansLock plans={[]} name={name} lead={lead} /> : null
-  const highlights = !part || part === 'highlights' ? profile.highlights : []
+  const highlights = !part || part === 'highlights' ? profile.highlights.filter((h) => !omit.includes(h.topic)) : []
   const photos = !part || part === 'photos' ? distinctPhotos(profile.photos ?? []).filter((x) => !skip || x.url !== skip) : []
   const drawn = photos.length > 0 && photos.every((p) => sourceOf(p) === 'ai')
   return (
     <>
       {highlights.length > 0 && (
         <section aria-labelledby="highlights-title" data-testid="highlights">
-          <h2 id="highlights-title" className="text-xl font-bold">{name} at a glance</h2>
+          <h2 id="highlights-title" className="text-xl font-bold">{name} amenities</h2>
           <ul className="mt-3 space-y-2">
             {highlights.map((h) => (
               <li key={h.topic} className="flex gap-2 text-slate-800">

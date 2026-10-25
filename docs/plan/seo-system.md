@@ -55,7 +55,7 @@ By area (2026-10-21, of pages checked): core pages 21/25, Wagholi 26/76, Kharadi
 
 | Page | Path | Title pattern (example) | Structured data | Index rule |
 |---|---|---|---|---|
-| Project | `/projects/<slug>` | "<name people search>, <area>: Price, Possession <Mon YYYY>" | ApartmentComplex, FAQPage, BreadcrumbList | noindex while thin (`pages.indexable`); towers/phases of one project are one page, the others 301 to it |
+| Project | `/projects/<slug>` | "<name people search> <area>: 3 & 4 BHK from ₹1.99 Cr, possession Feb 2031"; no price: "…: MahaRERA <regno>, possession <Mon YYYY>" (`frontend/lib/site/projectSeo.ts`, at most 65) | ApartmentComplex (+ an Offer per priced size with its floor size, the builder as Organization), FAQPage, BreadcrumbList, WebPage | noindex while thin (`pages.indexable`); towers/phases of one project are one page, the others 301 to it |
 | Place (all projects) | `/projects/area/<place>` | "New Projects & Flats in <place>, Pune …" → "Flats & Residential Projects in <place>" once its new-launches page is live; "Flat prices in <place>" by size; "Also spelt …" | ItemList (+ Place with `alternateName`) | listed once a project in it has real facts |
 | Area list (grown from searches) | `/projects/area/<place>/<intent>[/<n>-bhk][/possession-YYYY][/by-builder]` | new launches / top / "Ready to Move Flats" | ItemList, FAQPage | 3+ projects, else noindex |
 | Size (from published prices) | `/projects/area/<place>/<n>-bhk` (1-4; "2 BHK" takes in 2.5) | "2 BHK Flats in Lohegaon, Pune (Oct 2026): 7 Projects, Prices" | ItemList, FAQPage | 3+ projects with a published price for that size, else noindex |
