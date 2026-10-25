@@ -128,7 +128,12 @@ def project_chunks(doc: dict) -> List[dict]:
     where = area.name if area else (doc.get("pune_place_name") or doc.get("taluka") or "Pune district")
     name = doc.get("search_name") or doc.get("group_name") or pages.names(doc)[0] or doc.get("name") or regno
     title, url, akey = f"{name}, {where} (MahaRERA {regno})", f"/projects/{doc['page_slug']}", (area.key if area else doc.get("pune_place") or "")
-    first = " ".join(x for x in (doc.get("page_text") or pages.paragraph(doc), _details(doc)) if x)
+    # the page writer's own summary (enrich.TEXT_VERSION 2 and 3); from 4 on `page_text` is its sections joined, which have
+    # their own passages below, so the record's paragraph opens instead
+    sections = doc.get("page_sections") or []
+    joined = "\n\n".join(s.get("text") or "" for s in sections if s.get("text"))
+    summary = doc.get("page_text") if doc.get("page_text") != joined else None
+    first = " ".join(x for x in (summary or pages.paragraph(doc), _details(doc)) if x)
     out = [_chunk(f"project:{regno}", "project", title, first, url, akey, regno)]
     if doc.get("page_text"):
         for i, s in enumerate(doc.get("page_sections") or []):

@@ -14,17 +14,20 @@ GATHERED = {"nearby": [{"label": "school", "name": "Lexicon School", "km": 1.2}]
 
 
 class FakeLLM:
+    """Answers with the text's paragraphs as the sections, in SECTIONS order, and a search line."""
     def __init__(self, text):
         self.text, self.calls = text, 0
 
     async def json(self, system, user):
         self.calls += 1
-        return {"text": self.text}
+        return {"sections": [{"heading": h, "text": t} for h, t in zip(enrich.SECTIONS, self.text.split("\n\n"))],
+                "search_summary": "Rohan Abhilasha 4, Wagholi: homes by Rohan Builders, registered with MahaRERA"}
 
 
-GOOD = ("Rohan Abhilasha 4 is a housing project by Rohan Builders in Wagholi, Pune. Its completion date filed with MahaRERA is "
-        "30 Oct 2029, later than the 31 Dec 2028 filed at registration. 244 of 416 homes were booked when the record was read.\n\n"
-        "The filed completion date has not passed.")
+# what the page does not already show: no dates, no bookings, no prices (TEXT_VERSION 4); stored as page_text, joined
+GOOD = ("Rohan Abhilasha 4 is a residential project by Rohan Builders in Wagholi, Pune, filed with MahaRERA as one of the "
+        "builder's Abhilasha projects.\n\n"
+        "The project is in Wagholi, on the eastern side of Pune, an area where many new housing projects are registered.")
 
 
 @pytest.fixture(autouse=True)
@@ -119,8 +122,11 @@ async def test_a_refused_draft_keeps_the_code_paragraph_and_the_page_shows_accep
 
     await store.set_project("P1", enriched_at=None)
     await enrich.step(store, FakeLLM(GOOD), NOW, None, timedelta(minutes=30))
+    doc = await store.project("P1")
+    assert doc["page_text"] == GOOD and doc["page_text_version"] == enrich.TEXT_VERSION
     page = await pages.project_page(db, doc["page_slug"])
-    assert page["paragraph"] == GOOD and page["enriched_at"] == "2026-10-06"
+    assert [s["heading"] for s in page["sections"]] == ["The project", "Location"] and page["enriched_at"] == "2026-10-06"
+    assert page["search_description"] == "Rohan Abhilasha 4, Wagholi: homes by Rohan Builders, registered with MahaRERA"
 
 
 async def test_without_a_gatherer_it_still_writes_from_the_register_facts(monkeypatch):
@@ -259,27 +265,40 @@ IVARA = {"_id": "PR1260002502426", "regno": "PR1260002502426", "name": "Godrej I
 
 
 class DraftLLM:
-    def __init__(self, summary):
-        self.summary = summary
+    """Answers with the given section texts ("The project", then "Location"); records what it was asked and forgotten."""
+    def __init__(self, *texts, summary="Godrej Ivara, Upper Kharadi: homes by Manjari Housing, completion 16 Dec 2032", answer=None):
+        self.texts, self.summary, self.answer, self.asked, self.forgot = texts, summary, answer, [], []
 
     async def json(self, system, user):
-        return {"summary": self.summary, "sections": [], "search_summary": "Godrej Ivara, Upper Kharadi: homes by Manjari Housing, completion 16 Dec 2032"}
+        self.asked.append(user)
+        if self.answer is not None:
+            return self.answer
+        return {"sections": [{"heading": h, "text": t} for h, t in zip(enrich.SECTIONS, self.texts)],
+                "search_summary": self.summary}
+
+    async def forget(self, system, user):
+        self.forgot.append(user)
+
+
+IVARA_PROJECT = ("Godrej Ivara is a housing project by Manjari Housing Projects LLP, sold under the Godrej Properties brand, in "
+                 "Upper Kharadi, Pune.")
 
 
 async def test_a_draft_calling_maharera_s_blanket_extension_a_move_is_refused():
-    moved = ("Godrej Ivara is a housing project by Manjari Housing Projects LLP in Upper Kharadi, Pune. The MahaRERA-filed "
-             "completion date was moved from 16 Aug 2032 to 16 Dec 2032. 489 of the 2792 homes were booked.")
-    draft, refused = await enrich.write_text(DraftLLM(moved), IVARA, None)
-    assert draft is None
-    assert any("2026 extension" in r for r in refused)
-    fine = moved.replace("was moved from 16 Aug 2032 to 16 Dec 2032", "is 16 Dec 2032 and the builder has not moved it")
-    draft, refused = await enrich.write_text(DraftLLM(fine), IVARA, None)
-    assert refused == [] and draft["text"] == fine
+    for moved in ("The builder has moved the completion date later.", "The completion date was pushed back by the builder.",
+                  "Its completion date shows an increase over the first one.", "The developer extended the completion date."):
+        llm = DraftLLM(IVARA_PROJECT + " " + moved)
+        draft, refused = await enrich.write_text(llm, IVARA, None)
+        assert draft is None, moved
+        assert any("2026 extension" in r for r in refused), moved
+        assert llm.forgot == llm.asked                           # a budgeted client asks again next round
+    draft, refused = await enrich.write_text(DraftLLM(IVARA_PROJECT + " The builder has not moved its completion date."), IVARA, None)
+    assert refused == [] and draft["text"] == IVARA_PROJECT + " The builder has not moved its completion date."
 
 
 async def test_a_draft_whose_first_sentence_repeats_the_name_is_refused():
     garbled = ("Godrej Ivara Godrej Properties Godrej Ivara, developed by Manjari Housing Projects LLP, is a housing project in "
-               "Upper Kharadi, Pune. Its completion date filed with MahaRERA is 16 Dec 2032. 489 of the 2792 homes were booked.")
+               "Upper Kharadi, Pune. It is registered with MahaRERA.")
     draft, refused = await enrich.write_text(DraftLLM(garbled), IVARA, None)
     assert draft is None
     assert "the first sentence names Godrej Ivara twice" in refused
@@ -290,6 +309,102 @@ def test_the_writer_is_told_the_blanket_extension_is_the_whole_difference():
     assert "the builder did not move it" in facts
     builder_moved = {**IVARA, "completion_now": "2033-06-16"}
     assert "the builder did not move it" not in enrich.facts_text(builder_moved, None)
+
+
+# ---- Park Eden Phase I, 2026-10-25 (docs/plan/project-page-v2.md, "What was wrong") -------------------------------------------
+# MahaRERA registers 2 buildings under this number; the builder's site says 5 towers (the whole project, all phases). The filed
+# date went 31 Oct 2030 -> 28 Feb 2031 by MahaRERA's extension alone; 27 of 249 homes booked. The live page said all three wrong.
+EDEN = {"_id": "P52100054321", "regno": "P52100054321", "name": "PARK EDEN PHASE I", "locality": "kharadi",
+        "promoter": "Eden Realty LLP", "registered_on": "2024-03-12", "completion_at_registration": "2030-10-31",
+        "completion_now": "2031-02-28", "units_total": 249, "units_booked": 27,
+        "building_totals": {"towers": 2, "max_floors": 22, "units_total": 249, "units_residential": 249, "units_other": None},
+        "prices": {"rows": [{"bhk": "3 BHK", "from_inr": 19900000}, {"bhk": "4 BHK", "from_inr": 27500000}]}}
+EDEN_WEB = {"facts": [{"key": "towers", "label": "Towers", "value": 5, "text": "5", "official": True,
+                       "sources": [{"site": "parkeden.in", "url": "https://parkeden.in/", "quote": "5 towers"}]},
+                      {"key": "land_acres", "label": "Land", "value": 7.5, "text": "7.5 acres", "official": True,
+                       "sources": [{"site": "parkeden.in", "url": "https://parkeden.in/", "quote": "7.5 acres"}]}]}
+EDEN_NEAR = {"nearby": [{"label": "school", "name": "Lexicon School", "km": 1.2}], "numbers": {}}
+EDEN_PROJECT = ("Park Eden Phase I is the first phase of Park Eden, by Eden Realty LLP in Kharadi, Pune. This registration "
+                "covers two buildings of up to 22 floors; the whole project has five towers on 7.5 acres, according to the "
+                "builder's site.")
+EDEN_LOCATION = ("The project is in Kharadi, on the eastern side of Pune. Lexicon School is 1.2 km away in a straight line "
+                 "from the project's pin.")
+EDEN_SUMMARY = "Park Eden Phase I, Kharadi: homes in two buildings by Eden Realty LLP, completion filed for 28 Feb 2031"
+
+
+def test_the_writer_is_told_what_the_page_shows_and_which_counts_are_the_whole_projects():
+    facts = enrich.facts_text(EDEN, EDEN_NEAR, EDEN_WEB, None, pinned=True)
+    assert ("Towers: 5 for the whole project, from the builder's site (parkeden.in); this registration has 2 with MahaRERA"
+            in facts)
+    assert "Land: 7.5 acres (from parkeden.in)" in facts           # not a count of this registration: as it is
+    shown = "\n".join(enrich.on_page(EDEN))
+    assert "Completion date filed with MahaRERA: 28 Feb 2031 (at registration 31 Oct 2030); it changed only by MahaRERA's order" in shown
+    assert "Homes: 249 in this registration, 27 booked" in shown and "3 BHK from Rs 19,900,000" in shown
+    assert "BHK types: 3 BHK, 4 BHK" in shown
+    # fewer or as many towers on the web as MahaRERA registers: nothing to scope
+    assert enrich.whole_project_counts({**EDEN, "building_totals": {"towers": 5}}, EDEN_WEB) == []
+
+
+async def test_park_eden_drafts_that_repeat_the_page_or_misscope_a_count_are_refused():
+    async def write(*texts):
+        llm = DraftLLM(*texts, summary=EDEN_SUMMARY)
+        draft, refused = await enrich.write_text(llm, EDEN, EDEN_NEAR, EDEN_WEB, None, pinned=True)
+        assert ("ALREADY ON THE PAGE (do not repeat):" in llm.asked[0] and "27 booked" in llm.asked[0])
+        assert llm.forgot == ([] if draft else llm.asked)
+        return draft, refused
+
+    draft, refused = await write(EDEN_PROJECT + " 27 of the 249 homes are booked.", EDEN_LOCATION)
+    assert draft is None and "repeats the homes total (249)" in refused and "repeats the booking count (27)" in refused
+    draft, refused = await write(EDEN_PROJECT + " Of its homes, 222 are still available.", EDEN_LOCATION)
+    assert draft is None and "repeats the homes left (222)" in refused
+    draft, refused = await write(EDEN_PROJECT + " Its completion date is 28 Feb 2031, an increase from 31 Oct 2030.", EDEN_LOCATION)
+    assert draft is None
+    assert {"repeats the completion date (28 Feb 2031)", "repeats the completion date (31 Oct 2030)",
+            "says the date moved, but the only change is MahaRERA's 2026 extension"} <= set(refused)
+    misscoped = EDEN_PROJECT.replace("This registration covers two buildings of up to 22 floors; the whole project has five "
+                                     "towers on 7.5 acres, according to the builder's site.",
+                                     "It has five towers of up to 22 floors on 7.5 acres.")
+    draft, refused = await write(misscoped, EDEN_LOCATION)
+    assert draft is None and "gives the whole project's towers (5) as this registration's (2)" in refused
+    draft, refused = await write(EDEN_PROJECT + " Homes start at Rs 1.99 Cr.", EDEN_LOCATION)
+    assert draft is None and "gives a price (the page shows the prices)" in refused
+    draft, refused = await write(EDEN_PROJECT, "No specific nearby places are mentioned in the provided facts.")
+    assert draft is None and 'the "Location" section is empty or says nothing' in refused
+
+    draft, refused = await write(EDEN_PROJECT, EDEN_LOCATION)
+    assert refused == []
+    assert draft == {"text": EDEN_PROJECT + "\n\n" + EDEN_LOCATION, "summary": EDEN_SUMMARY,
+                     "sections": [{"heading": "The project", "text": EDEN_PROJECT},
+                                  {"heading": "Location", "text": EDEN_LOCATION}]}
+
+
+async def test_an_accepted_draft_is_stored_as_sections_with_the_search_line():
+    db, store = await ready((EDEN["_id"], EDEN["name"], "kharadi",
+                             {**{k: v for k, v in EDEN.items() if k not in ("_id", "name")}, "web_facts": EDEN_WEB}))
+    llm = DraftLLM(EDEN_PROJECT, summary=EDEN_SUMMARY)
+    await enrich.enrich_one(store, await store.project(EDEN["_id"]), llm, NOW, reread=False)
+    doc = await store.project(EDEN["_id"])
+    assert doc["page_sections"] == [{"heading": "The project", "text": EDEN_PROJECT}]
+    assert doc["page_text"] == EDEN_PROJECT and doc["page_summary"] == EDEN_SUMMARY and doc["page_text_version"] == 4
+
+
+def test_an_answer_in_an_older_writers_shape_is_no_draft_and_does_not_crash():
+    for old in ({"text": GOOD}, {"summary": GOOD, "sections": [], "search_summary": "x"}, None, "text", {"sections": "x"},
+                {"sections": [None, {"heading": 3}, {"heading": "The homes and the building", "text": GOOD}]}):
+        assert enrich.draft_of(old)["sections"] == [] and enrich.draft_of(old)["text"] == ""
+    facts = enrich.facts_text(EDEN, None)
+    assert 'no "The project" section' in enrich.refused(EDEN, None, enrich.draft_of({"summary": GOOD}), facts)
+    # headings as the model may case them are the page's headings
+    assert enrich.draft_of({"sections": [{"heading": "the project", "text": EDEN_PROJECT}]})["sections"][0]["heading"] == "The project"
+
+
+def test_pages_written_by_an_older_writer_are_rewritten_after_everything_else():
+    old = {"_id": "O", "page_slug": "o", "locality": "wagholi", **FULL, "enriched_at": NOW - timedelta(days=3),
+           "enrichment": {"score": "4/4", "steps": {"web": {"ok": True, "at": NOW - timedelta(days=3)}}}, "page_text_version": 3}
+    assert enrich.TEXT_VERSION == 4
+    key = enrich._priority(old, NOW)
+    assert key[:2] == (enrich.BACKFILL, 0)                        # web pages read lately: a cheap rewrite (one model call)
+    assert enrich._priority({**old, "page_text_version": 4}, NOW) is None
 
 
 # ---- facts often, the model by budget (docs/plan/enrich-lanes.md) ------------------------------------------------------------
