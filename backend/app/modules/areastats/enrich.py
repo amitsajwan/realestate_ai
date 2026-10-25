@@ -14,19 +14,22 @@ west side), and in each area new launches and hot projects first (owner 2026-10-
    `building_totals`. A record with no pincode or locality gets them from the project's fact sheet (same regno) first.
 1. facts: the property-facts gatherer (set at startup in app/wiring.py, `configure(gather=...)`): MahaRERA's full record, the
    place and what is nearby, worked-out numbers, the agent's offer; each with its source. No model here.
-2. text: ONE model call writes the page text from those facts only. `check_text` refuses any number not in the facts, sales words
-   and anything too long; a refused draft keeps the code-written paragraph.
+2. text: ONE model call writes the page's "About the project" sections ("The project", "Location") and a one-line search summary
+   from those facts only, told what the page already shows. `check_text` refuses any number not in the facts, sales words and
+   anything too long, `repeats` a draft that says again what the page shows or gives a whole-project count as this
+   registration's; a refused draft keeps the code-written paragraph.
 2b. web: what the builder's site and the sites ranking for the project say (areastats.webfacts), checked, kept as
    `web_facts` on the group's primary record; the accepted facts are given to the text model too. Not counted in the score.
 2c. profile: highlights, the builder's pictures and floor plans (areastats.profile), only while the filed completion date is to
    come; read from the same pages (each fetched once per round), kept as `profile`; the highlights go to the text model too. A
    hot project with no profile yet is enriched at once (after urgent requests). Not counted in the score.
 2d. prices: what the builder's site and the property sites ask, per home size (areastats.prices), from the same pages' price
-   lines, every amount read by code from a quote; kept as `prices`. Not given to the text model (prices change faster than the
-   text is rewritten) and not counted in the score. Prices also have their own round in this loop (areastats.pricing: one
+   lines, every amount read by code from a quote; kept as `prices`. Not given to the text model as facts (prices change faster
+   than the text is rewritten; it is only told the page shows them, so as not to repeat them) and not counted in the score. Prices also have their own round in this loop (areastats.pricing: one
    project every 15 minutes, Upper Kharadi, Kharadi and Wagholi first), so they do not wait for a rewrite.
-3. stored on the register record: `page_text` (when accepted), `enriched_at`, `enrich_notes`, `geo` (the gathered position,
-   checked to be within NEAR_KM of the pincode's centre) and `enrichment` = {at, steps: {maharera_general, buildings, places,
+3. stored on the register record: `page_text` (the sections' texts joined, when accepted), `page_sections`, `page_summary` (the
+   search line), `enriched_at`, `enrich_notes`, `geo` (the gathered position, checked to be within NEAR_KM of the pincode's
+   centre) and `enrichment` = {at, steps: {maharera_general, buildings, places,
    text}: each {ok, at, checked...}, score "n/4"}; `status_list` is the owner's view of it (Studio > Newsroom > Project pages).
 Facts often, the model by budget (owner 2026-10-25; docs/plan/enrich-lanes.md). Steps 0, 1, the place check and the pictures
 need no model and run every EVERY_MINUTES (5); MahaRERA's general record is not read again while the register's own read
@@ -71,14 +74,17 @@ RETRY_DAYS = 1                        # a round MahaRERA or the model did not an
 HOT_REFRESH_DAYS = 14                 # a hot project's page is rewritten from fresh facts this often
 POLL_SECONDS = 60
 REQUESTS = "enrich_requests"          # {_id: regno, at, by}: urgent enrichments asked for by campaigns
-MAX_TEXT = 2600                       # characters, the summary and its sections together
+MAX_TEXT = 2600                       # characters, the sections and the search summary together
 MAX_SUMMARY = 160                     # the one-line summary search results may show
 # 2 (owner 2026-10-17, "more content, good summary, good SEO"): a summary, then sections under fixed headings, then a one-line
 # summary for search results. A page whose text an older writer wrote is due for a round again (`priority`).
 # 3 (owner 2026-10-20, "paragraph, line or highlights, if they need improvements"): the name as buyers write it (not MahaRERA's
 # capitals), the brand beside the filing company, and the highlights (shown as bullets next to the text) not repeated
-TEXT_VERSION = 3
-SECTIONS = ("The homes and the building", "Location", "Amenities and features")
+# 4 (owner 2026-10-25, Park Eden Phase I: "why we have duplicate"; docs/plan/project-page-v2.md): sections only, no summary;
+# nothing the page already shows (dates, bookings, prices, highlights), whole-project counts said to be so, the extension
+# not called a move. Older pages are rewritten in the BACKFILL group, through the model budget.
+TEXT_VERSION = 4
+SECTIONS = ("The project", "Location")
 # Each reading step has a version (owner 2026-10-20: "enrichment can happen again: we improve it, get more info, a better model").
 # Raise a step's number when the step gets better (a new rule, a new source, a better model): every project that step read with
 # an older version is read again, in the BACKFILL group, hot ones first. Kept per project in `enrichment.versions`.
@@ -258,6 +264,28 @@ async def next_project(store: Store, now: datetime) -> Optional[dict]:
     return ranked[0][1] if ranked else None
 
 
+def _int(v: Any) -> Optional[int]:
+    try:
+        n = float(v)
+    except (TypeError, ValueError):
+        return None
+    return int(n) if n.is_integer() and n > 0 else None
+
+
+def whole_project_counts(doc: dict, web: Optional[dict]) -> List[Tuple[dict, int]]:
+    """[(web fact, this registration's count)]: the towers or homes the builder's or a property site gives that are more than
+    MahaRERA registers under this number. Those describe the whole marketed project (its other phases are other registrations),
+    not this page's registration."""
+    t = doc.get("building_totals") or {}
+    mine = {"towers": _int(t.get("towers")), "homes_total": _int(doc.get("units_total")) or _int(t.get("units_total"))}
+    out = []
+    for f in (web or {}).get("facts") or []:
+        theirs, ours = _int(f.get("value")), mine.get(f.get("key"))
+        if theirs and ours and theirs > ours:
+            out.append((f, ours))
+    return out
+
+
 def facts_text(doc: dict, gathered: Optional[dict], web: Optional[dict] = None, prof: Optional[dict] = None,
                pinned: bool = False) -> str:
     """Everything the model may use, as plain labelled lines: the register record (dates spelt out with what they are), then the
@@ -287,7 +315,14 @@ def facts_text(doc: dict, gathered: Optional[dict], web: Optional[dict] = None, 
     o = g.get("offer") or {}
     if o.get("price_inr"):
         lines.append(f"Price on the agent's listing: Rs {o['price_inr']:,} ({o.get('source') or 'agent listing'})")
-    lines += webfacts.lines(web)
+    scoped = {f["key"]: mine for f, mine in whole_project_counts(doc, web)}
+    for f, line in zip((web or {}).get("facts") or [], webfacts.lines(web)):
+        if f.get("key") in scoped:   # Park Eden Phase I: "five towers" (the builder's site) beside MahaRERA's two buildings
+            where = "the builder's site" if f.get("official") else "property sites"
+            sites = ", ".join(s["site"] for s in f.get("sources") or [])
+            line = (f"{f['label']}: {f['text']} for the whole project, from {where} ({sites}); this registration has "
+                    f"{scoped[f['key']]} with MahaRERA")
+        lines.append(line)
     lines += [f"Highlight, {x}" for x in profile.lines(prof)]
     if pinned:
         lines += [f"Nearby {str(x.get('label') or 'place').lower()}: {x['name']}, {x['km']} km in a straight line from the project's pin"
@@ -316,23 +351,56 @@ def check_text(text: str, facts: str) -> List[str]:
     return problems
 
 
-SYSTEM = ("You write the description on a property website's page about one housing project in Pune, for home buyers and for "
-          "Google. Use ONLY the facts given. Plain, neutral English. "
-          "1) summary: one paragraph of 50 to 90 words: what the project is and who builds it, where it is, what kind of homes when the "
-          "facts say, the completion date filed with MahaRERA and whether it moved, how many homes are booked (or that bookings were "
-          "not reported) and whether the completion date has passed. Use the project's name in the first sentence. "
-          "2) sections: up to three, each with one of these headings exactly and 2 to 4 sentences, only when the facts have something "
-          "for it: " + "; ".join(f'"{h}"' for h in SECTIONS) + ". Homes: towers, floors, homes, BHK types, sizes, land, open space. "
-          "Location: the area and the nearby places given, with their distances as given (straight line); none given: leave it out. "
-          "Amenities: the clubhouse, amenities, specifications and features given. Never repeat a sentence of the summary. "
-          "The page shows every 'Highlight' line as a bullet point next to your text: do not repeat them; when Highlight lines "
-          "are given, write no \"Amenities and features\" section, and use a highlight in the summary only to say what kind of "
-          "homes are on offer. Write the project's name and the brand as the first two lines give them (not in capital "
-          "letters); say a project's completion date has passed only when it has. "
-          f"3) search_summary: one line under {MAX_SUMMARY} characters for search results: name, area, what is on offer, completion. "
-          "Keep each date with its label. No adjectives of praise, no advice to buy, no prices unless a fact gives one, no numbers "
-          "that are not in the facts, no facts about other projects. "
-          'Answer as JSON: {"summary": "...", "sections": [{"heading": "...", "text": "..."}], "search_summary": "..."}')
+SYSTEM = ("You write the \"About the project\" part of a property website's page about one housing project in Pune, for home "
+          "buyers and for Google. Use ONLY the facts given. Plain, neutral English. "
+          "The page already shows, above your text, everything listed under ALREADY ON THE PAGE: do not repeat any of it. No "
+          "completion date and no word on whether it changed, no count of homes, bookings or homes left, no price, no list of "
+          "BHK types, no highlight. Say what those parts of the page cannot. "
+          "sections: one or two, each with one of these headings exactly and 2 to 4 sentences: "
+          + "; ".join(f'"{h}"' for h in SECTIONS) + ". "
+          "\"The project\": name the project once in the first sentence, then its layout (towers or buildings, floors, land, open "
+          "space), how this MahaRERA registration sits in the whole marketed project (one phase, some of its towers) when the "
+          "facts say, and what is distinctive about it (architect, partners, clubhouse) when the facts say. "
+          "\"Location\": the area and the nearby places given, with their distances as given (straight line); when no nearby "
+          "places are given, leave the section out. Never write a section that only says the facts do not tell. "
+          "A count given \"for the whole project\" is the whole marketed project's, not this registration's: when you use it, "
+          "say so in the same sentence (\"the whole project has five towers; this phase has two\"). "
+          "Write the project's name and the brand as the first two lines give them (not in capital letters). "
+          f"search_summary: one line under {MAX_SUMMARY} characters for search results: name, area, what is on offer, completion. "
+          "Keep each date with its label. No adjectives of praise, no advice to buy, no numbers that are not in the facts, no "
+          "facts about other projects. "
+          'Answer as JSON: {"sections": [{"heading": "...", "text": "..."}], "search_summary": "..."}')
+
+
+def on_page(doc: dict, prof: Optional[dict] = None) -> List[str]:
+    """What the page shows outside the writer's sections (hero, answer paragraph, prices, highlights), for the prompt's
+    ALREADY ON THE PAGE list: the writer is to add to these, not say them again."""
+    name = pages.names(doc)[0]
+    area = BY_KEY.get(doc.get("locality") or "")
+    b = brands.of(doc)
+    builder = ", ".join(x for x in (b.name if b else None, doc.get("promoter")) if x)
+    out = [f"Name: {name}" + (f" (MahaRERA: {doc['name']})" if doc.get("name") and doc["name"] != name else ""),
+           f"Builder: {builder}" if builder else "",
+           f"Area: {area.name if area else doc.get('pune_place_name') or doc.get('place_locality') or 'Pune district'}",
+           f"MahaRERA number: {doc.get('regno') or doc['_id']}"]
+    now, first = _day(doc.get("completion_now")), _day(doc.get("completion_at_registration"))
+    if now:
+        line = f"Completion date filed with MahaRERA: {pages._long(now)}"
+        if first and first != now:
+            line += f" (at registration {pages._long(first)})"
+            if pages.extension_months(doc) and pages.months_later(doc) == 0:
+                line += "; it changed only by MahaRERA's order (Order 66/2026), the builder did not move it"
+        out.append(line)
+    total, sold = _int(doc.get("units_total")), pages.booked(doc)
+    if total:
+        out.append(f"Homes: {total} in this registration" + (f", {sold} booked" if sold is not None else ""))
+    rows = [r for r in (doc.get("prices") or {}).get("rows") or [] if isinstance(r, dict)]
+    if rows:
+        out.append("Prices: " + "; ".join(f"{r.get('bhk')} from Rs {r['from_inr']:,}" for r in rows
+                                          if isinstance(r.get("from_inr"), int)))
+        out.append("BHK types: " + ", ".join(dict.fromkeys(str(r["bhk"]) for r in rows if r.get("bhk"))))
+    out += [f"Highlight, {x}" for x in profile.lines(prof)]
+    return [x for x in out if x]
 
 
 # a section that only says there is nothing to say, or repeats the warning every page carries (2026-10-22: "No specific
@@ -341,8 +409,77 @@ NOTHING = re.compile(r"provided facts|not (?:mentioned|specified|available|state
                      r"check the maharera record before you book", re.I)
 
 
-# a draft saying the filed date moved; "has not moved" / "not been moved" are fine
-MOVED = re.compile(r"(?<!not )(?<!never )(?<!not been )\b(?:moved|pushed|postponed|delayed|revised|shifted)\b", re.I)
+# a draft saying the filed date moved; "has not moved" / "not been moved" are fine. Park Eden Phase I (2026-10-25): "an
+# increase from 31 Oct 2030", for MahaRERA's own extension
+MOVED = re.compile(r"(?<!not )(?<!never )(?<!not been )(?<!no )\b(?:moved|pushed|postponed|delayed|revised|shifted|deferred|"
+                   r"rescheduled|increased?|later than (?:the|its) (?:original|first|earlier))\b", re.I)
+# "extended" is MahaRERA's own word for its order; said of the builder, or with no MahaRERA in the sentence, it is a move
+EXTENDED = re.compile(r"\bextend(?:ed|s)?\b|\bextension\b", re.I)
+# the words that put a count on the whole marketed project, not this registration. "Project" alone does not: "the project has
+# five towers" is what the Park Eden page said wrongly, and every sentence of the section is about the project
+WHOLE = re.compile(r"\b(?:whole|entire|overall|wider|marketed|altogether|in all|project-wide|across the project|"
+                   r"(?:all|other|later|future|more|each|every|several|both) (?:the )?phases?|phases)\b", re.I)
+BOOKED_WORDS = re.compile(r"\b(?:book\w*|sold|unsold|taken|available|left|remain\w*)\b", re.I)
+PRICE = re.compile(r"(?:₹|\bRs\.?|\bINR)\s*\d|\b\d[\d,.]*\s*(?:lakhs?|lacs?|crores?|cr)\b", re.I)
+WORDS = ("zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen "
+         "eighteen nineteen twenty").split()
+
+
+def _sentences(text: str) -> List[str]:
+    return [s for s in re.split(r"(?<=[.!?;])\s+|\n+", text) if s.strip()]
+
+
+def _without_names(doc: dict, text: str) -> str:
+    """The text with the project's names taken out: "Rohan Abhilasha 4" and "Park Eden Phase I" carry a number and a phase."""
+    for n in sorted(pages.names(doc)[1], key=len, reverse=True):
+        text = re.sub(re.escape(n), " ", text, flags=re.I)
+    return text
+
+
+def _says(sentence: str, n: int) -> bool:
+    return str(n) in _numbers(sentence) or (n < len(WORDS) and re.search(rf"\b{WORDS[n]}\b", sentence, re.I) is not None)
+
+
+def _date_said(day: str, text: str) -> bool:
+    """The date in any common spelling: "31 Oct 2030", "October 31, 2030", "Oct 2030", "2030-10-31", "31/10/2030"."""
+    y, m, d = (int(x) for x in day.split("-"))
+    mon = pages._MONTHS[m - 1]
+    return bool(re.search(rf"\b{mon}[a-z]*\.?,?\s+(?:\d{{1,2}}(?:st|nd|rd|th)?,?\s+)?{y}\b", text, re.I)
+                or re.search(rf"\b{y}-{m:02d}-{d:02d}\b|\b0?{d}[/.-]0?{m}[/.-]{y}\b", text))
+
+
+def repeats(doc: dict, web: Optional[dict], text: str) -> List[str]:
+    """What a draft's sections say that the page already shows (bookings, the homes total, the completion dates, prices), or a
+    whole-project count given as this registration's; [] when none."""
+    problems = []
+    plain = _without_names(doc, text)
+    total, sold = _int(doc.get("units_total")), pages.booked(doc)
+    if total and str(total) in _numbers(plain):
+        problems.append(f"repeats the homes total ({total})")
+    left = total - sold if total and sold is not None and sold <= total else None
+    for what, n in (("the booking count", sold), ("the homes left", left)):
+        if n and any(_says(s, n) and BOOKED_WORDS.search(s) for s in _sentences(plain)):
+            problems.append(f"repeats {what} ({n})")
+    for day in dict.fromkeys(x for x in (_day(doc.get("completion_now")), _day(doc.get("completion_at_registration"))) if x):
+        if _date_said(day, text):
+            problems.append(f"repeats the completion date ({pages._long(day)})")
+    if PRICE.search(text):
+        problems.append("gives a price (the page shows the prices)")
+    for f, mine in whole_project_counts(doc, web):
+        n = _int(f.get("value"))
+        if any(_says(s, n) and not WHOLE.search(s) for s in _sentences(plain)):
+            problems.append(f"gives the whole project's {f['label'].lower()} ({n}) as this registration's ({mine})")
+    return problems
+
+
+def says_moved(text: str) -> bool:
+    """The draft says the filed completion date was moved (or extended by anyone but MahaRERA)."""
+    for s in _sentences(text):
+        if MOVED.search(s):
+            return True
+        if EXTENDED.search(s) and (not re.search(r"maharera", s, re.I) or re.search(r"\b(?:builder|developer|promoter)\b", s, re.I)):
+            return True
+    return False
 
 
 def empty_section(text: str) -> bool:
@@ -350,54 +487,81 @@ def empty_section(text: str) -> bool:
 
 
 def draft_of(out: Any) -> dict:
-    """{text, sections, summary} from the model's answer; an answer in the first writer's shape ({"text"}) is a summary alone."""
+    """{text, sections, summary} from the model's answer; `text` is the sections' texts joined (what `page_text` keeps).
+    Sections under other headings are dropped; an empty one is kept, for `refused` to refuse. An answer in an older writer's
+    shape ({"text"} or {"summary"}: a kept answer) has no sections, and is refused, not shown."""
     out = out if isinstance(out, dict) else {}
 
     def tidy(v: Any) -> str:   # one line, plain hyphens (models write U+2011 "MahaRERA‑filed")
         return " ".join(str(v or "").replace("‑", "-").replace("‐", "-").split())
 
-    raw = str(out.get("summary") or out.get("text") or "")
-    text = "\n\n".join(tidy(para) for para in re.split(r"\n\s*\n", raw) if para.strip())
     sections: List[dict] = []
-    for sec in out.get("sections") or []:
-        if isinstance(sec, dict) and sec.get("heading") in SECTIONS and tidy(sec.get("text")) \
-                and not empty_section(tidy(sec.get("text"))) \
-                and sec["heading"] not in {x["heading"] for x in sections}:
-            sections.append({"heading": sec["heading"], "text": tidy(sec["text"])})
+    raw = out.get("sections")
+    for sec in raw if isinstance(raw, list) else []:
+        said = tidy(sec.get("heading")).lower() if isinstance(sec, dict) else ""
+        heading = next((h for h in SECTIONS if h.lower() == said), None)
+        if heading and heading not in {x["heading"] for x in sections}:
+            sections.append({"heading": heading, "text": tidy(sec.get("text"))})
     summary = tidy(out.get("search_summary"))
-    return {"text": text, "sections": sections, "summary": summary if 40 <= len(summary) <= MAX_SUMMARY else None}
+    return {"text": "\n\n".join(x["text"] for x in sections if x["text"]), "sections": sections,
+            "summary": summary if 40 <= len(summary) <= MAX_SUMMARY else None}
+
+
+def refused(doc: dict, web: Optional[dict], draft: dict, facts: str) -> List[str]:
+    """Why a draft may not be shown; [] when it may."""
+    problems: List[str] = []
+    if SECTIONS[0] not in [x["heading"] for x in draft["sections"]]:
+        problems.append(f'no "{SECTIONS[0]}" section')
+    for x in draft["sections"]:
+        if empty_section(x["text"]):
+            problems.append(f'the "{x["heading"]}" section is empty or says nothing')
+    body = draft["text"]
+    whole = "\n\n".join([body, draft["summary"] or ""])
+    problems += check_text(body, facts) + [p for p in check_text(whole, facts) if p != "too short"]
+    problems += repeats(doc, web, body)
+    # the name as the page shows it, in the sections and the search line (2026-10-22: "Prusin Adara" for Prasun Adara); a kept
+    # text that does not name the project is dropped by the next round (enrich_one)
+    name = pages.names(doc)[0]
+    if body and not websearch_mentions(name, body):
+        problems.append(f"the sections do not name {name}")
+    if draft["summary"] and not websearch_mentions(name, draft["summary"]):
+        problems.append(f"the summary does not name {name}")
+    # 2026-10-22: "Godrej Ivara Godrej Properties Godrej Ivara, developed by ..." opened a live page
+    for x in draft["sections"]:
+        first_sentence = re.split(r"(?<=[.!?])\s", x["text"], maxsplit=1)[0]
+        if name and first_sentence.lower().count(name.lower()) > 1:
+            problems.append(f"the first sentence names {name} twice")
+    # MahaRERA's own 2026 extension is not the builder moving the date (2026-10-22: "was moved from 16 Aug 2032 to 16 Dec 2032";
+    # 2026-10-25, Park Eden Phase I: "an increase from 31 Oct 2030")
+    if pages.extension_months(doc) and pages.months_later(doc) == 0 and says_moved(whole):
+        problems.append("says the date moved, but the only change is MahaRERA's 2026 extension")
+    return list(dict.fromkeys(problems))
 
 
 async def write_text(llm, doc: dict, gathered: Optional[dict], web: Optional[dict] = None, prof: Optional[dict] = None,
                      pinned: bool = False) -> tuple:
-    """({text, sections, summary} or None, why it was refused: [] when accepted). The whole draft is checked as one text."""
+    """({text, sections, summary} or None, why it was refused: [] when accepted). A refused answer is forgotten by a budgeted
+    client (areastats.budget), so the next round asks the model again instead of reading the same refused answer back."""
     if llm is None:
         return None, ["no LLM key"]
     facts = facts_text(doc, gathered, web, prof, pinned)
+    user = "Facts:\n" + facts + "\n\nALREADY ON THE PAGE (do not repeat):\n" + "\n".join(f"- {x}" for x in on_page(doc, prof))
     try:
-        out = await llm.json(SYSTEM, "Facts:\n" + facts)
+        out = await llm.json(SYSTEM, user)
     except Exception as e:
         log.exception("enrich: model call failed for %s", doc.get("_id"))
         return None, [f"model call failed ({type(e).__name__})"]
     if out is None:
         return None, ["no model answer"]
     draft = draft_of(out)
-    whole = "\n\n".join([draft["text"]] + [x["text"] for x in draft["sections"]] + [draft["summary"] or ""])
-    problems = list(dict.fromkeys(check_text(draft["text"], facts) + [p for p in check_text(whole, facts) if p != "too short"]))
-    # the name as the page shows it, in the paragraph and the search line (2026-10-22: "Prusin Adara" for Prasun Adara)
-    name = pages.names(doc)[0]
-    for part, said in (("paragraph", draft["text"]), ("summary", draft["summary"] or "")):
-        if said and not websearch_mentions(name, said):
-            problems.append(f"the {part} does not name {name}")
-    # 2026-10-22: "Godrej Ivara Godrej Properties Godrej Ivara, developed by ..." opened a live page
-    first_sentence = re.split(r"(?<=[.!?])\s", draft["text"], maxsplit=1)[0]
-    if name and first_sentence.lower().count(name.lower()) > 1:
-        problems.append(f"the first sentence names {name} twice")
-    # MahaRERA's own 2026 extension is not the builder moving the date (2026-10-22: "was moved from 16 Aug 2032 to 16 Dec 2032")
-    if pages.extension_months(doc) and pages.months_later(doc) == 0 and MOVED.search(whole):
-        problems.append("says the date moved, but the only change is MahaRERA's 2026 extension")
+    problems = refused(doc, web, draft, facts)
     if problems:
         log.info("enrich: draft for %s refused: %s", doc.get("_id"), "; ".join(problems))
+        if hasattr(llm, "forget"):
+            try:
+                await llm.forget(SYSTEM, user)
+            except Exception:
+                log.exception("enrich: forgetting a refused answer failed for %s", doc.get("_id"))
         return None, problems
     return draft, []
 
