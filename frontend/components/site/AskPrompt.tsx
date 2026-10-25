@@ -7,8 +7,10 @@ import { PROJECT_CTA } from '@/lib/site/strings'
  * action and shows only when the page has a number for it.
  * `compact` is the desktop version at the top of the sticky side column.
  */
-export default function AskPrompt({ name, note, whatsappUrl, compact = false }: {
+export default function AskPrompt({ name, note, whatsappUrl, compact = false, label = PROJECT_CTA.full }: {
   name: string; note: string; whatsappUrl?: string | null; compact?: boolean
+  /** the page's one action label, when it words it its own way (the register page's PROJECT_CTA.today) */
+  label?: string
 }) {
   return (
     <section aria-label={`Ask about ${name}`} data-print="hide" data-testid={compact ? 'ask-prompt-side' : 'ask-prompt'}
@@ -17,7 +19,7 @@ export default function AskPrompt({ name, note, whatsappUrl, compact = false }: 
       <p className="mt-1 text-sm text-slate-700">Ask about prices, floor plans, offers or a site visit. {note}</p>
       <div className={'mt-3 flex gap-2 ' + (compact ? 'flex-col' : 'flex-wrap')}>
         <a href="#enquire" className="inline-flex min-h-[48px] items-center justify-center rounded-full bg-[#0f2340] px-6 font-bold text-white no-underline">
-          {PROJECT_CTA.full}
+          {label}
         </a>
         {whatsappUrl && (
           <a href={whatsappUrl} target="_blank" rel="noopener noreferrer"
