@@ -23,7 +23,7 @@ from fastapi.responses import JSONResponse
 from app.core import areas as core_areas
 from app.core.database import get_database
 
-from . import policy
+from . import policy, trackers
 from . import presentation as pr
 from .store import Store
 
@@ -228,3 +228,20 @@ async def public_news_item(item_id: str, response: Response, store: Store = Depe
     # the projects the story clearly names (pipeline._link_projects): the site links their pages, the names come from the pages
     out["projects"] = [{"regno": p["_id"], "slug": p["page_slug"]} for p in await store.projects_named_by(doc["_id"])]
     return out
+
+
+@router.get("/trackers")
+async def public_trackers(response: Response, area: Optional[str] = None, store: Store = Depends(get_store)) -> List[dict]:
+    """Every tracker, most recently changed first; `area=<key or page slug>` keeps those that touch the area plus the city-wide
+    rates. An unknown area gives []."""
+    response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
+    return await trackers.all_views(store, area)
+
+
+@router.get("/trackers/{slug}")
+async def public_tracker(slug: str, response: Response, store: Store = Depends(get_store)) -> dict:
+    found = await trackers.one_view(store, slug)
+    if found is None:
+        raise HTTPException(404, "Not found")
+    response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
+    return found

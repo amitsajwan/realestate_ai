@@ -3,6 +3,7 @@ import React, { useState } from 'react'
 import { TabBar, useUrlTab } from '@/components/app/list'
 import { ListRow } from '@/components/app/newsroom/ListRow'
 import { QueueCard } from '@/components/app/newsroom/QueueCard'
+import { TrackerDesk } from '@/components/app/newsroom/TrackerDesk'
 import { ErrorBox, PageTitle, Spinner } from '@/components/app/ui'
 import { timeAgo } from '@/lib/app/format'
 import { friendlyNewsroomError, newsroomApi, tabCounts } from '@/lib/app/newsroom'
@@ -11,7 +12,7 @@ import type { ApproveBody, NewsroomListStatus, NewsroomStatus } from '@/lib/app/
 import { useAsync } from '@/lib/app/useAsync'
 import { BRAND_NAME } from '@/lib/brand'
 
-const TABS = ['review', 'scheduled', 'published', 'rejected']
+const TABS = ['review', 'trackers', 'scheduled', 'published', 'rejected']
 const LIST_LIMIT = 50
 
 /** One click: the 'New on MahaRERA' carousel and post for the last 30 days, added to To review like any draft. Sits in the title's action slot. */
@@ -71,7 +72,8 @@ export default function NewsroomPage() {
     return { queue, status }
   }, [])
   const [tab, setTab] = useUrlTab('tab', 'review', TABS)
-  const listTab = tab === 'review' ? null : (tab as NewsroomListStatus)
+  const listTab = tab === 'review' || tab === 'trackers' ? null : (tab as NewsroomListStatus)
+  const [newReports, setNewReports] = useState<number | undefined>(undefined)
   const list = useAsync(async () => (listTab ? newsroomApi.list(listTab, LIST_LIMIT) : null), [listTab])
   const [openId, setOpenId] = useState<string | null>(null)
   const [note, setNote] = useState<string | null>(null)
@@ -115,12 +117,15 @@ export default function NewsroomPage() {
       {note && <p role="status" className="rounded-xl bg-blue-50 p-3 text-sm text-gray-800">{note}</p>}
       <TabBar label="Newsroom" value={tab} onChange={(k) => { setTab(k); setOpenId(null) }} tabs={[
         { key: 'review', label: 'To review', count: counts.review, tone: 'urgent' },
+        { key: 'trackers', label: 'Trackers', count: newReports },
         { key: 'scheduled', label: 'Scheduled', count: counts.scheduled },
         { key: 'published', label: 'Published', count: counts.published },
         { key: 'rejected', label: 'Rejected', count: counts.rejected },
       ]} />
       {error && <ErrorBox message={error} onRetry={reload} />}
       <Notices status={data.status} />
+
+      {tab === 'trackers' && <TrackerDesk onCount={setNewReports} />}
 
       {tab === 'review' && (
         <>

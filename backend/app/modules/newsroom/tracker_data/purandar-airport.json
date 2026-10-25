@@ -1,0 +1,21 @@
+{
+  "slug": "purandar-airport",
+  "name": "Purandar airport",
+  "title": "Purandar airport: status and timeline",
+  "summary": "Pune's planned second airport at Purandar, south-east of the city, separate from the airport at Lohegaon.",
+  "kind": "project",
+  "areas": [],
+  "stages": ["Site chosen", "Land acquisition", "Feasibility and design", "Construction", "Open"],
+  "match": {"all": ["purandar|new airport"], "any": ["airport"], "not": ["navi mumbai"]},
+  "means": "A new airport is years away: it does not change travel times from any area we cover today. Treat a flat ad that sells it as nearby as a claim to check.",
+  "history": [
+    {"date": "2026-09-24", "stage": 1, "status": "The Bombay High Court dismissed the farmers' plea against the chosen site, so land acquisition can go on.",
+     "sources": ["Hindustan Times", "Punekar News", "Pune Mirror", "The Times of India"]},
+    {"date": "2026-10-07", "stage": 1, "status": "The district administration says it has possession of 76% of the land; holdouts were given until 10 October to consent.",
+     "sources": ["Punekar News", "Pune Mirror", "Swarajya"]},
+    {"date": "2026-10-21", "stage": 1, "status": "The remaining 40 hectares, where farmers did not consent, is to be taken by compulsory acquisition.",
+     "sources": ["Punekar News", "Pune Mirror", "The Bridge Chronicle", "Free Press Journal", "ETV Bharat"]},
+    {"date": "2026-10-23", "stage": 2, "status": "Land acquisition is nearly done: the remaining 40 hectares is being taken compulsorily, and MADC has started appointing a consultant for the feasibility study and project report.",
+     "sources": ["Punekar News", "Pune Mirror", "Swarajya", "Urban Acres"]}
+  ]
+}

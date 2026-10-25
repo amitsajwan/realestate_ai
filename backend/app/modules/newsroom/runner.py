@@ -7,7 +7,7 @@ from app.core.database import get_database
 from app.platform.controls import is_paused
 from app.platform.heartbeats import heartbeat
 
-from . import adapters, digest
+from . import adapters, digest, trackers
 from .config import load
 from .pipeline import default_stages, run_once
 from .store import Store
@@ -46,6 +46,14 @@ async def _area_records(store: Store, stages: dict, cfg, counts: dict) -> None:
         log.exception("newsroom: area records failed")
 
 
+async def _track(store: Store, now: datetime, counts: dict) -> None:
+    """Attach the newly collected reports to the trackers they are about (trackers.py), whatever the filter made of them."""
+    try:
+        counts["tracked"] = await trackers.attach_new(store, now)
+    except Exception:
+        log.exception("newsroom: tracker attach failed")
+
+
 async def cycle(store: Store, cfg, hb=None) -> dict:
     """One guarded cycle; records last_run_at / last_error. Never raises except cancellation."""
     now = datetime.now(timezone.utc)
@@ -59,6 +67,7 @@ async def cycle(store: Store, cfg, hb=None) -> dict:
                 break
             more = await run_once(store, [], stages, publisher, llm, datetime.now(timezone.utc), cfg)
             counts = {k: counts.get(k, 0) + more.get(k, 0) for k in set(counts) | set(more)}
+        await _track(store, now, counts)
         await _weekly_digest(store, stages, now, counts)
         await _area_records(store, stages, cfg, counts)
         await store.set_run(last_run_at=now, last_error=None, last_counts=counts)

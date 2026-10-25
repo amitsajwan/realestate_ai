@@ -34,8 +34,22 @@ def news_url(item_id: str) -> str:
     return f"{site_url()}/news/{item_id}"
 
 
+_MOJIBAKE = re.compile("[ÂÃâ][-¿‘-›€ŒœŠšŸŽžƒˆ˜]")
+
+
+def unmangle(s: str) -> str:
+    """UTF-8 text that was once read as Windows-1252 ('â‚¹10,502' for '₹10,502', 'Maharashtraâ€™s'), put back. Text that does
+    not round-trip cleanly is returned unchanged."""
+    if not _MOJIBAKE.search(s):
+        return s
+    try:
+        return s.encode("cp1252").decode("utf-8")
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        return s
+
+
 def one_line(s: object) -> str:
-    return SPACE.sub(" ", PHONE.sub("", str(s or ""))).strip()
+    return SPACE.sub(" ", PHONE.sub("", unmangle(str(s or "")))).strip()
 
 
 @dataclass

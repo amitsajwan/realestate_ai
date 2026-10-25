@@ -42,6 +42,8 @@ INDEXES: Iterable[Tuple[str, list, dict]] = [
     ("projects", [("locality", ASC), ("last_modified", DESC)], {}),
     # the projects a news story names, for its page's links (newsroom public)
     ("projects", [("news.item_id", ASC)], {}),
+    # trackers (newsroom/trackers.py): one tracker's reports, newest first
+    ("newsroom_tracker_reports", [("slug", ASC), ("date", DESC)], {}),
     # marketing + social
     ("marketing_packs", [("agent_id", ASC)], {}),
     ("publications", [("listing_id", ASC), ("channel", ASC), ("pack_version", ASC)], {}),

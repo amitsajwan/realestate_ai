@@ -12,7 +12,7 @@ from app.core.auth_backend import current_active_user
 from app.core.database import get_database
 from app.models.user import User
 
-from . import codec, preview
+from . import codec, preview, trackers
 from .config import load
 from .store import Store
 
@@ -26,6 +26,17 @@ class ApproveBody(BaseModel):
 
 class RejectBody(BaseModel):
     reason: Optional[str] = None
+
+
+class TrackerStatusBody(BaseModel):
+    status: str
+    date: str
+    stage: Optional[int] = None
+    sources: List[str] = []
+
+
+class HideBody(BaseModel):
+    hidden: bool = True
 
 
 async def owner_only(user: User = Depends(current_active_user)) -> User:
@@ -191,6 +202,50 @@ async def reject(id: str, body: Optional[RejectBody] = None, user: User = Depend
     await store.move(id, "rejected", reason or DEFAULT_REJECT_NOTE,
                      review={"by": str(user.id), "at": datetime.now(timezone.utc), "edits": False})
     return {"id": id, "status": "rejected"}
+
+
+def _tracker(slug: str) -> dict:
+    defn = trackers.get(slug)
+    if defn is None:
+        raise HTTPException(404, "No such tracker")
+    return defn
+
+
+@router.get("/trackers")
+async def tracker_list(user: User = Depends(owner_only), store: Store = Depends(get_store)) -> List[dict]:
+    """Every tracker with its current status, the reports attached to it and how many came in since the status was checked."""
+    return await trackers.studio_views(store)
+
+
+@router.post("/trackers/{slug}/status")
+async def tracker_status(slug: str, body: TrackerStatusBody, user: User = Depends(owner_only), store: Store = Depends(get_store)) -> dict:
+    """The owner's new status line: it becomes the tracker's status on the public page at once (the site caches a minute)."""
+    defn = _tracker(slug)
+    now = datetime.now(timezone.utc)
+    try:
+        row = trackers.check_update(defn, body.status, body.stage, body.date, now)
+    except trackers.StatusError as e:
+        raise HTTPException(422, str(e))
+    names = [n for n in dict.fromkeys(" ".join(x.split())[:60] for x in body.sources) if n][:8]
+    await store.add_tracker_update(slug, {**row, "sources": names, "at": now, "by": str(user.id)})
+    return trackers.studio_view(defn, await store.tracker_state(slug), await store.tracker_reports(slug))
+
+
+@router.post("/trackers/{slug}/checked")
+async def tracker_checked(slug: str, user: User = Depends(owner_only), store: Store = Depends(get_store)) -> dict:
+    """The owner read the new reports and the status still holds: they stop counting as new."""
+    defn = _tracker(slug)
+    await store.set_tracker_checked(slug, datetime.now(timezone.utc))
+    return trackers.studio_view(defn, await store.tracker_state(slug), await store.tracker_reports(slug))
+
+
+@router.post("/trackers/{slug}/reports/{item_id}/hide")
+async def tracker_hide(slug: str, item_id: str, body: HideBody, user: User = Depends(owner_only), store: Store = Depends(get_store)) -> dict:
+    """Take a wrongly matched report off the tracker's page (or put it back)."""
+    defn = _tracker(slug)
+    if not await store.hide_tracker_report(slug, item_id, body.hidden):
+        raise HTTPException(404, "That report is not on this tracker")
+    return trackers.studio_view(defn, await store.tracker_state(slug), await store.tracker_reports(slug))
 
 
 @router.post("/maharera-roundup")

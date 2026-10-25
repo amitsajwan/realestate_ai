@@ -3,6 +3,7 @@ import { INSIGHTS } from '@/lib/marketing/insights'
 import { LOCALITIES, getLocality, localitySlug } from '@/lib/marketing/localities'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { fetchNews } from '@/lib/news/data'
+import { fetchTrackers, trackerPath } from '@/lib/news/trackers'
 import { fetchPosts, postPath } from '@/lib/posts/data'
 import { getCommunities } from '@/components/localities/communities'
 import { getCatalog, getSitemapEntries } from '@/lib/site/api'
@@ -32,7 +33,7 @@ export type Grouped = { group: string; entry: SitemapEntry }[]
 export async function buildSitemap(): Promise<Grouped> {
   const base = getMarketingConfig().siteUrl
   const at = (path: string, priority: number, date?: string | null): SitemapEntry => ({ url: base + path, lastModified: day(date), priority })
-  const [news, agents, projects, posts, register, places, hoods, builders, facets, topics] = await Promise.all([fetchNews(50), getSitemapEntries(), getCatalog(), fetchPosts(POSTS_MAX), getRegisterProjects(undefined, true), getRegisterPlaces(), getCommunities(), getBuilders(), getFacets(), fetchTopics()])
+  const [news, agents, projects, posts, register, places, hoods, builders, facets, topics, trackers] = await Promise.all([fetchNews(50), getSitemapEntries(), getCatalog(), fetchPosts(POSTS_MAX), getRegisterProjects(undefined, true), getRegisterPlaces(), getCommunities(), getBuilders(), getFacets(), fetchTopics(), fetchTrackers()])
   const placeSlug = new Map(places.map((p) => [p.key, p.slug]))
   const placeByName = new Map(places.flatMap((p) => [[p.slug, p.slug], [localitySlug(p.name), p.slug]]))
   const area = (slug?: string | null) => (slug ? 'area-' + slug : 'projects')
@@ -70,6 +71,7 @@ export async function buildSitemap(): Promise<Grouped> {
     ...[...fallbackLocalities].map(([slug, d]) => core(at(`/localities/${slug}`, 0.5, d))),
     ...hoods.map((h) => core(at(`/localities/${h.area_slug}/${h.slug}`, 0.6, h.updated))),
     core(at('/news', 0.8)),
+    ...trackers.map((t) => core(at(trackerPath(t.slug), 0.8, t.updated))),
     ...news.items.map((n) => core(at(`/news/${n.id}`, 0.6, n.published_at ?? n.as_of))),
     core(at('/insights', 0.7)),
     ...INSIGHTS.map((a) => core(at(`/insights/${a.slug}`, 0.7, a.updated))),

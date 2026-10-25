@@ -49,10 +49,34 @@ Pune-wide items that do not touch our areas, general money advice.
   redirects to the update (pipeline `update_of`).
 - An approved story that waited more than 48 hours for its posting slot is researched again before it goes out.
 
+## Newsroom makeover, 2026-10-25 (BUILT, deploys with the commit)
+
+Owner: "news room, news content, news editor: lets get proper newsroom setup, a makeover". What we found: in 25 days the pipeline read
+1,478 reports and dropped 1,450; 2 stories were live. Most drops were "no target area" (1,028), yet many were exactly what a tracker
+needs: 39 Purandar airport reports, 14 Ring Road, 8 HCMTR, 9 Metro Line 3, 8 Lohegaon hospital, 27 on the October repo rate rise.
+
+Decided and built (N1, most of N2 and N3):
+
+- **Eight trackers** (`backend/app/modules/newsroom/tracker_data/<slug>.json`): Purandar airport, Pune Ring Road, HCMTR, Metro Line 3
+  (Hinjawadi to Shivajinagar: Hinjawadi, Wakad, Baner), Lohegaon hospital, water in merged villages (Wagholi), home loan rates (RBI repo),
+  ready reckoner and stamp duty. Each file holds the name, stages, the areas it touches, the matching rules, what it means for a buyer and
+  the dated status history we wrote from the reports. Metro to Wagholi/Kharadi and Kharadi DP roads are left out: under two reports each.
+- **Reports attach by rules, not by a model** (`trackers.attach_new`, every newsroom cycle): every collected headline is matched to the
+  trackers' `all`/`any`/`not` patterns, whatever the news filter decided; MahaRERA records never. A dry run over all 1,478 stored headlines
+  matched 114, none wrong (the Bengaluru and Delhi "ring road" stories and "Mumbai Metro Line 4" are excluded by `not`).
+- **The status line is ours and only the owner changes it** (Studio, Newsroom, **Trackers** tab): the new reports since the last check,
+  "Update the status" (stage, sentence, date, sources), "Read them: the status still holds", and "Not about this: hide it" for a wrong
+  match. The older lines stay as "How the status changed". No model writes a status: a page must never say "open" because a headline did.
+- **Pages:** `/news/track/<slug>` (where it stands, stage bar, what it means, reports newest first with the same story from several
+  publishers as one line, status history), `/news` leads with the trackers and keeps "Our full reports" below, area pages show
+  "What is changing near <area>" when a tracker names the area (the city-wide rate trackers come along, never alone).
+- Mangled text from feeds read as Windows-1252 (the Ring Road headline showed "â‚¹10,502") is put back in `presentation.one_line`.
+
 ## Next (TARGET, in order)
 
-- N1: tracker records + pages for the six things above, seeded from the reports we already hold (kept and withdrawn).
-- N2: the pipeline attaches each kept report to a tracker (follow_up match, then a model check "same thing? status changed?"); a status
-  change updates the page and makes one post.
-- N3: nearby trackers on project and area pages, by distance from the project pin.
-- Measure weekly: impressions and clicks on tracker pages, clicks from project pages to trackers, and corrections (target: none).
+- N2b: a model *suggests* a new status line when new reports arrive (shown in the Trackers tab with the headlines it read; the owner
+  accepts or edits). Rules first, the copy guards on the suggestion, and no suggestion when the model fails.
+- N2c: a status change makes one social post (through `social.distribution.send`, dry run outside production).
+- N3b: nearby trackers on project pages by distance from the project pin (needs a checked line or point per tracker; area-based today).
+- New trackers when a thing gets two reports in a month (Metro to Wagholi/Kharadi, Kharadi DP roads, PMRDA inner ring road).
+- Measure weekly: impressions and clicks on tracker pages, clicks from area pages to trackers, and corrections (target: none).

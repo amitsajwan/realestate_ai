@@ -1,0 +1,17 @@
+{
+  "slug": "merged-villages-water",
+  "name": "Water in merged villages",
+  "title": "Water supply in Pune's merged villages: who supplies it, and the latest rules",
+  "summary": "Who must supply water to new homes in the villages merged into the Pune Municipal Corporation, such as Wagholi, and the rules for new buildings.",
+  "kind": "rule",
+  "areas": ["wagholi"],
+  "stages": [],
+  "match": {"any": ["merged villages?.*water|water.*merged villages?|assured water|wagholi.*water|water.*wagholi"]},
+  "means": "Ask the builder in writing how the building gets water, who pays for tankers, and until when. Under the new rules that is the builder's job until the corporation takes over.",
+  "history": [
+    {"date": "2026-10-12", "status": "The Pune Municipal Corporation made developers responsible for supplying water to residents in 32 newly merged villages until it takes over.",
+     "sources": ["Punekar News", "Hindustan Times", "ET Realty"]},
+    {"date": "2026-10-19", "status": "Builders must supply water to residents in the 32 merged villages until the Pune Municipal Corporation takes over (12 October), and PMRDA now asks for assured water supply before it approves a building (16 October). Wagholi's supply was disrupted on 19 October as the Bhima river level dropped.",
+     "sources": ["Punekar News", "Hindustan Times", "The Bridge Chronicle"]}
+  ]
+}

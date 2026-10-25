@@ -1,0 +1,19 @@
+{
+  "slug": "pune-ring-road",
+  "name": "Pune Ring Road",
+  "title": "Pune Ring Road (MSRDC): status and timeline",
+  "summary": "The outer ring road around Pune built by MSRDC, in an eastern and a western arm.",
+  "kind": "project",
+  "areas": [],
+  "stages": [],
+  "match": {"all": ["ring road"], "any": ["pune|msrdc|pmrda|soratapwadi|varve"], "not": ["inner ring road", "bengaluru|peripheral|delhi|mumbai|hyderabad"]},
+  "means": "Ring Road news is mostly money and land so far. Before you count it in a home's location, ask how far the nearest planned entry point is and check the latest stage here.",
+  "history": [
+    {"date": "2026-09-28", "status": "The state approved Rs 10,502 crore for the 32 km Soratapwadi to Varve Budruk stretch of the eastern arm, to be built by MSRDC.",
+     "sources": ["The Bridge Chronicle", "Pune Mirror"]},
+    {"date": "2026-10-11", "status": "The Bombay High Court dismissed a challenge to the project's land acquisition notification.",
+     "sources": ["Lawtext"]},
+    {"date": "2026-10-16", "status": "The project's cost is reported up by Rs 10,502 crore, to about Rs 53,213 crore, after the state took a stretch over from NHAI and gave the work to MSRDC. The High Court dismissed a challenge to its land acquisition on 11 October.",
+     "sources": ["The Indian Express", "Swarajya", "Urban Acres", "PUNE PULSE"]}
+  ]
+}

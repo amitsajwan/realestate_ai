@@ -1,0 +1,15 @@
+{
+  "slug": "home-loan-rates",
+  "name": "Home loan rates (RBI repo rate)",
+  "title": "RBI repo rate and home loan rates: latest change",
+  "summary": "The Reserve Bank's repo rate, which moves floating home loan rates, and what banks did after the last change.",
+  "kind": "rate",
+  "areas": [],
+  "stages": [],
+  "match": {"all": ["repo|rbi"], "any": ["rate|hike|cut|emi|home loan"], "not": ["us mortgage|federal reserve|treasury"]},
+  "means": "On a floating-rate loan, ask your bank when the new rate applies to you and whether it changes your EMI or your tenure.",
+  "history": [
+    {"date": "2026-10-07", "status": "The RBI raised the repo rate by 0.25 percentage point to 5.50%. Several banks, among them PNB and Bank of Baroda, raised their home loan rates after it.",
+     "sources": ["The Economic Times", "Times Now", "Business Standard", "TradingView"]}
+  ]
+}

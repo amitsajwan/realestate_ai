@@ -1,0 +1,17 @@
+{
+  "slug": "pune-metro-line-3",
+  "name": "Metro Line 3 (Hinjawadi to Shivajinagar)",
+  "title": "Pune Metro Line 3, Hinjawadi to Shivajinagar: status and timeline",
+  "summary": "The metro line from Hinjawadi to Shivajinagar, built by PMRDA.",
+  "kind": "project",
+  "areas": ["hinjawadi", "wakad", "baner"],
+  "stages": ["Construction", "Safety clearance", "Open"],
+  "match": {"all": ["metro"], "any": ["hinj[ae]wadi|line 3|line-3|metro 3|metro-3"], "not": ["mumbai"]},
+  "means": "The line is built but not open. Until it runs, count your commute by road; a 'metro nearby' line in an ad means nothing yet.",
+  "history": [
+    {"date": "2026-07-17", "stage": 0, "status": "The line missed its 15 July opening target.", "sources": ["News18"]},
+    {"date": "2026-09-30", "stage": 1, "status": "The Commissioner of Metro Rail Safety cleared five more stations.", "sources": ["Pune Mirror", "Hindustan Times"]},
+    {"date": "2026-10-24", "stage": 1, "status": "Ready to run but not open: five more stations were cleared for safety on 30 September, and the opening date is still not fixed because the Prime Minister's visit, expected for the inauguration, was deferred.",
+     "sources": ["Punekar News", "Hindustan Times", "The Times of India"]}
+  ]
+}

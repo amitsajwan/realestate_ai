@@ -163,8 +163,11 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 export const isGoogleRedirect = (u: string | null): boolean => !!u && /news\.google\.com|google\.com\/rss/i.test(u)
 
 export const NEWS_TEXT = {
+  kicker: `${BRAND_NAME} newsroom`,
   heading: 'Pune property news',
-  lead: 'Short summaries in our own words of what is happening with roads, metro, approvals and rules in the Pune areas we cover. Each one names its source and the date.',
+  lead: 'What is changing around the homes you are looking at, and where each thing really stands today. Every line names its source and its date.',
+  reportsHeading: 'Our full reports',
+  reportsLead: 'Written in our own words from two or more reports, when a story matters to buyers in the areas we cover.',
   homeHeading: 'Pune property news',
   homeLead: 'Roads, metro, approvals and rules, each with its source.',
   empty: 'No news yet',
@@ -189,7 +192,7 @@ export const NEWS_TEXT = {
   interestLead: `Tell us what you are looking for and the ${TEAM} will get back to you.`,
   interestCta: (area: string) => `I am interested in ${area}`,
   pageTitle: `Pune property news | ${BRAND_NAME}`,
-  pageDescription: 'Short summaries of Pune property news in plain words: roads, metro, approvals and rules, each with its source and date.',
+  pageDescription: "Where the Pune projects and rules that change a home buyer's decision stand today: Purandar airport, Ring Road, HCMTR, Metro Line 3, Lohegaon hospital, water rules and home loan rates, each with its sources and date.",
   moreAbout: (area: string) => `More about ${area}`,
   projectsHeading: (n: number) => (n === 1 ? 'The project in this story' : 'Projects in this story'),
   all: 'All news',

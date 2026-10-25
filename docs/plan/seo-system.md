@@ -89,7 +89,8 @@ the real other spellings ("Also spelt Lohgaon") and put them in the Place `alter
 | Locality guide + neighbourhoods | `/localities/<area>`, `/localities/<area>/<community>` | "<area>, Pune: projects, MahaRERA records and buyer guide" | Place | |
 | Builder | `/builders/<slug>` | "<builder> projects in Pune: N on MahaRERA" | Organization | 2+ indexable projects, else noindex |
 | Guide / topic | `/guides/<slug>` (`/guides/upper-kharadi`, `/guides/mhada-pune-lottery`) | from `calendar/topics/<slug>.json` | Article, FAQPage | |
-| News | `/news`, `/news/<id>` | | NewsArticle | withdrawn story 301s to its area page |
+| Tracker | `/news/track/<slug>` (`/news/track/purandar-airport`, 8 live) | `newsroom/tracker_data/<slug>.json` + attached reports | Article, BreadcrumbList | durable "<thing> status" page; area pages link the ones that touch them ([news-strategy.md](news-strategy.md)) |
+| News | `/news`, `/news/<id>` | | NewsArticle | withdrawn story 301s to its area page; `/news` leads with the trackers |
 | Posts | `/posts/<slug>` | | Article | |
 | Insights articles | `/insights/<slug>` | | Article | |
 | MahaRERA tracker | `/pune-maharera-tracker` | | Dataset | meant to earn links |
@@ -259,6 +260,7 @@ measure (Search Console, Serper, URL Inspection) → choose (near page one, Magi
 | 2026-10-21 | this | Prices round (own turn, every 15 min); enrichment and prices skip completed projects, put 90%+ booked last, and go area by area outward from Kharadi with new launches and hot projects first |
 | 2026-10-25 | this | Project pages open with a dated answer + "Updated" (WebPage dateModified); news stories link the projects they name; `/llms.txt` lists project pages |
 | 2026-10-22 | this | `/` is the buyers' home (one topic: new projects in Pune); the agents' home moved to `/agents`. Hot projects banner on every buyer page, set in Studio (`hot-projects.md`); robots guard test |
+| 2026-10-25 | this | Tracker pages `/news/track/<slug>` (8) in the sitemap at 0.8, linked from `/news` and from the area pages they touch |
 
 ## 12. Detail and history
 

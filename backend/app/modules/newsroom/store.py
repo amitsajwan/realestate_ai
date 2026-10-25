@@ -1,4 +1,5 @@
-"""The only file that touches Mongo for the newsroom. Collections: newsroom_items, newsroom_status, projects (the project register).
+"""The only file that touches Mongo for the newsroom. Collections: newsroom_items, newsroom_status, projects (the project register),
+newsroom_trackers (the owner's status updates per tracker) and newsroom_tracker_reports (reports attached to a tracker, trackers.py).
 Uses only find/find_one/insert_one/update_one/count_documents with $set/$push/$in/$gte so the in-memory test fakes work too."""
 import asyncio
 import time
@@ -11,6 +12,8 @@ from .types import STATUSES, RawItem
 ITEMS = "newsroom_items"
 STATUS = "newsroom_status"
 PROJECTS = "projects"  # one document per MahaRERA registration number in our areas (_id = the number)
+TRACKERS = "newsroom_trackers"  # _id = tracker slug: {updates: [...], checked_at}
+TRACKER_REPORTS = "newsroom_tracker_reports"  # _id = "<slug>|<item id>": one report attached to one tracker
 DONE = ("scheduled", "published")
 
 
@@ -29,6 +32,8 @@ class Store:
         self.items = db.get_collection(ITEMS)
         self.status = db.get_collection(STATUS)
         self.projects = db.get_collection(PROJECTS)
+        self.trackers = db.get_collection(TRACKERS)
+        self.tracker_rows = db.get_collection(TRACKER_REPORTS)
         self.clock = clock
 
     async def add_new(self, items: List[RawItem]) -> int:
@@ -220,3 +225,49 @@ class Store:
             return False
         await self.projects.update_one({"_id": regno}, {"$push": {"news": link}})
         return True
+
+    # --- trackers -------------------------------------------------------------------------------------------------------
+
+    async def tracker_states(self) -> List[dict]:
+        return await self.trackers.find({}).to_list(200)
+
+    async def tracker_state(self, slug: str) -> Optional[dict]:
+        return await self.trackers.find_one({"_id": slug})
+
+    async def _tracker_set(self, slug: str, update: dict) -> None:
+        key = {"_id": slug}
+        if await self.trackers.find_one(key) is None:
+            try:
+                await self.trackers.insert_one({**key, "updates": []})
+            except Exception as e:  # created meanwhile by another request
+                if "duplicate" not in f"{type(e).__name__} {e}".lower():
+                    raise
+        await self.trackers.update_one(key, update)
+
+    async def add_tracker_update(self, slug: str, update: dict) -> None:
+        """The owner's new status line (trackers.check_update); it also counts as checked."""
+        await self._tracker_set(slug, {"$push": {"updates": update}, "$set": {"checked_at": update["at"]}})
+
+    async def set_tracker_checked(self, slug: str, at: datetime) -> None:
+        """The owner read the new reports and the status still holds."""
+        await self._tracker_set(slug, {"$set": {"checked_at": at}})
+
+    async def add_tracker_report(self, row: dict) -> bool:
+        """Attach one report to one tracker once; False when it was already attached."""
+        if await self.tracker_rows.find_one({"_id": row["_id"]}):
+            return False
+        try:
+            await self.tracker_rows.insert_one(row)
+        except Exception as e:
+            if "duplicate" not in f"{type(e).__name__} {e}".lower():
+                raise
+            return False
+        return True
+
+    async def tracker_reports(self, slug: str, limit: int = 300) -> List[dict]:
+        """A tracker's reports, newest first."""
+        return await self.tracker_rows.find({"slug": slug}).sort("date", -1).limit(limit).to_list(limit)
+
+    async def hide_tracker_report(self, slug: str, item_id: str, hidden: bool) -> bool:
+        res = await self.tracker_rows.update_one({"_id": f"{slug}|{item_id}"}, {"$set": {"hidden": hidden}})
+        return bool(getattr(res, "matched_count", getattr(res, "modified_count", 1)))

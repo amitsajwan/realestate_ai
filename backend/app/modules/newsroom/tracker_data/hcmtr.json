@@ -1,0 +1,19 @@
+{
+  "slug": "hcmtr",
+  "name": "HCMTR",
+  "title": "HCMTR (High Capacity Mass Transit Route): status and timeline",
+  "summary": "The circular High Capacity Mass Transit Route the Pune Municipal Corporation plans inside the city.",
+  "kind": "project",
+  "areas": [],
+  "stages": ["Planned", "Land survey", "Land acquisition", "Construction", "Open"],
+  "match": {"any": ["hcmtr|hcmtcr|high capacity mass transit"]},
+  "means": "HCMTR is still at the survey stage. A home near its line may lose land to the road; ask the society or builder whether the plot touches the route.",
+  "history": [
+    {"date": "2026-10-07", "stage": 1, "status": "The land survey on Nagar Road stopped after landowners said they had not been given proper notice and raised compensation concerns.",
+     "sources": ["Punekar News", "Pune Mirror"]},
+    {"date": "2026-10-12", "stage": 1, "status": "The Pune Municipal Corporation plans a drone survey and a film of the route.",
+     "sources": ["The Indian Express"]},
+    {"date": "2026-10-16", "stage": 1, "status": "Land survey: the Pune Collector has set 30 October as the deadline for the HCMTR and inner ring road land surveys. Earlier this month the survey on Nagar Road stopped over notice and compensation.",
+     "sources": ["Hindustan Times", "The Times of India", "PUNE PULSE"]}
+  ]
+}

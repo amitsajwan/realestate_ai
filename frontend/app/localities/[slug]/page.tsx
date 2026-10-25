@@ -14,6 +14,8 @@ import ActiveProjects from '@/components/site/ActiveProjects'
 import { getActive, getAreaMap, getListed, type ListedProject } from '@/lib/site/hubs'
 import AreaMap, { showsMap } from '@/components/site/AreaMap'
 import AreaLatest from '@/components/localities/AreaLatest'
+import { AreaTrackers } from '@/components/news/Trackers'
+import { fetchTrackers } from '@/lib/news/trackers'
 import AreaRecords from '@/components/localities/AreaRecords'
 import { getAreaNews, getAreaPosts } from '@/components/localities/areaFeed'
 import { getAreaStats } from '@/components/localities/areaStats'
@@ -122,7 +124,7 @@ export default async function LocalityPage({ params }: Props) {
   const slug = (await params).slug
   if (!validSlug(slug)) notFound()
   const l = pageLocality(slug)
-  const [listings, projects, stats, posts, news, hoods, active, facets, map, listed] = await Promise.all([
+  const [listings, projects, stats, posts, news, hoods, active, facets, map, listed, trackers] = await Promise.all([
     getLocalityListings(l.listingName), getCatalog(l.listingName), l.fallback ? Promise.resolve(null) : getAreaStats(l.slug),
     l.fallback ? Promise.resolve([]) : getAreaPosts(l, 6), l.fallback ? Promise.resolve([]) : getAreaNews(l, 5),
     l.fallback ? Promise.resolve([]) : getCommunities(l.key),
@@ -130,7 +132,10 @@ export default async function LocalityPage({ params }: Props) {
     l.fallback ? Promise.resolve([]) : getFacets(),
     l.fallback ? Promise.resolve(null) : getAreaMap(l.key),
     l.fallback ? Promise.resolve(new Map<string, ListedProject>()) : getListed(),
+    l.fallback ? Promise.resolve([]) : fetchTrackers(l.key),
   ])
+  // the block shows when something tracked touches this area; the city-wide rates come along with it, never alone
+  const nearby = trackers.some((t) => t.areas.some((a) => a.slug === l.slug)) ? trackers : []
   // the area's own lists (new launches, 2 BHK flats ...) and the agents' pages that still answer here
   const lists = [...siblings(facets, l.key).map((f) => ({ path: f.path, title: f.label, count: f.count })),
     ...(l.fallback ? [] : withoutMovedSizePages(livePages(projects, [l]), facets)).map((f) => ({ path: f.path, title: f.title.replace(/, Pune$/, ''), count: f.count }))]
@@ -197,6 +202,7 @@ export default async function LocalityPage({ params }: Props) {
           </section>
         )}
         {!showsMap(map) && <ActiveProjects title={`Most active projects in ${l.name}`} items={active} />}
+        <AreaTrackers name={l.name} items={nearby} />
         <AreaLatest name={l.name} posts={posts} news={news} />
 
         <section className="mt-9"><h2 className="text-xl font-semibold text-slate-900">Homes in {l.name}</h2>

@@ -40,6 +40,12 @@ jest.mock('@/lib/app/newsroom', () => ({
   },
 }))
 
+const mockTrackers: { api: import('@/lib/app/trackers').TrackersApi | null } = { api: null }
+jest.mock('@/lib/app/trackers', () => ({
+  ...jest.requireActual('@/lib/app/trackers'),
+  trackersApi: () => mockTrackers.api,
+}))
+
 const status = (over: Partial<NewsroomStatus> = {}): NewsroomStatus => ({ ...FIXTURE_STATUS, ...over })
 const items = (): NewsroomItem[] => FIXTURE_QUEUE.map((i) => ({ ...i }))
 
@@ -51,6 +57,7 @@ beforeEach(() => {
   getStatus.mockResolvedValue(status())
   approve.mockResolvedValue({})
   reject.mockResolvedValue(undefined)
+  mockTrackers.api = jest.requireActual('@/lib/app/trackers').createFixtureTrackersApi()
 })
 
 /** Open a row (tap) and return its card. */
@@ -186,11 +193,11 @@ describe('Newsroom screen: To review', () => {
 })
 
 describe('Newsroom screen: tabs', () => {
-  it('shows the four tabs with counts from the status call; To review is gold and the default', async () => {
+  it('shows the five tabs with counts from the status call; To review is gold and the default', async () => {
     render(<NewsroomPage />)
     await screen.findAllByTestId('queue-card')
     const tabs = screen.getAllByRole('tab')
-    expect(tabs.map((t) => t.textContent)).toEqual(['To review2', 'Scheduled1', 'Published7', 'Rejected4'])
+    expect(tabs.map((t) => t.textContent)).toEqual(['To review2', 'Trackers', 'Scheduled1', 'Published7', 'Rejected4'])
     expect(tabs[0]).toHaveAttribute('aria-selected', 'true')
     expect(tabs[0].querySelector('span')?.className).toContain('bg-[#f0b440]')
     expect(screen.queryByTestId('count-published')).toBeNull()
@@ -338,5 +345,41 @@ describe('newsroom client and helpers', () => {
     expect(await f.getQueue()).toEqual([])
     expect((await f.getStatus()).counts.pending_review).toBe(0)
     await expect(f.reject('gone')).rejects.toMatchObject({ status: 404 })
+  })
+})
+
+
+describe('Newsroom screen: Trackers', () => {
+  it('lists each tracker with its new reports and puts the owner status on it', async () => {
+    render(<NewsroomPage />)
+    await screen.findAllByTestId('queue-card')
+    fireEvent.click(screen.getByRole('tab', { name: /Trackers/ }))
+    expect(window.location.search).toBe('?tab=trackers')
+    const row = await screen.findByTestId('tracker-row')
+    expect(within(row).getByText('1 new report')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /Trackers/ })).toHaveTextContent('Trackers1')
+    fireEvent.click(within(row).getAllByRole('button')[0])
+    expect(within(row).getByText(/Seeks Global Consultants/)).toBeInTheDocument()
+    fireEvent.click(within(row).getByRole('button', { name: 'Update the status' }))
+    expect(within(row).getByLabelText('From reports by')).toHaveValue('Swarajya')
+    expect(within(row).getByLabelText('True as of')).toHaveValue('2026-10-24')
+    fireEvent.change(within(row).getByLabelText('Status, in our words'), { target: { value: 'MADC is looking for global consultants for the feasibility study.' } })
+    fireEvent.click(within(row).getByRole('button', { name: 'Put this status on the site' }))
+    await waitFor(() => expect(within(row).getByText('Up to date')).toBeInTheDocument())
+    expect(within(row).getByText('MADC is looking for global consultants for the feasibility study.')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /Trackers/ })).toHaveTextContent('Trackers0')
+  })
+
+  it('hides a wrongly matched report and can show it again', async () => {
+    window.history.replaceState({}, '', '/studio/newsroom?tab=trackers')
+    render(<NewsroomPage />)
+    const row = await screen.findByTestId('tracker-row')
+    fireEvent.click(within(row).getAllByRole('button')[0])
+    fireEvent.click(within(row).getByRole('button', { name: 'Not about this: hide it' }))
+    await waitFor(() => expect(within(row).getByText('Up to date')).toBeInTheDocument())
+    fireEvent.click(within(row).getByRole('button', { name: 'Show all 3 reports' }))
+    expect(within(row).getByText(/hidden from the site/)).toBeInTheDocument()
+    fireEvent.click(within(row).getByRole('button', { name: 'Show on the site again' }))
+    await waitFor(() => expect(within(row).queryByText(/hidden from the site/)).toBeNull())
   })
 })
