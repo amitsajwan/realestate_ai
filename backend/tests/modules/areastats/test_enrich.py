@@ -490,3 +490,12 @@ def test_premium_projects_are_hot_shown_by_google_or_in_the_first_areas():
     assert enrich.tier_of({**base, "locality": "wakad", "gsc_impressions": 3}) == budget.PREMIUM
     assert enrich.tier_of({**base, "locality": "kharadi"}) == budget.PREMIUM
     assert enrich.tier_of({**base, "locality": "wakad"}, urgent=True) == budget.URGENT
+
+
+async def test_a_page_written_as_sections_keeps_the_code_paragraph_as_its_paragraph():
+    db, store = await ready(("P1", "Rohan Abhilasha 4", "wagholi", {**FULL, "promoter": "Rohan Builders"}))
+    sections = [{"heading": "The project", "text": "The project is laid out as towers around a central garden."}]
+    await store.set_project("P1", page_text=sections[0]["text"], page_sections=sections, page_text_version=4)
+    doc = await store.project("P1")
+    page = await pages.project_page(db, doc["page_slug"])
+    assert page["paragraph"] == pages.paragraph(await store.project("P1")) and page["sections"] == sections

@@ -6,7 +6,7 @@ import { serverApiBase } from './api'
 import { badStatus, failed, withRetry, type Got } from './retry'
 import type { WebFacts } from './webfacts'
 import type { ProjectProfile } from './profile'
-import { clipWords, fitDescription, formatPrice } from './format'
+import { formatPrice } from './format'
 
 export interface RegisterProject {
   slug: string
@@ -487,44 +487,8 @@ export function offerPrice(o: Offer | null | undefined): { from: string; bhks: s
   return { from: formatPrice(o.price_inr), bhks, inr: o.price_inr }
 }
 
-/** Search result title, aiming at 60 characters: "{Marketed} {Area}: Price, Possession {Mon YYYY}, MahaRERA", dropping parts for long names.
- *  `price`: the agent's offer (offerPrice) when it has one, so the title quotes the price the page shows. */
-export function registerTitle(p: RegisterProject, price?: { from: string; bhks: string } | null): string {
-  const shown = displayName(p)
-  const area = areaName(p)
-  const at = area && !shown.toLowerCase().includes(area.toLowerCase()) ? `${shown} ${area}` : shown
-  const when = monthYear(p.completion_now)
-  const asked = price ?? askedPrices(p)
-  const lead = asked?.bhks ? `${asked.bhks} from` : 'from'
-  // the price is what buyers search and click on: first when we publish one
-  const priced = asked ? (when ? [`${at}: ${lead} ${asked.from}, Possession ${when}`, `${shown}: ${lead} ${asked.from}, Possession ${when}`,
-    `${at}: from ${asked.from}, Possession ${when}`, `${shown}: from ${asked.from}, Possession ${when}`]
-    : [`${at}: ${lead} ${asked.from}`, `${shown}: from ${asked.from}`]) : []
-  const options = [...priced, ...(when
-    ? [`${at}: Price, Possession ${when}, MahaRERA`, `${at}: Possession ${when}, MahaRERA`, `${at}: Possession ${when}`, `${shown}: Possession ${when}`]
-    : [`${at}: Price, Possession, MahaRERA`, `${at}: Price, MahaRERA`])]
-  return options.find((t) => t.length <= 60) ?? at
-}
-
-/** Search result description: "{Marketed} ({Legal}) by {Builder}, {Area}, Pune. Possession {Mon YYYY}, moved from X, b/t homes booked,
- *  MahaRERA {regno}." Over Google's ~160 characters the legal name goes first, then the builder, the bookings, the "moved from":
- *  the price, possession and MahaRERA number always stay. */
-export function registerDescription(p: RegisterProject, price?: { from: string; bhks: string } | null): string {
-  const asked = price ?? askedPrices(p)
-  if (p.search_description && !asked) return clipWords(p.search_description)
-  const shown = displayName(p)
-  const legal = shown.toLowerCase() !== p.name.toLowerCase() ? ` (${p.name})` : ''
-  const area = areaName(p)
-  const by = p.builder?.name && p.builder.name !== p.promoter ? p.builder.name : p.promoter
-  const from = p.completion_at_registration && p.completion_now && monthYear(p.completion_at_registration) !== monthYear(p.completion_now)
-    && p.details?.completion_moved_months !== 0 ? `, moved from ${monthYear(p.completion_at_registration)}` : ''
-  return fitDescription((has) => {
-    const head = `${shown}${has(1) ? legal : ''}${by && has(2) ? ` by ${by}` : ''}${area ? `, ${area}` : ''}, Pune.${asked ? (asked.bhks ? ` ${asked.bhks} from ${asked.from}.` : ` From ${asked.from}.`) : ''}`
-    const parts = [p.completion_now ? `Possession ${monthYear(p.completion_now)}${has(4) ? from : ''}` : null,
-      p.units_total && p.units_booked != null && has(3) ? `${p.units_booked}/${p.units_total} homes booked` : null, `MahaRERA ${p.regno}`]
-    return `${head} ${parts.filter(Boolean).join(', ')}.`
-  })
-}
+// The search title and description (registerTitle, registerDescription) live in projectSeo.ts with the page's structured data.
+// No re-export here: projectSeo reads this module, and the cycle breaks the tests that mock it with requireActual.
 
 /** One hit from GET /api/v1/public/register/search. */
 export interface RegisterSearchHit {

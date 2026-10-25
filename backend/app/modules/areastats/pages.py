@@ -416,7 +416,9 @@ def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None) ->
         "details_read_at": read.date().isoformat() if isinstance(read, datetime) and doc.get("details_ok") else None,
         "listed_or_updated": _day(doc.get("last_modified")), "maharera_url": doc.get("source_url") or None,
         # the enriched text (model-written from gathered facts, checked) when there is one, else the code-written paragraph
-        "paragraph": doc.get("page_text") or paragraph(doc), "indexable": indexable(doc),
+        # from the writer's version 4 on, page_text is its sections (shown under "About"): the paragraph is the code's own then
+        "paragraph": (doc.get("page_text") if int(doc.get("page_text_version") or 1) < 4 else None) or paragraph(doc),
+        "indexable": indexable(doc),
         "marketed_name": names(doc)[0], "aliases": names(doc)[1], "page_updated": page_updated(doc),
         # how people search for the page (seo.targets, rank-loop R1): leads the title and H1; the legal name stays in the body
         "search_name": doc.get("search_name") or None,

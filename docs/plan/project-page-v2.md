@@ -1,4 +1,4 @@
-# Project page v2: each fact once, built to sell, built for search (2026-10-25, IN PROGRESS)
+# Project page v2: each fact once, built to sell, built for search (2026-10-25, BUILT)
 
 Owner, 2026-10-25, on /projects/park-eden-phase-i-kharadi: "why we have duplicate. Also think how it should be presented",
 then "think design, ux, how a property can be sold, seo, and enrichment ... implementation, full force".
@@ -62,3 +62,22 @@ area, number, completion date, bookings, prices, BHK, the highlights) and not to
 repeats the booking count, the completion date or a price, says the date moved/increased/was pushed when the only change is
 the extension, or gives a whole-project count as this registration's. A one-line search summary stays. Rewrites go through
 the model budget (areastats.budget), premium projects first.
+
+## As built (2026-10-25)
+- Backend: `areastats/pagefacts.py` (area_rate, sales, commute, scope, sizes, price_from: plain functions over the docs
+  project_page already loads), `app/core/work_hubs.py` (7 hubs, approximate centres: check them on a map), `prices.public`
+  rows carry `per_sqft`. `area_rate` takes each other project's own median rate first, then the median of those (a project
+  with many sizes counts once). `sales` compares the latest booked reading with the oldest one 14 to 90 days before it.
+  `view.paragraph` is the code paragraph once the writer is at version 4 (its page_text is then the sections).
+- Writer (`enrich.py`, TEXT_VERSION 4): a bare "project" or "phase" does not scope a whole-project count ("The project has
+  five towers" was the Park Eden error); whole, entire, overall, marketed, across the project, all phases... do. Homes left
+  (total minus booked) is refused like the booking count. "The project" is required, "Location" only when nearby places are
+  given. A refused answer is forgotten (areastats.budget) so the next round asks again. The knowledge index opens a project
+  with the record paragraph when page_text is the sections.
+- Page (`RegisterProjectPage.tsx`): the order above; "Checked by us" holds the record, checks, cautions, towers, web facts
+  and the builder; VerifiedFacts and WebFactsBox stay for the listing and catalog pages. The extension sentence comes from
+  `extension_only`, else from the dates and `details.extension_months`.
+- SEO (`lib/site/projectSeo.ts`): titles capped at 65 characters, parts dropped whole (BHK, then possession, then area);
+  JSON-LD ApartmentComplex with `offers` (an Offer or AggregateOffer per price row, floor size in FTK), BreadcrumbList,
+  FAQPage, WebPage. The page doctor's description is used unless the page quotes a price and the doctor's text has none.
+- Not checked yet: Google's Rich Results Test on a live page, the hub coordinates on a map, a live model run on Park Eden.

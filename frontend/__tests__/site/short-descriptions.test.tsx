@@ -34,7 +34,7 @@ jest.mock('@/lib/site/register', () => ({
 import { generateMetadata as placeMetadata } from '@/app/projects/area/[place]/page'
 import { generateMetadata as facetMetadata } from '@/app/projects/area/[place]/[...facet]/page'
 import { clipWords, fitDescription } from '@/lib/site/format'
-import { registerDescription } from '@/lib/site/register'
+import { registerDescription } from '@/lib/site/projectSeo'
 import type { RegisterProject } from '@/lib/site/register'
 import { catalogProjectMetadata } from '@/lib/site/seo'
 import type { CatalogProject } from '@/lib/site/types'
@@ -61,7 +61,7 @@ describe('search descriptions fit what Google shows', () => {
     } as unknown as RegisterProject
     const d = registerDescription(p)
     expect(d.length).toBeLessThanOrEqual(160)
-    expect(d).toBe('Venkatesh Vanaya, Kharadi, Pune. 2, 3 BHK from ₹1.06 Cr. Possession Apr 2031, moved from Dec 2029, 0/168 homes booked, MahaRERA PR1261012601206.')
+    expect(d).toBe('Venkatesh Vanaya, Kharadi, Pune: 2 & 3 BHK from ₹1.06 Cr. Possession Apr 2031, 0 of 168 homes booked. MahaRERA PR1261012601206, checked by Avasetu.')
   })
 
   it("a page writer's long description is cut at a sentence, not mid-word", () => {
