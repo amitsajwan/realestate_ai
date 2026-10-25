@@ -34,7 +34,8 @@ export interface RegisterProject {
   maharera_url: string | null
   paragraph: string
   indexable: boolean
-  same_area: { name: string; slug: string; completion_now: string | null }[]
+  /** other projects in the area; price_from (rupees) and bhk ("2, 3 BHK") from their published prices, when there are any */
+  same_area: { name: string; slug: string; completion_now: string | null; price_from?: number | null; bhk?: string | null }[]
   source: string
   details?: ProjectDetailsGrid
   buildings?: RegisterBuilding[]
@@ -74,6 +75,14 @@ export interface RegisterProject {
   near_guide?: { name: string; path: string; km: number } | null
   /** the builder's page: /builders/<slug> (R6) */
   builder_slug?: string | null
+  /** the area's median ₹ per sq ft from at least 3 other projects' published prices with a size (backend pages.project_page) */
+  area_rate?: { place: string; per_sqft: number; projects: number } | null
+  /** homes booked between two MahaRERA reads 30-90 days apart; null without two reads or when none were booked */
+  sales?: { booked: number; days: number; since: string } | null
+  /** straight-line km from the checked map position to the work hubs people commute to, nearest first */
+  commute?: { name: string; km: number }[]
+  /** the only change to the filed completion date is MahaRERA's 2026 blanket extension: the builder moved nothing */
+  extension_only?: boolean | null
 }
 
 /** One registration of a project that MahaRERA holds tower by tower or phase by phase. */
@@ -151,17 +160,20 @@ function ownFaq(p: RegisterProject, nearby: { label?: string | null; name?: stri
   const asked = askedPrices(p)
   out.push({ topic: 'price', q: `What is the price of ${shown}?`,
     a: price ? `A local agent quotes ${price} for ${shown}. Prices change often: confirm the price and what it includes before you book.`
-      : asked ? `${asked.rows.map((r) => `${r.bhk}: ${r.range}`).join('; ')}, as listed on ${asked.sites}${asked.on ? ` on ${longDay(asked.on)}` : ''}. `
+      : asked ? `${asked.rows.map((r) => r.text).join('; ')}, as listed on ${asked.sites}${asked.on ? ` on ${longDay(asked.on)}` : ''}. `
         + 'Builders change prices often and add parking and other charges: ask for the current price sheet before you book.'
       : `No agent has quoted a price for ${shown} yet. Ask through the enquiry form on this page and a local agent will send you the current price.` })
   const d = p.details
   const where = p.area ? `${p.area.name}, Pune` : [p.place, p.taluka, 'Pune district'].filter(Boolean).join(', ')
-  if (p.completion_now) {
-    const moved = p.completion_at_registration && p.completion_at_registration !== p.completion_now
-    const ext = moved && d?.extension_months ? ` MahaRERA added ${d.extension_months} months to most projects' dates in August 2026 (Order 66/2026).` : ''
+  const change = completionChange(p)
+  if (p.completion_now && change) {
+    const ext = change.kind === 'moved' && change.extension
+      ? ` MahaRERA added ${change.extension} months to most projects' dates in August 2026 (Order 66/2026).` : ''
     out.push({ topic: 'possession', q: `What is the possession date of ${shown}?`,
-      a: `The completion date filed with MahaRERA is ${longDay(p.completion_now)}.` + (moved ? ` At registration it was ${longDay(p.completion_at_registration)}.` : '') + ext +
-        ' Ask the builder for the possession date in your agreement, in writing.' })
+      a: (change.kind === 'extension' ? extensionSentence(p.completion_now, change.months)
+        : `The completion date filed with MahaRERA is ${longDay(p.completion_now)}.`
+          + (change.kind === 'moved' ? ` At registration it was ${longDay(change.from)}.` : '') + ext)
+        + ' Ask the builder for the possession date in your agreement, in writing.' })
   }
   out.push({ topic: 'rera', q: `What is the MahaRERA number of ${shown}?`, a: `${shown} is registered with MahaRERA as ${p.regno}.` })
   if (d?.towers) {
@@ -208,7 +220,9 @@ export interface ProjectPrices {
   read_at: string | null
   /** url only for the builder's own site: property sites are named, not linked */
   /** sqft: the size the lowest price is for, when the site's line states it (carpet or saleable: sites differ) */
-  rows: { bhk: string; from_inr: number; to_inr: number | null; official: boolean; sqft?: number | null; sources: { site: string; url: string | null }[] }[]
+  /** per_sqft: ₹ per sq ft of the lowest price when its sqft is known (rounded) */
+  rows: { bhk: string; from_inr: number; to_inr: number | null; official: boolean; sqft?: number | null; per_sqft?: number | null;
+    sources: { site: string; url: string | null }[] }[]
 }
 
 export interface RegisterListItem {
@@ -359,19 +373,86 @@ export function areaName(p: RegisterProject): string | null {
   return p.area?.name ?? p.pune_place?.name ?? p.place ?? null
 }
 
-/** The asked prices we publish (backend areastats/prices.py) in words: per home size, the lowest price, the sites. Null when none. */
-export function askedPrices(p: Pick<RegisterProject, 'prices'>): { rows: { bhk: string; range: string }[]; from: string; bhks: string; sites: string; on: string | null } | null {
+const BHK_ROW = /^(\d+(?:\.\d+)?)\s*BHK$/i
+
+/** A price row's name as a buyer reads it: "2 BHK" stays; the sites' "All homes" (a price not given per size) is "Homes". */
+export function priceRowLabel(bhk: string): string {
+  return /^all homes$/i.test(bhk.trim()) ? 'Homes' : bhk
+}
+
+/** The asked prices we publish (backend areastats/prices.py) in words: per home size, the lowest price, the sites. Null when none.
+ *  `bhks` names only the rows that are a BHK size ("3, 4 BHK"); an "All homes" or "Plot" row is not one, so `bhks` is "" when no
+ *  row is (a page once read "All homes BHK from ₹1.99 Cr"). A row's `text` reads "2 BHK: ₹69 L to ₹80 L", or "Homes from ₹1.99 Cr". */
+export function askedPrices(p: Pick<RegisterProject, 'prices'>): { rows: { bhk: string; range: string; text: string }[]; from: string; bhks: string; sites: string; on: string | null } | null {
   const rows = (p.prices?.rows ?? []).filter((r) => r.from_inr > 0)
   if (!rows.length) return null
   const lowest = Math.min(...rows.map((r) => r.from_inr))
   const sites = Array.from(new Set(rows.flatMap((r) => r.sources.map((s) => s.site)))).slice(0, 3)
+  const sized = Array.from(new Set(rows.map((r) => BHK_ROW.exec(r.bhk.trim())?.[1]).filter(Boolean)))
   return {
-    rows: rows.map((r) => ({ bhk: r.bhk, range: formatPrice(r.from_inr) + (r.to_inr && r.to_inr !== r.from_inr ? ` to ${formatPrice(r.to_inr)}` : '') })),
+    rows: rows.map((r) => {
+      const range = formatPrice(r.from_inr) + (r.to_inr && r.to_inr !== r.from_inr ? ` to ${formatPrice(r.to_inr)}` : '')
+      return { bhk: r.bhk, range, text: BHK_ROW.test(r.bhk.trim()) ? `${r.bhk}: ${range}` : `${priceRowLabel(r.bhk)} from ${range}` }
+    }),
     from: formatPrice(lowest),
-    bhks: rows.map((r) => r.bhk.replace(/\s*BHK$/i, '')).join(', ') + ' BHK',
+    bhks: sized.length ? sized.join(', ') + ' BHK' : '',
     sites: sites.join(' and '),
     on: p.prices?.read_at ?? null,
   }
+}
+
+/** Whole months from one filed date to another ("2030-10-31" to "2031-02-28" is 4: a month end stays a month end); null when the
+ *  days do not line up, so a move of 4 months and 10 days is never taken for the 4-month extension. */
+export function monthsApart(from: string | null | undefined, to: string | null | undefined): number | null {
+  const a = /^(\d{4})-(\d{2})-(\d{2})/.exec(from || '')
+  const b = /^(\d{4})-(\d{2})-(\d{2})/.exec(to || '')
+  if (!a || !b) return null
+  const [ya, ma, da] = [Number(a[1]), Number(a[2]), Number(a[3])]
+  const [yb, mb, db] = [Number(b[1]), Number(b[2]), Number(b[3])]
+  const lastDay = (y: number, m: number) => new Date(Date.UTC(y, m, 0)).getUTCDate()
+  const aligned = da === db || (db === lastDay(yb, mb) && da >= db) || (da === lastDay(ya, ma) && db === lastDay(yb, mb))
+  return aligned ? (yb - ya) * 12 + (mb - ma) : null
+}
+
+/** Whether the only change to a filed completion date is MahaRERA's August 2026 blanket extension. The backend says so
+ *  (`extension_only`); a page read before it did falls back to the dates: they differ by exactly the extension's months. */
+export function isExtensionOnly(at: string | null | undefined, now: string | null | undefined, extensionMonths?: number | null,
+  flag?: boolean | null): boolean {
+  if (!at || !now || at === now) return false
+  if (flag != null) return flag
+  return !!extensionMonths && monthsApart(at, now) === extensionMonths
+}
+
+/** "The completion date filed with MahaRERA is 28 Feb 2031; MahaRERA's August 2026 order added 4 months to it (the builder has not
+ *  moved it)." The extension is the regulator's, for most projects at once, so it is never worded as the builder moving the date. */
+export function extensionSentence(now: string, months: number | null): string {
+  return `The completion date filed with MahaRERA is ${longDay(now)}; MahaRERA's August 2026 order `
+    + (months ? `added ${months} month${months === 1 ? '' : 's'} to it` : 'extended it') + ' (the builder has not moved it).'
+}
+
+/** How the filed completion date changed since registration: the 'same', only MahaRERA's 2026 'extension', or 'moved' by the
+ *  builder (`extension`: the blanket extension's months inside that move). Null without a filed date; 'unknown' without the first. */
+export type CompletionChange = { kind: 'unknown' } | { kind: 'same' } | { kind: 'extension'; from: string; months: number | null }
+  | { kind: 'moved'; from: string; extension: number | null }
+
+export function completionChange(p: Pick<RegisterProject, 'completion_now' | 'completion_at_registration' | 'details' | 'extension_only'>): CompletionChange | null {
+  const now = p.completion_now
+  const at = p.completion_at_registration
+  if (!now) return null
+  if (!at) return { kind: 'unknown' }
+  if (at === now) return { kind: 'same' }
+  const ext = p.details?.extension_months || null
+  if (isExtensionOnly(at, now, ext, p.extension_only)) return { kind: 'extension', from: at, months: ext ?? monthsApart(at, now) }
+  return { kind: 'moved', from: at, extension: ext }
+}
+
+/** The page heading's name: the one buyers know, with the phase when MahaRERA's name carries one and that name does not ("Park
+ *  Eden" filed as "PARK EDEN PHASE I" is "Park Eden Phase I"), so two phases' pages do not read as one project. */
+export function headingName(p: { name: string; marketed_name?: string | null; search_name?: string | null }): string {
+  const shown = displayName(p)
+  const m = /\b(?:phase|ph\.?)[\s-]*([ivx]+|\d+[a-z]?)\b/i.exec(p.name)
+  if (!m || /\b(?:phase|ph\.?)(?:\b|\s|\d)/i.test(shown)) return shown
+  return `${shown} Phase ${/^[ivx]+$/i.test(m[1]) ? m[1].toUpperCase() : m[1]}`
 }
 
 /** The agent's offer as kept on the property's fact sheet (propertyfacts public view): what campaign posts quote. */

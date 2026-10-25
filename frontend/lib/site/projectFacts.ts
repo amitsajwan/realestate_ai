@@ -5,7 +5,7 @@
  */
 import { formatPrice } from './format'
 import { bhkRange as offerBhks } from './projects'
-import { askedPrices, displayName, longDay } from './register'
+import { askedPrices, displayName, extensionSentence, isExtensionOnly, longDay, monthsApart } from './register'
 import type { RegisterProject } from './register'
 import type { CatalogProject } from './types'
 
@@ -21,6 +21,8 @@ export interface AnswerFacts {
   completionAtRegistration?: string | null
   /** months of MahaRERA's August 2026 blanket extension inside the move (0 or absent: none) */
   extensionMonths?: number | null
+  /** the backend's word that the extension is the only change (absent: worked out from the dates and extensionMonths) */
+  extensionOnly?: boolean | null
   completionPassed?: boolean
   unitsTotal?: number | null
   unitsBooked?: number | null
@@ -35,14 +37,22 @@ export function projectAnswer(f: AnswerFacts): string {
   const day = longDay(f.asOf)
   const parts = [`${day ? `As of ${day}, ` : ''}${f.name}${f.builder ? ` by ${f.builder}` : ''} in ${f.where} is registered with MahaRERA as ${f.regno}.`]
   if (f.completionNow) {
-    const moved = f.completionAtRegistration && f.completionAtRegistration !== f.completionNow
-    // the 2026 order moved most projects' dates without the builder asking: said, so a 4-month move does not read as a delay
-    const ext = moved && f.extensionMonths ? ` (MahaRERA's August 2026 order added ${f.extensionMonths} months to most projects)` : ''
-    parts.push(`The completion date filed with MahaRERA is ${longDay(f.completionNow)}`
-      + (moved ? `, moved from ${longDay(f.completionAtRegistration)} at registration${ext}.` : f.completionAtRegistration ? ', not moved since registration.' : '.'))
+    const at = f.completionAtRegistration
+    const moved = at && at !== f.completionNow
+    // the 2026 order moved most projects' dates without the builder asking: when it is the only change the builder moved nothing,
+    // so the date is never said to have "moved"; inside a bigger move it is named, so the move does not read as all delay
+    if (moved && isExtensionOnly(at, f.completionNow, f.extensionMonths, f.extensionOnly)) {
+      parts.push(extensionSentence(f.completionNow, f.extensionMonths || monthsApart(at, f.completionNow)))
+    } else {
+      const ext = moved && f.extensionMonths ? ` (MahaRERA's August 2026 order added ${f.extensionMonths} months to most projects)` : ''
+      parts.push(`The completion date filed with MahaRERA is ${longDay(f.completionNow)}`
+        + (moved ? `, moved from ${longDay(at)} at registration${ext}.` : at ? ', not moved since registration.' : '.'))
+    }
   }
+  // "27 of 249 homes booked": the total is every home MahaRERA lists, never the ones still for sale
   if (f.unitsTotal && f.unitsBooked != null && f.unitsBooked <= f.unitsTotal) {
-    parts.push(f.unitsBooked === f.unitsTotal ? `All ${n(f.unitsTotal)} homes are booked.` : `${n(f.unitsBooked)} of its ${n(f.unitsTotal)} homes are booked.`)
+    parts.push(f.unitsBooked === f.unitsTotal ? `MahaRERA shows all ${n(f.unitsTotal)} homes booked.`
+      : `MahaRERA shows ${n(f.unitsBooked)} of ${n(f.unitsTotal)} homes booked.`)
   }
   if (f.price) parts.push(f.price.charAt(0).toUpperCase() + f.price.slice(1) + '.')
   if (f.completionPassed) parts.push('The filed completion date has passed: ask for the occupancy certificate (OC).')
@@ -53,13 +63,13 @@ export function projectAnswer(f: AnswerFacts): string {
 export function registerAnswer(p: RegisterProject, offer?: { from: string; bhks: string } | null): string {
   const asked = askedPrices(p)
   const price = offer ? `${offer.bhks ? `${offer.bhks} ` : ''}from ${offer.from} on a local agent's price sheet`
-    : asked ? `${asked.bhks} from ${asked.from}, as listed on ${asked.sites}${asked.on ? ` on ${longDay(asked.on)}` : ''}` : null
+    : asked ? `${asked.bhks || 'homes'} from ${asked.from}, as listed on ${asked.sites}${asked.on ? ` on ${longDay(asked.on)}` : ''}` : null
   return projectAnswer({
     name: displayName(p), builder: p.builder?.name || p.promoter,
     where: p.area ? `${p.area.name}, Pune` : [p.pune_place?.name ?? p.place, 'Pune district'].filter(Boolean).join(', '),
     regno: p.regno, asOf: p.details_read_at ?? p.page_updated,
     completionNow: p.completion_now, completionAtRegistration: p.completion_at_registration,
-    extensionMonths: p.details?.extension_months, completionPassed: p.completion_passed,
+    extensionMonths: p.details?.extension_months, extensionOnly: p.extension_only, completionPassed: p.completion_passed,
     unitsTotal: p.units_total, unitsBooked: p.units_booked, price,
   })
 }

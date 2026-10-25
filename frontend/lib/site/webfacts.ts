@@ -13,6 +13,9 @@ export interface WebFact {
   /** the builder's own site says it */
   official: boolean
   sources: { site: string; url: string; quote: string }[]
+  /** "project": a count (towers, homes) larger than this registration's on MahaRERA, so it is the whole marketed project's;
+   *  "registration" or absent: it is about this registration */
+  scope?: 'project' | 'registration' | null
 }
 
 export interface WebFacts {
