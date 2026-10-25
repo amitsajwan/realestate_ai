@@ -81,11 +81,27 @@ GitHub Models through `default_llm`). The text writer stays on `default_llm`. Pr
 (`prices._model`); in the merged call that preference is kept only when the page has price lines. Whether the cheaper
 models read prices well enough is measured before the switch (step 6 below).
 
-**Budget.** Every call is counted in `enrich_llm_usage` ({day, purpose, provider, calls, tokens when the provider says}).
-A turn takes work only while:
-- today's calls are under `ENRICH_LLM_CALLS_PER_DAY` (env; the owner sets it from the free tiers' daily limits, leaving room
-  for chat, the newsroom and campaigns, which come first), and
-- `enrich.busy(llm)` is false (most providers are not resting after a 429 or a timeout).
+**Budget.** Owner, 2026-10-25: "we can spend 20 rs per day on Gemini" (for enrichment). Two pools:
+- **Gemini, paid: ₹20 a day** (`ENRICH_GEMINI_INR_PER_DAY=20`). Each Gemini answer's `usage` (prompt, completion and
+  thinking tokens; Gemini bills its thinking as output) is priced from a table in the module's config (per model, USD per
+  1M tokens in and out, and `USD_INR`) and added to `enrich_llm_usage`. When today's rupees reach the cap, Gemini is not
+  asked again until midnight IST; the work goes to the free pool or waits. The meter counts only enrichment's calls: chat
+  and the creative room share the same key, so a Google Cloud budget alert on the key stays the real guard on the bill.
+- **Free tiers** (Groq, GitHub Models, Cloudflare, SambaNova through `default_llm`, Gemini left out):
+  `ENRICH_FREE_CALLS_PER_DAY`, set from those tiers' daily limits with room left for chat, the newsroom and campaigns,
+  which come first; and only while `enrich.busy(llm)` is false.
+
+What ₹20 buys (estimates from list prices on 2026-10-25, to be replaced by the meter's real numbers after a week): a page
+read is about 3,300 tokens in (9,000 characters of page and the prompt) and 1,600 out (the JSON and low-effort thinking);
+the text about 3,500 in and 1,900 out. On Gemini 3 Flash ($0.50 in, $3.00 out per 1M) that is about ₹0.55 a page and ₹0.65
+a text: **about 35 calls a day**, roughly 6 full projects. On Flash-Lite ($0.25 / $1.50) about twice that. So Gemini is the
+quality pool, not the bulk one. It is spent, in this order, on:
+1. urgent requests (a campaign about to post): its pages and its text;
+2. price pages (lines with Rs / lakh / crore) of hot projects and of Upper Kharadi, Kharadi and Wagholi, where a wrong price
+   costs most;
+3. the text of hot projects and of pages Google shows;
+4. whatever is left by evening: the next items in value order, on Flash-Lite.
+Everything else goes to the free pool. When the free pool is resting and Gemini's rupees are spent, the lane waits.
 Within the budget the most valuable items go first: urgent (a campaign about to post), hot, pages Google shows (Search
 Console impressions), new launches, then the rest; `read_page` of a project before its `write_text`, so the text is
 written once from all its pages. A project whose items are all done costs nothing until a hash changes.
@@ -120,8 +136,10 @@ backlog: how many pages and texts are due, so the owner can see what a bigger bu
 4. **Page store.** `project_web_pages` with the cut text and hash; the round reads from it (fetching when missing or old).
 5. **Facts loop.** `project_facts` in the worker's newsroom role (`add-background-loop` skill: lease, heartbeat,
    `expected_intervals`, health check), refresh's register record reused; the enrich round stops doing those steps.
-6. **Hashes and the budget.** `web_reads` / `text_inputs_hash`, the usage counter, `ENRICH_LLM_CALLS_PER_DAY`,
-   value order. From here an unchanged project costs no call.
+6. **Hashes and the budget.** `web_reads` / `text_inputs_hash`, the usage meter (tokens from each answer's `usage`,
+   priced per model), the two pools (`ENRICH_GEMINI_INR_PER_DAY`, `ENRICH_FREE_CALLS_PER_DAY`), value order. From here an
+   unchanged project costs no call and Gemini never passes ₹20 a day for enrichment. The gateway (`platform/llm.py`) has
+   to hand back the answer's `usage` for this; today it returns only the JSON.
 7. **One call per page.** Built behind a switch (`ENRICH_ONE_CALL_PER_PAGE`), run on a sample of 30 projects next to the
    three separate calls, compared fact by fact and price by price; switched on only when it is as good.
 8. **Rule-only price reader (optional).** A line naming one BHK size and one amount is read by code without the model;
@@ -129,6 +147,7 @@ backlog: how many pages and texts are due, so the owner can see what a bigger bu
 
 ## Open for the owner
 
-- The daily model budget for enrichment (`ENRICH_LLM_CALLS_PER_DAY`), given what chat and campaigns use.
+- Gemini: ₹20 a day, decided 2026-10-25. Still open: the free pool's daily calls (`ENRICH_FREE_CALLS_PER_DAY`), given
+  what chat and campaigns use.
 - The facts lane's pace: 5 minutes is gentle for MahaRERA (2 reads per project at most, usually 1); faster is possible.
 - Whether prices may come from the same (cheaper) model as the facts once step 7's comparison is in.
