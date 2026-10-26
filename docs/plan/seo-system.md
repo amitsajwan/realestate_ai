@@ -322,7 +322,7 @@ The build, in order. H0 is urgent: a day we do not keep a reading is lost for go
 
 | Step | What | Code (owner of the data) | Cost |
 |---|---|---|---|
-| **H0** | **Keep every reading.** Each price read appends `{at, size, low, high, source}` to `price_history` (the current `prices` stays as it is); `booked_history` is no longer cut at 24 (one reading a month is ~12 small rows a year; cut only past 120); a test pins that no reading is lost | `areastats/prices.py`, `areastats/refresh.py`, writes through the `projects` store as today (inventory owns `projects`, ARCHITECTURE §4) | ₹0, a few MB a year |
+| ~~H0~~ BUILT 2026-10-26 | **Keep every reading.** Each price read appends `{at, size, low, high, source}` to `price_history` (the current `prices` stays as it is); `booked_history` is no longer cut at 24 (one reading a month is ~12 small rows a year; cut only past 120); a test pins that no reading is lost | `areastats/prices.py`, `areastats/refresh.py`, writes through the `projects` store as today (inventory owns `projects`, ARCHITECTURE §4) | ₹0, a few MB a year |
 | **H1** | **History on the project page**: "Homes booked" as a small month-by-month chart with the dated readings in text below it ("312 booked on 3 Jul, 344 on 2 Oct: 32 in 3 months"), and "Completion date" as a timeline of every filed change ("16 Aug 2032 → 16 Dec 2032, MahaRERA's 2026 extension for every project; → 16 Feb 2033, the builder"). Shown only with 2+ readings; server-rendered SVG, no script; one sentence of it in the dated answer | `pages.view` (`booked_readings`, `completion_moves`), `frontend/components/site/` new `ProjectHistory.tsx`, `projectFacts.ts` | ₹0 |
 | **H2** | **Price history** once a size has 2 readings 30+ days apart from the same kind of source: "2 BHK asked from ₹69 L (Jul) → ₹72 L (Oct), builder's site". Never mixed sources in one line; prices older than 45 days stay out of the "today" price as now | `pages.view`, `ProjectHistory.tsx` | ₹0 |
 | **H3** | **Builder record over time** on `/builders/<slug>`: every project's filed date moves in one list, with the share moved and the average months, from the same rules as `pages.delivery` | `hubs.builder_page`, `app/builders/[slug]/page.tsx` | ₹0 |
@@ -332,7 +332,8 @@ The build, in order. H0 is urgent: a day we do not keep a reading is lost for go
 | **H7** | **Facts people bring** (owner to decide each): dated site-visit photos from agents on the project page, buyer reviews (moderated, the copy guards before showing), verified agent listings first in their area | `listings`, `showcase`, new review flow | ₹0 code; owner time to moderate |
 
 Marathi pages stay under "AI search, next" above. H0 first and alone (it changes what we store, so it ships with its tests
-before anything reads it); H1–H3 after 2 readings exist on most pages; H4 after H0 has run a month; H5 and H6 any time; H7
+before anything reads it; BUILT 2026-10-26: `prices.history` adds a reading per size when the price is new or changed, never on
+a round that kept the last good prices; `refresh.BOOKED_HISTORY` 24 → 120, and `prices.PRICE_HISTORY` = 400); H1–H3 after 2 readings exist on most pages; H4 after H0 has run a month; H5 and H6 any time; H7
 when the owner decides.
 
 Results to read: doctor's first 14-day results **2026-10-28**; rival and price refreshes from **2026-11-04**.
@@ -377,7 +378,8 @@ measure (Search Console, Serper, URL Inspection) → choose (near page one, Magi
 | 2026-10-25 | this | Project pages open with a dated answer + "Updated" (WebPage dateModified); news stories link the projects they name; `/llms.txt` lists project pages |
 | 2026-10-22 | this | `/` is the buyers' home (one topic: new projects in Pune); the agents' home moved to `/agents`. Hot projects banner on every buyer page, set in Studio (`hot-projects.md`); robots guard test |
 | 2026-10-25 | this | Tracker pages `/news/track/<slug>` (8) in the sitemap at 0.8, linked from `/news` and from the area pages they touch |
-| 2026-10-26 | this | Plan only: section 8b (what a competitor cannot copy; prices and old booking readings are thrown away today; H0 keeps every reading, H1–H7 show the history and widen the lead) |
+| 2026-10-26 | this | H0: every price change kept, dated, in `price_history`; homes-booked readings kept to 120 (were cut at 24) |
+| 2026-10-26 | 96d4dcd | Plan only: section 8b (what a competitor cannot copy; prices and old booking readings are thrown away today; H0 keeps every reading, H1–H7 show the history and widen the lead) |
 | 2026-10-26 | 0f19643 | Plan only: section 8a (keeping the lead: freshness and stalled-loop rows, AI answer panel on Gemini grounding, AI answers → leads, Bing API, WhatsApp note, with checked costs) and the owner's weekly and monthly upkeep (section 7) |
 
 ## 12. Detail and history
