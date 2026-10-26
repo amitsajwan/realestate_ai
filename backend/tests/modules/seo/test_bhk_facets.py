@@ -86,3 +86,9 @@ def test_place_prices_per_size():
     assert two == {"bhk": 2, "projects": 3, "low": 6_900_000, "high": 9_100_000, "cheapest": {"name": "Project 2", "slug": "project-2"},
                    "path": "/projects/area/lohegaon/2-bhk"}
     assert [s["bhk"] for s in out["sizes"]] == [2]   # one 1 BHK and one 3 BHK price is not a price range
+
+
+def test_a_size_list_leaves_out_a_project_with_every_home_booked():
+    gone = {**_doc(7, [("2 BHK", 4_500_000, None)]), "units_booked": 100}   # 100 of 100 booked
+    listed = [d["_id"] for d, _ in facets.members(Facet("lohegaon", "all", bhk=2), [*DOCS, gone], NOW)]
+    assert "P7" not in listed and "P1" in listed

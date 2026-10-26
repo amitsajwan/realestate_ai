@@ -16,11 +16,13 @@ export const STAGE_TAG: Record<NonNullable<FacetRow['stage']>, string> = {
 }
 
 // a picture that is not the builder's own says so, as the project page does (ProfilePictures)
-const PHOTO_NOTE: Record<string, string> = { ai: 'AI illustration', brochure: "Artist's impression", web: 'Not checked by us' }
+// ("Not checked by us" read as if the project's facts were not checked, on a site whose word is "checked": owner review 2026-10-26)
+const PHOTO_NOTE: Record<string, string> = { ai: 'AI illustration', brochure: "Artist's impression", web: 'Photo from the web' }
 
 export function cardPrice(r: FacetRow): string | null {
-  if (r.price) return `${r.price.bhk} BHK ${formatPrice(r.price.from_inr)}${r.price.to_inr ? ` to ${formatPrice(r.price.to_inr)}` : ''}`
+  // a size list's own price first: the cheapest of any size put a 1 BHK price on the 2 BHK row (96 Arrcade, 2026-10-26)
   if (r.price_from != null) return `${formatPrice(r.price_from)}${r.price_to ? ` to ${formatPrice(r.price_to)}` : ''}`
+  if (r.price) return `${r.price.bhk} BHK ${formatPrice(r.price.from_inr)}${r.price.to_inr ? ` to ${formatPrice(r.price.to_inr)}` : ''}`
   return null
 }
 
@@ -77,7 +79,8 @@ export function RankedCard({ r }: { r: FacetRow }) {
           {r.registered_on && <div><dt className="text-xs text-slate-500">Registered</dt><dd>{monthYear(r.registered_on)}</dd></div>}
         </dl>
         <Booked r={r} />
-        <p className="text-xs text-slate-500">{r.reason} · MahaRERA {r.regno}</p>
+        {/* the reason only when it adds something (homes booked lately); otherwise it is the line above again */}
+        <p className="text-xs text-slate-500">{r.reason && !r.reason.startsWith(`${r.units_open} of `) ? `${r.reason} · ` : ''}MahaRERA {r.regno}</p>
         <div className="mt-1 flex flex-wrap gap-2">
           <Link href={`/projects/${r.slug}`} className="inline-flex min-h-[44px] items-center rounded-xl bg-[#0f2340] px-4 text-sm font-semibold text-white no-underline">See project</Link>
           <Link href={`/projects/${r.slug}#enquire`} className="inline-flex min-h-[44px] items-center rounded-xl border border-[#0f2340] px-4 text-sm font-semibold text-[#0f2340] no-underline">

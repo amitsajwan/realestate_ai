@@ -34,7 +34,7 @@ export function Picture({ pic, eager }: { pic: ProfilePicture; eager?: boolean }
         loading={eager ? 'eager' : 'lazy'} decoding="async" className="h-full w-full object-cover" />
       {sourceOf(pic) !== 'builder' && !(sourceOf(pic) === 'brochure' && !/artist/i.test(pic.alt)) && (
         <span className="absolute left-2 top-2 rounded bg-black/70 px-2 py-0.5 text-xs font-semibold text-white">
-          {sourceOf(pic) === 'ai' ? 'AI illustration' : sourceOf(pic) === 'brochure' ? "Artist's impression" : 'Not checked by us'}
+          {sourceOf(pic) === 'ai' ? 'AI illustration' : sourceOf(pic) === 'brochure' ? "Artist's impression" : 'Photo from the web'}
         </span>
       )}
     </a>

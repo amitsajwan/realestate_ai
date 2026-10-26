@@ -780,12 +780,15 @@ async def places(db) -> List[dict]:
     `current`: being built or finished within a year (not is_old), the projects a buyer of a new home looks at."""
     from app.core import pune_places
     counts: dict = {}
-    for d in await Store(db).shared_projects():
+    every = await Store(db).shared_projects()
+    served = {d["_id"] for d in every if can_host(d)}
+    for d in every:
         if d.get("page_slug") and d.get("pune_place"):
             c = counts.setdefault(d["pune_place"], {"name": d.get("pune_place_name") or d["pune_place"], "projects": 0, "indexable": 0,
                                                     "current": 0})
             c["projects"] += 1
-            c["current"] += 0 if is_old(d) else 1
+            # as the place page counts them (place_list): one per project, a tower on its primary's page (home said 136, page 110)
+            c["current"] += 1 if _served(d) and d.get("cluster_primary") not in served and not is_old(d) else 0
             c["indexable"] += 1 if indexable(d) else 0
     zones = list(dict.fromkeys(p.zone for p in pune_places.PLACES))
     out = []

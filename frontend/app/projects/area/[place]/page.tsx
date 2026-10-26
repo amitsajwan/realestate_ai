@@ -182,7 +182,7 @@ export default async function PlaceProjectsPage({ params }: Props) {
 
         <FacetChips chips={chips} current={placePath(place.slug)} label={`Lists for ${place.name}`} />
 
-        {topList && <ProjectRail id="top" title="Top projects you can still buy" sub="Most booked lately, with 10 or more homes open" href={topList.path} count={topList.count} rows={topList.rows} ranked />}
+        {topList && <ProjectRail id="top" title="Top projects you can still buy" sub="Most homes booked first, with 10 or more open" href={topList.path} count={topList.count} rows={topList.rows} ranked />}
         {launchList && <ProjectRail id="launches" title="Just launched" sub="Registered with MahaRERA in the last 12 months" href={launchList.path} count={launchList.count} rows={launchList.rows} />}
         {readyList && <ProjectRail id="ready" title="Move in now" sub="Completion date passed, 10 or more homes open. Ask the builder for the OC." href={readyList.path} count={readyList.count} rows={readyList.rows} />}
 

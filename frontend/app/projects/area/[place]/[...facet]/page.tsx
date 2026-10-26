@@ -173,7 +173,7 @@ export default async function FacetPageView({ params }: Props) {
         {cards.length > 0 && (
           <section aria-labelledby="top-title" className="mt-8">
             <h2 id="top-title" className="text-2xl font-bold text-slate-900">Top {cards.length} you can still buy</h2>
-            <p className="text-sm text-slate-600">Ranked by homes booked lately, among projects with 10 or more homes open</p>
+            <p className="text-sm text-slate-600">Most homes booked first (booked lately, where MahaRERA shows it), among projects with 10 or more homes open</p>
             <ol className="mt-3 grid list-none gap-4 p-0" data-testid="facet-cards">
               {cards.map((r) => <RankedCard key={r.slug} r={r} />)}
             </ol>

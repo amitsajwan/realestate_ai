@@ -260,7 +260,7 @@ def members(f: Facet, docs: List[dict], now: datetime) -> List[Tuple[dict, str]]
         if f.intent == "all":
             # "2 bhk flats in <place>": every project still being sold with a 2 BHK price, cheapest first
             rows = [((sized[id(d)]["from_inr"],), d, _price_why(sized[id(d)], f.bhk)) for d in pool
-                    if not is_old(d, now.date()) and not (f.builder and builder_slug(d.get("promoter")) != f.builder)
+                    if not is_old(d, now.date()) and _open(d) != 0 and not (f.builder and builder_slug(d.get("promoter")) != f.builder)
                     and not (f.possession and _year(_day(d.get("completion_now"))) != f.possession)]
             rows.sort(key=lambda r: (r[0], link_name(r[1]).lower()))
             return [(d, why) for _, d, why in rows]

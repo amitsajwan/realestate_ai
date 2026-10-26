@@ -116,7 +116,7 @@ export default async function BuyerHome() {
 
       {topList && (
         <div className={wrap}>
-          <ProjectRail id="home-top" title={`Top projects in ${topList.place.name} you can still buy`} sub="Most booked lately, with 10 or more homes open (MahaRERA)"
+          <ProjectRail id="home-top" title={`Top projects in ${topList.place.name} you can still buy`} sub="Most homes booked first, with 10 or more open (MahaRERA)"
             href={topList.path} count={topList.count} rows={topList.rows} ranked />
         </div>
       )}

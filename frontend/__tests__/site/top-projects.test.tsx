@@ -51,7 +51,7 @@ describe('Top projects page', () => {
     expect(cards).toHaveLength(10)
     expect(cards[0]).toHaveTextContent('2 BHK ₹95')
     expect(cards[0]).toHaveTextContent('Possession soon')
-    expect(cards[0]).toHaveTextContent('Not checked by us')          // a web picture says so
+    expect(cards[0]).toHaveTextContent('Photo from the web')         // a web picture says so
     expect(cards[0]).toHaveTextContent('20 homes open')
     expect(within(cards[0]).getByRole('link', { name: 'Ask about floor plans' })).toHaveAttribute('href', '/projects/p-1#enquire')
     expect(within(cards[1]).getByRole('link', { name: 'Get the price' })).toHaveAttribute('href', '/projects/p-2#enquire')
