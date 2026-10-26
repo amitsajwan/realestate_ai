@@ -85,7 +85,7 @@ Each domain is a package under `backend/app/modules/`. A domain is made of one o
 | **buyers** | Contacts, requirements, events, scoring, matching, alerts (T2.4), agent reports | tracking, interest, report | `contacts`, `events`, `inquiry_log`, `interest_*`, `hub_items` |
 | **distribution** | One way out (`send` + publish ledger), one adapter per channel (Facebook, Instagram, WhatsApp, YouTube), publication log, tracked links | social (incl. the reel publisher; **only it** imports the Graph client) | `publications`, `publish_ledger` |
 | **content** | Sources → drafts → review → ready to publish; the render kit (brand, layouts, cards, reels) | newsroom, calendar, showcase, marketing packs, creative, reels, photoquality | `newsroom_*`, `content_calendar`, `calendar_status`, `marketing_packs`, `reel_jobs` |
-| **conversations** | Comment replies, website chat, WhatsApp inbound, grounded answers, notifications | engage, chat, whatsapp, knowledge, notifications | `engage_*`, `chat_sessions`, `whatsapp_*`, `notifications` |
+| **conversations** | Comment replies, website chat, WhatsApp inbound, grounded answers, notifications, the Inbox and passing buyers to agents | engage, chat, whatsapp, knowledge, notifications, inbox | `engage_*`, `chat_sessions`, `whatsapp_*`, `notifications`, `lead_routes` (inbox: the owner's pass-by-area/project rules) |
 
 **Knowledge search** (LIVE 2026-10-18): `knowledge/index.py` (newsroom role, every 15 min) cuts what we publish into short passages
 (site answers, area facts, topic pages, published posts, served MahaRERA project pages) and stores them in **Qdrant** (compose

@@ -55,6 +55,26 @@ TARGET, in this order:
 11. **Score check**: a form lead with timeline "now" scored 25 (Veebha) while "3-6 months" scored 50 (Rahul, floor-plan form);
     timeline should count more than which form was used.
 
+## Passing leads to agents (2026-10-26)
+
+Owner: Saket's Mansha Phase-II lead (2 BHK, Google) reached House Deal as a name and a phone, and went to the retired House Deal
+account (both read "House Deal" in the picker). The old message was built from the chat's state, empty in a chat our follow-up started.
+
+LIVE (this change):
+- **Handover card** (`inbox/handover.py`): every fact on the lead: name, phone, project + MahaRERA number, what they asked for
+  (price sheet / visit / floor plans), BHK, budget, when, home loan, areas, their own words, page, source, time (IST), pages seen,
+  what we already sent, owner notes, and "not known yet, please ask: ...". The agent's lead page shows it ("Passed to you").
+- **Pass from the lead page or a chat**: the owner sees the card first; the lead and all its chats move together.
+- **WhatsApp to the agent from our number**: UTILITY template `lead_passed_v1` (submitted 2026-10-26, id 1459495656106326; until
+  Meta approves it the send fails, the pass still happens and the owner gets the wa.me button with the full card).
+- **Rules** (`lead_routes`): "pass every Wagholi lead / every <project> lead to House Deal by itself", picked in the pass box or added in
+  Leads > Passed. The follow-ups loop passes a matching lead 4 minutes after it comes in (after the auto follow-up), once per lead,
+  and alerts the owner (`lead_auto_passed`).
+- **Retired accounts** (slug `*-retired-*`, profile or user switched off) are left out of the picker and refused.
+- **Leads > Passed** (owner): the last 14 days' passes, card, WhatsApp status, resend from my phone, the rules.
+
+TARGET: tell the buyer who will call them (needs a buyer template naming the agent); the agent's outcome back to the owner.
+
 ## Ice breakers OFF (2026-10-23)
 
 The three DM starter buttons (scripts/set_dm_menu.py) were removed from Messenger and Instagram on 23 Oct: a tap sent a message

@@ -3,6 +3,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import React, { useState } from 'react'
 import { LeadConversations } from '@/components/app/LeadConversations'
+import { PassBox } from '@/components/app/PassBox'
+import { useIsOwner } from '@/components/app/agents/useIsOwner'
 import { AiSummaryCard, DraftPanel, FollowUpDue, MatchesList, RequirementChips } from '@/components/app/LeadPanels'
 import { DealClosedSheet, LostReasonSheet, MarkSoldPrompt, OutcomeSummary } from '@/components/app/OutcomeSheets'
 import { Btn, ErrorBox, LinkBtn, STAGES, Spinner, TempChip, inputCls } from '@/components/app/ui'
@@ -47,6 +49,7 @@ export function LeadDetailView({ id }: { id: string }) {
   const [sheet, setSheet] = useState<Sheet>(null)
   const [suggest, setSuggest] = useState<NonNullable<LeadDetail['suggest_listing_status']> | null>(null)
   const router = useRouter()
+  const owner = useIsOwner()
 
   if (loading && !data) return <Spinner />
   if (error || !data) return <ErrorBox message={error ?? t('notFound')} />
@@ -176,6 +179,14 @@ export function LeadDetailView({ id }: { id: string }) {
       )}
 
       <LeadConversations threads={threads} />
+
+      {lead.handover && (
+        <section aria-label="Passed to you" className="space-y-1 rounded-2xl border border-sky-200 bg-sky-50 p-3">
+          <h2 className="font-semibold text-sky-900">Passed to you{lead.handover.at ? ` ${timeAgo(lead.handover.at)}` : ''}</h2>
+          <p className="whitespace-pre-line break-words text-sm text-gray-900">{lead.handover.text}</p>
+        </section>
+      )}
+      {owner && <PassBox leadId={lead.id} />}
 
       <RequirementChips requirement={lead.requirement} />
       <MatchesList matches={lead.matches} />

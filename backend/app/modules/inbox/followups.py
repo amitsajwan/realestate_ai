@@ -9,6 +9,12 @@ Every INTERVAL_S:
   2. Waiting alert (always on). A lead whose contact status (tracking/contact.py) is not_contacted or waiting_you for more than
      ALERT_AFTER gets one in-app notification (kind 'lead_waiting') to its agent; `waiting_alert_for` keeps the moment it was
      about, so the same wait is told once and a new wait (they wrote again) is told again. Leads older than ALERT_DAYS are left.
+  3. Automatic pass (always on; the owner's rules are the switch). A lead of the owner's that came in PASS_DELAY to AUTO_WINDOW ago,
+     is not won or lost and was never passed goes to the agent a rule in `lead_routes` names (its project page, the project's area,
+     or an area they named: InboxService.route_for), through the same InboxService.pass_lead as the Studio button, so the agent gets
+     the full handover card. PASS_DELAY leaves the auto follow-up its turn first (the template goes from Avasetu, then the agent
+     calls). Tried once per lead (`auto_pass_at`); the owner gets one 'lead_auto_passed' alert saying who it went to and whether
+     the WhatsApp to the agent went out.
 Each lead is handled on its own: an error is logged and the rest go on.
 """
 import asyncio
@@ -29,6 +35,8 @@ AUTO_WINDOW = timedelta(hours=24)       # older leads are not messaged out of th
 ALERT_AFTER = timedelta(hours=2)
 ALERT_DAYS = 14
 ALERT_KIND = "lead_waiting"
+PASS_DELAY = timedelta(minutes=4)
+PASSED_KIND = "lead_auto_passed"
 MAX_LEADS = 500
 
 
@@ -62,6 +70,37 @@ async def auto_followups(db, inbox, owner: str, now: datetime) -> int:
             log.warning("lead follow-up not sent for %s: %s", c["_id"], e)
             await db.get_collection("contacts").update_one({"_id": c["_id"]}, {"$set": {"auto_followup_error": str(e)[:200]}})
     return sent
+
+
+async def auto_passes(db, inbox, owner: str, now: datetime, notify: Optional[Callable] = None) -> int:
+    """Pass the owner's fresh leads that a rule names to that rule's agent. Returns how many were passed."""
+    if notify is None:
+        from app.modules.notifications.service import notify
+    if not await db.get_collection("lead_routes").find_one({"owner_id": owner}):
+        return 0
+    leads = await db.get_collection("contacts").find({
+        "agent_id": owner, "created_at": {"$gte": now - AUTO_WINDOW}, "stage": {"$nin": ["won", "lost"]},
+        "passed_at": {"$exists": False}, "auto_pass_at": {"$exists": False}}).to_list(MAX_LEADS)
+    passed = 0
+    for c in leads:
+        if c["created_at"] > now - PASS_DELAY:
+            continue
+        try:
+            rule = await inbox.route_for(owner, c, await inbox.project_of(c))
+            if not rule:
+                continue
+            await db.get_collection("contacts").update_one({"_id": c["_id"]}, {"$set": {"auto_pass_at": now}})
+            r = await inbox.pass_lead(owner, c["_id"], rule["agent_id"], by="auto", rule=rule)
+            await db.get_collection("lead_routes").update_one({"_id": rule["id"]}, {"$inc": {"passed": 1}})
+            wa = ("WhatsApp to them sent" if r["whatsapp_status"] in ("sent", "dry_run") else
+                  f"WhatsApp to them not sent ({r.get('whatsapp_error') or r['whatsapp_status']}): send it from Studio > Leads > Passed")
+            await notify(db, owner, PASSED_KIND, f"{c.get('name') or 'A lead'} went to {r['passed_to']} by your {rule['label']} rule. {wa}.",
+                         {"lead_id": r["lead_id"], "whatsapp_url": r.get("whatsapp_url")}, now)
+            passed += 1
+        except Exception as e:   # InboxError (agent retired, lead gone) or a send failure: kept on the lead, not retried
+            log.warning("automatic pass failed for lead %s: %s", c["_id"], e)
+            await db.get_collection("contacts").update_one({"_id": c["_id"]}, {"$set": {"auto_pass_error": str(e)[:200]}})
+    return passed
 
 
 def _alert_text(c: dict, state: str, waited: timedelta) -> str:
@@ -102,12 +141,17 @@ async def waiting_alerts(db, now: datetime, notify: Optional[Callable] = None) -
 
 async def cycle(db, now: datetime) -> None:
     owner = _owner()
-    if auto_on() and owner:
+    if owner:
         from app.modules.inbox.service import InboxService
         from app.modules.whatsapp.router import build_service
-        n = await auto_followups(db, InboxService(db, build_service(db=db), now=lambda: now), owner, now)
+        inbox = InboxService(db, build_service(db=db), now=lambda: now)
+        if auto_on():
+            n = await auto_followups(db, inbox, owner, now)
+            if n:
+                log.info("lead follow-ups: %d sent", n)
+        n = await auto_passes(db, inbox, owner, now)
         if n:
-            log.info("lead follow-ups: %d sent", n)
+            log.info("lead follow-ups: %d passed to agents by rule", n)
     n = await waiting_alerts(db, now)
     if n:
         log.info("lead follow-ups: %d waiting alerts", n)

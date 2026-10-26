@@ -57,14 +57,62 @@ export interface PassAgent {
   agent_id: string
   name: string
   has_whatsapp: boolean
+  /** Their site's address, so two accounts with one business name can be told apart. */
+  slug?: string | null
+}
+
+/** What the agent gets when a buyer is passed: every fact on the lead, as label/value lines and as the message text. */
+export interface HandoverCard {
+  lines: { label: string; value: string }[]
+  /** Facts nobody has asked yet (budget, BHK, when, home loan): the agent asks them on the first call. */
+  missing: string[]
+  text: string
+}
+
+export interface PassRule { id: string; agent_id: string; kind: 'area' | 'project'; label: string }
+
+export interface Handover {
+  card: HandoverCard
+  project: { slug: string; name: string; area: string | null; regno: string } | null
+  /** The owner's rule that would pass this lead by itself, if one matches. */
+  rule: PassRule | null
+  /** The lead's areas: the project's first, then the ones they named. */
+  areas: string[]
 }
 
 export interface PassResult {
   passed_to: string
   lead_id: string | null
-  /** wa.me link to the agent with the buyer's details, sent from the owner's own WhatsApp. Null if the agent's site has no mobile. */
+  card: HandoverCard
+  /** The agent template from our WhatsApp number: sent, dry_run, failed, no_mobile (null for a chat with no lead). */
+  whatsapp_status: string | null
+  whatsapp_error: string | null
+  rule_added: { kind: 'area' | 'project'; label: string } | null
+  /** wa.me link to the agent with the card, sent from the owner's own WhatsApp. Null if the agent's site has no mobile. */
   whatsapp_url: string | null
 }
+
+export interface PassedLead {
+  lead_id: string
+  name: string | null
+  passed_at: string
+  agent_id: string
+  agent_name: string
+  /** owner = passed by hand, auto = by a rule */
+  by: 'owner' | 'auto' | string
+  rule: string | null
+  whatsapp_status: string | null
+  whatsapp_error: string | null
+  text: string | null
+  whatsapp_url: string | null
+}
+
+export interface RouteRow extends PassRule { agent_name: string; passed: number }
+
+export type Always = 'area' | 'project' | null
+
+/** The agent template reached them (dry run counts outside production). */
+export const whatsappWent = (status: string | null) => status === 'sent' || status === 'dry_run'
 
 async function call<T>(path: string, init: { method?: string; json?: unknown } = {}): Promise<T> {
   const headers: Record<string, string> = { Accept: 'application/json' }
@@ -102,7 +150,18 @@ export const inboxApi = {
     (isFixtureMode() ? [] : (await call<{ items: InboxThreadFull[] }>(`/lead/${encodeURIComponent(leadId)}`)).items ?? []),
   /** Message a lead from our WhatsApp number: the thread id; when they have not written in 24 hours, the approved follow-up goes out first. */
   startWithLead: (leadId: string) => call<{ id: string; sent: boolean }>(`/lead/${encodeURIComponent(leadId)}/whatsapp`, { method: 'POST' }),
-  pass: (id: string, agentId: string) => call<PassResult>(`/${encodeURIComponent(id)}/pass`, { method: 'POST', json: { agent_id: agentId } }),
+  pass: (id: string, agentId: string, always: Always = null) =>
+    call<PassResult>(`/${encodeURIComponent(id)}/pass`, { method: 'POST', json: { agent_id: agentId, always } }),
+  /** Owner: the card the agent would get for this lead, and the rule that would pick the agent. */
+  handover: (leadId: string) => call<Handover>(`/lead/${encodeURIComponent(leadId)}/handover`),
+  passLead: (leadId: string, agentId: string, always: Always = null) =>
+    call<PassResult>(`/lead/${encodeURIComponent(leadId)}/pass`, { method: 'POST', json: { agent_id: agentId, always } }),
+  /** Owner: the last 14 days' passes (a passed lead leaves the owner's Leads). */
+  passed: async (): Promise<PassedLead[]> => (isFixtureMode() ? [] : (await call<{ items: PassedLead[] }>('/passed')).items ?? []),
+  routes: async (): Promise<RouteRow[]> => (await call<{ items: RouteRow[] }>('/routes')).items ?? [],
+  addRoute: (agentId: string, kind: 'area' | 'project', label: string) =>
+    call<{ id: string }>('/routes', { method: 'POST', json: { agent_id: agentId, kind, label } }),
+  removeRoute: (id: string) => call<{ removed: string }>(`/routes/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 }
 
 export const CHANNEL_LABEL: Record<string, string> = {

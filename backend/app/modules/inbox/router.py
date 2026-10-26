@@ -7,8 +7,17 @@
                                                  template when the 24-hour window is closed (once per 24 h)
   POST /conversations/{id}/done       a comment thread was handled on Facebook/Instagram: it no longer needs you
   GET  /conversations/agents          (owner) the agents a buyer can be passed to
-  POST /conversations/{id}/pass       (owner) pass a buyer to an agent: chat + lead move to him, he gets an alert, the owner a wa.me link
+  POST /conversations/{id}/pass       (owner) pass a buyer to an agent: lead + chats move to him, he gets the handover card in Studio
+                                       and on WhatsApp (agent template), the owner a wa.me link with the same card
+  GET  /conversations/lead/{lead_id}/handover   (owner) the card the agent would get, and the rule that would pick an agent
+  POST /conversations/lead/{lead_id}/pass       (owner) pass a lead (from the lead page); `always` also adds a rule for its area/project
+  GET  /conversations/passed          (owner) the last 14 days' passes, with the card and the WhatsApp status
+  GET  /conversations/routes          (owner) the rules that pass leads by themselves (lead_routes)
+  POST /conversations/routes          (owner) add or change one: {agent_id, kind: area|project, label}
+  DELETE /conversations/routes/{id}   (owner) remove one
 """
+from typing import Literal, Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
@@ -29,6 +38,14 @@ class ReplyIn(BaseModel):
 
 class PassIn(BaseModel):
     agent_id: str = Field(..., min_length=1, max_length=64)
+    # also pass future leads like this one by themselves: about the same area, or the same project page
+    always: Optional[Literal["area", "project"]] = None
+
+
+class RouteIn(BaseModel):
+    agent_id: str = Field(..., min_length=1, max_length=64)
+    kind: Literal["area", "project"]
+    label: str = Field(..., min_length=1, max_length=120)
 
 
 def _is_owner(user: User) -> bool:
@@ -58,6 +75,26 @@ async def agents(user: User = Depends(owner_only), svc: InboxService = Depends(g
     return {"items": await svc.agents(str(user.id))}
 
 
+@router.get("/passed")
+async def passed(user: User = Depends(owner_only), svc: InboxService = Depends(get_inbox)) -> dict:
+    return {"items": await svc.passed(str(user.id))}
+
+
+@router.get("/routes")
+async def routes(user: User = Depends(owner_only), svc: InboxService = Depends(get_inbox)) -> dict:
+    return {"items": await svc.routes(str(user.id))}
+
+
+@router.post("/routes")
+async def add_route(body: RouteIn, user: User = Depends(owner_only), svc: InboxService = Depends(get_inbox)) -> dict:
+    return await _run(svc.add_route(str(user.id), body.agent_id, body.kind, body.label))
+
+
+@router.delete("/routes/{rid}")
+async def remove_route(rid: str, user: User = Depends(owner_only), svc: InboxService = Depends(get_inbox)) -> dict:
+    return await svc.remove_route(str(user.id), rid)
+
+
 @router.get("/{tid}")
 async def thread(tid: str, user: User = Depends(current_active_user), svc: InboxService = Depends(get_inbox)) -> dict:
     doc = await _run(svc.thread(str(user.id), tid))
@@ -71,7 +108,17 @@ async def done(tid: str, user: User = Depends(current_active_user), svc: InboxSe
 
 @router.post("/{tid}/pass")
 async def pass_to(tid: str, body: PassIn, user: User = Depends(owner_only), svc: InboxService = Depends(get_inbox)) -> dict:
-    return await _run(svc.pass_to(str(user.id), tid, body.agent_id))
+    return await _run(svc.pass_to(str(user.id), tid, body.agent_id, always=body.always))
+
+
+@router.get("/lead/{lead_id}/handover")
+async def handover(lead_id: str, user: User = Depends(owner_only), svc: InboxService = Depends(get_inbox)) -> dict:
+    return await _run(svc.handover_for(str(user.id), lead_id))
+
+
+@router.post("/lead/{lead_id}/pass")
+async def pass_lead(lead_id: str, body: PassIn, user: User = Depends(owner_only), svc: InboxService = Depends(get_inbox)) -> dict:
+    return await _run(svc.pass_lead(str(user.id), lead_id, body.agent_id, always=body.always))
 
 
 @router.post("/{tid}/reply")

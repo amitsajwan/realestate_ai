@@ -4,6 +4,8 @@ import { useSearchParams } from 'next/navigation'
 import React, { Suspense, useState } from 'react'
 import { StatusPill, TabBar, useUrlTab } from '@/components/app/list'
 import { OutcomeBadge } from '@/components/app/OutcomeSheets'
+import { PassedPanel } from '@/components/app/PassedPanel'
+import { useIsOwner } from '@/components/app/agents/useIsOwner'
 import { ErrorBox, PageTitle, STAGES, Spinner, TempChip } from '@/components/app/ui'
 import { api } from '@/lib/app/client'
 import { displayPhone, timeAgo } from '@/lib/app/format'
@@ -12,8 +14,8 @@ import { t } from '@/lib/app/strings'
 import { useAsync } from '@/lib/app/useAsync'
 import type { Lead, TodayFollowUp } from '@/lib/app/types'
 
-/** Tabs: leads waiting on us first, follow-ups due today, then the stages, then everything. Kept in the address as ?tab= (and ?hot=1). */
-const TABS = ['needs', 'today', ...STAGES.map((s) => s.key as string), 'all']
+/** Tabs: leads waiting on us first, follow-ups due today, then the stages, then everything (and, for the owner, the ones passed to agents). Kept in the address as ?tab= (and ?hot=1). */
+const TABS = ['needs', 'today', ...STAGES.map((s) => s.key as string), 'all', 'passed']
 /** Home tiles and older links used ?filter=: they still land on the right tab. */
 const LEGACY: Record<string, { tab: string; hot?: boolean }> = {
   new: { tab: 'new' }, hot: { tab: 'all', hot: true }, site_visit: { tab: 'site_visit' }, followups: { tab: 'today' },
@@ -96,6 +98,7 @@ function LeadRow({ lead, title, due }: { lead: Lead; title?: string; due?: Today
 function LeadsList() {
   const params = useSearchParams()
   const legacy = LEGACY[params?.get('filter') ?? '']
+  const owner = useIsOwner()
   const [hot, setHotState] = useState<boolean>(params?.get('hot') === '1' || !!legacy?.hot)
   const setHot = (on: boolean) => {
     setHotState(on)
@@ -159,8 +162,10 @@ function LeadsList() {
           // short labels and no empty stage tabs (except New and the open one), so the row fits a phone without scrolling
           ...STAGES.map((s) => ({ key: s.key as string, label: SHORT[s.key] ?? s.label, count: inTab(s.key).length, hideWhenEmpty: s.key !== 'new' && s.key !== tab })),
           { key: 'all', label: t('all'), count: leads.length },
+          ...(owner ? [{ key: 'passed', label: 'Passed' }] : []),
         ]} />
       )}
+      {tab === 'passed' ? <PassedPanel /> : <>
       <div className="items-center justify-between gap-2 [display:flex]">
         <p className="text-xs text-gray-600">{hot ? 'Showing hot buyers only.' : 'Newest first.'}</p>
         <button type="button" role="switch" aria-checked={hot} onClick={() => setHot(!hot)}
@@ -200,6 +205,7 @@ function LeadsList() {
           ))}
         </ul>
       )}
+      </>}
     </div>
   )
 }

@@ -24,7 +24,10 @@ from typing import Callable, List, Optional
 from urllib.parse import quote
 
 from app.core import brand
+from app.modules.areastats import pages as project_pages
 from app.modules.whatsapp.service import mask
+
+from . import handover
 
 HUMAN_HOLD = timedelta(hours=12)
 MAX_THREADS = 100
@@ -327,6 +330,17 @@ class InboxService:
         lead = await self.c("contacts").find_one({"_id": lead_id, "agent_id": agent_id})
         if not lead:
             raise InboxError("Lead not found", 404)
+        out = []
+        for tid in await self._lead_tids(agent_id, lead):
+            try:
+                out.append(await self.thread(agent_id, tid))
+            except InboxError:
+                continue   # passed to another agent, or no longer this viewer's
+        out.sort(key=lambda r: r["last_at"] or "", reverse=True)
+        return out
+
+    async def _lead_tids(self, agent_id: str, lead: dict) -> List[str]:
+        lead_id = lead["_id"]
         tids = []
         for d in await self.c("whatsapp_conversations").find({"lead_id": lead_id}).to_list(20):
             tids.append(_enc("wa", str(d["_id"])))
@@ -340,71 +354,244 @@ class InboxService:
         if slug and lead.get("phone"):
             for d in await self.c("chat_sessions").find({"agent_slug": slug, "data.phone": lead["phone"]}).to_list(20):
                 tids.append(_enc("web", str(d["_id"])))
-        out = []
-        for tid in dict.fromkeys(tids):
-            try:
-                out.append(await self.thread(agent_id, tid))
-            except InboxError:
-                continue   # passed to another agent, or no longer this viewer's
-        out.sort(key=lambda r: r["last_at"] or "", reverse=True)
-        return out
+        return list(dict.fromkeys(tids))
 
     # ---- the owner passes a buyer to an agent -----------------------------------------------------------------------
-    # The conversation and its lead move to the agent (his Inbox and Leads; WhatsApp routing keeps them with him, since
-    # routed_by is no longer "owner"); the owner still sees it, marked "Passed to". The agent gets a Studio alert, and the owner
-    # gets a wa.me link with the buyer's details to send from his own WhatsApp (no template or billing needed).
+    # The lead and every chat with them move to the agent (his Inbox and Leads; WhatsApp routing keeps them with him, since
+    # routed_by is no longer "owner"); the owner still sees the chats, marked "Passed to". The agent gets the handover card
+    # (handover.py: every fact on the lead) as a Studio alert and, from our number, as the approved agent template; the owner also
+    # gets a wa.me link with the same card to send from his own WhatsApp when the template could not go.
+    # A pass can also be automatic: the owner's rules (lead_routes) send leads about a project or an area to one agent
+    # (followups.auto_passes).
     async def agents(self, owner_id: str) -> List[dict]:
         rows = await self.c("agent_public_profiles").find({"agent_id": {"$nin": [owner_id, None, ""]}}).to_list(500)
-        out = [{"agent_id": str(p["agent_id"]), "name": self._agent_name(p), "has_whatsapp": bool(_wa_digits(p.get("phone")))} for p in rows]
+        phones = [p["phone"] for p in rows if p.get("phone")]
+        off = {u.get("phone") for u in await self.c("users").find({"phone": {"$in": phones}, "is_active": False}).to_list(1000)}
+        out = [{"agent_id": str(p["agent_id"]), "name": self._agent_name(p), "has_whatsapp": bool(_wa_digits(p.get("phone"))),
+                "slug": p.get("slug")} for p in rows if _live(p) and p.get("phone") not in off]
         return sorted(out, key=lambda a: a["name"].lower())
+
+    async def _live_agent(self, agent_id: str) -> dict:
+        """The agent's profile; a retired or switched-off account cannot take a buyer (2026-10-26: Saket went to the retired copy of
+        House Deal, whose Studio nobody opens, because both accounts read "House Deal" in the picker)."""
+        prof = await self.c("agent_public_profiles").find_one({"agent_id": agent_id}) if agent_id else None
+        if not prof:
+            raise InboxError("Agent not found", 404)
+        user = await self.c("users").find_one({"phone": prof["phone"]}) if prof.get("phone") else None
+        if not _live(prof) or (user is not None and user.get("is_active") is False):
+            raise InboxError(f"{self._agent_name(prof)} ({prof.get('slug')}) is a retired account. Pick their live one.", 409)
+        return prof
 
     @staticmethod
     def _agent_name(profile: dict) -> str:
         return ((profile.get("branding_data") or {}).get("business_name") or profile.get("agent_name") or profile.get("slug") or "Agent").strip()
 
-    async def pass_to(self, owner_id: str, tid: str, to_agent: str) -> dict:
+    async def project_of(self, lead: dict) -> Optional[dict]:
+        """The project page they enquired on (name, area, MahaRERA number), from the page the form was on; one record is read."""
+        ft = lead.get("first_touch") or {}
+        path = (ft.get("enquiry_page") or ft.get("landing") or "").split("?")[0]
+        m = re.match(r"^/projects/([a-z0-9-]{1,120})$", path)
+        return await project_pages.chat_brief(self.db, m.group(1)) if m else None
+
+    async def handover_for(self, owner_id: str, lead_id: str) -> dict:
+        """The card as the agent will get it, and the agent a rule would pick, for the owner to check before passing."""
+        lead = await self.c("contacts").find_one({"_id": lead_id, "agent_id": owner_id})
+        if not lead:
+            raise InboxError("Lead not found", 404)
+        project = await self.project_of(lead)
+        tids = await self._lead_tids(owner_id, lead)
+        return {"card": await self._card(owner_id, lead, project, tids), "project": project,
+                "rule": await self.route_for(owner_id, lead, project), "areas": self._areas(lead, project)}
+
+    async def _card(self, agent_id: str, lead: dict, project: Optional[dict], tids: List[str]) -> dict:
+        chats = []
+        for tid in tids:
+            try:
+                _, doc = await self._own(agent_id, tid)
+                chats.append({**await self.thread(agent_id, tid), "data": doc.get("data")})
+            except InboxError:
+                continue
+        events = await self.c("events").find({"contact_id": lead["_id"]}).sort("ts", 1).to_list(200)
+        return handover.card(lead, project, chats, [e.get("path") for e in events if e.get("path")])
+
+    async def pass_lead(self, owner_id: str, lead_id: str, to_agent: str, by: str = "owner", rule: Optional[dict] = None,
+                        always: Optional[str] = None) -> dict:
+        """Pass a lead and every chat with them. `always` ('area' or 'project') also adds the rule that sends the next lead about
+        this one's area or project page to the same agent by itself."""
+        lead = await self.c("contacts").find_one({"_id": lead_id, "agent_id": owner_id})
+        if not lead:
+            raise InboxError("Lead not found", 404)
+        if not to_agent or to_agent == owner_id:
+            raise InboxError("Pick an agent", 422)
+        prof = await self._live_agent(to_agent)
+        now = self.now()
+        project = await self.project_of(lead)
+        tids = await self._lead_tids(owner_id, lead)
+        card = await self._card(owner_id, lead, project, tids)   # read before anything moves: the chats are still the owner's
+        mark = {"passed_by": owner_id, "passed_to": to_agent, "passed_at": now}
+        for tid in tids:
+            try:
+                kind, doc = await self._own(owner_id, tid)
+            except InboxError:
+                continue
+            await self._move_chat(kind, doc, mark, lead_id)
+        kept = await self._move_lead(lead_id, owner_id, to_agent, lead.get("phone") or "", now)
+        sent = await self._tell_agent(prof, card, now)
+        await self.c("contacts").update_one({"_id": kept}, {"$set": {"handover": {
+            "to": to_agent, "by": by, "rule": rule, "at": now, "text": card["text"], **sent}}})
+        who = (lead.get("name") or "A buyer").strip()
+        about = next((x["value"] for x in card["lines"] if x["label"] == "Project"), "")
+        from app.modules.notifications.service import notify
+        await notify(self.db, to_agent, "buyer_passed", f"{who} was passed to you{': ' + about if about else ''}. Call them today.",
+                     {"screen": f"/studio/leads/{kept}", "lead_id": kept}, now)
+        added = None
+        if always == "project" and project:
+            added = {"kind": "project", "key": project["slug"], "label": project["name"]}
+        elif always == "area" and self._areas(lead, project):
+            area = self._areas(lead, project)[0]
+            added = {"kind": "area", "key": area, "label": area}
+        if added:
+            await self.add_route(owner_id, to_agent, added["kind"], added["label"], key=added["key"])
+        digits = _wa_digits(prof.get("phone"))
+        return {"passed_to": self._agent_name(prof), "lead_id": kept, "card": card, **sent, "rule_added": added,
+                "whatsapp_url": f"https://wa.me/{digits}?text={quote(card['text'])}" if digits else None}
+
+    async def _tell_agent(self, prof: dict, card: dict, now: datetime) -> dict:
+        """The approved agent template from our number. -> {whatsapp_status, whatsapp_error}; a failure never stops the pass."""
+        digits = _wa_digits(prof.get("phone"))
+        if not digits:
+            return {"whatsapp_status": "no_mobile", "whatsapp_error": "The agent's site has no Indian mobile"}
+        if self.whatsapp is None or not self.whatsapp.cfg.phone_number_id:
+            return {"whatsapp_status": "failed", "whatsapp_error": "WhatsApp is not connected"}
+        params = handover.template_params(card)
+        conv = {"wa_id": digits, "phone_number_id": str(self.whatsapp.cfg.phone_number_id), "agent_id": str(prof["agent_id"])}
+        try:
+            rec = await self.whatsapp.send_template(conv, handover.AGENT_TEMPLATE, "en", params, handover.AGENT_BODY.format(*params), now)
+        except Exception as e:   # the pass is done either way; the owner still has the wa.me link
+            return {"whatsapp_status": "failed", "whatsapp_error": str(e)[:200]}
+        return {"whatsapp_status": rec["status"], "whatsapp_error": rec.get("error")}
+
+    async def _move_chat(self, kind: str, doc: dict, mark: dict, lead_id: Optional[str]) -> None:
+        if kind == "web":
+            await self.c("chat_sessions").update_one({"_id": doc["_id"]}, {"$set": {**mark, **({"lead_id": lead_id} if lead_id else {})}})
+        else:
+            col = "whatsapp_conversations" if kind == "wa" else "dm_conversations"
+            await self.c(col).update_one({"_id": doc["_id"]}, {"$set": {**mark, "agent_id": mark["passed_to"], "routed_by": "owner_pass",
+                                                                     **({"lead_id": lead_id} if lead_id else {})}})
+
+    async def pass_to(self, owner_id: str, tid: str, to_agent: str, always: Optional[str] = None) -> dict:
+        """Pass from a chat. A chat with a lead passes the whole lead (pass_lead); a chat with no lead yet moves on its own, with
+        what the chat knows."""
         kind, doc = await self._own(owner_id, tid)
         if (doc.get("role") or "buyer") == "agent":
             raise InboxError("This chat is from an agent, not a buyer", 409)
         if not to_agent or to_agent == owner_id:
             raise InboxError("Pick an agent", 422)
-        prof = await self.c("agent_public_profiles").find_one({"agent_id": to_agent})
-        if not prof:
-            raise InboxError("Agent not found", 404)
-        now = self.now()
         data = doc.get("data") or {}
         phone = ("+" + doc["wa_id"]) if kind == "wa" else (data.get("phone") or "")
-        lead_id = await self._move_lead(doc.get("lead_id"), owner_id, to_agent, phone, now)
-        mark = {"passed_by": owner_id, "passed_to": to_agent, "passed_at": now}
-        if kind == "web":
-            await self.c("chat_sessions").update_one({"_id": doc["_id"]}, {"$set": {**mark, **({"lead_id": lead_id} if lead_id else {})}})
-        else:
-            col = "whatsapp_conversations" if kind == "wa" else "dm_conversations"
-            await self.c(col).update_one({"_id": doc["_id"]}, {"$set": {**mark, "agent_id": to_agent, "routed_by": "owner_pass",
-                                                                     **({"lead_id": lead_id} if lead_id else {})}})
+        contacts = self.c("contacts")
+        lead = await contacts.find_one({"_id": doc.get("lead_id"), "agent_id": owner_id}) if doc.get("lead_id") else None
+        lead = lead or (await contacts.find_one({"agent_id": owner_id, "phone": phone}) if phone else None)
+        if lead:
+            return await self.pass_lead(owner_id, lead["_id"], to_agent, always=always)
+        prof = await self._live_agent(to_agent)
+        now = self.now()
+        await self._move_chat(kind, doc, {"passed_by": owner_id, "passed_to": to_agent, "passed_at": now}, None)
         who = (doc.get("name") if kind == "wa" else data.get("name")) or "A buyer"
         wants = self._summary(data)
         from app.modules.notifications.service import notify
         await notify(self.db, to_agent, "buyer_passed", f"{who} was passed to you{': ' + wants if wants else ''}. Call or message them soon.",
-                     {"screen": f"/studio/inbox/{tid}", **({"lead_id": lead_id} if lead_id else {})}, now)
+                     {"screen": f"/studio/inbox/{tid}"}, now)
         digits = _wa_digits(prof.get("phone"))
         text = self._handover_text(doc, kind, who, phone, wants)
-        return {"passed_to": self._agent_name(prof), "lead_id": lead_id,
+        return {"passed_to": self._agent_name(prof), "lead_id": None, "card": {"text": text, "lines": [], "missing": []},
+                "whatsapp_status": None, "whatsapp_error": None, "rule_added": None,
                 "whatsapp_url": f"https://wa.me/{digits}?text={quote(text)}" if digits else None}
 
+    async def passed(self, owner_id: str, days: int = 14) -> List[dict]:
+        """The owner's recent passes, newest first: who, to whom, how (by hand or by a rule), the card and whether the WhatsApp to
+        the agent went out, with a wa.me link to send it again from the owner's phone. A passed lead leaves the owner's Leads, so
+        this is where the owner still sees it."""
+        rows = await self.c("contacts").find({"passed_by": owner_id, "passed_at": {"$gte": self.now() - timedelta(days=days)}}).to_list(200)
+        profs: dict = {}
+        out = []
+        for c in sorted(rows, key=lambda r: r["passed_at"], reverse=True):
+            to = c.get("passed_to") or c.get("agent_id")
+            if to not in profs:
+                profs[to] = await self.c("agent_public_profiles").find_one({"agent_id": to}) or {}
+            h = c.get("handover") or {}
+            digits = _wa_digits(profs[to].get("phone"))
+            out.append({"lead_id": c["_id"], "name": c.get("name"), "passed_at": _iso(c["passed_at"]), "agent_id": to,
+                        "agent_name": self._agent_name(profs[to]) if profs[to] else "Agent", "by": h.get("by") or "owner",
+                        "rule": (h.get("rule") or {}).get("label"), "whatsapp_status": h.get("whatsapp_status"),
+                        "whatsapp_error": h.get("whatsapp_error"), "text": h.get("text"),
+                        "whatsapp_url": f"https://wa.me/{digits}?text={quote(h['text'])}" if digits and h.get("text") else None})
+        return out
+
+    # ---- the owner's rules: leads about a project or an area go to one agent by themselves ---------------------------
+    @staticmethod
+    def _areas(lead: dict, project: Optional[dict]) -> List[str]:
+        out = [project["area"]] if project and project.get("area") else []
+        return list(dict.fromkeys(out + list((lead.get("requirement") or {}).get("localities") or [])))
+
+    async def routes(self, owner_id: str) -> List[dict]:
+        rows = await self.c("lead_routes").find({"owner_id": owner_id}).to_list(200)
+        names: dict = {}
+        for r in rows:
+            if r["agent_id"] not in names:
+                prof = await self.c("agent_public_profiles").find_one({"agent_id": r["agent_id"]})
+                names[r["agent_id"]] = self._agent_name(prof) if prof else "Agent"
+        return sorted([{"id": r["_id"], "agent_id": r["agent_id"], "agent_name": names[r["agent_id"]], "kind": r["kind"],
+                        "label": r.get("label") or r["key"], "passed": r.get("passed", 0)} for r in rows],
+                      key=lambda r: (r["agent_name"].lower(), r["label"].lower()))
+
+    async def add_route(self, owner_id: str, agent_id: str, kind: str, label: str, key: Optional[str] = None) -> dict:
+        """kind 'area' (label = an area's name, e.g. Wagholi) or 'project' (key = a project page's slug, label its name).
+        One agent per area or project."""
+        label = (label or "").strip()
+        key = (key or label).strip()
+        key = key.lower() if kind == "area" else key
+        if kind not in ("area", "project") or not key or len(key) > 120:
+            raise InboxError("Say which area or project page", 422)
+        await self._live_agent(agent_id)
+        rid = f"{owner_id}:{kind}:{key}"
+        now = self.now()
+        if await self.c("lead_routes").find_one({"_id": rid}):
+            await self.c("lead_routes").update_one({"_id": rid}, {"$set": {"agent_id": agent_id, "label": label, "updated_at": now}})
+        else:
+            await self.c("lead_routes").insert_one({"_id": rid, "owner_id": owner_id, "agent_id": agent_id, "kind": kind, "key": key,
+                                                    "label": label, "created_at": now, "passed": 0})
+        return {"id": rid}
+
+    async def remove_route(self, owner_id: str, rid: str) -> dict:
+        await self.c("lead_routes").delete_one({"_id": rid, "owner_id": owner_id})
+        return {"removed": rid}
+
+    async def route_for(self, owner_id: str, lead: dict, project: Optional[dict]) -> Optional[dict]:
+        """The rule that picks this lead: its project page first, then the project's area, then an area they named."""
+        keys = ([("project", project["slug"])] if project else []) + [("area", a.lower()) for a in self._areas(lead, project)]
+        for kind, key in keys:
+            r = await self.c("lead_routes").find_one({"_id": f"{owner_id}:{kind}:{key}"})
+            if r:
+                return {"id": r["_id"], "agent_id": r["agent_id"], "kind": kind, "label": r.get("label") or key}
+        return None
+
     async def _move_lead(self, lead_id: Optional[str], owner_id: str, to_agent: str, phone: str, now: datetime) -> Optional[str]:
-        """The owner's lead becomes the agent's; if the agent already has this phone as a lead, that one is kept."""
+        """The owner's lead becomes the agent's; if the agent already has this phone as a lead, that one is kept (and the owner's
+        copy is marked passed, so the automatic pass does not try it again)."""
         contacts = self.c("contacts")
         lead = await contacts.find_one({"_id": lead_id, "agent_id": owner_id}) if lead_id else None
         if not lead and phone:
             lead = await contacts.find_one({"agent_id": owner_id, "phone": phone})
         if not lead:
             return None
+        mark = {"passed_by": owner_id, "passed_to": to_agent, "passed_at": now}
         if lead.get("phone"):
             theirs = await contacts.find_one({"agent_id": to_agent, "phone": lead["phone"]})
             if theirs:
+                await contacts.update_one({"_id": lead["_id"]}, {"$set": mark})
                 return theirs["_id"]
-        await contacts.update_one({"_id": lead["_id"]}, {"$set": {"agent_id": to_agent, "passed_by": owner_id, "passed_at": now}})
+        await contacts.update_one({"_id": lead["_id"]}, {"$set": {"agent_id": to_agent, **mark}})
         return lead["_id"]
 
     def _handover_text(self, doc: dict, kind: str, who: str, phone: str, wants: str) -> str:
@@ -433,6 +620,11 @@ def followup_params(lead: dict) -> List[str]:
     lo, hi = req.get("budget_min_inr"), req.get("budget_max_inr")
     budget = f"{_money(lo)} to {_money(hi)}" if lo and hi and lo != hi else f"up to {_money(hi)}" if hi else ""
     return [name[0][:40] if name else "Sir", what, budget or "your enquiry on our website"]
+
+
+def _live(profile: dict) -> bool:
+    """A profile that can take buyers: not switched off and not a merged-away copy (slug '<name>-retired-<date>')."""
+    return profile.get("is_active") is not False and "-retired-" not in (profile.get("slug") or "")
 
 
 def _wa_digits(phone) -> Optional[str]:

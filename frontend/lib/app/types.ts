@@ -517,6 +517,8 @@ export interface LeadDetail extends Lead {
   follow_up?: FollowUpState
   notes: LeadNote[]
   consent?: unknown
+  /** The card the agent got when this buyer was passed to them: every fact known then. */
+  handover?: { text: string; at: string | null } | null
   timeline: LeadEvent[]
   /** Only in the PATCH response, when the lead was marked won with a listing. The app offers to call setListingStatus. */
   suggest_listing_status?: { listing_id: string; status: 'sold' | 'rented' } | null

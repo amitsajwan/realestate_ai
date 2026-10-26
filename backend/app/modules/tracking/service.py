@@ -254,6 +254,8 @@ class TrackingService:
         return {
             **view, "notes": contact.get("notes", []),
             "consent": contact.get("consent"),
+            # the card the agent got when this buyer was passed to them (inbox/handover.py): everything known at the time
+            "handover": {"text": h["text"], "at": h.get("at")} if (h := contact.get("handover") or {}).get("text") else None,
             "timeline": sorted([{"type": e["type"], "listing_id": e.get("listing_id"), "source": e.get("source"),
                                  "path": e.get("path"), "ts": e["ts"]} for e in events]
                                + [{"type": f"call_{k['outcome']}", "listing_id": None, "source": None, "path": None, "ts": k["ts"]}
