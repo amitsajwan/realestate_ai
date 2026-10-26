@@ -27,6 +27,7 @@ concurrency:
 
 permissions:
   contents: read
+  actions: read    # the gate lists the other workflows' runs for this commit (gh run list); without it GitHub answers 403
   id-token: write
 
 jobs:
