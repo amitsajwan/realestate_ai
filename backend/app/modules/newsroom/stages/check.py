@@ -263,3 +263,51 @@ def check(draft: Draft, facts: Facts, item: RawItem, now: Optional[datetime] = N
         if not re.search(r"\bas of\b", full, re.I):
             problems.append("Missing an 'as of' date line")
     return CheckResult(ok=not problems, problems=problems)
+
+
+# "waiting for permission to be inaugurated" is not an inauguration: a line like that never backs an 'opened' claim
+NOT_YET = re.compile(r"\b(waiting|pending|stalled|stuck|delay\w*|clearance|permission|deadline|planned|proposed|expected|likely|soon)\b", re.I)
+
+
+def check_status_line(text: str, evidence: List[str], allowed: Set[str] = frozenset()) -> List[str]:
+    """The checks for a tracker status line a model suggested (trackers.suggest). `evidence` is what it was allowed to use: the
+    current status and the new reports' headlines. Every figure, date and name must be in it, nothing may be copied from a headline
+    for more than MAX_QUOTE_WORDS words, no hype or phone number, and 'opened', 'inaugurated', 'running' only when a report says so."""
+    problems: List[str] = []
+    source = "\n".join(evidence)
+    s_nums, s_units, s_dates = _figures(source)
+    d_nums, d_units, d_dates = _figures(text)
+    missing = sorted(n for n in d_nums if n not in s_nums)
+    if missing:
+        problems.append("Figures not in the reports: " + ", ".join(missing))
+    wrong = sorted(f"{n} {u}" for n, u in d_units if (n, u) not in s_units and n in s_nums)
+    if wrong:
+        problems.append("Figure with a unit the reports do not give: " + ", ".join(wrong))
+    bad_dates = sorted(f"{d} {m.title()}" for d, m in d_dates if (d, m) not in s_dates)
+    if bad_dates:
+        problems.append("Date not in the reports: " + ", ".join(bad_dates))
+    names = _unknown_names(text, {_norm(w) for w in _words(source)}, {a.lower() for a in allowed})
+    if names:
+        problems.append("Names not in the reports: " + ", ".join(names[:8]))
+    for label, rx in (("Banned phrase", policy.BANNED), ("Hype word", HYPE), ("Phone number", PHONE)):
+        m = rx.search(text)
+        if m:
+            problems.append(f"{label}: '{m.group(0).strip()}'")
+    n = policy.MAX_QUOTE_WORDS + 1
+    dr = _words(text)
+    for line in evidence[1:]:  # the headlines; the current status is ours and may be kept word for word
+        src = _words(line)
+        grams = {tuple(src[i:i + n]) for i in range(len(src) - n + 1)}
+        if any(tuple(dr[i:i + n]) in grams for i in range(len(dr) - n + 1)):
+            problems.append(f"Copies more than {policy.MAX_QUOTE_WORDS} words in a row from a headline")
+            break
+    lines = [s.lower() for s in _sentences(source)]
+    not_yet = lambda x: NEGATED.search(x) or NOT_YET.search(x)  # noqa: E731
+    for s in _sentences(text):
+        if PRICE_WORD.search(s) and FORWARD.search(s):
+            problems.append(f"Looks like a price prediction: '{s[:90]}'")
+        for rx, stem in TRANSPORT_CLAIMS:
+            if rx.search(s) and not not_yet(s) and not any(re.search(stem, x) and not not_yet(x) for x in lines):
+                problems.append(f"Says '{rx.search(s).group(0)}' but no report does: approved is not built, built is not open")
+                break
+    return problems

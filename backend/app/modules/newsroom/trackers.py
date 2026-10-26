@@ -9,6 +9,9 @@ buyer, and the dated status history we wrote from the reports). Two things chang
   no model: a wrong match is a cited headline on the wrong page, and the owner can hide it in Studio.
 - status updates: the status line is ours and changes only when the owner writes a new one in Studio. No model writes it, so a
   page never says 'open' because a headline did.
+- suggestions: when new reports arrive, a model reads them with the current status and suggests the next line, or says it still
+  holds (`suggest_due`). The answer goes through stages.check.check_status_line and is only shown to the owner in Studio, who
+  accepts or edits it; a failed or missing answer means no suggestion, and the owner works from the headlines as before.
 """
 import json
 import logging
@@ -21,6 +24,7 @@ from typing import Dict, List, Optional
 from app.core import areas as core_areas
 
 from . import presentation as pr
+from .stages.check import check_status_line
 from .stages.filter import same_story
 from .store import Store
 
@@ -34,6 +38,8 @@ STATUS_MAX = 420
 GROUP_DAYS = 2  # reports of the same story this many days apart are one timeline line
 PUBLIC_GROUPS = 15
 MARK = "trackers"
+SUGGEST_PER_RUN = 3  # model calls per newsroom cycle at most
+SUGGEST_REPORTS = 12  # newest new reports the model reads
 _PUBLISHER_TAIL = re.compile(r"\s+[-|–—]\s+[^-|–—]{2,40}$")  # "... | Hindustan Times"
 _CITY_HEAD = re.compile(r"^(pune|pimpri[- ]chinchwad)\s*:\s*", re.I)  # "Pune: ..."
 
@@ -186,19 +192,117 @@ async def one_view(store: Store, slug: str) -> Optional[dict]:
 
 # --- Studio --------------------------------------------------------------------------------------------------------------------
 
-def studio_view(defn: dict, state: Optional[dict], reports: List[dict]) -> dict:
-    """What the owner sees: the public view, plus every attached report (hidden ones too, so a hide can be undone) and the reports
-    that came in since the status was last checked."""
-    v = view(defn, state, reports)
+def _since(defn: dict, state: Optional[dict]) -> Optional[datetime]:
+    """Reports after this moment are new to the owner: the later of the last check and the day the current status is true from."""
     checked = _utc((state or {}).get("checked_at"))
-    status_at = datetime.fromisoformat(v["status_date"]).replace(tzinfo=timezone.utc) if v["status_date"] else None
-    since = max(d for d in (checked, status_at) if d) if (checked or status_at) else None
+    day = _day(history(defn, state)[-1].get("date"))
+    status_at = datetime.fromisoformat(day).replace(tzinfo=timezone.utc) if day else None
+    return max(d for d in (checked, status_at) if d) if (checked or status_at) else None
+
+
+def new_reports(defn: dict, state: Optional[dict], reports: List[dict]) -> List[dict]:
+    """The reports the owner has not seen yet, newest first (hidden ones never count)."""
+    since = _since(defn, state)
+    rows = sorted(reports, key=lambda r: _utc(r.get("date")) or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
+    return [r for r in rows if since and _utc(r.get("date")) and _utc(r["date"]) > since and not r.get("hidden")]
+
+
+def studio_view(defn: dict, state: Optional[dict], reports: List[dict]) -> dict:
+    """What the owner sees: the public view, plus every attached report (hidden ones too, so a hide can be undone), the reports
+    that came in since the status was last checked, and the model's suggestion for those reports (none when it failed)."""
+    v = view(defn, state, reports)
+    fresh = {r["item_id"] for r in new_reports(defn, state, reports)}
     rows = sorted(reports, key=lambda r: _utc(r.get("date")) or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
     v["reports"] = [{"id": r["item_id"], "date": _day(_utc(r.get("date"))), "title": clean_headline(r.get("title", "")),
                      "source": r.get("source", ""), "url": r.get("url", ""), "hidden": bool(r.get("hidden")),
-                     "new": bool(since and _utc(r.get("date")) and _utc(r.get("date")) > since and not r.get("hidden"))} for r in rows[:80]]
-    v["new_count"] = sum(1 for r in v["reports"] if r["new"])
+                     "new": r["item_id"] in fresh} for r in rows[:80]]
+    v["new_count"] = len(fresh)
+    sug = (state or {}).get("suggestion") or {}
+    # only about reports that are still new: once the owner has dealt with them, the suggestion is gone
+    ok = bool(fresh) and bool(sug.get("ok")) and set(sug.get("for_ids") or []) <= fresh
+    v["suggestion"] = {k: sug.get(k) for k in ("changed", "status", "stage", "date", "sources", "reason")} if ok else None
     return v
+
+
+SUGGEST_SYSTEM = """You keep a status page for home buyers in Pune about one thing that keeps changing (a road, a metro line, an
+airport, a hospital, a rule or a rate). You get the current status line and the headlines of the reports that came in since. Decide
+whether the reports move the status. Answer in JSON only:
+{"changed": true or false, "stage": <index from the stage list, or null>, "status": "<the new status line>",
+ "date": "YYYY-MM-DD", "sources": ["<publisher>"], "reason": "<one short sentence for the editor>"}
+Rules:
+- Use only what the headlines and the current status say. No figure, date or name that is not in them.
+- Plain English, one or two sentences, at most 60 words, in your own words: never copy a headline.
+- Do not write dates or publisher names in the status; the page shows them next to it.
+- Approved is not built and built is not open: say opened, inaugurated or running only when a headline says it happened.
+- If the reports only repeat or comment on what the status already says, answer changed=false and say why in reason.
+- When changed=true: date is the day of the newest report that supports the change, sources are its publishers from the list, and
+  the stage moves only when a headline shows it moved."""
+
+
+def _prompt(defn: dict, state: Optional[dict], fresh: List[dict]) -> str:
+    now = history(defn, state)[-1]
+    stages = defn.get("stages") or []
+    lines = [f"Thing: {defn['name']} ({defn.get('summary', '')})",
+             "Stages: " + (", ".join(f"{i}={s}" for i, s in enumerate(stages)) if stages else "none (answer stage null)"),
+             f"Current status ({_day(now.get('date'))}, stage {now.get('stage')}): {pr.one_line(now['status'])}",
+             "New reports, newest first:"]
+    lines += [f"- {_day(_utc(r.get('date')))} | {r.get('source', '')} | {clean_headline(r.get('title', ''))}" for r in fresh]
+    return "\n".join(lines)
+
+
+def check_suggestion(defn: dict, state: Optional[dict], fresh: List[dict], out: Optional[dict], now: datetime) -> Optional[dict]:
+    """The model's answer made safe, or None: the shape, a stage the tracker has, a date one of the reports carries, publishers from
+    the reports, and the status-line checks against the current status and the headlines."""
+    if not isinstance(out, dict) or not isinstance(out.get("changed"), bool):
+        return None
+    current = history(defn, state)[-1]
+    reason = pr.one_line(str(out.get("reason") or ""))[:200]
+    if not out["changed"]:
+        return {"changed": False, "status": pr.one_line(current["status"]), "stage": _stage(defn, current.get("stage")),
+                "date": _day(current.get("date")), "sources": list(current.get("sources") or []), "reason": reason}
+    publishers = {r.get("source", "") for r in fresh}
+    sources = [x for x in dict.fromkeys(str(x) for x in out.get("sources") or []) if x in publishers][:6]
+    stage = out.get("stage")
+    if stage is not None and _stage(defn, stage) is None:
+        return None
+    try:
+        row = check_update(defn, str(out.get("status") or ""), stage, str(out.get("date") or ""), now)
+    except StatusError:
+        return None
+    if row["date"] not in {_day(_utc(r.get("date"))) for r in fresh} or not sources:
+        return None
+    evidence = [pr.one_line(current["status"])] + [clean_headline(r.get("title", "")) for r in fresh]
+    allowed = {w for x in [defn["name"], *(defn.get("stages") or []), *publishers] for w in re.findall(r"[A-Za-z]+", x)}
+    if check_status_line(row["status"], evidence, allowed):
+        return None
+    return {**row, "changed": True, "sources": sources, "reason": reason}
+
+
+async def suggest_due(store: Store, llm, now: datetime) -> int:
+    """Ask the model about the trackers whose new reports it has not read yet (at most SUGGEST_PER_RUN a run); returns how many
+    suggestions passed. A failed answer is remembered for those reports, so it is not asked again until more arrive."""
+    if llm is None:
+        return 0
+    states = {d["_id"]: d for d in await store.tracker_states()}
+    made = asked = 0
+    for slug, defn in definitions().items():
+        if asked >= SUGGEST_PER_RUN:
+            break
+        state = states.get(slug)
+        fresh = new_reports(defn, state, await store.tracker_reports(slug))[:SUGGEST_REPORTS]
+        ids = sorted(r["item_id"] for r in fresh)
+        if not fresh or sorted(((state or {}).get("suggestion") or {}).get("for_ids") or []) == ids:
+            continue
+        asked += 1
+        try:
+            out = await llm.json(SUGGEST_SYSTEM, _prompt(defn, state, fresh))
+        except Exception as e:
+            log.warning("trackers: suggestion for %s failed: %s", slug, e)
+            out = None
+        good = check_suggestion(defn, state, fresh, out, now)
+        await store.set_tracker_suggestion(slug, {**(good or {}), "ok": good is not None, "for_ids": ids, "at": now})
+        made += good is not None
+    return made
 
 
 async def studio_views(store: Store) -> List[dict]:

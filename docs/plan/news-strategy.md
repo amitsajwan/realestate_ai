@@ -74,7 +74,7 @@ Decided and built (N1, most of N2 and N3):
 
 ## Next (TARGET, in order)
 
-- N2b: a model *suggests* a new status line when new reports arrive (shown in the Trackers tab with the headlines it read; the owner
+- ~~N2b~~ BUILT 2026-10-26 (`trackers.suggest_due`, at most 3 model calls a newsroom cycle, checked by `stages.check.check_status_line`): a model *suggests* a new status line when new reports arrive (shown in the Trackers tab with the headlines it read; the owner
   accepts or edits). Rules first, the copy guards on the suggestion, and no suggestion when the model fails.
 - N2c: a status change makes one social post (through `social.distribution.send`, dry run outside production).
 - N3b: nearby trackers on project pages by distance from the project pin (needs a checked line or point per tracker; area-based today).

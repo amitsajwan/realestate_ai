@@ -46,12 +46,14 @@ async def _area_records(store: Store, stages: dict, cfg, counts: dict) -> None:
         log.exception("newsroom: area records failed")
 
 
-async def _track(store: Store, now: datetime, counts: dict) -> None:
-    """Attach the newly collected reports to the trackers they are about (trackers.py), whatever the filter made of them."""
+async def _track(store: Store, llm, now: datetime, counts: dict) -> None:
+    """Attach the newly collected reports to the trackers they are about (trackers.py), whatever the filter made of them, then ask
+    the model for a suggested status where new reports wait (shown to the owner in Studio, never put on the site by itself)."""
     try:
         counts["tracked"] = await trackers.attach_new(store, now)
+        counts["suggested"] = await trackers.suggest_due(store, llm, now)
     except Exception:
-        log.exception("newsroom: tracker attach failed")
+        log.exception("newsroom: trackers step failed")
 
 
 async def cycle(store: Store, cfg, hb=None) -> dict:
@@ -67,7 +69,7 @@ async def cycle(store: Store, cfg, hb=None) -> dict:
                 break
             more = await run_once(store, [], stages, publisher, llm, datetime.now(timezone.utc), cfg)
             counts = {k: counts.get(k, 0) + more.get(k, 0) for k in set(counts) | set(more)}
-        await _track(store, now, counts)
+        await _track(store, llm, now, counts)
         await _weekly_digest(store, stages, now, counts)
         await _area_records(store, stages, cfg, counts)
         await store.set_run(last_run_at=now, last_error=None, last_counts=counts)

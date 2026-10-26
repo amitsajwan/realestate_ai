@@ -252,6 +252,10 @@ class Store:
         """The owner read the new reports and the status still holds."""
         await self._tracker_set(slug, {"$set": {"checked_at": at}})
 
+    async def set_tracker_suggestion(self, slug: str, suggestion: dict) -> None:
+        """The model's suggested status for the reports in `for_ids` (trackers.suggest_due); `ok` is False when it failed the checks."""
+        await self._tracker_set(slug, {"$set": {"suggestion": suggestion}})
+
     async def add_tracker_report(self, row: dict) -> bool:
         """Attach one report to one tracker once; False when it was already attached."""
         if await self.tracker_rows.find_one({"_id": row["_id"]}):

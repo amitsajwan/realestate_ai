@@ -383,3 +383,20 @@ describe('Newsroom screen: Trackers', () => {
     await waitFor(() => expect(within(row).queryByText(/hidden from the site/)).toBeNull())
   })
 })
+
+describe('Newsroom screen: tracker suggestions', () => {
+  it('shows the AI suggestion as a suggestion, and Use this fills the form for the owner to save', async () => {
+    window.history.replaceState({}, '', '/studio/newsroom?tab=trackers')
+    render(<NewsroomPage />)
+    const row = await screen.findByTestId('tracker-row')
+    fireEvent.click(within(row).getAllByRole('button')[0])
+    const box = within(within(row).getByTestId('tracker-suggestion'))
+    expect(box.getByText(/written by AI from the new reports/)).toBeInTheDocument()
+    fireEvent.click(box.getByRole('button', { name: /Use this/ }))
+    expect(within(row).getByLabelText('Status, in our words')).toHaveValue('MADC is looking for global consultants for the feasibility study; the land acquisition is nearly done.')
+    expect(within(row).getByLabelText('From reports by')).toHaveValue('Swarajya')
+    fireEvent.click(within(row).getByRole('button', { name: 'Put this status on the site' }))
+    await waitFor(() => expect(within(row).getByText('Up to date')).toBeInTheDocument())
+    expect(within(row).queryByTestId('tracker-suggestion')).toBeNull()
+  })
+})

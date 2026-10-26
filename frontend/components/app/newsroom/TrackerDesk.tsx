@@ -3,7 +3,7 @@ import React, { useState } from 'react'
 import { Btn, Chip, ErrorBox, Spinner } from '@/components/app/ui'
 import { StatusPill } from '@/components/app/list'
 import { friendlyNewsroomError } from '@/lib/app/newsroom'
-import { trackersApi, type DeskTracker } from '@/lib/app/trackers'
+import { trackersApi, type DeskTracker, type Suggestion } from '@/lib/app/trackers'
 import { useAsync } from '@/lib/app/useAsync'
 
 const KIND = { project: 'Project', rule: 'Rule', rate: 'Rate' } as const
@@ -47,6 +47,15 @@ export function TrackerRow({ t, open, onToggle, onChange }: { t: DeskTracker; op
     setSources([...new Set(fresh.map((r) => r.source))].join(', '))
     setEditing(true)
   }
+  /** The suggested line in the form, for the owner to read, change and save. */
+  function fillFromSuggestion(s: Suggestion) {
+    setStatus(s.status)
+    setStage(s.stage)
+    setDate(s.date)
+    setSources(s.sources.join(', '))
+    setEditing(true)
+  }
+  const sug = t.suggestion
   const save = () => run(() => trackersApi().setStatus(t.slug, {
     status, date, stage: t.stages.length ? stage : null, sources: sources.split(',').map((s) => s.trim()).filter(Boolean),
   }))
@@ -97,6 +106,26 @@ export function TrackerRow({ t, open, onToggle, onChange }: { t: DeskTracker; op
               </button>
             )}
           </div>
+
+          {sug && !editing && (
+            <div className="rounded-xl border border-amber-300 bg-amber-50 p-3" data-testid="tracker-suggestion">
+              <p className="text-xs font-bold uppercase tracking-wide text-amber-900">
+                {sug.changed ? 'Suggested new status' : 'Suggested: the status still holds'} · written by AI from the new reports, check it
+              </p>
+              {sug.changed && (
+                <>
+                  <p className="mt-1 text-sm leading-relaxed text-gray-900">{sug.status}</p>
+                  <p className="mt-1 text-xs text-gray-600">{sug.stage !== null && `${t.stages[sug.stage]} · `}As of {sug.date} · from {sug.sources.join(', ')}</p>
+                </>
+              )}
+              {sug.reason && <p className="mt-1 text-xs text-gray-700">Why: {sug.reason}</p>}
+              <div className="mt-2">
+                {sug.changed
+                  ? <Btn onClick={() => fillFromSuggestion(sug)} disabled={busy} className="!bg-blue-900 active:!bg-blue-950">Use this (you can edit it)</Btn>
+                  : <Btn onClick={() => run(() => trackersApi().checked(t.slug))} disabled={busy} className="!bg-blue-900 active:!bg-blue-950">Agree: the status still holds</Btn>}
+              </div>
+            </div>
+          )}
 
           {editing ? (
             <div className="space-y-3 rounded-xl border border-gray-200 p-3">

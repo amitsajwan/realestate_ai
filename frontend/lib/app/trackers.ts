@@ -20,7 +20,12 @@ export interface DeskTracker {
   report_count: number
   new_count: number
   reports: DeskReport[]
+  /** The model's reading of the new reports, already through the backend's checks; null when there is none or it failed them. */
+  suggestion: Suggestion | null
 }
+
+/** `changed` false: the model found the reports only repeat the status. Never on the site until the owner saves it. */
+export interface Suggestion { changed: boolean; status: string; stage: number | null; date: string; sources: string[]; reason: string }
 
 export interface StatusBody { status: string; date: string; stage: number | null; sources: string[] }
 
@@ -65,6 +70,8 @@ export const FIXTURE_TRACKERS: DeskTracker[] = [{
   stages: ['Site chosen', 'Land acquisition', 'Feasibility and design', 'Construction', 'Open'], stage: 2,
   status: 'Land acquisition is nearly done: the remaining 40 hectares is being taken compulsorily, and MADC has started appointing a consultant.',
   status_date: '2026-10-23', status_sources: ['Punekar News', 'Pune Mirror'], checked_at: null, report_count: 3, new_count: 1,
+  suggestion: { changed: true, status: 'MADC is looking for global consultants for the feasibility study; the land acquisition is nearly done.',
+    stage: 2, date: '2026-10-24', sources: ['Swarajya'], reason: 'The newest report says consultants are being sought.' },
   reports: [
     { id: 'r3', date: '2026-10-24', title: 'Maharashtra Revives Long-Delayed Purandar Airport Project, Seeks Global Consultants', source: 'Swarajya', url: 'https://example.com/3', hidden: false, new: true },
     { id: 'r2', date: '2026-10-23', title: 'Purandar Airport Project Moves Ahead as MADC Begins Consultant Appointment', source: 'Pune Mirror', url: 'https://example.com/2', hidden: false, new: false },
@@ -79,7 +86,10 @@ export function createFixtureTrackersApi(seed: DeskTracker[] = FIXTURE_TRACKERS)
     if (!t) throw new ApiError(404, 'No such tracker')
     return t
   }
-  const fresh = (t: DeskTracker) => ({ ...t, new_count: t.reports.filter((r) => r.new && !r.hidden).length })
+  const fresh = (t: DeskTracker) => {
+    const n = t.reports.filter((r) => r.new && !r.hidden).length
+    return { ...t, new_count: n, suggestion: n ? t.suggestion : null }
+  }
   return {
     list: async () => rows.map(fresh),
     setStatus: async (slug, body) => {

@@ -105,3 +105,65 @@ async def test_a_hidden_report_leaves_the_public_page_and_area_lists_keep_city_w
 def test_text_read_as_windows_1252_is_put_back():
     assert pr.one_line("gets â‚¹10,502 crore, Maharashtraâ€™s bills") == "gets ₹10,502 crore, Maharashtra’s bills"
     assert pr.one_line("café ₹5") == "café ₹5"
+
+
+class FakeLlm:
+    def __init__(self, answer):
+        self.answer, self.calls = answer, 0
+
+    async def json(self, system, user):
+        self.calls += 1
+        return self.answer
+
+
+async def with_new_hospital_report(store):
+    await report(store, "h1", "Lohegaon Hospital OPD Opened to Patients on Monday", days_ago=0)
+    await trackers.attach_new(store, NOW)
+
+
+async def test_a_checked_suggestion_waits_in_studio_and_is_gone_once_the_owner_checks():
+    store = Store(FakeDb())
+    await with_new_hospital_report(store)
+    llm = FakeLlm({"changed": True, "stage": 2, "status": "The hospital's OPD has opened to patients.", "date": "2026-10-25",
+                   "sources": ["Punekar News"], "reason": "The report says the OPD opened."})
+    assert await trackers.suggest_due(store, llm, NOW) == 1
+    c = apps(store)
+    row = next(t for t in c.get("/newsroom/trackers").json() if t["slug"] == "lohegaon-hospital")
+    assert row["suggestion"]["status"] == "The hospital's OPD has opened to patients." and row["suggestion"]["stage"] == 2
+    assert c.get("/public/trackers/lohegaon-hospital").json()["status"].startswith("Built and staffed")   # never on the site by itself
+    c.post("/newsroom/trackers/lohegaon-hospital/checked")
+    row = next(t for t in c.get("/newsroom/trackers").json() if t["slug"] == "lohegaon-hospital")
+    assert row["suggestion"] is None
+
+
+async def test_a_suggestion_with_an_invented_figure_or_an_unreported_opening_is_refused_and_not_asked_again():
+    store = Store(FakeDb())
+    await report(store, "h1", "Lohegaon Hospital Still Waiting for Inauguration Clearance", days_ago=0)
+    await trackers.attach_new(store, NOW)
+    for answer in ({"changed": True, "stage": 1, "status": "The hospital is waiting; 250 beds are ready.", "date": "2026-10-25", "sources": ["Punekar News"]},
+                   {"changed": True, "stage": 2, "status": "The hospital was inaugurated and is now running.", "date": "2026-10-25", "sources": ["Punekar News"]}):
+        await store.trackers.update_one({"_id": "lohegaon-hospital"}, {"$set": {"suggestion": {}}})
+        llm = FakeLlm(answer)
+        assert await trackers.suggest_due(store, llm, NOW) == 0
+        assert await trackers.suggest_due(store, llm, NOW) == 0 and llm.calls == 1   # the same reports are not asked about twice
+        row = trackers.studio_view(trackers.get("lohegaon-hospital"), await store.tracker_state("lohegaon-hospital"),
+                                   await store.tracker_reports("lohegaon-hospital"))
+        assert row["suggestion"] is None and row["new_count"] == 1
+
+
+async def test_a_still_holds_answer_keeps_the_current_status_and_no_model_means_no_suggestion():
+    store = Store(FakeDb())
+    await with_new_hospital_report(store)
+    assert await trackers.suggest_due(store, None, NOW) == 0
+    assert await trackers.suggest_due(store, FakeLlm({"changed": False, "reason": "Repeats the 19 October report."}), NOW) == 1
+    row = trackers.studio_view(trackers.get("lohegaon-hospital"), await store.tracker_state("lohegaon-hospital"),
+                               await store.tracker_reports("lohegaon-hospital"))
+    assert row["suggestion"]["changed"] is False and row["suggestion"]["status"].startswith("Built and staffed")
+
+
+def test_waiting_to_be_inaugurated_never_backs_an_inaugurated_claim():
+    from app.modules.newsroom.stages.check import check_status_line
+    evidence = ["Built and staffed, waiting for permission to be inaugurated.", "Lohegaon Hospital Still Waiting for Inauguration Clearance"]
+    assert check_status_line("The hospital was inaugurated.", evidence)
+    assert check_status_line("It is still waiting to be inaugurated.", evidence) == []
+    assert check_status_line("The OPD has opened to patients.", ["Built.", "Lohegaon Hospital OPD Opened to Patients on Monday"]) == []
