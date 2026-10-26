@@ -55,7 +55,8 @@ describe("buyers' home", () => {
     expect(within(screen.getByTestId('home-hot')).getByRole('link', { name: /lodha camelot/i })).toHaveAttribute('href', '/projects/lodha-camelot-kharadi')
     expect(screen.queryByTestId('hot-strip')).toBeNull()   // the section replaces the banner here: the same links once
     const it = screen.getByTestId('home-areas-it')
-    expect(within(it).getByRole('link', { name: 'New projects in Kharadi' })).toHaveAttribute('href', '/projects/area/kharadi')
+    // named as the page it opens ("Flats and residential projects in Kharadi"); "new projects" is the new-launches list's search
+    expect(within(it).getByRole('link', { name: 'Projects in Kharadi' })).toHaveAttribute('href', '/projects/area/kharadi')
     expect(within(it).getByRole('link', { name: 'Living in Kharadi' })).toHaveAttribute('href', '/localities/kharadi')
     // the link is to new projects: its count leaves out the older ones (every registration was 303)
     expect(it).toHaveTextContent('180 being built or just finished')

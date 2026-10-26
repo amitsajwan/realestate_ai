@@ -132,15 +132,18 @@ export default async function BuyerHome() {
                 const place = placeOf(l)
                 const live = place && place.indexable > 0
                 return (
-                  <li key={l.slug} className="flex flex-col rounded-2xl border border-slate-200 bg-white p-4">
-                    <Link href={live ? placePath(place.slug) : `/localities/${l.slug}`} className="font-bold text-[#0f2340] underline-offset-2 hover:underline">
-                      {live ? `New projects in ${l.name}` : l.name}
+                  <li key={l.slug} className="relative flex flex-col rounded-2xl border border-slate-200 bg-white p-4 hover:border-[#0f2340]">
+                    {/* the whole card opens the area page (a tap beside the title did nothing: owner 2026-10-26); its name is the
+                        page's own ("Flats and residential projects in Kharadi"), "new projects" being the new-launches list's search */}
+                    <Link href={live ? placePath(place.slug) : `/localities/${l.slug}`}
+                      className="font-bold text-[#0f2340] underline-offset-2 after:absolute after:inset-0 after:rounded-2xl after:content-[''] hover:underline">
+                      {live ? `Projects in ${l.name}` : l.name}
                     </Link>
                     <span className="mt-1 text-sm text-slate-600">{l.tagline}</span>
-                    {/* the link is to new projects, so the count is of those: every registration ever (303 in Kharadi) counted old ones too */}
+                    {/* the projects a buyer of a new home looks at: every registration ever (303 in Kharadi) counted old ones too */}
                     {place && (place.current ?? place.projects) > 0 && <span className="mt-1 text-sm font-semibold text-slate-800">
                       {place.current != null ? `${place.current} being built or just finished` : `${place.projects} projects on MahaRERA`}</span>}
-                    <Link href={`/localities/${l.slug}`} className="mt-auto inline-flex min-h-[44px] items-center pt-2 text-sm font-semibold text-[#0f2340] underline underline-offset-2">
+                    <Link href={`/localities/${l.slug}`} className="relative z-10 mt-auto inline-flex min-h-[44px] items-center pt-2 text-sm font-semibold text-[#0f2340] underline underline-offset-2">
                       Living in {l.name}
                     </Link>
                   </li>
