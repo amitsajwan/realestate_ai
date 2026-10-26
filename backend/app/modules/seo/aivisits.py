@@ -131,8 +131,8 @@ async def summary(db, now: Optional[datetime] = None, days: int = 28, top: int =
 def week_line(s: dict, leads: Optional[Dict[str, int]] = None) -> str:
     """One line for the weekly note: AI answers that read us, visits from AI answers and the leads they brought, last 7 days."""
     t = s.get("totals") or {}
-    by = ", ".join(f"{name} {n}" for name, n in sorted((leads or {}).items(), key=lambda x: (-x[1], x[0])))
-    return (f"AI search, 7 days: {t.get('answer', 0):,} pages read for AI answers, {t.get('referral', 0):,} visits from AI answers, "
+    by = ", ".join(f"{name} {n}" for name, n in sorted((leads or {}).items(), key=lambda x: (-x[1], x[0]))[:3])   # fits the note
+    return (f"AI search, 7 days: {t.get('answer', 0):,} pages read for AI answers, {t.get('referral', 0):,} visits and "
             f"{sum((leads or {}).values()):,} enquiries from AI answers{f' ({by})' if by else ''}, "
             f"{t.get('search', 0):,} search-crawler reads.")
 
