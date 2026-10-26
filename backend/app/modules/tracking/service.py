@@ -38,6 +38,10 @@ class TrackingService:
         self.inquiry_log = db.get_collection("inquiry_log")
         self.now = now
 
+    async def _agent_name(self, agent_id: str) -> str:
+        p = await self.db.get_collection("agent_public_profiles").find_one({"agent_id": agent_id}) or {}
+        return ((p.get("branding_data") or {}).get("business_name") or p.get("agent_name") or p.get("slug") or "an agent").strip()
+
     async def _agent_id(self, slug: str) -> str:
         profile = await self.profiles.find_one({"slug": slug, "is_public": True})
         if not profile:
@@ -242,9 +246,14 @@ class TrackingService:
 
     async def lead_detail(self, agent_id: str, contact_id: str) -> dict:
         contact = await self.contacts.find_one({"_id": contact_id, "agent_id": agent_id})
+        # the owner who passed a buyer still opens the lead to see it went (2026-10-26: Saket's link said "not found" after the pass);
+        # it is read only for them: every change goes through the agent's own lead (update_stage reads agent_id)
+        passed_away = contact is None and await self.contacts.find_one({"_id": contact_id, "passed_by": agent_id}) is not None
+        if passed_away:
+            contact = await self.contacts.find_one({"_id": contact_id})
         if not contact:
             raise TrackingError("Lead not found", 404)
-        events = await self.events.find({"agent_id": agent_id, "contact_id": contact_id}).sort("ts", 1).to_list(500)
+        events = await self.events.find({"contact_id": contact_id}).sort("ts", 1).to_list(500)
         listings = await self._agent_listings(agent_id)
         convs = await contactmod.conversations_by_lead(self.db, [contact])
         view = self._view(contact, contactmod.state_of(contact, convs[contact_id]))
@@ -256,6 +265,7 @@ class TrackingService:
             "consent": contact.get("consent"),
             # the card the agent got when this buyer was passed to them (inbox/handover.py): everything known at the time
             "handover": {"text": h["text"], "at": h.get("at")} if (h := contact.get("handover") or {}).get("text") else None,
+            "passed_to": await self._agent_name(contact["agent_id"]) if passed_away else None,
             "timeline": sorted([{"type": e["type"], "listing_id": e.get("listing_id"), "source": e.get("source"),
                                  "path": e.get("path"), "ts": e["ts"]} for e in events]
                                + [{"type": f"call_{k['outcome']}", "listing_id": None, "source": None, "path": None, "ts": k["ts"]}

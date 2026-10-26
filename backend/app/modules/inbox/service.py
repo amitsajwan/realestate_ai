@@ -327,7 +327,8 @@ class InboxService:
     async def for_lead(self, agent_id: str, lead_id: str) -> List[dict]:
         """Every chat with this lead, newest first: WhatsApp (by lead or by their mobile on our number), Messenger/Instagram (by
         lead), website chat (by the number they gave). Same thread shape as the inbox."""
-        lead = await self.c("contacts").find_one({"_id": lead_id, "agent_id": agent_id})
+        lead = (await self.c("contacts").find_one({"_id": lead_id, "agent_id": agent_id})
+                or await self.c("contacts").find_one({"_id": lead_id, "passed_by": agent_id}))   # the owner's look at a buyer he passed
         if not lead:
             raise InboxError("Lead not found", 404)
         out = []

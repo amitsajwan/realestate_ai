@@ -96,3 +96,14 @@ describe('LeadDetailView', () => {
     expect(await screen.findByLabelText('Your message')).toBeInTheDocument()
   })
 })
+
+describe('LeadDetailView, a lead the owner passed', () => {
+  it('says who has it and shows the card they got, with nothing to change', async () => {
+    const real = fx.getLead.bind(fx)
+    fx.getLead = async (id: string) => ({ ...(await real(id)), passed_to: 'House Deal', handover: { text: 'New buyer for you from Avasetu\nProject: Mansha Phase-II', at: null } })
+    render(<LeadDetailView id="c1" />)
+    expect(await screen.findByText(/Passed to House Deal\. They work this lead now/)).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: 'What the agent got' })).getByText(/Project: Mansha Phase-II/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Answered' })).not.toBeInTheDocument()
+  })
+})

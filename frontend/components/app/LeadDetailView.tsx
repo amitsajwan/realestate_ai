@@ -128,6 +128,26 @@ export function LeadDetailView({ id }: { id: string }) {
   }
 
   const firstName = lead.name.split(' ')[0]
+  if (lead.passed_to) {
+    // the owner's look at a buyer he passed: the agent works the lead now, so nothing here changes it
+    return (
+      <div className="space-y-4 pb-4">
+        <div className="flex items-center gap-2">
+          <Link href="/studio/leads?tab=passed" className="flex min-h-[44px] min-w-[44px] items-center text-xl" aria-label={t('back')}>←</Link>
+          <h1 className="flex-1 truncate text-xl font-bold">{lead.name}</h1>
+        </div>
+        <p className="rounded-xl bg-sky-50 p-3 text-sm font-semibold text-sky-900">Passed to {lead.passed_to}. They work this lead now; you see it here as it was passed.</p>
+        <p className="text-gray-600">{displayPhone(lead.phone)}</p>
+        {lead.handover && (
+          <section aria-label="What the agent got" className="space-y-1 rounded-2xl border border-gray-200 bg-white p-3">
+            <h2 className="font-semibold">What {lead.passed_to} got{lead.handover.at ? ` ${timeAgo(lead.handover.at)}` : ''}</h2>
+            <p className="whitespace-pre-line break-words text-sm text-gray-900">{lead.handover.text}</p>
+          </section>
+        )}
+        <LeadConversations threads={threads} />
+      </div>
+    )
+  }
   return (
     <div className="space-y-4 pb-4">
       <div className="flex items-center gap-2">
@@ -186,7 +206,7 @@ export function LeadDetailView({ id }: { id: string }) {
           <p className="whitespace-pre-line break-words text-sm text-gray-900">{lead.handover.text}</p>
         </section>
       )}
-      {owner && <PassBox leadId={lead.id} />}
+      {owner && !lead.handover && <PassBox leadId={lead.id} />}
 
       <RequirementChips requirement={lead.requirement} />
       <MatchesList matches={lead.matches} />

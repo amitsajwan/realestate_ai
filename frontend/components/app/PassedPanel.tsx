@@ -1,4 +1,5 @@
 'use client'
+import Link from 'next/link'
 import React from 'react'
 import { Btn, ErrorBox, Spinner, inputCls } from '@/components/app/ui'
 import { errorMessage } from '@/lib/app/client'
@@ -60,6 +61,7 @@ function PassedRow({ p }: { p: PassedLead }) {
         </span>
       </button>
       {open && p.text && <p className="whitespace-pre-line break-words rounded-lg bg-gray-50 p-2 text-gray-900">{p.text}</p>}
+      {open && <Link href={`/studio/leads/${encodeURIComponent(p.lead_id)}`} className="block text-blue-700 underline">Open the lead and its chats</Link>}
       {p.whatsapp_url && (open || !went) && (
         <a href={p.whatsapp_url} target="_blank" rel="noreferrer"
           className="flex min-h-[44px] items-center justify-center rounded-xl bg-green-600 px-4 font-semibold text-white">Send the details from my WhatsApp</a>

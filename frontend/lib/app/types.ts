@@ -519,6 +519,8 @@ export interface LeadDetail extends Lead {
   consent?: unknown
   /** The card the agent got when this buyer was passed to them: every fact known then. */
   handover?: { text: string; at: string | null } | null
+  /** Set when the owner opens a lead he passed: the agent's name. The page is then read only. */
+  passed_to?: string | null
   timeline: LeadEvent[]
   /** Only in the PATCH response, when the lead was marked won with a listing. The app offers to call setListingStatus. */
   suggest_listing_status?: { listing_id: string; status: 'sold' | 'rented' } | null

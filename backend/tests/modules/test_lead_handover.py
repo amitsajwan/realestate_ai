@@ -162,3 +162,20 @@ async def test_no_rules_means_no_automatic_pass():
     db = await setup(form_lead())
     assert await followups.auto_passes(db, InboxService(db, FakeWhatsApp(), now=lambda: NOW), OWNER, NOW) == 0
     assert (await db.get_collection("contacts").find_one({"_id": "saket"}))["agent_id"] == OWNER
+
+
+async def test_the_owner_still_opens_a_lead_he_passed_read_only():
+    from app.modules.tracking.service import TrackingError, TrackingService
+    db = await setup(form_lead())
+    await InboxService(db, FakeWhatsApp(), now=lambda: NOW).pass_lead(OWNER, "saket", HD)
+    tracking = TrackingService(db, now=lambda: NOW)
+    mine = await tracking.lead_detail(OWNER, "saket")
+    assert mine["passed_to"] == "House Deal" and "Mansha Phase-II" in mine["handover"]["text"]
+    theirs = await tracking.lead_detail(HD, "saket")
+    assert theirs["passed_to"] is None and theirs["handover"]
+    assert [t["channel"] for t in await InboxService(db, FakeWhatsApp(), now=lambda: NOW).for_lead(OWNER, "saket")] == ["whatsapp"]
+    try:
+        await tracking.lead_detail("SOMEONE", "saket")
+        assert False, "a stranger opened the lead"
+    except TrackingError as e:
+        assert e.status_code == 404
