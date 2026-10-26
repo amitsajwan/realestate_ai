@@ -99,7 +99,8 @@ export function RailCard({ r, rank }: { r: FacetRow; rank?: number }) {
     <Link href={`/projects/${r.slug}`} className="block h-full overflow-hidden rounded-2xl border border-slate-200 bg-white no-underline hover:border-[#0f2340]">
       <Picture r={r} rank={rank} />
       <span className="block p-3">
-        <span className="block font-bold leading-snug text-[#0f2340]">{r.name}</span>
+        {/* underlined with an arrow: the card reads as a link at a glance on a phone (owner 2026-10-26) */}
+        <span className="block font-bold leading-snug text-[#0f2340] underline decoration-[#f0b440] decoration-2 underline-offset-4">{r.name}<span aria-hidden className="ml-1">→</span></span>
         {' '}<span className="mt-1 block text-sm font-semibold text-slate-900">{price ?? 'Ask for price'}</span>
         {' '}<span className="mt-0.5 block text-xs text-slate-600">
           {[r.units_open != null && r.units_total ? `${r.units_open.toLocaleString('en-IN')} of ${r.units_total.toLocaleString('en-IN')} homes open` : null,

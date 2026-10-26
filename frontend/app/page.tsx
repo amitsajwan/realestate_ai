@@ -37,6 +37,10 @@ const wrap = 'mx-auto max-w-5xl px-4'
 const section = 'py-10 sm:py-14'
 const h2 = 'text-2xl font-extrabold tracking-tight text-[#0f2340] sm:text-3xl'
 const card = 'block h-full rounded-2xl border border-slate-200 bg-white p-4 no-underline hover:border-[#0f2340]'
+// a card's title is underlined and ends in an arrow, so it reads as a link at a glance on a phone (no hover there: owner
+// 2026-10-26, "don't look clickable")
+const cardTitle = 'font-bold text-[#0f2340] underline decoration-[#f0b440] decoration-2 underline-offset-4'
+const Arrow = () => <span aria-hidden className="ml-1 text-[#0f2340]">→</span>
 const chip = 'inline-flex min-h-[44px] items-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-[#0f2340] no-underline hover:border-[#0f2340]'
 
 export default async function BuyerHome() {
@@ -104,7 +108,7 @@ export default async function BuyerHome() {
             {hot.map((p) => (
               <li key={p.slug} className="w-[78%] max-w-[300px] shrink-0 snap-start sm:w-auto sm:max-w-none">
                 <Link href={`/projects/${p.slug}`} className={card}>
-                  <span className="block font-bold text-[#0f2340]">{p.name}</span>
+                  <span className={'block ' + cardTitle}>{p.name}<Arrow /></span>
                   {p.area && <span className="block text-sm text-slate-600">{p.area}, Pune</span>}
                   {' '}<span className="mt-1 block text-sm text-slate-800">{p.note || `${p.fact} (${p.source})`}</span>
                 </Link>
@@ -136,8 +140,8 @@ export default async function BuyerHome() {
                     {/* the whole card opens the area page (a tap beside the title did nothing: owner 2026-10-26); its name is the
                         page's own ("Flats and residential projects in Kharadi"), "new projects" being the new-launches list's search */}
                     <Link href={live ? placePath(place.slug) : `/localities/${l.slug}`}
-                      className="font-bold text-[#0f2340] underline-offset-2 after:absolute after:inset-0 after:rounded-2xl after:content-[''] hover:underline">
-                      {live ? `Projects in ${l.name}` : l.name}
+                      className={cardTitle + " after:absolute after:inset-0 after:rounded-2xl after:content-['']"}>
+                      {live ? `Projects in ${l.name}` : l.name}<Arrow />
                     </Link>
                     <span className="mt-1 text-sm text-slate-600">{l.tagline}</span>
                     {/* the projects a buyer of a new home looks at: every registration ever (303 in Kharadi) counted old ones too */}
@@ -186,7 +190,7 @@ export default async function BuyerHome() {
             {brands.map((b) => (
               <li key={b.slug}>
                 <Link href={`/builders/${b.slug}`} className={card + ' py-3'}>
-                  <span className="block font-semibold text-[#0f2340]">{b.name}</span>
+                  <span className={'block ' + cardTitle}>{b.name}<Arrow /></span>
                   {' '}<span className="block text-sm text-slate-600">{b.projects} projects</span>
                 </Link>
               </li>
