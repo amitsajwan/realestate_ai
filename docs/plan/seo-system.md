@@ -338,9 +338,9 @@ The build, in order. H0 is urgent: a day we do not keep a reading is lost for go
 | Step | What | Code (owner of the data) | Cost |
 |---|---|---|---|
 | ~~H0~~ BUILT 2026-10-26 | **Keep every reading.** Each price read appends `{at, size, low, high, source}` to `price_history` (the current `prices` stays as it is); `booked_history` is no longer cut at 24 (one reading a month is ~12 small rows a year; cut only past 120); a test pins that no reading is lost | `areastats/prices.py`, `areastats/refresh.py`, writes through the `projects` store as today (inventory owns `projects`, ARCHITECTURE §4) | ₹0, a few MB a year |
-| **H1** | **History on the project page**: "Homes booked" as a small month-by-month chart with the dated readings in text below it ("312 booked on 3 Jul, 344 on 2 Oct: 32 in 3 months"), and "Completion date" as a timeline of every filed change ("16 Aug 2032 → 16 Dec 2032, MahaRERA's 2026 extension for every project; → 16 Feb 2033, the builder"). Shown only with 2+ readings; server-rendered SVG, no script; one sentence of it in the dated answer | `pages.view` (`booked_readings`, `completion_moves`), `frontend/components/site/` new `ProjectHistory.tsx`, `projectFacts.ts` | ₹0 |
+| ~~H1~~ BUILT 2026-10-26 | **History on the project page**: "Homes booked" as a small month-by-month chart with the dated readings in text below it ("312 booked on 3 Jul, 344 on 2 Oct: 32 in 3 months"), and "Completion date" as a timeline of every filed change ("16 Aug 2032 → 16 Dec 2032, MahaRERA's 2026 extension for every project; → 16 Feb 2033, the builder"). Shown only with 2+ readings; server-rendered SVG, no script; one sentence of it in the dated answer | `pages.view` (`booked_readings`, `completion_moves`), `frontend/components/site/` new `ProjectHistory.tsx`, `projectFacts.ts` | ₹0 |
 | **H2** | **Price history** once a size has 2 readings 30+ days apart from the same kind of source: "2 BHK asked from ₹69 L (Jul) → ₹72 L (Oct), builder's site". Never mixed sources in one line; prices older than 45 days stay out of the "today" price as now | `pages.view`, `ProjectHistory.tsx` | ₹0 |
-| **H3** | **Builder record over time** on `/builders/<slug>`: every project's filed date moves in one list, with the share moved and the average months, from the same rules as `pages.delivery` | `hubs.builder_page`, `app/builders/[slug]/page.tsx` | ₹0 |
+| ~~H3~~ BUILT 2026-10-26 | **Builder record over time** on `/builders/<slug>`: every project's filed date moves in one list, with the share moved and the average months, from the same rules as `pages.delivery` | `hubs.builder_page`, `app/builders/[slug]/page.tsx` | ₹0 |
 | **H4** | **A monthly Avasetu report**: "Pune possession dates, <Month YYYY>": date moves seen this month by area and builder, homes booked by area, written by code from H0's data (no model), as a page on `/pune-maharera-tracker` with a dated URL, a Dataset JSON-LD and a CSV download; the owner sends it to journalists (section 7) | `areastats/` new `report_month.py`, `frontend/app/pune-maharera-tracker/` | ₹0 |
 | **H5** | **Name the source**: every number in a dated answer and in H1–H4 says "read by Avasetu from MahaRERA on <day>"; the weekly note shows branded searches ("avasetu", any spelling) from `search_demand`, the sign that people look for us by name | `projectFacts.ts`, `placeFacts.ts`, `seo/note.py` | ₹0 |
 | **H6** | **Watch for a copy**: (a) from the stored Serper results (`websearch.RESULTS`), flag when a portal's result for our target searches starts showing homes booked or a date move (they took the format); (b) once a month, search 2 sentences unique to our pages and list any other site that shows them | `seo/rival.py`, `seo/scoreboard.py`; 2 Serper searches a month | ~₹0 |
@@ -348,7 +348,14 @@ The build, in order. H0 is urgent: a day we do not keep a reading is lost for go
 
 Marathi pages stay under "AI search, next" above. H0 first and alone (it changes what we store, so it ships with its tests
 before anything reads it; BUILT 2026-10-26: `prices.history` adds a reading per size when the price is new or changed, never on
-a round that kept the last good prices; `refresh.BOOKED_HISTORY` 24 → 120, and `prices.PRICE_HISTORY` = 400); H1–H3 after 2 readings exist on most pages; H4 after H0 has run a month; H5 and H6 any time; H7
+a round that kept the last good prices; `refresh.BOOKED_HISTORY` 24 → 120, and `prices.PRICE_HISTORY` = 400);
+H1 BUILT 2026-10-26: `pagefacts.booked_readings` (one per day, the latest 12, only with 2+) and `pages.completion_moves` (each
+change seen, `blanket` when it is MahaRERA's 2026 order: 4 months later, registered before the order, from a date it covers)
+in the page data; `components/site/ProjectHistory.tsx` under the possession date ("<name>: what changed, as we read it": a
+server-drawn bar chart, the readings in text, each date change named as the builder's or MahaRERA's, "Read by Avasetu from
+MahaRERA on each date shown"); the opening answer adds "N of them were booked since <first reading>, by Avasetu's readings of
+MahaRERA" when the count rose. H3 BUILT 2026-10-26: `hubs.date_moves` (the builder's later filings, the order left out, newest
+first, at most 30) on `GET /public/builders/{slug}`, shown by `components/site/BuilderDateMoves.tsx` in the date record; H1–H3 after 2 readings exist on most pages; H4 after H0 has run a month; H5 and H6 any time; H7
 when the owner decides.
 
 Results to read: doctor's first 14-day results **2026-10-28**; rival and price refreshes from **2026-11-04**.
@@ -393,7 +400,8 @@ measure (Search Console, Serper, URL Inspection) → choose (near page one, Magi
 | 2026-10-25 | this | Project pages open with a dated answer + "Updated" (WebPage dateModified); news stories link the projects they name; `/llms.txt` lists project pages |
 | 2026-10-22 | this | `/` is the buyers' home (one topic: new projects in Pune); the agents' home moved to `/agents`. Hot projects banner on every buyer page, set in Studio (`hot-projects.md`); robots guard test |
 | 2026-10-25 | this | Tracker pages `/news/track/<slug>` (8) in the sitemap at 0.8, linked from `/news` and from the area pages they touch |
-| 2026-10-26 | this | 8a steps 1 and 3: Health rows for the seo and enrich loops and for fresh pages (`seo/freshness.py`); AI assistants as lead sources from one list, Gemini no longer counted as Google, enquiries from AI answers in the weekly note |
+| 2026-10-26 | this | H1 and H3: project pages show the dated booking readings and every date change we saw (builder or MahaRERA's order); builder pages list the dates each builder filed later |
+| 2026-10-26 | 563361e | 8a steps 1 and 3: Health rows for the seo and enrich loops and for fresh pages (`seo/freshness.py`); AI assistants as lead sources from one list, Gemini no longer counted as Google, enquiries from AI answers in the weekly note |
 | 2026-10-26 | 203a3d3 | H0: every price change kept, dated, in `price_history`; homes-booked readings kept to 120 (were cut at 24) |
 | 2026-10-26 | 96d4dcd | Plan only: section 8b (what a competitor cannot copy; prices and old booking readings are thrown away today; H0 keeps every reading, H1–H7 show the history and widen the lead) |
 | 2026-10-26 | 0f19643 | Plan only: section 8a (keeping the lead: freshness and stalled-loop rows, AI answer panel on Gemini grounding, AI answers → leads, Bing API, WhatsApp note, with checked costs) and the owner's weekly and monthly upkeep (section 7) |

@@ -83,6 +83,12 @@ export interface RegisterProject {
   commute?: { name: string; km: number }[]
   /** the only change to the filed completion date is MahaRERA's 2026 blanket extension: the builder moved nothing */
   extension_only?: boolean | null
+  /** homes booked as we read them from MahaRERA over time, oldest first, one per day (backend pagefacts.booked_readings);
+   *  empty with fewer than two days. MahaRERA itself shows only today's count. */
+  booked_readings?: { on: string; booked: number }[] | null
+  /** every change of the filed completion date we saw, oldest first; `blanket`: MahaRERA's 2026 extension, not the builder
+   *  (backend pages.completion_moves) */
+  completion_moves?: { seen_on: string | null; from: string; to: string; blanket: boolean }[] | null
 }
 
 /** One registration of a project that MahaRERA holds tower by tower or phase by phase. */

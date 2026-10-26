@@ -180,3 +180,66 @@ async def test_the_page_says_whether_the_change_is_the_extension_only():
     db = await seeded(("P1", "Our Project", {"registered_on": "2024-05-01", "completion_at_registration": "2028-06-30",
                                              "completion_now": "2028-10-30"}))
     assert (await pages.project_page(db, "our-project", now=NOW))["extension_only"] is True
+
+
+# ---- what changed, as we read it (docs/plan/seo-system.md 8b, H1) -----------------------------------------------------
+def test_booking_readings_are_dated_oldest_first_one_per_day():
+    doc = {"booked_history": [{"at": NOW - timedelta(days=60), "booked": 300}, {"at": NOW - timedelta(days=30), "booked": 312},
+                              {"at": NOW - timedelta(days=30, hours=-2), "booked": 315}, {"at": NOW, "booked": 344}]}
+    assert pagefacts.booked_readings(doc) == [{"on": "2026-08-21", "booked": 300}, {"on": "2026-09-20", "booked": 315},
+                                              {"on": "2026-10-20", "booked": 344}]
+
+
+def test_one_booking_reading_is_not_a_history():
+    assert pagefacts.booked_readings({"booked_history": [{"at": NOW, "booked": 10}]}) == []
+    assert pagefacts.booked_readings({}) == []
+
+
+def test_a_page_shows_only_the_latest_year_of_booking_readings():
+    doc = {"booked_history": [{"at": NOW - timedelta(days=30 * i), "booked": 500 - i} for i in range(20)]}
+    rows = pagefacts.booked_readings(doc)
+    assert len(rows) == pagefacts.READINGS_SHOWN and rows[-1] == {"on": "2026-10-20", "booked": 500}
+
+
+def test_each_date_change_we_saw_is_listed_and_the_2026_order_is_named_as_mahareras():
+    doc = {"registered_on": "2023-05-01", "completion_history": [
+        {"from": "2028-12-31", "to": "2029-06-30", "seen_at": NOW - timedelta(days=400)},     # the builder
+        {"from": "2029-06-30", "to": "2029-10-31", "seen_at": NOW - timedelta(days=80)},      # MahaRERA's 4 months
+        {"from": "2029-10-31", "to": "2029-10-31", "seen_at": NOW}]}                          # no change: not a move
+    assert pages.completion_moves(doc) == [
+        {"seen_on": "2025-09-15", "from": "2028-12-31", "to": "2029-06-30", "blanket": False},
+        {"seen_on": "2026-08-01", "from": "2029-06-30", "to": "2029-10-31", "blanket": True}]
+
+
+def test_a_four_month_move_is_the_builders_on_a_project_registered_after_the_order():
+    doc = {"registered_on": "2026-09-01", "completion_history": [{"from": "2029-06-30", "to": "2029-10-31", "seen_at": NOW}]}
+    assert pages.completion_moves(doc)[0]["blanket"] is False
+
+
+def test_the_page_carries_the_readings_and_the_moves():
+    v = pages.view({"_id": "P1", **FULL, "booked_history": [{"at": NOW - timedelta(days=30), "booked": 230}, {"at": NOW, "booked": 244}],
+                    "completion_history": [{"from": "2029-06-30", "to": "2029-10-30", "seen_at": NOW}]}, [])
+    assert v["booked_readings"] == [{"on": "2026-09-20", "booked": 230}, {"on": "2026-10-20", "booked": 244}]
+    assert [m["to"] for m in v["completion_moves"]] == ["2029-10-30"]
+
+
+# ---- a builder's date changes, as we saw them (docs/plan/seo-system.md 8b, H3) -------------------------------------------
+def test_a_builders_page_lists_each_date_it_filed_later_newest_first_without_mahareras_order():
+    from app.modules.areastats import hubs
+    one = {"_id": "P1", "page_slug": "one", "name": "ONE", "registered_on": "2023-01-01", "completion_history": [
+        {"from": "2028-12-31", "to": "2029-06-30", "seen_at": NOW - timedelta(days=300)},
+        {"from": "2029-06-30", "to": "2029-10-31", "seen_at": NOW - timedelta(days=80)}]}      # MahaRERA's 4 months
+    two = {"_id": "P2", "page_slug": "two", "name": "TWO", "registered_on": "2024-01-01", "completion_history": [
+        {"from": "2030-03-31", "to": "2030-12-31", "seen_at": NOW - timedelta(days=10)},
+        {"from": "2030-12-31", "to": "2030-09-30", "seen_at": NOW - timedelta(days=5)}]}      # filed earlier: not a delay
+    rows = hubs.date_moves([one, two])
+    assert [(r["slug"], r["from"], r["to"]) for r in rows] == [("two", "2030-03-31", "2030-12-31"), ("one", "2028-12-31", "2029-06-30")]
+    assert rows[0]["seen_on"] == "2026-10-10"
+
+
+async def test_the_builder_page_carries_its_date_changes():
+    from app.modules.areastats import hubs
+    db = await seeded(("P1", "One", {"registered_on": "2023-01-01",
+                                     "completion_history": [{"from": "2028-12-31", "to": "2029-06-30", "seen_at": NOW}]}))
+    page = await hubs.builder_page(db, pages.builder_key({"promoter": FULL["promoter"], "name": "One"}))
+    assert [(m["slug"], m["to"]) for m in page["date_moves"]] == [("one", "2029-06-30")]
