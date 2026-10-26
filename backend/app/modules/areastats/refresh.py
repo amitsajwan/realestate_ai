@@ -35,6 +35,7 @@ from app.platform import trace
 
 from . import discover
 from . import pages as project_pages  # not `pages`: step() takes a `pages` batch size
+from . import readings
 from . import watch as watchlist
 
 log = logging.getLogger(__name__)
@@ -49,8 +50,7 @@ DETAILS_RETRY_DAYS = 1  # after a failed read
 PAUSE = 2.0  # seconds between MahaRERA requests; tests set it to 0
 SKIP_AFTER_MISSES = 3  # a sweep page still empty after this many steps is skipped until the next round
 MARK = "area_sweep"  # newsroom_status document: where the sweep is
-BOOKED_HISTORY = 120  # dated homes-booked readings kept per project: one per change, so ten years and more (the history is
-                     # what a newcomer cannot rebuild: docs/plan/seo-system.md 8b)
+BOOKED_HISTORY = readings.BOOKED_HISTORY  # kept here for older callers; the rule lives in areastats.readings
 DETAIL_FIELDS = ("project_type", "registered_on", "completion_at_registration", "completion_now", "units_total", "units_booked")
 
 
@@ -187,13 +187,7 @@ async def details(store: Store, fetch: project_api.Fetch, now: datetime, limit: 
     return out
 
 
-def _booked(d: dict, fields: dict, now: datetime) -> dict:
-    """A dated reading of homes booked when it changed (or is the first): how areastats.hot sees which projects are selling."""
-    hist = list(d.get("booked_history") or [])
-    n = fields.get("units_booked")
-    if not isinstance(n, int) or (hist and hist[-1].get("booked") == n):
-        return {}
-    return {"booked_history": (hist + [{"at": now, "booked": n}])[-BOOKED_HISTORY:]}
+_booked = readings.booked  # moved to areastats.readings, which enrich shares
 
 
 async def step(store: Store, get, fetch: project_api.Fetch, now: datetime, pages: Optional[int] = None,
