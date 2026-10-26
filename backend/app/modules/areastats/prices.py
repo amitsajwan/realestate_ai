@@ -18,7 +18,9 @@ For one project (a tower group is read once, on its primary record):
    or one site gives it and another site's price for the project takes it in (its overall range, within AGREE). Both sites
    are the sources. Never a price from the model's own knowledge.
 Stored on the register record as `prices` = {at, rows: [{bhk, from_inr, to_inr, official, sources: [{site, url, official,
-quote}]}], read: [{site, url, ok, why}]}. A round that finds nothing keeps the last rows while they are under KEEP_DAYS old:
+quote}]}], read: [{site, url, ok, why}]}. Each size's price is also kept, dated, in `price_history` ([{at, bhk, from_inr, to_inr,
+official, sites}]) when it is new or differs from that size's last reading: `prices` is replaced every round and the sites
+show only today's price, so this is the only record of how a project's prices moved (docs/plan/seo-system.md 8b). A round that finds nothing keeps the last rows while they are under KEEP_DAYS old:
 prices change, an old one goes. `public` is what the pages show (with `sqft`, the size the lowest price is for, when its
 line states it, and `per_sqft`, that price over that size); `price_from` the lowest, for the area lists.
 """
@@ -36,6 +38,7 @@ PAGE_CHARS = 4000                     # price lines are short: what one model ca
 AGREE = 0.15                          # two sites' prices within 15% of each other agree
 PLAUSIBLE = 0.7                       # a size priced under 70% of the page's own overall price is another project's
 KEEP_DAYS = 45
+PRICE_HISTORY = 400                   # dated price readings kept per project (one per size per change)
 MIN_INR, MAX_INR = 1_000_000, 500_000_000   # 10 lakh .. 50 crore: outside is a misread (a booking amount, a per-sq.ft rate)
 # a price is checked against the size its own line states (owner 2026-10-24: "correct prices"): a 750 sq ft 2 BHK read at
 # ₹9.6 Cr is a misread unit or another project's line. Wide on purpose: sites mix carpet and saleable area, and Pune runs from
@@ -292,7 +295,26 @@ async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[webfacts.
     else:
         at = now
     checked = f"{len(rows)} prices from {sum(1 for r in read if r['ok'])} of {len(read)} sites"
-    return {"ok": bool(rows), "at": now, "checked": checked}, {"prices": {"at": at, "name": name, "rows": rows, "read": read}}
+    fields = {"prices": {"at": at, "name": name, "rows": rows, "read": read}}
+    if at == now:   # read this round, not the last good prices kept while a site is down
+        fields.update(history(doc, rows, now))
+    return {"ok": bool(rows), "at": now, "checked": checked}, fields
+
+
+def history(doc: dict, rows: List[dict], now: datetime) -> dict:
+    """{"price_history": [...]} with a dated reading for each size whose price is new or changed since that size's last
+    reading; {} when nothing changed. A reading is never removed except past PRICE_HISTORY, oldest first."""
+    hist = list(doc.get("price_history") or [])
+    last = {h.get("bhk"): h for h in hist if isinstance(h, dict)}
+    new = []
+    for r in rows:
+        before = last.get(r["bhk"])
+        if before and (before.get("from_inr"), before.get("to_inr"), before.get("official")) == \
+                (r["from_inr"], r.get("to_inr"), r["official"]):
+            continue
+        new.append({"at": now, "bhk": r["bhk"], "from_inr": r["from_inr"], "to_inr": r.get("to_inr"), "official": r["official"],
+                    "sites": [s["site"] for s in r.get("sources") or []]})
+    return {"price_history": (hist + new)[-PRICE_HISTORY:]} if new else {}
 
 
 def _aware(d: datetime) -> datetime:

@@ -49,7 +49,8 @@ DETAILS_RETRY_DAYS = 1  # after a failed read
 PAUSE = 2.0  # seconds between MahaRERA requests; tests set it to 0
 SKIP_AFTER_MISSES = 3  # a sweep page still empty after this many steps is skipped until the next round
 MARK = "area_sweep"  # newsroom_status document: where the sweep is
-BOOKED_HISTORY = 24  # dated homes-booked readings kept per project (about two years at one read a month)
+BOOKED_HISTORY = 120  # dated homes-booked readings kept per project: one per change, so ten years and more (the history is
+                     # what a newcomer cannot rebuild: docs/plan/seo-system.md 8b)
 DETAIL_FIELDS = ("project_type", "registered_on", "completion_at_registration", "completion_now", "units_total", "units_booked")
 
 

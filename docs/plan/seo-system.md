@@ -5,7 +5,8 @@ code, pages or plans updates this page in the same commit (section 11 gets a lin
 history; when they and this page disagree, this page is right.
 
 Labels: **LIVE** = running in production · **TARGET** = to build · **OWNER** = done by hand · **DROPPED** = decided against.
-Last updated 2026-10-25 (Ask-Google order, gaps from our own searches, 160-character descriptions, Serper use per day).
+Last updated 2026-10-26 (section 8a: keeping the lead in Google and AI answers, with costs; owner's weekly and monthly upkeep;
+section 8b: what a competitor cannot copy, and the plan to widen it).
 
 ## 1. Goal and scorecard
 
@@ -25,6 +26,10 @@ booked, possession filed vs promised, towers merged, nearby measured from the pi
 visits from our posts, Request indexing, and every page Google reads being worth indexing (thin pages stay noindex).
 By area (2026-10-21, of pages checked): core pages 21/25, Wagholi 26/76, Kharadi 14/66, outer places (Talegaon, Dhayari) 0.
 
+**Owner's check, 2026-10-26:** ChatGPT names our project pages first for "top projects in Kharadi / Upper Kharadi / Wagholi",
+and Google ranks them well. One person's check by hand, not a measurement: AI answers change with the wording, the login and
+the place. Measuring it every week is section 8a, step 2.
+
 ## 2. Where to look
 
 | What | Where |
@@ -38,6 +43,7 @@ By area (2026-10-21, of pages checked): core pages 21/25, Wagholi 26/76, Kharadi
 | Google's own view | Search Console, property `sc-domain:avasetu.in` (owner's Google account) |
 | Weekly site audit | GitHub → Actions → "SEO audit (live site)" |
 | AI search: assistants that read us, pages they use, visits from AI answers | Insights → **Rankings** → "AI search"; one line in the weekly note |
+| Loops stopped, pages going old | Studio → Admin → **Health**: "SEO loop", "Project page refresh", "Project pages up to date" |
 | Raw loop log | VM: `docker compose logs newsroom \| grep pipeline=seo` (one line per step per round) |
 
 ## 3. Accounts and keys (all LIVE, all only in the VM's `.env`, never in git or chat)
@@ -165,7 +171,8 @@ All in the `newsroom` worker role (seo loop every 30 minutes; each step runs onl
 | MagicBricks scoreboard | weekly | our place vs MagicBricks, 99acres, Housing for every search run in 28 days; "win next" list; history per week | `seo/scoreboard.py` |
 | Prices round | one project every 15 min (`PRICES_EVERY_MINUTES`), inside the enrich loop | prices only (builder's site, or two agreeing sites); Upper Kharadi → Kharadi → Wagholi → Keshav Nagar → Lohegaon → Baner → Wakad → Hinjawadi → everywhere else, new launches and hot projects first in each area, 90%+ booked last, completed projects never; never read first, re-read every 30 days (before a price lapses at 45), 14 days after a read that found none; at most 10 new Serper searches a day (`PRICES_SEARCHES_PER_DAY`), waits while the free model tiers rest; coverage per area on Insights → Pages | `areastats/pricing.py` |
 | AI visit log | every page request (proxy, after the response) | AI fetchers and visits from AI answers, per day; on Rankings and in the weekly note | `frontend/proxy.ts`, `seo/aivisits.py` |
-| Owner's SEO note | weekly | Studio notification with the week's numbers and how many pages wait for Request indexing | `seo/note.py` |
+| Fresh pages count | daily | live project pages in our 8 areas re-read in the last 35 days, per area, the oldest five; Admin → Health | `seo/freshness.py` |
+| Owner's SEO note | weekly | Studio notification with the week's numbers, how many pages wait for Request indexing, and the enquiries from AI answers | `seo/note.py` |
 | Page writer | every 5 min (cheap rewrite), full re-read at most 1 per 30 min | project text on free LLM tiers; skipped while most providers are resting | `areastats/enrich.py` |
 | Hot projects refresh | every 14 days per hot project | facts, prices and text re-read | `areastats/hot.py`, `enrich.py` |
 | Site audit | weekly, Mondays 08:47 IST (GitHub Actions) | 300 sitemap pages read like Googlebot: status, robots, noindex, canonical, title, JSON-LD; a 5xx is read again after 30 s; 12 of them again as 4 AI fetchers (same page, `<h1>` in the HTML, robots.txt) | `seo/audit.py`, `.github/workflows/seo-audit.yml` |
@@ -186,6 +193,24 @@ All in the `newsroom` worker role (seo loop every 30 minutes; each step runs onl
 - **Be talked about** (AI answers lean on brands the web mentions): answer Pune property threads on Reddit and Quora with the
   project or area page that answers them, offer the MahaRERA tracker to journalists, keep the Google Business Profile current.
 
+### Weekly and monthly upkeep (OWNER, 2026-10-26)
+
+What keeps the lead (section 8a). About 1–2 hours a week, no money.
+
+| When | Do | Where |
+|---|---|---|
+| Every week, Monday | Read the SEO note; check that the Rankings numbers moved and that the AI search counts are not zero | Studio Home, Insights → Rankings |
+| Every week | Check that Health shows no BAD rows (keys, IndexNow, Search Console; the loop and freshness rows once 8a step 1 is built) | Studio → Admin → Health |
+| Every week | Check that the Monday "SEO audit (live site)" run is green | GitHub → Actions |
+| Every week | Ask the same 5 questions in ChatGPT, Perplexity and Gemini while logged out ("top projects in Kharadi", "Upper Kharadi", "Wagholi", "new launch 2 BHK Wagholi", "is <a hot project> delayed") and note who is cited, until the AI answer panel (8a step 2) does it | a notes sheet |
+| Every week | 2–3 honest answers on Reddit (r/pune) or Quora, each linking the one page that answers the question; no copy-paste, never more than one link | Reddit, Quora |
+| Every week | Ask Google to index the top of the list (~10 a day when there is time) | Rankings → "Ask Google to index" |
+| Every month | Send the "Pune MahaRERA report" from `/pune-maharera-tracker` to local journalists and property bloggers | e-mail |
+| Every month | Google Business Profile: a post, answer reviews, check the links to the area pages | Google Business Profile |
+| Every month | Bing Webmaster Tools: the Index and Search Performance reports | bing.com/webmasters |
+| Every month | Check Serper credits and the Gemini bill; read the price lines in 8a again if a provider changed its pricing | Insights → System, provider consoles |
+| Every quarter | Ask agents to link their own agent page from their WhatsApp Business and Instagram bios, and their posts to `/projects/<slug>`, never a portal | agents |
+
 ## 8. To build (TARGET, in order)
 
 1. ~~Prices area by area~~ BUILT 2026-10-21 (`areastats/pricing.py`, the prices round above). Watch "Prices by area" on
@@ -204,20 +229,142 @@ All in the `newsroom` worker role (seo loop every 30 minutes; each step runs onl
 7. **Area list pages, weeks 3-4** (area-intent-pages section 11): retire with 301 after 180 idle days, learn which page types
    earn, landmark lists, Pune-wide lists, a monthly round-up story, vocabulary proposals; a "New launches by area" strip on home.
 8. **Page speed**: the Baner place page is 0.9 MB; uncached project pages 0.45-0.8 s.
-9. **Weekly note on WhatsApp/email**: needs an email sender or an approved WhatsApp template (`report.week_lines` is unused).
+9. **Weekly note on WhatsApp/email**: needs an email sender or an approved WhatsApp template (`report.week_lines` is unused;
+   section 8a step 5).
 10. **Coverage off the loop**: its hour holds the seo loop's later steps once a day; give it its own task if they must run first.
 11. **Tidy the SEO code** (seo-review S2-S5): one `_aware` (31 copies today), one Search Console client, one sitemap parser,
    `pages` out of `areastats`, an import-linter contract.
 
 AI search, next (TARGET):
-- **AI answer panel** (needs a paid key, owner to decide): weekly, 20 buyer questions ("2 bhk flats in Lohegaon", "is <project>
+- **AI answer panel** (needs a paid key, owner to decide; now section 8a step 2, on Gemini grounding): weekly, 20 buyer questions ("2 bhk flats in Lohegaon", "is <project>
   delayed") asked through the Perplexity Sonar API or Gemini with Google Search grounding, recording which sites the answer cites;
   our share of citations beside MagicBricks/99acres/Housing on the scoreboard. ~80 calls a month.
-- **Bing Webmaster API** (needs the API key from Bing Webmaster Tools): Bing's searches and positions for our pages into
+- **Bing Webmaster API** (needs the API key from Bing Webmaster Tools; section 8a step 4): Bing's searches and positions for our pages into
   `search_demand` like Search Console (source "bing"), so the doctor and the gaps report see Bing too.
 - **Marathi searches**: the phrase parser drops Devanagari ("लोहगाव मध्ये फ्लॅट"); read it with the Marathi place names we hold
   (`reels/spoken_names.py`) and a Marathi vocabulary, then decide Marathi place pages from the counts.
 - **Verified bots**: reverse-DNS check for Googlebot, Bingbot and OAI-SearchBot before counting, if spoofed names ever skew the log.
+
+## 8a. Keeping the lead (TARGET, 2026-10-26)
+
+We are cited because our pages are the **freshest correct source**: each one opens with a dated answer from the register,
+prices and plans ("As of 3 Oct 2026 …"), and the loops in section 6 keep that true. So the lead is kept by keeping the loops
+alive and the facts right, not by writing more by hand. The risk is quiet decay, where nothing fails loudly: a key or credit
+runs out, the `newsroom` worker stops, or MahaRERA, a model or a builder's site changes, so pages keep old text and old dates.
+
+Checked against the code on 2026-10-26:
+- Admin → Health has rows for IndexNow and Search Console (`admin/health.seo_rows`), and none for a stalled seo or enrich
+  loop or for old page dates. Stalls show only in `python -m app.worker --check` on the VM, which nobody reads every day.
+- Nothing calls a model with search grounding today (no `google_search` tool in `backend/app`), so the AI answer panel has the
+  whole Gemini grounding allowance to itself.
+- A lead's source (`tracking/origin.REFERRER_SOURCES`) knows `chatgpt` and `perplexity` but not Copilot, Gemini or Claude
+  (they show as the bare host, e.g. `gemini.google.com`), and does not read ChatGPT's `utm_source=chatgpt.com`.
+  `seo/aivisits.REFERRERS` already knows all of them, so we count AI visits but cannot add up leads from AI answers.
+- `seo/report.week_lines` is still unused (item 9 above).
+
+The build, in order (cheapest and most protective first):
+
+| Step | What | Code | Needs | Cost a month |
+|---|---|---|---|---|
+| ~~1~~ BUILT 2026-10-26 | **Freshness and stalled-loop rows** on Admin → Health: the seo and project_enrich heartbeats (BAD when stale, from `heartbeats.stale` and the `expected_intervals` `--check` uses), and "pages in our 8 areas updated in the last 14 days" (`pages.page_updated`); WARN under 60%, BAD under 30% (to tune once we see the real share) | `admin/health.py`, `seo/coverage.py` or a new `seo/freshness.py` | nothing | ₹0 |
+| 2 | **AI answer panel** (was "AI search, next" above): weekly, 20 fixed buyer questions ("top projects in Upper Kharadi", "2 BHK under 80 lakh in Wagholi", "is <project> delayed"), asked through Gemini with Google Search grounding; record the sites each answer cites, keep our share of citations beside MagicBricks, 99acres and Housing on the scoreboard, and show any question we drop out of on Rankings | new `seo/answers.py`, `seo/scoreboard.py`, `RankingsTab.tsx`; key from `app.core.config`, off until set | a billing-enabled Gemini key (grounding is paid-tier only) | ₹0–20 |
+| ~~3~~ BUILT 2026-10-26 | **AI answers → leads**: add Copilot, Gemini, Claude and the other `aivisits.REFERRERS` hosts to `origin.REFERRER_SOURCES`, read `utm_source` as the source when no `src=` is set, and add a line to the weekly note ("AI answers: 40 visits, 6 enquiries") | `tracking/origin.py` (one list for both, so they cannot drift), `seo/note.py` | nothing | ₹0 |
+| 4 | **Bing Webmaster API** (was "AI search, next" above): Bing's searches and positions into `search_demand` (source "bing") | `areastats/` beside `searchconsole.py` | the API key from Bing Webmaster Tools (section 7) | ₹0 |
+| 5 | **Weekly note on WhatsApp** (item 9 above): `report.week_lines` plus the freshness share and the AI panel line, once a week to the owner | `seo/note.py`, `whatsapp` | an approved utility template | ~₹2 |
+
+Prices, checked 2026-10-26 against the providers' own documentation (through search: their pages are blocked from our build
+machine). Read them again before switching a paid step on:
+- **Gemini grounding** (Gemini 3 and newer): 5,000 search queries a month free, shared by every Gemini 3 model on the project,
+  then $14 per 1,000. Billed per search the model runs, not per question, so one question can use two or three. 20 questions a
+  week is about 87 a month, roughly 200–300 searches: inside the free allowance, so we pay only for the tokens (a few rupees on
+  Flash). Gemini 2.5 models bill per prompt, at $35 per 1,000 after the free tier, so the panel uses a Gemini 3 model.
+- **Perplexity Sonar** (kept as an option: its answers sit closer to ChatGPT search than Google's do): about $1 per million
+  tokens plus $5–12 per 1,000 requests (Sonar Pro $3/$15 per million and $6–14 per 1,000), so about ₹100–250 a month for the
+  panel. Sonar's Chat Completions API is being retired in favour of the Agent API (a third-party guide gives 27 Sept 2026);
+  check which one is current before building on it.
+- **WhatsApp**: Meta charges per delivered template message by the recipient's country, and since 1 Oct 2026 utility messages
+  inside an open customer service window are charged too (they used to be free). The India utility rate is on Meta's INR rate
+  card (not read here; third-party guides give ₹0.12–0.35). Four messages a month costs under ₹2 either way, plus 18% GST.
+- **Bing Webmaster API**, step 1 and step 3: free.
+
+As built (2026-10-26):
+- Step 1: `seo/freshness.py` (daily, in the seo loop) counts the live project pages in our 8 areas (indexable, a group's primary,
+  not finished) whose `page_updated` is within **35 days**, not 14: the details read comes back every 30 days by design
+  (`refresh.DETAILS_MAX_AGE_DAYS`), so 14 would be amber on a healthy site. Health shows "Project pages up to date" (amber under
+  70%, red under 40%, with the oldest pages), "SEO loop" (red when its heartbeat is stale, shown only while the loop is on) and
+  "Project page refresh" (the `project_enrich` heartbeat; amber when `PROJECT_ENRICH_ENABLED` is off). `admin/health.loop_row`,
+  `freshness_row`. The 70/40 limits are a first guess: read the real share for two weeks and set them.
+- Step 3: one list of assistants, `tracking/origin.AI_REFERRERS` (+ `AI_UTM`), read by both the lead sources and
+  `seo/aivisits`. AI hosts are matched before the search engines (a Gemini visit was counted as "google" before). A lead's
+  source takes an AI `utm_source` before the referrer (ChatGPT's app often sends none). The weekly note says "N enquiries
+  from AI answers (ChatGPT 2, Gemini 1)" (`origin.leads_from_ai`, read only). Leads stored before this keep the source they
+  were given (an old Gemini lead stays "google").
+
+Off-page upkeep (OWNER, no money, 1–2 hours a week): see section 7, "Weekly and monthly upkeep".
+
+## 8b. Hard to replace (TARGET, 2026-10-26)
+
+**Can a competitor replace us?** The pages and the code, yes: the MahaRERA register is public, our page format (dated answer,
+FAQ, JSON-LD, `/llms.txt`) is visible in the HTML, and the seo loop is a few months of engineering. MagicBricks, 99acres and
+Housing have far more domain authority, and a first place in ChatGPT can change within weeks. What they cannot copy:
+
+| Ours | Why it cannot be copied |
+|---|---|
+| **History** read over time: homes booked (`booked_history`), filed completion dates (`completion_history`), prices, Search Console | MahaRERA and the builders show only today's value. A newcomer starts from zero, and the gap grows every month we keep reading. |
+| **Hand corrections**: `builder_pages`, `marketed_name_override`, `pune_places.VERIFIED`, towers merged (`clusters.py`), checked pins | Thousands of small fixes; a copy inherits MahaRERA's mistakes |
+| **Neutral facts**: "the date moved 4 months", "244 of 416 booked" | The portals are paid by builders; facts that are bad for a builder are bad for their business. They have had the data for years and do not show it. |
+| **Agents and leads**: agents on the platform, leads passed to them, their posts linking our pages | Grows with use; a newcomer has none |
+| **Links, mentions and the doctor's measured fix results** | Earned over time |
+
+Threats, most likely first: (1) we let it go stale (section 8a); (2) a portal takes the format for Pune: we lose some broad
+searches, keep the register long tail; (3) a copycat scrapes our pages: Google usually credits the page it indexed first,
+which our sitemap dates and IndexNow help; blocking scrapers would also block the AI crawlers we want, so we do not;
+(4) Google or the assistants change how they choose. Facts with their sources tend to survive that.
+
+**Checked against the code on 2026-10-26: we are throwing part of the history away.**
+- Prices: every read replaces `prices` on the record (`areastats/prices.py`: `{"prices": {at, name, rows, read}}`). No earlier
+  price is kept anywhere.
+- Homes booked: `booked_history` keeps the last `refresh.BOOKED_HISTORY` = 24 readings (one per change, read every 30 days),
+  so readings older than about two years fall off.
+- Completion dates: `completion_history` is pushed and never cut. Kept in full.
+- Search Console: `gsc_history` and `rank_history` keep the last `HISTORY` = 60 readings (`searchconsole.py`, `demand.py`);
+  the site totals are on the daily snapshot. Enough for the 28-day comparisons, so left as is.
+- Already on pages: homes booked in the last window (`pagefacts.sales`), months the date moved net of the 2026 blanket
+  extension (`pages.months_later`), and a builder's date record (`pages.delivery`: `moved_later`, `avg_months_later`). Not shown: the
+  readings themselves (dates and values).
+
+The build, in order. H0 is urgent: a day we do not keep a reading is lost for good.
+
+| Step | What | Code (owner of the data) | Cost |
+|---|---|---|---|
+| ~~H0~~ BUILT 2026-10-26 | **Keep every reading.** Each price read appends `{at, size, low, high, source}` to `price_history` (the current `prices` stays as it is); `booked_history` is no longer cut at 24 (one reading a month is ~12 small rows a year; cut only past 120); a test pins that no reading is lost | `areastats/prices.py`, `areastats/refresh.py`, writes through the `projects` store as today (inventory owns `projects`, ARCHITECTURE §4) | ₹0, a few MB a year |
+| ~~H1~~ BUILT 2026-10-26 | **History on the project page**: "Homes booked" as a small month-by-month chart with the dated readings in text below it ("312 booked on 3 Jul, 344 on 2 Oct: 32 in 3 months"), and "Completion date" as a timeline of every filed change ("16 Aug 2032 → 16 Dec 2032, MahaRERA's 2026 extension for every project; → 16 Feb 2033, the builder"). Shown only with 2+ readings; server-rendered SVG, no script; one sentence of it in the dated answer | `pages.view` (`booked_readings`, `completion_moves`), `frontend/components/site/` new `ProjectHistory.tsx`, `projectFacts.ts` | ₹0 |
+| **H2** | **Price history** once a size has 2 readings 30+ days apart from the same kind of source: "2 BHK asked from ₹69 L (Jul) → ₹72 L (Oct), builder's site". Never mixed sources in one line; prices older than 45 days stay out of the "today" price as now | `pages.view`, `ProjectHistory.tsx` | ₹0 |
+| ~~H3~~ BUILT 2026-10-26 | **Builder record over time** on `/builders/<slug>`: every project's filed date moves in one list, with the share moved and the average months, from the same rules as `pages.delivery` | `hubs.builder_page`, `app/builders/[slug]/page.tsx` | ₹0 |
+| **H4** | **A monthly Avasetu report**: "Pune possession dates, <Month YYYY>": date moves seen this month by area and builder, homes booked by area, written by code from H0's data (no model), as a page on `/pune-maharera-tracker` with a dated URL, a Dataset JSON-LD and a CSV download; the owner sends it to journalists (section 7) | `areastats/` new `report_month.py`, `frontend/app/pune-maharera-tracker/` | ₹0 |
+| ~~H5~~ BUILT 2026-10-26 (searches by name; the source named on H1's readings) | **Name the source**: every number in a dated answer and in H1–H4 says "read by Avasetu from MahaRERA on <day>"; the weekly note shows branded searches ("avasetu", any spelling) from `search_demand`, the sign that people look for us by name | `projectFacts.ts`, `placeFacts.ts`, `seo/note.py` | ₹0 |
+| H6 (a) BUILT 2026-10-26, (b) TARGET | **Watch for a copy**: (a) from the stored Serper results (`websearch.RESULTS`), flag when a portal's result for our target searches starts showing homes booked or a date move (they took the format); (b) once a month, search 2 sentences unique to our pages and list any other site that shows them | `seo/rival.py`, `seo/scoreboard.py`; 2 Serper searches a month | ~₹0 |
+| **H7** | **Facts people bring** (owner to decide each): dated site-visit photos from agents on the project page, buyer reviews (moderated, the copy guards before showing), verified agent listings first in their area | `listings`, `showcase`, new review flow | ₹0 code; owner time to moderate |
+
+Marathi pages stay under "AI search, next" above. H0 first and alone (it changes what we store, so it ships with its tests
+before anything reads it; BUILT 2026-10-26: `prices.history` adds a reading per size when the price is new or changed, never on
+a round that kept the last good prices; `refresh.BOOKED_HISTORY` 24 → 120, and `prices.PRICE_HISTORY` = 400);
+H1 BUILT 2026-10-26: `pagefacts.booked_readings` (one per day, the latest 12, only with 2+) and `pages.completion_moves` (each
+change seen, `blanket` when it is MahaRERA's 2026 order: 4 months later, registered before the order, from a date it covers)
+in the page data; `components/site/ProjectHistory.tsx` under the possession date ("<name>: what changed, as we read it": a
+server-drawn bar chart, the readings in text, each date change named as the builder's or MahaRERA's, "Read by Avasetu from
+MahaRERA on each date shown"); the opening answer adds "N of them were booked since <first reading>, by Avasetu's readings of
+MahaRERA" when the count rose. H3 BUILT 2026-10-26: `hubs.date_moves` (the builder's later filings, the order left out, newest
+first, at most 30) on `GET /public/builders/{slug}`, shown by `components/site/BuilderDateMoves.tsx` in the date record; H5 BUILT 2026-10-26: `seo/note.branded` adds up Search
+Console's fresh 28-day numbers for every phrase naming us (`note.BRAND`: avasetu, ava setu, avsetu, awasetu, aavasetu,
+avasethu, आवासेतु) into "Searches for Avasetu by name" in the weekly note; H1's readings and sentence already say "read by
+Avasetu from MahaRERA" (the place and project answers do not yet); H6a BUILT 2026-10-26: `scoreboard.portal_format` counts
+portal results (MagicBricks, 99acres, Housing) whose title or snippet shows homes booked or a moved completion date, kept as
+`format` on the weekly scoreboard mark, and the note says "Watch: <portal> results now show …" from 3 such results
+(`FORMAT_ALERT`). Not shown on the Rankings tab yet; H6b (searching our own sentences) is not built. The weekly note is now
+sent as two Studio notifications (three with the watch): one text was longer than a notification (300 characters) and lost
+its AI line; H1–H3 after 2 readings exist on most pages; H4 after H0 has run a month; H5 and H6 any time; H7
+when the owner decides.
 
 Results to read: doctor's first 14-day results **2026-10-28**; rival and price refreshes from **2026-11-04**.
 
@@ -261,6 +408,12 @@ measure (Search Console, Serper, URL Inspection) → choose (near page one, Magi
 | 2026-10-25 | this | Project pages open with a dated answer + "Updated" (WebPage dateModified); news stories link the projects they name; `/llms.txt` lists project pages |
 | 2026-10-22 | this | `/` is the buyers' home (one topic: new projects in Pune); the agents' home moved to `/agents`. Hot projects banner on every buyer page, set in Studio (`hot-projects.md`); robots guard test |
 | 2026-10-25 | this | Tracker pages `/news/track/<slug>` (8) in the sitemap at 0.8, linked from `/news` and from the area pages they touch |
+| 2026-10-26 | this | H5 and H6a: searches for Avasetu by name and a watch on portals showing our kind of fact, in the weekly note; the note sent in parts so none is cut off |
+| 2026-10-26 | d7443ae | H1 and H3: project pages show the dated booking readings and every date change we saw (builder or MahaRERA's order); builder pages list the dates each builder filed later |
+| 2026-10-26 | 563361e | 8a steps 1 and 3: Health rows for the seo and enrich loops and for fresh pages (`seo/freshness.py`); AI assistants as lead sources from one list, Gemini no longer counted as Google, enquiries from AI answers in the weekly note |
+| 2026-10-26 | 203a3d3 | H0: every price change kept, dated, in `price_history`; homes-booked readings kept to 120 (were cut at 24) |
+| 2026-10-26 | 96d4dcd | Plan only: section 8b (what a competitor cannot copy; prices and old booking readings are thrown away today; H0 keeps every reading, H1–H7 show the history and widen the lead) |
+| 2026-10-26 | 0f19643 | Plan only: section 8a (keeping the lead: freshness and stalled-loop rows, AI answer panel on Gemini grounding, AI answers → leads, Bing API, WhatsApp note, with checked costs) and the owner's weekly and monthly upkeep (section 7) |
 
 ## 12. Detail and history
 

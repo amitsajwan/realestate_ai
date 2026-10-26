@@ -9,6 +9,7 @@ import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
 import { getBuilder } from '@/lib/site/hubs'
 import type { BuilderPage } from '@/lib/site/hubs'
 import { monthYear } from '@/lib/site/register'
+import BuilderDateMoves from '@/components/site/BuilderDateMoves'
 
 // One page per builder (docs/plan/rank-loop.md R6): every Pune project of the brand (backend areastats/brands.py), else of the
 // MahaRERA promoter, in our register, towers merged, with the date record (docs/plan/project-pages.md, from Housiey).
@@ -124,6 +125,7 @@ export default async function BuilderPageView({ params }: Props) {
               ))}
             </ul>
           )}
+          <BuilderDateMoves b={b} />
           <p className="mt-3 text-xs text-slate-600">
             How we count: the completion date the builder files with MahaRERA today against the one filed at registration. Moves under {b.moved_min} months
             and MahaRERA&apos;s blanket extensions for all projects (4 months in 2026) are left out. MahaRERA does not publish handover dates, so a date

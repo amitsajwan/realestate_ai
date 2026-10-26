@@ -289,6 +289,38 @@ def extension_only(doc: dict) -> bool:
     return bool(now and first and now != first and extension_months(doc) and months_later(doc) == 0)
 
 
+def _months_apart(a: str, b: str) -> Optional[int]:
+    """Whole months from one filed date to another, a month end staying a month end ("2030-10-31" to "2031-02-28" is 4); None
+    when the days do not line up. The same rule as the pages' monthsApart (frontend/lib/site/register.ts)."""
+    try:
+        da, db = date.fromisoformat(a[:10]), date.fromisoformat(b[:10])
+    except (TypeError, ValueError):
+        return None
+    last = lambda d: ((d.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)).day  # noqa: E731
+    aligned = da.day == db.day or (db.day == last(db) and da.day >= db.day) or (da.day == last(da) and db.day == last(db))
+    return (db.year - da.year) * 12 + db.month - da.month if aligned else None
+
+
+def completion_moves(doc: dict) -> List[dict]:
+    """[{seen_on, from, to, blanket}]: every change of the filed completion date we saw (`completion_history`, areastats.refresh),
+    oldest first. `blanket`: the change is MahaRERA's 2026 extension (EXTENSION_MONTHS later, on a project registered before the
+    order, from a date the order covers), so the page does not say the builder moved it. MahaRERA keeps only today's date."""
+    reg = _day(doc.get("registered_on"))
+    out, blanket_seen = [], False
+    for h in sorted((h for h in doc.get("completion_history") or [] if isinstance(h, dict)),
+                    key=lambda h: str(h.get("seen_at") or "")):
+        a, b = _day(h.get("from")), _day(h.get("to"))
+        if not a or not b or a == b:
+            continue
+        blanket = (not blanket_seen and bool(reg) and reg < EXTENSION_REGISTERED_BEFORE and a >= EXTENSION_DATES_FROM
+                   and _months_apart(a, b) == EXTENSION_MONTHS)
+        blanket_seen = blanket_seen or blanket
+        seen = h.get("seen_at")
+        out.append({"seen_on": seen.date().isoformat() if isinstance(seen, datetime) else _day(seen), "from": a, "to": b,
+                    "blanket": blanket})
+    return out
+
+
 def _served(d: dict) -> bool:
     return bool(d.get("page_slug")) and in_register(d)
 
@@ -413,6 +445,8 @@ def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None) ->
         "completion_now": _day(doc.get("completion_now")), "completion_at_registration": _day(doc.get("completion_at_registration")),
         "units_total": _count(doc.get("units_total")), "units_booked": booked(doc), "completion_passed": completion_passed(doc),
         "stage": stage(doc), "sold_out": sold_out(doc), "extension_only": extension_only(doc),
+        # what changed, as we read it over time (docs/plan/seo-system.md 8b, H1): MahaRERA shows only today's values
+        "booked_readings": pagefacts.booked_readings(doc), "completion_moves": completion_moves(doc),
         "details_read_at": read.date().isoformat() if isinstance(read, datetime) and doc.get("details_ok") else None,
         "listed_or_updated": _day(doc.get("last_modified")), "maharera_url": doc.get("source_url") or None,
         # the enriched text (model-written from gathered facts, checked) when there is one, else the code-written paragraph

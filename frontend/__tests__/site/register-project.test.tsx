@@ -413,3 +413,26 @@ describe('project page v2: each fact once, in the order a buyer asks', () => {
     expect(container).not.toHaveTextContent(/undefined|null|NaN/)
   })
 })
+
+describe('what changed, as we read it (seo-system.md 8b, H1)', () => {
+  const moves = [{ seen_on: '2025-09-15', from: '2028-12-31', to: '2029-06-30', blanket: false },
+    { seen_on: '2026-08-01', from: '2029-06-30', to: '2029-10-30', blanket: true }]
+  const readings = [{ on: '2026-07-03', booked: 212 }, { on: '2026-09-02', booked: 230 }, { on: '2026-10-03', booked: 244 }]
+
+  it('shows the dated booking readings with a chart and every date change, naming MahaRERA\'s order as not the builder', () => {
+    render(<RegisterProjectPage p={{ ...P, booked_readings: readings, completion_moves: moves }} siteUrl="https://avasetu.in" facts={null} />)
+    const h = screen.getByTestId('history')
+    expect(within(h).getByTestId('booked-history')).toHaveTextContent('32 more homes booked between 3 Jul 2026 and 3 Oct 2026: 212 to 244, of 416 homes.')
+    expect(within(h).getByTestId('booked-chart')).toHaveAttribute('aria-label', 'Homes booked: 212 on 3 Jul 2026, 244 on 3 Oct 2026')
+    expect(within(h).getByText('3 Oct 2026: 244 booked')).toBeInTheDocument()
+    const dates = within(h).getByTestId('date-history')
+    expect(dates).toHaveTextContent('31 Dec 2028 → 30 Jun 2029, filed by the builder; we saw it on 15 Sep 2025')
+    expect(dates).toHaveTextContent("30 Jun 2029 → 30 Oct 2029, by MahaRERA's August 2026 order for most projects (not the builder)")
+    expect(within(h).getByTestId('history-source')).toHaveTextContent('Read by Avasetu from MahaRERA on each date shown.')
+  })
+
+  it('shows no history block without two readings or a date change', () => {
+    render(<RegisterProjectPage p={{ ...P, booked_readings: readings.slice(0, 1), completion_moves: [] }} siteUrl="https://avasetu.in" facts={null} />)
+    expect(screen.queryByTestId('history')).toBeNull()
+  })
+})

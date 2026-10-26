@@ -2,7 +2,7 @@
 
 Closed by default, like the concierge: only superusers and ids in CONCIERGE_OWNER_IDS get in (403 otherwise).
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -50,9 +50,23 @@ def _agent_view(a: dict) -> dict:
 
 
 async def _seo_rows(svc: AdminService) -> list:
+    from app.modules.areastats.enrich import POLL_SECONDS as ENRICH_POLL_S
+    from app.modules.areastats.enrich import load as enrich_cfg
     from app.modules.areastats.searchconsole import key as gsc_key
+    from app.modules.seo import freshness
     from app.modules.seo.indexnow import key as indexnow_key
-    marks = {d["_id"]: d for d in await svc.c("newsroom_status").find({"_id": {"$in": ["indexnow", "gsc_coverage", "gsc_pages"]}}).to_list(3)}
+    from app.modules.seo.runner import INTERVAL_S as SEO_INTERVAL_S
+    from app.modules.seo.runner import enabled as seo_on
+    from app.platform import heartbeats
+    names = ["indexnow", "gsc_coverage", "gsc_pages", freshness.MARK]
+    marks = {d["_id"]: d for d in await svc.c("newsroom_status").find({"_id": {"$in": names}}).to_list(len(names))}
+    beats, now = await heartbeats.read_all(svc.db), datetime.now(timezone.utc)
+    loops = [health.loop_row("seo", "SEO loop", beats.get("seo"), float(SEO_INTERVAL_S) if seo_on() else None, now, "",
+                             "rankings, coverage and IndexNow are not being updated"),
+             health.loop_row("enrich", "Project page refresh", beats.get("project_enrich"),
+                             float(ENRICH_POLL_S) if enrich_cfg().enabled else None, now,
+                             "Set PROJECT_ENRICH_ENABLED=true in the server settings",
+                             "project pages are not re-read, so their dates and facts go old")]
     from app.modules.communities.discover import COLLECTION as COMMUNITIES
     from app.modules.communities.runner import enabled as articles_on
     hoods = await svc.c(COMMUNITIES).find({}).to_list(None)
@@ -61,7 +75,8 @@ async def _seo_rows(svc: AdminService) -> list:
                 "last_note": f"{held[0]['name']}: {held[0]['write_notes'][0]}" if held else None}
     return health.seo_rows(indexnow_on=indexnow_key() is not None, gsc_on=gsc_key() is not None, indexnow=marks.get("indexnow"),
                            coverage=marks.get("gsc_coverage"), pages=marks.get("gsc_pages"), articles_on=articles_on(),
-                           articles=articles)
+                           articles=articles) + [r for r in loops if r] + [
+        health.freshness_row(marks.get(freshness.MARK), freshness.WINDOW.days)]
 
 
 @router.get("/overview")

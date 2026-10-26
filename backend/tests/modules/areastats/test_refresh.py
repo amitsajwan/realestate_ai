@@ -234,3 +234,9 @@ async def test_step_runs_all_parts_and_survives_a_broken_one():
     assert (await store.project("P1"))["locality"] == "lohegaon"
     # every new in-area record gets its page in the same step (the batch size `pages` must not hide the pages module)
     assert out["pages"] == 11 and (await store.project("P1"))["page_slug"]
+
+
+def test_homes_booked_readings_are_kept_for_years_not_cut_at_two():
+    doc = {"booked_history": [{"at": NOW, "booked": i} for i in range(30)]}   # 30 changes: more than the old limit of 24
+    out = refresh._booked(doc, {"units_booked": 99}, NOW)["booked_history"]
+    assert len(out) == 31 and out[0]["booked"] == 0

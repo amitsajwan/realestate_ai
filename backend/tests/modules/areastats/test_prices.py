@@ -85,3 +85,84 @@ def test_the_check_is_made_on_the_picked_sites_line_not_the_other_one():
     r = row("2 BHK", 9_600_000, "2 BHK from ₹ 96 L")
     r["sources"][1]["quote"] = "2 BHK 300 sq ft ₹ 96 L"
     assert prices.public(stored(r), NOW)["rows"][0]["bhk"] == "2 BHK"
+
+
+# Price history (docs/plan/seo-system.md 8b): the sites show only today's price, so each change is kept, dated.
+
+def test_a_first_price_is_kept_dated_in_the_price_history():
+    out = prices.history({}, [row("2 BHK", 6_900_000, "2 BHK 69 L")], NOW)
+    assert out == {"price_history": [{"at": NOW, "bhk": "2 BHK", "from_inr": 6_900_000, "to_inr": None, "official": False,
+                                      "sites": ["a.example", "b.example"]}]}
+
+
+def test_an_unchanged_price_adds_no_reading():
+    first = prices.history({}, [row("2 BHK", 6_900_000, "2 BHK 69 L")], NOW)
+    assert prices.history(first, [row("2 BHK", 6_900_000, "2 BHK 69 L")], NOW + timedelta(days=30)) == {}
+
+
+def test_a_changed_price_adds_a_reading_and_keeps_the_earlier_ones():
+    doc = prices.history({}, [row("2 BHK", 6_900_000, "2 BHK 69 L"), row("3 BHK", 9_500_000, "3 BHK 95 L")], NOW)
+    later = NOW + timedelta(days=60)
+    out = prices.history(doc, [row("2 BHK", 7_200_000, "2 BHK 72 L"), row("3 BHK", 9_500_000, "3 BHK 95 L")], later)
+    assert [(h["bhk"], h["from_inr"], h["at"]) for h in out["price_history"]] == [
+        ("2 BHK", 6_900_000, NOW), ("3 BHK", 9_500_000, NOW), ("2 BHK", 7_200_000, later)]
+
+
+def test_a_round_that_finds_no_price_removes_no_reading():
+    doc = prices.history({}, [row("2 BHK", 6_900_000, "2 BHK 69 L")], NOW)
+    assert prices.history(doc, [], NOW + timedelta(days=30)) == {}
+
+
+def test_the_price_history_drops_only_its_oldest_readings_past_the_limit():
+    doc = {"price_history": [{"at": NOW, "bhk": "2 BHK", "from_inr": 6_000_000 + i, "to_inr": None, "official": False, "sites": []}
+                             for i in range(prices.PRICE_HISTORY)]}
+    out = prices.history(doc, [row("2 BHK", 9_000_000, "2 BHK 90 L")], NOW)["price_history"]
+    assert len(out) == prices.PRICE_HISTORY
+    assert out[0]["from_inr"] == 6_000_001 and out[-1]["from_inr"] == 9_000_000
+
+
+class _Budgeted:
+    budgeted = True
+
+
+def _reading_sites(monkeypatch, read):
+    """gather with two property sites that both name the project; `read` gives each site's price readings."""
+    src = [{"site": s, "url": f"https://{s}/p", "official": False} for s in ("a.example", "b.example")]
+
+    async def results_for(*a, **k):
+        return []
+
+    async def fetch(url):
+        return "<html>page</html>"
+
+    async def read_prices(llm, s, name, text):
+        return read(s), "ok"
+    monkeypatch.setattr(prices.webfacts, "results_for", results_for)
+    monkeypatch.setattr(prices.webfacts, "sources_for", lambda *a, **k: src)
+    monkeypatch.setattr(prices.webfacts, "about_project", lambda *a, **k: (True, None))
+    monkeypatch.setattr(prices.webfacts, "page_text", lambda raw: "2 BHK 69 L")
+    monkeypatch.setattr(prices, "read_prices", read_prices)
+    return fetch
+
+
+def _site_price(s):
+    return [{"bhk": "2 BHK", "from_inr": 6_900_000, "to_inr": None, "official": False, "site": s["site"], "url": s["url"],
+             "quote": "2 BHK 69 L"}]
+
+
+async def test_a_round_that_reads_a_price_stores_it_in_the_history(monkeypatch):
+    fetch = _reading_sites(monkeypatch, _site_price)
+    doc = {"_id": "P1", "regno": "P1", "name": "Project One"}
+    _, fields = await prices.gather(None, doc, _Budgeted(), NOW, fetch=fetch, allow_search=False)
+    assert fields["prices"]["rows"][0]["from_inr"] == 6_900_000
+    assert [(h["bhk"], h["from_inr"]) for h in fields["price_history"]] == [("2 BHK", 6_900_000)]
+
+
+async def test_last_good_prices_kept_while_sites_are_down_add_no_reading(monkeypatch):
+    fetch = _reading_sites(monkeypatch, lambda s: [])
+    kept = {"at": NOW - timedelta(days=3), "rows": [row("2 BHK", 6_900_000, "2 BHK 69 L")]}
+    doc = {"_id": "P1", "regno": "P1", "name": "Project One", "prices": kept,
+           "price_history": [{"at": NOW - timedelta(days=3), "bhk": "2 BHK", "from_inr": 6_900_000}]}
+    _, fields = await prices.gather(None, doc, _Budgeted(), NOW, fetch=fetch, allow_search=False)
+    assert fields["prices"]["rows"] == kept["rows"]
+    assert "price_history" not in fields

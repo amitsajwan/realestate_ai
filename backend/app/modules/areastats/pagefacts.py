@@ -59,6 +59,22 @@ def sales(doc: dict) -> Optional[dict]:
     return {"booked": last - base[1], "days": (last_at - base[0]).days, "since": base[0].date().isoformat()}
 
 
+READINGS_SHOWN = 12   # booking readings a page shows: a year at one change a month
+
+
+def booked_readings(doc: dict) -> List[dict]:
+    """[{on, booked}]: the dated homes-booked counts we read from MahaRERA (`booked_history`), oldest first, one per day (the
+    day's last), the latest READINGS_SHOWN. [] with fewer than two days: one reading is not a history. MahaRERA shows only
+    today's count, so these readings are ours alone (docs/plan/seo-system.md 8b, H1)."""
+    by_day = {}
+    for h in doc.get("booked_history") or []:
+        t = _when(h.get("at")) if isinstance(h, dict) else None
+        if t is not None and isinstance(h.get("booked"), int) and not isinstance(h.get("booked"), bool):
+            by_day[t.date().isoformat()] = (t, h["booked"])
+    rows = [{"on": day, "booked": b} for day, (_, b) in sorted(by_day.items())]
+    return rows[-READINGS_SHOWN:] if len(rows) >= 2 else []
+
+
 def km_between(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """Great-circle distance in km."""
     p1, p2 = math.radians(lat1), math.radians(lat2)

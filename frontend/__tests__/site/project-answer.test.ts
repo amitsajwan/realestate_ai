@@ -127,3 +127,17 @@ describe('filed dates and names', () => {
     expect(faq.find((f) => /possession date/.test(f.q))!.a).toContain(EXT_SENTENCE)
   })
 })
+
+describe('what changed, as we read it (seo-system.md 8b, H1)', () => {
+  const readings = [{ on: '2026-07-03', booked: 212 }, { on: '2026-09-02', booked: 230 }, { on: '2026-10-03', booked: 244 }]
+
+  it('the opening says how many were booked since our first reading, after the count', () => {
+    expect(registerAnswer({ ...P, booked_readings: readings })).toContain(
+      'MahaRERA shows 244 of 416 homes booked. 32 of them were booked since 3 Jul 2026, by Avasetu\'s readings of MahaRERA.')
+  })
+
+  it('says nothing about pace with one reading, or when the count did not go up', () => {
+    expect(registerAnswer({ ...P, booked_readings: readings.slice(0, 1) })).not.toContain('booked since')
+    expect(registerAnswer({ ...P, booked_readings: [{ on: '2026-07-03', booked: 250 }, { on: '2026-10-03', booked: 244 }] })).not.toContain('booked since')
+  })
+})

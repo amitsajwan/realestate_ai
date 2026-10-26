@@ -67,6 +67,9 @@ export interface BuilderPage {
   brand: boolean
   /** the MahaRERA promoters counted, most projects first */
   companies: { name: string; projects: number }[]
+  /** every completion date the builder filed later, as we saw it, newest first; MahaRERA's 2026 order left out (backend
+   *  hubs.date_moves). Absent on pages built before it. */
+  date_moves?: { slug: string; name: string; seen_on: string | null; from: string; to: string }[]
   indexable: boolean
   page_updated: string | null
   source: string

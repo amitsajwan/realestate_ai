@@ -13,6 +13,7 @@ import ProjectProfile from '@/components/site/ProjectProfile'
 import { distinctPhotos } from '@/components/site/ProfilePictures'
 import CostBreakdown from '@/components/site/CostBreakdown'
 import PriceBox from '@/components/site/PriceBox'
+import ProjectHistory from '@/components/site/ProjectHistory'
 import type { Stage } from '@/lib/site/allin'
 import { areaName, askedPrices, bhkRange, completionChange, displayName, extensionSentence, headingName, longDay, monthYear, offerPrice,
   otherNames, projectFaq, placePath, STAGE_LABEL, STAGE_NOTE } from '@/lib/site/register'
@@ -606,6 +607,7 @@ function RecordSection({ p, shown, facts }: { p: RegisterProject; shown: string;
       <SectionHead id="facts-title" title={`${shown} RERA details`} kind="rera" tag={p.details_read_at ? `From MahaRERA, read ${longDay(p.details_read_at)}` : 'From MahaRERA'} />
       <div className="mt-3 space-y-8">
         <Possession p={p} shown={shown} />
+        <ProjectHistory p={p} shown={shown} />
         <div role="group" aria-labelledby="record-title">
           <h3 id="record-title" className="text-lg font-semibold text-slate-900">The record</h3>
           <dl className="mt-1 grid gap-x-6 sm:grid-cols-2">

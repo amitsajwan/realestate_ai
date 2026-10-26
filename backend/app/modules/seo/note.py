@@ -10,14 +10,18 @@ builder pages and other areas' hubs; the other project pages (seen on Google fir
 /localities/), not by any segment, so /localities/lohegaon/viman-nagar is Lohegaon's. Pages since dropped from the sitemap are
 still offered: knowing the sitemap needs a network read, which this list does not do.
 """
+import re
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 from urllib.parse import urlparse
 
 from app.core.areas import BY_KEY, BY_SLUG
+from app.core.brand import NAME_DEVANAGARI
+from app.modules.areastats.demand import DEMAND
 from app.modules.insights.collector import owner_ids
 from app.modules.newsroom.store import Store
 from app.modules.notifications.service import notify
+from app.modules.tracking.origin import leads_from_ai
 
 from . import aivisits, coverage, scoreboard, targets
 
@@ -74,6 +78,49 @@ async def request_list(store: Store, n: int = PER_DAY * 7) -> List[dict]:
     return [{"url": d["_id"], "state": d.get("state"), "why": why} for (_, why), d in rows[:n]]
 
 
+# "Avasetu" however buyers type it (ava setu, avsetu, awasetu, aavasetu, avasethu) or in Devanagari: searches for us by name,
+# the sign that people look for the brand and not only for a project (docs/plan/seo-system.md 8b, H5)
+BRAND = re.compile(r"\ba{1,2}[vw]a?\s?se(?:t|th)u\b|" + re.escape(NAME_DEVANAGARI), re.I)
+BRAND_FRESH = timedelta(days=7)     # a phrase Search Console has not shown this recently is left out (its numbers are old)
+
+
+async def branded(store: Store, now: datetime) -> dict:
+    """{phrases, impressions, clicks, before}: Search Console's 28-day numbers for the searches that name us; `before` is the
+    impressions of the 28 days before (None when no phrase has them yet). Reads search_demand (areastats.demand owns it)."""
+    out = {"phrases": 0, "impressions": 0, "clicks": 0, "before": None}
+    async for d in store.db.get_collection(DEMAND).find({}, {"gsc": 1, "gsc_prev": 1}):
+        g = d.get("gsc") or {}
+        read = _aware(g.get("read_at"))
+        if not BRAND.search(str(d["_id"])) or read is None or now - read > BRAND_FRESH:
+            continue
+        out["phrases"] += 1
+        out["impressions"] += int(g.get("impressions") or 0)
+        out["clicks"] += int(g.get("clicks") or 0)
+        if isinstance(d.get("gsc_prev"), int):
+            out["before"] = (out["before"] or 0) + d["gsc_prev"]
+    return out
+
+
+def brand_line(b: dict) -> str:
+    if not b.get("phrases"):
+        return "Searches for Avasetu by name, 28 days: none yet."
+    change = f" ({'+' if b['impressions'] - b['before'] >= 0 else ''}{b['impressions'] - b['before']:,} on the 28 days before)" \
+        if b.get("before") is not None else ""
+    return f"Searches for Avasetu by name, 28 days: {b['impressions']:,} impressions{change}, {b['clicks']:,} clicks."
+
+
+def notes(week_text: str, ai_text: str, brand_text: str, portal_text: str) -> List[str]:
+    """The week as Studio notifications, each within the notification's length (notifications.service MAX_SUMMARY): the numbers;
+    AI search and searches by name; the portal watch when it fired. One long text was cut off at the AI line before."""
+    return [t for t in (week_text, f"{ai_text} {brand_text}".strip(), portal_text) if t]
+
+
+def portal_line(board: dict) -> str:
+    names = scoreboard.format_alert(board.get("format"))
+    return (f"Watch: {' and '.join(names)} results now show homes booked or moved dates, the facts only we showed: "
+            "Insights → Rankings.") if names else ""
+
+
 def summary(week: Optional[dict], ago: Optional[dict], cov: dict, board: dict, waiting: int) -> str:
     def num(k: str) -> str:
         v = (week or {}).get(k)
@@ -100,9 +147,13 @@ async def run_once(store: Store, now: datetime, force: bool = False) -> Optional
     waiting = await store.db.get_collection(coverage.COLLECTION).count_documents({"state": {"$in": list(WAITING)}})
     index = store.db.get_collection(coverage.COLLECTION)   # every page inspected so far, not only the last day's batch
     cov = {"inspected": await index.count_documents({}), "indexed": await index.count_documents({"verdict": "PASS"})}
-    text = summary(week, ago, cov, await store.get_mark(scoreboard.MARK), waiting) + " " + aivisits.week_line(
-        await aivisits.summary(store.db, now, days=7))
+    leads = await leads_from_ai(store.db.get_collection("contacts"), now - timedelta(days=7))   # read only: tracking owns contacts
+    board = await store.get_mark(scoreboard.MARK)
+    parts = notes(summary(week, ago, cov, board, waiting), aivisits.week_line(await aivisits.summary(store.db, now, days=7), leads),
+                  brand_line(await branded(store, now)), portal_line(board))
+    text = " ".join(parts)
     for owner in owners:
-        await notify(store.db, owner, KIND, text, {"href": "/studio/newsroom/insights?tab=rankings"}, now=now)
+        for part in parts:
+            await notify(store.db, owner, KIND, part, {"href": "/studio/newsroom/insights?tab=rankings"}, now=now)
     await store.set_mark(MARK, at=now, text=text)
     return {"owners": len(owners), "waiting": waiting}

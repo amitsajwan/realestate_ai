@@ -108,8 +108,10 @@ class TrackingService:
                 "_id": uuid.uuid4().hex,
                 "agent_id": agent_id, "name": i.name, "phone": i.phone, "message": i.message,
                 "anon_ids": [i.anon_id], "stage": "new",
-                # a tagged link (src=) wins; else the outside site that sent them (google, instagram, ...)
-                "source": i.source or origin.referrer_source(came_from["referrer"]) or came_from["app"], "utm": i.utm,
+                # a tagged link (src=) wins; else an AI assistant's utm_source; else the outside site that sent them (google,
+                # instagram, ...)
+                "source": i.source or origin.ai_utm(i.utm) or origin.referrer_source(came_from["referrer"]) or came_from["app"],
+                "utm": i.utm,
                 "first_touch": came_from, "channel": i.channel,
                 "first_listing_id": i.listing_id,
                 "consent": {"given_at": now, "purpose": "enquiry follow-up", "agent_slug": i.agent_slug},
@@ -198,16 +200,16 @@ class TrackingService:
             r = rows.setdefault(key, {"source": key, "visitors": 0, "chats": 0, "leads": 0})
             r[col] += 1
 
-        def key_of(source, referrer, tracked: bool) -> str:
+        def key_of(source, referrer, tracked: bool, utm=None) -> str:
             source = None if source == "chat" else source  # 'chat' is how they reached us, not where from
-            return origin.source_key(source, referrer) if (tracked or source) else "unknown"
+            return origin.source_key(source, referrer, utm) if (tracked or source) else "unknown"
 
         first: dict = {}  # anon_id -> its first event in the window
         async for ev in self.events.find({"agent_id": agent_id, "ts": {"$gte": since}, "type": {"$in": ["page_view", "listing_view"]}},
-                                         {"anon_id": 1, "source": 1, "referrer": 1, "landing": 1, "ts": 1}).sort("ts", 1).limit(50000):
+                                         {"anon_id": 1, "source": 1, "referrer": 1, "landing": 1, "utm": 1, "ts": 1}).sort("ts", 1).limit(50000):
             first.setdefault(ev["anon_id"], ev)
         for ev in first.values():
-            add(key_of(ev.get("source"), ev.get("referrer"), "landing" in ev), "visitors")
+            add(key_of(ev.get("source"), ev.get("referrer"), "landing" in ev, ev.get("utm")), "visitors")
         profile = await self.profiles.find_one({"agent_id": agent_id})
         if profile:
             async for s in self.db.get_collection("chat_sessions").find(
@@ -215,9 +217,9 @@ class TrackingService:
                 o = s.get("origin")
                 add(key_of((o or {}).get("source"), (o or {}).get("referrer"), o is not None), "chats")
         async for c in self.contacts.find({"agent_id": agent_id, "created_at": {"$gte": since}, "phone": {"$nin": ["", None]}},
-                                          {"source": 1, "first_touch": 1}):
+                                          {"source": 1, "first_touch": 1, "utm": 1}):
             ft = c.get("first_touch")
-            add(key_of(c.get("source"), (ft or {}).get("referrer"), ft is not None), "leads")
+            add(key_of(c.get("source"), (ft or {}).get("referrer"), ft is not None, c.get("utm")), "leads")
         ordered = sorted(rows.values(), key=lambda r: (r["source"] == "unknown", -r["leads"], -r["chats"], -r["visitors"]))
         for r in ordered:
             r["posts"] = await self._posts_for_tag(agent_id, r["source"]) if r["source"] not in ("direct", "unknown") else []

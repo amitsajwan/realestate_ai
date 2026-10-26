@@ -28,6 +28,8 @@ export interface AnswerFacts {
   unitsBooked?: number | null
   /** "2 & 3 BHK from ₹72 lakh, an agent's price sheet": the price part, already in words */
   price?: string | null
+  /** homes booked since our first dated reading of MahaRERA (seo-system.md 8b, H1): {rose, since}, only when it went up */
+  bookedSince?: { rose: number; since: string } | null
 }
 
 const n = (x: number) => x.toLocaleString('en-IN')
@@ -53,10 +55,21 @@ export function projectAnswer(f: AnswerFacts): string {
   if (f.unitsTotal && f.unitsBooked != null && f.unitsBooked <= f.unitsTotal) {
     parts.push(f.unitsBooked === f.unitsTotal ? `MahaRERA shows all ${n(f.unitsTotal)} homes booked.`
       : `MahaRERA shows ${n(f.unitsBooked)} of ${n(f.unitsTotal)} homes booked.`)
+    if (f.bookedSince && f.bookedSince.rose > 0) {
+      parts.push(`${n(f.bookedSince.rose)} of them were booked since ${longDay(f.bookedSince.since)}, by Avasetu's readings of MahaRERA.`)
+    }
   }
   if (f.price) parts.push(f.price.charAt(0).toUpperCase() + f.price.slice(1) + '.')
   if (f.completionPassed) parts.push('The filed completion date has passed: ask for the occupancy certificate (OC).')
   return parts.join(' ')
+}
+
+/** Homes booked between our first and latest dated readings, when the count went up (ProjectHistory shows the readings). */
+export function bookedSince(p: Pick<RegisterProject, 'booked_readings'>): { rose: number; since: string } | null {
+  const rows = p.booked_readings ?? []
+  if (rows.length < 2) return null
+  const rose = rows[rows.length - 1].booked - rows[0].booked
+  return rose > 0 ? { rose, since: rows[0].on } : null
 }
 
 /** A register page's opening. `offer`: the agent's live price sheet (offerPrice), which is the page's one price when there is one. */
@@ -70,7 +83,7 @@ export function registerAnswer(p: RegisterProject, offer?: { from: string; bhks:
     regno: p.regno, asOf: p.details_read_at ?? p.page_updated,
     completionNow: p.completion_now, completionAtRegistration: p.completion_at_registration,
     extensionMonths: p.details?.extension_months, extensionOnly: p.extension_only, completionPassed: p.completion_passed,
-    unitsTotal: p.units_total, unitsBooked: p.units_booked, price,
+    unitsTotal: p.units_total, unitsBooked: p.units_booked, price, bookedSince: bookedSince(p),
   })
 }
 

@@ -17,8 +17,8 @@ from app.modules.newsroom.store import Store
 from . import hot
 from .enrich import km_between
 from . import brands as brand_list
-from .pages import (MOVED_MIN, _long, _served, booked, builder_key, can_host, cluster_stamps, cluster_updated, delivery, indexable,
-                    is_old, months_later, names)
+from .pages import (MOVED_MIN, _long, _served, booked, builder_key, can_host, cluster_stamps, cluster_updated, completion_moves,
+                    delivery, indexable, is_old, months_later, names)
 from .text import builder_slug
 from .service import _count, _day
 
@@ -156,6 +156,19 @@ async def builders(db, only_indexable: bool = True) -> List[dict]:
     return out
 
 
+DATE_MOVES_SHOWN = 30
+
+
+def date_moves(mine: List[dict]) -> List[dict]:
+    """[{slug, name, seen_on, from, to}]: every completion date the builder filed later over these projects, as we saw each one
+    (pages.completion_moves), newest first; MahaRERA's 2026 blanket extension is left out, it is not the builder's
+    (docs/plan/seo-system.md 8b, H3). MahaRERA shows only each project's latest date."""
+    out = [{"slug": d["page_slug"], "name": link_name(d), "seen_on": m["seen_on"], "from": m["from"], "to": m["to"]}
+           for d in mine if d.get("page_slug") for m in completion_moves(d) if not m["blanket"] and m["to"] > m["from"]]
+    out.sort(key=lambda r: (r["seen_on"] or "", r["slug"]), reverse=True)
+    return out[:DATE_MOVES_SHOWN]
+
+
 def _companies(mine: List[dict]) -> List[dict]:
     """The MahaRERA promoters a builder page counts, most projects first: [{name, projects}]."""
     counts: dict = {}
@@ -200,6 +213,7 @@ async def builder_page(db, slug: str) -> Optional[dict]:
         "slug": slug, "name": _builder_name(mine, slug), "projects_count": len(mine), "areas": areas,
         "active": sum(1 for d in mine if not is_old(d)), "units_total": total or None, "units_booked": sold or None,
         **delivery(mine), "moved_min": MOVED_MIN, "brand": slug in brand_list.BY_SLUG, "companies": _companies(mine),
+        "date_moves": date_moves(mine),
         "indexable": n_index >= BUILDER_MIN, "page_updated": max(stamps) if stamps else None, "source": "MahaRERA public records",
         "projects": [{"slug": d["page_slug"], "name": link_name(d), "legal_name": d.get("name", ""), "regno": d.get("regno") or d["_id"],
                       "area": BY_KEY[d["locality"]].name if d.get("locality") in BY_KEY else d.get("pune_place_name"),

@@ -24,8 +24,8 @@ AGENT_BODY = ("New buyer enquiry passed to you by Avasetu.\n\n"
               "Please call them today. Their full details and messages are in Avasetu Studio, Leads.\n\n"
               "Avasetu team")
 FINANCING_LABEL = {"home_loan": "Home loan", "own_funds": "Own funds", "undecided": "Not decided"}
-SOURCE_LABEL = {"google": "Google search", "bing": "Bing search", "chatgpt": "ChatGPT", "instagram": "Instagram",
-                "facebook": "Facebook", "whatsapp": "WhatsApp", "direct": "Opened the link directly", "youtube": "YouTube"}
+SOURCE_LABEL = {"google": "Google search", "bing": "Bing search", "instagram": "Instagram", "facebook": "Facebook",
+                "whatsapp": "WhatsApp", "direct": "Opened the link directly", "youtube": "YouTube", **origin.AI_NAMES}
 MAX_SAID = 300
 MAX_PAGES = 5
 
@@ -66,7 +66,8 @@ def ask_of(message: Optional[str]) -> dict:
 
 def source_text(lead: dict) -> str:
     ft = lead.get("first_touch") or {}
-    key = origin.source_key(lead.get("source") or (lead.get("utm") or {}).get("utm_source") or ft.get("app"), ft.get("referrer"))
+    key = origin.source_key(lead.get("source") or origin.ai_utm(lead.get("utm")) or (lead.get("utm") or {}).get("utm_source")
+                            or ft.get("app"), ft.get("referrer"))
     key = "chatgpt" if "chatgpt" in (key or "") else key
     return SOURCE_LABEL.get(key or "", key or "Not known")
 
