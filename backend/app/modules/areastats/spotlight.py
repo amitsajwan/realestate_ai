@@ -50,6 +50,14 @@ async def get_config(db) -> Dict:
             "updated_at": doc.get("updated_at"), "updated_by": doc.get("updated_by")}
 
 
+async def picked_slugs(db, now: Optional[datetime] = None) -> set:
+    """Page slugs of the owner's banner picks still running (upcoming pages aside): the enrichment takes them first
+    (areastats.enrich.featured, given through app/wiring.py)."""
+    today = (now or datetime.now(timezone.utc)).date().isoformat()
+    return {it["slug"] for it in (await get_config(db))["items"]
+            if it.get("slug") and not it["slug"].startswith(upcoming.PREFIX) and not (it.get("until") and it["until"] < today)}
+
+
 def _until(v) -> Optional[str]:
     if not v:
         return None

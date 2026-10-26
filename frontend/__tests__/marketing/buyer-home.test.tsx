@@ -9,7 +9,7 @@ const API: Record<string, unknown> = {
   '/public/areas/stats': { as_of: '2026-10-21', source: 'MahaRERA', areas: [
     { area: { key: 'kharadi', name: 'Kharadi', slug: 'kharadi', tier: 'it' }, as_of: '2026-10-21', projects: 66, completing: [], units_total: null, units_booked: null, recent: [], source: 'MahaRERA' },
   ] },
-  '/public/register/places': [{ key: 'kharadi', slug: 'kharadi', name: 'Kharadi', zone: 'East', projects: 66, indexable: 40 },
+  '/public/register/places': [{ key: 'kharadi', slug: 'kharadi', name: 'Kharadi', zone: 'East', projects: 303, indexable: 40, current: 180 },
     { key: 'wagholi', slug: 'wagholi', name: 'Wagholi', zone: 'East', projects: 80, indexable: 0 }],
   '/public/facets': [
     { key: 'k1', path: '/projects/area/kharadi/new-launches', place: 'kharadi', place_slug: 'kharadi', intent: 'new-launches', possession: null, builder: null, label: 'New launch projects', count: 7, indexable: true, page_updated: null },
@@ -57,6 +57,9 @@ describe("buyers' home", () => {
     const it = screen.getByTestId('home-areas-it')
     expect(within(it).getByRole('link', { name: 'New projects in Kharadi' })).toHaveAttribute('href', '/projects/area/kharadi')
     expect(within(it).getByRole('link', { name: 'Living in Kharadi' })).toHaveAttribute('href', '/localities/kharadi')
+    // the link is to new projects: its count leaves out the older ones (every registration was 303)
+    expect(it).toHaveTextContent('180 being built or just finished')
+    expect(it).not.toHaveTextContent('303')
     // an area whose list is not in search yet links its guide, never a noindex page
     expect(within(screen.getByTestId('home-areas-affordable')).getByRole('link', { name: 'Wagholi' })).toHaveAttribute('href', '/localities/wagholi')
     const launches = within(screen.getByTestId('home-launches')).getAllByRole('link')

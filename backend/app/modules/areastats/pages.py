@@ -776,23 +776,26 @@ async def search(db, q: str, limit: int = 20) -> List[dict]:
 
 
 async def places(db) -> List[dict]:
-    """Pune places with at least one project page, with counts, in the zone order of app/core/pune_places.py; talukas last."""
+    """Pune places with at least one project page, with counts, in the zone order of app/core/pune_places.py; talukas last.
+    `current`: being built or finished within a year (not is_old), the projects a buyer of a new home looks at."""
     from app.core import pune_places
     counts: dict = {}
     for d in await Store(db).shared_projects():
         if d.get("page_slug") and d.get("pune_place"):
-            c = counts.setdefault(d["pune_place"], {"name": d.get("pune_place_name") or d["pune_place"], "projects": 0, "indexable": 0})
+            c = counts.setdefault(d["pune_place"], {"name": d.get("pune_place_name") or d["pune_place"], "projects": 0, "indexable": 0,
+                                                    "current": 0})
             c["projects"] += 1
+            c["current"] += 0 if is_old(d) else 1
             c["indexable"] += 1 if indexable(d) else 0
     zones = list(dict.fromkeys(p.zone for p in pune_places.PLACES))
     out = []
     for p in pune_places.PLACES:
         if p.key in counts:
             out.append({"key": p.key, "slug": p.slug, "name": p.name, "zone": p.zone, "spellings": list(pune_places.spellings(p)),
-                        **{k: counts[p.key][k] for k in ("projects", "indexable")}})
+                        **{k: counts[p.key][k] for k in ("projects", "indexable", "current")}})
     for key, c in sorted(counts.items()):
         if key not in pune_places.BY_KEY:
             out.append({"key": key, "slug": key.replace("_", "-"), "name": c["name"], "zone": pune_places.Z_OUT,
-                        "projects": c["projects"], "indexable": c["indexable"]})
+                        "projects": c["projects"], "indexable": c["indexable"], "current": c["current"]})
     order = {z: i for i, z in enumerate(zones)}
     return sorted(out, key=lambda r: order.get(r["zone"], 99))

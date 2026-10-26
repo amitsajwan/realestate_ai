@@ -92,6 +92,19 @@ async def test_east_pune_top_list_projects_go_with_the_hot_ones_even_finished_wh
     assert order == ["T", "R", "G"]               # the top list first; a finished project with 2 homes left is not worked on
 
 
+async def test_the_owners_banner_picks_go_with_the_hot_ones(monkeypatch):
+    db, store = await ready(("G", "Golf", "baner", {**FULL, "gsc_impressions": 40}),     # Google shows it
+                            ("P", "Papa", "baner", {**FULL}))                           # picked for the banner
+    slug = (await store.project("P"))["page_slug"]
+
+    async def shown(db_):
+        return {slug}
+    monkeypatch.setitem(enrich._deps, "shown", shown)
+    assert (await enrich.next_project(store, NOW))["_id"] == "P"
+    monkeypatch.setitem(enrich._deps, "shown", None)
+    assert (await enrich.next_project(store, NOW))["_id"] == "G"
+
+
 async def test_among_pages_google_shows_those_just_off_page_one_go_first():
     # Baner: no top list goes first here (east Pune only)
     db, store = await ready(("A", "Alpha", "baner", {**FULL, "gsc_impressions": 900, "gsc_position": 3.2}),

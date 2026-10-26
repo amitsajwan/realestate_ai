@@ -48,7 +48,10 @@ def wire() -> None:
     register_watch.add_source("agent_projects", _agent_project_watch)
     # project pages are enriched slowly in the background with the property-facts gatherer (areastats.enrich, PROJECT_ENRICH_*)
     from app.modules.areastats import enrich as project_enrich
-    project_enrich.configure(gather=_gather_project, sheet=_project_sheet, pincode_centre=_pincode_centre, view=_project_view)
+    from app.modules.areastats import spotlight
+    # the banner picks are enriched first; spotlight sits above enrich (spotlight -> hubs -> enrich), so they come in here
+    project_enrich.configure(gather=_gather_project, sheet=_project_sheet, pincode_centre=_pincode_centre, view=_project_view,
+                             shown=spotlight.picked_slugs)
     register_watch.add_source("property_facts", _property_facts_watch)  # every project we gathered facts for to market it
     # area maps: pins found by the name a project is sold under (areastats.mappins), through propertyfacts' Google Places client
     from app.modules.areastats import mappins

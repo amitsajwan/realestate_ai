@@ -146,3 +146,11 @@ def test_a_page_is_dated_by_its_last_change():
     assert pages.page_updated({**doc, "page_text_at": datetime(2026, 10, 12, tzinfo=timezone.utc)}) == "2026-10-12T00:00:00+00:00"
     assert pages.page_updated({**doc, "details_ok": False}) is None          # a failed read changed nothing; MahaRERA's own date never counts
     assert pages.page_updated({}) is None
+
+
+async def test_a_place_counts_its_current_projects_apart_from_every_registration():
+    db, store = await seeded(("P1", "New One", "wagholi", {**FULL, "pune_place": "wagholi"}),
+                             ("P2", "Old One", "wagholi", {**FULL, "pune_place": "wagholi", "completion_now": "2019-03-31"}))
+    await pages.assign_all(store)
+    got = {p["key"]: p for p in await pages.places(db)}["wagholi"]
+    assert (got["projects"], got["current"]) == (2, 1)   # the old one stays on the page, not in "being built or just finished"

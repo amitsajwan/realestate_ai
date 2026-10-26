@@ -327,6 +327,7 @@ export interface RegisterPlace {
   spellings?: string[]   // other spellings people search ("Lohgaon" for Lohegaon), never another place's name
   projects: number
   indexable: number
+  current?: number       // being built or finished within a year: the rest are older projects, listed at the bottom of the page
 }
 
 export async function getRegisterPlaces(): Promise<RegisterPlace[]> {

@@ -137,7 +137,9 @@ export default async function BuyerHome() {
                       {live ? `New projects in ${l.name}` : l.name}
                     </Link>
                     <span className="mt-1 text-sm text-slate-600">{l.tagline}</span>
-                    {place && place.projects > 0 && <span className="mt-1 text-sm font-semibold text-slate-800">{place.projects} projects on MahaRERA</span>}
+                    {/* the link is to new projects, so the count is of those: every registration ever (303 in Kharadi) counted old ones too */}
+                    {place && (place.current ?? place.projects) > 0 && <span className="mt-1 text-sm font-semibold text-slate-800">
+                      {place.current != null ? `${place.current} being built or just finished` : `${place.projects} projects on MahaRERA`}</span>}
                     <Link href={`/localities/${l.slug}`} className="mt-auto inline-flex min-h-[44px] items-center pt-2 text-sm font-semibold text-[#0f2340] underline underline-offset-2">
                       Living in {l.name}
                     </Link>

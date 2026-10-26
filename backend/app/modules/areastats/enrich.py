@@ -6,8 +6,9 @@ impressions, when that job has stored them; those just off page one first), then
 `enrichment`), then indexable pages never enriched (newest first), then the rest, then the oldest enrichment once it is
 REFRESH_DAYS old (RETRY_DAYS when MahaRERA or the model did not answer: that is the service, not the project). Projects whose filed
 completion date has passed are skipped (status "finished"; owner 2026-10-21: "projects already completed we should not enrich"),
-unless a campaign asks or homes are left on an east Pune Top list; those Top-list projects (pricing.on_top: homes a buyer can
-still buy) go with the hot ones (owner 2026-10-26: "we should have projects totally enriched"); projects with 90% or more of their homes booked (pages.nearly_sold) come after all the others; the rest
+unless a campaign asks or homes are left on an east Pune Top list; the projects the main pages show (`featured`: the east Pune
+Top lists, pricing.on_top, and the owner's banner picks, areastats.spotlight) go with the hot ones (owner 2026-10-26: "if we are
+showing some projects on main pages, make sure we enrich it quickly on priority"); projects with 90% or more of their homes booked (pages.nearly_sold) come after all the others; the rest
 go area by area outward from Kharadi (areastats.pricing.ORDER: Upper Kharadi, Kharadi, Wagholi, Keshav Nagar, Lohegaon, then the
 west side), and in each area new launches and hot projects first (owner 2026-10-21). For that project:
 0. MahaRERA, two open reads one after the other (PAUSE apart): the general record (kept only when its regno is the record's)
@@ -111,7 +112,8 @@ Gather = Callable[..., Awaitable[Optional[dict]]]   # gather(db, regno, name, lo
 PincodeCentre = Callable[..., Awaitable[Optional[tuple]]]   # centre(db, pincode) -> (lat, lon) or None
 SheetOf = Callable[..., Awaitable[Optional[dict]]]          # sheet(db, regno) -> the kept property-facts document or None
 KeptView = Callable[..., Awaitable[Optional[dict]]]         # view(db, regno) -> the public view of the kept facts sheet, or None
-_deps: Dict[str, Any] = {"gather": None, "pincode_centre": None, "sheet": None, "view": None,
+Shown = Callable[..., Awaitable[set]]                       # shown(db) -> page slugs the owner picked for the banner (spotlight)
+_deps: Dict[str, Any] = {"gather": None, "pincode_centre": None, "sheet": None, "view": None, "shown": None,
                          "general": project_api.make_fetch(), "buildings": project_api.make_fetch_buildings()}
 
 
@@ -127,9 +129,9 @@ def add_daily(name: str, fn: Daily) -> None:
 
 def configure(gather: Optional[Gather] = None, pincode_centre: Optional[PincodeCentre] = None, sheet: Optional[SheetOf] = None,
               general: Optional[project_api.Fetch] = None, buildings: Optional[project_api.Fetch] = None,
-              view: Optional[KeptView] = None) -> None:
+              view: Optional[KeptView] = None, shown: Optional[Shown] = None) -> None:
     for k, v in (("gather", gather), ("pincode_centre", pincode_centre), ("sheet", sheet), ("general", general),
-                 ("buildings", buildings), ("view", view)):
+                 ("buildings", buildings), ("view", view), ("shown", shown)):
         if v is not None:
             _deps[k] = v
 
@@ -169,20 +171,25 @@ def unanswered(d: dict) -> bool:
     return False
 
 
-def priority(d: dict, urgent: set, now: datetime) -> Optional[tuple]:
+def featured(d: dict, now: datetime, shown: frozenset = frozenset()) -> bool:
+    """On a page every visitor sees first: an east Pune Top list (pricing.on_top) or the owner's banner pick (`shown`, page slugs)."""
+    return d.get("page_slug") in shown or pricing.on_top(d, now)
+
+
+def priority(d: dict, urgent: set, now: datetime, shown: frozenset = frozenset()) -> Optional[tuple]:
     """Sort key (lower first) for a project that needs enriching, or None when it does not need it now."""
     regno = d.get("regno") or d["_id"]
     if regno in urgent:
         return (-1,)                                            # a campaign asked: first, completed or not
-    if pages.completion_passed(d, now.date()) and not pricing.on_top(d, now):
+    if pages.completion_passed(d, now.date()) and not featured(d, now, shown):
         return None                                             # completed: MahaRERA facts only, unless a campaign asks or homes are left
-    key = _priority(d, now)
+    key = _priority(d, now, shown)
     if key is None:
         return None
     # hot projects first, in every area (owner 2026-10-22: "first just hot projects, even outside Kharadi, all 4 stages done"),
     # with the east Pune top lists (owner 2026-10-26); then nearly sold out after every other project; then our areas outward
     # from Kharadi; in each, new launches first
-    hot_first = 0 if int(d.get("hot_score") or 0) >= hot.HOT_MIN or pricing.on_top(d, now) else 1
+    hot_first = 0 if int(d.get("hot_score") or 0) >= hot.HOT_MIN or featured(d, now, shown) else 1
     return (hot_first, 1 if pages.nearly_sold(d) else 0, pricing.area_rank(d), 0 if pricing.new_or_hot(d, now) else 1, *key)
 
 
@@ -194,12 +201,12 @@ def complete(d: dict) -> bool:
     return bool(d.get("cluster_primary") or (d.get("profile") or {}).get("photos"))
 
 
-def _priority(d: dict, now: datetime) -> Optional[tuple]:
+def _priority(d: dict, now: datetime, shown: frozenset = frozenset()) -> Optional[tuple]:
     done, heat = d.get("enriched_at"), int(d.get("hot_score") or 0)
     if parked(d, now) or isinstance(done, datetime) and now - _aware(done) < MIN_GAP:
         return None                                             # failing again and again, or just done: the others go first
     is_hot = heat >= hot.HOT_MIN
-    top = not is_hot and pricing.on_top(d, now)                 # treated as hot, after the hot ones, retried less often
+    top = not is_hot and featured(d, now, shown)                # treated as hot, after the hot ones, retried less often
     seen = int(d.get("gsc_impressions") or 0)
     legacy = isinstance(done, datetime) and not d.get("enrichment")   # enriched before buildings and checks: redo
     stale = isinstance(done, datetime) and bool(outdated(d))    # read by an older version of a step
@@ -251,18 +258,19 @@ def needs_profile(d: dict, now: datetime) -> bool:
     stayed first and was read again every minute (Hollyhock City, 2026-10-20)."""
     tried = (((d.get("enrichment") or {}).get("steps") or {}).get("profile") or {}).get("at")
     return (not d.get("profile") and not tried and not d.get("cluster_primary")
-            and (not pages.completion_passed(d, now.date()) or pricing.on_top(d, now)))
+            and (not pages.completion_passed(d, now.date()) or featured(d, now)))
 
 
 async def next_project(store: Store, now: datetime) -> Optional[dict]:
     urgent = {r["_id"] for r in await store.db.get_collection(REQUESTS).find({}).to_list(200)}
+    shown = frozenset(await _deps["shown"](store.db)) if _deps["shown"] else frozenset()
     ranked = []
     for d in await store.all_projects():
         # an asked-for project is taken even outside our areas (a campaign's project with no locality): skipped, its request
         # stayed and kept the loop running every minute
         if not _ours(d) and (d.get("regno") or d["_id"]) not in urgent:
             continue
-        key = priority(d, urgent, now)
+        key = priority(d, urgent, now, shown)
         if key is not None:
             ranked.append((key, d))
     ranked.sort(key=lambda x: x[0])
