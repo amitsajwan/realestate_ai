@@ -5,7 +5,7 @@ import { notFound, permanentRedirect } from 'next/navigation'
 import MarketingShell from '@/components/marketing/MarketingShell'
 import FacetChips from '@/components/site/FacetChips'
 import { RankedCard } from '@/components/site/ListCard'
-import ProjectRail from '@/components/site/ProjectRail'
+import ProjectRail, { READY_SUB, READY_TITLE } from '@/components/site/ProjectRail'
 import { getLocality } from '@/lib/marketing/localities'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/seo'
@@ -183,7 +183,7 @@ export default async function FacetPageView({ params }: Props) {
         {top && (
           <>
             <ProjectRail id="launches" title="Just launched" sub="Registered with MahaRERA in the last 12 months" href={launches?.path ?? ''} count={launches?.count ?? 0} rows={launches?.rows ?? []} />
-            <ProjectRail id="ready" title="Move in now" sub="Completion date passed, 10 or more homes open. Ask the builder for the OC." href={ready?.path ?? ''} count={ready?.count ?? 0} rows={ready?.rows ?? []} />
+            <ProjectRail id="ready" title={READY_TITLE} sub={READY_SUB} href={ready?.path ?? ''} count={ready?.count ?? 0} rows={ready?.rows ?? []} />
             <ProjectRail id="two-bhk" title="2 BHK, cheapest first" sub="Prices from the builder's site or two property sites that agree" href={twoBhk?.path ?? ''} count={twoBhk?.count ?? 0} rows={twoBhk?.rows ?? []} />
           </>
         )}

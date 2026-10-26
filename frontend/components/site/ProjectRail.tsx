@@ -9,6 +9,11 @@ import { RailCard } from './ListCard'
  *  card peeking in, and the row ends in a "See all" card. Hidden under MIN cards, like a thin list page. */
 const MIN = 3
 
+/** The ready-to-move list's row: its page keeps "Ready to move" (the words people search), but the row says what we know, a
+ *  filed date that passed; "Move in now" promised a finished home MahaRERA does not confirm (owner review 2026-10-26). */
+export const READY_TITLE = 'Completion date passed'
+export const READY_SUB = 'May be ready to move, with 10 or more homes open. MahaRERA does not show the OC, so ask the builder for it.'
+
 export default function ProjectRail({ id, title, sub, href, count, rows, ranked = false, className = 'mt-10' }: {
   id: string; title: string; sub?: string; href: string; count: number; rows: FacetRow[]; ranked?: boolean; className?: string
 }) {

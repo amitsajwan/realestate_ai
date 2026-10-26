@@ -42,6 +42,21 @@ export function placeAnswer(place: RegisterPlace, building: RegisterListItem[], 
   return parts.join(' ')
 }
 
+/** The answer's numbers as a strip of four at the top (the review's "big light number, small bold label"), each one also in
+ *  the answer sentence under it, which stays for the search engines and AI answers that quote it. A number we lack is left out. */
+export function placeStats(building: RegisterListItem[], soldOut: RegisterListItem[], prices: PlacePrices | null): { value: string; label: string }[] {
+  const out: { value: string; label: string }[] = []
+  const active = building.length + soldOut.length
+  if (active) out.push({ value: active.toLocaleString('en-IN'), label: active === 1 ? 'Project being built' : 'Projects being built' })
+  const h = homes([...building, ...soldOut])
+  if (h && h.total > 0) out.push({ value: `${Math.round((100 * h.booked) / h.total)}%`, label: 'Homes booked' })
+  const size = prices?.sizes.find((s) => s.bhk === 2) ?? prices?.sizes[0]
+  if (size) out.push({ value: formatPrice(size.low), label: `${size.bhk} BHK from` })
+  const passed = building.filter((r) => r.stage === 'passed').length
+  if (passed) out.push({ value: passed.toLocaleString('en-IN'), label: 'Past their completion date' })
+  return out
+}
+
 /** Questions buyers ask about the place, answered only from the page's lists. */
 export function placeFaq(place: RegisterPlace, building: RegisterListItem[], soldOut: RegisterListItem[], asOf: string,
   prices: PlacePrices | null): { q: string; a: string }[] {

@@ -6,7 +6,7 @@ import { serverApiBase } from './api'
 import { badStatus, failed, withRetry, type Got } from './retry'
 import type { WebFacts } from './webfacts'
 import type { ProjectProfile } from './profile'
-import { formatPrice } from './format'
+import { formatPrice, readableName } from './format'
 
 export interface RegisterProject {
   slug: string
@@ -371,7 +371,7 @@ export function otherNames(p: { name: string; marketed_name?: string | null; ali
 
 /** The one-line summary under a project link: "by {builder} · possession {Mon YYYY} · {booked}/{total} booked". */
 export function projectSummary(r: { promoter?: string | null; completion_now?: string | null; units_total?: number | null; units_booked?: number | null }): string {
-  return [r.promoter ? `by ${r.promoter}` : null, r.completion_now ? `possession ${monthYear(r.completion_now)}` : null,
+  return [r.promoter ? `by ${readableName(r.promoter)}` : null, r.completion_now ? `possession ${monthYear(r.completion_now)}` : null,
     r.units_total ? (r.units_booked != null ? `${r.units_booked}/${r.units_total} booked` : `${r.units_total} homes`) : null].filter(Boolean).join(' · ')
 }
 

@@ -45,6 +45,17 @@ export function titleCase(s: string): string {
     .join(' ')
 }
 
+// short forms that stay in capitals when a shouted name is put in normal case
+const KEEP_CAPS = new Set(['LLP', 'LLC', 'HUF', 'II', 'III', 'IV', 'VJ', 'IT', 'SRA', 'MHADA', 'PMC', 'PCMC', 'PMRDA'])
+
+/** A name MahaRERA has in capitals ("SOHAM ASSOCIATES", "ZEN ELITE") as people write it ("Soham Associates"); a name that
+ *  already has small letters is left as its builder wrote it ("VJ Central Avenue", "Neco Park Central"). */
+export function readableName(s: string | null | undefined): string {
+  const t = (s || '').trim()
+  if (!/[A-Z]/.test(t) || /[a-z]/.test(t)) return t
+  return t.replace(/[A-Z0-9][A-Z0-9'&.]*/g, (w) => (KEEP_CAPS.has(w) || /\d/.test(w) ? w : w.charAt(0) + w.slice(1).toLowerCase()))
+}
+
 export function bhkLabel(bhk?: number | null, propertyType?: string): string {
   if (bhk && bhk > 0) return trim(bhk, 1) + ' BHK'
   if (propertyType) return titleCase(propertyType)

@@ -7,7 +7,7 @@ import ActiveProjects from '@/components/site/ActiveProjects'
 import AreaMap, { showsMap } from '@/components/site/AreaMap'
 import CheckBadge from '@/components/site/CheckBadge'
 import FacetChips from '@/components/site/FacetChips'
-import ProjectRail from '@/components/site/ProjectRail'
+import ProjectRail, { READY_SUB, READY_TITLE } from '@/components/site/ProjectRail'
 import { getLocality } from '@/lib/marketing/localities'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/seo'
@@ -15,7 +15,7 @@ import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
 import { getCatalog } from '@/lib/site/api'
 import { getFacetQuiet, getFacets, getPlacePrices, placeChips } from '@/lib/site/facets'
 import type { PlacePrices } from '@/lib/site/facets'
-import { placeAnswer, placeFaq, placeUpdated } from '@/lib/site/placeFacts'
+import { placeAnswer, placeFaq, placeStats, placeUpdated } from '@/lib/site/placeFacts'
 import { livePages } from '@/lib/site/filters'
 import { fitDescription, fitTitle, formatPrice } from '@/lib/site/format'
 import { getActive, getAreaMap, getListed } from '@/lib/site/hubs'
@@ -143,6 +143,7 @@ export default async function PlaceProjectsPage({ params }: Props) {
   const asOf = new Date().toISOString().slice(0, 10)
   const answer = placeAnswer(place, building, soldOut, asOf, prices)
   const faq = placeFaq(place, building, soldOut, asOf, prices)
+  const stats = placeStats(building, soldOut, prices)
   const updated = placeUpdated(projects)
   return (
     <MarketingShell hot={{ area: place.slug }}>
@@ -172,8 +173,19 @@ export default async function PlaceProjectsPage({ params }: Props) {
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">{launches ? 'Flats and residential projects' : 'New projects and flats'} in {place.name}, Pune</h1>
         {spellings.length > 0 && <p className="mt-1 text-sm text-slate-600">Also spelt {spellings.join(', ')}</p>}
         {updated && <p className="mt-1 text-sm text-slate-600">Updated {longDay(updated)}</p>}
+        {stats.length > 1 && (
+          <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-4 border-y border-slate-200 py-4 sm:grid-cols-4" data-testid="place-stats">
+            {stats.map((x) => (
+              <div key={x.label} className="flex flex-col-reverse">
+                <dt className="mt-1 text-[11px] font-bold uppercase tracking-wider text-slate-600">{x.label}</dt>
+                <dd className="m-0 text-4xl font-light leading-none text-[#0f2340] sm:text-5xl">{x.value}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
         {projects.length > 0 && <p className="mt-4 max-w-3xl text-lg font-medium leading-relaxed text-slate-900" data-testid="place-answer">{answer}</p>}
-        <p className="mt-4 max-w-3xl leading-relaxed text-slate-800">
+        {/* kept for the words people search ("flats and apartments", "buy a property in <place>"); smaller now the strip leads */}
+        <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-600">
           Every residential project MahaRERA lists in {place.name}, the flats and apartments on sale here and the ones already
           handed over: {building.length + soldOut.length} being built or recently finished
           {finished.length > 0 ? `, and ${finished.length} older ones` : ''}. Before you buy a property in {place.name}, each page shows the completion date the builder filed with
@@ -184,7 +196,7 @@ export default async function PlaceProjectsPage({ params }: Props) {
 
         {topList && <ProjectRail id="top" title="Top projects you can still buy" sub="Most homes booked first, with 10 or more open" href={topList.path} count={topList.count} rows={topList.rows} ranked />}
         {launchList && <ProjectRail id="launches" title="Just launched" sub="Registered with MahaRERA in the last 12 months" href={launchList.path} count={launchList.count} rows={launchList.rows} />}
-        {readyList && <ProjectRail id="ready" title="Move in now" sub="Completion date passed, 10 or more homes open. Ask the builder for the OC." href={readyList.path} count={readyList.count} rows={readyList.rows} />}
+        {readyList && <ProjectRail id="ready" title={READY_TITLE} sub={READY_SUB} href={readyList.path} count={readyList.count} rows={readyList.rows} />}
 
         {prices && prices.sizes.length > 0 && <Prices place={place} prices={prices} />}
 

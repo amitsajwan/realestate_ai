@@ -2,14 +2,15 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { API_BASE_URL } from '@/lib/config/api'
 import { getAnonId, readAttribution, readVisitPages } from '@/lib/site/tracking'
-import { chatContextFromPath } from '@/lib/site/chatContext'
+import { chatContextFromPath, type ChatContext } from '@/lib/site/chatContext'
 import { cardFacts, parseChatReply, WHATSAPP_QUICK, type ChatCard } from '@/lib/site/chatApi'
 import { BRAND_NAME } from '@/lib/brand'
 
 interface Msg { role: 'bot' | 'you'; text: string; cards?: ChatCard[] }
 const SID_KEY = 'pp_chat_sid'
 const LOG_KEY = 'pp_chat_log'
-/** Dispatched on window with { message } to open the bubble and ask that question. */
+/** Dispatched on window with { message, context? } to open the bubble and ask that question; `context` (a card's project on a
+ *  list page) replaces the one read from the page path for the rest of the visit to this page. */
 export const OPEN_CHAT_EVENT = 'avasetu:open-chat'
 
 function sessionId(): string {
@@ -78,6 +79,7 @@ export default function ChatWidget({ agentSlug, bottomBar = true }: { agentSlug:
   const end = useRef<HTMLDivElement>(null)
   const anchor = useRef<HTMLDivElement>(null)
   const started = useRef(false)
+  const asked = useRef<ChatContext | undefined>(undefined)
   // the newest reply with homes (it and its follow-up question are the last two messages): read from its first line, not from the bottom
   const anchorAt = msgs.findIndex((m, i) => i >= msgs.length - 2 && m.role === 'bot' && !!m.cards?.length)
 
@@ -104,7 +106,7 @@ export default function ChatWidget({ agentSlug, bottomBar = true }: { agentSlug:
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/chat/message`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_id: sessionId(), agent_slug: agentSlug, message: m, source: readAttribution().source, context: chatContextFromPath(window.location.pathname), anon_id: getAnonId(), ...readVisitPages() }),
+        body: JSON.stringify({ session_id: sessionId(), agent_slug: agentSlug, message: m, source: readAttribution().source, context: asked.current ?? chatContextFromPath(window.location.pathname), anon_id: getAnonId(), ...readVisitPages() }),
       })
       if (!res.ok) throw new Error(String(res.status))
       const data = parseChatReply(await res.json())
@@ -123,7 +125,9 @@ export default function ChatWidget({ agentSlug, bottomBar = true }: { agentSlug:
   // a page's "Chat with us" button (OpenChatButton) opens the bubble with its question already asked
   useEffect(() => {
     function onAsk(e: Event) {
-      const q = (e as CustomEvent<{ message?: string }>).detail?.message || 'hi'
+      const detail = (e as CustomEvent<{ message?: string; context?: ChatContext }>).detail
+      const q = detail?.message || 'hi'
+      if (detail?.context) asked.current = detail.context
       setOpen(true)
       started.current = true
       void send(q)
