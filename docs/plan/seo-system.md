@@ -5,7 +5,7 @@ code, pages or plans updates this page in the same commit (section 11 gets a lin
 history; when they and this page disagree, this page is right.
 
 Labels: **LIVE** = running in production · **TARGET** = to build · **OWNER** = done by hand · **DROPPED** = decided against.
-Last updated 2026-10-25 (Ask-Google order, gaps from our own searches, 160-character descriptions, Serper use per day).
+Last updated 2026-10-26 (section 8a: keeping the lead in Google and AI answers, with costs; owner's weekly and monthly upkeep).
 
 ## 1. Goal and scorecard
 
@@ -24,6 +24,10 @@ booked, possession filed vs promised, towers merged, nearby measured from the pi
 **The bottleneck is indexing**, not page quality: a new domain with 11k URLs gets a small crawl budget. Levers: outside links,
 visits from our posts, Request indexing, and every page Google reads being worth indexing (thin pages stay noindex).
 By area (2026-10-21, of pages checked): core pages 21/25, Wagholi 26/76, Kharadi 14/66, outer places (Talegaon, Dhayari) 0.
+
+**Owner's check, 2026-10-26:** ChatGPT names our project pages first for "top projects in Kharadi / Upper Kharadi / Wagholi",
+and Google ranks them well. One person's check by hand, not a measurement: AI answers change with the wording, the login and
+the place. Measuring it every week is section 8a, step 2.
 
 ## 2. Where to look
 
@@ -186,6 +190,24 @@ All in the `newsroom` worker role (seo loop every 30 minutes; each step runs onl
 - **Be talked about** (AI answers lean on brands the web mentions): answer Pune property threads on Reddit and Quora with the
   project or area page that answers them, offer the MahaRERA tracker to journalists, keep the Google Business Profile current.
 
+### Weekly and monthly upkeep (OWNER, 2026-10-26)
+
+What keeps the lead (section 8a). About 1–2 hours a week, no money.
+
+| When | Do | Where |
+|---|---|---|
+| Every week, Monday | Read the SEO note; check that the Rankings numbers moved and that the AI search counts are not zero | Studio Home, Insights → Rankings |
+| Every week | Check that Health shows no BAD rows (keys, IndexNow, Search Console; the loop and freshness rows once 8a step 1 is built) | Studio → Admin → Health |
+| Every week | Check that the Monday "SEO audit (live site)" run is green | GitHub → Actions |
+| Every week | Ask the same 5 questions in ChatGPT, Perplexity and Gemini while logged out ("top projects in Kharadi", "Upper Kharadi", "Wagholi", "new launch 2 BHK Wagholi", "is <a hot project> delayed") and note who is cited, until the AI answer panel (8a step 2) does it | a notes sheet |
+| Every week | 2–3 honest answers on Reddit (r/pune) or Quora, each linking the one page that answers the question; no copy-paste, never more than one link | Reddit, Quora |
+| Every week | Ask Google to index the top of the list (~10 a day when there is time) | Rankings → "Ask Google to index" |
+| Every month | Send the "Pune MahaRERA report" from `/pune-maharera-tracker` to local journalists and property bloggers | e-mail |
+| Every month | Google Business Profile: a post, answer reviews, check the links to the area pages | Google Business Profile |
+| Every month | Bing Webmaster Tools: the Index and Search Performance reports | bing.com/webmasters |
+| Every month | Check Serper credits and the Gemini bill; read the price lines in 8a again if a provider changed its pricing | Insights → System, provider consoles |
+| Every quarter | Ask agents to link their own agent page from their WhatsApp Business and Instagram bios, and their posts to `/projects/<slug>`, never a portal | agents |
+
 ## 8. To build (TARGET, in order)
 
 1. ~~Prices area by area~~ BUILT 2026-10-21 (`areastats/pricing.py`, the prices round above). Watch "Prices by area" on
@@ -204,20 +226,65 @@ All in the `newsroom` worker role (seo loop every 30 minutes; each step runs onl
 7. **Area list pages, weeks 3-4** (area-intent-pages section 11): retire with 301 after 180 idle days, learn which page types
    earn, landmark lists, Pune-wide lists, a monthly round-up story, vocabulary proposals; a "New launches by area" strip on home.
 8. **Page speed**: the Baner place page is 0.9 MB; uncached project pages 0.45-0.8 s.
-9. **Weekly note on WhatsApp/email**: needs an email sender or an approved WhatsApp template (`report.week_lines` is unused).
+9. **Weekly note on WhatsApp/email**: needs an email sender or an approved WhatsApp template (`report.week_lines` is unused;
+   section 8a step 5).
 10. **Coverage off the loop**: its hour holds the seo loop's later steps once a day; give it its own task if they must run first.
 11. **Tidy the SEO code** (seo-review S2-S5): one `_aware` (31 copies today), one Search Console client, one sitemap parser,
    `pages` out of `areastats`, an import-linter contract.
 
 AI search, next (TARGET):
-- **AI answer panel** (needs a paid key, owner to decide): weekly, 20 buyer questions ("2 bhk flats in Lohegaon", "is <project>
+- **AI answer panel** (needs a paid key, owner to decide; now section 8a step 2, on Gemini grounding): weekly, 20 buyer questions ("2 bhk flats in Lohegaon", "is <project>
   delayed") asked through the Perplexity Sonar API or Gemini with Google Search grounding, recording which sites the answer cites;
   our share of citations beside MagicBricks/99acres/Housing on the scoreboard. ~80 calls a month.
-- **Bing Webmaster API** (needs the API key from Bing Webmaster Tools): Bing's searches and positions for our pages into
+- **Bing Webmaster API** (needs the API key from Bing Webmaster Tools; section 8a step 4): Bing's searches and positions for our pages into
   `search_demand` like Search Console (source "bing"), so the doctor and the gaps report see Bing too.
 - **Marathi searches**: the phrase parser drops Devanagari ("लोहगाव मध्ये फ्लॅट"); read it with the Marathi place names we hold
   (`reels/spoken_names.py`) and a Marathi vocabulary, then decide Marathi place pages from the counts.
 - **Verified bots**: reverse-DNS check for Googlebot, Bingbot and OAI-SearchBot before counting, if spoofed names ever skew the log.
+
+## 8a. Keeping the lead (TARGET, 2026-10-26)
+
+We are cited because our pages are the **freshest correct source**: each one opens with a dated answer from the register,
+prices and plans ("As of 3 Oct 2026 …"), and the loops in section 6 keep that true. So the lead is kept by keeping the loops
+alive and the facts right, not by writing more by hand. The risk is quiet decay, where nothing fails loudly: a key or credit
+runs out, the `newsroom` worker stops, or MahaRERA, a model or a builder's site changes, so pages keep old text and old dates.
+
+Checked against the code on 2026-10-26:
+- Admin → Health has rows for IndexNow and Search Console (`admin/health.seo_rows`), and none for a stalled seo or enrich
+  loop or for old page dates. Stalls show only in `python -m app.worker --check` on the VM, which nobody reads every day.
+- Nothing calls a model with search grounding today (no `google_search` tool in `backend/app`), so the AI answer panel has the
+  whole Gemini grounding allowance to itself.
+- A lead's source (`tracking/origin.REFERRER_SOURCES`) knows `chatgpt` and `perplexity` but not Copilot, Gemini or Claude
+  (they show as the bare host, e.g. `gemini.google.com`), and does not read ChatGPT's `utm_source=chatgpt.com`.
+  `seo/aivisits.REFERRERS` already knows all of them, so we count AI visits but cannot add up leads from AI answers.
+- `seo/report.week_lines` is still unused (item 9 above).
+
+The build, in order (cheapest and most protective first):
+
+| Step | What | Code | Needs | Cost a month |
+|---|---|---|---|---|
+| 1 | **Freshness and stalled-loop rows** on Admin → Health: the seo and project_enrich heartbeats (BAD when stale, from `heartbeats.stale` and the `expected_intervals` `--check` uses), and "pages in our 8 areas updated in the last 14 days" (`pages.page_updated`); WARN under 60%, BAD under 30% (to tune once we see the real share) | `admin/health.py`, `seo/coverage.py` or a new `seo/freshness.py` | nothing | ₹0 |
+| 2 | **AI answer panel** (was "AI search, next" above): weekly, 20 fixed buyer questions ("top projects in Upper Kharadi", "2 BHK under 80 lakh in Wagholi", "is <project> delayed"), asked through Gemini with Google Search grounding; record the sites each answer cites, keep our share of citations beside MagicBricks, 99acres and Housing on the scoreboard, and show any question we drop out of on Rankings | new `seo/answers.py`, `seo/scoreboard.py`, `RankingsTab.tsx`; key from `app.core.config`, off until set | a billing-enabled Gemini key (grounding is paid-tier only) | ₹0–20 |
+| 3 | **AI answers → leads**: add Copilot, Gemini, Claude and the other `aivisits.REFERRERS` hosts to `origin.REFERRER_SOURCES`, read `utm_source` as the source when no `src=` is set, and add a line to the weekly note ("AI answers: 40 visits, 6 enquiries") | `tracking/origin.py` (one list for both, so they cannot drift), `seo/note.py` | nothing | ₹0 |
+| 4 | **Bing Webmaster API** (was "AI search, next" above): Bing's searches and positions into `search_demand` (source "bing") | `areastats/` beside `searchconsole.py` | the API key from Bing Webmaster Tools (section 7) | ₹0 |
+| 5 | **Weekly note on WhatsApp** (item 9 above): `report.week_lines` plus the freshness share and the AI panel line, once a week to the owner | `seo/note.py`, `whatsapp` | an approved utility template | ~₹2 |
+
+Prices, checked 2026-10-26 against the providers' own documentation (through search: their pages are blocked from our build
+machine). Read them again before switching a paid step on:
+- **Gemini grounding** (Gemini 3 and newer): 5,000 search queries a month free, shared by every Gemini 3 model on the project,
+  then $14 per 1,000. Billed per search the model runs, not per question, so one question can use two or three. 20 questions a
+  week is about 87 a month, roughly 200–300 searches: inside the free allowance, so we pay only for the tokens (a few rupees on
+  Flash). Gemini 2.5 models bill per prompt, at $35 per 1,000 after the free tier, so the panel uses a Gemini 3 model.
+- **Perplexity Sonar** (kept as an option: its answers sit closer to ChatGPT search than Google's do): about $1 per million
+  tokens plus $5–12 per 1,000 requests (Sonar Pro $3/$15 per million and $6–14 per 1,000), so about ₹100–250 a month for the
+  panel. Sonar's Chat Completions API is being retired in favour of the Agent API (a third-party guide gives 27 Sept 2026);
+  check which one is current before building on it.
+- **WhatsApp**: Meta charges per delivered template message by the recipient's country, and since 1 Oct 2026 utility messages
+  inside an open customer service window are charged too (they used to be free). The India utility rate is on Meta's INR rate
+  card (not read here; third-party guides give ₹0.12–0.35). Four messages a month costs under ₹2 either way, plus 18% GST.
+- **Bing Webmaster API**, step 1 and step 3: free.
+
+Off-page upkeep (OWNER, no money, 1–2 hours a week): see section 7, "Weekly and monthly upkeep".
 
 Results to read: doctor's first 14-day results **2026-10-28**; rival and price refreshes from **2026-11-04**.
 
@@ -261,6 +328,7 @@ measure (Search Console, Serper, URL Inspection) → choose (near page one, Magi
 | 2026-10-25 | this | Project pages open with a dated answer + "Updated" (WebPage dateModified); news stories link the projects they name; `/llms.txt` lists project pages |
 | 2026-10-22 | this | `/` is the buyers' home (one topic: new projects in Pune); the agents' home moved to `/agents`. Hot projects banner on every buyer page, set in Studio (`hot-projects.md`); robots guard test |
 | 2026-10-25 | this | Tracker pages `/news/track/<slug>` (8) in the sitemap at 0.8, linked from `/news` and from the area pages they touch |
+| 2026-10-26 | this | Plan only: section 8a (keeping the lead: freshness and stalled-loop rows, AI answer panel on Gemini grounding, AI answers → leads, Bing API, WhatsApp note, with checked costs) and the owner's weekly and monthly upkeep (section 7) |
 
 ## 12. Detail and history
 

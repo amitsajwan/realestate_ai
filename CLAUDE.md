@@ -3,6 +3,7 @@
 Real estate platform for Pune agents and buyers. A FastAPI + MongoDB backend built as a modular monolith (`backend/`) and a
 Next.js 16 / React 19 frontend (`frontend/`). The architecture we're moving to is `docs/ARCHITECTURE.md` and the steps to get
 there are `docs/MODERNIZATION.md`. Read those two before any structural change. Operating and deploying: `docs/operator/OPERATOR_GUIDE.md`.
+SEO and AI search (what runs, the owner's upkeep, the plan): `docs/plan/seo-system.md`, kept current in the same commit as any SEO change.
 
 ## Commands
 
@@ -88,4 +89,5 @@ Don't touch:
 
 The procedures live in `.claude/skills/`: `add-module` (a new domain module or endpoint), `add-background-loop` (a worker
 loop), `fix-failing-test`, `deploy` (a push to `main` goes live by itself once its images and both test runs are green;
-deploying or rolling back by hand; checking a release).
+deploying or rolling back by hand; checking a release), `seo-upkeep` (SEO and AI-search health, a ranking drop, any SEO
+change).
