@@ -184,7 +184,7 @@ export default async function PlaceProjectsPage({ params }: Props) {
 
         {topList && <ProjectRail id="top" title="Top projects you can still buy" sub="Most booked lately, with 10 or more homes open" href={topList.path} count={topList.count} rows={topList.rows} ranked />}
         {launchList && <ProjectRail id="launches" title="Just launched" sub="Registered with MahaRERA in the last 12 months" href={launchList.path} count={launchList.count} rows={launchList.rows} />}
-        {readyList && <ProjectRail id="ready" title="Move in now" sub="Completion date passed. Ask the builder for the OC." href={readyList.path} count={readyList.count} rows={readyList.rows} />}
+        {readyList && <ProjectRail id="ready" title="Move in now" sub="Completion date passed, 10 or more homes open. Ask the builder for the OC." href={readyList.path} count={readyList.count} rows={readyList.rows} />}
 
         {prices && prices.sizes.length > 0 && <Prices place={place} prices={prices} />}
 

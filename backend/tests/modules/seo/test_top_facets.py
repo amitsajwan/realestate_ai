@@ -58,3 +58,20 @@ def test_view_counts_answer_and_card_fields():
 
 def test_a_finished_project_reads_ready():
     assert facets.stage(_doc(9, 50, 20, completion="2026-03-31"), NOW) == "ready"
+
+
+def test_offices_and_shops_are_neither_ranked_nor_listed_as_sold_out():
+    offices = _doc(7, 142, 77, project_type="Commercial")
+    shops = _doc(8, 28, 27, project_type="Commercial")
+    assert "P7" not in [d["_id"] for d, _ in facets.members(Facet("kharadi", "top"), [*DOCS, offices], NOW)]
+    assert "P8" not in [d["_id"] for d, _ in facets.sold_out(Facet("kharadi", "top"), [*DOCS, shops], NOW)]
+
+
+def test_move_in_now_lists_only_finished_homes_with_ten_or_more_left():
+    docs = [_doc(10, 224, 142, completion="2026-03-31"),                            # 82 open: listed
+            _doc(11, 142, 142, completion="2026-02-28"),                            # every home booked
+            _doc(12, 52, 50, completion="2026-01-31"),                              # 2 open
+            _doc(13, 0, 0, completion="2025-12-31"),                                # count unknown
+            _doc(14, 90, 40, completion="2025-11-30", project_type="Commercial")]   # offices
+    listed = facets.members(Facet("kharadi", "ready-to-move"), docs, NOW)
+    assert [(d["_id"], why) for d, why in listed] == [("P10", "completion filed for 31 Mar 2026, now passed, 82 of 224 homes not booked")]

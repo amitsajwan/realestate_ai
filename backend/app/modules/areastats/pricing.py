@@ -34,7 +34,8 @@ log = logging.getLogger(__name__)
 FIRST = ("upper_kharadi", "kharadi", "wagholi")
 # our areas nearest Kharadi first (owner 2026-10-21), by rough road distance from Kharadi: Keshav Nagar ~5 km over the Mundhwa
 # bridge, Lohegaon ~8 km; then the west side, ~20-30 km. Any area added to app.core.areas later goes after these.
-NEAR_KHARADI = FIRST + ("keshav_nagar", "lohegaon", "baner", "wakad", "hinjawadi")
+EAST = FIRST + ("keshav_nagar", "lohegaon")   # east Pune: our main target for now (owner 2026-10-26)
+NEAR_KHARADI = EAST + ("baner", "wakad", "hinjawadi")
 ORDER = tuple(k for k in NEAR_KHARADI if k in {a.key for a in AREAS}) + tuple(a.key for a in AREAS if a.key not in NEAR_KHARADI)
 EVERY_MINUTES = 15                    # ~96 projects a day, up to 4 model calls each (only pages with price lines are sent)
 REFRESH_DAYS = 30                     # read again well before prices.KEEP_DAYS
@@ -71,21 +72,30 @@ def area_rank(d: dict) -> int:
     return ORDER.index(place) if place in ORDER else len(ORDER)
 
 
+def on_top(d: dict, now: datetime) -> bool:
+    """On an east Pune "top" list (seo.facets ranks pages.buyable projects): the pages a buyer opens from the home page and the
+    area pages, so their pictures, prices and text come first, like a hot project's (owner 2026-10-26: "we should have projects
+    totally enriched"). A ready project with homes left counts too: it is on the list."""
+    return area_rank(d) < len(EAST) and pages.indexable(d) and pages.buyable(d, now.date())
+
+
 def new_or_hot(d: dict, now: datetime) -> bool:
     """Registered with MahaRERA in the last year (a new launch) or hot (selling, searched for, in the news): people want these."""
     return bool(hot.launch(d, now)) or int(d.get("hot_score") or 0) >= hot.HOT_MIN
 
 
 def selling(d: dict, now: datetime) -> bool:
-    """A primary record of a project still being sold: priced once per group, never when completed or sold out."""
+    """A primary record of a project still being sold: priced once per group, never when sold out, nor when completed unless it is
+    on a top list (homes left to buy)."""
     return (bool(d.get("page_slug")) and not d.get("cluster_primary") and pages.indexable(d)
-            and not pages.completion_passed(d, now.date()) and not pages.sold_out(d))
+            and (not pages.completion_passed(d, now.date()) or on_top(d, now)) and not pages.sold_out(d))
 
 
-def tier_of(d: dict) -> str:
+def tier_of(d: dict, now: Optional[datetime] = None) -> str:
     """How much a project's model reading may spend (areastats.budget.route): premium when people look at it (hot, shown by
-    Google) or it is in the FIRST areas, where a price matters most; plain otherwise."""
-    if int(d.get("hot_score") or 0) >= hot.HOT_MIN or int(d.get("gsc_impressions") or 0) > 0 or area_rank(d) < len(FIRST):
+    Google, on an east Pune top list) or it is in the FIRST areas, where a price matters most; plain otherwise."""
+    if (int(d.get("hot_score") or 0) >= hot.HOT_MIN or int(d.get("gsc_impressions") or 0) > 0 or area_rank(d) < len(FIRST)
+            or on_top(d, now or datetime.now(timezone.utc))):
         return budget.PREMIUM
     return budget.PLAIN
 
@@ -111,7 +121,8 @@ def priority(d: dict, now: datetime) -> Optional[tuple]:
         return None   # read by the page rewrite lately
     never = tried is None and read_at is None
     when = (tried or read_at or now).timestamp()
-    return (1 if pages.nearly_sold(d) else 0, area_rank(d), 0 if new_or_hot(d, now) else 1, 0 if never else 1,
+    return (1 if pages.nearly_sold(d) else 0, 0 if on_top(d, now) else 1, area_rank(d), 0 if new_or_hot(d, now) else 1,
+            0 if never else 1,
             when if not never else 0, -int(d.get("hot_score") or 0), -int(d.get("gsc_impressions") or 0), -pages.recency(d))
 
 

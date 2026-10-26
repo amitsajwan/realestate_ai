@@ -6,7 +6,8 @@ impressions, when that job has stored them; those just off page one first), then
 `enrichment`), then indexable pages never enriched (newest first), then the rest, then the oldest enrichment once it is
 REFRESH_DAYS old (RETRY_DAYS when MahaRERA or the model did not answer: that is the service, not the project). Projects whose filed
 completion date has passed are skipped (status "finished"; owner 2026-10-21: "projects already completed we should not enrich"),
-unless a campaign asks; projects with 90% or more of their homes booked (pages.nearly_sold) come after all the others; the rest
+unless a campaign asks or homes are left on an east Pune Top list; those Top-list projects (pricing.on_top: homes a buyer can
+still buy) go with the hot ones (owner 2026-10-26: "we should have projects totally enriched"); projects with 90% or more of their homes booked (pages.nearly_sold) come after all the others; the rest
 go area by area outward from Kharadi (areastats.pricing.ORDER: Upper Kharadi, Kharadi, Wagholi, Keshav Nagar, Lohegaon, then the
 west side), and in each area new launches and hot projects first (owner 2026-10-21). For that project:
 0. MahaRERA, two open reads one after the other (PAUSE apart): the general record (kept only when its regno is the record's)
@@ -72,6 +73,7 @@ STEPS = ("maharera_general", "buildings", "places", "text")
 REFRESH_DAYS = 60
 RETRY_DAYS = 1                        # a round MahaRERA or the model did not answer is tried again after this
 HOT_REFRESH_DAYS = 14                 # a hot project's page is rewritten from fresh facts this often
+TOP_RETRY_DAYS = 7                    # a top-list project still missing a stage or pictures is tried again after this
 POLL_SECONDS = 60
 REQUESTS = "enrich_requests"          # {_id: regno, at, by}: urgent enrichments asked for by campaigns
 MAX_TEXT = 2600                       # characters, the sections and the search summary together
@@ -172,14 +174,15 @@ def priority(d: dict, urgent: set, now: datetime) -> Optional[tuple]:
     regno = d.get("regno") or d["_id"]
     if regno in urgent:
         return (-1,)                                            # a campaign asked: first, completed or not
-    if pages.completion_passed(d, now.date()):
-        return None                                             # completed: MahaRERA facts only, unless a campaign asks
+    if pages.completion_passed(d, now.date()) and not pricing.on_top(d, now):
+        return None                                             # completed: MahaRERA facts only, unless a campaign asks or homes are left
     key = _priority(d, now)
     if key is None:
         return None
-    # hot projects first, in every area (owner 2026-10-22: "first just hot projects, even outside Kharadi, all 4 stages done");
-    # then nearly sold out after every other project; then our areas outward from Kharadi; in each, new launches first
-    hot_first = 0 if int(d.get("hot_score") or 0) >= hot.HOT_MIN else 1
+    # hot projects first, in every area (owner 2026-10-22: "first just hot projects, even outside Kharadi, all 4 stages done"),
+    # with the east Pune top lists (owner 2026-10-26); then nearly sold out after every other project; then our areas outward
+    # from Kharadi; in each, new launches first
+    hot_first = 0 if int(d.get("hot_score") or 0) >= hot.HOT_MIN or pricing.on_top(d, now) else 1
     return (hot_first, 1 if pages.nearly_sold(d) else 0, pricing.area_rank(d), 0 if pricing.new_or_hot(d, now) else 1, *key)
 
 
@@ -196,20 +199,22 @@ def _priority(d: dict, now: datetime) -> Optional[tuple]:
     if parked(d, now) or isinstance(done, datetime) and now - _aware(done) < MIN_GAP:
         return None                                             # failing again and again, or just done: the others go first
     is_hot = heat >= hot.HOT_MIN
+    top = not is_hot and pricing.on_top(d, now)                 # treated as hot, after the hot ones, retried less often
     seen = int(d.get("gsc_impressions") or 0)
     legacy = isinstance(done, datetime) and not d.get("enrichment")   # enriched before buildings and checks: redo
     stale = isinstance(done, datetime) and bool(outdated(d))    # read by an older version of a step
     if stale:   # hot: with the hot ones (after those never given a profile); the rest after everything else, Google's first
-        return (1, 1, -heat) if is_hot else (BACKFILL, 1, 1, -seen, _aware(done).timestamp())
+        return (1, 1, -heat) if is_hot or top else (BACKFILL, 1, 1, -seen, _aware(done).timestamp())
     # hot pages are rewritten every HOT_REFRESH_DAYS anyway
-    old_writer = not is_hot and isinstance(done, datetime) and int(d.get("page_text_version") or 1) < TEXT_VERSION
-    if is_hot and needs_profile(d, now):
+    old_writer = not is_hot and not top and isinstance(done, datetime) and int(d.get("page_text_version") or 1) < TEXT_VERSION
+    if (is_hot or top) and needs_profile(d, now):
         return (1, -heat)                                       # hot and still being built, no profile yet: first
     # a hot page missing a stage or pictures is tried again the next day, not after HOT_REFRESH_DAYS
-    days = (HOT_REFRESH_DAYS if complete(d) else RETRY_DAYS) if is_hot else RETRY_DAYS if unanswered(d) else REFRESH_DAYS
+    days = (HOT_REFRESH_DAYS if complete(d) else RETRY_DAYS) if is_hot else RETRY_DAYS if unanswered(d) else \
+        (HOT_REFRESH_DAYS if complete(d) else TOP_RETRY_DAYS) if top else REFRESH_DAYS
     if not legacy and not old_writer and isinstance(done, datetime) and now - _aware(done) < timedelta(days=days):
         return None
-    if is_hot:
+    if is_hot or top:
         return (1, -heat)                                       # people are buying, searching or talking about it now: hottest first
     if legacy:
         return (3, -seen, _aware(done).timestamp())             # after Google's pages, before the never-enriched ones
@@ -246,7 +251,7 @@ def needs_profile(d: dict, now: datetime) -> bool:
     stayed first and was read again every minute (Hollyhock City, 2026-10-20)."""
     tried = (((d.get("enrichment") or {}).get("steps") or {}).get("profile") or {}).get("at")
     return (not d.get("profile") and not tried and not d.get("cluster_primary")
-            and not pages.completion_passed(d, now.date()))
+            and (not pages.completion_passed(d, now.date()) or pricing.on_top(d, now)))
 
 
 async def next_project(store: Store, now: datetime) -> Optional[dict]:
@@ -664,10 +669,10 @@ def score(steps: dict) -> str:
     return f"{sum(1 for k in STEPS if (steps.get(k) or {}).get('ok'))}/{len(STEPS)}"
 
 
-def tier_of(doc: dict, urgent: bool = False) -> str:
+def tier_of(doc: dict, urgent: bool = False, now: Optional[datetime] = None) -> str:
     """How much a project's reading may spend (areastats.budget.route): a campaign about to post, then the premium ones (hot,
     shown by Google, the first areas: pricing.tier_of), then the rest."""
-    return budget.URGENT if urgent else pricing.tier_of(doc)
+    return budget.URGENT if urgent else pricing.tier_of(doc, now)
 
 
 def _ask(llm, tier: str, step: str):
@@ -968,12 +973,12 @@ async def _urgent(store: Store) -> set:
 def reading_key(d: dict, now: datetime) -> Optional[tuple]:
     """Sort key (lower first) for a project whose reading was put off, or None when it has none waiting: premium projects
     first (hot, then Google's), then our areas outward from Kharadi, oldest wait first."""
-    if not d.get("reading_due") or parked(d, now) or pages.completion_passed(d, now.date()):
+    if not d.get("reading_due") or parked(d, now) or pages.completion_passed(d, now.date()) and not pricing.on_top(d, now):
         return None
     failed = d.get("read_failed_at")
     if isinstance(failed, datetime) and now - _aware(failed) < MIN_GAP:
         return None
-    tier = tier_of(d)
+    tier = tier_of(d, now=now)
     return (0 if tier == budget.PREMIUM else 1, -int(d.get("hot_score") or 0), -int(d.get("gsc_impressions") or 0),
             pricing.area_rank(d), _aware(d["enriched_at"]).timestamp() if isinstance(d.get("enriched_at"), datetime) else 0)
 

@@ -528,7 +528,8 @@ async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[webfacts.
     """(step, register fields) for areastats.enrich."""
     if doc.get("cluster_primary"):
         return {"ok": True, "at": now, "checked": "read on the group's primary record"}, {}
-    if pages.completion_passed(doc):
+    if pages.completion_passed(doc, now.date()) and not pages.buyable(doc, now.date()):
+        # a finished project with homes left is still on the buyers' lists (seo.facets), so its pictures are read
         return {"ok": True, "at": now, "checked": "completion date passed: profile no longer read"}, {}
     # no model (no key, or today's budget spent: areastats.budget): the pictures are code and still read; the highlights stay
     # as the last round found them

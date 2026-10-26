@@ -109,9 +109,10 @@ async def test_youtube_needs_a_key_and_counts_only_videos_naming_the_project(mon
 
 
 async def test_enrichment_takes_hot_projects_first_and_refreshes_them_sooner():
-    db, store = await seeded(("A", "Alpha", "wagholi", {**FULL, "gsc_impressions": 400}),
-                             ("H", "Hot", "wagholi", {**FULL, "hot_score": 60}),
-                             ("W", "Warm", "wagholi", {**FULL, "hot_score": hot.HOT_MIN - 1}))
+    # Baner: no top list goes first here (east Pune only, test_enrich)
+    db, store = await seeded(("A", "Alpha", "baner", {**FULL, "gsc_impressions": 400}),
+                             ("H", "Hot", "baner", {**FULL, "hot_score": 60}),
+                             ("W", "Warm", "baner", {**FULL, "hot_score": hot.HOT_MIN - 1}))
     await pages.assign_all(store)
     assert (await enrich.next_project(store, NOW))["_id"] == "H"
     await store.set_project("H", enriched_at=days_ago(enrich.HOT_REFRESH_DAYS - 1), enrichment={"score": "4/4"})

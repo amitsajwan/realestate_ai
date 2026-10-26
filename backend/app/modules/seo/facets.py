@@ -24,7 +24,8 @@ from app.core.areas import AREAS
 from app.modules.areastats import hot, prices
 from app.modules.areastats.areamap import _photo
 from app.modules.areastats.hubs import _primaries, link_name
-from app.modules.areastats.pages import _long, booked, builder_key, cluster_stamps, cluster_updated, completion_passed, indexable, is_old
+from app.modules.areastats.pages import (OPEN_MIN, _long, booked, builder_key, buyable, cluster_stamps, cluster_updated,
+                                         completion_passed, homes, indexable, is_old, open_homes)
 from app.modules.areastats.service import _count, _day
 from app.modules.areastats.text import builder_slug
 from app.modules.newsroom.store import Store
@@ -35,7 +36,6 @@ READY_DAYS = 3 * 365                 # filed completion date passed in the last 
 MIN_PROJECTS = 3                     # fewer is a thin page: noindex, not in the sitemap (decision 4)
 MIN_PRICED = 2                       # projects with a price before a place page shows that size's price range
 MAX_ROWS = 30
-OPEN_MIN = 10                        # "top": a project needs this many homes not booked to be ranked; fewer is sold out
 SOON_DAYS = 365                      # filed completion within this: "possession soon"
 CHANGES_DAYS = 31
 CHANGES_SHOWN = 8
@@ -186,16 +186,13 @@ def _share(d: dict) -> Optional[float]:
     return b / total if total and b is not None and total > 0 else None
 
 
-def _open(d: dict) -> Optional[int]:
-    """Homes not booked as MahaRERA shows them; None when the count is unknown."""
-    total, b = _count(d.get("units_total")), booked(d)
-    return max(0, total - b) if total and b is not None else None
+_open = open_homes   # "top" and "ready-to-move" list only homes a buyer can still buy: OPEN_MIN or more (areastats.pages)
 
 
 def sold_out(f: Facet, docs: List[dict], now: datetime) -> List[Tuple[dict, str]]:
     """The "top" list's other half: projects still being built or just finished with fewer than OPEN_MIN homes not booked,
     most booked first. Kept on the page (people search for them, and resale or a cancellation can still come up), never ranked."""
-    pool = [d for d in docs if d.get("pune_place") == f.place and indexable(d) and not is_old(d, now.date())
+    pool = [d for d in docs if d.get("pune_place") == f.place and indexable(d) and homes(d) and not is_old(d, now.date())
             and (f.builder is None or builder_slug(d.get("promoter")) == f.builder)
             and (f.possession is None or _year(_day(d.get("completion_now"))) == f.possession)]
     rows = [(-(_share(d) or 0), -(booked(d) or 0), link_name(d).lower(), d) for d in pool
@@ -281,8 +278,9 @@ def members(f: Facet, docs: List[dict], now: datetime) -> List[Tuple[dict, str]]
                 on = _aware(d.get("registered_on"))
                 rows.append(((-(on.timestamp() if on else 0),), d, f"registered with MahaRERA on {_long(on.date().isoformat())}"))
         elif f.intent == "top":
-            # a buyer's "top projects" are ones they can still buy: sold out ones are listed apart (sold_out), never ranked
-            if is_old(d, now.date()) or (_open(d) or 0) < OPEN_MIN:
+            # a buyer's "top projects" are homes they can still buy: sold out ones are listed apart (sold_out), never ranked;
+            # offices and shops are not listed (owner 2026-10-26)
+            if not buyable(d, now.date()):
                 continue
             sig, share = hot.bookings(d, now), _share(d)
             left = f"{_open(d)} of {_count(d.get('units_total'))} homes still open"
@@ -291,12 +289,11 @@ def members(f: Facet, docs: List[dict], now: datetime) -> List[Tuple[dict, str]]
             elif share is not None and booked(d):
                 rows.append(((1, 0, -share), d, f"{left}, {booked(d)} booked ({round(100 * share)}%)"))
         elif f.intent == "ready-to-move":
-            if _ready(d, now):
-                share = _share(d)
-                left = f", {_count(d['units_total']) - booked(d)} of {_count(d['units_total'])} homes not booked" \
-                    if share is not None and share < 1 else ""
+            # "move in now" only where homes are left to buy (owner 2026-10-26): OPEN_MIN or more not booked, not an unknown count
+            if _ready(d, now) and homes(d) and (_open(d) or 0) >= OPEN_MIN:
                 rows.append(((-(int(_day(d['completion_now']).replace('-', ''))),), d,
-                             f"completion filed for {_long(_day(d['completion_now']))}, now passed{left}"))
+                             f"completion filed for {_long(_day(d['completion_now']))}, now passed, {_open(d)} of "
+                             f"{_count(d['units_total'])} homes not booked"))
         else:
             if is_old(d, now.date()):
                 continue
@@ -388,7 +385,8 @@ def answer(f: Facet, place: str, rows: List[dict], as_of: str, count: Optional[i
                 f"MahaRERA. {first['name']} leads on homes booked: {first['reason']}.{gone}")
     if f.intent == "ready-to-move":
         return (f"As of {as_of}, {n} project{'s' if n > 1 else ''}{who} in {place}{year} have passed the completion date filed with "
-                f"MahaRERA in the last three years, the newest {first['name']} ({_long(first['completion_now'])}). Ask the builder for "
+                f"MahaRERA in the last three years and still have {OPEN_MIN} or more homes not booked, the newest {first['name']} "
+                f"({_long(first['completion_now'])}). Ask the builder for "
                 f"the occupancy certificate (OC) before you book.")
     return (f"As of {as_of}, {n} project{'s' if n > 1 else ''}{who} in {place} being built have completion filed with MahaRERA"
             f"{' for ' + str(f.possession) if f.possession else ''}. The earliest is {first['name']} ({_long(first['completion_now'])}).")

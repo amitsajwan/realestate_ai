@@ -135,6 +135,26 @@ def nearly_sold(doc: dict) -> bool:
     return bool(total) and b is not None and b >= NEARLY_SOLD * total
 
 
+OPEN_MIN = 10   # homes not booked a project needs to be on a buyer's list ("you can still buy"); fewer is sold out or nearly
+
+
+def open_homes(doc: dict) -> Optional[int]:
+    """Homes not booked as MahaRERA shows them; None when the count is unknown."""
+    total, b = _count(doc.get("units_total")), booked(doc)
+    return max(0, total - b) if total and b is not None else None
+
+
+def homes(doc: dict) -> bool:
+    """Homes, not offices or shops: MahaRERA's project type is "Commercial" for those."""
+    return "commercial" not in str(doc.get("project_type") or "").lower()
+
+
+def buyable(doc: dict, today: Optional[date] = None) -> bool:
+    """What the "top" lists rank (seo.facets): homes, not finished (is_old), with OPEN_MIN or more not booked. An unknown count
+    is not shown as homes a buyer can buy."""
+    return homes(doc) and not is_old(doc, today) and (open_homes(doc) or 0) >= OPEN_MIN
+
+
 def booked(doc: dict) -> Optional[int]:
     """Homes booked as MahaRERA shows them; None when unknown. A 0 after the filed completion date means the builder has not
     reported bookings (a finished project with nothing sold is not what that 0 says), so it counts as unknown."""

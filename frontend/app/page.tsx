@@ -8,7 +8,7 @@ import ProjectSearch from '@/components/site/ProjectSearch'
 import { AGENTS_PATH, agentAnchorForward, buyerEnquirePath } from '@/components/marketing/siteLinks'
 import { getCityStats, longDate } from '@/components/localities/areaStats'
 import { getMarketingConfig } from '@/lib/marketing/config'
-import { TIER_LABELS, localitiesByTier } from '@/lib/marketing/localities'
+import { LOCALITIES, TIER_LABELS, localitiesByTier } from '@/lib/marketing/localities'
 import { jsonLdString, organizationJsonLd, pageMetadata } from '@/lib/marketing/seo'
 import { socialLinks } from '@/lib/marketing/social'
 import { BRAND_NAME } from '@/lib/brand'
@@ -46,13 +46,17 @@ export default async function BuyerHome() {
   // a list's own label says what it is, not where ("New launch projects"): side by side here, each chip has to name its area
   const where = (f: { place: string; place_slug: string }) => places.find((p) => p.key === f.place)?.name
     ?? f.place_slug.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+  // our areas first, in the area list's order (east Pune leads: owner 2026-10-26, "our main target for now is east Pune"),
+  // then every other place, biggest list first; sorted by size alone, Moshi's Top list was the home page's row of cards
+  const ours = (key: string) => { const i = LOCALITIES.findIndex((l) => l.key === key); return i < 0 ? LOCALITIES.length : i }
+  const byOurs = (a: { place: string; count: number }, b: { place: string; count: number }) => ours(a.place) - ours(b.place) || b.count - a.count
   const launches = facets.filter((f) => f.intent === 'new-launches' && f.indexable && !f.builder && !f.possession && !f.bhk)
-    .sort((a, b) => b.count - a.count).slice(0, 12)
+    .sort(byOurs).slice(0, 12)
   const ready = facets.filter((f) => f.intent === 'ready-to-move' && f.indexable && !f.builder && !f.possession && !f.bhk)
-    .sort((a, b) => b.count - a.count).slice(0, 8)
-  // the Top lists rank homes a buyer can still buy (seo/facets.py OPEN_MIN): one area's as cards, every area's as a chip
+    .sort(byOurs).slice(0, 8)
+  // the Top lists rank homes a buyer can still buy (areastats/pages.py buyable): our first area's as cards, every area's as a chip
   const tops = facets.filter((f) => f.intent === 'top' && f.indexable && !f.builder && !f.possession && !f.bhk)
-    .sort((a, b) => b.count - a.count).slice(0, 8)
+    .sort(byOurs).slice(0, 8)
   const topList = tops.length ? await getFacetQuiet(tops[0].place_slug, ['top']) : null
   const brands = builders.filter((b) => b.indexable).sort((a, b) => Number(!!b.brand) - Number(!!a.brand) || b.projects - a.projects).slice(0, 12)
   const tracked = city?.areas.reduce((n, a) => n + a.projects, 0) ?? 0

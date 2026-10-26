@@ -122,8 +122,8 @@ function SoldOut({ p }: { p: FacetPage }) {
 
 const HOW: Record<string, string> = {
   'new-launches': 'Projects registered with MahaRERA in the last 12 months, newest first.',
-  top: 'Projects still being built or finished within a year that have 10 or more homes not booked, ranked by homes booked in the last 90 days as MahaRERA shows them, then by the share of homes booked. Projects with fewer homes open are listed apart, never ranked.',
-  'ready-to-move': 'Projects whose completion date filed with MahaRERA passed in the last three years, newest first. MahaRERA does not show the occupancy certificate, so ask the builder for it.',
+  top: 'Projects still being built or finished within a year that have 10 or more homes not booked, ranked by homes booked in the last 90 days as MahaRERA shows them, then by the share of homes booked. Projects with fewer homes open are listed apart, never ranked. Offices and shops are left out.',
+  'ready-to-move': 'Projects whose completion date filed with MahaRERA passed in the last three years and that still have 10 or more homes not booked, newest first. Offices and shops are left out. MahaRERA does not show the occupancy certificate, so ask the builder for it.',
   all: 'Projects still being built, earliest filed completion date first.',
 }
 
@@ -183,7 +183,7 @@ export default async function FacetPageView({ params }: Props) {
         {top && (
           <>
             <ProjectRail id="launches" title="Just launched" sub="Registered with MahaRERA in the last 12 months" href={launches?.path ?? ''} count={launches?.count ?? 0} rows={launches?.rows ?? []} />
-            <ProjectRail id="ready" title="Move in now" sub="Completion date passed. Ask the builder for the OC." href={ready?.path ?? ''} count={ready?.count ?? 0} rows={ready?.rows ?? []} />
+            <ProjectRail id="ready" title="Move in now" sub="Completion date passed, 10 or more homes open. Ask the builder for the OC." href={ready?.path ?? ''} count={ready?.count ?? 0} rows={ready?.rows ?? []} />
             <ProjectRail id="two-bhk" title="2 BHK, cheapest first" sub="Prices from the builder's site or two property sites that agree" href={twoBhk?.path ?? ''} count={twoBhk?.count ?? 0} rows={twoBhk?.rows ?? []} />
           </>
         )}

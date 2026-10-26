@@ -60,11 +60,12 @@ async def ready(*docs):
 
 
 async def test_urgent_first_then_google_then_indexable_then_bigger():
-    db, store = await ready(("A", "Alpha", "wagholi", {**FULL, "units_total": 100, "units_booked": 50}),
-                            ("B", "Bravo", "wagholi", {**FULL, "gsc_impressions": 40}),
-                            ("C", "Charlie", "wagholi", {}),
-                            ("D", "Delta", "wagholi", {**FULL, "units_total": 900, "units_booked": 10}),
-                            ("E", "Echo", "wagholi", {**FULL, "enriched_at": NOW - timedelta(days=5), "enrichment": {"score": "4/4"},
+    # Baner: outside east Pune, so no project here is on a top list that goes first (the next test)
+    db, store = await ready(("A", "Alpha", "baner", {**FULL, "units_total": 100, "units_booked": 50}),
+                            ("B", "Bravo", "baner", {**FULL, "gsc_impressions": 40}),
+                            ("C", "Charlie", "baner", {}),
+                            ("D", "Delta", "baner", {**FULL, "units_total": 900, "units_booked": 10}),
+                            ("E", "Echo", "baner", {**FULL, "enriched_at": NOW - timedelta(days=5), "enrichment": {"score": "4/4"},
                                                          "page_text_version": enrich.TEXT_VERSION}))
     order = []
     for _ in range(4):
@@ -77,10 +78,25 @@ async def test_urgent_first_then_google_then_indexable_then_bigger():
     assert (await enrich.next_project(store, NOW))["_id"] == "E"   # urgent beats freshness
 
 
+async def test_east_pune_top_list_projects_go_with_the_hot_ones_even_finished_while_homes_are_left():
+    db, store = await ready(("G", "Golf", "baner", {**FULL, "gsc_impressions": 40}),                       # Google shows it
+                            ("T", "Tango", "wagholi", {**FULL, "units_total": 100, "units_booked": 50}),   # 50 open: on the top list
+                            ("R", "Romeo", "wagholi", {**FULL, "completion_now": "2026-03-31", "units_total": 224,
+                                                       "units_booked": 142}),                              # finished, 82 open
+                            ("S", "Sierra", "wagholi", {**FULL, "completion_now": "2026-03-31", "units_total": 52,
+                                                        "units_booked": 50}))                              # finished, 2 open
+    order = []
+    while (d := await enrich.next_project(store, NOW)) is not None:
+        order.append(d["_id"])
+        await store.set_project(d["_id"], enriched_at=NOW, enrichment={"score": "4/4"}, page_text_version=enrich.TEXT_VERSION)
+    assert order == ["T", "R", "G"]               # the top list first; a finished project with 2 homes left is not worked on
+
+
 async def test_among_pages_google_shows_those_just_off_page_one_go_first():
-    db, store = await ready(("A", "Alpha", "wagholi", {**FULL, "gsc_impressions": 900, "gsc_position": 3.2}),
-                            ("B", "Bravo", "wagholi", {**FULL, "gsc_impressions": 60, "gsc_position": 11.4}),
-                            ("C", "Charlie", "wagholi", {**FULL, "gsc_impressions": 5, "gsc_position": 12.0}))
+    # Baner: no top list goes first here (east Pune only)
+    db, store = await ready(("A", "Alpha", "baner", {**FULL, "gsc_impressions": 900, "gsc_position": 3.2}),
+                            ("B", "Bravo", "baner", {**FULL, "gsc_impressions": 60, "gsc_position": 11.4}),
+                            ("C", "Charlie", "baner", {**FULL, "gsc_impressions": 5, "gsc_position": 12.0}))
     order = []
     for _ in range(3):
         d = await enrich.next_project(store, NOW)
@@ -217,7 +233,7 @@ def test_a_far_position_and_the_fill_from_the_fact_sheet():
 def test_records_enriched_before_the_checks_are_redone_after_googles_new_pages():
     old = {"_id": "O", "enriched_at": NOW - timedelta(days=3), "page_slug": "o", "locality": "wagholi"}
     seen = {"_id": "S", "gsc_impressions": 5, "page_slug": "s", "locality": "wagholi"}
-    new = {"_id": "N", "page_slug": "n", "locality": "wagholi", **FULL}
+    new = {"_id": "N", "page_slug": "n", "locality": "wagholi", **FULL, "units_booked": None}   # homes open unknown: not on a top list
     keys = sorted([(enrich.priority(d, set(), NOW), d["_id"]) for d in (old, seen, new)])
     assert [k[1] for k in keys] == ["S", "O", "N"]
     assert enrich.priority({**old, "enrichment": {"score": "4/4"}, "page_text_version": enrich.TEXT_VERSION}, set(), NOW) is None
@@ -233,7 +249,7 @@ def test_builder_track_record_from_the_register():
 
 
 def test_completed_projects_are_not_enriched_and_nearly_sold_ones_go_last():
-    base = {"page_slug": "x", "locality": "wagholi", **FULL}
+    base = {"page_slug": "x", "locality": "baner", **FULL}                    # outside east Pune: no top list goes first
     done = {**base, "_id": "D", "completion_now": "2026-09-30"}               # filed completion date passed
     assert enrich.priority(done, set(), NOW) is None
     assert enrich.priority(done, {"D"}, NOW) == (-1,)                          # a campaign still gets it
@@ -248,7 +264,7 @@ def test_completed_projects_are_not_enriched_and_nearly_sold_ones_go_last():
 
 
 def test_our_areas_outward_from_kharadi_and_new_launches_or_hot_first():
-    base = {"page_slug": "x", **FULL, "registered_on": "2020-01-01"}
+    base = {"page_slug": "x", **FULL, "registered_on": "2020-01-01", "units_booked": None}   # homes open unknown: no top list
     wakad = {**base, "_id": "W", "locality": "wakad", "pune_place": "wakad", "hot_score": 99}
     lohegaon = {**base, "_id": "L", "locality": "lohegaon", "pune_place": "lohegaon"}
     kharadi_old = {**base, "_id": "K", "locality": "kharadi", "pune_place": "kharadi", "gsc_impressions": 500}
@@ -399,7 +415,7 @@ def test_an_answer_in_an_older_writers_shape_is_no_draft_and_does_not_crash():
 
 
 def test_pages_written_by_an_older_writer_are_rewritten_after_everything_else():
-    old = {"_id": "O", "page_slug": "o", "locality": "wagholi", **FULL, "enriched_at": NOW - timedelta(days=3),
+    old = {"_id": "O", "page_slug": "o", "locality": "baner", **FULL, "enriched_at": NOW - timedelta(days=3),
            "enrichment": {"score": "4/4", "steps": {"web": {"ok": True, "at": NOW - timedelta(days=3)}}}, "page_text_version": 3}
     assert enrich.TEXT_VERSION == 4
     key = enrich._priority(old, NOW)
