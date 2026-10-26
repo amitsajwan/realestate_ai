@@ -18,6 +18,8 @@ const SOURCES: Record<string, string> = {
   whatsapp: 'WhatsApp', instagram: 'Instagram', facebook: 'Facebook', direct: 'Direct', fbgroup: 'Facebook group', facebook_comment: 'Facebook comment',
   instagram_comment: 'Instagram comment', chat: 'Website chat', google: 'Google', bing: 'Bing', youtube: 'YouTube', chatgpt: 'ChatGPT',
   twitter: 'X (Twitter)', linkedin: 'LinkedIn', reddit: 'Reddit', perplexity: 'Perplexity', unknown: 'Not recorded',
+  // the other AI assistants (backend tracking/origin.AI_REFERRERS)
+  copilot: 'Copilot', gemini: 'Gemini', claude: 'Claude', you: 'You.com', phind: 'Phind', meta_ai: 'Meta AI', grok: 'Grok', deepseek: 'DeepSeek',
 }
 
 const TAG_PREFIX: Record<string, string> = { fb: 'Facebook', ig: 'Instagram', wa: 'WhatsApp', yt: 'YouTube' }

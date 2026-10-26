@@ -54,7 +54,10 @@ async def test_record_and_summary():
     assert s["referral_pages"] == [{"path": "/projects/sky-one", "count": 1}]
     assert [a["group"] for a in s["agents"]] == ["answer", "referral", "search"]
     assert aivisits.week_line(s) == ("AI search, 7 days: 3 pages read for AI answers, 1 visits from AI answers, "
-                                     "0 search-crawler reads.")
+                                     "0 enquiries from AI answers, 0 search-crawler reads.")
+    assert aivisits.week_line(s, {"Gemini": 1, "ChatGPT": 2}) == (
+        "AI search, 7 days: 3 pages read for AI answers, 1 visits from AI answers, "
+        "3 enquiries from AI answers (ChatGPT 2, Gemini 1), 0 search-crawler reads.")
 
 
 async def test_paths_with_dots_are_kept_as_written():

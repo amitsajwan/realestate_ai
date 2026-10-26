@@ -119,7 +119,10 @@ def test_overview_counts_waiting_agents_health_and_controls(monkeypatch):
     assert o["invite_requests"][0]["mobile"] == "90******17"
     assert o["agents"][0]["name"] == "Rahul Sharma" and o["agents"][0]["progress"]["total"] == 8 and o["agents"][0]["mobile"] == "98******10"
     rows = {h["key"]: h for h in o["health"]}
-    assert set(rows) == {"facebook", "instagram", "whatsapp", "messenger", "ai", "posting", "comments", "news", "indexnow", "google_index", "neighbourhoods"}
+    assert set(rows) == {"facebook", "instagram", "whatsapp", "messenger", "ai", "posting", "comments", "news", "indexnow", "google_index",
+                         "neighbourhoods", "enrich", "freshness"}
+    assert rows["enrich"]["status"] == "warn" and "PROJECT_ENRICH_ENABLED" in rows["enrich"]["fix"]   # off by default
+    assert rows["freshness"]["status"] == "ok" and rows["freshness"]["text"] == "First count runs within a day"
     assert rows["messenger"]["status"] == "warn"  # off by default
     assert rows["facebook"]["status"] == "bad" and "meta_connect.ps1" in rows["facebook"]["fix"]
     assert rows["ai"]["status"] == "ok" and rows["posting"]["status"] == "ok" and rows["posting"]["last_run_at"]
@@ -329,3 +332,39 @@ def test_the_owner_sets_the_hot_projects_banner_and_sees_what_it_shows():
     assert body["auto"] is False and body["items"][0]["area"] == "kharadi" and body["updated_by"] == "OWNER"
     assert body["preview"] == []   # an area pick is not shown on pages with no area
     assert client(AGENT)[0].put("/admin/spotlight", json={"items": []}).status_code == 403
+
+
+# ---- loops the pages depend on, and fresh pages (docs/plan/seo-system.md 8a, step 1) ------------------------------------------
+def test_a_stopped_seo_loop_is_red_with_how_to_read_its_log():
+    from datetime import datetime, timedelta, timezone
+    now = datetime(2026, 10, 26, 9, 0, tzinfo=timezone.utc)
+    beat = {"last_start_at": now - timedelta(hours=5), "last_ok_at": now - timedelta(hours=5)}
+    r = health.loop_row("seo", "SEO loop", beat, 1800.0, now, "", "rankings are not being updated")
+    assert r["status"] == "bad" and r["text"] == "Stopped: no round for 5 hours; rankings are not being updated"
+    assert "pipeline=seo" in r["fix"]
+    assert health.loop_row("seo", "SEO loop", {"last_ok_at": now - timedelta(minutes=20)}, 1800.0, now, "", "x")["status"] == "ok"
+
+
+def test_a_loop_whose_last_round_failed_is_amber_with_the_error():
+    from datetime import datetime, timedelta, timezone
+    now = datetime(2026, 10, 26, 9, 0, tzinfo=timezone.utc)
+    beat = {"last_ok_at": now - timedelta(minutes=40), "last_error_at": now - timedelta(minutes=5), "last_error": "gsc failed"}
+    r = health.loop_row("seo", "SEO loop", beat, 1800.0, now, "", "x")
+    assert r["status"] == "warn" and "gsc failed" in r["text"]
+
+
+def test_a_loop_switched_off_says_how_to_switch_it_on_or_is_left_out():
+    from datetime import datetime, timezone
+    now = datetime(2026, 10, 26, 9, 0, tzinfo=timezone.utc)
+    r = health.loop_row("enrich", "Project page refresh", None, None, now, "Set PROJECT_ENRICH_ENABLED=true", "pages go old")
+    assert r["status"] == "warn" and r["fix"] == "Set PROJECT_ENRICH_ENABLED=true"
+    assert health.loop_row("seo", "SEO loop", None, None, now, "", "x") is None   # the IndexNow and Google rows already say why
+
+
+def test_stale_project_pages_turn_the_freshness_row_amber_then_red():
+    def row(fresh):
+        return health.freshness_row({"pages": 100, "fresh": fresh, "oldest": [{"slug": "sky-one", "updated": "2026-08-01T00:00:00"}]}, 35)
+    assert row(90)["status"] == "ok" and row(90)["fix"] == ""
+    assert row(60)["status"] == "warn" and "/projects/sky-one (2026-08-01)" in row(60)["fix"]
+    assert row(20)["status"] == "bad"
+    assert row(90)["text"] == "90 of 100 live project pages in our areas updated in the last 35 days (90%)"

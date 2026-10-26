@@ -89,6 +89,8 @@ describe('leads helpers', () => {
     )
     expect(eventLabel({ type: 'page_view', source: null, ts: '2026-01-01T11:00:00Z' }, null, now)).toBe('Visited your website - 1h ago')
     expect(sourceLabel('whatsapp')).toBe('WhatsApp')
+    expect(sourceLabel('gemini')).toBe('Gemini')
+    expect(sourceLabel('meta_ai')).toBe('Meta AI')
   })
   it('sorts most recent first, ties hottest first', () => {
     const mk = (id: string, score: number, at: string) => ({ id, score, last_activity_at: at }) as Lead

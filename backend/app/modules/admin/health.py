@@ -7,6 +7,8 @@ import time
 from datetime import datetime
 from typing import Awaitable, Callable, Dict, List, Optional
 
+from app.platform import heartbeats
+
 OK, WARN, BAD = "ok", "warn", "bad"
 AI_TTL_S = 600  # the AI ping is cached for 10 minutes
 _ai_cache: Dict = {}
@@ -104,6 +106,49 @@ def seo_rows(*, indexnow_on: bool, gsc_on: bool, indexnow: Optional[dict], cover
         fix = f"Last one held back: {a['last_note']}" if a.get("last_note") else ""
         rows.append(_row("neighbourhoods", "Neighbourhood articles", OK, text, fix))
     return rows
+
+
+FRESH_WARN, FRESH_BAD = 0.7, 0.4   # share of our areas' live project pages re-read in the window (to tune on real readings)
+
+
+def _ago(seconds: float) -> str:
+    h = seconds / 3600
+    return f"{round(h)} hours" if h < 48 else f"{round(h / 24)} days"
+
+
+def loop_row(key: str, label: str, beat: Optional[dict], interval_s: Optional[float], now: datetime, off_fix: str,
+             what: str) -> Optional[Dict]:
+    """A background loop the pages depend on (docs/plan/seo-system.md 8a, step 1), from its heartbeat: a loop that stopped
+    fails quietly (pages keep old dates), so it shows here, not only in `python -m app.worker --check` on the VM. None when the
+    loop has nothing to do (`interval_s` None and no off_fix)."""
+    if interval_s is None:
+        return _row(key, label, WARN, f"Off: {what}", off_fix) if off_fix else None
+    age = heartbeats.age_s(beat, now)
+    log_fix = "Restart the newsroom worker, then read its log: docker logs gcp-newsroom-1 | grep pipeline=" + key
+    if heartbeats.stale(beat, interval_s, now):
+        text = f"Stopped: no round for {_ago(age)}" if age is not None else "Has not run since the worker started"
+        return {**_row(key, label, BAD, f"{text}; {what}", log_fix), "last_run_at": _iso((beat or {}).get("last_ok_at"))}
+    err_at, ok_at = heartbeats._aware((beat or {}).get("last_error_at")), heartbeats._aware((beat or {}).get("last_ok_at"))
+    if err_at and (not ok_at or err_at > ok_at):
+        return {**_row(key, label, WARN, f"Last round had a problem: {str(beat.get('last_error') or '')[:140]}", log_fix),
+                "last_run_at": _iso(ok_at)}
+    return {**_row(key, label, OK, "Running"), "last_run_at": _iso(ok_at)}
+
+
+def freshness_row(mark: Optional[dict], window_days: int) -> Dict:
+    """How many of our areas' live project pages were re-read lately (seo.freshness): the dated answers that get us cited."""
+    m = mark or {}
+    label = "Project pages up to date"
+    if not m.get("pages"):
+        return _row("freshness", label, OK, "First count runs within a day")
+    share = m.get("fresh", 0) / m["pages"]
+    status = OK if share >= FRESH_WARN else WARN if share >= FRESH_BAD else BAD
+    text = f"{m.get('fresh', 0)} of {m['pages']} live project pages in our areas updated in the last {window_days} days ({round(share * 100)}%)"
+    old = ", ".join(f"/projects/{o['slug']}" + (f" ({str(o['updated'])[:10]})" if o.get("updated") else " (never)")
+                    for o in (m.get("oldest") or [])[:3])
+    fix = "" if status == OK else ("Read pipeline=enrich in the newsroom worker's log (MahaRERA down, the model refusing, keys)"
+                                   + (f"; oldest: {old}" if old else ""))
+    return {**_row("freshness", label, status, text, fix), "last_run_at": _iso(m.get("at"))}
 
 
 def build_health(*, social, wa, engage, calendar, newsroom, meta: Dict[str, Optional[dict]], cal_run: dict, news_run: dict,

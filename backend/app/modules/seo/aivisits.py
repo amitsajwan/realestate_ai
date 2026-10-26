@@ -19,6 +19,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 from urllib.parse import urlparse
 
+from app.modules.tracking import origin
+
 COLLECTION = "seo_ai_visits"         # {_id: "<day>|<group>|<agent>", day, group, agent, count, kinds: {page kind: n}, paths: {...}}
 KEEP_PATHS = ("answer", "referral")  # groups whose pages we keep
 MAX_PATH = 200
@@ -34,15 +36,10 @@ AGENTS = (
     ("google-extended", "Google training", "training"), ("bytespider", "ByteDance", "training"),
     ("meta-externalagent", "Meta", "training"), ("amazonbot", "Amazon", "training"), ("cohere-ai", "Cohere", "training"),
 )
-# referring host (or a parent domain of it) -> assistant
-REFERRERS = (
-    ("chatgpt.com", "ChatGPT"), ("chat.openai.com", "ChatGPT"), ("perplexity.ai", "Perplexity"),
-    ("copilot.microsoft.com", "Copilot"), ("gemini.google.com", "Gemini"), ("bard.google.com", "Gemini"), ("claude.ai", "Claude"),
-    ("you.com", "You.com"), ("phind.com", "Phind"), ("meta.ai", "Meta AI"), ("grok.com", "Grok"), ("chat.deepseek.com", "DeepSeek"),
-)
-# utm_source values assistants add to their links
-UTM = {"chatgpt.com": "ChatGPT", "chatgpt": "ChatGPT", "openai": "ChatGPT", "perplexity": "Perplexity", "perplexity.ai": "Perplexity",
-       "copilot": "Copilot", "copilot.com": "Copilot", "gemini": "Gemini", "claude": "Claude", "claude.ai": "Claude"}
+# referring host (or a parent domain of it) -> assistant, and the utm_source values assistants add to their links: the lead
+# sources' list (tracking.origin), so a visit and a lead from one assistant carry the same name
+REFERRERS = tuple((host, name) for host, name, _ in origin.AI_REFERRERS)
+UTM = {value: origin.AI_NAMES[key] for value, key in origin.AI_UTM.items()}
 
 
 def classify(ua: Optional[str], referer: Optional[str], utm_source: Optional[str]) -> Optional[dict]:
@@ -131,9 +128,11 @@ async def summary(db, now: Optional[datetime] = None, days: int = 28, top: int =
             "totals": {g: sum(a["week"] for a in out if a["group"] == g) for g in order}}
 
 
-def week_line(s: dict) -> str:
-    """One line for the weekly note: AI answers that read us and visits from AI answers in the last 7 days."""
+def week_line(s: dict, leads: Optional[Dict[str, int]] = None) -> str:
+    """One line for the weekly note: AI answers that read us, visits from AI answers and the leads they brought, last 7 days."""
     t = s.get("totals") or {}
+    by = ", ".join(f"{name} {n}" for name, n in sorted((leads or {}).items(), key=lambda x: (-x[1], x[0])))
     return (f"AI search, 7 days: {t.get('answer', 0):,} pages read for AI answers, {t.get('referral', 0):,} visits from AI answers, "
+            f"{sum((leads or {}).values()):,} enquiries from AI answers{f' ({by})' if by else ''}, "
             f"{t.get('search', 0):,} search-crawler reads.")
 

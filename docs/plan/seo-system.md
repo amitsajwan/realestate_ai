@@ -43,6 +43,7 @@ the place. Measuring it every week is section 8a, step 2.
 | Google's own view | Search Console, property `sc-domain:avasetu.in` (owner's Google account) |
 | Weekly site audit | GitHub → Actions → "SEO audit (live site)" |
 | AI search: assistants that read us, pages they use, visits from AI answers | Insights → **Rankings** → "AI search"; one line in the weekly note |
+| Loops stopped, pages going old | Studio → Admin → **Health**: "SEO loop", "Project page refresh", "Project pages up to date" |
 | Raw loop log | VM: `docker compose logs newsroom \| grep pipeline=seo` (one line per step per round) |
 
 ## 3. Accounts and keys (all LIVE, all only in the VM's `.env`, never in git or chat)
@@ -170,7 +171,8 @@ All in the `newsroom` worker role (seo loop every 30 minutes; each step runs onl
 | MagicBricks scoreboard | weekly | our place vs MagicBricks, 99acres, Housing for every search run in 28 days; "win next" list; history per week | `seo/scoreboard.py` |
 | Prices round | one project every 15 min (`PRICES_EVERY_MINUTES`), inside the enrich loop | prices only (builder's site, or two agreeing sites); Upper Kharadi → Kharadi → Wagholi → Keshav Nagar → Lohegaon → Baner → Wakad → Hinjawadi → everywhere else, new launches and hot projects first in each area, 90%+ booked last, completed projects never; never read first, re-read every 30 days (before a price lapses at 45), 14 days after a read that found none; at most 10 new Serper searches a day (`PRICES_SEARCHES_PER_DAY`), waits while the free model tiers rest; coverage per area on Insights → Pages | `areastats/pricing.py` |
 | AI visit log | every page request (proxy, after the response) | AI fetchers and visits from AI answers, per day; on Rankings and in the weekly note | `frontend/proxy.ts`, `seo/aivisits.py` |
-| Owner's SEO note | weekly | Studio notification with the week's numbers and how many pages wait for Request indexing | `seo/note.py` |
+| Fresh pages count | daily | live project pages in our 8 areas re-read in the last 35 days, per area, the oldest five; Admin → Health | `seo/freshness.py` |
+| Owner's SEO note | weekly | Studio notification with the week's numbers, how many pages wait for Request indexing, and the enquiries from AI answers | `seo/note.py` |
 | Page writer | every 5 min (cheap rewrite), full re-read at most 1 per 30 min | project text on free LLM tiers; skipped while most providers are resting | `areastats/enrich.py` |
 | Hot projects refresh | every 14 days per hot project | facts, prices and text re-read | `areastats/hot.py`, `enrich.py` |
 | Site audit | weekly, Mondays 08:47 IST (GitHub Actions) | 300 sitemap pages read like Googlebot: status, robots, noindex, canonical, title, JSON-LD; a 5xx is read again after 30 s; 12 of them again as 4 AI fetchers (same page, `<h1>` in the HTML, robots.txt) | `seo/audit.py`, `.github/workflows/seo-audit.yml` |
@@ -264,9 +266,9 @@ The build, in order (cheapest and most protective first):
 
 | Step | What | Code | Needs | Cost a month |
 |---|---|---|---|---|
-| 1 | **Freshness and stalled-loop rows** on Admin → Health: the seo and project_enrich heartbeats (BAD when stale, from `heartbeats.stale` and the `expected_intervals` `--check` uses), and "pages in our 8 areas updated in the last 14 days" (`pages.page_updated`); WARN under 60%, BAD under 30% (to tune once we see the real share) | `admin/health.py`, `seo/coverage.py` or a new `seo/freshness.py` | nothing | ₹0 |
+| ~~1~~ BUILT 2026-10-26 | **Freshness and stalled-loop rows** on Admin → Health: the seo and project_enrich heartbeats (BAD when stale, from `heartbeats.stale` and the `expected_intervals` `--check` uses), and "pages in our 8 areas updated in the last 14 days" (`pages.page_updated`); WARN under 60%, BAD under 30% (to tune once we see the real share) | `admin/health.py`, `seo/coverage.py` or a new `seo/freshness.py` | nothing | ₹0 |
 | 2 | **AI answer panel** (was "AI search, next" above): weekly, 20 fixed buyer questions ("top projects in Upper Kharadi", "2 BHK under 80 lakh in Wagholi", "is <project> delayed"), asked through Gemini with Google Search grounding; record the sites each answer cites, keep our share of citations beside MagicBricks, 99acres and Housing on the scoreboard, and show any question we drop out of on Rankings | new `seo/answers.py`, `seo/scoreboard.py`, `RankingsTab.tsx`; key from `app.core.config`, off until set | a billing-enabled Gemini key (grounding is paid-tier only) | ₹0–20 |
-| 3 | **AI answers → leads**: add Copilot, Gemini, Claude and the other `aivisits.REFERRERS` hosts to `origin.REFERRER_SOURCES`, read `utm_source` as the source when no `src=` is set, and add a line to the weekly note ("AI answers: 40 visits, 6 enquiries") | `tracking/origin.py` (one list for both, so they cannot drift), `seo/note.py` | nothing | ₹0 |
+| ~~3~~ BUILT 2026-10-26 | **AI answers → leads**: add Copilot, Gemini, Claude and the other `aivisits.REFERRERS` hosts to `origin.REFERRER_SOURCES`, read `utm_source` as the source when no `src=` is set, and add a line to the weekly note ("AI answers: 40 visits, 6 enquiries") | `tracking/origin.py` (one list for both, so they cannot drift), `seo/note.py` | nothing | ₹0 |
 | 4 | **Bing Webmaster API** (was "AI search, next" above): Bing's searches and positions into `search_demand` (source "bing") | `areastats/` beside `searchconsole.py` | the API key from Bing Webmaster Tools (section 7) | ₹0 |
 | 5 | **Weekly note on WhatsApp** (item 9 above): `report.week_lines` plus the freshness share and the AI panel line, once a week to the owner | `seo/note.py`, `whatsapp` | an approved utility template | ~₹2 |
 
@@ -284,6 +286,19 @@ machine). Read them again before switching a paid step on:
   inside an open customer service window are charged too (they used to be free). The India utility rate is on Meta's INR rate
   card (not read here; third-party guides give ₹0.12–0.35). Four messages a month costs under ₹2 either way, plus 18% GST.
 - **Bing Webmaster API**, step 1 and step 3: free.
+
+As built (2026-10-26):
+- Step 1: `seo/freshness.py` (daily, in the seo loop) counts the live project pages in our 8 areas (indexable, a group's primary,
+  not finished) whose `page_updated` is within **35 days**, not 14: the details read comes back every 30 days by design
+  (`refresh.DETAILS_MAX_AGE_DAYS`), so 14 would be amber on a healthy site. Health shows "Project pages up to date" (amber under
+  70%, red under 40%, with the oldest pages), "SEO loop" (red when its heartbeat is stale, shown only while the loop is on) and
+  "Project page refresh" (the `project_enrich` heartbeat; amber when `PROJECT_ENRICH_ENABLED` is off). `admin/health.loop_row`,
+  `freshness_row`. The 70/40 limits are a first guess: read the real share for two weeks and set them.
+- Step 3: one list of assistants, `tracking/origin.AI_REFERRERS` (+ `AI_UTM`), read by both the lead sources and
+  `seo/aivisits`. AI hosts are matched before the search engines (a Gemini visit was counted as "google" before). A lead's
+  source takes an AI `utm_source` before the referrer (ChatGPT's app often sends none). The weekly note says "N enquiries
+  from AI answers (ChatGPT 2, Gemini 1)" (`origin.leads_from_ai`, read only). Leads stored before this keep the source they
+  were given (an old Gemini lead stays "google").
 
 Off-page upkeep (OWNER, no money, 1–2 hours a week): see section 7, "Weekly and monthly upkeep".
 
@@ -378,7 +393,8 @@ measure (Search Console, Serper, URL Inspection) → choose (near page one, Magi
 | 2026-10-25 | this | Project pages open with a dated answer + "Updated" (WebPage dateModified); news stories link the projects they name; `/llms.txt` lists project pages |
 | 2026-10-22 | this | `/` is the buyers' home (one topic: new projects in Pune); the agents' home moved to `/agents`. Hot projects banner on every buyer page, set in Studio (`hot-projects.md`); robots guard test |
 | 2026-10-25 | this | Tracker pages `/news/track/<slug>` (8) in the sitemap at 0.8, linked from `/news` and from the area pages they touch |
-| 2026-10-26 | this | H0: every price change kept, dated, in `price_history`; homes-booked readings kept to 120 (were cut at 24) |
+| 2026-10-26 | this | 8a steps 1 and 3: Health rows for the seo and enrich loops and for fresh pages (`seo/freshness.py`); AI assistants as lead sources from one list, Gemini no longer counted as Google, enquiries from AI answers in the weekly note |
+| 2026-10-26 | 203a3d3 | H0: every price change kept, dated, in `price_history`; homes-booked readings kept to 120 (were cut at 24) |
 | 2026-10-26 | 96d4dcd | Plan only: section 8b (what a competitor cannot copy; prices and old booking readings are thrown away today; H0 keeps every reading, H1–H7 show the history and widen the lead) |
 | 2026-10-26 | 0f19643 | Plan only: section 8a (keeping the lead: freshness and stalled-loop rows, AI answer panel on Gemini grounding, AI answers → leads, Bing API, WhatsApp note, with checked costs) and the owner's weekly and monthly upkeep (section 7) |
 
