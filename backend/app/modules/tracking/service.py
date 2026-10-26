@@ -7,12 +7,14 @@ from typing import Callable, Optional
 
 from . import contact as contactmod, limits, matching, origin, outcomes, requirement as reqmod, scoring, summary
 from .followup import Polish, build_draft, listing_label, polish_safely, whatsapp_url
-from .schemas import DraftIn, EventIn, InquiryIn, StageUpdate
+from .schemas import DraftIn, EventIn, InquiryIn, PingIn, StageUpdate
 
 logger = logging.getLogger(__name__)
 
 BOT_MARKERS = ("bot", "crawler", "spider", "preview", "facebookexternalhit", "whatsapp/", "curl", "python-requests")
 MAX_EVENTS_PER_ANON_PER_MINUTE = 60
+MAX_READ_S = 30 * 60             # one page's reading time is capped: a tab left open overnight is not reading
+PING_WINDOW = timedelta(hours=2)  # a ping only reaches a view this recent
 FOLLOW_UP_DAYS = 2
 
 
@@ -54,9 +56,14 @@ class TrackingService:
         if type_ == "listing_view" and e.listing_id:
             prior = await self.events.count_documents(
                 {"agent_id": agent_id, "anon_id": e.anon_id, "type": "listing_view", "listing_id": e.listing_id})
+        now = self.now()
+        view_id = getattr(e, "view_id", None)
+        # a page view the browser named gets its reading time from later pings; last_seen says whether they are still on it
+        reading = {"view_id": view_id, "read_s": 0, "last_seen": now} if view_id else {}
         await self.events.insert_one({
             "agent_id": agent_id, "anon_id": e.anon_id, "contact_id": contact_id, "type": type_,
-            "listing_id": e.listing_id, "source": e.source, "utm": e.utm, **origin.touch_fields(e), "in_app": app, "ts": self.now(),
+            "listing_id": e.listing_id, "source": e.source, "utm": e.utm, **origin.touch_fields(e), "in_app": app, "ts": now,
+            **reading,
         })
         return scoring.event_points(type_, prior)
 
@@ -76,6 +83,18 @@ class TrackingService:
                 {"_id": contact["_id"]},
                 {"$inc": {"score_base": points}, "$set": {"last_activity_at": self.now()}})
         return True
+
+    async def ping(self, p: PingIn, user_agent: Optional[str]) -> bool:
+        """'Still reading' from an open page: raises its view's reading time (never lowers it) and marks the visitor as here
+        now. Only updates a view this same browser recorded in the last PING_WINDOW; it never creates an event."""
+        agent_id = await self._agent_id(p.agent_slug)
+        if is_bot(user_agent):
+            return False
+        now = self.now()
+        res = await self.events.update_one(
+            {"view_id": p.view_id, "agent_id": agent_id, "anon_id": p.anon_id, "ts": {"$gte": now - PING_WINDOW}},
+            {"$max": {"read_s": min(p.seconds, MAX_READ_S)}, "$set": {"last_seen": now}})
+        return res.matched_count == 1
 
     async def capture_inquiry(self, i: InquiryIn, user_agent: Optional[str] = None) -> dict:
         if limits.is_honeypot(i.website):  # a bot filled the hidden field: look successful, store nothing

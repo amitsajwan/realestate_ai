@@ -276,7 +276,7 @@ export function privacyDoc(cfg: MarketingConfig): LegalDoc {
           'Agents who claim the free trial on WhatsApp: your WhatsApp number and the message you send, so we can send your sign-up code back.',
           'People who ask us to call them: name, mobile number, city, an optional note, and your consent. To prevent abuse we also keep a scrambled (hashed) version of your connection\'s IP address. We do not keep the IP address itself.',
           'Buyers who send an enquiry through an agent\'s website: name, mobile number, your message, and any preferences you choose to share (for example bedrooms, budget, timing, home loan).',
-          'Buyers browsing an agent\'s website: which pages you view, linked to a random id stored in your browser (not your name), and the link you came from, so the agent can see which properties get attention.',
+          'People browsing our website or an agent\'s website: which pages you view and how long each one stays open on your screen, linked to a random id stored in your browser (not your name), and the link you came from, so we and the agent can see which pages help buyers and which properties get attention. It stays anonymous unless you send an enquiry or give us your number.',
         ],
       },
       {

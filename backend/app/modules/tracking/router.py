@@ -7,7 +7,8 @@ from app.core.auth_backend import current_active_user
 from app.core.database import get_database
 from app.models.user import User
 
-from .schemas import DraftIn, EventIn, InquiryIn, StageUpdate
+from .live import build_live
+from .schemas import DraftIn, EventIn, InquiryIn, PingIn, StageUpdate
 from .service import TrackingError, TrackingService
 
 public_router = APIRouter()  # mounted at /t   (no auth: visitors are anonymous)
@@ -27,6 +28,14 @@ async def track_event(body: EventIn, user_agent: Optional[str] = Header(None),
                       svc: TrackingService = Depends(get_service)):
     try:
         return {"recorded": await svc.track_event(body, user_agent)}
+    except TrackingError as e:
+        raise _http(e)
+
+
+@public_router.post("/ping", status_code=202)
+async def reading_ping(body: PingIn, user_agent: Optional[str] = Header(None), svc: TrackingService = Depends(get_service)):
+    try:
+        return {"recorded": await svc.ping(body, user_agent)}
     except TrackingError as e:
         raise _http(e)
 
@@ -63,6 +72,11 @@ async def lead_origins(days: int = Query(7, ge=1, le=90), user: User = Depends(c
 @inbox_router.get("/today")
 async def business_today(user: User = Depends(current_active_user), svc: TrackingService = Depends(get_service)):
     return await svc.today(str(user.id))
+
+
+@inbox_router.get("/live")
+async def live_now(user: User = Depends(current_active_user), svc: TrackingService = Depends(get_service)):
+    return await build_live(svc, str(user.id))
 
 
 @inbox_router.get("/performance")

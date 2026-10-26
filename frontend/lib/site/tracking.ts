@@ -106,10 +106,10 @@ export function buildTouch(agentSlug: string, listingId?: string): TouchBody {
   return body
 }
 
-export function trackEvent(type: SiteEventType, agentSlug: string, listingId?: string): void {
+function post(route: string, body: object): void {
   try {
-    const payload = JSON.stringify({ ...buildTouch(agentSlug, listingId), type })
-    const url = API_BASE_URL + '/api/v1/t/event'
+    const payload = JSON.stringify(body)
+    const url = API_BASE_URL + '/api/v1/t/' + route
     if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
       const blob = new Blob([payload], { type: 'application/json' })
       if (navigator.sendBeacon(url, blob)) return
@@ -122,6 +122,61 @@ export function trackEvent(type: SiteEventType, agentSlug: string, listingId?: s
     }).catch(() => undefined)
   } catch {
     /* never throw from tracking */
+  }
+}
+
+/** `viewId` names this page view, so its "still reading" pings (startReading) add their time to it. */
+export function trackEvent(type: SiteEventType, agentSlug: string, listingId?: string, viewId?: string): void {
+  try {
+    post('event', { ...buildTouch(agentSlug, listingId), type, ...(viewId ? { view_id: viewId } : {}) })
+  } catch {
+    /* never throw from tracking */
+  }
+}
+
+export function newViewId(): string {
+  return randomId().slice(0, 24)
+}
+
+export const PING_EVERY_MS = 30_000
+export const MAX_PINGS = 40 // 20 minutes of pings per page; the server caps one page's reading time at 30 minutes anyway
+
+/**
+ * Counts the seconds this page is visible (a hidden tab is not reading) and tells the server every 30 s, when the tab is
+ * hidden, and when the page is left. Plan: docs/plan/site-live-presence.md D1. Returns the stop function, which sends the last
+ * count. Sends nothing if the seconds have not grown since the last ping.
+ */
+export function startReading(agentSlug: string, viewId: string, now: () => number = Date.now): () => void {
+  if (typeof document === 'undefined' || typeof window === 'undefined') return () => undefined
+  let shown = 0
+  let since: number | null = document.visibilityState === 'hidden' ? null : now()
+  let sent = 0
+  let pings = 0
+  const seconds = () => Math.floor((shown + (since === null ? 0 : now() - since)) / 1000)
+  const flush = () => {
+    const s = seconds()
+    if (s <= sent || pings >= MAX_PINGS) return
+    sent = s
+    pings += 1
+    post('ping', { agent_slug: agentSlug, anon_id: getAnonId(), view_id: viewId, seconds: s })
+  }
+  const onVisibility = () => {
+    if (document.visibilityState === 'hidden') {
+      if (since !== null) shown += now() - since
+      since = null
+      flush()
+    } else if (since === null) {
+      since = now()
+    }
+  }
+  const timer = window.setInterval(() => { if (since !== null) flush() }, PING_EVERY_MS)
+  document.addEventListener('visibilitychange', onVisibility)
+  window.addEventListener('pagehide', flush)
+  return () => {
+    window.clearInterval(timer)
+    document.removeEventListener('visibilitychange', onVisibility)
+    window.removeEventListener('pagehide', flush)
+    flush()
   }
 }
 

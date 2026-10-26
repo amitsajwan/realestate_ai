@@ -27,8 +27,20 @@ class TrackedTouch(BaseModel):
         return clip(v)
 
 
+VIEW_ID = r"^[A-Za-z0-9]{8,40}$"
+
+
 class EventIn(TrackedTouch):
     type: EventType
+    view_id: Optional[str] = Field(None, pattern=VIEW_ID)  # one page view, made in the browser; its "still reading" pings name it
+
+
+class PingIn(BaseModel):
+    """'Still reading': the seconds the visitor has had this page visible so far (docs/plan/site-live-presence.md D1)."""
+    agent_slug: str = Field(..., min_length=2, max_length=60)
+    anon_id: str = Field(..., min_length=8, max_length=64)
+    view_id: str = Field(..., pattern=VIEW_ID)
+    seconds: int = Field(..., ge=0, le=86400)
 
 
 class InquiryIn(TrackedTouch):

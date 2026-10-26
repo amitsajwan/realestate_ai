@@ -22,6 +22,10 @@ INDEXES: Iterable[Tuple[str, list, dict]] = [
     ("events", [("agent_id", ASC), ("anon_id", ASC), ("ts", DESC)], {}),
     ("events", [("agent_id", ASC), ("contact_id", ASC), ("ts", ASC)], {}),
     ("events", [("agent_id", ASC), ("type", ASC), ("listing_id", ASC)], {}),
+    # the Live panel (who is here now, today's reading) and the origins report read an agent's views by time
+    ("events", [("agent_id", ASC), ("type", ASC), ("ts", DESC)], {}),
+    # "still reading" pings find their page view
+    ("events", [("view_id", ASC)], {"sparse": True}),
     ("contacts", [("agent_id", ASC), ("phone", ASC)], {}),
     ("contacts", [("agent_id", ASC), ("last_activity_at", DESC)], {}),
     ("contacts", [("agent_id", ASC), ("anon_ids", ASC)], {}),

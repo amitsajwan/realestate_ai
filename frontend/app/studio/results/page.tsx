@@ -1,6 +1,7 @@
 'use client'
 import React from 'react'
 import { ResultsCard } from '@/components/app/BusinessToday'
+import LiveNow from '@/components/app/LiveNow'
 import { ErrorBox, PageTitle, Spinner } from '@/components/app/ui'
 import { api } from '@/lib/app/client'
 import { getInterestReport, type InterestLinkStats } from '@/lib/app/interestReport'
@@ -14,7 +15,8 @@ import { BRAND_NAME } from '@/lib/brand'
 /**
  * Studio > Results (replaced Interest, 2026-10-17): one question, "is my marketing working?". Three numbers for the last 7 days
  * against the 7 before, where people came from and the posts that brought leads, five rows each with "See all".
- * What people said is in the Inbox (chats and comments), not here.
+ * What people said is in the Inbox (chats and comments), not here. On top: who is on the site right now and today's reading
+ * (LiveNow, refreshes itself).
  */
 const TOP = 5
 type Totals = { visitors: number; chats: number; leads: number }
@@ -127,6 +129,7 @@ export default function ResultsPage() {
       {(data.fb?.reconnect || data.fb?.instagram?.reconnect) && (
         <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-800">The Facebook connection has stopped working, so comments are not being answered right now. Ask your {BRAND_NAME} admin to reconnect it.</p>
       )}
+      <LiveNow />
       <section aria-label="Last 7 days" className="space-y-2">
         <h2 className="text-sm font-semibold text-gray-600">Last 7 days</h2>
         <div className="grid grid-cols-3 gap-2">

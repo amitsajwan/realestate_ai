@@ -121,6 +121,9 @@ class FakeCollection:
             for part in path:
                 node = node.setdefault(part, {})
             node[last] = node.get(last, 0) + v
+        for k, v in update.get("$max", {}).items():
+            if d.get(k) is None or v > d[k]:
+                d[k] = v
         for k, v in update.get("$addToSet", {}).items():
             if v not in d.setdefault(k, []):
                 d[k].append(v)

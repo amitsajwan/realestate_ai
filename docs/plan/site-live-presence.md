@@ -8,8 +8,9 @@ decisions below are taken, not open.
 
 - Every browser gets an anonymous id (`site_anon_id`, frontend/lib/site/tracking.ts) and the tab keeps its landing page,
   referrer and `src`/utm.
-- `TrackingBeacon` sends `page_view` / `listing_view` to `/api/v1/t/event` on the agent home, listing, project and compare pages
-  only. Guides, news, areas, builders, /check and /price pages send nothing, so most SEO traffic is invisible to us.
+- `TrackingBeacon` sends `page_view` / `listing_view` to `/api/v1/t/event` on every buyer page: the agent pages (SiteShell) and,
+  since P1, every page in the Avasetu shell (MarketingShell: home, projects, areas, guides, news, builders, /check). Each view
+  carries a `view_id`, and the open page pings `/api/v1/t/ping` with its visible seconds (D1).
 - Call / WhatsApp / share taps are events; enquiries carry the same id, so a lead's earlier visits join up (lead origin, 16a7f6f1).
 - The website chat (ChatWidget, LLM-led, knows the project page) opens only when the visitor taps it or a page's "Ask" button.
 - `seo/aivisits` already names visits sent by ChatGPT, Perplexity and Gemini.
@@ -36,19 +37,23 @@ The visitor came to read. We never take the page away from them. In practice:
 
 ### D1. Measure every buyer page first
 
-Without views on guides, news and area pages we would be watching a fraction of the visitors. One small beacon in the buyer
-shell (SiteShell) sends `page_view` for every buyer page, plus a **"still reading" ping every 30 s while the tab is visible**
-(stops when the tab is hidden, max 20 pings per page). From the pings we get real reading time, not guesses. Bots (known
-user agents, no visible time) are dropped. Owned by `tracking`; the pings go to a new `presence` collection with a 30-minute TTL
-(tracking is its only writer), and a page's total reading time is folded into its `page_view` event when the visit ends.
+Without views on guides, news and area pages we would be watching a fraction of the visitors. The beacon sits in both buyer
+shells (SiteShell, MarketingShell) and sends one `page_view` per page path, plus a **"still reading" ping every 30 s while the
+tab is visible**, once more when the tab is hidden or the page is left, and at most 40 per page. From the pings we get real
+reading time, not guesses. Bots (known user agents) are dropped as for every event.
+
+Built differently from the first draft: no separate `presence` collection. A ping updates its own view in `events` (tracking is
+still the only writer): `read_s` only goes up, capped at 30 minutes, and `last_seen` moves to now. "Here now" is a view seen in
+the last 5 minutes. A ping only reaches a view the same browser recorded in the last 2 hours and never creates one.
 
 ### D2. "Live" panel in Studio (owner and agents see their own visitors)
 
 - **Now:** visitors in the last 5 minutes. For each: "Visitor 14 · Ivara price table · 3 pages · from an Instagram reel ·
   4 min". Studio refreshes every 15 s (no websockets).
-- **Today:** visitors, pages per visit, reading time, where they came from (reel, Google, AI answer, WhatsApp, direct), the
-  page people most often leave from, and which posts bring *readers* (2+ pages) rather than clicks.
-- **Journey:** tap a visitor to see their pages in order. If they later leave a number, the same journey shows on their lead.
+- **Today:** visitors, pages read, reading time per page, visits that read only one page, the most read pages and the pages
+  people most often leave from. Where they came from stays in the "Where they came from" table below it (7 days).
+- **Journey:** tap a visitor to see their pages in order, with the time on each. A browser that already belongs to a lead
+  shows the lead's name and an "Open lead" link; the lead page already lists their visits.
 - Anonymous throughout: no IP, no device model, no city guess shown. Same rule as activity.py ("Visitor N").
 
 ### D3. Hints: three triggers to start, in this order
@@ -95,4 +100,8 @@ ever add a third-party analytics script, this decision is revisited first.
 
 ## Progress log
 
-- 2026-10-26: plan written. Nothing built.
+- 2026-10-26: plan written.
+- 2026-10-26: P1 + P2 built (work/live-presence). Beacon in MarketingShell; view_id + `/t/ping` (tracking/service.py ping);
+  `GET /inbox/live` (tracking/live.py); Studio > Results opens with "Right now" and "Today on the site" (components/app/LiveNow.tsx);
+  privacy page names reading time. Reading time starts at zero: views before this deploy have none. Watch after deploy: events
+  per day (the weekly report reads the newest 20,000 events, so more page views shorten its window) and Core Web Vitals.
