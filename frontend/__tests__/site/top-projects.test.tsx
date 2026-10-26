@@ -64,6 +64,9 @@ describe('Top projects page', () => {
     expect(sold).toHaveTextContent('Sold out or nearly: 1 project')
     expect(within(sold).getByRole('link', { name: 'Ask about resale' })).toHaveAttribute('href', '/projects/aleria#enquire')
     expect(screen.getByTestId('rail-launches')).toHaveTextContent('See all 3')
+    // a row never rolls by itself; on a phone it says to swipe and ends in a card to the whole list
+    expect(screen.getByTestId('rail-launches')).toHaveTextContent('Swipe for more')
+    expect(within(screen.getByTestId('rail-launches')).getByRole('link', { name: 'See all 3 →' })).toHaveAttribute('href', '/projects/area/kharadi/new-launches')
     expect(screen.queryByTestId('rail-ready')).toBeNull()
     expect(screen.queryByTestId('rail-two-bhk')).toBeNull()
     expect(screen.getByText(/Why is a fully booked project in Kharadi not on this list\?/)).toBeInTheDocument()
