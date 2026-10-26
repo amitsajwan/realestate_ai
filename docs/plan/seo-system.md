@@ -5,7 +5,8 @@ code, pages or plans updates this page in the same commit (section 11 gets a lin
 history; when they and this page disagree, this page is right.
 
 Labels: **LIVE** = running in production · **TARGET** = to build · **OWNER** = done by hand · **DROPPED** = decided against.
-Last updated 2026-10-26 (section 8a: keeping the lead in Google and AI answers, with costs; owner's weekly and monthly upkeep).
+Last updated 2026-10-26 (section 8a: keeping the lead in Google and AI answers, with costs; owner's weekly and monthly upkeep;
+section 8b: what a competitor cannot copy, and the plan to widen it).
 
 ## 1. Goal and scorecard
 
@@ -286,6 +287,54 @@ machine). Read them again before switching a paid step on:
 
 Off-page upkeep (OWNER, no money, 1–2 hours a week): see section 7, "Weekly and monthly upkeep".
 
+## 8b. Hard to replace (TARGET, 2026-10-26)
+
+**Can a competitor replace us?** The pages and the code, yes: the MahaRERA register is public, our page format (dated answer,
+FAQ, JSON-LD, `/llms.txt`) is visible in the HTML, and the seo loop is a few months of engineering. MagicBricks, 99acres and
+Housing have far more domain authority, and a first place in ChatGPT can change within weeks. What they cannot copy:
+
+| Ours | Why it cannot be copied |
+|---|---|
+| **History** read over time: homes booked (`booked_history`), filed completion dates (`completion_history`), prices, Search Console | MahaRERA and the builders show only today's value. A newcomer starts from zero, and the gap grows every month we keep reading. |
+| **Hand corrections**: `builder_pages`, `marketed_name_override`, `pune_places.VERIFIED`, towers merged (`clusters.py`), checked pins | Thousands of small fixes; a copy inherits MahaRERA's mistakes |
+| **Neutral facts**: "the date moved 4 months", "244 of 416 booked" | The portals are paid by builders; facts that are bad for a builder are bad for their business. They have had the data for years and do not show it. |
+| **Agents and leads**: agents on the platform, leads passed to them, their posts linking our pages | Grows with use; a newcomer has none |
+| **Links, mentions and the doctor's measured fix results** | Earned over time |
+
+Threats, most likely first: (1) we let it go stale (section 8a); (2) a portal takes the format for Pune: we lose some broad
+searches, keep the register long tail; (3) a copycat scrapes our pages: Google usually credits the page it indexed first,
+which our sitemap dates and IndexNow help; blocking scrapers would also block the AI crawlers we want, so we do not;
+(4) Google or the assistants change how they choose. Facts with their sources tend to survive that.
+
+**Checked against the code on 2026-10-26: we are throwing part of the history away.**
+- Prices: every read replaces `prices` on the record (`areastats/prices.py`: `{"prices": {at, name, rows, read}}`). No earlier
+  price is kept anywhere.
+- Homes booked: `booked_history` keeps the last `refresh.BOOKED_HISTORY` = 24 readings (one per change, read every 30 days),
+  so readings older than about two years fall off.
+- Completion dates: `completion_history` is pushed and never cut. Kept in full.
+- Search Console: `gsc_history` and `rank_history` keep the last `HISTORY` = 60 readings (`searchconsole.py`, `demand.py`);
+  the site totals are on the daily snapshot. Enough for the 28-day comparisons, so left as is.
+- Already on pages: homes booked in the last window (`pagefacts.sales`), months the date moved net of the 2026 blanket
+  extension (`pages.months_later`), and a builder's date record (`pages.delivery`: `moved_later`, `avg_months_later`). Not shown: the
+  readings themselves (dates and values).
+
+The build, in order. H0 is urgent: a day we do not keep a reading is lost for good.
+
+| Step | What | Code (owner of the data) | Cost |
+|---|---|---|---|
+| **H0** | **Keep every reading.** Each price read appends `{at, size, low, high, source}` to `price_history` (the current `prices` stays as it is); `booked_history` is no longer cut at 24 (one reading a month is ~12 small rows a year; cut only past 120); a test pins that no reading is lost | `areastats/prices.py`, `areastats/refresh.py`, writes through the `projects` store as today (inventory owns `projects`, ARCHITECTURE §4) | ₹0, a few MB a year |
+| **H1** | **History on the project page**: "Homes booked" as a small month-by-month chart with the dated readings in text below it ("312 booked on 3 Jul, 344 on 2 Oct: 32 in 3 months"), and "Completion date" as a timeline of every filed change ("16 Aug 2032 → 16 Dec 2032, MahaRERA's 2026 extension for every project; → 16 Feb 2033, the builder"). Shown only with 2+ readings; server-rendered SVG, no script; one sentence of it in the dated answer | `pages.view` (`booked_readings`, `completion_moves`), `frontend/components/site/` new `ProjectHistory.tsx`, `projectFacts.ts` | ₹0 |
+| **H2** | **Price history** once a size has 2 readings 30+ days apart from the same kind of source: "2 BHK asked from ₹69 L (Jul) → ₹72 L (Oct), builder's site". Never mixed sources in one line; prices older than 45 days stay out of the "today" price as now | `pages.view`, `ProjectHistory.tsx` | ₹0 |
+| **H3** | **Builder record over time** on `/builders/<slug>`: every project's filed date moves in one list, with the share moved and the average months, from the same rules as `pages.delivery` | `hubs.builder_page`, `app/builders/[slug]/page.tsx` | ₹0 |
+| **H4** | **A monthly Avasetu report**: "Pune possession dates, <Month YYYY>": date moves seen this month by area and builder, homes booked by area, written by code from H0's data (no model), as a page on `/pune-maharera-tracker` with a dated URL, a Dataset JSON-LD and a CSV download; the owner sends it to journalists (section 7) | `areastats/` new `report_month.py`, `frontend/app/pune-maharera-tracker/` | ₹0 |
+| **H5** | **Name the source**: every number in a dated answer and in H1–H4 says "read by Avasetu from MahaRERA on <day>"; the weekly note shows branded searches ("avasetu", any spelling) from `search_demand`, the sign that people look for us by name | `projectFacts.ts`, `placeFacts.ts`, `seo/note.py` | ₹0 |
+| **H6** | **Watch for a copy**: (a) from the stored Serper results (`websearch.RESULTS`), flag when a portal's result for our target searches starts showing homes booked or a date move (they took the format); (b) once a month, search 2 sentences unique to our pages and list any other site that shows them | `seo/rival.py`, `seo/scoreboard.py`; 2 Serper searches a month | ~₹0 |
+| **H7** | **Facts people bring** (owner to decide each): dated site-visit photos from agents on the project page, buyer reviews (moderated, the copy guards before showing), verified agent listings first in their area | `listings`, `showcase`, new review flow | ₹0 code; owner time to moderate |
+
+Marathi pages stay under "AI search, next" above. H0 first and alone (it changes what we store, so it ships with its tests
+before anything reads it); H1–H3 after 2 readings exist on most pages; H4 after H0 has run a month; H5 and H6 any time; H7
+when the owner decides.
+
 Results to read: doctor's first 14-day results **2026-10-28**; rival and price refreshes from **2026-11-04**.
 
 DROPPED: Google Indexing API (not allowed for our pages); a "priority" sitemap (Google ignores `<priority>`); crawl push via
@@ -328,7 +377,8 @@ measure (Search Console, Serper, URL Inspection) → choose (near page one, Magi
 | 2026-10-25 | this | Project pages open with a dated answer + "Updated" (WebPage dateModified); news stories link the projects they name; `/llms.txt` lists project pages |
 | 2026-10-22 | this | `/` is the buyers' home (one topic: new projects in Pune); the agents' home moved to `/agents`. Hot projects banner on every buyer page, set in Studio (`hot-projects.md`); robots guard test |
 | 2026-10-25 | this | Tracker pages `/news/track/<slug>` (8) in the sitemap at 0.8, linked from `/news` and from the area pages they touch |
-| 2026-10-26 | this | Plan only: section 8a (keeping the lead: freshness and stalled-loop rows, AI answer panel on Gemini grounding, AI answers → leads, Bing API, WhatsApp note, with checked costs) and the owner's weekly and monthly upkeep (section 7) |
+| 2026-10-26 | this | Plan only: section 8b (what a competitor cannot copy; prices and old booking readings are thrown away today; H0 keeps every reading, H1–H7 show the history and widen the lead) |
+| 2026-10-26 | 0f19643 | Plan only: section 8a (keeping the lead: freshness and stalled-loop rows, AI answer panel on Gemini grounding, AI answers → leads, Bing API, WhatsApp note, with checked costs) and the owner's weekly and monthly upkeep (section 7) |
 
 ## 12. Detail and history
 

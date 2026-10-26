@@ -55,6 +55,8 @@ Write what you found and did as a line in `seo-system.md` section 11.
   until its key is set, and a row on Admin → Health when it can fail quietly.
 - A paid call (Serper, Gemini grounding, Perplexity) states its calls per day and cost in section 8a. Check the price on the
   provider's own page before switching it on. The build machine cannot open those pages, so search limited to their domains.
+- Never throw a reading away. The history (homes booked, filed dates, prices) is what a competitor cannot copy
+  (`seo-system.md` section 8b). A new reading is appended, dated, beside the current value; never overwrite it or cut it short.
 - AI referrers live in two lists today (`seo/aivisits.REFERRERS` and `tracking/origin.REFERRER_SOURCES`). Change both until
   8a step 3 makes them one.
 - Run the backend suite and `lint-imports` (CLAUDE.md). If `frontend/` changed, run jest and `npm run build` too.
