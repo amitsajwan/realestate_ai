@@ -5,7 +5,7 @@ code, pages or plans updates this page in the same commit (section 11 gets a lin
 history; when they and this page disagree, this page is right.
 
 Labels: **LIVE** = running in production · **TARGET** = to build · **OWNER** = done by hand · **DROPPED** = decided against.
-Last updated 2026-10-26 (section 8a: keeping the lead in Google and AI answers, with costs; owner's weekly and monthly upkeep;
+Last updated 2026-10-26 (Top lists rank homes a buyer can still buy; section 8a: keeping the lead in Google and AI answers, with costs; owner's weekly and monthly upkeep;
 section 8b: what a competitor cannot copy, and the plan to widen it).
 
 ## 1. Goal and scorecard
@@ -80,7 +80,7 @@ phrasing's words.** The owner map (code: `seo/phrases.py` + `vocabulary.json`; r
 | property rates / flat price / cost in X | place page, "Flat prices in X" section | prices by size, with sources |
 | 1 / 2 / 3 / 4 BHK (flats, flat price) in X | size page `/projects/area/x/2-bhk` | "2 BHK Flats", prices |
 | new launch / upcoming / pre-launch / latest | `/projects/area/x/new-launches` | new launch projects and flats |
-| top / best / popular / most booked | `/projects/area/x/top` | top residential projects |
+| top / best / popular / most booked | `/projects/area/x/top` | top residential projects; ranked only among projects with 10+ homes open, sold out ones in their own table below (2026-10-26) |
 | ready to move / ready possession / completed | `/projects/area/x/ready-to-move` | "Ready to Move Flats" |
 | possession 2027 | `/projects/area/x/possession-2027` | possession year |
 | under 50 lakh, 50-75 lakh … | `/price/<band>/x` (agents' listings) | budget |
@@ -412,6 +412,7 @@ measure (Search Console, Serper, URL Inspection) → choose (near page one, Magi
 | 2026-10-26 | d7443ae | H1 and H3: project pages show the dated booking readings and every date change we saw (builder or MahaRERA's order); builder pages list the dates each builder filed later |
 | 2026-10-26 | 563361e | 8a steps 1 and 3: Health rows for the seo and enrich loops and for fresh pages (`seo/freshness.py`); AI assistants as lead sources from one list, Gemini no longer counted as Google, enquiries from AI answers in the weekly note |
 | 2026-10-26 | 203a3d3 | H0: every price change kept, dated, in `price_history`; homes-booked readings kept to 120 (were cut at 24) |
+| 2026-10-26 | this | Top lists (`/projects/area/x/top`) rank only projects with 10+ homes open (`facets.OPEN_MIN`); sold out and nearly sold out projects move to `sold_out` (shown apart, with a resale ask). Kharadi's first 7 were 100% booked. Every list row carries stage, cheapest published price and one picture for the cards; the answer counts the whole list, not the 30 shown |
 | 2026-10-26 | this | H0 fix: the page enrichment's own MahaRERA read now keeps the homes-booked reading and a moved date too (`areastats/readings.py`, shared with the register refresh). It refreshed `details_checked_at`, so the refresh skipped those records and their readings were lost: on 26 Oct no Pune record had two booked readings and Kharadi had none, so "booked in 90 days" never fired |
 | 2026-10-26 | 96d4dcd | Plan only: section 8b (what a competitor cannot copy; prices and old booking readings are thrown away today; H0 keeps every reading, H1–H7 show the history and widen the lead) |
 | 2026-10-26 | 0f19643 | Plan only: section 8a (keeping the lead: freshness and stalled-loop rows, AI answer panel on Gemini grounding, AI answers → leads, Bing API, WhatsApp note, with checked costs) and the owner's weekly and monthly upkeep (section 7) |

@@ -22,6 +22,7 @@ from typing import Dict, List, Optional, Tuple
 from app.core import pune_places
 from app.core.areas import AREAS
 from app.modules.areastats import hot, prices
+from app.modules.areastats.areamap import _photo
 from app.modules.areastats.hubs import _primaries, link_name
 from app.modules.areastats.pages import _long, booked, builder_key, cluster_stamps, cluster_updated, completion_passed, indexable, is_old
 from app.modules.areastats.service import _count, _day
@@ -34,6 +35,8 @@ READY_DAYS = 3 * 365                 # filed completion date passed in the last 
 MIN_PROJECTS = 3                     # fewer is a thin page: noindex, not in the sitemap (decision 4)
 MIN_PRICED = 2                       # projects with a price before a place page shows that size's price range
 MAX_ROWS = 30
+OPEN_MIN = 10                        # "top": a project needs this many homes not booked to be ranked; fewer is sold out
+SOON_DAYS = 365                      # filed completion within this: "possession soon"
 CHANGES_DAYS = 31
 CHANGES_SHOWN = 8
 FIRST_YEAR, LAST_YEAR = 2024, 2035   # possession years a page can be about
@@ -183,6 +186,47 @@ def _share(d: dict) -> Optional[float]:
     return b / total if total and b is not None and total > 0 else None
 
 
+def _open(d: dict) -> Optional[int]:
+    """Homes not booked as MahaRERA shows them; None when the count is unknown."""
+    total, b = _count(d.get("units_total")), booked(d)
+    return max(0, total - b) if total and b is not None else None
+
+
+def sold_out(f: Facet, docs: List[dict], now: datetime) -> List[Tuple[dict, str]]:
+    """The "top" list's other half: projects still being built or just finished with fewer than OPEN_MIN homes not booked,
+    most booked first. Kept on the page (people search for them, and resale or a cancellation can still come up), never ranked."""
+    pool = [d for d in docs if d.get("pune_place") == f.place and indexable(d) and not is_old(d, now.date())
+            and (f.builder is None or builder_slug(d.get("promoter")) == f.builder)
+            and (f.possession is None or _year(_day(d.get("completion_now"))) == f.possession)]
+    rows = [(-(_share(d) or 0), -(booked(d) or 0), link_name(d).lower(), d) for d in pool
+            if (left := _open(d)) is not None and left < OPEN_MIN and booked(d)]
+    rows.sort(key=lambda r: r[:3])
+    return [(d, f"{booked(d)} of {_count(d.get('units_total'))} homes booked"
+                + (f", {_open(d)} still open" if _open(d) else "")) for *_, d in rows]
+
+
+def stage(d: dict, now: datetime) -> str:
+    """Where the project is, for the card's tag: "new-launch" (registered in the last year), "ready" (filed completion passed),
+    "possession-soon" (filed completion within SOON_DAYS) or "under-construction"."""
+    if hot.launch(d, now):
+        return "new-launch"
+    day = _day(d.get("completion_now"))
+    if day and completion_passed(d, now.date()):
+        return "ready"
+    if day and day <= (now.date() + timedelta(days=SOON_DAYS)).isoformat():
+        return "possession-soon"
+    return "under-construction"
+
+
+def lowest_price(d: dict, now: datetime) -> Optional[dict]:
+    """The cheapest published starting price over all sizes, for a card: {bhk, from_inr, to_inr}; None without one."""
+    got = [(sp["from_inr"], b, sp) for b in BHKS if (sp := size_price(d, b, now))]
+    if not got:
+        return None
+    lo, b, sp = min(got, key=lambda x: x[:2])
+    return {"bhk": b, "from_inr": lo, "to_inr": sp.get("to_inr")}
+
+
 def size_price(d: dict, bhk: int, now: datetime) -> Optional[dict]:
     """The project's published price for homes of that size ("2 BHK" and "2.5 BHK"), lowest first, or None:
     {from_inr, to_inr, official, sites}. Only prices areastats.prices publishes (builder's site, or two sites agreeing)."""
@@ -237,13 +281,15 @@ def members(f: Facet, docs: List[dict], now: datetime) -> List[Tuple[dict, str]]
                 on = _aware(d.get("registered_on"))
                 rows.append(((-(on.timestamp() if on else 0),), d, f"registered with MahaRERA on {_long(on.date().isoformat())}"))
         elif f.intent == "top":
-            if is_old(d, now.date()):
+            # a buyer's "top projects" are ones they can still buy: sold out ones are listed apart (sold_out), never ranked
+            if is_old(d, now.date()) or (_open(d) or 0) < OPEN_MIN:
                 continue
             sig, share = hot.bookings(d, now), _share(d)
+            left = f"{_open(d)} of {_count(d.get('units_total'))} homes still open"
             if sig:
-                rows.append(((0, -sig["value"], -(share or 0)), d, sig["evidence"]))
+                rows.append(((0, -sig["value"], -(share or 0)), d, f"{sig['evidence']}; {left}"))
             elif share is not None and booked(d):
-                rows.append(((1, 0, -share), d, f"{booked(d)} of {_count(d.get('units_total'))} homes booked ({round(100 * share)}%)"))
+                rows.append(((1, 0, -share), d, f"{left}, {booked(d)} booked ({round(100 * share)}%)"))
         elif f.intent == "ready-to-move":
             if _ready(d, now):
                 share = _share(d)
@@ -296,14 +342,16 @@ def changes(rows: List[dict], now: datetime) -> List[dict]:
 
 # ---- the page ----------------------------------------------------------------------------------------------------------------
 
-def _row(d: dict, why: str, n: int) -> dict:
+def _row(d: dict, why: str, n: int, now: datetime) -> dict:
     total = _count(d.get("units_total"))
     return {"rank": n, "slug": d["page_slug"], "name": link_name(d), "legal_name": d.get("name", ""),
             "regno": d.get("regno") or d["_id"], "promoter": d.get("promoter") or None,
             "builder_slug": builder_key(d) or None,   # the brand page when there is one (areastats.brands)
             "registered_on": _day(d.get("registered_on")), "completion_now": _day(d.get("completion_now")),
             "completion_at_registration": _day(d.get("completion_at_registration")),
-            "units_total": total, "units_booked": booked(d), "reason": why, "source": "MahaRERA"}
+            "units_total": total, "units_booked": booked(d), "units_open": _open(d), "reason": why, "source": "MahaRERA",
+            # for the card: where it is, the cheapest published price and one picture (with where it came from)
+            "stage": stage(d, now), "price": lowest_price(d, now), "photo": _photo([d])}
 
 
 def _price_row(row: dict, d: dict, bhk: int, now: datetime) -> dict:
@@ -311,7 +359,7 @@ def _price_row(row: dict, d: dict, bhk: int, now: datetime) -> dict:
     return {**row, "price_from": sp.get("from_inr"), "price_to": sp.get("to_inr")}
 
 
-def answer(f: Facet, place: str, rows: List[dict], as_of: str) -> str:
+def answer(f: Facet, place: str, rows: List[dict], as_of: str, count: Optional[int] = None, sold: int = 0) -> str:
     """The 40-60 word answer at the top, written by code from the numbers (featured snippets and AI answers quote it)."""
     n = len(rows)
     who = f" by {rows[0]['promoter']}" if f.builder and rows and rows[0].get("promoter") else ""
@@ -334,8 +382,10 @@ def answer(f: Facet, place: str, rows: List[dict], as_of: str) -> str:
         return (f"As of {as_of}, {n} project{'s' if n > 1 else ''}{who} in {place}{year} were registered with MahaRERA in the last "
                 f"12 months. The newest is {first['name']} ({_long(first['registered_on'])}).{soon}")
     if f.intent == "top":
-        return (f"As of {as_of}, {first['name']} leads {n} projects{who} in {place}{year} on homes booked: {first['reason']}. "
-                f"We rank by homes booked in the last 90 days as MahaRERA shows them, then by the share of homes booked.")
+        n = count if count is not None else n
+        gone = f" {sold} more are sold out or nearly (fewer than {OPEN_MIN} homes open)." if sold else ""
+        return (f"As of {as_of}, {n} project{'s' if n > 1 else ''}{who} in {place}{year} still have {OPEN_MIN} or more homes open on "
+                f"MahaRERA. {first['name']} leads on homes booked: {first['reason']}.{gone}")
     if f.intent == "ready-to-move":
         return (f"As of {as_of}, {n} project{'s' if n > 1 else ''}{who} in {place}{year} have passed the completion date filed with "
                 f"MahaRERA in the last three years, the newest {first['name']} ({_long(first['completion_now'])}). Ask the builder for "
@@ -386,7 +436,8 @@ def facet_view(f: Facet, docs: List[dict], now: datetime, stamps: Optional[dict]
     prim = _primaries(docs)
     listed = members(f, prim, now)
     rows_docs = [d for d, _ in listed[:MAX_ROWS]]
-    rows = [_row(d, why, i + 1) for i, (d, why) in enumerate(listed[:MAX_ROWS])]
+    rows = [_row(d, why, i + 1, now) for i, (d, why) in enumerate(listed[:MAX_ROWS])]
+    gone = sold_out(f, prim, now) if f.intent == "top" and not f.bhk else []
     if f.bhk:
         rows = [_price_row(r, d, f.bhk, now) for r, d in zip(rows, rows_docs)]
     place = place_name(f.place, docs)
@@ -401,7 +452,8 @@ def facet_view(f: Facet, docs: List[dict], now: datetime, stamps: Optional[dict]
         "key": f.key, "path": f.path, "place": {"key": f.place, "slug": place_slug(f.place), "name": place},
         "intent": f.intent, "possession": f.possession, "builder": f.builder, "builder_name": builder_name, "bhk": f.bhk,
         "title": title(f, place, len(listed), _month(last_change), builder_name), "h1": h1(f, place, builder_name),
-        "answer": answer(f, place, rows, as_of), "rows": rows, "count": len(listed), "changes": changed,
+        "answer": answer(f, place, rows, as_of, len(listed), len(gone)), "rows": rows, "count": len(listed), "changes": changed,
+        "sold_out": [_row(d, why, 0, now) for d, why in gone[:MAX_ROWS]], "sold_out_count": len(gone),
         "month": _month(last_change), "page_updated": max(updated) if updated else None,
         "indexable": len(listed) >= MIN_PROJECTS, "as_of": now.date().isoformat(), "source": "MahaRERA public records",
     }
