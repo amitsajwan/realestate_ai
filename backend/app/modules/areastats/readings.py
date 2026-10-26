@@ -5,6 +5,7 @@ Both must keep what changed, dated, by the same rule, because the history is wha
 (docs/plan/seo-system.md 8b) and how areastats.hot sees which projects are selling.
 """
 from datetime import datetime
+from typing import Optional
 
 BOOKED_HISTORY = 120  # dated homes-booked readings kept per project: one per change, so ten years and more (the history is
                       # what a newcomer cannot rebuild: docs/plan/seo-system.md 8b)
@@ -17,3 +18,10 @@ def booked(d: dict, fields: dict, now: datetime) -> dict:
     if not isinstance(n, int) or (hist and hist[-1].get("booked") == n):
         return {}
     return {"booked_history": (hist + [{"at": now, "booked": n}])[-BOOKED_HISTORY:]}
+
+
+def date_move(d: dict, fields: dict, now: datetime) -> Optional[dict]:
+    """{from, to, seen_at} when the builder filed a new completion date (the record's `completion_history`, read by the
+    date-watch reels and the project page); None when it did not change or either date is unknown."""
+    before, after = str(d.get("completion_now") or "")[:10], str(fields.get("completion_now") or "")[:10]
+    return {"from": before, "to": after, "seen_at": now} if before and after and before != after else None

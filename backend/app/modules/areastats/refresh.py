@@ -178,9 +178,9 @@ async def details(store: Store, fetch: project_api.Fetch, now: datetime, limit: 
             continue
         out["read"] += 1
         trace.event(log, "register", regno, "details", trace.OK)
-        before, after = str(d.get("completion_now") or "")[:10], str(fields.get("completion_now") or "")[:10]
-        if before and after and before != after:   # the builder filed a new date: kept as history for the date-watch reels
-            await store.add_date_move(d["_id"], {"from": before, "to": after, "seen_at": now})
+        move = readings.date_move(d, fields, now)
+        if move:   # the builder filed a new date: kept as history for the date-watch reels
+            await store.add_date_move(d["_id"], move)
             out["moved"] = out.get("moved", 0) + 1
         await store.set_project(d["_id"], **fields, details_checked_at=now, details_ok=True, details_error=None,
                                 **_booked(d, fields, now))

@@ -56,7 +56,7 @@ from app.modules.newsroom import register
 from app.modules.newsroom.store import Store
 from app.platform import trace
 
-from . import brands, budget, hot, pages, prices, pricing, profile, searchconsole, webfacts
+from . import brands, budget, hot, pages, prices, pricing, profile, readings, searchconsole, webfacts
 from .websearch import mentions as websearch_mentions
 from .service import _day
 
@@ -739,6 +739,12 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime, reread: bool =
             steps["maharera_general"], general = await check_general(doc, regno, mid, now)
             read_maharera = mid is not None
             if general:
+                # this read refreshes details_checked_at, so the register refresh skips the record: the readings it would have
+                # kept (homes booked, a moved date) are kept here, by the same rule, or a hot project's history is lost
+                move = readings.date_move(doc, general, now)
+                if move:
+                    await store.add_date_move(doc["_id"], move)
+                general = {**general, **readings.booked(doc, general, now)}
                 await store.set_project(doc["_id"], **general)
                 doc = {**doc, **general}
         if not urgent and buildings_fresh(doc, now):

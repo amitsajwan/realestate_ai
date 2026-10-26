@@ -435,6 +435,19 @@ async def test_a_recent_register_read_and_buildings_are_used_without_asking_maha
     assert reads == ["buildings", "general", "buildings"]                         # a campaign gets fresh reads
 
 
+async def test_the_enrichments_own_maharera_read_keeps_the_homes_booked_reading_and_the_date_move(monkeypatch):
+    # enrichment refreshes details_checked_at, so the register refresh skips the record: if enrichment dropped the readings, a
+    # hot project's sales and date moves were lost (2026-10-26: no Pune record had two booked readings)
+    _maharera(monkeypatch, [])
+    old = {**FULL, "units_booked": 230, "completion_now": "2029-04-30", "details_checked_at": NOW - timedelta(days=40),
+           "booked_history": [{"at": NOW - timedelta(days=40), "booked": 230}]}
+    db, store = await ready(("P1", "Rohan Abhilasha 4", "wagholi", old))
+    await enrich.enrich_one(store, await store.project("P1"), FakeLLM(GOOD), NOW)
+    doc = await store.project("P1")
+    assert [h["booked"] for h in doc["booked_history"]] == [230, 244]
+    assert doc["completion_history"] == [{"from": "2029-04-30", "to": "2029-10-30", "seen_at": NOW}]
+
+
 async def test_without_a_model_the_facts_round_runs_and_the_reading_is_put_off_not_failed(gatherer):
     db, store = await ready(("P1", "Rohan Abhilasha 4", "wagholi", {**FULL, "promoter": "Rohan Builders"}))
     out = await enrich.step(store, None, NOW, None, timedelta(minutes=5))
