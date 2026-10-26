@@ -7,12 +7,13 @@ import ActiveProjects from '@/components/site/ActiveProjects'
 import AreaMap, { showsMap } from '@/components/site/AreaMap'
 import CheckBadge from '@/components/site/CheckBadge'
 import FacetChips from '@/components/site/FacetChips'
+import ProjectRail from '@/components/site/ProjectRail'
 import { getLocality } from '@/lib/marketing/localities'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/seo'
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
 import { getCatalog } from '@/lib/site/api'
-import { getFacets, getPlacePrices, placeChips } from '@/lib/site/facets'
+import { getFacetQuiet, getFacets, getPlacePrices, placeChips } from '@/lib/site/facets'
 import type { PlacePrices } from '@/lib/site/facets'
 import { placeAnswer, placeFaq, placeUpdated } from '@/lib/site/placeFacts'
 import { livePages } from '@/lib/site/filters'
@@ -128,6 +129,10 @@ export default async function PlaceProjectsPage({ params }: Props) {
     getPlacePrices(place.slug), getAreaMap(place.key), getListed()])
   const chips = placeChips(place, facets, livePages(catalog), getLocality(place.slug) ? `/localities/${place.slug}` : null)
   const launches = facets.some((f) => f.place === place.key && f.intent === 'new-launches' && !f.possession && !f.builder && f.indexable)
+  // rows of cards into the place's own lists (top, new launches, ready to move): only lists that are live in search
+  const live = (intent: string) => facets.some((f) => f.place === place.key && f.intent === intent && !f.possession && !f.builder && !f.bhk && f.indexable)
+  const [topList, launchList, readyList] = await Promise.all((['top', 'new-launches', 'ready-to-move'] as const)
+    .map((i) => (live(i) ? getFacetQuiet(place.slug, [i]) : Promise.resolve(null))))
   const building = projects.filter((r) => r.active !== false && !r.sold_out).sort((a, b) => displayName(a).localeCompare(displayName(b)))
   const soldOut = projects.filter((r) => r.active !== false && r.sold_out).sort((a, b) => displayName(a).localeCompare(displayName(b)))
   // Housiey-style stage groups (docs/plan/project-pages.md): by dates, with the ones we cannot place last
@@ -176,6 +181,10 @@ export default async function PlaceProjectsPage({ params }: Props) {
         </p>
 
         <FacetChips chips={chips} current={placePath(place.slug)} label={`Lists for ${place.name}`} />
+
+        {topList && <ProjectRail id="top" title="Top projects you can still buy" sub="Most booked lately, with 10 or more homes open" href={topList.path} count={topList.count} rows={topList.rows} ranked />}
+        {launchList && <ProjectRail id="launches" title="Just launched" sub="Registered with MahaRERA in the last 12 months" href={launchList.path} count={launchList.count} rows={launchList.rows} />}
+        {readyList && <ProjectRail id="ready" title="Move in now" sub="Completion date passed. Ask the builder for the OC." href={readyList.path} count={readyList.count} rows={readyList.rows} />}
 
         {prices && prices.sizes.length > 0 && <Prices place={place} prices={prices} />}
 

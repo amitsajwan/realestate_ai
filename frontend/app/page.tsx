@@ -3,6 +3,7 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 import MarketingShell from '@/components/marketing/MarketingShell'
 import NewsSection from '@/components/news/NewsSection'
+import ProjectRail from '@/components/site/ProjectRail'
 import ProjectSearch from '@/components/site/ProjectSearch'
 import { AGENTS_PATH, agentAnchorForward, buyerEnquirePath } from '@/components/marketing/siteLinks'
 import { getCityStats, longDate } from '@/components/localities/areaStats'
@@ -11,7 +12,7 @@ import { TIER_LABELS, localitiesByTier } from '@/lib/marketing/localities'
 import { jsonLdString, organizationJsonLd, pageMetadata } from '@/lib/marketing/seo'
 import { socialLinks } from '@/lib/marketing/social'
 import { BRAND_NAME } from '@/lib/brand'
-import { getFacets } from '@/lib/site/facets'
+import { getFacetQuiet, getFacets } from '@/lib/site/facets'
 import { getBuilders, getSpotlight } from '@/lib/site/hubs'
 import { getRegisterPlaces, placePath } from '@/lib/site/register'
 
@@ -49,6 +50,10 @@ export default async function BuyerHome() {
     .sort((a, b) => b.count - a.count).slice(0, 12)
   const ready = facets.filter((f) => f.intent === 'ready-to-move' && f.indexable && !f.builder && !f.possession && !f.bhk)
     .sort((a, b) => b.count - a.count).slice(0, 8)
+  // the Top lists rank homes a buyer can still buy (seo/facets.py OPEN_MIN): one area's as cards, every area's as a chip
+  const tops = facets.filter((f) => f.intent === 'top' && f.indexable && !f.builder && !f.possession && !f.bhk)
+    .sort((a, b) => b.count - a.count).slice(0, 8)
+  const topList = tops.length ? await getFacetQuiet(tops[0].place_slug, ['top']) : null
   const brands = builders.filter((b) => b.indexable).sort((a, b) => Number(!!b.brand) - Number(!!a.brand) || b.projects - a.projects).slice(0, 12)
   const tracked = city?.areas.reduce((n, a) => n + a.projects, 0) ?? 0
   const ld = [
@@ -90,9 +95,10 @@ export default async function BuyerHome() {
       {hot.length > 0 && (
         <section aria-labelledby="hot-title" className={wrap + ' pt-10'} data-testid="home-hot">
           <h2 id="hot-title" className={h2}>Hot right now</h2>
-          <ul className="mt-4 grid list-none gap-3 p-0 sm:grid-cols-2 lg:grid-cols-3">
+          {/* swiped on a phone, a grid on a laptop; it never moves by itself (ProjectRail) */}
+          <ul className="-mx-4 mt-4 flex list-none snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 lg:grid-cols-3">
             {hot.map((p) => (
-              <li key={p.slug}>
+              <li key={p.slug} className="w-[78%] max-w-[300px] shrink-0 snap-start sm:w-auto sm:max-w-none">
                 <Link href={`/projects/${p.slug}`} className={card}>
                   <span className="block font-bold text-[#0f2340]">{p.name}</span>
                   {p.area && <span className="block text-sm text-slate-600">{p.area}, Pune</span>}
@@ -102,6 +108,13 @@ export default async function BuyerHome() {
             ))}
           </ul>
         </section>
+      )}
+
+      {topList && (
+        <div className={wrap}>
+          <ProjectRail id="home-top" title={`Top projects in ${topList.place.name} you can still buy`} sub="Most booked lately, with 10 or more homes open (MahaRERA)"
+            href={topList.path} count={topList.count} rows={topList.rows} ranked />
+        </div>
       )}
 
       <section aria-labelledby="areas-title" className={wrap + ' ' + section}>
@@ -133,12 +146,17 @@ export default async function BuyerHome() {
         <p className="mt-5"><Link href="/projects" className="font-semibold text-[#0f2340] underline underline-offset-4">All projects in Pune, by place</Link></p>
       </section>
 
-      {(launches.length > 0 || ready.length > 0) && (
+      {(launches.length > 0 || ready.length > 0 || tops.length > 0) && (
         <section aria-labelledby="lists-title" className={'border-y border-[#ead9ae] bg-[#fbf6ea] ' + section}>
           <div className={wrap}>
-            <h2 id="lists-title" className={h2}>New launches and ready homes</h2>
+            <h2 id="lists-title" className={h2}>Top projects, new launches and ready homes</h2>
+            {tops.length > 0 && (
+              <ul className="mt-4 flex list-none flex-wrap gap-2 p-0" data-testid="home-tops">
+                {tops.map((f) => <li key={f.path}><Link href={f.path} className={chip}>Top projects in {where(f)} ({f.count})</Link></li>)}
+              </ul>
+            )}
             {launches.length > 0 && (
-              <ul className="mt-4 flex list-none flex-wrap gap-2 p-0" data-testid="home-launches">
+              <ul className="mt-3 flex list-none flex-wrap gap-2 p-0" data-testid="home-launches">
                 {launches.map((f) => <li key={f.path}><Link href={f.path} className={chip}>New launches in {where(f)} ({f.count})</Link></li>)}
               </ul>
             )}

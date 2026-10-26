@@ -4,12 +4,14 @@ import Link from 'next/link'
 import { notFound, permanentRedirect } from 'next/navigation'
 import MarketingShell from '@/components/marketing/MarketingShell'
 import FacetChips from '@/components/site/FacetChips'
+import { RankedCard } from '@/components/site/ListCard'
+import ProjectRail from '@/components/site/ProjectRail'
 import { getLocality } from '@/lib/marketing/localities'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/seo'
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
 import { getCatalog } from '@/lib/site/api'
-import { facetFaq, getFacet, getFacets, placeChips } from '@/lib/site/facets'
+import { facetFaq, getFacet, getFacetQuiet, getFacets, placeChips } from '@/lib/site/facets'
 import type { FacetPage, FacetRow } from '@/lib/site/facets'
 import { livePages } from '@/lib/site/filters'
 import { fitDescription, formatPrice } from '@/lib/site/format'
@@ -88,9 +90,39 @@ function Row({ r, priceList }: { r: FacetRow; priceList: boolean }) {
   )
 }
 
+const TOP_CARDS = 10
+
+// "Sold out or nearly": a project that cannot be bought from the builder stays findable, with a way to ask about resale
+function SoldOut({ p }: { p: FacetPage }) {
+  const rows = p.sold_out ?? []
+  if (!rows.length) return null
+  return (
+    <section aria-labelledby="soldout-title" className="mt-10 rounded-2xl bg-slate-100 p-4 sm:p-5" data-testid="facet-sold-out">
+      <h2 id="soldout-title" className="text-xl font-semibold text-slate-900">Sold out or nearly: {p.sold_out_count ?? rows.length} project{(p.sold_out_count ?? rows.length) === 1 ? '' : 's'}</h2>
+      <p className="mt-1 text-sm text-slate-700">Fewer than 10 homes left with the builder, as MahaRERA shows. A resale flat or a cancelled booking can still come up.</p>
+      <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200 bg-white">
+        <table className="w-full min-w-[560px] text-left text-sm">
+          <thead><tr className="text-xs text-slate-500"><th className="px-3 py-2 font-semibold">Project</th><th className="px-3 py-2 font-semibold">Builder</th><th className="px-3 py-2 font-semibold">Booked</th><th className="px-3 py-2 font-semibold">Possession filed</th><th className="px-3 py-2"><span className="sr-only">Ask</span></th></tr></thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.slug} className="border-t border-slate-200">
+                <td className="px-3 py-2"><Link href={`/projects/${r.slug}`} className="font-semibold text-[#0f2340] underline underline-offset-2">{r.name}</Link></td>
+                <td className="px-3 py-2 text-slate-700">{r.promoter ?? ''}</td>
+                <td className="px-3 py-2">{r.units_booked != null && r.units_total ? `${n(r.units_booked)} of ${n(r.units_total)}` : ''}</td>
+                <td className="px-3 py-2 text-slate-700">{monthYear(r.completion_now)}</td>
+                <td className="px-3 py-2 text-right"><Link href={`/projects/${r.slug}#enquire`} className="inline-flex min-h-[44px] items-center font-semibold text-[#0f2340] underline underline-offset-2">Ask about resale</Link></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  )
+}
+
 const HOW: Record<string, string> = {
   'new-launches': 'Projects registered with MahaRERA in the last 12 months, newest first.',
-  top: 'Projects still being built or finished within a year, ranked by homes booked in the last 90 days as MahaRERA shows them, then by the share of homes booked.',
+  top: 'Projects still being built or finished within a year that have 10 or more homes not booked, ranked by homes booked in the last 90 days as MahaRERA shows them, then by the share of homes booked. Projects with fewer homes open are listed apart, never ranked.',
   'ready-to-move': 'Projects whose completion date filed with MahaRERA passed in the last three years, newest first. MahaRERA does not show the occupancy certificate, so ask the builder for it.',
   all: 'Projects still being built, earliest filed completion date first.',
 }
@@ -108,6 +140,13 @@ export default async function FacetPageView({ params }: Props) {
     && f.possession === p.possession && (f.bhk ?? null) === (p.bhk ?? null) && !f.builder).slice(0, 8)
   const placeName = (key: string) => places.find((x) => x.key === key)?.name ?? key
   const faq = facetFaq(p)
+  // the Top list is the buyer's shortlist: ranked cards, then rows into the other lists of the place, then the sold out ones
+  const top = p.intent === 'top' && !p.bhk && !p.possession && !p.builder
+  const [launches, ready, twoBhk] = top
+    ? await Promise.all([getFacetQuiet(p.place.slug, ['new-launches']), getFacetQuiet(p.place.slug, ['ready-to-move']), getFacetQuiet(p.place.slug, ['2-bhk'])])
+    : [null, null, null]
+  const cards = top ? p.rows.slice(0, TOP_CARDS) : []
+  const rest = top ? p.rows.slice(TOP_CARDS) : p.rows
   const ld = [
     breadcrumbJsonLd(cfg.siteUrl, [{ name: 'Home', path: '/' }, { name: 'Projects', path: '/projects' },
       { name: p.place.name, path: placePath(p.place.slug) }, { name: p.h1, path: p.path }]),
@@ -131,16 +170,38 @@ export default async function FacetPageView({ params }: Props) {
         <p className="mt-4 max-w-3xl text-lg leading-relaxed text-slate-800" data-testid="facet-answer">{p.answer}</p>
         <FacetChips chips={chips} current={p.path} label={`Lists for ${p.place.name}`} />
 
-        {p.rows.length > 0 ? (
-          <section aria-labelledby="list-title" className="mt-8">
-            <h2 id="list-title" className="text-2xl font-bold text-slate-900">{p.count} project{p.count === 1 ? '' : 's'}{p.count > p.rows.length ? `, first ${p.rows.length}` : ''}</h2>
-            <ol className="mt-3 grid list-none gap-3 p-0" data-testid="facet-rows">
-              {p.rows.map((r) => <Row key={r.slug} r={r} priceList={!!p.bhk && p.intent === 'all'} />)}
+        {cards.length > 0 && (
+          <section aria-labelledby="top-title" className="mt-8">
+            <h2 id="top-title" className="text-2xl font-bold text-slate-900">Top {cards.length} you can still buy</h2>
+            <p className="text-sm text-slate-600">Ranked by homes booked lately, among projects with 10 or more homes open</p>
+            <ol className="mt-3 grid list-none gap-4 p-0" data-testid="facet-cards">
+              {cards.map((r) => <RankedCard key={r.slug} r={r} />)}
             </ol>
           </section>
-        ) : (
+        )}
+
+        {top && (
+          <>
+            <ProjectRail id="launches" title="Just launched" sub="Registered with MahaRERA in the last 12 months" href={launches?.path ?? ''} count={launches?.count ?? 0} rows={launches?.rows ?? []} />
+            <ProjectRail id="ready" title="Move in now" sub="Completion date passed. Ask the builder for the OC." href={ready?.path ?? ''} count={ready?.count ?? 0} rows={ready?.rows ?? []} />
+            <ProjectRail id="two-bhk" title="2 BHK, cheapest first" sub="Prices from the builder's site or two property sites that agree" href={twoBhk?.path ?? ''} count={twoBhk?.count ?? 0} rows={twoBhk?.rows ?? []} />
+          </>
+        )}
+
+        {rest.length > 0 ? (
+          <section aria-labelledby="list-title" className="mt-8">
+            <h2 id="list-title" className="text-2xl font-bold text-slate-900">{top
+              ? `More projects with homes open (${rest.length})`
+              : <>{p.count} project{p.count === 1 ? '' : 's'}{p.count > p.rows.length ? `, first ${p.rows.length}` : ''}</>}</h2>
+            <ol className="mt-3 grid list-none gap-3 p-0" data-testid="facet-rows">
+              {rest.map((r) => <Row key={r.slug} r={r} priceList={!!p.bhk && p.intent === 'all'} />)}
+            </ol>
+          </section>
+        ) : cards.length > 0 ? null : (
           <p className="mt-8 rounded-xl bg-slate-50 p-4 text-slate-700">No project matches this list in MahaRERA&apos;s records right now.</p>
         )}
+
+        {top && <SoldOut p={p} />}
 
         {p.changes.length > 0 && (
           <section aria-labelledby="changes-title" className="mt-10">

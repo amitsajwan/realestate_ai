@@ -41,6 +41,12 @@ export interface FacetRow {
   source: string
   price_from?: number | null
   price_to?: number | null
+  /** Homes not booked (MahaRERA); null when the count is unknown. */
+  units_open?: number | null
+  /** For the card: where the project is, its cheapest published price and one picture with where it came from. */
+  stage?: 'new-launch' | 'under-construction' | 'possession-soon' | 'ready'
+  price?: { bhk: number; from_inr: number; to_inr: number | null } | null
+  photo?: { url: string; alt: string; source: string } | null
 }
 
 export interface FacetChange { at: string; text: string; slug: string; source: string }
@@ -59,6 +65,9 @@ export interface FacetPage {
   answer: string
   rows: FacetRow[]
   count: number
+  /** "top" only: projects with fewer than 10 homes open, most booked first, listed apart and never ranked. */
+  sold_out?: FacetRow[]
+  sold_out_count?: number
   changes: FacetChange[]
   month: string | null
   page_updated: string | null
@@ -112,6 +121,17 @@ export async function getFacet(place: string, segments: string[]): Promise<Facet
   throw new Error('This list is temporarily unavailable')
 }
 
+/** A list for a row of cards on another page: null when it is missing, thin or unreachable, never a thrown error (a row of
+ *  cards must not break the page it sits on). */
+export async function getFacetQuiet(place: string, segments: string[]): Promise<FacetPage | null> {
+  try {
+    const got = await getFacet(place, segments)
+    return got && !('redirect_to' in got) ? got : null
+  } catch {
+    return null
+  }
+}
+
 /** The other lists of the same place, for chips: the intents first, then possession years, then builders. */
 export function siblings(all: FacetLink[], placeKey: string, except?: string): FacetLink[] {
   return all.filter((f) => f.place === placeKey && f.indexable && f.path !== except)
@@ -135,7 +155,11 @@ export function facetFaq(p: FacetPage): { q: string; a: string }[] {
   } else if (p.intent === 'top') {
     out.push({ q: `Which are the top projects in ${place}, Pune?`, a: `${p.answer} In order: ${names}.` })
     out.push({ q: 'How is this list ranked?',
-      a: 'By homes booked in the last 90 days as MahaRERA shows them, then by the share of homes booked. No builder pays to be on it or to move up.' })
+      a: 'Only projects with 10 or more homes not booked are ranked: by homes booked in the last 90 days as MahaRERA shows them, then by the share of homes booked. No builder pays to be on it or to move up.' })
+    if (p.sold_out_count) {
+      out.push({ q: `Why is a fully booked project in ${place} not on this list?`,
+        a: `The builder has fewer than 10 homes left to sell, so it is listed apart below: ${p.sold_out_count} such project${p.sold_out_count === 1 ? '' : 's'}. A resale flat or a cancelled booking can still come up there; ask us.` })
+    }
   } else if (p.intent === 'ready-to-move') {
     out.push({ q: `Which projects in ${place}, Pune are ready to move?`, a: `${p.answer} The newest: ${names}.` })
     out.push({ q: 'Does a passed completion date mean I can move in?',
