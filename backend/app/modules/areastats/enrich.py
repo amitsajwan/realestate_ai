@@ -189,10 +189,12 @@ def priority(d: dict, urgent: set, now: datetime, shown: frozenset = frozenset()
     key = _priority(d, now, shown)
     if key is None:
         return None
-    # hot projects first, in every area (owner 2026-10-22: "first just hot projects, even outside Kharadi, all 4 stages done"),
-    # with the east Pune top lists (owner 2026-10-26); then nearly sold out after every other project; then our areas outward
-    # from Kharadi; in each, new launches first
-    hot_first = 0 if int(d.get("hot_score") or 0) >= hot.HOT_MIN or featured(d, now, shown) else 1
+    # east Pune's hot projects first, with its top lists and the owner's banner picks (owner 2026-10-27: "for now just
+    # concentrate on east Pune"; until then hot projects went first in every area); then nearly sold out after every other
+    # project; then our areas outward from Kharadi, a hot project elsewhere waiting for its area's turn; in each, new launches
+    # and hot projects first
+    east_hot = int(d.get("hot_score") or 0) >= hot.HOT_MIN and pricing.area_rank(d) < len(pricing.EAST)
+    hot_first = 0 if east_hot or featured(d, now, shown) else 1
     return (hot_first, 1 if pages.nearly_sold(d) else 0, pricing.area_rank(d), 0 if pricing.new_or_hot(d, now) else 1, *key)
 
 
