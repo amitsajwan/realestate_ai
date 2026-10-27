@@ -168,6 +168,21 @@ def indexable(doc: dict) -> bool:
     return bool(_day(doc.get("completion_now")) and (str(doc.get("promoter") or "").strip() or str(doc.get("pincode") or "").strip()))
 
 
+def has_own_content(doc: dict) -> bool:
+    """Something on the page beyond the register: written sections, prices read, checked web facts, or the builder's highlights,
+    pictures or floor plans."""
+    profile = doc.get("profile") or {}
+    return bool(doc.get("page_text") or (doc.get("prices") or {}).get("rows") or (doc.get("web_facts") or {}).get("facts")
+                or profile.get("highlights") or profile.get("photos") or profile.get("plans"))
+
+
+def searchable(doc: dict) -> bool:
+    """Asks Google to index the page: a listable page (`indexable`) that also has content of its own. 11,700 register-only pages
+    in search on a weeks-old domain sank the whole site on 2026-10-26 (seo-system.md section 11); a page goes back into search
+    by itself once enrichment fills it. The area lists keep showing every listable project."""
+    return indexable(doc) and has_own_content(doc)
+
+
 def page_updated(doc: dict) -> Optional[str]:
     """Our own last change to the page (enrichment or the details read), full ISO datetime; never MahaRERA's dates. The sitemap's lastmod."""
     stamps = [doc.get("enriched_at"), doc.get("page_text_at")]
@@ -472,7 +487,7 @@ def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None) ->
         # the enriched text (model-written from gathered facts, checked) when there is one, else the code-written paragraph
         # from the writer's version 4 on, page_text is its sections (shown under "About"): the paragraph is the code's own then
         "paragraph": (doc.get("page_text") if int(doc.get("page_text_version") or 1) < 4 else None) or paragraph(doc),
-        "indexable": indexable(doc),
+        "indexable": searchable(doc),
         "marketed_name": names(doc)[0], "aliases": names(doc)[1], "page_updated": page_updated(doc),
         # how people search for the page (seo.targets, rank-loop R1): leads the title and H1; the legal name stays in the body
         "search_name": doc.get("search_name") or None,
@@ -678,7 +693,7 @@ async def page_for(db, regno: str) -> Optional[dict]:
     if doc is None or not in_register(doc):
         return None
     slug = await assign_slug(store, doc)
-    return {"slug": slug, "path": f"/projects/{slug}", "url": f"{brand.SITE}/projects/{slug}", "indexable": indexable(doc)}
+    return {"slug": slug, "path": f"/projects/{slug}", "url": f"{brand.SITE}/projects/{slug}", "indexable": searchable(doc)}
 
 
 async def listing(db, area: Optional[str] = None, only_indexable: bool = True, limit: int = 2000,
@@ -710,7 +725,8 @@ async def listing(db, area: Optional[str] = None, only_indexable: bool = True, l
              "listed_or_updated": _day(d.get("last_modified")), "stage": stage(d), "sold_out": sold_out(d),
              "price_from": price_from(d),   # the lowest asked price we publish (areastats.prices), else None
              "page_updated": cluster_updated(d, every, stamps),   # our own last change (the sitemap's lastmod; a primary: its newest tower), never MahaRERA's dates
-             "indexable": indexable(d)} for d in docs[:limit]]
+             # `only_indexable` keeps every listable page for the area lists; this flag is the stricter one search sees
+             "indexable": searchable(d)} for d in docs[:limit]]
 
 
 # ---- search by the names buyers type -------------------------------------------------------------------------------------

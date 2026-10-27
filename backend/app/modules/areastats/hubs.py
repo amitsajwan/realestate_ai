@@ -18,7 +18,7 @@ from . import hot
 from .enrich import km_between
 from . import brands as brand_list
 from .pages import (MOVED_MIN, _long, _served, booked, builder_key, can_host, cluster_stamps, cluster_updated, completion_moves,
-                    delivery, indexable, is_old, months_later, names)
+                    delivery, indexable, is_old, months_later, names, searchable)
 from .text import builder_slug
 from .service import _count, _day
 
@@ -145,7 +145,7 @@ async def builders(db, only_indexable: bool = True) -> List[dict]:
     by_cluster = cluster_stamps(docs)
     out = []
     for s, mine in _by_builder(docs).items():
-        n = sum(1 for d in mine if indexable(d))
+        n = sum(1 for d in mine if searchable(d))   # in search with two pages search sees, not two register-only ones
         if only_indexable and n < BUILDER_MIN:
             continue
         stamps = [x for x in (cluster_updated(d, docs, by_cluster) for d in mine) if x]
@@ -208,7 +208,7 @@ async def builder_page(db, slug: str) -> Optional[dict]:
     sold = sum(booked(d) or 0 for d in mine)
     areas = sorted({BY_KEY[d["locality"]].name for d in mine if d.get("locality") in BY_KEY})
     stamps = [x for x in (cluster_updated(d, docs, by_cluster) for d in mine) if x]
-    n_index = sum(1 for d in mine if indexable(d))
+    n_index = sum(1 for d in mine if searchable(d))
     return {
         "slug": slug, "name": _builder_name(mine, slug), "projects_count": len(mine), "areas": areas,
         "active": sum(1 for d in mine if not is_old(d)), "units_total": total or None, "units_booked": sold or None,

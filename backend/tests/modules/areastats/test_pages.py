@@ -55,6 +55,16 @@ async def test_indexable_needs_a_date_and_a_promoter_or_pincode():
     assert not pages.indexable({**FULL, "promoter": None, "pincode": None})
 
 
+async def test_search_sees_only_pages_with_content_beyond_the_register():
+    assert not pages.searchable(FULL)                                    # register facts alone: listed, kept out of search
+    assert pages.searchable({**FULL, "page_text": "About the project."})
+    assert pages.searchable({**FULL, "prices": {"rows": [{"bhk": 2}]}})
+    assert pages.searchable({**FULL, "web_facts": {"facts": [{"key": "towers"}]}})
+    assert pages.searchable({**FULL, "profile": {"highlights": [], "photos": [{"url": "x"}]}})
+    assert not pages.searchable({**FULL, "profile": {"highlights": [], "photos": [], "plans": []}, "web_facts": {"facts": []}})
+    assert not pages.searchable({**FULL, "page_text": "About.", "completion_now": None})   # still needs what a listable page needs
+
+
 async def test_page_updated_is_our_own_change_never_maharera():
     # a full datetime, not a date: IndexNow must see the hour a page changed, or two edits the same day look identical
     assert pages.page_updated({"last_modified": "2026-09-28"}) is None
@@ -104,7 +114,8 @@ async def test_search_ranking_and_same_promoter():
 
 
 async def test_page_for_and_the_public_api():
-    db, store = await seeded(("P52100080076", "Rohan Abhilasha 4", "wagholi", FULL), ("P2", "Kesnand Greens", "wagholi", {**FULL, "completion_now": "2029-03-31"}),
+    written = {**FULL, "page_text": "About the project.", "page_text_version": 4}   # content beyond the register: search sees it
+    db, store = await seeded(("P52100080076", "Rohan Abhilasha 4", "wagholi", written), ("P2", "Kesnand Greens", "wagholi", {**FULL, "completion_now": "2029-03-31"}),
                              ("P3", "Thin One", "wagholi", {}), ("GULM", "Gulmohar City", None, {"watched_by": ["agent_projects"]}),
                              ("NOTOURS", "Somewhere", None, {}))
     hit = await pages.page_for(db, "p52100080076")

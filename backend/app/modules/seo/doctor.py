@@ -31,7 +31,7 @@ from typing import Dict, List, Optional
 
 from app.modules.areastats import enrich, hot, prices, searchconsole
 from app.modules.areastats.hubs import active
-from app.modules.areastats.pages import _long, _served, booked, can_host, indexable, names
+from app.modules.areastats.pages import _long, _served, booked, can_host, names, searchable
 from app.modules.areastats.service import _count, _day
 from app.modules.newsroom.store import Store
 
@@ -133,7 +133,7 @@ def order(table: List[dict]) -> List[str]:
 async def pick(store: Store, docs: List[dict], now: datetime, limit: int = PER_DAY, rivals: Optional[Dict[str, dict]] = None) -> List[tuple]:
     """[(doc, reason)] for today, in priority order."""
     hosted = {d["_id"] for d in docs if can_host(d)}
-    pages = [d for d in docs if _served(d) and d.get("cluster_primary") not in hosted and indexable(d)
+    pages = [d for d in docs if _served(d) and d.get("cluster_primary") not in hosted and searchable(d)
              and not ((t := _aware(d.get("page_fix_at"))) and now - t < timedelta(days=REST_DAYS))]
     by_path = {_path(d): d for d in pages}
     rising = set()
