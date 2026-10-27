@@ -1,6 +1,6 @@
 'use client'
 import React from 'react'
-import { ResultsCard } from '@/components/app/BusinessToday'
+import { ResultsCard } from '@/components/app/ResultsCard'
 import LiveNow from '@/components/app/LiveNow'
 import { ErrorBox, PageTitle, Spinner } from '@/components/app/ui'
 import { api } from '@/lib/app/client'
