@@ -139,7 +139,9 @@ read again and again, but only for projects whose completion date is still to co
 Owner, 2026-10-22: "first just hot projects, even outside Kharadi, all 4 stages done; if we don't find images add illustrative
 ones; floor plans locked, ask for the form; else AI or the best unverified from the web". Before: 76 hot projects still being
 built, all with model text, 40 with highlights, 2 with photos, 1 with plans.
-- Queue: a hot project comes before every non-hot one in any area (`enrich.priority`, first key). A hot page that is not
+- Queue: ~~a hot project comes before every non-hot one in any area~~ until 2026-10-27; now an east Pune hot project (with the
+  east Top lists and the owner's banner picks) comes first, and a hot project elsewhere waits for its area's turn, first within
+  it (owner 2026-10-27: "for now just concentrate on east Pune") (`enrich.priority`, first key). A hot page that is not
   `complete` (all 4 STEPS ok and photos, or read on its group's primary) is retried after RETRY_DAYS (1), not HOT_REFRESH_DAYS.
 - Pictures, in order: the builder's site (source "builder") -> other sites' pages whose address names the project (source "web",
   badge "Not checked by us", credit names the sites) -> illustrations drawn once by Cloudflare FLUX-1-schnell from MahaRERA's
