@@ -188,4 +188,10 @@ describe('area page as the hub', () => {
     expect(String(m.description)).toMatch(/^[^.]+\. Projects, MahaRERA records and what to check before you buy\.$/)
     expect(String(m.alternates?.canonical)).toMatch(/\/localities\/keshav-nagar$/)
   })
+
+  it('names the area guide as its canonical page when the area has one, so search sees one page per area', async () => {
+    routes({ '/public/topics': { status: 200, body: [{ slug: 'upper-kharadi' }] } })
+    const m = await generateMetadata({ params: Promise.resolve({ slug: 'upper-kharadi' }) })
+    expect(String(m.alternates?.canonical)).toMatch(/\/guides\/upper-kharadi$/)
+  })
 })

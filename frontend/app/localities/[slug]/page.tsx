@@ -24,6 +24,7 @@ import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
 import { getCatalog, getLocalityListings } from '@/lib/site/api'
 import { getFacets, siblings, withoutMovedSizePages } from '@/lib/site/facets'
 import { livePages } from '@/lib/site/filters'
+import { fetchTopics, topicPath } from '@/lib/site/topics'
 
 type Props = { params: Promise<{ slug: string }> }
 type PageLocality = (Locality & { fallback?: false }) | {
@@ -79,11 +80,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       path: `/localities/${slug}`,
     })
   }
-  return pageMetadata(getMarketingConfig(), {
+  const meta = pageMetadata(getMarketingConfig(), {
     title: `${l.name}, Pune: projects, MahaRERA records and buyer guide`,
     description: areaDescription(l.summary),
     path: `/localities/${l.slug}`,
   })
+  // an area with its own full guide has one page for search: the guide (both ranked for "upper kharadi" and held each other back)
+  const guide = (await fetchTopics()).some((t) => t.slug === l.slug)
+  return guide ? { ...meta, alternates: { canonical: getMarketingConfig().siteUrl + topicPath(l.slug) } } : meta
 }
 
 /** Where "I'm interested" leads: the house agent site's enquiry form (configurable at build time). `?src=locality_<key>` is

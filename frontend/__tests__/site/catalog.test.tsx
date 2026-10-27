@@ -18,6 +18,9 @@ jest.mock('@/components/site/ChatWidget', () => ({ __esModule: true, default: ()
 const mockRegister = jest.fn(async (): Promise<unknown[]> => [])
 jest.mock('@/lib/site/register', () => ({ getRegisterProject: async () => null, getRegisterProjects: () => mockRegister(), longDay: () => '',
   getRegisterPlaces: async () => [], placePath: (s: string) => `/projects/area/${s}` }))
+// topic guides (lib/site/topics): none unless a test sets them
+const mockTopics = jest.fn(async (): Promise<unknown[]> => [])
+jest.mock('@/lib/site/topics', () => ({ ...jest.requireActual('@/lib/site/topics'), fetchTopics: () => mockTopics() }))
 const mockRedirect = jest.fn((url: string) => { throw new Error('REDIRECT ' + url) })
 const mockNotFound = jest.fn(() => { throw new Error('NOT_FOUND') })
 jest.mock('next/navigation', () => ({
@@ -162,6 +165,15 @@ describe('shared project pages', () => {
     const at = (path: string) => entries.find((e) => e.url.endsWith(path))?.lastModified
     expect(at('/projects/lodha-camelot-kharadi')).toEqual(new Date('2026-10-12'))
     expect(at('/projects/older-api')).toBeUndefined()     // MahaRERA's own date never dates our page
+  })
+
+  it('lists an area with its own guide once, as the guide', async () => {
+    mockTopics.mockResolvedValue([{ slug: 'upper-kharadi', checked_on: '2026-10-20' }])
+    const urls = (await sitemap()).map((s) => s.url)
+    mockTopics.mockResolvedValue([])
+    expect(urls.some((u) => u.endsWith('/guides/upper-kharadi'))).toBe(true)
+    expect(urls.some((u) => u.endsWith('/localities/upper-kharadi'))).toBe(false)
+    expect(urls.some((u) => u.endsWith('/localities/kharadi'))).toBe(true)   // no guide of its own: stays
   })
 
   it('puts shared pages and live filter pages in the sitemap', async () => {
