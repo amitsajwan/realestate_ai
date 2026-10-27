@@ -176,6 +176,14 @@ describe('shared project pages', () => {
     expect(urls.some((u) => u.endsWith('/localities/kharadi'))).toBe(true)   // no guide of its own: stays
   })
 
+  it('leaves pages made in bulk out of the sitemap: localities without a guide and our social posts', async () => {
+    mockCatalog.mockResolvedValueOnce([...ALL, project('gulmohar-heights', 'Gulmohar City', [[2, 60 * L]])])
+    const urls = (await sitemap()).map((s) => s.url)
+    expect(urls.some((u) => u.endsWith('/projects/gulmohar-heights'))).toBe(true)
+    expect(urls.some((u) => u.endsWith('/localities/gulmohar-city'))).toBe(false)
+    expect(urls.some((u) => u.includes('/posts'))).toBe(false)
+  })
+
   it('puts shared pages and live filter pages in the sitemap', async () => {
     const urls = (await sitemap()).map((s) => s.url)
     expect(urls.some((u) => u.endsWith('/projects/goyal-my-home-kharadi'))).toBe(true)

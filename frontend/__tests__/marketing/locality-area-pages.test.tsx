@@ -21,7 +21,7 @@ jest.mock('next/navigation', () => ({
 }))
 
 import LocalitiesPage from '@/app/localities/page'
-import LocalityPage from '@/app/localities/[slug]/page'
+import LocalityPage, { generateMetadata as localityMetadata } from '@/app/localities/[slug]/page'
 import AreaRecords from '@/components/localities/AreaRecords'
 import { cleanAreaStats, getAreaStats, longDate } from '@/components/localities/areaStats'
 
@@ -142,6 +142,11 @@ describe('area pages', () => {
     expect(screen.getByRole('link', { name: 'Tell us what you are looking for' })).toHaveAttribute('href', '/agent/avasetu?src=locality_gulmohar_city#enquire')
     expect(screen.getByText('Plot in Gulmohar City')).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Sources' })).toBeNull()
+  })
+
+  it('keeps a locality without a guide of its own out of search, and a curated one in', async () => {
+    expect((await localityMetadata({ params: Promise.resolve({ slug: 'gulmohar-city' }) })).robots).toEqual({ index: false, follow: true })
+    expect((await localityMetadata({ params: Promise.resolve({ slug: 'wagholi' }) })).robots).toBeUndefined()
   })
 
   it('404s a non-curated locality when there is no public data', async () => {

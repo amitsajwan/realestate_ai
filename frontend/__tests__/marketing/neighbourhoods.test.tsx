@@ -59,7 +59,9 @@ describe('neighbourhood articles', () => {
     expect(screen.getByText(/Written automatically from OpenStreetMap and MahaRERA public records/)).toBeTruthy()
     const ld = [...container.querySelectorAll('script[type="application/ld+json"]')].map((s) => JSON.parse(s.textContent || '{}'))
     expect(ld.find((x) => x['@type'] === 'Article')).toMatchObject({ headline: CARD.title, dateModified: '2026-10-12' })
-    expect((await generateMetadata(props)).alternates?.canonical).toMatch(/\/localities\/wagholi\/kesnand$/)
+    const meta = await generateMetadata(props)
+    expect(meta.alternates?.canonical).toMatch(/\/localities\/wagholi\/kesnand$/)
+    expect(meta.robots).toEqual({ index: false, follow: true })   // model-written: for visitors, not for search
   })
 
   it('an article from another area, or none, is a 404 and kept out of search', async () => {

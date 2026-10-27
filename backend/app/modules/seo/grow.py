@@ -276,7 +276,8 @@ async def run_once(store: Store, now: datetime, force: bool = False,
 
 async def live_pages(db, now: Optional[datetime] = None) -> List[dict]:
     """Live facet pages for the sitemap and links: [{key, path, place, intent, label, count, indexable, page_updated}].
-    Counted from the register now, so a page that fell under facets.MIN_PROJECTS is noindex and left out of the sitemap."""
+    Counted from the register now, so a page with fewer than facets.MIN_PROJECTS projects in search is noindex and left out of
+    the sitemap (`facets.in_search`)."""
     now = now or datetime.now(timezone.utc)
     rows = await db.get_collection(PAGES).find({"status": "live"}).to_list(None)
     if not rows:
@@ -303,7 +304,7 @@ async def live_pages(db, now: Optional[datetime] = None) -> List[dict]:
             label = f"{f.bhk} BHK flats" if f.intent == "all" and not f.possession else f"{label}, {f.bhk} BHK"
         out.append({"key": f.key, "path": f.path, "place": f.place, "place_slug": facets.place_slug(f.place), "intent": f.intent,
                     "possession": f.possession, "builder": f.builder, "bhk": f.bhk, "label": label, "count": len(listed),
-                    "indexable": len(listed) >= facets.MIN_PROJECTS, "page_updated": max(stamp) if stamp else None})
+                    "indexable": facets.in_search(listed), "page_updated": max(stamp) if stamp else None})
     out.sort(key=lambda r: (r["place"], facets.INTENTS.index(r["intent"]), r["bhk"] or 0, r["possession"] or 0, r["builder"] or ""))
     return out
 

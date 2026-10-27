@@ -795,7 +795,9 @@ async def search(db, q: str, limit: int = 20) -> List[dict]:
 
 async def places(db) -> List[dict]:
     """Pune places with at least one project page, with counts, in the zone order of app/core/pune_places.py; talukas last.
-    `current`: being built or finished within a year (not is_old), the projects a buyer of a new home looks at."""
+    `current`: being built or finished within a year (not is_old), the projects a buyer of a new home looks at. `indexable`:
+    project pages in search (`searchable`); a place page asks Google to index it only when it has one (2026-10-27: a place
+    page listing only register-only projects is one template with different numbers)."""
     from app.core import pune_places
     counts: dict = {}
     every = await Store(db).shared_projects()
@@ -807,7 +809,7 @@ async def places(db) -> List[dict]:
             c["projects"] += 1
             # as the place page counts them (place_list): one per project, a tower on its primary's page (home said 136, page 110)
             c["current"] += 1 if _served(d) and d.get("cluster_primary") not in served and not is_old(d) else 0
-            c["indexable"] += 1 if indexable(d) else 0
+            c["indexable"] += 1 if searchable(d) else 0
     zones = list(dict.fromkeys(p.zone for p in pune_places.PLACES))
     out = []
     for p in pune_places.PLACES:

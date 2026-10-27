@@ -25,7 +25,7 @@ from app.modules.areastats import hot, prices
 from app.modules.areastats.areamap import _photo
 from app.modules.areastats.hubs import _primaries, link_name
 from app.modules.areastats.pages import (OPEN_MIN, _long, booked, builder_key, buyable, cluster_stamps, cluster_updated,
-                                         completion_passed, homes, indexable, is_old, open_homes)
+                                         completion_passed, homes, indexable, is_old, open_homes, searchable)
 from app.modules.areastats.service import _count, _day
 from app.modules.areastats.text import builder_slug
 from app.modules.newsroom.store import Store
@@ -429,6 +429,13 @@ def h1(f: Facet, place: str, builder_name: Optional[str] = None) -> str:
     return f"{what} in {place}, Pune"
 
 
+def in_search(listed: List[Tuple[dict, str]]) -> bool:
+    """Asks Google to index the list: MIN_PROJECTS of its projects are pages in search themselves. A list of register-only
+    pages is the same template filled with the same register fields, the kind of page that sank the site on 2026-10-26
+    (seo-system.md section 11); it still shows every project to visitors."""
+    return sum(1 for d, _ in listed if searchable(d)) >= MIN_PROJECTS
+
+
 def facet_view(f: Facet, docs: List[dict], now: datetime, stamps: Optional[dict] = None) -> dict:
     """Everything the page shows for a facet, from records already loaded (`docs`: every register record)."""
     prim = _primaries(docs)
@@ -453,7 +460,7 @@ def facet_view(f: Facet, docs: List[dict], now: datetime, stamps: Optional[dict]
         "answer": answer(f, place, rows, as_of, len(listed), len(gone)), "rows": rows, "count": len(listed), "changes": changed,
         "sold_out": [_row(d, why, 0, now) for d, why in gone[:MAX_ROWS]], "sold_out_count": len(gone),
         "month": _month(last_change), "page_updated": max(updated) if updated else None,
-        "indexable": len(listed) >= MIN_PROJECTS, "as_of": now.date().isoformat(), "source": "MahaRERA public records",
+        "indexable": in_search(listed), "as_of": now.date().isoformat(), "source": "MahaRERA public records",
     }
 
 

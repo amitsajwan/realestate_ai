@@ -73,7 +73,7 @@ describe('sitemap and robots', () => {
     const map = await sitemap()
     const urls = map.map((s) => s.url)
     expect(urls.some((u) => u.endsWith('/news/n1'))).toBe(true)
-    expect(urls.some((u) => u.endsWith('/localities/gulmohar-city'))).toBe(true)
+    expect(urls.some((u) => u.endsWith('/localities/gulmohar-city'))).toBe(false)   // no guide of its own: noindex, out of the sitemap
     expect(urls.some((u) => u.endsWith('/agent/house-deal/projects/goyal-my-home'))).toBe(true)
     expect(urls.some((u) => u.endsWith('/agent/house-deal/listings/L1'))).toBe(true)
     const home = map.find((s) => s.url.endsWith('/agent/house-deal'))!
