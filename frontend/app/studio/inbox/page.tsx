@@ -41,7 +41,8 @@ export default function InboxPage() {
   const { data, error, loading, reload } = useAsync(() => inboxApi.threads(), [])
   const all = data ?? []
   const needs = all.filter((t) => t.needs_you)
-  const [tab, setTab] = useUrlTab('tab', 'all', TABS)
+  // opens on Needs you while anyone waits for an answer (2026-10-27: it opened on All, with the waiting ones mixed in)
+  const [tab, setTab] = useUrlTab('tab', needs.length ? 'needs' : 'all', TABS)
   // opening the inbox is seeing the new messages: the WhatsApp alerts on Studio home are cleared
   React.useEffect(() => {
     if (!data) return
@@ -58,7 +59,7 @@ export default function InboxPage() {
   return (
     <div className="space-y-4">
       <PageTitle>Inbox</PageTitle>
-      <p className="text-sm text-gray-600">Everyone who wrote to you, newest first: WhatsApp, Facebook and Instagram messages and comments, and your website chat.</p>
+      <p className="text-sm text-gray-600">WhatsApp, Facebook and Instagram messages and comments, and your website chat, newest first.</p>
       <TabBar label="Inbox" value={tab} onChange={setTab} tabs={[
         { key: 'needs', label: 'Needs you', count: needs.length, tone: 'urgent' },
         { key: 'all', label: 'All', count: all.length },
@@ -67,7 +68,10 @@ export default function InboxPage() {
         ...(agents.length ? [{ key: 'agents', label: 'Agents', count: agents.length }] : []),
       ]} />
       {shown.length === 0 ? (
-        <p className="rounded-2xl bg-white p-6 text-center text-gray-600">{tab === 'needs' ? 'Nothing waiting for you.' : 'No conversations yet.'}</p>
+        <p className="rounded-2xl bg-white p-6 text-center text-gray-600">
+          {tab === 'needs' ? 'Nothing waiting for you. The bot answers the rest and saves anyone who leaves a number as a lead.'
+            : 'No conversations yet. They start when buyers message you on WhatsApp, comment on a post or use the chat on your website.'}
+        </p>
       ) : (
         <ul className="space-y-2">{shown.map((t) => <ThreadRow key={t.id} t={t} />)}</ul>
       )}

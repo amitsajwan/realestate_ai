@@ -60,7 +60,7 @@ const en = {
   content: 'Content',
   agents: 'Agents',
   admin: 'Admin',
-  profile: 'Profile',
+  profile: 'My brand and website',
   more: 'More',
   radar: 'Buyer radar',
   voicePremium: 'Voice listing',

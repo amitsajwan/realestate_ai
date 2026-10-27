@@ -138,12 +138,56 @@ async function call<T>(path: string, init: { method?: string; json?: unknown } =
   return data as T
 }
 
+// ---- fixtures (local/dev mode): a few conversations so the Inbox can be walked through without a backend ----
+const minsAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString()
+function fixtureThreads(): InboxThreadFull[] {
+  const base = {
+    phone: '', role: 'buyer', lead_id: null, lead_saved: false, window_open: false, opted_out: false, can_reply: false, summary: '',
+    messages: 0, passed: null, passed_at: null, bot_paused_until: null, passed_to_name: null, follow_up_sent_at: null,
+  }
+  return [
+    { ...base, id: 'fx-wa-1', channel: 'whatsapp', name: 'Rohit Deshmukh', phone: '98******45', lead_id: 'c1', lead_saved: true, window_open: true,
+      can_reply: true, summary: '2 BHK in Baner, 80L-90L', needs_you: true, last_from: 'them', last_text: 'Can I visit this Sunday?', last_at: minsAgo(25),
+      messages: 3, thread: [
+        { from: 'them', text: 'Hi, is the 2 BHK in Baner still available?', at: minsAgo(140), status: null, error: null },
+        { from: 'bot', text: 'Yes, it is available. 850 sq ft carpet, ready to move, ₹85 L. Would you like to visit?', at: minsAgo(139), status: 'sent', error: null },
+        { from: 'them', text: 'Can I visit this Sunday?', at: minsAgo(25), status: null, error: null }] },
+    { ...base, id: 'fx-ig-1', channel: 'instagram_comment', name: 'pune.homes.hunt', needs_you: true, reason: 'they asked for the price',
+      post_url: 'https://instagram.com/', last_from: 'them', last_text: 'Price please?', last_at: minsAgo(90), messages: 1,
+      thread: [{ from: 'them', text: 'Price please?', at: minsAgo(90), status: null, error: null }] },
+    { ...base, id: 'fx-web-1', channel: 'website', name: null, needs_you: false, last_from: 'bot', summary: '1 BHK in Hinjewadi',
+      last_text: 'Sure, I have noted 1 BHK in Hinjewadi under 50 L. Can I take your number so the agent can call you?', last_at: minsAgo(300), messages: 4,
+      thread: [
+        { from: 'them', text: 'Looking for 1 BHK in Hinjewadi', at: minsAgo(305), status: null, error: null },
+        { from: 'bot', text: 'Sure, I have noted 1 BHK in Hinjewadi under 50 L. Can I take your number so the agent can call you?', at: minsAgo(300), status: 'sent', error: null }] },
+  ]
+}
+let fxThreads: InboxThreadFull[] | null = null
+const fx = () => (fxThreads ??= fixtureThreads())
+const fxFind = (id: string) => {
+  const t = fx().find((x) => x.id === id)
+  if (!t) throw new ApiError(404, 'Conversation not found')
+  return t
+}
+const fixtureInbox = {
+  threads: async (): Promise<InboxThread[]> => fx().map(({ thread: _t, ...rest }) => rest),
+  thread: async (id: string): Promise<InboxThreadFull> => fxFind(id),
+  reply: async (id: string, text: string): Promise<InboxThreadFull> => {
+    const t = fxFind(id)
+    t.thread = [...t.thread, { from: 'you', text, at: new Date().toISOString(), status: 'dry_run', error: null }]
+    Object.assign(t, { needs_you: false, last_from: 'you', last_text: text, last_at: new Date().toISOString() })
+    return t
+  },
+  done: async (id: string): Promise<InboxThreadFull> => Object.assign(fxFind(id), { needs_you: false }),
+}
+
 export const inboxApi = {
-  threads: async (): Promise<InboxThread[]> => (isFixtureMode() ? [] : (await call<{ items: InboxThread[] }>('')).items ?? []),
-  thread: (id: string) => call<InboxThreadFull>(`/${encodeURIComponent(id)}`),
-  reply: (id: string, text: string) => call<InboxThreadFull>(`/${encodeURIComponent(id)}/reply`, { method: 'POST', json: { text } }),
+  threads: async (): Promise<InboxThread[]> => (isFixtureMode() ? fixtureInbox.threads() : (await call<{ items: InboxThread[] }>('')).items ?? []),
+  thread: (id: string) => (isFixtureMode() ? fixtureInbox.thread(id) : call<InboxThreadFull>(`/${encodeURIComponent(id)}`)),
+  reply: (id: string, text: string) =>
+    (isFixtureMode() ? fixtureInbox.reply(id, text) : call<InboxThreadFull>(`/${encodeURIComponent(id)}/reply`, { method: 'POST', json: { text } })),
   /** A comment thread was answered on Facebook/Instagram (or needs no answer). */
-  done: (id: string) => call<InboxThreadFull>(`/${encodeURIComponent(id)}/done`, { method: 'POST' }),
+  done: (id: string) => (isFixtureMode() ? fixtureInbox.done(id) : call<InboxThreadFull>(`/${encodeURIComponent(id)}/done`, { method: 'POST' })),
   agents: async (): Promise<PassAgent[]> => (await call<{ items: PassAgent[] }>('/agents')).items ?? [],
   /** Every chat with this lead (WhatsApp, Messenger/Instagram, website chat), newest first. */
   forLead: async (leadId: string): Promise<InboxThreadFull[]> =>
@@ -173,3 +217,11 @@ export const CHANNEL_CHIP: Record<string, string> = {
   whatsapp: 'bg-green-100 text-green-800', messenger: 'bg-blue-100 text-blue-800', instagram: 'bg-purple-100 text-purple-800', website: 'bg-gray-100 text-gray-700',
   facebook_comment: 'bg-blue-50 text-blue-800 ring-1 ring-blue-200', instagram_comment: 'bg-purple-50 text-purple-800 ring-1 ring-purple-200',
 }
+
+/** Ready lines for the reply box: a tap fills the box (it is still sent by hand, and can be changed first). */
+export const QUICK_REPLIES = [
+  'Thank you! I will call you in a few minutes.',
+  'Yes, it is available. When would you like to visit?',
+  'Please share a good time to call you.',
+  'Sharing the details and photos here shortly.',
+]
