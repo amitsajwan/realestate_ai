@@ -47,6 +47,8 @@ services:
       # knowledge search (app/modules/knowledge/vectors.py): the chat finds passages from everything we publish; set both empty = off
       QDRANT_URL: ${QDRANT_URL-http://qdrant:6333}
       EMBEDDER_URL: ${EMBEDDER_URL-http://embedder:8090}
+      # the Live panel's area/network (platform/geoip.py): the newsroom role downloads DB-IP's free files monthly into uploads/geoip
+      GEOIP_REFRESH: ${GEOIP_REFRESH:-true}
     volumes:
       - uploads:/app/uploads
     depends_on:

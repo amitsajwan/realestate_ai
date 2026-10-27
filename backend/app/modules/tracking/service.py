@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Callable, Optional
 
-from . import contact as contactmod, limits, matching, origin, outcomes, requirement as reqmod, scoring, summary
+from . import contact as contactmod, device, limits, matching, origin, outcomes, requirement as reqmod, scoring, summary, visitor
 from .followup import Polish, build_draft, listing_label, polish_safely, whatsapp_url
 from .schemas import DraftIn, EventIn, InquiryIn, PingIn, StageUpdate
 
@@ -30,8 +30,10 @@ def is_bot(user_agent: Optional[str]) -> bool:
 
 
 class TrackingService:
-    def __init__(self, db, now: Callable[[], datetime] = datetime.utcnow, polish: Optional[Polish] = None):
+    def __init__(self, db, now: Callable[[], datetime] = datetime.utcnow, polish: Optional[Polish] = None,
+                 geo: visitor.Lookup = visitor.default_lookup):
         self.db = db
+        self.geo = geo
         self.listings = db.get_collection("listings")  # READ-ONLY here (matching); owned by the listings module
         self.polish = polish
         self.profiles = db.get_collection("agent_public_profiles")
@@ -50,7 +52,8 @@ class TrackingService:
             raise TrackingError("Agent site not found", 404)
         return profile["agent_id"]
 
-    async def _record(self, agent_id: str, e, type_: str, contact_id: Optional[str], app: Optional[str] = None) -> int:
+    async def _record(self, agent_id: str, e, type_: str, contact_id: Optional[str], app: Optional[str] = None,
+                      who: Optional[dict] = None) -> int:
         """Store one event and return the points it earned."""
         prior = 0
         if type_ == "listing_view" and e.listing_id:
@@ -63,21 +66,22 @@ class TrackingService:
         await self.events.insert_one({
             "agent_id": agent_id, "anon_id": e.anon_id, "contact_id": contact_id, "type": type_,
             "listing_id": e.listing_id, "source": e.source, "utm": e.utm, **origin.touch_fields(e), "in_app": app, "ts": now,
-            **reading,
+            **reading, **(who or {}),
         })
         return scoring.event_points(type_, prior)
 
-    async def track_event(self, e: EventIn, user_agent: Optional[str]) -> bool:
+    async def track_event(self, e: EventIn, user_agent: Optional[str], ip: Optional[str] = None) -> bool:
         """Returns False when ignored (bot / rate limited); never raises for the visitor's benefit
-        except for unknown agents."""
+        except for unknown agents. `ip` only finds the area and network (visitor.fields); it is not stored."""
         agent_id = await self._agent_id(e.agent_slug)
-        if is_bot(user_agent):
+        if is_bot(user_agent) or device.is_headless(user_agent):
             return False
         minute_ago = self.now() - timedelta(minutes=1)
         if await self.events.count_documents({"anon_id": e.anon_id, "ts": {"$gte": minute_ago}}) >= MAX_EVENTS_PER_ANON_PER_MINUTE:
             return False
         contact = await self.contacts.find_one({"agent_id": agent_id, "anon_ids": e.anon_id})
-        points = await self._record(agent_id, e, e.type, contact["_id"] if contact else None, origin.app_of(user_agent))
+        points = await self._record(agent_id, e, e.type, contact["_id"] if contact else None, origin.app_of(user_agent),
+                                    visitor.fields(user_agent, ip, e.staff, self.geo))
         if contact:
             await self.contacts.update_one(
                 {"_id": contact["_id"]},
@@ -96,7 +100,7 @@ class TrackingService:
             {"$max": {"read_s": min(p.seconds, MAX_READ_S)}, "$set": {"last_seen": now}})
         return res.matched_count == 1
 
-    async def capture_inquiry(self, i: InquiryIn, user_agent: Optional[str] = None) -> dict:
+    async def capture_inquiry(self, i: InquiryIn, user_agent: Optional[str] = None, ip: Optional[str] = None) -> dict:
         if limits.is_honeypot(i.website):  # a bot filled the hidden field: look successful, store nothing
             return {"received": True, "new_lead": False}
         if not i.consent:
@@ -148,7 +152,7 @@ class TrackingService:
             if fields:
                 merged = reqmod.merge(contact.get("requirement"), fields, sources)
                 await self.contacts.update_one({"_id": contact_id}, {"$set": {"requirement": merged}})
-        points = await self._record(agent_id, i, "inquiry", contact_id, app)
+        points = await self._record(agent_id, i, "inquiry", contact_id, app, visitor.fields(user_agent, ip, False, self.geo))
         await self.contacts.update_one(
             {"_id": contact_id}, {"$inc": {"score_base": points}, "$set": {"last_activity_at": now, "last_message": i.message}})
         return {"received": True, "new_lead": created}

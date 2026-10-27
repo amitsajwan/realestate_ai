@@ -42,6 +42,12 @@ def app_of(user_agent: Optional[str]) -> Optional[str]:
     return next((name for mark, name in IN_APP if mark in ua), None)
 
 
+def client_ip(request) -> Optional[str]:
+    """The visitor's address: Caddy puts it first in X-Forwarded-For (the API sits behind it), else the socket peer."""
+    first = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()
+    return first or (request.client.host if request.client else None)
+
+
 def clip(value: Optional[str]) -> Optional[str]:
     """Trim and cut to MAX_LEN; empty becomes None. Never rejects: a long URL must not lose the visit."""
     v = (value or "").strip()

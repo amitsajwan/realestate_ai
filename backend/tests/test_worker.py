@@ -112,6 +112,7 @@ def test_the_worker_runs_the_fourteen_loops_under_the_api_lease_names():
     from app.modules.reels.render_job import dispatch_loop
     from app.modules.inbox.followups import loop as lead_followups_loop
     from app.modules.admin.video_cleanup import loop as video_cleanup_loop
+    from app.modules.tracking.jobs import loop as geoip_loop
     assert worker.loops() == {"render_dispatch": dispatch_loop, "engage": engage_loop, "newsroom": newsroom_loop, "calendar": calendar_loop,
                               "calendar_reels": calendar_reels_loop, "listing_reels": listing_reel.loop,
                               "marketing_runs": marketing_loop,
@@ -120,7 +121,7 @@ def test_the_worker_runs_the_fourteen_loops_under_the_api_lease_names():
                               "token_cleanup": token_cleanup_loop, "radar": radar_loop,
                               "seo": seo_loop, "communities": communities_loop,
                               "knowledge_index": knowledge_index_loop, "lead_followups": lead_followups_loop,
-                              "video_cleanup": video_cleanup_loop}
+                              "video_cleanup": video_cleanup_loop, "geoip": geoip_loop}
 
 
 def test_worker_roles_partition_every_loop_once():

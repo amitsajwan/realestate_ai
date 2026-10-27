@@ -3,20 +3,33 @@ import { isFixtureMode } from './client'
 import { request } from './whatsapp'
 
 export interface LiveWho {
-  kind: 'visitor' | 'lead'
-  /** "Visitor 3", or the lead's name when this browser already belongs to one */
+  /** you = a browser signed in to Studio: listed, never counted */
+  kind: 'visitor' | 'lead' | 'you'
+  /** "Visitor 3", the lead's name when this browser already belongs to one, or "You" */
   label: string
   lead_id?: string
 }
 
+/** Device, approximate area and network (from the connection at the moment of the visit; the address itself is not kept) */
+export interface LiveAbout {
+  /** "Android phone · Chrome", "iPhone · Instagram app" */
+  device?: string | null
+  /** "Pune, Maharashtra": approximate, phones are often routed through Mumbai */
+  area?: string | null
+  /** "Jio", "Airtel", "ACT Fibernet" */
+  network?: string | null
+}
+
 export interface LiveStep {
   page: string
-  ts: string
+  /** India time, "21:05" */
+  at: string
+  ts?: string
   /** seconds the page was visible; null for pages before reading time was counted */
   read_s?: number | null
 }
 
-export interface LiveVisitor {
+export interface LiveVisitor extends LiveAbout {
   who: LiveWho
   page: string
   /** a ping in the last 90 s: the page is open and visible, not just left in a tab */
@@ -37,6 +50,29 @@ export interface LiveToday {
   avg_read_s: number | null
   top_pages: Array<{ page: string; views: number; avg_read_s: number | null }>
   left_from: Array<{ page: string; visits: number }>
+  /** today's visits, newest first (your own included, marked "You") */
+  stories: LiveStory[]
+}
+
+/** One visit as the owner reads it: when, from where, on what, the pages in order and what they did */
+export interface LiveStory extends LiveAbout {
+  who: LiveWho
+  /** India time, "00:38" */
+  start: string
+  end: string
+  minutes: number
+  here_now: boolean
+  came_from: string
+  landing: string
+  pages: number
+  read_s: number
+  steps: Array<{ page: string; at: string; read_s?: number | null }>
+  did: Array<{ what: string; at: string }>
+}
+
+/** "Android phone · Chrome · Pune approx. · Jio": what we know of the visitor's device and connection */
+export function aboutLine(a: LiveAbout): string {
+  return [a.device, a.area ? `${a.area.split(',')[0]} approx.` : null, a.network].filter(Boolean).join(' · ')
 }
 
 export interface Live {
@@ -45,7 +81,7 @@ export interface Live {
   today: LiveToday
 }
 
-const EMPTY_TODAY: LiveToday = { date: '', visitors: 0, visits: 0, pages: 0, one_page_visits: 0, avg_read_s: null, top_pages: [], left_from: [] }
+const EMPTY_TODAY: LiveToday = { date: '', visitors: 0, visits: 0, pages: 0, one_page_visits: 0, avg_read_s: null, top_pages: [], left_from: [], stories: [] }
 
 export async function getLive(): Promise<Live> {
   const empty: Live = { as_of: new Date().toISOString(), now: { count: 0, visitors: [] }, today: EMPTY_TODAY }
@@ -66,7 +102,8 @@ const KINDS: Record<string, string> = {
 const PAGES: Record<string, string> = {
   '/': 'Home page', '/projects': 'All projects', '/news': 'News', '/localities': 'All areas', '/builders': 'All builders',
   '/check': 'Project check', '/insights': 'Insights', '/posts': 'Posts', '/for-agents': 'For agents', '/for-agents/guide': 'Agent guide',
-  '/pune-maharera-tracker': 'MahaRERA tracker', '/privacy': 'Privacy policy',
+  '/pune-maharera-tracker': 'MahaRERA tracker', '/privacy': 'Privacy policy', '/agents': 'Agents list', '/trial': 'Free trial (agents)',
+  '/request-invite': 'Agent invite form',
 }
 
 /** "/projects/godrej-ivara-pune" -> "Project: Godrej ivara pune". A page we do not know by name shows its path. */

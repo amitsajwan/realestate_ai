@@ -1,7 +1,7 @@
 'use client'
 import React, { useEffect, useRef, useState } from 'react'
 import { API_BASE_URL } from '@/lib/config/api'
-import { getAnonId, readAttribution, readVisitPages } from '@/lib/site/tracking'
+import { getAnonId, readAttribution, readVisitPages, trackEvent } from '@/lib/site/tracking'
 import { chatContextFromPath, type ChatContext } from '@/lib/site/chatContext'
 import { cardFacts, parseChatReply, WHATSAPP_QUICK, type ChatCard } from '@/lib/site/chatApi'
 import { BRAND_NAME } from '@/lib/brand'
@@ -79,6 +79,7 @@ export default function ChatWidget({ agentSlug, bottomBar = true }: { agentSlug:
   const end = useRef<HTMLDivElement>(null)
   const anchor = useRef<HTMLDivElement>(null)
   const started = useRef(false)
+  const counted = useRef(false) // chat_open goes once per page, so a visitor's story says they talked to us
   const asked = useRef<ChatContext | undefined>(undefined)
   // the newest reply with homes (it and its follow-up question are the last two messages): read from its first line, not from the bottom
   const anchorAt = msgs.findIndex((m, i) => i >= msgs.length - 2 && m.role === 'bot' && !!m.cards?.length)
@@ -103,6 +104,10 @@ export default function ChatWidget({ agentSlug, bottomBar = true }: { agentSlug:
     setText('')
     setMsgs((x) => [...x, ...(m === 'hi' && !started.current ? [] : [{ role: 'you' as const, text: m }])])
     started.current = true
+    if (!counted.current) {
+      counted.current = true
+      trackEvent('chat_open', agentSlug)
+    }
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/chat/message`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },

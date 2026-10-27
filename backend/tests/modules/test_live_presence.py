@@ -1,11 +1,14 @@
-"""Reading pings and the Live panel (docs/plan/site-live-presence.md D1, D2)."""
+"""Reading pings, the Live panel and who the visitor is (docs/plan/site-live-presence.md D1, D2, D6)."""
 from datetime import datetime, timedelta
 
 import pytest
 from pydantic import ValidationError
 
+from app.modules.tracking import device
 from app.modules.tracking.live import build_live, visits_of
 from app.modules.tracking.schemas import PingIn
+from app.modules.tracking.service import TrackingService
+from app.platform.geoip import Place
 
 from .test_tracking import BROWSER, ev, make
 
@@ -174,3 +177,95 @@ async def test_today_counts_visits_reading_time_top_pages_and_where_they_left():
     assert today["avg_read_s"] == 40
     assert today["top_pages"][0] == {"page": "/projects/godrej-ivara-pune", "views": 2, "avg_read_s": 60}
     assert {r["page"]: r["visits"] for r in today["left_from"]} == {"/projects/lodha-camelot": 1, "/projects/godrej-ivara-pune": 1}
+
+
+# ---- who the visitor is (plan D6): device, area, network, robots, your own browser, and the story of each visit ----------
+
+PUNE_JIO = Place(city="Pune", region="Maharashtra", country="IN", network="Jio", robot=False)
+CLOUD = Place(city="Mumbai", region="Maharashtra", country="IN", network="Google", robot=True)
+ANDROID = "Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36"
+
+
+async def make_geo(places):
+    svc, db, clock = await make()
+    asked = []
+
+    def lookup(ip):
+        asked.append(ip)
+        return places.get(ip)
+    return TrackingService(db, now=clock, geo=lookup), db, clock, asked
+
+
+def test_device_labels_name_the_phone_and_the_browser_or_app():
+    assert device.label(ANDROID) == "Android phone · Chrome"
+    assert device.label(BROWSER) == "iPhone · Safari"
+    assert device.label(BROWSER + " Instagram 312.0.0.0") == "iPhone · Instagram app"
+    assert device.label("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130.0 Safari/537.36 Edg/130.0") == "Windows computer · Edge"
+    assert device.label("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15") == "Mac · Safari"
+    assert device.label(None) is None
+
+
+async def test_an_event_keeps_device_area_and_network_but_never_the_ip():
+    svc, db, _, asked = await make_geo({"49.36.1.1": PUNE_JIO})
+    await svc.track_event(view("/", "viewI0000001"), ANDROID, "49.36.1.1")
+    doc = await db.get_collection("events").find_one({})
+    assert (doc["device"], doc["area"], doc["network"]) == ("Android phone · Chrome", "Pune, Maharashtra", "Jio")
+    assert asked == ["49.36.1.1"] and "49.36.1.1" not in str(doc) and "robot" not in doc and "staff" not in doc
+
+
+async def test_headless_browsers_are_not_recorded():
+    svc, db, _, _ = await make_geo({})
+    ua = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/130.0 Safari/537.36"
+    assert await svc.track_event(view("/", "viewJ0000001"), ua, "1.2.3.4") is False
+    assert await db.get_collection("events").count_documents({}) == 0
+
+
+async def test_a_visitor_from_a_data_centre_is_a_robot_and_left_out_of_live():
+    svc, _, _, _ = await make_geo({"34.1.1.1": CLOUD, "49.36.1.1": PUNE_JIO})
+    await svc.track_event(view("/", "viewK0000001", anon="anon-robot-00"), ANDROID, "34.1.1.1")
+    await svc.track_event(view("/", "viewK0000002"), ANDROID, "49.36.1.1")
+    live = await build_live(svc, "A1")
+    assert live["now"]["count"] == 1 and live["today"]["visitors"] == 1 and len(live["today"]["stories"]) == 1
+    assert live["now"]["visitors"][0]["area"] == "Pune, Maharashtra"
+
+
+async def test_your_own_browser_is_you_listed_last_and_never_counted():
+    svc, _, clock, _ = await make_geo({})
+    await svc.track_event(view("/", "viewL0000001", anon="anon-owner-00", staff=True), ANDROID)
+    clock.advance(seconds=30)
+    await svc.track_event(view("/projects/x", "viewL0000002", anon="anon-owner-00"), ANDROID)  # Studio signed out: still you today
+    await svc.track_event(view("/", "viewL0000003"), BROWSER)
+    live = await build_live(svc, "A1")
+    assert [r["who"]["label"] for r in live["now"]["visitors"]] == ["Visitor 1", "You"]
+    assert live["now"]["count"] == 1 and live["today"]["visitors"] == 1 and live["today"]["pages"] == 1
+    assert {s["who"]["kind"] for s in live["today"]["stories"]} == {"you", "visitor"}
+
+
+async def test_a_story_says_when_from_where_on_what_and_what_they_did():
+    svc, _, clock, _ = await make_geo({"49.36.1.1": PUNE_JIO})   # 12:00 UTC = 17:30 India
+    await svc.track_event(view("/projects/nova-residency-mundhwa?utm_source=chatgpt.com", "viewM0000001",
+                               utm={"utm_source": "chatgpt.com"}), ANDROID, "49.36.1.1")
+    clock.advance(minutes=3)
+    await svc.ping(ping(170, view="viewM0000001"), ANDROID)
+    await svc.track_event(ev("chat_open", listing=None), ANDROID, "49.36.1.1")
+    clock.advance(minutes=1)
+    await svc.track_event(view("/projects/godrej-ivara-pune", "viewM0000002"), ANDROID, "49.36.1.1")
+    await svc.track_event(ev("whatsapp_click", listing=None), ANDROID, "49.36.1.1")
+    clock.advance(minutes=30)   # gone
+
+    s = (await build_live(svc, "A1"))["today"]["stories"][0]
+    assert (s["start"], s["end"], s["came_from"], s["landing"]) == ("17:30", "17:34", "chatgpt", "/projects/nova-residency-mundhwa")
+    assert (s["device"], s["area"], s["network"], s["pages"], s["read_s"], s["here_now"]) == \
+        ("Android phone · Chrome", "Pune, Maharashtra", "Jio", 2, 170, False)
+    assert [(x["page"], x["at"], x["read_s"]) for x in s["steps"]] == \
+        [("/projects/nova-residency-mundhwa", "17:30", 170), ("/projects/godrej-ivara-pune", "17:34", 0)]
+    assert s["did"] == [{"what": "Opened the chat", "at": "17:33"}, {"what": "Tapped WhatsApp", "at": "17:34"}]
+
+
+async def test_stories_list_the_newest_visit_first():
+    svc, _, clock, _ = await make_geo({})
+    await svc.track_event(view("/", "viewN0000001", anon="anon-early-00"), BROWSER)
+    clock.advance(minutes=40)
+    await svc.track_event(view("/", "viewN0000002", anon="anon-later-00"), BROWSER)
+    stories = (await build_live(svc, "A1"))["today"]["stories"]
+    assert [s["who"]["label"] for s in stories] == ["Visitor 2", "Visitor 1"]

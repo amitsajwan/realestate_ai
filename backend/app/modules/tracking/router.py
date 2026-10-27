@@ -1,13 +1,14 @@
 """Public tracking endpoints (used by agent websites) and the agent's lead inbox."""
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 
 from app.core.auth_backend import current_active_user
 from app.core.database import get_database
 from app.models.user import User
 
 from .live import build_live
+from .origin import client_ip
 from .schemas import DraftIn, EventIn, InquiryIn, PingIn, StageUpdate
 from .service import TrackingError, TrackingService
 
@@ -24,10 +25,10 @@ def _http(e: TrackingError) -> HTTPException:
 
 
 @public_router.post("/event", status_code=202)
-async def track_event(body: EventIn, user_agent: Optional[str] = Header(None),
+async def track_event(body: EventIn, request: Request, user_agent: Optional[str] = Header(None),
                       svc: TrackingService = Depends(get_service)):
     try:
-        return {"recorded": await svc.track_event(body, user_agent)}
+        return {"recorded": await svc.track_event(body, user_agent, client_ip(request))}
     except TrackingError as e:
         raise _http(e)
 
@@ -41,9 +42,10 @@ async def reading_ping(body: PingIn, user_agent: Optional[str] = Header(None), s
 
 
 @public_router.post("/inquiry")
-async def submit_inquiry(body: InquiryIn, user_agent: Optional[str] = Header(None), svc: TrackingService = Depends(get_service)):
+async def submit_inquiry(body: InquiryIn, request: Request, user_agent: Optional[str] = Header(None),
+                         svc: TrackingService = Depends(get_service)):
     try:
-        return await svc.capture_inquiry(body, user_agent)
+        return await svc.capture_inquiry(body, user_agent, client_ip(request))
     except TrackingError as e:
         raise _http(e)
 

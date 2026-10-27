@@ -87,3 +87,16 @@ test('each page path is its own view with its own id', () => {
   expect(views[0].view_id).toMatch(/^[a-z0-9]{24}$/)
   expect(views[0].view_id).not.toEqual(views[1].view_id)
 })
+
+test('a browser signed in to Studio marks its views as staff, others do not', () => {
+  const { unmount } = render(<TrackingBeacon agentSlug="avasetu" />)
+  unmount()
+  window.localStorage.setItem('app_token', 'studio-token')
+  try {
+    const again = render(<TrackingBeacon agentSlug="avasetu" />)
+    again.unmount()
+  } finally {
+    window.localStorage.removeItem('app_token')
+  }
+  expect(sent('event').map((v) => v.staff)).toEqual([undefined, true])
+})

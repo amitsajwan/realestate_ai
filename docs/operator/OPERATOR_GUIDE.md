@@ -321,6 +321,7 @@ All backend settings go in `~/app/deploy/gcp/.env` on the VM; Compose passes the
 | `WHATSAPP_VERIFY_TOKEN` | empty | **Secret.** Random value pasted into Meta's webhook settings. |
 | `WHATSAPP_OWNER_AGENT_ID` | falls back to `INTEREST_OWNER_AGENT_ID`, then `ENGAGE_OWNER_AGENT_ID` | Receives chats that name no agent. |
 | `LEAD_AUTO_FOLLOWUP` | `false` | `true` = website form leads of `WHATSAPP_OWNER_AGENT_ID` nobody contacted get the approved follow-up template 2 minutes after they come in (once per lead, paid utility message; `lead_followups` loop). The 2-hour waiting alerts run either way. |
+| `GEOIP_REFRESH` | `false` (`true` in deploy/gcp/docker-compose.yml) | `true` = the `geoip` loop (newsroom role) downloads DB-IP's free city and network files into `uploads/geoip` when missing or over 35 days old. Studio > Results then shows each visitor's approximate area and network, and visits from cloud networks count as robots. Off = no area or network, nothing else changes. `GEOIP_DIR` moves the folder. |
 | `WHATSAPP_NUMBER_AGENTS` | `{}` | JSON map `{"<phone number id>": "<agent id>"}` for agents' own numbers (coexistence, later). |
 | `WHATSAPP_GRAPH_VERSION` | `v23.0` | Graph API version. |
 | `WHATSAPP_PUBLIC_NUMBER` | falls back to `NEXT_PUBLIC_WHATSAPP_NUMBER` | Number the website chat offers for "Continue on WhatsApp". Empty = never offered. |

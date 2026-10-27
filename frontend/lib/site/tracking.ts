@@ -1,8 +1,9 @@
 // Client-side tracking helpers. Everything here fails silently: tracking must never break the page.
 import { API_BASE_URL } from '@/lib/config/api'
+import { getToken } from '@/lib/app/session'
 import type { Attribution } from './types'
 
-export type SiteEventType = 'page_view' | 'listing_view' | 'share' | 'call_click' | 'whatsapp_click'
+export type SiteEventType = 'page_view' | 'listing_view' | 'share' | 'call_click' | 'whatsapp_click' | 'chat_open'
 
 const KEY = 'site_anon_id'
 let memoryId: string | null = null
@@ -125,10 +126,19 @@ function post(route: string, body: object): void {
   }
 }
 
+/** A browser signed in to Studio is the agent's own: its visits show as "You" in the Live panel and are not counted. */
+function isStaff(): boolean {
+  try {
+    return !!getToken()
+  } catch {
+    return false
+  }
+}
+
 /** `viewId` names this page view, so its "still reading" pings (startReading) add their time to it. */
 export function trackEvent(type: SiteEventType, agentSlug: string, listingId?: string, viewId?: string): void {
   try {
-    post('event', { ...buildTouch(agentSlug, listingId), type, ...(viewId ? { view_id: viewId } : {}) })
+    post('event', { ...buildTouch(agentSlug, listingId), type, ...(viewId ? { view_id: viewId } : {}), ...(isStaff() ? { staff: true } : {}) })
   } catch {
     /* never throw from tracking */
   }

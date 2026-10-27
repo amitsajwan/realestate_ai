@@ -3,8 +3,10 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import ChatWidget, { ChatHomeCard } from '@/components/site/ChatWidget'
 import { cardFacts, parseChatReply } from '@/lib/site/chatApi'
 
+const mockTrackEvent = jest.fn()
 jest.mock('@/lib/site/tracking', () => ({
   readAttribution: () => ({ source: 'chat' }), getAnonId: () => 'anon12345', readVisitPages: () => ({ path: '/agent/rahul', landing: '/agent/rahul' }),
+  trackEvent: (...args: unknown[]) => mockTrackEvent(...args),
 }))
 jest.mock('@/lib/app/whatsapp', () => ({ getNotifications: jest.fn() }))
 
@@ -83,6 +85,8 @@ describe('ChatWidget', () => {
     expect(screen.queryByRole('link', { name: 'Continue on WhatsApp' })).toBeNull()
     const body = JSON.parse(fetchMock.mock.calls[1][1].body)
     expect(body).toMatchObject({ agent_slug: 'rahul', message: 'Similar homes' })
+    // the visitor's story says they opened the chat: once for the page, not once per message
+    expect(mockTrackEvent.mock.calls).toEqual([['chat_open', 'rahul']])
   })
 })
 

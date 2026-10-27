@@ -10,6 +10,7 @@ const VERBS: Record<string, string> = {
   call_click: 'Tapped Call on',
   whatsapp_click: 'Tapped WhatsApp on',
   inquiry: 'Sent an enquiry about',
+  chat_open: 'Opened the chat on',
   call_answered: 'You called: answered',
   call_no_answer: 'You called: no answer',
 }

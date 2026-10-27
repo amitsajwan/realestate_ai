@@ -81,6 +81,28 @@ The privacy page gets one plain paragraph: we count pages read and time spent to
 anonymous until you give us your number. No cookie banner (no third-party trackers, no ads). Pings carry no personal data. If we
 ever add a third-party analytics script, this decision is revisited first.
 
+### D6. Who the visitor is, without keeping who they are (2026-10-27)
+
+Owner asked for IP and area after counting 8 visitors when they had used only a laptop and a phone (they were 2 of the 8; 3 came
+from ChatGPT). Decided: **the IP address is used at the moment of the visit and dropped**, never stored or shown. It cannot name
+a person anyway (Jio/Airtel share one address among thousands of phones and change it often), and keeping it would break the
+privacy page's promise. What each event keeps instead:
+
+- **device**: "Android phone · Chrome", "iPhone · Instagram app" (tracking/device.py, from the user agent; the user agent is
+  not stored). Headless browsers and speed-test robots are not recorded at all.
+- **area** and **network**: "Pune, Maharashtra", "Jio", from DB-IP's free files on our own disk (platform/geoip.py; no address
+  is sent anywhere). Shown as "Pune approx.": phones are often routed through Mumbai. Credit "IP Geolocation by DB-IP" sits
+  under the list, as the CC BY licence asks. The `geoip` loop refreshes the files monthly (GEOIP_REFRESH, on in production).
+- **robot**: a visit from a cloud network (Google, Amazon, Microsoft, Hetzner...) is a robot and left out of the Live panel.
+  Cloudflare/Akamai/Fastly are not on the list: iCloud Private Relay and WARP carry people through them.
+- **staff**: a browser signed in to Studio sends `staff: true`; that visitor is "You" for the whole day, listed last and never
+  counted. Older visits from your devices stay counted until they visit again signed in.
+- **chat_open**: the chat widget records that a visitor opened the chat (once per page; scores 0), so a story can say so.
+
+Studio > Results gains **Today's visitors**: every visit today, newest first, in India time: who, where from, first page,
+device · area · network, pages and reading time, and what they did (opened the chat, tapped WhatsApp/Call, shared, enquired).
+Tap one for the pages in order with the time on each.
+
 ## Phases (each one is shippable alone)
 
 1. **P1 Measure.** D1 beacon on every buyer page + reading-time pings + bot filter. Done when Studio's existing numbers include
@@ -105,3 +127,4 @@ ever add a third-party analytics script, this decision is revisited first.
   `GET /inbox/live` (tracking/live.py); Studio > Results opens with "Right now" and "Today on the site" (components/app/LiveNow.tsx);
   privacy page names reading time. Reading time starts at zero: views before this deploy have none. Watch after deploy: events
   per day (the weekly report reads the newest 20,000 events, so more page views shorten its window) and Core Web Vitals.
+- 2026-10-27: D6 built (work/visitor-story): device, area/network (DB-IP, IP dropped), robots, "You", chat_open, Today's visitors.

@@ -36,3 +36,4 @@ pypdfium2==5.14.0  # brochure PDFs: pages to pictures, text (Apache-2.0/BSD; not
 onnxruntime==1.30.0
 tokenizers==0.21.1  # radar embeddings (platform/embed.py): the multilingual-e5-small tokenizer (Apache-2.0)
 opencv-python-headless==5.0.0.93
+maxminddb==2.6.2

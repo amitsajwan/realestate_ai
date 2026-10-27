@@ -7,7 +7,7 @@ from app.platform.text import normalize_indian_mobile
 from .origin import clip
 from .requirement import Financing, Timeline
 
-EventType = Literal["page_view", "listing_view", "share", "call_click", "whatsapp_click"]
+EventType = Literal["page_view", "listing_view", "share", "call_click", "whatsapp_click", "chat_open"]
 Stage = Literal["new", "contacted", "site_visit", "negotiating", "won", "lost"]
 
 
@@ -33,6 +33,7 @@ VIEW_ID = r"^[A-Za-z0-9]{8,40}$"
 class EventIn(TrackedTouch):
     type: EventType
     view_id: Optional[str] = Field(None, pattern=VIEW_ID)  # one page view, made in the browser; its "still reading" pings name it
+    staff: bool = False  # the browser is signed in to Studio: the agent's own visit, left out of the visitor counts
 
 
 class PingIn(BaseModel):
