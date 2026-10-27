@@ -67,3 +67,8 @@ Opens on Needs you while anyone waits. A WhatsApp reply has quick replies that f
 
 `localStorage.app_fixtures = 1` runs Studio on fake data (as the owner). Add `localStorage.app_fixture_agent = 1` to see it as an
 agent sees it (agent tab bar, no posts or join requests).
+
+## Leads
+
+A search box (shown once there are more than five leads) finds by name, phone digits (three or more), area, BHK or words they
+wrote; every word must match (`matchesSearch` in `lib/app/leads.ts`).

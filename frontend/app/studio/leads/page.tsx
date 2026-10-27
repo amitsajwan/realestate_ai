@@ -9,7 +9,7 @@ import { useIsOwner } from '@/components/app/agents/useIsOwner'
 import { ErrorBox, PageTitle, STAGES, Spinner, TempChip } from '@/components/app/ui'
 import { api } from '@/lib/app/client'
 import { displayPhone, timeAgo } from '@/lib/app/format'
-import { buildWhatsappUrl, channelLabel, CONTACT_TONE, contactLine, originKey, sortLeads, sourceLabel } from '@/lib/app/leads'
+import { buildWhatsappUrl, channelLabel, CONTACT_TONE, contactLine, matchesSearch, originKey, sortLeads, sourceLabel } from '@/lib/app/leads'
 import { t } from '@/lib/app/strings'
 import { useAsync } from '@/lib/app/useAsync'
 import type { Lead, TodayFollowUp } from '@/lib/app/types'
@@ -143,7 +143,8 @@ function LeadsList() {
     m[k] = (m[k] ?? 0) + 1
     return m
   }, {})).sort((a, b) => Number(a[0] === 'unknown') - Number(b[0] === 'unknown') || b[1] - a[1])
-  const leads = (data?.leads ?? []).filter((l) => (!hot || (l.temperature === 'hot' && isOpen(l))) && (!from || originKey(l) === from))
+  const [q, setQ] = useState('')
+  const leads = (data?.leads ?? []).filter((l) => (!hot || (l.temperature === 'hot' && isOpen(l))) && (!from || originKey(l) === from) && matchesSearch(l, q))
   const due = new Map((data?.followUps ?? []).map((f) => [f.id, f]))
   const inTab = (k: string) =>
     k === 'all' ? leads
@@ -166,6 +167,11 @@ function LeadsList() {
         ]} />
       )}
       {tab === 'passed' ? <PassedPanel /> : <>
+      {data && data.leads.length > 5 && (
+        <input type="search" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search leads"
+          placeholder="Search name, phone, area or BHK"
+          className="min-h-[48px] w-full rounded-xl border border-gray-300 bg-white px-4 text-base text-gray-900 placeholder-gray-400 focus:border-[#0f2340] focus:outline-none" />
+      )}
       <div className="items-center justify-between gap-2 [display:flex]">
         <p className="text-xs text-gray-600">{hot ? 'Showing hot buyers only.' : 'Newest first.'}</p>
         <button type="button" role="switch" aria-checked={hot} onClick={() => setHot(!hot)}
@@ -195,7 +201,7 @@ function LeadsList() {
       {error && <ErrorBox message={error} onRetry={reload} />}
       {data && shown.length === 0 && (
         <p className="rounded-2xl bg-white p-4 text-center text-sm text-gray-600">
-          {hot ? 'No hot buyers here.' : EMPTY[tab] ?? `No leads in ${STAGES.find((s) => s.key === tab)?.label ?? tab}.`}
+          {q ? `No leads match “${q}”.` : hot ? 'No hot buyers here.' : EMPTY[tab] ?? `No leads in ${STAGES.find((s) => s.key === tab)?.label ?? tab}.`}
         </p>
       )}
       {data && shown.length > 0 && (
