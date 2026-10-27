@@ -212,7 +212,7 @@ export function DraftPanel({ leadId, phone }: { leadId: string; phone: string })
               type="button"
               aria-pressed={lang === l.key}
               onClick={() => pick(l.key)}
-              className={`min-h-[44px] min-w-[44px] rounded-full border px-3 text-sm font-semibold ${lang === l.key ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 bg-white text-gray-700'}`}
+              className={`min-h-[44px] min-w-[44px] rounded-full border px-3 text-sm font-semibold ${lang === l.key ? 'border-[#0f2340] bg-[#0f2340] text-white' : 'border-gray-300 bg-white text-gray-700'}`}
             >
               {t(l.label)}
             </button>

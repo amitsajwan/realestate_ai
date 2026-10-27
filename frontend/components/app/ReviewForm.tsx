@@ -167,7 +167,7 @@ function HomesTable({ rows, onChange }: { rows: Configuration[]; onChange: (rows
         <summary className="min-h-[44px] cursor-pointer py-2 font-semibold text-blue-700">Paste the builder's price list</summary>
         <textarea aria-label="Builder rate sheet text" className={`${inputCls} min-h-[100px] py-2`} placeholder={'2 BHK 730 sq ft ₹1.20 Cr\n3 BHK 890 sq ft ₹1.44 Cr'}
           value={paste} onChange={(e) => setPaste(e.target.value)} />
-        <button type="button" disabled={!read.length} className="mt-2 min-h-[44px] rounded-lg bg-blue-600 px-4 font-semibold text-white disabled:opacity-40"
+        <button type="button" disabled={!read.length} className="mt-2 min-h-[44px] rounded-lg bg-[#0f2340] px-4 font-semibold text-white disabled:opacity-40"
           onClick={() => { onChange(read); setPaste('') }}>
           {read.length ? `Use these ${read.length} rows` : 'No rows read yet'}
         </button>
@@ -227,7 +227,7 @@ export function ReviewForm({ value, onChange, confidence = {}, missing = [], err
             type="button"
             aria-pressed={value.transaction === tr}
             onClick={() => set({ transaction: tr })}
-            className={`min-h-[52px] flex-1 rounded-xl border font-semibold capitalize ${value.transaction === tr ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 bg-white'}`}
+            className={`min-h-[52px] flex-1 rounded-xl border font-semibold capitalize ${value.transaction === tr ? 'border-[#0f2340] bg-[#0f2340] text-white' : 'border-gray-300 bg-white'}`}
           >
             {tr === 'sale' ? 'For sale' : 'For rent'}
           </button>
@@ -315,7 +315,7 @@ export function ReviewForm({ value, onChange, confidence = {}, missing = [], err
             type="button"
             aria-pressed={value.listing_scope === sc}
             onClick={() => set({ listing_scope: sc })}
-            className={`min-h-[44px] flex-1 rounded-xl border font-semibold ${value.listing_scope === sc ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 bg-white'}`}
+            className={`min-h-[44px] flex-1 rounded-xl border font-semibold ${value.listing_scope === sc ? 'border-[#0f2340] bg-[#0f2340] text-white' : 'border-gray-300 bg-white'}`}
           >
             {label}
           </button>
@@ -359,7 +359,7 @@ export function ReviewForm({ value, onChange, confidence = {}, missing = [], err
             role="tab"
             aria-selected={lang === l}
             onClick={() => setLang(l)}
-            className={`min-h-[44px] flex-1 rounded-lg text-sm font-semibold ${lang === l ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+            className={`min-h-[44px] flex-1 rounded-lg text-sm font-semibold ${lang === l ? 'bg-[#0f2340] text-white' : 'bg-gray-100 text-gray-700'}`}
           >
             {l === 'en' ? 'English' : l === 'hi' ? 'हिन्दी' : 'मराठी'}
           </button>

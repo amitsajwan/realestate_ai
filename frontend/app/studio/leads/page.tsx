@@ -179,7 +179,7 @@ function LeadsList() {
             <span className="flex-none self-center text-xs text-gray-600">From:</span>
             {fromCounts.map(([k, n]) => (
               <button key={k} type="button" aria-pressed={from === k} onClick={() => pickFrom(k)}
-                className={`min-h-[36px] flex-none rounded-full border px-3 text-sm ${from === k ? 'border-blue-600 bg-blue-600 font-semibold text-white' : 'border-gray-300 bg-white text-gray-700'}`}>
+                className={`min-h-[36px] flex-none rounded-full border px-3 text-sm ${from === k ? 'border-[#0f2340] bg-[#0f2340] font-semibold text-white' : 'border-gray-300 bg-white text-gray-700'}`}>
                 {sourceLabel(k)} {n}
               </button>
             ))}

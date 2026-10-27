@@ -148,7 +148,7 @@ export function AskAiPanel({ listing, onSaved }: { listing: Listing; onSaved: (l
         <div className="flex items-center gap-2 text-sm" role="group" aria-label="Language of the posts">
           {LANGS.map(([l, label]) => (
             <button key={l} type="button" aria-pressed={lang === l} onClick={() => setLang(l)}
-              className={`min-h-[44px] flex-1 rounded-lg font-semibold ${lang === l ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}>{label}</button>
+              className={`min-h-[44px] flex-1 rounded-lg font-semibold ${lang === l ? 'bg-[#0f2340] text-white' : 'bg-gray-100 text-gray-700'}`}>{label}</button>
           ))}
         </div>
         {prompts.loading && !prompts.data && <Spinner />}
@@ -240,7 +240,7 @@ function Step({ p, n, nextTitle, open, done, busy, err, note, text, answer, pick
       <h3>
         <button type="button" aria-expanded={open} aria-controls={`step-${p.id}`} onClick={onToggle}
           className="flex min-h-[44px] w-full items-start gap-3 p-3 text-left">
-          <span aria-hidden className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-sm font-bold ${done ? 'bg-green-600 text-white' : open ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}>
+          <span aria-hidden className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-sm font-bold ${done ? 'bg-green-600 text-white' : open ? 'bg-[#0f2340] text-white' : 'bg-gray-200 text-gray-700'}`}>
             {done ? '✓' : n}
           </span>
           <span className="min-w-0 flex-1">
@@ -257,7 +257,7 @@ function Step({ p, n, nextTitle, open, done, busy, err, note, text, answer, pick
             <p className="text-xs font-semibold uppercase text-gray-500">a. Open it in your AI</p>
             {best && (
               <button type="button" onClick={() => onOpenAI(best)}
-                className="min-h-[48px] w-full rounded-xl bg-blue-600 px-4 text-left text-white active:bg-blue-700">
+                className="min-h-[48px] w-full rounded-xl bg-[#0f2340] px-4 text-left text-white active:opacity-90">
                 <span className="block font-semibold">Open in {best.name}</span>
                 {p.best_note && <span className="block text-xs text-blue-100">works best with {p.best_note}</span>}
               </button>

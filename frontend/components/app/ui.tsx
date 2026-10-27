@@ -10,9 +10,10 @@ type BtnProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   block?: boolean
 }
 
+/** Navy and gold, like the tab bar and the list pattern (2026-10-27: buttons were a brighter blue than everything around them). */
 const VARIANTS: Record<NonNullable<BtnProps['variant']>, string> = {
-  primary: 'bg-blue-600 text-white active:bg-blue-700 disabled:bg-blue-300',
-  secondary: 'bg-white text-blue-700 border border-blue-200 active:bg-blue-50 disabled:text-gray-400',
+  primary: 'bg-[#0f2340] text-white active:bg-[#1c355c] disabled:bg-gray-300 disabled:text-gray-600',
+  secondary: 'bg-white text-[#0f2340] border border-gray-300 active:bg-gray-50 disabled:text-gray-400',
   whatsapp: 'bg-green-600 text-white active:bg-green-700 disabled:bg-green-300',
   danger: 'bg-white text-red-600 border border-red-200 active:bg-red-50',
   ghost: 'bg-transparent text-gray-700 active:bg-gray-100',
@@ -106,7 +107,7 @@ export function ErrorBox({ message, onRetry }: { message: string; onRetry?: () =
 export function Spinner({ label }: { label?: string }) {
   return (
     <div className="flex flex-col items-center gap-3 py-10 text-gray-500" role="status">
-      <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600" />
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-[#0f2340]" />
       <span className="text-sm">{label ?? t('loading')}</span>
     </div>
   )

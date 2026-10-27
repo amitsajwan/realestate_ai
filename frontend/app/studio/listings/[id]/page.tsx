@@ -266,7 +266,7 @@ export default function ListingDetailPage() {
               ) : (
                 <>
                   <p className="text-sm text-gray-700" data-testid="readiness">Everything needed is here. Publish it, then start marketing.</p>
-                  <Btn className="!bg-[#0f2340]" disabled={busy} onClick={() => setConfirming(true)}>{t('publish')}</Btn>
+                  <Btn disabled={busy} onClick={() => setConfirming(true)}>{t('publish')}</Btn>
                 </>
               )}
             </section>
