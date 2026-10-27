@@ -6,6 +6,15 @@ import { conciergeApi } from '@/lib/app/concierge'
 let known: boolean | null = null
 const KEY = 'app_is_owner'
 
+/** Demo mode is the owner, unless localStorage app_fixture_agent=1 asks to see Studio as an agent sees it. */
+function fixtureAsAgent(): boolean {
+  try {
+    return window.localStorage.getItem('app_fixture_agent') === '1'
+  } catch {
+    return false
+  }
+}
+
 /** The answer from earlier in this browser session: without it the owner's tab bar first drew as an agent's, then jumped. */
 function remembered(): boolean | null {
   try {
@@ -31,7 +40,7 @@ function remember(v: boolean) {
 export function useIsOwner(): boolean {
   const [owner, setOwner] = useState<boolean>(known === true)
   useEffect(() => {
-    if (isFixtureMode()) return setOwner(true)
+    if (isFixtureMode()) return setOwner(!fixtureAsAgent())
     if (known !== null) return setOwner(known)
     const before = remembered()
     if (before !== null) setOwner(before)

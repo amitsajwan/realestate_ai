@@ -264,8 +264,8 @@ function CaughtUp({ hasListings }: { hasListings: boolean }) {
 }
 
 /**
- * Studio home, top to bottom: who you are and today's date; Add listing and Share my website; the setup steps while any is open;
- * the call list; the to-do list; this week's numbers. Every list opens its screen already filtered.
+ * Studio home, top to bottom: who you are and today's date; Add listing and Share my website; the call list; the to-do list;
+ * the setup steps while any is open; this week's numbers. Every list opens its screen already filtered.
  */
 export function TodayScreen() {
   const owner = useIsOwner()
@@ -304,10 +304,11 @@ export function TodayScreen() {
       <ReraReminder brand={brand} />
       <QuickActions siteUrl={siteUrl} onShared={onShared} />
       {data.todayError && <ErrorBox message={data.todayError} onRetry={reload} />}
-      {brand && <SetupCard steps={steps} />}
       {called && <CallLog c={called} onDone={(logged) => { setCalled(null); if (logged) void reload() }} />}
       <CallList calls={data.calls} onCall={setCalled} />
       <TodoList rows={data.todo} />
+      {/* after the people waiting: a new agent has nobody to call yet, so for them it is at the top anyway */}
+      {brand && <SetupCard steps={steps} />}
       {quiet && !data.todayError && <CaughtUp hasListings={data.listings.length > 0} />}
       <WeeklyCard report={data.week} />
     </div>

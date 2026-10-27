@@ -31,13 +31,13 @@ Top to bottom:
 1. Greeting with first name and date; the photo or logo opens My brand.
 2. The MahaRERA reminder while the number is owed and dated (agents).
 3. **Add listing** and **Share my website** (WhatsApp).
-4. **Get set up** while any step is open: logo or photo, RERA number (agents; left out while the dated reminder shows), first
-   listing, first share of the website (remembered on the phone).
-5. **Call today**: each person once, most urgent first: overdue follow-ups, the server's "call now" picks, leads nobody answered
+4. **Call today**: each person once, most urgent first: overdue follow-ups, the server's "call now" picks, leads nobody answered
    (longest waiting first), follow-ups due today, hot buyers. Five shown, the rest behind "Show all". Won and lost leads never show.
-6. After Call on a row, **Called X? Answered / No answer** logs the call on the lead (the same log as on the lead screen).
-7. **To do**: buyers passed to you, messages waiting, listings to confirm (and how many buyers no longer see), live listings
+5. After Call on a row, **Called X? Answered / No answer** logs the call on the lead (the same log as on the lead screen).
+6. **To do**: buyers passed to you, messages waiting, listings to confirm (and how many buyers no longer see), live listings
    without photos, listings without marketing (one row however many), posts to approve, join requests, trials, the SEO week.
+7. **Get set up** while any step is open: logo or photo, RERA number (agents; left out while the dated reminder shows), first
+   listing, first share of the website (remembered on the phone). Below the lists: a new agent has nobody to call, so it is at the top for them.
 8. **All caught up** when both lists are empty; then **This week**.
 
 Home reads everything once, and again when the app comes back to the front (after a call or WhatsApp).
@@ -62,3 +62,8 @@ size and possession (`lib/app/listingHints.ts`; hints, never a block). Voice is 
 
 Opens on Needs you while anyone waits. A WhatsApp reply has quick replies that fill the box (sent by hand). Demo mode
 (`app_fixtures`) has three conversations.
+
+## Demo mode
+
+`localStorage.app_fixtures = 1` runs Studio on fake data (as the owner). Add `localStorage.app_fixture_agent = 1` to see it as an
+agent sees it (agent tab bar, no posts or join requests).
