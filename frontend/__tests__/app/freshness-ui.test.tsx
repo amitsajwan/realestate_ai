@@ -182,7 +182,6 @@ describe('Freshness prompts on the Listings screen', () => {
 
 describe('Freshness prompt on the listing screen', () => {
   it('shows the hidden state at the top of a hidden listing and confirming clears it', async () => {
-    routeTab = 'status'
     render(<ListingDetailPage />)
     expect(await screen.findByTestId('freshness-l4')).toHaveAttribute('data-state', 'hidden')
     expect(screen.getByRole('link', { name: 'Activity' })).toHaveAttribute('href', '/studio/listings/l4/activity')
@@ -194,6 +193,7 @@ describe('Freshness prompt on the listing screen', () => {
 
   it('a fresh listing has no prompt, and saving never sends the computed freshness fields', async () => {
     routeId = 'l1'
+    routeTab = 'details'
     render(<ListingDetailPage />)
     await screen.findByRole('heading', { level: 1, name: '2 BHK in Baner' })
     expect(screen.queryByTestId('freshness-l1')).toBeNull()

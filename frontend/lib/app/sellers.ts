@@ -2,6 +2,7 @@
 import { API_BASE_URL } from '@/lib/config/api'
 import { getToken } from '@/lib/app/session'
 import { ApiError, parseErrorBody } from '@/lib/app/api'
+import { isFixtureMode } from '@/lib/app/client'
 
 export interface SellerRow {
   /** Hostname without www., e.g. "99acres.com" or "31palmadrive-kharadi.in" */
@@ -34,6 +35,8 @@ export interface SellersResult {
 }
 
 export async function fetchSellers(listingId: string): Promise<SellersResult> {
+  // demo mode has no server: "not searched yet" rather than a 500 on every listing
+  if (isFixtureMode()) return { searched_at: null, query: null, groups: { agents: [], builder: [], portals: [], platform: [] } }
   const token = getToken()
   const headers: Record<string, string> = { Accept: 'application/json' }
   if (token) headers.Authorization = `Bearer ${token}`
