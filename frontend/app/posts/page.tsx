@@ -8,11 +8,14 @@ import { fetchPosts, POSTS_TEXT } from '@/lib/posts/data'
 
 export const revalidate = 60
 
-export const metadata: Metadata = pageMetadata(getMarketingConfig(), {
-  title: POSTS_TEXT.pageTitle,
-  description: POSTS_TEXT.pageDescription,
-  path: '/posts',
-})
+export const metadata: Metadata = {
+  ...pageMetadata(getMarketingConfig(), {
+    title: POSTS_TEXT.pageTitle,
+    description: POSTS_TEXT.pageDescription,
+    path: '/posts',
+  }),
+  robots: { index: false, follow: true },   // a list of our social posts (lib/posts/seo.ts): out of search with them
+}
 
 export default async function PostsPage() {
   const res = await fetchPosts(24)

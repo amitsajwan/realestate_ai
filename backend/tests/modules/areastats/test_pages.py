@@ -181,3 +181,14 @@ async def test_a_place_counts_its_current_projects_apart_from_every_registration
     await pages.assign_all(store)
     got = {p["key"]: p for p in await pages.places(db)}["wagholi"]
     assert (got["projects"], got["current"]) == (2, 1)   # the old one stays on the page, not in "being built or just finished"
+
+
+async def test_a_place_is_in_search_only_with_a_project_page_in_search():
+    async def wagholi(first: dict) -> dict:
+        db, store = await seeded(("P1", "New One", "wagholi", {**FULL, "pune_place": "wagholi", **first}),
+                                 ("P2", "Other One", "wagholi", {**FULL, "pune_place": "wagholi"}))
+        await pages.assign_all(store)
+        return {p["key"]: p for p in await pages.places(db)}["wagholi"]
+    got = await wagholi({})
+    assert (got["projects"], got["indexable"]) == (2, 0)    # register-only pages: the place page stays out of search
+    assert (await wagholi({"page_text": "Written from the record."}))["indexable"] == 1

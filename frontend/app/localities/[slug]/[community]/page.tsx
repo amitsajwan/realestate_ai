@@ -22,11 +22,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug, community } = await params
   const c = await getCommunity(slug, community).catch(() => null)
   if (!c) return { title: 'Neighbourhood guide', robots: { index: false } }
-  return pageMetadata(getMarketingConfig(), {
+  const meta = pageMetadata(getMarketingConfig(), {
     title: c.title,
     description: c.summary || `${c.name}, ${c.area_name}, Pune: what is nearby and the MahaRERA projects named after it.`,
     path: `/localities/${c.area_slug}/${c.slug}`,
   })
+  // a model writes the paragraphs, one article per neighbourhood from one prompt: out of search since the site-wide drop of
+  // 2026-10-26 (docs/plan/seo-system.md section 11); kept for visitors and the links between areas
+  return { ...meta, robots: { index: false, follow: true } }
 }
 
 export default async function CommunityPage({ params }: Props) {

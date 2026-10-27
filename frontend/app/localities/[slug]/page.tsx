@@ -74,11 +74,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const l = getLocality(slug)
   if (!l) {
     const name = localityNameFromSlug(slug)
-    return pageMetadata(getMarketingConfig(), {
+    const meta = pageMetadata(getMarketingConfig(), {
       title: `${name}, Pune: live listings and projects`,
       description: `Listings and projects agents have added in ${name}, Pune, with buyer checks before you visit or book.`,
       path: `/localities/${slug}`,
     })
+    // no guide of its own: the same stub for every place name an agent typed, so it stays out of search (2026-10-27)
+    return { ...meta, robots: { index: false, follow: true } }
   }
   const meta = pageMetadata(getMarketingConfig(), {
     title: `${l.name}, Pune: projects, MahaRERA records and buyer guide`,

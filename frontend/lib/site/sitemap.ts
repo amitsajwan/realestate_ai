@@ -4,8 +4,6 @@ import { LOCALITIES, getLocality, localitySlug } from '@/lib/marketing/localitie
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { fetchNews } from '@/lib/news/data'
 import { fetchTrackers, trackerPath } from '@/lib/news/trackers'
-import { fetchPosts, postPath } from '@/lib/posts/data'
-import { getCommunities } from '@/components/localities/communities'
 import { getCatalog, getSitemapEntries } from '@/lib/site/api'
 import { getFacets, withoutMovedSizePages } from '@/lib/site/facets'
 import { fetchTopics, topicPath } from '@/lib/site/topics'
@@ -19,8 +17,6 @@ const day = (d?: string | null): Date | undefined => {
   return t && !isNaN(t.getTime()) ? t : undefined
 }
 
-const POSTS_MAX = 500 // the API's most per call: every published post for years
-
 export type SitemapEntry = MetadataRoute.Sitemap[number]
 /** Which sitemap a page is listed in: 'core', 'agents', 'builders', 'projects' (shared pages whose area we can't place) or
  *  'area-<place slug>', one per Pune place in the register, so Search Console shows how much of each area is indexed. */
@@ -29,11 +25,13 @@ export type Grouped = { group: string; entry: SitemapEntry }[]
 /** Pages that are public and worth indexing: the fixed pages, then news stories and the agent pages that have real content
  *  (the backend leaves out the demo agent, unpublished previews and sample listings), Avasetu's shared project pages and the
  *  2 BHK / budget pages that have enough projects. Built when Google asks for it, so new
- *  stories, listings and projects are listed without a deploy. Every post's own page is listed too, dated by its post. */
+ *  stories, listings and projects are listed without a deploy. Left out since the site-wide drop of 2026-10-26 (pages made in
+ *  bulk from one template or written by a model): neighbourhood articles, locality pages without a guide of their own, and
+ *  our social posts' pages. They stay up for visitors, noindex. */
 export async function buildSitemap(): Promise<Grouped> {
   const base = getMarketingConfig().siteUrl
   const at = (path: string, priority: number, date?: string | null): SitemapEntry => ({ url: base + path, lastModified: day(date), priority })
-  const [news, agents, projects, posts, register, places, hoods, builders, facets, topics, trackers] = await Promise.all([fetchNews(50), getSitemapEntries(), getCatalog(), fetchPosts(POSTS_MAX), getRegisterProjects(undefined, true), getRegisterPlaces(), getCommunities(), getBuilders(), getFacets(), fetchTopics(), fetchTrackers()])
+  const [news, agents, projects, register, places, builders, facets, topics, trackers] = await Promise.all([fetchNews(50), getSitemapEntries(), getCatalog(), getRegisterProjects(undefined, true), getRegisterPlaces(), getBuilders(), getFacets(), fetchTopics(), fetchTrackers()])
   const placeSlug = new Map(places.map((p) => [p.key, p.slug]))
   const placeByName = new Map(places.flatMap((p) => [[p.slug, p.slug], [localitySlug(p.name), p.slug]]))
   const area = (slug?: string | null) => (slug ? 'area-' + slug : 'projects')
@@ -44,19 +42,6 @@ export async function buildSitemap(): Promise<Grouped> {
   }
   const listedRegnos = new Set(projects.map((p) => p.rera_no))   // those redirect to the shared agent page, listed above
   const shared = new Set(projects.flatMap((p) => p.agents.map((a) => a.slug + '/' + a.project_slug)))
-  const fallbackLocalities = new Map<string, string | null | undefined>()
-  for (const e of agents.listings) {
-    const slug = localitySlug(e.locality)
-    if (slug && !getLocality(slug)) fallbackLocalities.set(slug, e.updated_at)
-  }
-  for (const p of projects) {
-    const slug = localitySlug(p.locality)
-    const date = [p.rera?.checked_at, p.updated_at].filter(Boolean).sort().pop()
-    if (slug && !getLocality(slug)) {
-      const prev = fallbackLocalities.get(slug)
-      if (!fallbackLocalities.has(slug) || (date && (!prev || date > prev))) fallbackLocalities.set(slug, date)
-    }
-  }
   const latest = new Map<string, string | null | undefined>() // agent slug -> newest change on their site
   for (const e of [...agents.listings, ...agents.projects]) {
     const prev = latest.get(e.agent_slug)
@@ -69,16 +54,12 @@ export async function buildSitemap(): Promise<Grouped> {
     core(at('/pune-maharera-tracker', 0.8)),
     // a locality with a guide of the same slug names the guide as its canonical page, so only the guide is listed
     ...LOCALITIES.filter((l) => !topics.some((t) => t.slug === l.slug)).map((l) => core(at(`/localities/${l.slug}`, 0.8, l.updated))),
-    ...[...fallbackLocalities].map(([slug, d]) => core(at(`/localities/${slug}`, 0.5, d))),
-    ...hoods.map((h) => core(at(`/localities/${h.area_slug}/${h.slug}`, 0.6, h.updated))),
     core(at('/news', 0.8)),
     ...trackers.map((t) => core(at(trackerPath(t.slug), 0.8, t.updated))),
     ...news.items.map((n) => core(at(`/news/${n.id}`, 0.6, n.published_at ?? n.as_of))),
     core(at('/insights', 0.7)),
     ...INSIGHTS.map((a) => core(at(`/insights/${a.slug}`, 0.7, a.updated))),
     ...topics.map((t) => core(at(topicPath(t.slug), 0.8, t.checked_on))),
-    core(at('/posts', 0.6)),
-    ...posts.posts.flatMap((p) => (p.slug ? [core(at(postPath(p.slug), 0.6, p.published_at))] : [])),
     ...[...latest].map(([slug, d]) => ({ group: 'agents', entry: at(agentPath(slug), 0.7, d) })),
     core(at('/projects', 0.9)),
     ...projects.map((p) => ({ group: areaOfLocality(p.locality), entry: at('/projects/' + p.slug, 0.9, [p.rera?.checked_at, p.updated_at].filter(Boolean).sort().pop()) })),

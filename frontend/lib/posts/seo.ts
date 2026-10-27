@@ -25,6 +25,8 @@ export function postMetadata(cfg: MarketingConfig, post: PublicPostFull): Metada
   const image = picture ? { url: picture, width: 1080, height: 1350, alt: post.title } : undefined
   return {
     ...base,
+    // the page repeats a Facebook or Instagram post: shared from there, never asked of search (2026-10-27)
+    robots: { index: false, follow: true },
     openGraph: {
       title: post.title, description, url: cfg.siteUrl + path, siteName: cfg.businessName, type: 'article', locale: 'en_IN',
       publishedTime: post.published_at || undefined, images: image ? [image] : base.openGraph?.images,

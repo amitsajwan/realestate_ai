@@ -92,3 +92,15 @@ def test_a_size_list_leaves_out_a_project_with_every_home_booked():
     gone = {**_doc(7, [("2 BHK", 4_500_000, None)]), "units_booked": 100}   # 100 of 100 booked
     listed = [d["_id"] for d, _ in facets.members(Facet("lohegaon", "all", bhk=2), [*DOCS, gone], NOW)]
     assert "P7" not in listed and "P1" in listed
+
+
+
+def test_a_list_is_in_search_only_when_three_of_its_projects_are():
+    f = Facet("lohegaon", "all")
+    register_only = [{k: v for k, v in d.items() if k != "prices"} for d in DOCS]
+    v = facets.facet_view(f, register_only, NOW)
+    assert v["count"] == 5 and not v["indexable"]           # five projects listed, none with content of its own
+    two = [{**d, "page_text": "Written."} if d["_id"] in ("P1", "P2") else d for d in register_only]
+    assert not facets.facet_view(f, two, NOW)["indexable"]
+    three = [{**d, "page_text": "Written."} if d["_id"] in ("P1", "P2", "P3") else d for d in register_only]
+    assert facets.facet_view(f, three, NOW)["indexable"]

@@ -108,6 +108,7 @@ describe('/posts/<slug> page', () => {
     expect(meta.alternates?.canonical).toBe('https://avasetu.in/posts/' + SLUG)
     expect(String(meta.description)).toMatch(/^Wagholi: 41 projects in MahaRERA records: Listed or updated this month\./)  // the title leads (lib/posts/seo.ts)
     expect(String(meta.description)).not.toContain('http')
+    expect(meta.robots).toEqual({ index: false, follow: true })   // a copy of a social post: never asked of search
   })
 
   it('a post without an area or project shows no such links; an older address redirects; unknown is a 404', async () => {
@@ -145,7 +146,7 @@ describe('PostCard opens the post page', () => {
 })
 
 describe('sitemap', () => {
-  it('lists every post page, dated by its post', async () => {
+  it('lists no post page: they repeat our social posts and are noindex (2026-10-27)', async () => {
     const { default: sitemap } = await import('@/lib/site/sitemap')
     calls = []
     global.fetch = jest.fn(async (url: string) => {
@@ -155,9 +156,7 @@ describe('sitemap', () => {
       return { ok: posts, status: posts ? 200 : 404, json: async () => [FULL, { ...FULL, id: 'r2', slug: null }] } as unknown as Response
     }) as unknown as typeof fetch
     const map = await sitemap()
-    const entry = map.find((e) => e.url === 'https://avasetu.in/posts/' + SLUG)
-    expect(entry?.lastModified).toEqual(new Date(FULL.published_at))
-    expect(map.filter((e) => e.url.includes('/posts/'))).toHaveLength(1)
-    expect(calls.some((u) => /\/public\/posts\?limit=500$/.test(u))).toBe(true)
+    expect(map.filter((e) => e.url.includes('/posts'))).toHaveLength(0)
+    expect(calls.some((u) => u.includes('/public/posts'))).toBe(false)
   })
 })
