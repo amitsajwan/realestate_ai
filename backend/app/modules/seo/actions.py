@@ -10,7 +10,7 @@ each other live here rather than in either of them (docs/plan/seo-review.md D2, 
     on the record, and `blocked` is what each step checks before writing;
   - **an undone action is not measured** — `doctor.measure` skips it, so the results table only holds fixes still standing.
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from app.modules.newsroom.store import Store
@@ -18,6 +18,16 @@ from app.modules.newsroom.store import Store
 ACTIONS = "seo_actions"
 REST_DAYS = 28                   # a page gets one fix per window, so a position move can be put down to one change
 FIELD = {"title": "search_name", "description": "seo_description", "rival": "seo_description"}   # the fix types that write a value we can put back
+
+
+# No new title or description fixes until then: after the site-wide drop of 2026-10-26 Google should see a still site while
+# the thin pages leave search (seo-system.md section 11). Measuring and undoing earlier fixes go on.
+HOLD_UNTIL = datetime(2026, 11, 17, tzinfo=timezone.utc)
+
+
+def on_hold(now: datetime) -> bool:
+    """True while new fixes wait (HOLD_UNTIL)."""
+    return now < HOLD_UNTIL
 
 
 def numbers(doc: dict) -> dict:

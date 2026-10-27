@@ -25,7 +25,7 @@ from app.modules.areastats.pages import _served, can_host, names
 from app.modules.areastats.websearch import mentions
 from app.modules.newsroom.store import Store
 
-from .actions import REST_DAYS, blocked, log_fix, stamp
+from .actions import REST_DAYS, blocked, log_fix, on_hold, stamp
 
 log = logging.getLogger(__name__)
 
@@ -96,6 +96,9 @@ async def run_once(store: Store, now: datetime, force: bool = False) -> Optional
     last = _aware((await store.get_mark(MARK)).get("at"))
     if not force and last is not None and now - last < EVERY:
         return None
+    if on_hold(now):   # titles stay as they are while the hold lasts
+        await store.set_mark(MARK, at=now, held=True)
+        return {"held": True}
     by_path: Dict[str, List[dict]] = {}
     conflicts = []
     for d in await store.db.get_collection(DEMAND).find({}).to_list(20000):

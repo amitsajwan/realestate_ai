@@ -100,6 +100,9 @@ VERSIONS = {"web": 1, "profile": 3, "prices": 1}
 STEP_SECONDS = 240
 ROUND_SECONDS = 15 * 60
 MIN_GAP = timedelta(hours=6)
+# a page in Google keeps its text this long before a newer writer or reader version takes it again: 87 of 503 searchable
+# pages were rewritten in one day (2026-10-27), and a site rewriting itself that fast reads as machine-made
+REST_DAYS = 14
 MAX_FAILS = 3
 PARK_DAYS = 14
 BACKFILL = 7                          # priority group of a rewrite for a newer writer: after everything else
@@ -209,11 +212,14 @@ def _priority(d: dict, now: datetime, shown: frozenset = frozenset()) -> Optiona
     top = not is_hot and featured(d, now, shown)                # treated as hot, after the hot ones, retried less often
     seen = int(d.get("gsc_impressions") or 0)
     legacy = isinstance(done, datetime) and not d.get("enrichment")   # enriched before buildings and checks: redo
-    stale = isinstance(done, datetime) and bool(outdated(d))    # read by an older version of a step
+    written = d.get("page_text_at")
+    resting = pages.searchable(d) and isinstance(written, datetime) and now - _aware(written) < timedelta(days=REST_DAYS)
+    stale = isinstance(done, datetime) and bool(outdated(d)) and not resting   # read by an older version of a step
     if stale:   # hot: with the hot ones (after those never given a profile); the rest after everything else, Google's first
         return (1, 1, -heat) if is_hot or top else (BACKFILL, 1, 1, -seen, _aware(done).timestamp())
     # hot pages are rewritten every HOT_REFRESH_DAYS anyway
-    old_writer = not is_hot and not top and isinstance(done, datetime) and int(d.get("page_text_version") or 1) < TEXT_VERSION
+    old_writer = (not is_hot and not top and not resting and isinstance(done, datetime)
+                  and int(d.get("page_text_version") or 1) < TEXT_VERSION)
     if (is_hot or top) and needs_profile(d, now):
         return (1, -heat)                                       # hot and still being built, no profile yet: first
     # a hot page missing a stage or pictures is tried again the next day, not after HOT_REFRESH_DAYS
@@ -865,8 +871,9 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime, reread: bool =
     if not put_off:
         fields["read_at"] = now
     if text:
-        fields.update(page_text=text, page_text_at=now, page_text_version=TEXT_VERSION, page_sections=draft["sections"],
-                      page_summary=draft["summary"])
+        fields.update(page_text=text, page_text_version=TEXT_VERSION, page_sections=draft["sections"], page_summary=draft["summary"])
+        if text != doc.get("page_text") or draft["summary"] != doc.get("page_summary"):
+            fields["page_text_at"] = now   # the page's date moves only when what a reader sees changed
     elif "text" in ran and doc.get("page_text") and not websearch_mentions(pages.names(doc)[0], doc["page_text"]):
         # a kept text that does not name the project (a model's misspelling) gives way to the code-written paragraph
         fields.update(page_text=None, page_sections=None, page_summary=None)

@@ -172,8 +172,9 @@ def has_own_content(doc: dict) -> bool:
     """Something on the page beyond the register: written sections, prices read, checked web facts, or the builder's highlights,
     pictures or floor plans."""
     profile = doc.get("profile") or {}
+    real = any(p.get("source") != "ai" for p in profile.get("photos") or [])   # an AI illustration is not the project's own
     return bool(doc.get("page_text") or (doc.get("prices") or {}).get("rows") or (doc.get("web_facts") or {}).get("facts")
-                or profile.get("highlights") or profile.get("photos") or profile.get("plans"))
+                or profile.get("highlights") or real or profile.get("plans"))
 
 
 def searchable(doc: dict) -> bool:
@@ -184,8 +185,9 @@ def searchable(doc: dict) -> bool:
 
 
 def page_updated(doc: dict) -> Optional[str]:
-    """Our own last change to the page (enrichment or the details read), full ISO datetime; never MahaRERA's dates. The sitemap's lastmod."""
-    stamps = [doc.get("enriched_at"), doc.get("page_text_at")]
+    """Our own last change to the page (its text written, or the details read), full ISO datetime; never MahaRERA's dates. The
+    sitemap's lastmod. Not `enriched_at`: a round that finds the same facts changes nothing a reader sees (2026-10-27)."""
+    stamps = [doc.get("page_text_at")]
     if doc.get("details_ok", True):   # a failed details read changed nothing on the page
         stamps.append(doc.get("details_checked_at"))
     # Full datetime (not just date) so IndexNow sees the actual change time within the day
@@ -657,7 +659,7 @@ async def project_page(db, slug: str, now: Optional[datetime] = None) -> Optiona
     # a count on the builder's or a property site said with its scope: the whole project's, or this registration's
     out["web_facts"] = pagefacts.with_scope(web_public(group_primary(doc, docs).get("web_facts")), out["details"])
     from .profile import public as profile_public
-    out["profile"] = profile_public(group_primary(doc, docs).get("profile"))
+    out["profile"] = profile_public(group_primary(doc, docs).get("profile"), drawn=not out["indexable"])
     from .prices import public as prices_public   # asked prices per home size, from the builder's site or two sites
     out["prices"] = prices_public(group_primary(doc, docs).get("prices"), now)
     # the compare list: each other project's lowest published price and the sizes it is priced for

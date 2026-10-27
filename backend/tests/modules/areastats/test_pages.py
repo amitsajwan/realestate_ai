@@ -68,8 +68,24 @@ async def test_search_sees_only_pages_with_content_beyond_the_register():
 async def test_page_updated_is_our_own_change_never_maharera():
     # a full datetime, not a date: IndexNow must see the hour a page changed, or two edits the same day look identical
     assert pages.page_updated({"last_modified": "2026-09-28"}) is None
-    assert pages.page_updated({**FULL, "enriched_at": datetime(2026, 10, 5, tzinfo=timezone.utc)}) == "2026-10-05T00:00:00+00:00"
+    assert pages.page_updated({**FULL, "page_text_at": datetime(2026, 10, 5, tzinfo=timezone.utc)}) == "2026-10-05T00:00:00+00:00"
     assert pages.page_updated(FULL) == "2026-10-03T09:00:00+00:00"
+    # a round that found the same facts changed nothing a reader sees: the date stays
+    assert pages.page_updated({**FULL, "enriched_at": datetime(2026, 10, 5, tzinfo=timezone.utc)}) == "2026-10-03T09:00:00+00:00"
+
+
+async def test_an_ai_illustration_is_not_content_of_the_projects_own():
+    drawn = {"photos": [{"path": "a.webp", "source": "ai"}]}
+    assert not pages.searchable({**FULL, "profile": drawn})
+    assert pages.searchable({**FULL, "profile": {"photos": [{"path": "b.webp", "source": "builder"}]}})
+
+
+async def test_a_page_in_search_shows_no_ai_illustrations():
+    from app.modules.areastats import profile
+    pics = {"photos": [{"path": "a.webp", "source": "ai"}, {"path": "b.webp", "source": "web", "site": "x.com"}]}
+    assert [p["source"] for p in profile.public(pics)["photos"]] == ["ai", "web"]
+    assert [p["source"] for p in profile.public(pics, drawn=False)["photos"]] == ["web"]
+    assert profile.public({"photos": [{"path": "a.webp", "source": "ai"}]}, drawn=False) is None
 
 
 async def test_marketed_name_and_aliases():

@@ -36,7 +36,7 @@ from app.modules.areastats.service import _count, _day
 from app.modules.newsroom.store import Store
 
 from . import coverage, questions, rival
-from .actions import ACTIONS, FIELD, REST_DAYS, blocked, gain, log_fix, numbers, stamp, undo
+from .actions import ACTIONS, FIELD, REST_DAYS, blocked, gain, log_fix, numbers, on_hold, stamp, undo
 
 log = logging.getLogger(__name__)
 
@@ -245,6 +245,9 @@ async def run_once(store: Store, now: datetime, force: bool = False) -> Optional
     if not force and last is not None and now - last < EVERY:
         return None
     measured = await measure(store, now)
+    if on_hold(now):   # earlier fixes are still measured and undone; no new ones
+        await store.set_mark(MARK, at=now, treated=[], held=True)
+        return {"treated": 0, "held": True, **measured}
     docs = await store.all_projects()
     menu = order(await results(store))
     states = await _index_states(store)

@@ -436,6 +436,17 @@ def test_pages_written_by_an_older_writer_are_rewritten_after_everything_else():
     assert enrich._priority({**old, "page_text_version": 4}, NOW) is None
 
 
+def test_a_page_in_search_keeps_its_text_two_weeks_before_a_newer_writer_takes_it():
+    # Baner: not on an east Pune Top list, whose pages are re-read for pictures on their own schedule
+    old = {"_id": "O", "page_slug": "o", "locality": "baner", **FULL, "enriched_at": NOW - timedelta(days=3),
+           "enrichment": {"score": "4/4", "steps": {"web": {"ok": True, "at": NOW - timedelta(days=3)}}}, "page_text_version": 3,
+           "page_text": "About the project.", "page_text_at": NOW - timedelta(days=3)}
+    assert enrich._priority(old, NOW) is None                                         # in search, written 3 days ago: rests
+    assert enrich._priority({**old, "page_text_at": NOW - timedelta(days=15)}, NOW)[0] == enrich.BACKFILL
+    thin = {k: v for k, v in old.items() if k != "page_text"}
+    assert enrich._priority(thin, NOW)[0] == enrich.BACKFILL                          # not in search: no rest needed
+
+
 # ---- facts often, the model by budget (docs/plan/enrich-lanes.md) ------------------------------------------------------------
 
 def _maharera(monkeypatch, reads):
