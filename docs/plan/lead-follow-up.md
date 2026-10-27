@@ -21,7 +21,7 @@ Two misses on 2026-10-22/23, found by the owner:
    the bot sends the project's floor-plan pictures, or says plainly that we do not have them yet and that the team will get them.
    Needs a project-aware template ("You asked for the floor plans of {{project}}") so the first message names what he asked for,
    not a generic "2 BHK home in Pune".
-3. **Unanswered-lead alert.** A lead with no outgoing message after 2 hours goes to Studio Home "Needs you now" and to the owner's
+3. **Unanswered-lead alert.** A lead with no outgoing message after 2 hours goes to Studio Home ("Call today") and to the owner's
    WhatsApp/email, so a Hot lead is never silent overnight.
 4. **DM delivery check.** Admin health shows the time of the last webhook POST per platform and whether App Review is approved, so
    "the bot did not reply" is visible as "Meta is not sending us messages" without reading logs.
@@ -36,7 +36,7 @@ LIVE 3af3d9ce (2026-10-23): items 5, 6 (messages shown on the lead, reply stays 
 template no longer starts the 12-hour bot hold (only a person's typed reply does), and moves a New lead to Contacted.
 
 LIVE 52588f4d (2026-10-23): items 1 (auto follow-up, LEAD_AUTO_FOLLOWUP=true on the VM, owner's form leads, 2 min after they
-come in, leads of the last 24 h only), 3 (one Studio alert per 2 h+ wait, kind lead_waiting; Home "Needs you now" counts waiting
+come in, leads of the last 24 h only), 3 (one Studio alert per 2 h+ wait, kind lead_waiting; Home "Call today" lists waiting
 leads live; no owner WhatsApp/email yet: that needs a paid alert template) and 11 (timeline points in the score). Loop:
 inbox/followups.py, role conversations.
 

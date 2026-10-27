@@ -550,6 +550,12 @@ export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
         // Contract: moving to contacted schedules a follow-up in 2 days unless one is supplied.
         if (patch.stage === 'contacted' && !patch.follow_up_at) l.follow_up = { due_at: ahead(48), overdue: false }
       }
+      if (patch.call) {
+        // like the server: a logged call is contact; no answer tries again tomorrow; answered moves an overdue follow-up on
+        if (!patch.stage && l.stage === 'new') { l.stage = 'contacted'; l.follow_up = { due_at: ahead(48), overdue: false } }
+        if (patch.call === 'no_answer' && !patch.follow_up_at) l.follow_up = { due_at: ahead(24), overdue: false }
+        if (patch.call === 'answered' && !patch.follow_up_at && l.follow_up?.overdue) l.follow_up = { due_at: ahead(48), overdue: false }
+      }
       if (patch.follow_up_at) l.follow_up = { due_at: patch.follow_up_at, overdue: false }
       l.last_activity_at = now
       if (patch.note) l.notes = [...l.notes, { text: patch.note, ts: now, stage: l.stage }]

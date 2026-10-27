@@ -333,6 +333,10 @@ class TrackingService:
                 changes.update(stage="contacted", contacted_at=now, follow_up_due_at=now + timedelta(days=FOLLOW_UP_DAYS))
             if u.call == "no_answer" and u.follow_up_at is None:
                 changes["follow_up_due_at"] = now + timedelta(days=1)
+            # they picked up: an overdue follow-up is done, the next one is the usual days on (it kept them on top of the call list)
+            due = contact.get("follow_up_due_at")
+            if u.call == "answered" and u.follow_up_at is None and "follow_up_due_at" not in changes and due and due <= now:
+                changes["follow_up_due_at"] = now + timedelta(days=FOLLOW_UP_DAYS)
         if u.follow_up_at is not None:
             changes["follow_up_due_at"] = u.follow_up_at
         upd = {"$set": changes}

@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import React from 'react'
 import { TodayScreen } from '@/components/app/home/TodayScreen'
 import { createFixtureApi } from '@/lib/app/fixtures'
@@ -12,6 +12,7 @@ const threads = jest.fn()
 const getNotifications = jest.fn()
 const getUpcoming = jest.fn()
 const loadBrand = jest.fn()
+const updateLead = jest.fn()
 let mockOwner = false
 jest.mock('@/lib/app/client', () => ({
   api: {
@@ -19,6 +20,7 @@ jest.mock('@/lib/app/client', () => ({
     listLeads: () => fx.listLeads(),
     listListings: () => listListings(),
     getWeeklyReport: () => fx.getWeeklyReport(),
+    updateLead: (...a: unknown[]) => updateLead(...a),
   },
   errorMessage: (e: Error) => e.message,
   isFixtureMode: () => false,
@@ -45,6 +47,7 @@ beforeEach(() => {
   getNotifications.mockReset().mockResolvedValue({ items: [], unread: 0 })
   getUpcoming.mockReset().mockResolvedValue([])
   loadBrand.mockReset().mockResolvedValue(brand())
+  updateLead.mockReset().mockResolvedValue({})
   try { window.localStorage.clear() } catch { /* ignore */ }
 })
 
@@ -66,6 +69,26 @@ describe('Studio home', () => {
     expect(within(list).getByRole('link', { name: 'Call Priya Nair' })).toHaveAttribute('href', 'tel:+919811223344')
     expect(within(list).getByRole('link', { name: 'WhatsApp Rohit Deshmukh' }).getAttribute('href')).toMatch(/^https:\/\/wa\.me\/919822012345\?text=Hi%20Rohit/)
     expect(within(list).getAllByTestId('call-row')[0]).toHaveTextContent('Overdue')
+  })
+
+  it('after Call, home asks how it went and logs it on the lead', async () => {
+    render(<TodayScreen />)
+    const list = await screen.findByRole('region', { name: 'Call today' })
+    fireEvent.click(within(list).getByRole('link', { name: 'Call Rohit Deshmukh' }))
+    const log = screen.getByRole('region', { name: 'Log the call' })
+    expect(log).toHaveTextContent('Called Rohit? How did it go?')
+    fireEvent.click(within(log).getByRole('button', { name: 'No answer' }))
+    await waitFor(() => expect(updateLead).toHaveBeenCalledWith('c1', { call: 'no_answer' }))
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Log the call' })).toBeNull())
+  })
+
+  it('Not now closes the call log without touching the lead', async () => {
+    render(<TodayScreen />)
+    const list = await screen.findByRole('region', { name: 'Call today' })
+    fireEvent.click(within(list).getByRole('link', { name: 'Call Priya Nair' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Not now' }))
+    expect(screen.queryByRole('region', { name: 'Log the call' })).toBeNull()
+    expect(updateLead).not.toHaveBeenCalled()
   })
 
   it('folds listings to confirm and marketing nudges into single to-do rows, each opening its list', async () => {
@@ -171,5 +194,15 @@ describe('home rules', () => {
     const s = { hasLogo: true, hasRera: false, listings: 0, shared: false }
     expect(setupSteps({ ...s, owner: false }).map((x) => x.key)).toEqual(['brand', 'rera', 'listing', 'share'])
     expect(setupSteps({ ...s, owner: true }).map((x) => x.key)).toEqual(['brand', 'listing', 'share'])
+  })
+})
+
+describe('demo data', () => {
+  it('a logged call takes the person off the overdue list, like the server', async () => {
+    const api = createFixtureApi({ getItem: () => null, setItem: () => undefined })
+    await api.updateLead('c2', { call: 'answered' })
+    expect((await api.getToday()).follow_ups.find((f) => f.id === 'c2')).toBeUndefined()
+    await api.updateLead('c1', { call: 'no_answer' })
+    expect((await api.getLead('c1')).stage).toBe('contacted')
   })
 })

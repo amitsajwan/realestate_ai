@@ -40,7 +40,7 @@ the place. Measuring it every week is section 8a, step 2.
 | Hot projects, refresh a page now | Insights → **Hot** |
 | What Google shows for our areas | Insights → **Found on Google** |
 | Loop health, Serper credits and searches per day (rank checks + prices round) | Insights → **System** |
-| Weekly SEO note | Studio **Home** → "Needs you now" (once a week; opening Rankings clears it) |
+| Weekly SEO note | Studio **Home** → "To do" (once a week; opening Rankings clears it) |
 | Google's own view | Search Console, property `sc-domain:avasetu.in` (owner's Google account) |
 | Weekly site audit | GitHub → Actions → "SEO audit (live site)" |
 | AI search: assistants that read us, pages they use, visits from AI answers | Insights → **Rankings** → "AI search"; one line in the weekly note |

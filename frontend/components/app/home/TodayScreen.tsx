@@ -148,7 +148,7 @@ const TONE_DOT: Record<CallItem['tone'], string> = {
   bad: 'bg-red-600', action: 'bg-[#f0b440]', hot: 'bg-orange-500', due: 'bg-blue-600',
 }
 
-function CallRow({ c }: { c: CallItem }) {
+function CallRow({ c, onCall }: { c: CallItem; onCall: (c: CallItem) => void }) {
   return (
     <li className="items-center gap-2 py-2 [display:flex]" data-testid="call-row">
       <Link href={`/studio/leads/${c.id}`} className="min-h-[48px] min-w-0 flex-1 items-center gap-3 [display:flex]">
@@ -160,7 +160,7 @@ function CallRow({ c }: { c: CallItem }) {
       </Link>
       {c.phone && (
         <>
-          <a href={`tel:${c.phone}`} aria-label={`Call ${c.name}`}
+          <a href={`tel:${c.phone}`} aria-label={`Call ${c.name}`} onClick={() => onCall(c)}
             className="h-11 w-11 flex-none items-center justify-center rounded-full bg-[#0f2340] text-white active:opacity-80 [display:flex]">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d="M6.6 10.8a15.1 15.1 0 006.6 6.6l2.2-2.2a1 1 0 011-.25 11.4 11.4 0 003.6.57 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.45.57 3.6a1 1 0 01-.25 1z" /></svg>
           </a>
@@ -174,7 +174,7 @@ function CallRow({ c }: { c: CallItem }) {
   )
 }
 
-function CallList({ calls }: { calls: CallItem[] }) {
+function CallList({ calls, onCall }: { calls: CallItem[]; onCall: (c: CallItem) => void }) {
   const [all, setAll] = React.useState(false)
   if (calls.length === 0) return null
   const shown = all ? calls : calls.slice(0, CALL_LIST_MAX)
@@ -184,12 +184,48 @@ function CallList({ calls }: { calls: CallItem[] }) {
         <h2 className="font-bold text-gray-900">Call today <span className="font-semibold text-gray-500">· {calls.length}</span></h2>
         <Link href="/studio/leads" className="min-h-[44px] items-center text-sm font-semibold text-[#0f2340] underline decoration-[#f0b440] decoration-2 underline-offset-4 [display:flex]">All leads</Link>
       </div>
-      <ul className="divide-y divide-gray-100">{shown.map((c) => <CallRow key={c.id} c={c} />)}</ul>
+      <ul className="divide-y divide-gray-100">{shown.map((c) => <CallRow key={c.id} c={c} onCall={onCall} />)}</ul>
       {calls.length > CALL_LIST_MAX && (
         <button type="button" onClick={() => setAll(!all)} className="mt-1 min-h-[44px] w-full text-sm font-semibold text-[#0f2340]">
           {all ? 'Show fewer' : `Show all ${calls.length}`}
         </button>
       )}
+    </section>
+  )
+}
+
+/**
+ * After Call on a row, coming back to the app asks how it went: the same log as on the lead (answered moves a new lead to
+ * contacted; no answer sets a follow-up for tomorrow), so the call list is right without opening each lead.
+ */
+function CallLog({ c, onDone }: { c: CallItem; onDone: (logged: boolean) => void }) {
+  const [busy, setBusy] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
+  const log = async (call: 'answered' | 'no_answer') => {
+    setBusy(true)
+    setError(null)
+    try {
+      await api.updateLead(c.id, { call })
+      onDone(true)
+    } catch (e) {
+      setError(errorMessage(e))
+      setBusy(false)
+    }
+  }
+  return (
+    <section aria-label="Log the call" aria-live="polite" className="space-y-2 rounded-2xl border-2 border-[#0f2340] bg-white p-4">
+      <p className="font-bold text-gray-900">Called {c.name.split(' ')[0]}? How did it go?</p>
+      <div className="grid grid-cols-2 gap-2">
+        <button type="button" disabled={busy} onClick={() => log('answered')}
+          className="min-h-[48px] rounded-xl bg-[#0f2340] font-semibold text-white disabled:bg-gray-300">Answered</button>
+        <button type="button" disabled={busy} onClick={() => log('no_answer')}
+          className="min-h-[48px] rounded-xl border border-gray-300 bg-white font-semibold text-[#0f2340] disabled:text-gray-400">No answer</button>
+      </div>
+      {error && <p role="alert" className="text-sm font-semibold text-red-700">{error}</p>}
+      <div className="items-center justify-between [display:flex]">
+        <Link href={`/studio/leads/${c.id}`} className="min-h-[44px] items-center text-sm font-semibold text-[#0f2340] underline [display:flex]">Add a note on the lead</Link>
+        <button type="button" onClick={() => onDone(false)} className="min-h-[44px] px-2 text-sm font-semibold text-gray-600">Not now</button>
+      </div>
     </section>
   )
 }
@@ -238,6 +274,13 @@ export function TodayScreen() {
   const [siteUrl, setSiteUrl] = React.useState<string | null>(null)
   React.useEffect(() => setSiteUrl(getSiteUrl()), [])
   const { data, loading, reload } = useAsync(() => loadHome(owner), [owner])
+  const [called, setCalled] = React.useState<CallItem | null>(null)
+  // back from a call or WhatsApp: the lists are read again, quietly
+  React.useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') void reload() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [reload])
   const onShared = () => {
     markSiteShared()
     setShared(true)
@@ -262,7 +305,8 @@ export function TodayScreen() {
       <QuickActions siteUrl={siteUrl} onShared={onShared} />
       {data.todayError && <ErrorBox message={data.todayError} onRetry={reload} />}
       {brand && <SetupCard steps={steps} />}
-      <CallList calls={data.calls} />
+      {called && <CallLog c={called} onDone={(logged) => { setCalled(null); if (logged) void reload() }} />}
+      <CallList calls={data.calls} onCall={setCalled} />
       <TodoList rows={data.todo} />
       {quiet && !data.todayError && <CaughtUp hasListings={data.listings.length > 0} />}
       <WeeklyCard report={data.week} />

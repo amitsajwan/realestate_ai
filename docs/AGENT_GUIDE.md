@@ -173,7 +173,7 @@ post from your own Facebook or Instagram yet."
 3. **Tell us about you:** name, city **Pune**, business name, a colour theme, languages, then **Create my website**. *(1 to 2 s)*
    <br><img src="brand/avasetu/guide/a02-join-profile.jpg" width="200" alt="Profile"> <img src="brand/avasetu/guide/a02-join-done.jpg" width="200" alt="Site live">
 4. "Your website is live" shows his link. Tap **Go to my app** to reach **Studio** (or **Add your first listing** to start right away).
-5. On Studio Home, he taps **My brand** to add his tagline, areas, logo, banner, photo, languages and RERA number, then **Save my brand**.
+5. On Studio Home, he follows **Get set up** (or taps his picture at the top right, or **More → My brand and website**) to add his tagline, areas, logo, banner, photo, languages and RERA number, then **Save my brand**.
    He sees "Saved. Your site now shows this look." *(2 s)*
    <br><img src="brand/avasetu/guide/a03-studio-home.jpg" width="200" alt="Studio"> <img src="brand/avasetu/guide/a04-brand-filled.jpg" width="200" alt="My brand"> <img src="brand/avasetu/guide/a04-brand-saved.jpg" width="200" alt="Saved">
 
