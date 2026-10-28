@@ -5,7 +5,7 @@ import MarketingShell from '@/components/marketing/MarketingShell'
 import NewsSection from '@/components/news/NewsSection'
 import ProjectRail from '@/components/site/ProjectRail'
 import ProjectSearch from '@/components/site/ProjectSearch'
-import CorridorMap from '@/components/site/CorridorMap'
+import CorridorMap, { CorridorStatus } from '@/components/site/CorridorMap'
 import { AGENTS_PATH, agentAnchorForward, buyerEnquirePath } from '@/components/marketing/siteLinks'
 import { getCityStats, longDate } from '@/components/localities/areaStats'
 import { getMarketingConfig } from '@/lib/marketing/config'
@@ -129,6 +129,8 @@ export default async function BuyerHome() {
           <CorridorMap />
         </div>
       </section>
+
+      <CorridorStatus />
 
       {hot.length > 0 && (
         <section aria-labelledby="hot-title" className={wrap + ' pt-10 sm:pt-14'} data-testid="home-hot">
