@@ -33,15 +33,35 @@ export const metadata: Metadata = pageMetadata(getMarketingConfig(), {
   image: { path: '/brand/og-landing.jpg', width: 1200, height: 630, alt: `${BRAND_NAME}: new projects in Pune, checked on MahaRERA` },
 })
 
+// The look (owner 2026-10-28, "professional, not as if AI made"): one weight for headings, lists as ruled rows rather than a box
+// round every link, a chevron instead of a gold underline and arrow on every title, and colour kept for the hero and one band.
 const wrap = 'mx-auto max-w-5xl px-4'
 const section = 'py-10 sm:py-14'
-const h2 = 'text-2xl font-extrabold tracking-tight text-[#0f2340] sm:text-3xl'
-const card = 'block h-full rounded-2xl border border-slate-200 bg-white p-4 no-underline hover:border-[#0f2340]'
-// a card's title is underlined and ends in an arrow, so it reads as a link at a glance on a phone (no hover there: owner
-// 2026-10-26, "don't look clickable")
-const cardTitle = 'font-bold text-[#0f2340] underline decoration-[#f0b440] decoration-2 underline-offset-4'
-const Arrow = () => <span aria-hidden className="ml-1 text-[#0f2340]">→</span>
-const chip = 'inline-flex min-h-[44px] items-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-[#0f2340] no-underline hover:border-[#0f2340]'
+const h2 = 'text-[1.375rem] font-semibold tracking-tight text-slate-900 sm:text-2xl'
+const more = 'shrink-0 text-sm font-semibold text-[#0f2340] underline underline-offset-4'
+const chip = 'inline-flex min-h-[44px] items-center rounded-lg border border-slate-300 bg-white px-3.5 text-sm font-medium text-slate-800 no-underline hover:border-[#0f2340] hover:text-[#0f2340]'
+const groupLabel = 'text-xs font-semibold uppercase tracking-wider text-slate-500'
+
+// a row or card still reads as a link on a phone, where there is no hover (owner 2026-10-26, "don't look clickable"): by the
+// chevron at its end, the way an app's lists do
+const Chevron = ({ className = '' }: { className?: string }) => (
+  <svg aria-hidden viewBox="0 0 20 20" className={'h-4 w-4 shrink-0 text-slate-400 group-hover:text-[#0f2340] ' + className}>
+    <path d="M7.5 4.5 13 10l-5.5 5.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
+/** A section's title, its one line, and on a laptop its "all" link at the right; phones get that link under the list instead. */
+function SectionHead({ id, title, text, href, link }: { id: string; title: string; text?: string; href?: string; link?: string }) {
+  return (
+    <div className="flex items-end justify-between gap-4">
+      <div className="min-w-0">
+        <h2 id={id} className={h2}>{title}</h2>
+        {text && <p className="mt-1 max-w-2xl text-slate-600">{text}</p>}
+      </div>
+      {href && link && <Link href={href} className={more + ' hidden sm:inline'}>{link}</Link>}
+    </div>
+  )
+}
 
 export default async function BuyerHome() {
   const cfg = getMarketingConfig()
@@ -72,45 +92,53 @@ export default async function BuyerHome() {
   ]
 
   return (
-    <MarketingShell hot={false}>
+    <MarketingShell hot={false} search={false}>
       {/* old links to the agents' sections that were on this page (/#invite, /#faq) go on to /agents */}
       <script dangerouslySetInnerHTML={{ __html: agentAnchorForward() }} />
       {ld.map((x, i) => <script key={i} type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(x) }} />)}
 
-      <section aria-labelledby="home-title" className="bg-gradient-to-b from-[#0f2340] to-[#183a5d] pb-10 pt-10 text-white sm:pt-14">
-        <div className={wrap}>
-          <p className="text-sm font-bold uppercase tracking-wide text-[#f5c75e]">Pune homes, checked on MahaRERA</p>
-          <h1 id="home-title" className="mt-2 text-[2rem] font-extrabold leading-tight [text-wrap:balance] sm:text-5xl">New projects in Pune, with the facts ads leave out</h1>
-          <p className="mt-3 max-w-2xl text-lg text-white/85">
+      {/* the search is the hero's own action (so the header leaves its search pill off here); the enquiry is a quiet line under it */}
+      <section aria-labelledby="home-title" className="bg-[#0f2340] text-white">
+        <div className={wrap + ' pb-10 pt-10 sm:pb-14 sm:pt-16'}>
+          <h1 id="home-title" className="max-w-3xl text-[2rem] font-semibold leading-[1.15] tracking-tight [text-wrap:balance] sm:text-[2.75rem]">
+            New projects in Pune, checked against MahaRERA
+          </h1>
+          <p className="mt-4 max-w-2xl text-lg leading-relaxed text-white/80">
             The possession date each builder filed and whether it moved, how many homes are booked, and each builder&apos;s delivery record.
-            {tracked > 0 && city ? <> {tracked.toLocaleString('en-IN')} projects in our areas, read from MahaRERA on {longDate(city.asOf)}.</> : null}
           </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <a href={buyerEnquirePath()} className="inline-flex min-h-[48px] items-center rounded-xl bg-[#f0b440] px-5 font-bold text-[#0f2340] no-underline hover:bg-[#f5c75e]">Tell us what you need</a>
-            {cfg.whatsappUrl && (
-              <a href={cfg.whatsappUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-[48px] items-center rounded-xl border-2 border-white/70 px-5 font-bold text-white no-underline hover:bg-white/10">
-                Ask on WhatsApp<span className="sr-only"> (opens in a new tab)</span>
+          <ProjectSearch hero />
+          <p className="mt-4 text-[15px] text-white/75">
+            Not sure where to start?{' '}
+            <a href={buyerEnquirePath()} className="font-semibold text-white underline decoration-[#f0b440] decoration-2 underline-offset-4 hover:text-[#f5c75e]">Tell us what you need</a>
+            {cfg.whatsappUrl && <>
+              {' '}or{' '}
+              <a href={cfg.whatsappUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-white underline decoration-white/40 underline-offset-4 hover:decoration-white">
+                ask on WhatsApp<span className="sr-only"> (opens in a new tab)</span>
               </a>
-            )}
-          </div>
+            </>}
+          </p>
+          {tracked > 0 && city && (
+            <p className="mt-8 border-t border-white/15 pt-4 text-sm text-white/65">
+              {tracked.toLocaleString('en-IN')} projects in our areas, read from MahaRERA on {longDate(city.asOf)}.
+            </p>
+          )}
         </div>
       </section>
 
-      <div className={wrap}>
-        <ProjectSearch />
-      </div>
-
       {hot.length > 0 && (
-        <section aria-labelledby="hot-title" className={wrap + ' pt-10'} data-testid="home-hot">
-          <h2 id="hot-title" className={h2}>Hot right now</h2>
+        <section aria-labelledby="hot-title" className={wrap + ' pt-10 sm:pt-14'} data-testid="home-hot">
+          <SectionHead id="hot-title" title="Hot right now" />
           {/* swiped on a phone, a grid on a laptop; it never moves by itself (ProjectRail) */}
-          <ul className="-mx-4 mt-4 flex list-none snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 lg:grid-cols-3">
+          <ul className="-mx-4 mt-5 flex list-none snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 lg:grid-cols-3">
             {hot.map((p) => (
-              <li key={p.slug} className="w-[78%] max-w-[300px] shrink-0 snap-start sm:w-auto sm:max-w-none">
-                <Link href={`/projects/${p.slug}`} className={card}>
-                  <span className={'block ' + cardTitle}>{p.name}<Arrow /></span>
-                  {p.area && <span className="block text-sm text-slate-600">{p.area}, Pune</span>}
-                  {' '}<span className="mt-1 block text-sm text-slate-800">{p.note || `${p.fact} (${p.source})`}</span>
+              <li key={p.slug} className="w-[80%] max-w-[300px] shrink-0 snap-start sm:w-auto sm:max-w-none">
+                <Link href={`/projects/${p.slug}`} className="group flex h-full flex-col rounded-xl border border-slate-200 bg-white p-4 no-underline transition-shadow hover:border-slate-300 hover:shadow-md">
+                  <span className="flex items-start justify-between gap-3">
+                    <span className="font-semibold text-slate-900 group-hover:text-[#0f2340]">{p.name}</span>
+                    <Chevron className="mt-1" />
+                  </span>
+                  {p.area && <span className="block text-sm text-slate-500">{p.area}, Pune</span>}
+                  {' '}<span className="mt-3 block border-t border-slate-100 pt-3 text-sm text-slate-700">{p.note || `${p.fact} (${p.source})`}</span>
                 </Link>
               </li>
             ))}
@@ -121,102 +149,133 @@ export default async function BuyerHome() {
       {topList && (
         <div className={wrap}>
           <ProjectRail id="home-top" title={`Top projects in ${topList.place.name} you can still buy`} sub="Most homes booked first, with 10 or more open (MahaRERA)"
-            href={topList.path} count={topList.count} rows={topList.rows} ranked />
+            href={topList.path} count={topList.count} rows={topList.rows} ranked className="mt-12" />
         </div>
       )}
 
       <section aria-labelledby="areas-title" className={wrap + ' ' + section}>
-        <h2 id="areas-title" className={h2}>Projects by area</h2>
+        <SectionHead id="areas-title" title="Projects by area" href="/projects" link="All projects in Pune, by place" />
         {(['it', 'affordable'] as const).map((tier) => (
-          <div key={tier} className="mt-6">
-            <h3 className="text-lg font-bold text-slate-900">{TIER_LABELS[tier].title}</h3>
+          <div key={tier} className="mt-8">
+            <h3 className="text-base font-semibold text-slate-900">{TIER_LABELS[tier].title}</h3>
             <p className="text-sm text-slate-600">{TIER_LABELS[tier].blurb}</p>
-            <ul className="mt-3 grid list-none gap-3 p-0 sm:grid-cols-2 lg:grid-cols-4" data-testid={`home-areas-${tier}`}>
+            <ul className="mt-3 grid list-none gap-x-10 border-t border-slate-200 p-0 sm:grid-cols-2" data-testid={`home-areas-${tier}`}>
               {localitiesByTier(tier).map((l) => {
                 const place = placeOf(l)
                 const live = place && place.indexable > 0
+                const count = place && (place.current ?? place.projects) > 0
                 return (
-                  <li key={l.slug} className="relative flex flex-col rounded-2xl border border-slate-200 bg-white p-4 hover:border-[#0f2340]">
-                    {/* the whole card opens the area page (a tap beside the title did nothing: owner 2026-10-26); its name is the
-                        page's own ("Flats and residential projects in Kharadi"), "new projects" being the new-launches list's search */}
-                    <Link href={live ? placePath(place.slug) : `/localities/${l.slug}`}
-                      className={cardTitle + " after:absolute after:inset-0 after:rounded-2xl after:content-['']"}>
-                      {live ? `Projects in ${l.name}` : l.name}<Arrow />
-                    </Link>
-                    <span className="mt-1 text-sm text-slate-600">{l.tagline}</span>
-                    {/* the projects a buyer of a new home looks at: every registration ever (303 in Kharadi) counted old ones too */}
-                    {place && (place.current ?? place.projects) > 0 && <span className="mt-1 text-sm font-semibold text-slate-800">
-                      {place.current != null ? `${place.current} being built or just finished` : `${place.projects} projects on MahaRERA`}</span>}
-                    <Link href={`/localities/${l.slug}`} className="relative z-10 mt-auto inline-flex min-h-[44px] items-center pt-2 text-sm font-semibold text-[#0f2340] underline underline-offset-2">
-                      Living in {l.name}
-                    </Link>
+                  <li key={l.slug} className="group relative flex items-center gap-4 border-b border-slate-200 py-4">
+                    <div className="min-w-0 flex-1">
+                      {/* the whole row opens the area page (a tap beside the title did nothing: owner 2026-10-26); its name is the
+                          page's own ("Flats and residential projects in Kharadi"), "new projects" being the new-launches list's search */}
+                      <Link href={live ? placePath(place.slug) : `/localities/${l.slug}`}
+                        className="font-semibold text-slate-900 no-underline underline-offset-4 after:absolute after:inset-0 after:content-[''] group-hover:text-[#0f2340] group-hover:underline">
+                        {live ? `Projects in ${l.name}` : l.name}
+                      </Link>
+                      <p className="text-sm text-slate-600">{l.tagline}</p>
+                      <p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm">
+                        {/* the projects a buyer of a new home looks at: every registration ever (303 in Kharadi) counted old ones too */}
+                        {count && <span className="font-medium text-slate-800">
+                          {place.current != null ? `${place.current} being built or just finished` : `${place.projects} projects on MahaRERA`}</span>}
+                        {count && <span aria-hidden className="text-slate-300">·</span>}
+                        <Link href={`/localities/${l.slug}`} className="relative z-10 inline-flex min-h-[32px] items-center text-slate-600 underline decoration-slate-300 underline-offset-2 hover:text-[#0f2340]">
+                          Living in {l.name}
+                        </Link>
+                      </p>
+                    </div>
+                    <Chevron />
                   </li>
                 )
               })}
             </ul>
           </div>
         ))}
-        <p className="mt-5"><Link href="/projects" className="font-semibold text-[#0f2340] underline underline-offset-4">All projects in Pune, by place</Link></p>
+        <p className="mt-6 sm:hidden"><Link href="/projects" className={more}>All projects in Pune, by place</Link></p>
       </section>
 
       {(launches.length > 0 || ready.length > 0 || tops.length > 0) && (
-        <section aria-labelledby="lists-title" className={'border-y border-[#ead9ae] bg-[#fbf6ea] ' + section}>
+        <section aria-labelledby="lists-title" className={'border-y border-slate-200 bg-slate-50 ' + section}>
           <div className={wrap}>
-            <h2 id="lists-title" className={h2}>Top projects, new launches and ready homes</h2>
-            {tops.length > 0 && (
-              <ul className="mt-4 flex list-none flex-wrap gap-2 p-0" data-testid="home-tops">
-                {tops.map((f) => <li key={f.path}><Link href={f.path} className={chip}>Top projects in {where(f)} ({f.count})</Link></li>)}
-              </ul>
-            )}
-            {launches.length > 0 && (
-              <ul className="mt-3 flex list-none flex-wrap gap-2 p-0" data-testid="home-launches">
-                {launches.map((f) => <li key={f.path}><Link href={f.path} className={chip}>New launches in {where(f)} ({f.count})</Link></li>)}
-              </ul>
-            )}
-            {ready.length > 0 && (
-              <ul className="mt-3 flex list-none flex-wrap gap-2 p-0">
-                {ready.map((f) => <li key={f.path}><Link href={f.path} className={chip}>Ready to move in {where(f)} ({f.count})</Link></li>)}
-              </ul>
-            )}
+            <SectionHead id="lists-title" title="Top projects, new launches and ready homes" />
+            <div className="mt-6 space-y-6">
+              {tops.length > 0 && (
+                <div>
+                  <p className={groupLabel}>Most booked</p>
+                  <ul className="mt-2 flex list-none flex-wrap gap-2 p-0" data-testid="home-tops">
+                    {tops.map((f) => <li key={f.path}><Link href={f.path} className={chip}>Top projects in {where(f)} ({f.count})</Link></li>)}
+                  </ul>
+                </div>
+              )}
+              {launches.length > 0 && (
+                <div>
+                  <p className={groupLabel}>New launches</p>
+                  <ul className="mt-2 flex list-none flex-wrap gap-2 p-0" data-testid="home-launches">
+                    {launches.map((f) => <li key={f.path}><Link href={f.path} className={chip}>New launches in {where(f)} ({f.count})</Link></li>)}
+                  </ul>
+                </div>
+              )}
+              {ready.length > 0 && (
+                <div>
+                  <p className={groupLabel}>Completion date passed</p>
+                  <ul className="mt-2 flex list-none flex-wrap gap-2 p-0">
+                    {ready.map((f) => <li key={f.path}><Link href={f.path} className={chip}>Ready to move in {where(f)} ({f.count})</Link></li>)}
+                  </ul>
+                </div>
+              )}
+            </div>
           </div>
         </section>
       )}
 
       {brands.length > 0 && (
         <section aria-labelledby="builders-title" className={wrap + ' ' + section}>
-          <h2 id="builders-title" className={h2}>Builders and their delivery records</h2>
-          <p className="mt-1 text-slate-700">Every Pune project of a builder in one place, with the possession dates they filed and how often those moved.</p>
-          <ul className="mt-4 grid list-none gap-2 p-0 sm:grid-cols-3 lg:grid-cols-4" data-testid="home-builders">
+          <SectionHead id="builders-title" title="Builders and their delivery records" href="/builders" link="All builders in Pune"
+            text="Every Pune project of a builder in one place, with the possession dates they filed and how often those moved." />
+          <ul className="mt-5 grid list-none gap-x-10 border-t border-slate-200 p-0 sm:grid-cols-2 lg:grid-cols-3" data-testid="home-builders">
             {brands.map((b) => (
-              <li key={b.slug}>
-                <Link href={`/builders/${b.slug}`} className={card + ' py-3'}>
-                  <span className={'block ' + cardTitle}>{b.name}<Arrow /></span>
-                  {' '}<span className="block text-sm text-slate-600">{b.projects} projects</span>
+              <li key={b.slug} className="border-b border-slate-200">
+                <Link href={`/builders/${b.slug}`} className="group flex min-h-[52px] items-center gap-3 py-3 no-underline">
+                  <span className="min-w-0 flex-1 font-medium text-slate-900 underline-offset-4 group-hover:text-[#0f2340] group-hover:underline">{b.name}</span>
+                  {' '}<span className="text-sm tabular-nums text-slate-500">{b.projects} projects</span>
+                  <Chevron />
                 </Link>
               </li>
             ))}
           </ul>
-          <p className="mt-4"><Link href="/builders" className="font-semibold text-[#0f2340] underline underline-offset-4">All builders in Pune</Link></p>
+          <p className="mt-6 sm:hidden"><Link href="/builders" className={more}>All builders in Pune</Link></p>
         </section>
       )}
 
       <section aria-labelledby="check-title" className={'bg-[#0f2340] text-white ' + section}>
         <div className={wrap}>
-          <h2 id="check-title" className="text-2xl font-extrabold sm:text-3xl">Check before you pay a token</h2>
-          <ul className="mt-4 grid list-none gap-3 p-0 sm:grid-cols-3">
-            <li><Link href="/check" className="block h-full rounded-2xl bg-white/10 p-4 text-white no-underline hover:bg-white/15"><b className="block">Check your project</b>{' '}<span className="text-sm text-white/80">Registration, possession filed, delays and cautions, in one page</span></Link></li>
-            <li><Link href="/pune-maharera-tracker" className="block h-full rounded-2xl bg-white/10 p-4 text-white no-underline hover:bg-white/15"><b className="block">Pune MahaRERA tracker</b>{' '}<span className="text-sm text-white/80">What was registered and what completes, area by area</span></Link></li>
-            <li><Link href="/insights" className="block h-full rounded-2xl bg-white/10 p-4 text-white no-underline hover:bg-white/15"><b className="block">Buyer guides</b>{' '}<span className="text-sm text-white/80">Offers, site visits, stamp duty and the questions to ask</span></Link></li>
+          <h2 id="check-title" className="text-[1.375rem] font-semibold tracking-tight sm:text-2xl">Check before you pay a token</h2>
+          <ul className="mt-6 grid list-none gap-3 p-0 sm:grid-cols-3">
+            {[
+              { href: '/check', title: 'Check your project', text: 'Registration, possession filed, delays and cautions, in one page' },
+              { href: '/pune-maharera-tracker', title: 'Pune MahaRERA tracker', text: 'What was registered and what completes, area by area' },
+              { href: '/insights', title: 'Buyer guides', text: 'Offers, site visits, stamp duty and the questions to ask' },
+            ].map((c) => (
+              <li key={c.href}>
+                <Link href={c.href} className="group flex h-full items-start gap-3 rounded-xl p-4 text-white no-underline ring-1 ring-inset ring-white/15 hover:bg-white/[0.06] hover:ring-white/30">
+                  <span className="min-w-0 flex-1"><b className="block font-semibold">{c.title}</b>{' '}<span className="mt-1 block text-sm text-white/70">{c.text}</span></span>
+                  <Chevron className="mt-1 text-white/50 group-hover:text-white" />
+                </Link>
+              </li>
+            ))}
           </ul>
         </div>
       </section>
 
-      <NewsSection />
+      <NewsSection quiet />
 
       <section aria-label="For real estate agents" className={'border-t border-slate-200 ' + section}>
-        <div className={wrap + ' flex flex-wrap items-center justify-between gap-3'}>
-          <p className="text-slate-700"><b className="text-slate-900">Are you a real estate agent in Pune?</b> Get your own page, buyer enquiries and posts made for you.</p>
-          <Link href={AGENTS_PATH} className="inline-flex min-h-[48px] items-center rounded-xl border-2 border-[#0f2340] px-5 font-bold text-[#0f2340] no-underline hover:bg-[#0f2340] hover:text-white">For agents</Link>
+        <div className={wrap + ' flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'}>
+          <div>
+            <p className="font-semibold text-slate-900">Are you a real estate agent in Pune?</p>
+            <p className="text-slate-600">Get your own page, buyer enquiries and posts made for you.</p>
+          </div>
+          <Link href={AGENTS_PATH} className="inline-flex min-h-[48px] items-center justify-center self-start rounded-lg border border-[#0f2340] px-5 font-semibold text-[#0f2340] no-underline hover:bg-[#0f2340] hover:text-white sm:self-auto">For agents</Link>
         </div>
       </section>
     </MarketingShell>

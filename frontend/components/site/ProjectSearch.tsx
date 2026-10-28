@@ -33,7 +33,8 @@ export function SearchHitRow({ it }: { it: RegisterSearchHit }) {
 /** One empty list for the default: a new [] on each render would re-run the search effect, which sets state, forever. */
 const NO_HITS: RegisterSearchHit[] = []
 
-export default function ProjectSearch({ initialQ = '', initialHits = NO_HITS }: { initialQ?: string; initialHits?: RegisterSearchHit[] }) {
+/** `hero` sits the box on the home page's navy hero: no card around it, the label for screen readers only, results in a white panel. */
+export default function ProjectSearch({ initialQ = '', initialHits = NO_HITS, hero = false }: { initialQ?: string; initialHits?: RegisterSearchHit[]; hero?: boolean }) {
   const [q, setQ] = useState(initialQ)
   const [hits, setHits] = useState<RegisterSearchHit[]>(initialHits)
   const [done, setDone] = useState(initialQ.trim().length >= 2)
@@ -58,20 +59,20 @@ export default function ProjectSearch({ initialQ = '', initialHits = NO_HITS }: 
   }, [q, initialQ, initialHits])
 
   return (
-    <section aria-labelledby="search-title" className="mt-8 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+    <section aria-labelledby="search-title" className={hero ? 'mt-7 max-w-2xl' : 'mt-8 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5'}>
       <form action="/projects" method="get" role="search" onSubmit={(e) => e.preventDefault()}>
-        <label id="search-title" htmlFor="project-search" className="block text-lg font-semibold text-slate-900">Find a project</label>
-        <div className="mt-2 flex gap-2">
+        <label id="search-title" htmlFor="project-search" className={hero ? 'sr-only' : 'block text-lg font-semibold text-slate-900'}>Find a project</label>
+        <div className={hero ? 'flex gap-2' : 'mt-2 flex gap-2'}>
           <input
             ref={input} id="project-search" name="q" type="search" value={q} onChange={(e) => setQ(e.target.value)} autoComplete="off"
             placeholder="Project name, builder or MahaRERA number (P521…)"
-            className="min-h-[48px] w-full rounded-xl border border-slate-300 px-4 text-base text-slate-900 placeholder:text-slate-500 focus:border-[#0f2340] focus:outline-none focus:ring-2 focus:ring-[#0f2340]/20"
+            className={(hero ? 'min-h-[52px] border-transparent bg-white shadow-sm' : 'min-h-[48px] border-slate-300') + ' w-full rounded-xl border px-4 text-base text-slate-900 placeholder:text-slate-500 focus:border-[#0f2340] focus:outline-none focus:ring-2 focus:ring-[#0f2340]/20'}
           />
-          <button type="submit" className="min-h-[48px] rounded-xl bg-[#0f2340] px-4 font-semibold text-white">Search</button>
+          <button type="submit" className={hero ? 'min-h-[52px] rounded-xl bg-[#f0b440] px-5 font-semibold text-[#0f2340] hover:bg-[#f5c75e]' : 'min-h-[48px] rounded-xl bg-[#0f2340] px-4 font-semibold text-white'}>Search</button>
         </div>
       </form>
       {q.trim().length >= 2 && done && (
-        <div aria-live="polite" className="mt-3">
+        <div aria-live="polite" className={hero ? 'mt-2 rounded-xl bg-white px-4 py-2 text-slate-900 shadow-lg' : 'mt-3'}>
           {hits.length === 0 ? (
             <p className="text-slate-700">No project matches &ldquo;{q}&rdquo; in our MahaRERA register.</p>
           ) : (
