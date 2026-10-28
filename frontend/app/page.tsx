@@ -5,6 +5,7 @@ import MarketingShell from '@/components/marketing/MarketingShell'
 import NewsSection from '@/components/news/NewsSection'
 import ProjectRail from '@/components/site/ProjectRail'
 import ProjectSearch from '@/components/site/ProjectSearch'
+import CorridorMap from '@/components/site/CorridorMap'
 import { AGENTS_PATH, agentAnchorForward, buyerEnquirePath } from '@/components/marketing/siteLinks'
 import { getCityStats, longDate } from '@/components/localities/areaStats'
 import { getMarketingConfig } from '@/lib/marketing/config'
@@ -99,29 +100,33 @@ export default async function BuyerHome() {
 
       {/* the search is the hero's own action (so the header leaves its search pill off here); the enquiry is a quiet line under it */}
       <section aria-labelledby="home-title" className="bg-[#0f2340] text-white">
-        <div className={wrap + ' pb-10 pt-10 sm:pb-14 sm:pt-16'}>
-          <h1 id="home-title" className="max-w-3xl text-[2rem] font-semibold leading-[1.15] tracking-tight [text-wrap:balance] sm:text-[2.75rem]">
-            New projects in Pune, checked against MahaRERA
-          </h1>
-          <p className="mt-4 max-w-2xl text-lg leading-relaxed text-white/80">
-            The possession date each builder filed and whether it moved, how many homes are booked, and each builder&apos;s delivery record.
-          </p>
-          <ProjectSearch hero />
-          <p className="mt-4 text-[15px] text-white/75">
-            Not sure where to start?{' '}
-            <a href={buyerEnquirePath()} className="font-semibold text-white underline decoration-[#f0b440] decoration-2 underline-offset-4 hover:text-[#f5c75e]">Tell us what you need</a>
-            {cfg.whatsappUrl && <>
-              {' '}or{' '}
-              <a href={cfg.whatsappUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-white underline decoration-white/40 underline-offset-4 hover:decoration-white">
-                ask on WhatsApp<span className="sr-only"> (opens in a new tab)</span>
-              </a>
-            </>}
-          </p>
-          {tracked > 0 && city && (
-            <p className="mt-8 border-t border-white/15 pt-4 text-sm text-white/65">
-              {tracked.toLocaleString('en-IN')} projects in our areas, read from MahaRERA on {longDate(city.asOf)}.
+        {/* the corridor diagram beside the promise: what is running and what is coming in east Pune, where we work first */}
+        <div className={wrap + ' grid gap-8 pb-10 pt-10 sm:pb-14 sm:pt-16 lg:grid-cols-[1.1fr_1fr] lg:items-center lg:gap-10'}>
+          <div>
+            <h1 id="home-title" className="max-w-3xl text-[2rem] font-semibold leading-[1.15] tracking-tight [text-wrap:balance] sm:text-[2.75rem] lg:text-[2.5rem]">
+              New projects in Pune, checked against MahaRERA
+            </h1>
+            <p className="mt-4 max-w-2xl text-lg leading-relaxed text-white/80">
+              The possession date each builder filed and whether it moved, how many homes are booked, and each builder&apos;s delivery record.
             </p>
-          )}
+            <ProjectSearch hero />
+            <p className="mt-4 text-[15px] text-white/75">
+              Not sure where to start?{' '}
+              <a href={buyerEnquirePath()} className="font-semibold text-white underline decoration-[#f0b440] decoration-2 underline-offset-4 hover:text-[#f5c75e]">Tell us what you need</a>
+              {cfg.whatsappUrl && <>
+                {' '}or{' '}
+                <a href={cfg.whatsappUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-white underline decoration-white/40 underline-offset-4 hover:decoration-white">
+                  ask on WhatsApp<span className="sr-only"> (opens in a new tab)</span>
+                </a>
+              </>}
+            </p>
+            {tracked > 0 && city && (
+              <p className="mt-8 border-t border-white/15 pt-4 text-sm text-white/65">
+                {tracked.toLocaleString('en-IN')} projects in our areas, read from MahaRERA on {longDate(city.asOf)}.
+              </p>
+            )}
+          </div>
+          <CorridorMap />
         </div>
       </section>
 
