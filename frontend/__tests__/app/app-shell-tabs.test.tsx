@@ -7,7 +7,8 @@ let mockPath = '/studio/admin'
 const mockUpcoming = jest.fn()
 const mockStatus = jest.fn()
 jest.mock('next/navigation', () => ({ usePathname: () => mockPath }))
-jest.mock('@/lib/app/client', () => ({ isFixtureMode: () => false }))
+const mockLeads = jest.fn()
+jest.mock('@/lib/app/client', () => ({ isFixtureMode: () => false, api: { listLeads: () => mockLeads() } }))
 jest.mock('@/components/app/agents/useIsOwner', () => ({ useIsOwner: () => mockOwner }))
 jest.mock('@/lib/app/content', () => ({ contentApi: { getUpcoming: (...a: unknown[]) => mockUpcoming(...a) } }))
 jest.mock('@/lib/app/newsroom', () => ({ newsroomApi: { getStatus: (...a: unknown[]) => mockStatus(...a) } }))
@@ -22,6 +23,7 @@ beforeEach(() => {
   mockOwner = true
   mockPath = '/studio/admin'
   mockUpcoming.mockReset().mockResolvedValue([])
+  mockLeads.mockReset().mockResolvedValue([])
   mockStatus.mockReset().mockResolvedValue({ enabled: true, counts: { pending_review: 0 }, last_run_at: null, last_error: null })
 })
 
@@ -65,19 +67,39 @@ describe('AppShell tabs', () => {
     await waitFor(() => expect(mockStatus).toHaveBeenCalled())
   })
 
-  it('everyone else gets six tabs: Home, Inbox, Leads, Listings, Results, Content; normal size, no More, only the Inbox count', () => {
+  it('everyone else gets Home, Inbox, Leads, Listings and More (Results, Content, Buyer radar, My brand); only Inbox and Leads counts', async () => {
     mockOwner = false
     mockPath = '/studio/listings'
+    mockLeads.mockResolvedValue([{ contact: { state: 'not_contacted' } }, { contact: { state: 'waiting_you' } }, { contact: { state: 'in_touch' } }])
     render(<AppShell><p>x</p></AppShell>)
     const links = nav().getAllByRole('link')
-    expect(links.map((l) => l.getAttribute('href'))).toEqual([
-      '/studio', '/studio/inbox', '/studio/leads', '/studio/listings', '/studio/results', '/studio/content',
-    ])
+    expect(links.map((l) => l.getAttribute('href'))).toEqual(['/studio', '/studio/inbox', '/studio/leads', '/studio/listings'])
+    expect(nav().getAllByRole('listitem')).toHaveLength(5)
     expect(links[0].className).toContain('text-xs')
     expect(links[3]).toHaveAttribute('aria-current', 'page')
-    expect(nav().queryByRole('button', { name: 'More' })).toBeNull()
+    await waitFor(() => expect(within(nav().getByRole('link', { name: /Leads/ })).getByTestId('nav-badge')).toHaveTextContent('2'))
+    fireEvent.click(nav().getByRole('button', { name: 'More' }))
+    const rows = within(screen.getByRole('dialog', { name: 'More' })).getAllByRole('link')
+    expect(rows.map((l) => l.getAttribute('href'))).toEqual(['/studio/results', '/studio/content', '/studio/radar', '/studio/profile'])
     expect(mockUpcoming).not.toHaveBeenCalled()
     expect(mockStatus).not.toHaveBeenCalled()
+  })
+
+  it('an agent page inside More lights up More', async () => {
+    mockOwner = false
+    mockPath = '/studio/profile'
+    render(<AppShell><p>x</p></AppShell>)
+    expect(nav().getByRole('button', { name: 'More' })).toHaveAttribute('aria-current', 'page')
+    await waitFor(() => expect(mockLeads).toHaveBeenCalled())
+  })
+
+  it('the owner\'s More carries the count of what waits inside it, and the sheet shows it on the row', async () => {
+    mockLeads.mockResolvedValue([{ contact: { state: 'not_contacted' } }])
+    render(<AppShell><p>x</p></AppShell>)
+    const more = nav().getByRole('button', { name: /More/ })
+    await waitFor(() => expect(within(more).getByTestId('nav-badge')).toHaveTextContent('1'))
+    fireEvent.click(more)
+    expect(within(screen.getByRole('dialog', { name: 'More' })).getByRole('link', { name: /Leads/ })).toHaveTextContent('1')
   })
 })
 

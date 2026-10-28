@@ -1,7 +1,7 @@
 'use client'
 import React from 'react'
 import { BrandEditor } from '@/components/app/BrandEditor'
-import { SiteCard } from '@/components/app/BusinessToday'
+import { SiteCard } from '@/components/app/SiteCard'
 import { PageTitle } from '@/components/app/ui'
 import { brandingApi } from '@/lib/app/branding'
 import { useSession } from '@/lib/app/session'

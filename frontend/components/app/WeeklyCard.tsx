@@ -3,6 +3,7 @@ import Link from 'next/link'
 import React from 'react'
 import { api } from '@/lib/app/client'
 import { getSiteUrl } from '@/lib/app/session'
+import type { WeeklyReport } from '@/lib/app/types'
 import { useAsync } from '@/lib/app/useAsync'
 
 function origin(): string {
@@ -10,8 +11,9 @@ function origin(): string {
 }
 
 /** "This week" on the agent's home screen: real counts, the most viewed listing and a message they can share on WhatsApp. Every number opens the screen behind it; the to-dos are rows in Needs you now. */
-export function WeeklyCard() {
-  const { data } = useAsync(() => api.getWeeklyReport(), [])
+export function WeeklyCard({ report }: { report?: WeeklyReport | null }) {
+  const asked = useAsync(() => (report === undefined ? api.getWeeklyReport() : Promise.resolve(null)), [report === undefined])
+  const data = report !== undefined ? report : asked.data
   if (!data) return null
   const n = data.numbers
   const stats: Array<[string, number, string]> = [

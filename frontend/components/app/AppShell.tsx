@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import React, { useCallback, useEffect, useState } from 'react'
-import { isFixtureMode } from '@/lib/app/client'
+import { api, isFixtureMode } from '@/lib/app/client'
 import { contentApi } from '@/lib/app/content'
 import { inboxApi } from '@/lib/app/inbox'
 import { newsroomApi } from '@/lib/app/newsroom'
@@ -26,9 +26,12 @@ const RADAR_TAB: Tab = { href: '/studio/radar', label: 'radar', icon: 'M12 12m-9
 const PROFILE_TAB: Tab = { href: '/studio/profile', label: 'profile', icon: 'M20 21a8 8 0 00-16 0M12 13a4 4 0 100-8 4 4 0 000 8z' }
 const MORE_TAB: Tab = { href: '#more', label: 'more', icon: 'M5 12h.01M12 12h.01M19 12h.01' }
 
-/** Everyone who is not the owner: six tabs. Inbox took Newsroom's place (2026-10-17): the newsroom is owner-only on the server,
- * and agents need their own chats and the buyers the owner passes to them. */
-const AGENT_BAR: Tab[] = [HOME_TAB, INBOX_TAB, LEADS_TAB, LISTINGS_TAB, RESULTS_TAB, CONTENT_TAB]
+/**
+ * Everyone who is not the owner: the four places used every day, then More (2026-10-27). Six tabs did not fit a phone at 12 px,
+ * and My brand and Buyer radar were rows at the bottom of home that nobody scrolled to.
+ */
+const AGENT_BAR: Tab[] = [HOME_TAB, INBOX_TAB, LEADS_TAB, LISTINGS_TAB]
+const AGENT_MORE: Tab[] = [RESULTS_TAB, CONTENT_TAB, RADAR_TAB, PROFILE_TAB]
 /**
  * The owner has nine places and a phone bar holds five (UX review, 2026-10-06): the four used daily, then More,
  * a bottom sheet with the rest.
@@ -52,7 +55,8 @@ export function countWaitingPosts(items: { slug: string; id: string; status: str
 }
 
 /**
- * Counts on the tabs (agents get only Inbox): Inbox = conversations waiting for an answer, Content = posts waiting for approval, Newsroom = drafts waiting for review.
+ * Counts on the tabs: Inbox = conversations waiting for an answer, Leads = leads nobody answered yet (under More for the owner, and
+ * More adds up what is inside it), Content = posts waiting for approval, Newsroom = drafts waiting for review (both owner only).
  * Asked on load and again when the app comes back to the front; never blocks rendering; a failed call shows no badge.
  */
 export function useNavBadges(enabled: boolean, owner = true): Badges {
@@ -63,7 +67,9 @@ export function useNavBadges(enabled: boolean, owner = true): Badges {
     const put = (href: string, n: number | undefined) => { if (alive) setBadges((b) => ({ ...b, [href]: n })) }
     const load = () => {
       inboxApi.threads().then((ts) => put(INBOX_TAB.href, ts.filter((t) => t.needs_you).length), () => put(INBOX_TAB.href, undefined))
-      if (!owner) return  // agents: only the Inbox count (content approval and the newsroom are the owner's)
+      Promise.resolve().then(() => api.listLeads())
+        .then((ls) => put(LEADS_TAB.href, ls.filter((l) => l.contact?.state === 'not_contacted' || l.contact?.state === 'waiting_you').length), () => put(LEADS_TAB.href, undefined))
+      if (!owner) return  // content approval and the newsroom are the owner's
       contentApi.getUpcoming().then((items) => put(CONTENT_TAB.href, countWaitingPosts(items)), () => put(CONTENT_TAB.href, undefined))
       newsroomApi.getStatus().then((s) => put(NEWSROOM_TAB.href, Number(s?.counts?.pending_review) || 0), () => put(NEWSROOM_TAB.href, undefined))
     }
@@ -113,7 +119,7 @@ function TabInner({ tab, badge }: { tab: Tab; badge?: number }) {
 }
 
 /** The rest of the owner's places as large rows in a bottom sheet (the ConfirmSheet look). */
-function MoreSheet({ items, active, onClose }: { items: Tab[]; active: (href: string) => boolean; onClose: () => void }) {
+function MoreSheet({ items, active, badges, onClose }: { items: Tab[]; active: (href: string) => boolean; badges: Badges; onClose: () => void }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', onKey)
@@ -136,6 +142,9 @@ function MoreSheet({ items, active, onClose }: { items: Tab[]; active: (href: st
                   className={`min-h-[56px] items-center gap-4 rounded-2xl px-4 text-base font-semibold [display:flex] ${on ? 'bg-[#e7ebf2] text-[#0f2340]' : 'text-gray-900 active:bg-gray-100'}`}>
                   <Icon d={it.icon} />
                   <span className="flex-1">{t(it.label)}</span>
+                  {!!badges[it.href] && (
+                    <span className="min-w-[24px] rounded-full bg-[#f0b440] px-1.5 text-center text-sm font-bold leading-6 tabular-nums text-[#0f2340]">{badges[it.href]}</span>
+                  )}
                   <span aria-hidden className="text-xl text-gray-400">›</span>
                 </Link>
               </li>
@@ -150,7 +159,7 @@ function MoreSheet({ items, active, onClose }: { items: Tab[]; active: (href: st
 /**
  * Full-screen phone shell. The root layout renders the legacy Navigation, so the shell is a fixed overlay
  * (z-50) that owns the whole viewport: scrollable content + bottom tab bar.
- * Owner: Home, Content, Newsroom, Leads, More. Everyone else: the six tabs.
+ * Owner: Home, Inbox, Content, Newsroom, More. Everyone else: Home, Inbox, Leads, Listings, More.
  */
 export function AppShell({ children, hideTabs = false }: { children: React.ReactNode; hideTabs?: boolean }) {
   const path = usePathname() || ''
@@ -161,7 +170,9 @@ export function AppShell({ children, hideTabs = false }: { children: React.React
   useEffect(() => setMoreOpen(false), [path])
   const active = (href: string) => (href === '/studio' ? path === '/studio' : path === href || path.startsWith(href + '/'))
   const bar = owner ? OWNER_BAR : AGENT_BAR
-  const moreActive = owner && OWNER_MORE.some((x) => active(x.href))
+  const more = owner ? OWNER_MORE : AGENT_MORE
+  const moreActive = more.some((x) => active(x.href))
+  const moreBadge = more.reduce((n, x) => n + (badges[x.href] ?? 0), 0)
   return (
     <div data-surface="v2" className="fixed inset-0 z-50 flex flex-col bg-gray-50 text-gray-900">
       <FixtureBanner />
@@ -181,18 +192,16 @@ export function AppShell({ children, hideTabs = false }: { children: React.React
                 </Link>
               </li>
             ))}
-            {owner && (
-              <li className="min-w-0 flex-1">
-                <button type="button" aria-haspopup="dialog" aria-expanded={moreOpen} aria-current={moreActive ? 'page' : undefined}
-                  onClick={() => setMoreOpen(true)} className={itemCls(moreActive || moreOpen)}>
-                  <TabInner tab={MORE_TAB} />
-                </button>
-              </li>
-            )}
+            <li className="min-w-0 flex-1">
+              <button type="button" aria-haspopup="dialog" aria-expanded={moreOpen} aria-current={moreActive ? 'page' : undefined}
+                onClick={() => setMoreOpen(true)} className={itemCls(moreActive || moreOpen)}>
+                <TabInner tab={MORE_TAB} badge={moreBadge} />
+              </button>
+            </li>
           </ul>
         </nav>
       )}
-      {moreOpen && !hideTabs && <MoreSheet items={OWNER_MORE} active={active} onClose={closeMore} />}
+      {moreOpen && !hideTabs && <MoreSheet items={more} active={active} badges={badges} onClose={closeMore} />}
     </div>
   )
 }

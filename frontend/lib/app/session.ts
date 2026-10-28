@@ -41,6 +41,11 @@ export function saveSiteUrl(url: string) {
 export function clearSession() {
   write(TOKEN_KEY, null)
   write(SITE_KEY, null)
+  try {
+    window.sessionStorage.removeItem('app_is_owner')   // useIsOwner's remembered answer belongs to this login
+  } catch {
+    /* ignore */
+  }
 }
 
 export interface Session {

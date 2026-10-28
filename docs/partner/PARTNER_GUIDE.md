@@ -209,7 +209,7 @@ post from your own Facebook or Instagram yet."
    is asked **"Tell us about you"** instead, he fills in name, city **Pune**, business name, a colour theme and languages, then
    **Create my website**.
    <br><img src="../brand/avasetu/guide/a02-join-profile.jpg" width="200" alt="Profile"> <img src="../brand/avasetu/guide/a02-join-done.jpg" width="200" alt="Site live">
-5. On Studio Home he taps **My brand** to add his tagline, areas, logo, banner, photo, languages and RERA number, then **Save my brand**.
+5. On Studio Home he follows **Get set up** (or taps his picture at the top right, or **More → My brand and website**) to add his tagline, areas, logo, banner, photo, languages and RERA number, then **Save my brand**.
    He sees "Saved. Your site now shows this look." ✅
    <br><img src="../brand/avasetu/guide/a03-studio-home.jpg" width="200" alt="Studio"> <img src="../brand/avasetu/guide/a04-brand-filled.jpg" width="200" alt="My brand"> <img src="../brand/avasetu/guide/a04-brand-saved.jpg" width="200" alt="Saved">
    Note: "Years in property" shows a grey **9** as an example. That field is empty until he types in it.

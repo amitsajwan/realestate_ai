@@ -188,3 +188,12 @@ export function contactLine(c: ContactStatus | null | undefined, now: Date = new
       return { text: 'Contacted', tone: 'ok' }
   }
 }
+
+/** Search by name, phone digits, what they want or what they wrote: "kharadi", "9822", "3 bhk". */
+export function matchesSearch(l: Lead, q: string): boolean {
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean)
+  if (!words.length) return true
+  const hay = [l.name, l.requirement_line, l.message].filter(Boolean).join(' ').toLowerCase()
+  const digits = (l.phone ?? '').replace(/\D/g, '')
+  return words.every((w) => hay.includes(w) || (/^\d{3,}$/.test(w) && digits.includes(w)))
+}

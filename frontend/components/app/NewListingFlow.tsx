@@ -6,6 +6,7 @@ import { ApiError } from '@/lib/app/api'
 import { api, errorMessage } from '@/lib/app/client'
 import { conciergeApi, firstName } from '@/lib/app/concierge'
 import { getSiteUrl } from '@/lib/app/session'
+import { listingHints } from '@/lib/app/listingHints'
 import { listingLink } from '@/lib/app/share'
 import { compactAbout } from '@/lib/app/about'
 import { t } from '@/lib/app/strings'
@@ -50,6 +51,24 @@ function ProjectVideo({ video, onVideo }: { video: File | null; onVideo: (f: Fil
       <FilePick label={t('builderVideo')} empty={`+ ${t('builderVideo')} (optional)`} file={video} accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm" onPick={onVideo} testid="pick-video" />
       <p className="text-xs text-gray-500">Video up to {MAX_VIDEO_MB} MB.</p>
     </section>
+  )
+}
+
+/** Where the agent is in Add listing: describe, check, live. */
+function StepDots({ at }: { at: 1 | 2 }) {
+  const steps = ['Describe', 'Check', 'Live']
+  return (
+    <ol aria-label={`Step ${at} of 3`} className="items-center gap-2 text-xs font-semibold [display:flex]">
+      {steps.map((s, i) => (
+        <li key={s} aria-current={i + 1 === at ? 'step' : undefined}
+          className={`items-center gap-1.5 [display:flex] ${i + 1 === at ? 'text-[#0f2340]' : i + 1 < at ? 'text-green-700' : 'text-gray-400'}`}>
+          <span aria-hidden className={`h-5 w-5 items-center justify-center rounded-full text-[11px] [display:flex] ${
+            i + 1 === at ? 'bg-[#0f2340] text-white' : i + 1 < at ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-500'}`}>{i + 1 < at ? '✓' : i + 1}</span>
+          {s}
+          {i < steps.length - 1 && <span aria-hidden className="ml-0.5 h-px w-4 bg-gray-300" />}
+        </li>
+      ))}
+    </ol>
   )
 }
 
@@ -246,6 +265,7 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
           <button type="button" onClick={() => setStep('capture')} className="min-h-[44px] min-w-[44px] text-xl" aria-label={t('back')}>←</button>
           <h1 className="text-2xl font-bold">{t('review')}</h1>
         </div>
+        <StepDots at={2} />
         {draft.transcript && (
           <div className="rounded-xl bg-blue-50 p-3 text-sm">
             <p className="font-semibold text-blue-800">{t('transcript')}</p>
@@ -270,7 +290,7 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
         )}
         {error && <ErrorBox message={error} />}
         <div className="sticky bottom-0 -mx-4 border-t border-gray-200 bg-white p-4" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
-          <Btn variant="whatsapp" onClick={() => confirmAndPost()} disabled={missing.length > 0 || priceBlocked} className="!bg-blue-600 disabled:!bg-blue-300">
+          <Btn onClick={() => confirmAndPost()} disabled={missing.length > 0 || priceBlocked}>
             {t('confirmPost')}
           </Btn>
           {missing.length > 0 && <p className="mt-2 text-center text-xs text-red-600">{t('required')}: {missing.map((m) => FIELD_LABELS[m] ?? m).join(', ')}</p>}
@@ -287,13 +307,27 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
         <Link href={backHref} className="flex min-h-[44px] min-w-[44px] items-center text-xl" aria-label={t('back')}>←</Link>
         <h1 className="text-2xl font-bold">{onBehalfOf ? `Listing for ${firstName(onBehalfOf.name)}` : t('addListing').replace('+ ', '')}</h1>
       </div>
-      <textarea
-        aria-label={t('describe')}
-        className={`${inputCls} min-h-[150px] py-3`}
-        placeholder={t('describe')}
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-      />
+      <StepDots at={1} />
+      <div className="space-y-2">
+        <label htmlFor="new-listing-text" className="block font-semibold text-gray-900">Describe it the way you would tell a buyer</label>
+        <textarea
+          id="new-listing-text"
+          aria-label={t('describe')}
+          rows={6}
+          className={`${inputCls} !min-h-[160px] py-3`}
+          placeholder="e.g. 2 BHK in Baner, 85 lakh, 950 sq ft carpet, 7th floor, ready to move, covered parking, gym and pool"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+        />
+        <ul aria-label="What to include" className="flex flex-wrap gap-1.5">
+          {listingHints(text).map((h) => (
+            <li key={h.key} data-found={h.found}
+              className={`rounded-full px-2.5 py-1 text-xs font-semibold ${h.found ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
+              {h.found ? '✓ ' : ''}{h.label}
+            </li>
+          ))}
+        </ul>
+      </div>
       <VoiceRecorder onChange={setAudio} />
       <PhotoPicker files={photos} onChange={setPhotos} />
       <BrochurePick file={brochure} onPick={setBrochure} />

@@ -2,11 +2,10 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import React from 'react'
 import ListingDetailPage from '@/app/studio/listings/[id]/page'
 import ListingsPage from '@/app/studio/listings/page'
-import { BusinessToday } from '@/components/app/BusinessToday'
 import { FreshnessSection } from '@/components/app/FreshnessPrompt'
 import { ListingCard } from '@/components/app/ListingCard'
 import { createFixtureApi } from '@/lib/app/fixtures'
-import type { AppApi, BusinessToday as Today, Listing } from '@/lib/app/types'
+import type { AppApi, Listing } from '@/lib/app/types'
 
 let fx: AppApi
 const spy = { confirmAvailable: jest.fn(), setListingStatus: jest.fn(), updateListing: jest.fn(), listListings: jest.fn() }
@@ -183,7 +182,6 @@ describe('Freshness prompts on the Listings screen', () => {
 
 describe('Freshness prompt on the listing screen', () => {
   it('shows the hidden state at the top of a hidden listing and confirming clears it', async () => {
-    routeTab = 'status'
     render(<ListingDetailPage />)
     expect(await screen.findByTestId('freshness-l4')).toHaveAttribute('data-state', 'hidden')
     expect(screen.getByRole('link', { name: 'Activity' })).toHaveAttribute('href', '/studio/listings/l4/activity')
@@ -195,6 +193,7 @@ describe('Freshness prompt on the listing screen', () => {
 
   it('a fresh listing has no prompt, and saving never sends the computed freshness fields', async () => {
     routeId = 'l1'
+    routeTab = 'details'
     render(<ListingDetailPage />)
     await screen.findByRole('heading', { level: 1, name: '2 BHK in Baner' })
     expect(screen.queryByTestId('freshness-l1')).toBeNull()
@@ -210,65 +209,6 @@ describe('Freshness prompt on the listing screen', () => {
     render(<ListingDetailPage />)
     await screen.findByRole('heading', { level: 1, name: '3 BHK in Wakad' })
     expect(screen.queryByRole('link', { name: 'Activity' })).toBeNull()
-  })
-})
-
-describe('Home: "Listings that need your confirmation"', () => {
-  const todayBase = async (): Promise<Today> => fx.getToday()
-
-  it('adds a confirm_listing item built from the listings list, linking to the listing screen card', async () => {
-    getToday.mockResolvedValue(await todayBase())
-    render(<BusinessToday />)
-    const card = await screen.findByTestId('action-confirm_listing')
-    expect(card).toHaveTextContent('Listings that need your confirmation')
-    expect(card).toHaveTextContent('2 listings need a quick check. 1 hidden from buyers until you confirm.')
-    const open = within(card).getByRole('link', { name: /Confirm now/ })
-    expect(open).toHaveAttribute('href', '/studio/listings#confirm')
-    expect(within(card).getAllByRole('link').every((a) => a.getAttribute('href') === '/studio/listings#confirm')).toBe(true)
-    // hidden listings make it priority 1: after urgent buyer calls, before the "send property" / marketing ideas
-    const order = screen.getAllByTestId(/^action-/).map((e) => e.getAttribute('data-testid')!.replace('action-', ''))
-    const at = order.indexOf('confirm_listing')
-    expect(at).toBeGreaterThan(order.lastIndexOf('call'))
-    expect(at).toBeLessThan(order.indexOf('create_marketing'))
-  })
-
-  it('a single listing needing confirmation links straight to it', async () => {
-    await fx.confirmAvailable('l4')
-    getToday.mockResolvedValue(await todayBase())
-    render(<BusinessToday />)
-    const card = await screen.findByTestId('action-confirm_listing')
-    expect(card).toHaveTextContent('1 listing needs a quick check.')
-    expect(within(card).getByRole('link', { name: /Confirm now/ })).toHaveAttribute('href', '/studio/listings/l3')
-  })
-
-  it('does not appear when every listing is fresh', async () => {
-    await fx.confirmAvailable('l3')
-    await fx.confirmAvailable('l4')
-    getToday.mockResolvedValue(await todayBase())
-    render(<BusinessToday />)
-    await screen.findByTestId('headline')
-    expect(screen.queryByTestId('action-confirm_listing')).toBeNull()
-  })
-
-  it('does not duplicate an item the backend already sent', async () => {
-    const today = await todayBase()
-    getToday.mockResolvedValue({
-      ...today,
-      actions: [{ type: 'confirm_listing', title: 'Confirm your listings', detail: 'From the server', priority: 1 }],
-    })
-    render(<BusinessToday />)
-    expect(await screen.findByText('Confirm your listings')).toBeInTheDocument()
-    expect(screen.getAllByTestId('action-confirm_listing')).toHaveLength(1)
-    expect(screen.queryByText('Listings that need your confirmation')).toBeNull()
-  })
-
-  it('home still works when the listings cannot be loaded', async () => {
-    getToday.mockResolvedValue(await todayBase())
-    jest.spyOn(fx, 'listListings').mockRejectedValue(new Error('boom'))
-    render(<BusinessToday />)
-    expect(await screen.findByTestId('headline')).toBeInTheDocument()
-    expect(screen.queryByTestId('action-confirm_listing')).toBeNull()
-    expect(screen.queryByRole('alert')).toBeNull()
   })
 })
 

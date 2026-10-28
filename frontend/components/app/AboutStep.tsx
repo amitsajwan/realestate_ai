@@ -42,7 +42,7 @@ function SourceTag({ source }: { source: RowSource }) {
 function Chip({ label, on, onClick }: { label: string; on: boolean; onClick: () => void }) {
   return (
     <button type="button" aria-pressed={on} onClick={onClick}
-      className={`min-h-[44px] rounded-full border px-4 text-sm font-semibold ${on ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 bg-white text-gray-700'}`}>
+      className={`min-h-[44px] rounded-full border px-4 text-sm font-semibold ${on ? 'border-[#0f2340] bg-[#0f2340] text-white' : 'border-gray-300 bg-white text-gray-700'}`}>
       {label}
     </button>
   )
@@ -147,7 +147,7 @@ export function AboutStep({ value, onChange, context, onDone, onSkip }: AboutSte
                 <li key={r.key} className="flex items-center justify-between gap-2 rounded-xl bg-white p-3">
                   <span className="min-w-0 flex-1 text-sm">{r.text}<SourceTag source={r.source} /></span>
                   <button type="button" onClick={r.toggle} aria-label={`${r.kept ? t('aboutRemove') : t('aboutKeep')}: ${r.text}`}
-                    className={`min-h-[44px] min-w-[76px] rounded-xl border px-3 text-sm font-semibold ${r.kept ? 'border-gray-300 bg-white text-gray-700' : 'border-blue-600 bg-blue-600 text-white'}`}>
+                    className={`min-h-[44px] min-w-[76px] rounded-xl border px-3 text-sm font-semibold ${r.kept ? 'border-gray-300 bg-white text-gray-700' : 'border-[#0f2340] bg-[#0f2340] text-white'}`}>
                     {r.kept ? t('aboutRemove') : t('aboutKeep')}
                   </button>
                 </li>

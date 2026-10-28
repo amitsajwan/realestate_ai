@@ -11,18 +11,20 @@ export function VoiceRecorder({ onChange }: { onChange: (b: Blob | null) => void
   return VOICE_ENABLED ? <LiveVoiceRecorder onChange={onChange} /> : <PremiumVoiceTeaser />
 }
 
+/** One quiet row (2026-10-27): a big greyed-out mic took the middle of the Add listing screen for a feature that is not there. */
 function PremiumVoiceTeaser() {
   return (
-    <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-4" data-testid="voice-premium">
-      <div className="relative">
-        <button type="button" disabled aria-disabled="true" aria-label={`${t('voicePremium')} (${t('voicePremiumBadge')})`}
-          className="flex h-24 w-24 cursor-not-allowed items-center justify-center rounded-full bg-gray-300 text-4xl text-white opacity-70">
-          <span aria-hidden>🎤</span>
-        </button>
-        <span className="absolute -right-3 -top-2 rounded-full bg-amber-400 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-gray-900 shadow">{t('voicePremiumBadge')}</span>
+    <div className="items-center gap-3 rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-3 [display:flex]" data-testid="voice-premium">
+      <button type="button" disabled aria-disabled="true" aria-label={`${t('voicePremium')} (${t('voicePremiumBadge')})`}
+        className="h-11 w-11 flex-none cursor-not-allowed items-center justify-center rounded-full bg-gray-300 text-xl opacity-70 [display:flex]">
+        <span aria-hidden>🎤</span>
+      </button>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-gray-700">
+          {t('voicePremium')} <span className="ml-1 rounded-full bg-amber-400 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-gray-900">{t('voicePremiumBadge')}</span>
+        </p>
+        <p className="text-xs text-gray-500">{t('voicePremiumSub')}</p>
       </div>
-      <p className="text-sm font-semibold text-gray-700">{t('voicePremium')}</p>
-      <p className="text-center text-xs text-gray-500">{t('voicePremiumSub')}</p>
     </div>
   )
 }

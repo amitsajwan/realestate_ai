@@ -1,12 +1,12 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import React from 'react'
-import { BusinessToday, ResultsCard } from '@/components/app/BusinessToday'
+import { ResultsCard } from '@/components/app/ResultsCard'
 import { LeadDetailView } from '@/components/app/LeadDetailView'
 import { ListingCard } from '@/components/app/ListingCard'
 import { OutcomeBadge } from '@/components/app/OutcomeSheets'
 import LeadsPage from '@/app/studio/leads/page'
 import { createFixtureApi } from '@/lib/app/fixtures'
-import type { AppApi, BusinessToday as Today, TodayResults } from '@/lib/app/types'
+import type { AppApi, TodayResults } from '@/lib/app/types'
 
 let fx: AppApi
 const spy = { updateLead: jest.fn(), setListingStatus: jest.fn() }

@@ -8,7 +8,7 @@ import { errorMessage } from '@/lib/app/client'
 import { BRAND_NAME } from '@/lib/brand'
 import { timeAgo } from '@/lib/app/format'
 import { PassBox, PassedNote } from '@/components/app/PassBox'
-import { CHANNEL_CHIP, CHANNEL_LABEL, inboxApi, isComment, type InboxThreadFull, type PassResult } from '@/lib/app/inbox'
+import { CHANNEL_CHIP, CHANNEL_LABEL, QUICK_REPLIES, inboxApi, isComment, type InboxThreadFull, type PassResult } from '@/lib/app/inbox'
 
 /** One conversation in full, oldest first, with a reply box for WhatsApp while the 24-hour window is open. */
 export default function InboxThreadPage() {
@@ -111,6 +111,16 @@ export default function InboxThreadPage() {
       ) : doc.can_reply ? (
         <section aria-label="Reply" className="space-y-2 rounded-2xl border border-gray-200 bg-white p-3">
           <label htmlFor="inbox-reply" className="text-sm font-semibold text-gray-800">Reply on WhatsApp</label>
+          <div className="-mx-1 overflow-x-auto [scrollbar-width:none]" role="group" aria-label="Quick replies">
+            <div className="gap-2 px-1 [display:flex]">
+              {QUICK_REPLIES.map((q) => (
+                <button key={q} type="button" onClick={() => setText(q)}
+                  className="min-h-[40px] max-w-[16rem] flex-none truncate rounded-full border border-gray-300 bg-white px-3 text-sm text-gray-800 active:bg-gray-100">
+                  {q}
+                </button>
+              ))}
+            </div>
+          </div>
           <textarea id="inbox-reply" rows={4} maxLength={1000} className={inputCls} value={text} onChange={(e) => setText(e.target.value)} placeholder="Write your message" />
           {error && <p role="alert" className="text-sm font-semibold text-red-700">{error}</p>}
           <Btn disabled={busy || !text.trim()} onClick={send}>{busy ? 'Sending...' : 'Send'}</Btn>

@@ -157,7 +157,7 @@ export function BoostStep({ listingId, run, onRun }: { listingId: string; run: M
     <>
       {t('boostS1')}{' '}
       <a href={fbUrl} target="_blank" rel="noopener noreferrer"
-        className="mt-1 inline-flex min-h-[44px] items-center rounded-lg bg-blue-600 px-3 text-sm font-semibold text-white">
+        className="mt-1 inline-flex min-h-[44px] items-center rounded-lg bg-[#0f2340] px-3 text-sm font-semibold text-white">
         {t('boostOpenFb')}
       </a>
     </>,

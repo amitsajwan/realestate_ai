@@ -264,7 +264,7 @@ export function ChipPicker({ label, options, value, onChange }: { label: string;
               type="button"
               aria-pressed={on}
               onClick={() => onChange(toggle(value, o))}
-              className={`min-h-[44px] rounded-full border px-4 text-sm font-semibold ${on ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 bg-white text-gray-700'}`}
+              className={`min-h-[44px] rounded-full border px-4 text-sm font-semibold ${on ? 'border-[#0f2340] bg-[#0f2340] text-white' : 'border-gray-300 bg-white text-gray-700'}`}
             >
               {o}
             </button>

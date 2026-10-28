@@ -107,7 +107,7 @@ function LanguagePicker({ value, onChange }: { value: DraftLanguage; onChange: (
           aria-checked={value === l.key}
           onClick={() => onChange(l.key)}
           className={`min-h-[44px] rounded-full border px-4 text-sm font-semibold ${
-            value === l.key ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 bg-white text-gray-800'
+            value === l.key ? 'border-[#0f2340] bg-[#0f2340] text-white' : 'border-gray-300 bg-white text-gray-800'
           }`}
         >
           {t(l.label)}
