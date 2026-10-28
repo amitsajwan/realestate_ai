@@ -13,7 +13,7 @@ export default async function PostsSection() {
       <div className="mx-auto max-w-5xl px-4">
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
-            <h2 id="posts-title" className="text-2xl font-extrabold tracking-tight text-[#0f2340] sm:text-3xl">{POSTS_TEXT.heading}</h2>
+            <h2 id="posts-title" className="text-[1.625rem] font-semibold tracking-tight text-slate-900 sm:text-[2rem]">{POSTS_TEXT.heading}</h2>
             <p className="mt-2 text-slate-700">{POSTS_TEXT.lead}</p>
           </div>
           {posts.length > 0 && (

@@ -20,14 +20,15 @@ export const metadata: Metadata = pageMetadata(getMarketingConfig(), {
 })
 
 // Navy + gold brand (the same as every post and reel), laid out as calm editorial rows: only the lead card and the form are cards.
+// One heading weight and solid navy, no gradients, like the buyers' home (owner 2026-10-28, "professional, not as if AI made").
 const goldBtn =
-  'inline-flex min-h-[52px] items-center justify-center rounded-xl bg-[#f0b440] px-7 text-[17px] font-extrabold text-[#0f2340] no-underline hover:bg-[#f5c75e] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white'
+  'inline-flex min-h-[52px] items-center justify-center rounded-xl bg-[#f0b440] px-7 text-[17px] font-semibold text-[#0f2340] no-underline hover:bg-[#f5c75e] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white'
 const outlineOnNavy =
-  'inline-flex min-h-[52px] items-center justify-center rounded-xl border-2 border-white/70 px-6 text-[17px] font-bold text-white no-underline hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white'
+  'inline-flex min-h-[52px] items-center justify-center rounded-xl border border-white/60 px-6 text-[17px] font-semibold text-white no-underline hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white'
 const wrap = 'mx-auto max-w-6xl px-4 sm:px-6 lg:px-8'
 const section = 'scroll-mt-16 py-14 sm:py-20'
-const eyebrow = 'text-[13px] font-bold uppercase tracking-[0.08em] text-[#8a5d00]'
-const h2 = 'text-[1.75rem] font-extrabold leading-tight tracking-tight text-[#0f2340] sm:text-4xl'
+const eyebrow = 'text-sm font-semibold text-[#8a5d00]'
+const h2 = 'text-[1.625rem] font-semibold leading-tight tracking-tight text-slate-900 sm:text-[2rem]'
 
 export const revalidate = 3600
 
@@ -39,14 +40,14 @@ export default function LandingPage() {
     <MarketingShell cta="agent" stickyBar>
 
       {/* Hero: the promise, one gold button, the lead card */}
-      <section aria-labelledby="hero-title" className="bg-gradient-to-b from-[#0f2340] to-[#183a5d] text-white">
+      <section aria-labelledby="hero-title" className="bg-[#0f2340] text-white">
         <div className={wrap + ' grid items-center gap-10 pt-8 pb-12 sm:py-16 md:grid-cols-[1.2fr_1fr] lg:gap-14'}>
           <div>
-            <p className="flex flex-wrap items-center gap-2 text-[13px] font-bold uppercase tracking-[0.08em] text-[#f0b440]">
+            <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-white/75">
               <span>{H.eyebrow}</span>
-              <span className="rounded-full bg-[#f0b440] px-2.5 py-0.5 text-[#0f2340]">{H.pilot}</span>
+              <span className="rounded-full px-2.5 py-0.5 text-[#f5c75e] ring-1 ring-inset ring-[#f0b440]/50">{H.pilot}</span>
             </p>
-            <h1 id="hero-title" className="mt-4 text-[2.1rem] font-extrabold leading-[1.1] tracking-[-0.015em] [text-wrap:balance] sm:text-[2.75rem] lg:text-[3.25rem]">
+            <h1 id="hero-title" className="mt-4 text-[2.1rem] font-semibold leading-[1.12] tracking-tight [text-wrap:balance] sm:text-[2.75rem] lg:text-[3.25rem]">
               {H.titleLines.map((t) => <span key={t} className="block">{t}</span>)}
             </h1>
             <p className="mt-5 max-w-[52ch] text-lg leading-8 text-slate-100 sm:text-xl">{H.lead}</p>
@@ -77,7 +78,7 @@ export default function LandingPage() {
           <ul className="mt-8 grid border-t-2 border-[#0f2340] p-0 md:grid-cols-3 md:divide-x md:divide-[#ead9ae]">
             {L.problem.items.map((p) => (
               <li key={p.title} className="list-none border-b border-[#ead9ae] py-6 md:border-b-0 md:px-6 md:first:pl-0">
-                <h3 className="text-xl font-bold text-[#0f2340] sm:text-2xl">{p.title}</h3>
+                <h3 className="text-lg font-semibold text-slate-900 sm:text-xl">{p.title}</h3>
                 <p className="mt-2 text-base leading-7 text-slate-700">{p.body}</p>
               </li>
             ))}
@@ -99,7 +100,7 @@ export default function LandingPage() {
                   <img src={c.src} alt={c.alt} width={720} height={900} loading="lazy"
                     className="aspect-[4/5] h-auto w-full rounded-xl object-cover ring-1 ring-black/10" />
                   <figcaption className="mt-3">
-                    <span className="block text-lg font-bold text-[#0f2340]">{c.title}</span>
+                    <span className="block text-lg font-semibold text-slate-900">{c.title}</span>
                     <span className="mt-1 block leading-relaxed text-slate-700">{c.body}</span>
                   </figcaption>
                 </figure>
@@ -107,7 +108,7 @@ export default function LandingPage() {
             ))}
           </ul>
           <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3">
-            <Link href={LIVE.links.page} className="inline-flex min-h-[52px] items-center justify-center rounded-xl bg-[#0f2340] px-7 text-[17px] font-bold text-white no-underline hover:bg-[#183a5d]">
+            <Link href={LIVE.links.page} className="inline-flex min-h-[52px] items-center justify-center rounded-xl bg-[#0f2340] px-7 text-[17px] font-semibold text-white no-underline hover:bg-[#183a5d]">
               {LIVE.links.pageLabel}
             </Link>
           </div>
@@ -121,10 +122,10 @@ export default function LandingPage() {
           <ol className="mt-8 border-t-2 border-[#0f2340] p-0">
             {L.steps.items.map((s, i) => (
               <li key={s.key} className="grid list-none grid-cols-[2.5rem_1fr] gap-x-3 border-b border-[#ead9ae] py-6 lg:grid-cols-[4rem_minmax(0,22rem)_minmax(0,1fr)] lg:items-baseline lg:gap-x-12">
-                <span aria-hidden="true" className="text-lg font-extrabold text-[#8a5d00]">{String(i + 1).padStart(2, '0')}</span>
+                <span aria-hidden="true" className="text-base font-semibold tabular-nums text-slate-400">{String(i + 1).padStart(2, '0')}</span>
                 <div>
                   <p className={eyebrow}>{s.label}</p>
-                  <h3 className="mt-1 text-xl font-bold text-[#0f2340] sm:text-2xl">{s.title}</h3>
+                  <h3 className="mt-1 text-lg font-semibold text-slate-900 sm:text-xl">{s.title}</h3>
                 </div>
                 <p className="col-start-2 mt-2 max-w-[52ch] text-base leading-7 text-slate-700 lg:col-start-3 lg:mt-0">{s.body}</p>
               </li>
@@ -155,7 +156,7 @@ export default function LandingPage() {
             <div className="divide-y divide-slate-200 border-y-2 border-y-[#0f2340]">
               {L.faq.items.map((f) => (
                 <details key={f.q} className="group py-1">
-                  <summary className="flex min-h-[52px] cursor-pointer list-none items-center justify-between gap-4 text-lg font-semibold text-[#0f2340] [&::-webkit-details-marker]:hidden">
+                  <summary className="flex min-h-[52px] cursor-pointer list-none items-center justify-between gap-4 text-lg font-medium text-slate-900 [&::-webkit-details-marker]:hidden">
                     {f.q}
                     <span aria-hidden="true" className="text-2xl text-[#8a5d00] group-open:hidden">+</span>
                     <span aria-hidden="true" className="hidden text-2xl text-[#8a5d00] group-open:inline">&minus;</span>
@@ -173,10 +174,10 @@ export default function LandingPage() {
       </section>
 
       {/* The short form, right here */}
-      <section id="invite" aria-labelledby="cta-title" className="scroll-mt-16 bg-gradient-to-b from-[#0f2340] to-[#183a5d] py-14 sm:py-20">
+      <section id="invite" aria-labelledby="cta-title" className="scroll-mt-16 bg-[#0f2340] py-14 sm:py-20">
         <div className={wrap + ' grid items-start gap-8 md:grid-cols-2 lg:gap-16'}>
           <div className="text-white">
-            <h2 id="cta-title" className="text-[2.25rem] font-extrabold leading-[1.06] tracking-tight sm:text-5xl">
+            <h2 id="cta-title" className="text-[2rem] font-semibold leading-[1.1] tracking-tight sm:text-[2.75rem]">
               {L.finalCta.titleLines.map((t) => <span key={t} className="block">{t}</span>)}
             </h2>
             <p className="mt-4 text-lg leading-8 text-slate-100">{L.finalCta.body}</p>
@@ -199,7 +200,7 @@ export default function LandingPage() {
       <p className={wrap + ' py-6 text-slate-700'}>
         Buying a home in Pune? <Link href={PATHS.home} className="font-semibold text-[#0f2340] underline underline-offset-4">See projects, areas and builders</Link>
       </p>
-      <NewsSection />
+      <NewsSection quiet />
 
       <StickyJoinBar watchId="hero-ctas" formId="invite" href="/trial" label={L.sticky.cta} whatsappUrl={cfg.whatsappUrl} whatsappLabel={L.sticky.whatsapp} />
     </MarketingShell>
