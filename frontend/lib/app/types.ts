@@ -517,6 +517,8 @@ export interface LeadDetail extends Lead {
   follow_up?: FollowUpState
   notes: LeadNote[]
   consent?: unknown
+  /** The pages they read in the visit that ended in a website chat lead (checked pages only, oldest first). */
+  pages_read?: { label: string; path: string | null }[]
   /** The card the agent got when this buyer was passed to them: every fact known then. */
   handover?: { text: string; at: string | null } | null
   /** Set when the owner opens a lead he passed: the agent's name. The page is then read only. */

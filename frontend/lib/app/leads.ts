@@ -1,7 +1,7 @@
 import { formatInr, timeAgo, waDigits } from './format'
 import { whatsappChatUrl } from './share'
 import { t } from './strings'
-import type { ContactStatus, Financing, Lead, LeadChannel, LeadEvent, NextActionType, Requirement, Timeline } from './types'
+import type { ContactStatus, Financing, Lead, LeadChannel, LeadDetail, LeadEvent, NextActionType, Requirement, Timeline } from './types'
 
 const VERBS: Record<string, string> = {
   page_view: 'Visited your website',
@@ -81,6 +81,12 @@ export function cameFromLine(lead: Pick<Lead, 'source' | 'first_touch' | 'channe
   const landed = ft?.landing && ft.landing !== ft.enquiry_page ? `landed on ${ft.landing}` : ''
   const enquired = ft?.enquiry_page ? `enquired on ${ft.enquiry_page}${ft.enquiry_page === ft.landing ? ' (their first page)' : ''}` : ''
   return [channelLabel(lead.channel), from, landed, enquired].filter(Boolean).join(' · ')
+}
+
+/** "Read: Godrej Ivara → Lodha Camelot → Kharadi top list": the pages of the visit that ended in a chat lead; '' when none. */
+export function pagesReadLine(lead: Pick<LeadDetail, 'pages_read'>): string {
+  const labels = (lead.pages_read || []).map((p) => p.label).filter(Boolean)
+  return labels.length ? `Read: ${labels.join(' → ')}` : ''
 }
 
 /** Most recent activity first (owner, 2026-10-17: 'not sorted by time'); hotter first only when the time is the same. Hot is a filter. */

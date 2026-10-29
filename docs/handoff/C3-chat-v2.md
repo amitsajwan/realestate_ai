@@ -47,6 +47,58 @@ on an agent's own site for "the agent". An agent read by the model on a buyer pa
 Known limit: the greeting is said once per browser session (the chat log is kept across pages), so moving to another page does not greet
 again; each message still carries its page, so answers and the model's prompt follow the page.
 
+## What they read earlier in this visit (LIVE from 2026-10-30)
+
+Owner: "The website chat should use the pages this visitor read during this visit, so it greets and asks the right next question, and the
+lead card shows what they read."
+
+Where the pages come from: the server, never a list the browser sends. `tracking/visits.py` `pages_this_visit(db, agent_id, anon_id, now)`
+reads this module's own `events` (page_view and listing_view) for this site (`agent_id`) and this browser (`anon_id`, the widget's
+`site_anon_id`) only. The visit is the views since the last gap longer than 30 minutes (`live.VISIT_GAP`, the same cut as Studio's visitor
+stories), inside the last 2 hours, and only while it is still going (the last view seen in the last 30 minutes): an old visit gives nothing.
+Pages are distinct (query string dropped), the latest 10. No anon id, or the chat's own `chat-...` stand-in, gives nothing. No cross-device
+joins and no other visitor's views; the IP is never stored (unchanged).
+
+What they were: `chat/visit.py` reads each path the way `chatContextFromPath` does and keeps it only when its subject checks out: a project
+page (`areastats.pages.chat_brief`: name and area), an area list (place, list kind, BHK), a locality page or a guide about a place, a builder
+(`areastats.hubs.chat_builder`). Agents' pages, agents' own sites, Studio, the home page, news and unknown slugs are left out. One entry per
+subject; resolved paths are cached on the session (`data.visit_cache`), so each message looks up only new pages. `service.message` puts the
+list on `data.history` on buyer pages only (agents' pages get `[]`).
+
+| They read | They are on | Greeting and first question (English) |
+|---|---|---|
+| Godrej Ivara, then Lodha Camelot | home, news, /enquire, other | "You were looking at Lodha Camelot and Godrej Ivara. Want their price sheets and floor plans, or help comparing them?" Quick replies "Lodha Camelot price sheet", "Godrej Ivara price sheet", "Compare them". |
+| Godrej Ivara | home, news, /enquire, other | "You were looking at Godrej Ivara. Want its price sheet and floor plans?" Quick reply "Godrej Ivara price sheet". |
+| Lodha Camelot | Godrej Ivara's page | The project greeting, then "You also looked at Lodha Camelot. Want its price sheet too?" (two: "You also looked at A and B. Want price sheets for those too?"). Quick replies "Price sheet & floor plans", "Site visit", "Lodha Camelot price sheet". The size question waits for the next turn. |
+| the 2 BHK list in Wagholi | home, news, other | "Still looking at 2 BHK homes in Wagholi? What budget do you have in mind?" |
+| anything | the agents' pages | The agents' greeting; buyer history is not used. |
+
+Names are newest first, at most 2, and only from our records. All five languages are in `phrases.py` (`also_one`, `also_two`, `seen_one`,
+`seen_two`, `seen_area`, `handoff_web_compare`, quick `compare`, `QUICK_FOR.sheet_for`).
+
+Soft values: the area of the latest area page or list read and the BHK of the latest BHK list fill those slots with source `"history"`
+(`engine.prefill_history`), so the chat asks budget or timing next. They never cover what the buyer said or skipped, a stated area or BHK
+replaces them, and the page they are on wins (`_prefill` replaces a `"history"` value with the page's; a page with its own place keeps it).
+
+Quick replies: "<project> price sheet" and "Compare them" hand off at once (`agent._history_ask`, like the project page's own quick
+replies) with the price sheet line or "...will WhatsApp you both price sheets and floor plans to compare." `data.sheets_for` records the
+projects, and the team's summary says "Wants price sheets for A and B, to compare them."
+
+The model: both prompts get `EARLIER IN THIS VISIT THEY READ: Godrej Ivara (Kharadi), Kharadi top list` (or "nothing else"), with the rule
+that it may refer to them but say nothing about them that KNOWLEDGE or HOMES lacks. The line counts as a source for the reply checks; all
+the other checks are unchanged.
+
+The lead: when a chat lead is stored, the chat passes `pages_read=[{label, path}]` to `tracking.capture_inquiry` (a keyword argument, not
+part of the public `InquiryIn`, so the enquiry form cannot set it). Tracking, the writer of `contacts`, keeps it on the lead with
+`pages_read_at` (latest visit's reading, at most 10, labels clipped to 120). `lead_detail` returns `pages_read`; the Studio lead page shows
+"Read: Godrej Ivara → Lodha Camelot → Kharadi top list" under the came-from line (`lib/app/leads.ts` `pagesReadLine`). The "new chat lead"
+alert ends with the same "Read: ..." line.
+
+Limits: the greeting is still said once per browser session, so pages read after the first message reach the model's line and the lead but
+not a new greeting. An anon id is the browser's own random id; someone who copied another browser's id could see that browser's checked page
+names, which is no more than the tracking events already trust. The rules engine alone (`CHAT_AGENT=off`) gets the greetings and soft values
+but not the two quick-reply hand-offs, as with the project page's quick replies.
+
 The API is backwards compatible. `POST /api/v1/chat/message` now also returns:
 `cards: [{id, title, locality, bhk, carpet_sqft, price_text, sample, url, image_url}]`, `follow_up` (the next question, which the widget
 shows after the cards) and `whatsapp_url`.
@@ -69,10 +121,15 @@ To offer "Continue on WhatsApp", set `WHATSAPP_PUBLIC_NUMBER=+91XXXXXXXXXX` in t
 ## Changes outside chat/
 - `whatsapp/test_service.py::test_hindi_buyers_get_hindi_questions_and_notice` now expects the area question (in Hindi). The buyer gave
   "बजट 80 लाख", and intent inference now treats that as buying.
-- `tracking`: read-only use of `matching.top_matches`. Nothing changed there.
+- `tracking`: read-only use of `matching.top_matches`. From 2026-10-30: `visits.pages_this_visit` (read only, its own `events`), and
+  `capture_inquiry(..., pages_read=)` plus `lead_detail`'s `pages_read` for the lead card.
 - `e2e/chat-journey.js` follows the new flow (no-match, then the number ask, then the name).
 
 ## Tests
+- `backend/tests/modules/test_chat_visit.py`: what they read earlier in this visit: the home and /enquire offers, the project page's other
+  projects, the two quick-reply hand-offs, soft area and BHK, the page winning over history, another visitor's, another site's and an old
+  visit's pages never used, the visit cut, agents' pages, unknown pages left out, the model's EARLIER line, and the pages kept on the lead.
+  `frontend/__tests__/app/lead-detail.test.tsx`: the "Read: ..." line.
 - `backend/tests/modules/test_chat_pages.py`: a greeting per page kind, the agents' pages against the buyer pages, WhatsApp unchanged, and
   the model's page line and voice. `frontend/__tests__/unit/lib/chatContext.test.ts`: the context for each kind of path.
 - `backend/tests/modules/test_chat_v2.py`: 45 conversation-level tests, with and without a fake LLM. They cover intent inference (6 phrasings

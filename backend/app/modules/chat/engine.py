@@ -33,12 +33,13 @@ from app.platform.text import normalize_indian_mobile
 from app.modules.tracking import requirement as rq
 
 from . import phrases
-from .phrases import WHATSAPP, ack_word, list_what, quick as qr, say
+from .phrases import WHATSAPP, ack_word, list_what, quick as qr, quick_for as qr_for, say
 
 WHATSAPP_LABEL = WHATSAPP
 
 CONSENT = say("consent")
 ORDER = ["tx", "locality", "bhk", "budget", "timeline", "name", "phone"]
+SOFT = ("page", "history")   # where a detail came from when the buyer did not say it: a stated one replaces it
 MAX_ASKS = 2            # any one question
 MAX_PHONE_ASKS = 2      # the number, per conversation
 SNOOZE_TURNS = 5        # after 'Not now'
@@ -94,7 +95,9 @@ def new_data(localise: bool = False) -> dict:
             # v2
             "localise": localise, "lang": "en", "turn_no": 0, "asks": {}, "phone_asks": 0, "phone_snooze_until": 0, "after_lead": False,
             "name_uses": 0, "value_given": False, "shown_sig": None, "shown_ids": [], "needs_you_sent": False, "phone_asked_turn": 0, "locality_src": None, "bhk_src": None,
-            "page": None, "visit_wanted": False, "audience": None}
+            "page": None, "visit_wanted": False, "audience": None,
+            # what they read earlier in this visit (chat/visit.py, checked pages only) and the price sheets they asked for from it
+            "history": [], "sheets_for": []}
 
 
 def _upgrade(d: dict) -> dict:
@@ -233,7 +236,7 @@ def extract(d: dict, text: str) -> List[str]:
         budget = (found.get("budget_min_inr"), found.get("budget_max_inr"))
     if budget and (not filled(d, "budget") or stating):
         d["budget_min"], d["budget_max"] = budget
-    if found.get("bhk") and d["bhk"] and found["bhk"] != d["bhk"] and (stating or d.get("bhk_src") == "page"):
+    if found.get("bhk") and d["bhk"] and found["bhk"] != d["bhk"] and (stating or d.get("bhk_src") in SOFT):
         d["bhk"], d["bhk_src"] = None, "buyer"
     for src, dst in (("bhk", "bhk"), ("timeline", "timeline"), ("financing", "financing")):
         if found.get(src) and not d[dst]:
@@ -317,6 +320,8 @@ def summary(d: dict) -> str:
     text = ", ".join(bits) + "."
     if d.get("visit_wanted"):
         text += " Wants a site visit."
+    if d.get("sheets_for"):
+        text += f" Wants price sheets for {' and '.join(d['sheets_for'][:2])}" + (", to compare them." if d.get("ask_for") == "compare" else ".")
     if d["questions"]:
         text += " Asked: " + " | ".join(q[:120] for q in d["questions"][-2:])
     return text[:900]
@@ -438,9 +443,56 @@ def _home_text(page: dict, lang: str) -> str:
 
 
 def _prefill(d: dict, field: str, value) -> None:
-    """A detail the page states stands for the buyer's until they name another, so it is never asked."""
-    if value and not d.get(field):
+    """A detail the page states stands for the buyer's until they name another, so it is never asked. The page they are on wins over
+    one they read earlier."""
+    if value and (not d.get(field) or d.get(field + "_src") == "history"):
         d[field], d[field + "_src"] = value, "page"
+
+
+def prefill_history(d: dict) -> None:
+    """The area and size of the area pages and lists they read earlier in this visit stand for theirs (source "history") until they
+    name others, so the chat skips those questions. Never over what they said or skipped, nor over the area of the page they are on."""
+    read = [i for i in d.get("history") or [] if i.get("kind") in ("list", "area") and i.get("area")]
+    if not read:
+        return
+    own_place = (d.get("page") or {}).get("kind") in ("listing", "project", "list", "area")
+    declined = d.get("declined") or []
+    if not d.get("locality") and "locality" not in declined and not own_place:
+        d["locality"], d["locality_src"] = read[-1]["area"], "history"
+    bhk = next((i["bhk"] for i in reversed(read) if i.get("bhk")), None)
+    if bhk and not d.get("bhk") and "bhk" not in declined:
+        d["bhk"], d["bhk_src"] = bhk, "history"
+
+
+def read_projects(d: dict, limit: int = 2) -> List[str]:
+    """The projects they read earlier in this visit, newest first, other than the one whose page they are on."""
+    here = (d.get("page") or {}).get("name")
+    out: List[str] = []
+    for i in reversed(d.get("history") or []):
+        if i.get("kind") == "project" and i.get("name") and i["name"] != here and i["name"] not in out:
+            out.append(i["name"])
+    return out[:limit]
+
+
+def _seen_greeting(d: dict, lang: str) -> Optional[tuple]:
+    """A general page (home, news, /enquire...) after reading projects or areas earlier in this visit: offer what they were looking at,
+    or carry on from the area they read. None when they read nothing we know."""
+    names = read_projects(d)
+    d["asked"] = None   # the next question, when there is one, is set by _prompt below
+    if len(names) >= 2:
+        return say("seen_two", lang, a=names[0], b=names[1]), [qr_for("sheet_for", lang, n) for n in names] + [qr("compare", lang)]
+    if names:
+        return say("seen_one", lang, a=names[0]), [qr_for("sheet_for", lang, names[0])]
+    if d.get("locality_src") != "history":
+        return None
+    last = next((i for i in reversed(d.get("history") or []) if i.get("kind") == "list"), None)
+    what = list_what("bhk", lang, bhk=rq.bhk_text(d["bhk"])) if d.get("bhk") else list_what((last or {}).get("list") or "all", lang)
+    head = say("seen_area", lang, what=what, area=d["locality"])
+    nf = next((f for f in ("bhk", "budget", "timeline") if not filled(d, f) and not _exhausted(d, f)), None)
+    if nf is None:
+        return head, [qr("show_homes", lang)]
+    p, q = _prompt(d, nf)
+    return f"{head} {p}", q
 
 
 def _greeting(d: dict, whatsapp: bool) -> tuple:
@@ -465,6 +517,12 @@ def _greeting(d: dict, whatsapp: bool) -> tuple:
         # what the page offers (its price sheet and floor plans, a visit), then the size: the area is the project's
         _prefill(d, "locality", page.get("locality"))
         q = [qr("sheet", lang), qr("visit", lang)] + ([WHATSAPP] if whatsapp else [])
+        others = read_projects(d)
+        if others:   # the price sheets of the others they read, one quick reply each, instead of the size question
+            d["asked"] = None
+            also = say("also_two", lang, a=others[0], b=others[1]) if len(others) > 1 else say("also_one", lang, a=others[0])
+            q = q[:2] + [qr_for("sheet_for", lang, n) for n in others] + q[2:]
+            return f"{say('greet_project', lang, project=page['name'])} {also}", q
         if filled(d, "bhk"):
             d["asked"] = None
             return say("greet_project", lang, project=page["name"]), q
@@ -487,6 +545,10 @@ def _greeting(d: dict, whatsapp: bool) -> tuple:
     if kind == "builder" and page.get("name"):
         d["asked"] = None   # a project's name or an area, both read from what they type (never 'which area?' word for word)
         return say("greet_builder", lang, builder=page["name"]), list(page.get("areas") or [])[:3]
+    if kind in (None, "home", "news", "guide", "other") and d.get("audience") == "buyer":
+        seen = _seen_greeting(d, lang)
+        if seen:
+            return seen
     d["asked"] = None
     return say("greet", lang), [qr("find_home", lang)]   # buyers first; on a buyer page an agent gets one line to /agents
 

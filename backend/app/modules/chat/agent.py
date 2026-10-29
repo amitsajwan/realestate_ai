@@ -14,6 +14,9 @@ the voice is "our team"; on an agent's own site it stays "the agent". On a page 
 and an agent (said in words, or read by the model) gets the one /agents line from the rules, never the pitch. A project page's two quick
 replies (price sheet and floor plans, site visit) hand off at once with the line for that ask, without the model.
 
+What they read earlier in this visit (2026-10-30, chat/visit.py): both prompts get one EARLIER line naming those checked pages, and the
+quick replies offered from them ("<project> price sheet", "Compare them") hand off at once, like the project page's.
+
 Kept in code, never left to the model: the number (asked only when engine._can_ask_phone allows, with the consent line added here), confirming a
 number, the lead, abuse, the first greeting. Any failure (no LLM, a provider down, a reply that fails the checks) falls back to the rules engine
 (engine.turn) for that turn, on the state as it was, so the chat never breaks.
@@ -91,7 +94,8 @@ Never guess a name: "no name", "why", "sir" are not names."""
 REPLY = f"""You are the {brand.NAME} assistant in the chat {{site}}. You talk like a good local property advisor:
 warm, short, honest, helpful before anything else, never pushy. You work for {{team}}: your aim is to understand what the buyer needs, show
 them fitting homes, and when the moment is right get their number so {{team}} can help. PAGE says where the visitor is: what they ask is
-about that page's subject unless they name another.
+about that page's subject unless they name another. EARLIER IN THIS VISIT THEY READ names the other pages they read in this visit: you may
+refer to them ("the two projects you looked at"), but say nothing about them that KNOWLEDGE or HOMES does not contain.
 
 How to reply:
 1. First respond to what they just said. Answer a question from KNOWLEDGE or HOMES. If they do not know their budget or ask what homes cost,
@@ -173,11 +177,36 @@ def _page_ask(d: dict, text: str) -> Optional[str]:
     return "sheet" if phrases.is_quick(text, "sheet") else "visit" if phrases.is_quick(text, "visit") else None
 
 
+def _history_ask(d: dict, text: str) -> Optional[str]:
+    """A quick reply from the projects they read earlier in this visit: "<project> price sheet" (one of them) or "Compare them" (the
+    two offered). Records which projects, for the team (engine.summary), and returns the ask: "sheet" or "compare"."""
+    if d.get("audience") != "buyer" or not d.get("history"):
+        return None
+    names = engine.read_projects(d, limit=10)
+    if len(names) >= 2 and phrases.is_quick(text, "compare"):
+        d["sheets_for"] = names[:2]
+        return "compare"
+    hit = next((n for n in names if phrases.is_quick_for(text, "sheet_for", n)), None)
+    if hit:
+        d["sheets_for"] = [hit] + [n for n in d.get("sheets_for") or [] if n != hit][:1]
+        return "sheet"
+    return None
+
+
+def _visit_text(d: dict) -> str:
+    """EARLIER: the pages they read before this one in this visit (checked pages only), for the model to refer to; never facts."""
+    here, page_name = d.get("page_path"), (d.get("page") or {}).get("name")
+    items = [i for i in d.get("history") or [] if i.get("path") != here and not (i.get("kind") == "project" and i.get("name") == page_name)]
+    if d.get("audience") != "buyer" or not items:
+        return "nothing else"
+    return ", ".join(f"{i['label']} ({i['area']})" if i.get("kind") == "project" and i.get("area") else i["label"] for i in items[-6:])
+
+
 async def turn(d: dict, text: str, llm, grounding=None, finder: Optional[engine.Finder] = None, whatsapp: bool = False,
                history: Optional[List[dict]] = None, channel: str = WEB) -> engine.Turn:
     engine._upgrade(d)
     text = (text or "").strip()
-    ask = _page_ask(d, text) if channel == WEB else None
+    ask = (_page_ask(d, text) or _history_ask(d, text)) if channel == WEB else None
     if ask:
         d["greeted"], d["turn_no"] = True, d.get("turn_no", 0) + 1
         d["ask_for"] = ask
@@ -426,7 +455,7 @@ async def _turn(d: dict, text: str, llm, grounding, finder, whatsapp: bool, hist
     d.pop("skipped", None)
     voice = _voice(d)
     u = await llm.json(UNDERSTAND.replace("{site}", voice["site"]),
-                       f"PAGE: {_page_text(d)}\nASSISTANT'S LAST QUESTION: {FIELD_WORDS.get(asked_before or '', asked_before or 'none')}\n"
+                       f"PAGE: {_page_text(d)}\nEARLIER IN THIS VISIT THEY READ: {_visit_text(d)}\nASSISTANT'S LAST QUESTION: {FIELD_WORDS.get(asked_before or '', asked_before or 'none')}\n"
                        f"WHAT WE KNOW: {_buyer_text(d)}\nCONVERSATION:\n{_history_text(history)}\n\nMESSAGE:\n{text[:500]}")
     if not isinstance(u, dict) or u.get("intent") not in INTENTS:
         return None
@@ -459,7 +488,8 @@ async def _turn(d: dict, text: str, llm, grounding, finder, whatsapp: bool, hist
     homes = _homes_text(cards, shown, d) if cards or shown or not d.get("shown_brief") else \
         "No cards this turn (say 'the home I showed you', never 'below'). Shown earlier in the chat:\n" + d["shown_brief"]
     buyer = _buyer_text(d)
-    user = (f"PAGE: {_page_text(d)}\n\nKNOWLEDGE:\n{knowledge}\n\nHOMES (shown under your message):\n{homes}\n\nBUYER: {buyer}\n\n"
+    earlier = _visit_text(d)
+    user = (f"PAGE: {_page_text(d)}\nEARLIER IN THIS VISIT THEY READ: {earlier}\n\nKNOWLEDGE:\n{knowledge}\n\nHOMES (shown under your message):\n{homes}\n\nBUYER: {buyer}\n\n"
             f"NEXT: {_next_text(nxt, d)}\n\nCONVERSATION:\n{_history_text(history)}\n\nVISITOR NOW: {text[:500]}")
     system = REPLY.replace("{lang}", LANG_NAME.get(lang, "English")).replace("{site}", voice["site"]).replace("{team}", voice["team"])
     r = await llm.json(system, user)
@@ -467,7 +497,7 @@ async def _turn(d: dict, text: str, llm, grounding, finder, whatsapp: bool, hist
         return None
     reply, question = _plain(r.get("reply")), _plain(r.get("question"))
     # the visitor's own words count as a source here (a 1:1 chat may say back '10 years' or '80 lakh'); phones and links are still refused
-    source = " ".join([knowledge, homes, buyer, brand.NAME, " ".join(AREA_NAMES), text])
+    source = " ".join([knowledge, homes, buyer, brand.NAME, " ".join(AREA_NAMES), earlier, text])
     for part, limit in ((reply, MAX_REPLY), (question, 300)):
         if part and not valid_text(part, source, "chat", limit):
             log.info("chat agent reply failed the checks (numbers not in our data: %s): %r", sorted(_nums(part) - _nums(source)), part[:300])

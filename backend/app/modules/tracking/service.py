@@ -3,7 +3,7 @@ import logging
 import re
 import uuid
 from datetime import datetime, timedelta
-from typing import Callable, Optional
+from typing import Callable, List, Optional
 
 from . import contact as contactmod, device, limits, matching, origin, outcomes, requirement as reqmod, scoring, summary, visitor
 from .followup import Polish, build_draft, listing_label, polish_safely, whatsapp_url
@@ -22,6 +22,18 @@ class TrackingError(Exception):
     def __init__(self, message: str, status_code: int = 400):
         super().__init__(message)
         self.status_code = status_code
+
+
+MAX_PAGES_READ = 10
+
+
+def _pages_read(items) -> List[dict]:
+    """[{label, path}] as stored and shown: plain strings, clipped, at most MAX_PAGES_READ (the latest)."""
+    out = []
+    for it in (items or [])[-MAX_PAGES_READ:]:
+        if isinstance(it, dict) and isinstance(it.get("label"), str) and it["label"].strip():
+            out.append({"label": it["label"].strip()[:120], "path": str(it.get("path") or "")[:200] or None})
+    return out
 
 
 def is_bot(user_agent: Optional[str]) -> bool:
@@ -100,7 +112,10 @@ class TrackingService:
             {"$max": {"read_s": min(p.seconds, MAX_READ_S)}, "$set": {"last_seen": now}})
         return res.matched_count == 1
 
-    async def capture_inquiry(self, i: InquiryIn, user_agent: Optional[str] = None, ip: Optional[str] = None) -> dict:
+    async def capture_inquiry(self, i: InquiryIn, user_agent: Optional[str] = None, ip: Optional[str] = None,
+                              pages_read: Optional[List[dict]] = None) -> dict:
+        """`pages_read`: set by the website chat only (never by the public form): the checked pages this browser read in the visit that
+        ended in this enquiry, [{label, path}], kept on the lead as its latest visit's reading (capped)."""
         if limits.is_honeypot(i.website):  # a bot filled the hidden field: look successful, store nothing
             return {"received": True, "new_lead": False}
         if not i.consent:
@@ -152,6 +167,9 @@ class TrackingService:
             if fields:
                 merged = reqmod.merge(contact.get("requirement"), fields, sources)
                 await self.contacts.update_one({"_id": contact_id}, {"$set": {"requirement": merged}})
+        read = _pages_read(pages_read)
+        if read:
+            await self.contacts.update_one({"_id": contact_id}, {"$set": {"pages_read": read, "pages_read_at": now}})
         points = await self._record(agent_id, i, "inquiry", contact_id, app, visitor.fields(user_agent, ip, False, self.geo))
         await self.contacts.update_one(
             {"_id": contact_id}, {"$inc": {"score_base": points}, "$set": {"last_activity_at": now, "last_message": i.message}})
@@ -296,6 +314,7 @@ class TrackingService:
                                + [{"type": f"call_{k['outcome']}", "listing_id": None, "source": None, "path": None, "ts": k["ts"]}
                                   for k in contact.get("calls") or []], key=lambda t: t["ts"]),
             "requirement": req,
+            "pages_read": _pages_read(contact.get("pages_read")),
             "ai_summary": summary.ai_summary(req, counts, contact.get("source"), contact["stage"], view["temperature"]),
             "next_action": summary.next_action(contact, view["temperature"], req, self.now()),
             "matches": self._matches(contact, req, listings),

@@ -57,6 +57,42 @@ P: Dict[str, Dict[str, str]] = {
         "mr": "{project} बद्दल विचारायचे आहे? मी तुम्हाला याची प्राइस शीट आणि फ्लोर प्लॅन मिळवून देऊ शकतो, किंवा साइट व्हिजिट ठरवू शकतो.",
         "mr_latn": "{project} baddal vicharayche aahe? Mi tumhala yachi price sheet ani floor plan milvun deu shakto, kiwa site visit tharavu shakto.",
     },
+    # ---- what they read earlier in this visit (2026-10-29, chat/visit.py): only names from our records, never from a URL alone
+    "also_one": {   # after greet_project, on a project page, when they read one other project
+        "en": "You also looked at {a}. Want its price sheet too?",
+        "hinglish": "Aapne {a} bhi dekha tha. Uski price sheet bhi chahiye?",
+        "hi": "आपने {a} भी देखा था। उसकी प्राइस शीट भी चाहिए?",
+        "mr": "तुम्ही {a} सुद्धा पाहिला होता. त्याची प्राइस शीटही हवी आहे का?",
+        "mr_latn": "Tumhi {a} suddha pahila hota. Tyachi price sheet pan havi aahe ka?",
+    },
+    "also_two": {
+        "en": "You also looked at {a} and {b}. Want price sheets for those too?",
+        "hinglish": "Aapne {a} aur {b} bhi dekhe the. Unki price sheets bhi chahiye?",
+        "hi": "आपने {a} और {b} भी देखे थे। उनकी प्राइस शीट भी चाहिए?",
+        "mr": "तुम्ही {a} आणि {b} सुद्धा पाहिले होते. त्यांच्या प्राइस शीटही हव्या आहेत का?",
+        "mr_latn": "Tumhi {a} ani {b} suddha pahile hote. Tyanchya price sheet pan havya aahet ka?",
+    },
+    "seen_one": {   # a general page (home, news, /enquire) after reading one project
+        "en": "You were looking at {a}. Want its price sheet and floor plans?",
+        "hinglish": "Aap {a} dekh rahe the. Uski price sheet aur floor plans chahiye?",
+        "hi": "आप {a} देख रहे थे। उसकी प्राइस शीट और फ्लोर प्लान चाहिए?",
+        "mr": "तुम्ही {a} पाहत होता. त्याची प्राइस शीट आणि फ्लोर प्लॅन हवे आहेत का?",
+        "mr_latn": "Tumhi {a} pahat hota. Tyachi price sheet ani floor plan have aahet ka?",
+    },
+    "seen_two": {
+        "en": "You were looking at {a} and {b}. Want their price sheets and floor plans, or help comparing them?",
+        "hinglish": "Aap {a} aur {b} dekh rahe the. Unki price sheets aur floor plans chahiye, ya dono ko compare karne mein madad?",
+        "hi": "आप {a} और {b} देख रहे थे। उनकी प्राइस शीट और फ्लोर प्लान चाहिए, या दोनों की तुलना में मदद?",
+        "mr": "तुम्ही {a} आणि {b} पाहत होता. त्यांच्या प्राइस शीट आणि फ्लोर प्लॅन हवे आहेत, की दोघांची तुलना करायला मदत?",
+        "mr_latn": "Tumhi {a} ani {b} pahat hota. Tyanchya price sheet ani floor plan have aahet, ki doghanchi tulna karayla madat?",
+    },
+    "seen_area": {   # a general page after reading an area's pages or lists: {what} is from LIST_WHAT
+        "en": "Still looking at {what} in {area}?",
+        "hinglish": "Abhi bhi {area} mein {what} dekh rahe hain?",
+        "hi": "अभी भी {area} में {what} देख रहे हैं?",
+        "mr": "अजूनही {area} मधील {what} पाहत आहात?",
+        "mr_latn": "Ajunhi {area} madhil {what} pahat aahat?",
+    },
     "greet_builder": {
         "en": "Looking at projects by {builder}? Tell me which project, or which area you want.",
         "hinglish": "{builder} ke projects dekh rahe hain? Bataiye kaun sa project, ya kaun sa area chahiye.",
@@ -139,6 +175,13 @@ P: Dict[str, Dict[str, str]] = {
         "hi": "अपना मोबाइल नंबर दें, {team} टीम आपको आज की प्राइस शीट और फ्लोर प्लान WhatsApp करेगी।",
         "mr": "तुमचा मोबाइल नंबर द्या, {team} टीम तुम्हाला आजची प्राइस शीट आणि फ्लोर प्लॅन WhatsApp करेल.",
         "mr_latn": "Tumcha mobile number dya, {team} team tumhala aajchi price sheet ani floor plan WhatsApp karel.",
+    },
+    "handoff_web_compare": {   # 'Compare them' after the projects they read: both price sheets, side by side
+        "en": "Share your mobile number and the {team} team will WhatsApp you both price sheets and floor plans to compare.",
+        "hinglish": "Apna mobile number share karein, {team} team aapko dono ki price sheets aur floor plans compare karne ke liye WhatsApp karegi.",
+        "hi": "अपना मोबाइल नंबर दें, {team} टीम आपको तुलना के लिए दोनों की प्राइस शीट और फ्लोर प्लान WhatsApp करेगी।",
+        "mr": "तुमचा मोबाइल नंबर द्या, {team} टीम तुम्हाला तुलनेसाठी दोघांच्या प्राइस शीट आणि फ्लोर प्लॅन WhatsApp करेल.",
+        "mr_latn": "Tumcha mobile number dya, {team} team tumhala tulnesathi doghanchya price sheet ani floor plan WhatsApp karel.",
     },
     "handoff_web_visit": {
         "en": "Share your mobile number and the {team} team will call you to fix your site visit.",
@@ -344,6 +387,8 @@ QUICK = {
     "sheet": {"en": "Price sheet & floor plans", "hinglish": "Price sheet & floor plans", "hi": "प्राइस शीट और फ्लोर प्लान",
               "mr": "प्राइस शीट आणि फ्लोर प्लॅन", "mr_latn": "Price sheet ani floor plan"},
     "visit": {"en": "Site visit", "hinglish": "Site visit", "hi": "साइट विज़िट", "mr": "साइट व्हिजिट", "mr_latn": "Site visit"},
+    # after the projects they read earlier in this visit: compare the two (chat/agent.py _history_ask)
+    "compare": {"en": "Compare them", "hinglish": "Compare karo", "hi": "तुलना कीजिए", "mr": "तुलना करा", "mr_latn": "Tulna kara"},
     # an agent page's asks: English only, since each is a keyword of its answer in knowledge/site.py
     "agent_trial": {"en": "Free trial"},
     "agent_price": {"en": "Pricing"},
@@ -355,6 +400,23 @@ def is_quick(text: str, key: str) -> bool:
     """The visitor tapped (or typed) this quick reply, in any language."""
     t = " ".join((text or "").split()).strip(" .!?").lower()
     return any(t == v.lower().strip(" .!?") for v in QUICK[key].values())
+# a quick reply naming one project they read earlier in this visit: "{project} price sheet"
+QUICK_FOR = {
+    "sheet_for": {"en": "{project} price sheet", "hinglish": "{project} price sheet", "hi": "{project} प्राइस शीट",
+                  "mr": "{project} प्राइस शीट", "mr_latn": "{project} price sheet"},
+}
+
+
+def quick_for(key: str, lang: str, project: str) -> str:
+    return QUICK_FOR[key].get(lang, QUICK_FOR[key]["en"]).format(project=project)
+
+
+def is_quick_for(text: str, key: str, project: str) -> bool:
+    """The visitor tapped (or typed) this project's quick reply, in any language."""
+    t = " ".join((text or "").split()).strip(" .!?").lower()
+    return any(t == v.format(project=project).lower().strip(" .!?") for v in QUICK_FOR[key].values())
+
+
 WHATSAPP = "Continue on WhatsApp"
 
 

@@ -10,7 +10,7 @@ import { DealClosedSheet, LostReasonSheet, MarkSoldPrompt, OutcomeSummary } from
 import { Btn, ErrorBox, LinkBtn, STAGES, Spinner, TempChip, inputCls } from '@/components/app/ui'
 import { api, errorMessage } from '@/lib/app/client'
 import { displayPhone, timeAgo, waDigits } from '@/lib/app/format'
-import { cameFromLine, CONTACT_TONE, contactLine, eventLabel } from '@/lib/app/leads'
+import { cameFromLine, CONTACT_TONE, contactLine, eventLabel, pagesReadLine } from '@/lib/app/leads'
 import { inboxApi, type InboxThreadFull } from '@/lib/app/inbox'
 import { dealListings } from '@/lib/app/outcomes'
 import { whatsappChatUrl } from '@/lib/app/share'
@@ -158,6 +158,7 @@ export function LeadDetailView({ id }: { id: string }) {
       <p className="text-gray-600">{displayPhone(lead.phone)}</p>
       {contact && <p className={`rounded-xl px-3 py-2 text-sm font-semibold ${CONTACT_TONE[contact.tone]}`}>{contact.text}</p>}
       {cameFromLine(lead) && <p className="break-words text-sm text-gray-600"><PageLinks text={cameFromLine(lead)} /></p>}
+      {pagesReadLine(lead) && <p data-testid="pages-read" className="break-words text-sm text-gray-600">{pagesReadLine(lead)}</p>}
 
       {lead.outcome && (lead.stage === 'won' || lead.stage === 'lost') && (
         <OutcomeSummary

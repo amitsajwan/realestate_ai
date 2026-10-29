@@ -107,3 +107,22 @@ describe('LeadDetailView, a lead the owner passed', () => {
     expect(screen.queryByRole('button', { name: 'Answered' })).not.toBeInTheDocument()
   })
 })
+
+describe('LeadDetailView, a lead from the website chat', () => {
+  it('shows the pages they read in that visit, in order', async () => {
+    const real = fx.getLead.bind(fx)
+    fx.getLead = async (id: string) => ({
+      ...(await real(id)),
+      pages_read: [{ label: 'Godrej Ivara', path: '/projects/godrej-ivara-kharadi' }, { label: 'Lodha Camelot', path: '/projects/lodha-camelot' },
+        { label: 'Kharadi top list', path: '/projects/area/kharadi/top' }],
+    })
+    render(<LeadDetailView id="c1" />)
+    expect(await screen.findByTestId('pages-read')).toHaveTextContent('Read: Godrej Ivara → Lodha Camelot → Kharadi top list')
+  })
+
+  it('shows no reading line for a lead without one', async () => {
+    render(<LeadDetailView id="c1" />)
+    await screen.findByRole('region', { name: 'AI summary' })
+    expect(screen.queryByTestId('pages-read')).not.toBeInTheDocument()
+  })
+})

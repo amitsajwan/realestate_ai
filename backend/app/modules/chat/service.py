@@ -13,12 +13,12 @@ from app.modules.knowledge.grounding import Grounding, Ref, facts_for
 from app.modules.listings.freshness import is_hidden
 from app.platform.text import money
 from app.modules.notifications.service import notify
-from app.modules.tracking import matching, origin
+from app.modules.tracking import matching, origin, visits
 from app.modules.tracking import requirement as rq
 from app.modules.tracking.schemas import InquiryIn
 from app.modules.tracking.service import TrackingError
 
-from . import agent as chat_agent, engine
+from . import agent as chat_agent, engine, visit as visit_pages
 from .projects import project_cards
 
 log = logging.getLogger(__name__)
@@ -192,6 +192,19 @@ class ChatService:
             return {"kind": "area", "locality": place_name(page_locality(ctx)), **base}
         return {"kind": kind if kind in ("home", "guide", "news", "agents") else "other", **base}
 
+    async def visit_history(self, agent_id: Optional[str], anon_id: Optional[str], data: dict, now: datetime) -> List[dict]:
+        """The checked pages this browser read in the visit in progress (chat/visit.py), oldest first. Only this site's and this browser's
+        own views (tracking.visits), never another visitor's or an old visit's. Resolved paths are kept on the session (`visit_cache`)."""
+        try:
+            paths = await visits.pages_this_visit(self.db, agent_id, anon_id, now)
+            cache = {k: v for k, v in data.get("visit_cache") or []}
+            items = await visit_pages.pages_read(self.db, paths, cache, place_name)
+            data["visit_cache"] = [[k, v] for k, v in cache.items()]   # a list, since a path is no safe Mongo key
+            return items
+        except Exception as e:   # what they read is a help, never a reason to fail a chat message
+            log.info("chat visit history failed: %s", e)
+            return []
+
     async def homes_agent(self, profile: dict, page: Optional[dict]) -> tuple:
         """-> (agent_id, slug) whose homes are shown: the site's agent; on a page about another agent's home (platform or demo pages), that agent."""
         if page and page.get("agent_id") and page["agent_id"] != profile.get("agent_id"):
@@ -265,10 +278,15 @@ class ChatService:
         data = s["data"]
         page = await self.page_for(context, grounding, visit.get("path"), data.get("page"))
         data["page"], data["audience"] = page, page["audience"]
+        data["page_path"] = str(visit.get("path") or "").split("?")[0][:200] or None
         if page and page.get("kind") == "project":   # the project's area stands for theirs until they name another, so it is not asked
             data["project"] = page["name"]
-            if page.get("locality") and not data.get("locality"):
+            if page.get("locality") and (not data.get("locality") or data.get("locality_src") == "history"):
                 data["locality"], data["locality_src"] = page["locality"], "page"
+        # what they read earlier in this visit: a buyer's only (the agents' pages keep their own greeting), from our own record of this
+        # browser's views, each page checked against our records
+        data["history"] = await self.visit_history(profile.get("agent_id"), visit.get("anon_id"), data, now) if page["audience"] == "buyer" else []
+        engine.prefill_history(data)
         homes_agent, homes_slug = await self.homes_agent(profile, page)
         wa_number = platform_whatsapp_number()
         had_name = bool(data.get("name"))
@@ -281,12 +299,14 @@ class ChatService:
         ref = {"conversation_id": session_id[-8:], "channel": "chat"}
         lead_created = False
         if t.lead:
+            read = [{"label": i["label"], "path": i["path"]} for i in data.get("history") or []]
             try:
                 await self.tracking.capture_inquiry(InquiryIn(
                     agent_slug=agent_slug, anon_id=visit.get("anon_id") or ("chat-" + session_id)[:64], source=tag, consent=True, channel="chat",
                     listing_id=(page or {}).get("listing_id"), path=visit.get("path"),
                     landing=(s.get("origin") or {}).get("landing") or visit.get("landing"),
-                    referrer=(s.get("origin") or {}).get("referrer") or visit.get("referrer"), **t.lead))
+                    referrer=(s.get("origin") or {}).get("referrer") or visit.get("referrer"), **t.lead),
+                    **({"pages_read": read} if read else {}))
                 lead_created = True
             except TrackingError as e:  # e.g. too many enquiries from this number: keep chatting, tell the visitor kindly
                 log.info("chat lead not stored: %s", e)
@@ -294,7 +314,9 @@ class ChatService:
             if lead_created:
                 who = data.get("name") or "A website visitor"
                 ref = {**ref, "lead_id": await self._contact_id(agent_id, data["phone"])}
-                await self._notify(agent_id, "new_chat_lead", f"{who} shared their number in the website chat. {engine.summary(data)}", ref, now)
+                trail = visit_pages.trail(data.get("history") or [])
+                await self._notify(agent_id, "new_chat_lead", f"{who} shared their number in the website chat. {engine.summary(data)}"
+                                   + (f" Read: {trail}." if trail else ""), ref, now)
         elif data.get("name") and not had_name and data.get("lead_done") and data.get("phone"):
             # a name given after the number: put it on the lead if it still has the placeholder
             await self.db.get_collection("contacts").update_one({"agent_id": agent_id, "phone": data["phone"], "name": "Website visitor"},
