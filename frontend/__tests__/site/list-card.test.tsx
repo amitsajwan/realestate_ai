@@ -16,11 +16,19 @@ describe('a project card', () => {
     expect(cardPrice(row({ price: { bhk: 1, from_inr: 3_499_000, to_inr: null } } as Partial<FacetRow>))).toMatch(/^1 BHK/)
   })
 
-  it('says a web picture is from the web and does not repeat the homes-open line', () => {
-    render(<ul><RankedCard r={row({ photo: { url: '/uploads/a.webp', alt: 'Tower', source: 'web' } } as Partial<FacetRow>)} /></ul>)
-    expect(screen.getByText('Photo from the web')).toBeInTheDocument()
+  it("says a brochure render is an artist's impression and does not repeat the homes-open line", () => {
+    render(<ul><RankedCard r={row({ photo: { url: '/uploads/a.webp', alt: 'Tower', source: 'brochure' } } as Partial<FacetRow>)} /></ul>)
+    expect(screen.getByText("Artist's impression")).toBeInTheDocument()
+    expect(screen.queryByText('Photo from the web')).toBeNull()
     expect(screen.queryByText(/20 of 100 homes still open/)).toBeNull()
     expect(screen.getByText('MahaRERA P1')).toBeInTheDocument()
+  })
+
+  it('draws the skyline, with no picture and no note, when the project has no picture we may show', () => {
+    const { container } = render(<ul><RankedCard r={row({ photo: null })} /></ul>)
+    expect(container.querySelector('img')).toBeNull()
+    expect(container.querySelector('svg')).not.toBeNull()
+    expect(screen.queryByText(/photo from the web|artist's impression|ai illustration/i)).toBeNull()
   })
 
   it('keeps a reason that says more: homes booked lately', () => {

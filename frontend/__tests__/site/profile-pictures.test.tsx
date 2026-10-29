@@ -17,7 +17,7 @@ describe('project gallery', () => {
 
   it("keeps the builder's copy, else the larger, in the first copy's place", () => {
     expect(names(distinctPhotos([pic(IVARA[0]), pic(IVARA[1], { width: 1200, height: 675 }), pic(IVARA[4])]))).toEqual([IVARA[0], IVARA[4]])
-    expect(distinctPhotos([pic(IVARA[1], { source: 'web' }), pic(IVARA[4], { width: 800, height: 450 })])[0].source).toBe('builder')
+    expect(distinctPhotos([pic(IVARA[1], { source: 'brochure' }), pic(IVARA[4], { width: 800, height: 450 })])[0].source).toBe('builder')
   })
 
   it('never merges pictures not named by their hash (brochure pages, AI illustrations)', () => {

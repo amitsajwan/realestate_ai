@@ -22,7 +22,7 @@ from app.core.areas import BY_KEY
 from app.modules.newsroom.store import Store
 
 from .hubs import _primaries, _slot, link_name
-from .pages import _served, booked, indexable, is_old, stage
+from .pages import _served, booked, indexable, is_old, shown_pictures, stage
 from .prices import price_from
 from .service import _count, _day
 
@@ -105,8 +105,9 @@ def _google(d: dict) -> Optional[Tuple[float, float]]:
 
 
 def _photo(docs: List[dict]) -> Optional[dict]:
+    """The first picture a card may show (the map's and the area lists', seo.facets): none copied from another site."""
     for d in docs:
-        for p in (d.get("profile") or {}).get("photos") or []:
+        for p in shown_pictures((d.get("profile") or {}).get("photos")):
             if p.get("path"):
                 return {"url": "/uploads/" + p["path"], "alt": p.get("alt") or "", "source": p.get("source") or "builder"}
     return None

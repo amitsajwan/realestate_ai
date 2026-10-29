@@ -91,3 +91,11 @@ async def test_a_second_page_with_the_same_name_is_not_a_second_pin_and_adds_not
                        "map_pin": {"status": "auto", "name": "Lodha Camelot", "place_id": "camelot", "lat": 18.5676, "lon": 73.9683}}))
     items = (await areamap.public(db, "upper_kharadi", NOW))["items"]
     assert [(i["name"], i["booked"], i["total"]) for i in items] == [("Lodha Camelot", 45, 88)]
+
+
+def test_a_card_shows_the_builders_picture_never_one_copied_from_another_site():
+    web = {"path": "pr1/a.webp", "source": "web", "alt": "from housiey.com"}
+    builder = {"path": "pr1/b.webp", "source": "builder", "alt": "Tower"}
+    assert areamap._photo([{"profile": {"photos": [web, builder]}}]) == {"url": "/uploads/pr1/b.webp", "alt": "Tower", "source": "builder"}
+    # only copied pictures: no picture, so the card draws its skyline
+    assert areamap._photo([{"profile": {"photos": [web]}}]) is None

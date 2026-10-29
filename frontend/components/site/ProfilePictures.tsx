@@ -1,7 +1,9 @@
 import React from 'react'
 import type { ProfilePicture } from '@/lib/site/profile'
 
-/** A project's pictures and where they came from (backend areastats/profile.py): used by ProjectProfile and FloorPlansLock. */
+/** A project's pictures and where they came from (backend areastats/profile.py): used by ProjectProfile and FloorPlansLock.
+ *  The builder's, the brochure's and AI illustrations only: pictures copied from other sites never reach a page (backend
+ *  pages.shown_pictures, 2026-10-29). */
 export const sourceOf = (p: ProfilePicture) => p.source ?? 'builder'
 
 /** The dHash a saved picture is named by ("…/9d0e0e4d29202c29.webp"), as two 32-bit halves; null for brochure and AI files. */
@@ -10,7 +12,7 @@ const hashOf = (p: ProfilePicture): [number, number] | null => {
   return m ? [parseInt(m[1].slice(0, 8), 16), parseInt(m[1].slice(8), 16)] : null
 }
 const bits = (n: number) => { let c = 0; for (let x = n >>> 0; x; x &= x - 1) c++; return c }
-const RANK: Record<string, number> = { builder: 0, brochure: 1, web: 2, ai: 3 }
+const RANK: Record<string, number> = { builder: 0, brochure: 1, ai: 3 }
 
 /** Photos with near-duplicates dropped (the same render twice, under 21 of 64 bits apart), as the backend's
  * profile.distinct_photos does: profiles saved before that rule still hold both copies until they are read again. */
@@ -34,7 +36,7 @@ export function Picture({ pic, eager }: { pic: ProfilePicture; eager?: boolean }
         loading={eager ? 'eager' : 'lazy'} decoding="async" className="h-full w-full object-cover" />
       {sourceOf(pic) !== 'builder' && !(sourceOf(pic) === 'brochure' && !/artist/i.test(pic.alt)) && (
         <span className="absolute left-2 top-2 rounded bg-black/70 px-2 py-0.5 text-xs font-semibold text-white">
-          {sourceOf(pic) === 'ai' ? 'AI illustration' : sourceOf(pic) === 'brochure' ? "Artist's impression" : 'Photo from the web'}
+          {sourceOf(pic) === 'ai' ? 'AI illustration' : "Artist's impression"}
         </span>
       )}
     </a>
@@ -43,7 +45,6 @@ export function Picture({ pic, eager }: { pic: ProfilePicture; eager?: boolean }
 
 export function Credit({ pics, name }: { pics: ProfilePicture[]; name?: string }) {
   const drawn = pics.some((p) => sourceOf(p) === 'ai')
-  const web = pics.filter((p) => sourceOf(p) === 'web')
   const own = pics.filter((p) => sourceOf(p) === 'builder')
   const brochure = pics.some((p) => sourceOf(p) === 'brochure')
   return (
@@ -58,7 +59,6 @@ export function Credit({ pics, name }: { pics: ProfilePicture[]; name?: string }
           From the builder&apos;s brochure, shared by an agent. Renders are artist&apos;s impressions; the plans are indicative. Check the sanctioned plans before you book.
         </p>
       )}
-      {web.length > 0 && <Sites pics={web} lead="From other sites about the project, not checked by us:" end="Check with the builder before you rely on them." />}
       {own.length > 0 && <Sites pics={own} lead="From the builder's website:"
         end="Renders are the builder's artist's impressions; the plans are indicative. Check the sanctioned plans before you book." />}
     </>

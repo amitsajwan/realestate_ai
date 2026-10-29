@@ -670,9 +670,11 @@ def lines(profile: Optional[dict]) -> List[str]:
 
 def public(profile: Optional[dict], drawn: bool = True) -> Optional[dict]:
     """What a project page shows: highlights with their sources, pictures with where they came from; None when there is nothing.
-    `drawn=False` leaves the AI illustrations out: a page in Google shows real pictures or none (2026-10-27)."""
-    if profile and not drawn:
-        profile = {**profile, "photos": [p for p in profile.get("photos") or [] if p.get("source") != "ai"]}
+    Pictures copied from other sites stay on the record and are never shown (pages.shown_pictures); `drawn=False` leaves the AI
+    illustrations out too: a page in Google shows real pictures or none (2026-10-27)."""
+    if profile:
+        profile = {**profile, "photos": pages.shown_pictures(profile.get("photos"), drawn),
+                   "plans": pages.shown_pictures(profile.get("plans"))}
     if not profile or not (profile.get("highlights") or profile.get("photos") or profile.get("plans")):
         return None
     at = profile.get("at")

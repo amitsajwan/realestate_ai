@@ -82,10 +82,35 @@ async def test_an_ai_illustration_is_not_content_of_the_projects_own():
 
 async def test_a_page_in_search_shows_no_ai_illustrations():
     from app.modules.areastats import profile
-    pics = {"photos": [{"path": "a.webp", "source": "ai"}, {"path": "b.webp", "source": "web", "site": "x.com"}]}
-    assert [p["source"] for p in profile.public(pics)["photos"]] == ["ai", "web"]
-    assert [p["source"] for p in profile.public(pics, drawn=False)["photos"]] == ["web"]
+    pics = {"photos": [{"path": "a.webp", "source": "ai"}, {"path": "b.webp", "source": "builder", "site": "x.com"}]}
+    assert [p["source"] for p in profile.public(pics)["photos"]] == ["ai", "builder"]
+    assert [p["source"] for p in profile.public(pics, drawn=False)["photos"]] == ["builder"]
     assert profile.public({"photos": [{"path": "a.webp", "source": "ai"}]}, drawn=False) is None
+
+
+async def test_web_photos_do_not_make_a_page_searchable():
+    copied = {"photos": [{"path": "a.webp", "source": "web", "site": "housiey.com"}],
+              "plans": [{"path": "p.webp", "source": "web", "site": "magicbricks.com"}]}
+    assert not pages.has_own_content({**FULL, "profile": copied})
+    assert not pages.searchable({**FULL, "profile": copied})
+    # the builder's or the brochure's picture, or plan, still counts
+    assert pages.searchable({**FULL, "profile": {"photos": [{"path": "b.webp", "source": "brochure"}]}})
+    assert pages.searchable({**FULL, "profile": {"plans": [{"path": "p.webp", "source": "builder"}]}})
+    assert pages.searchable({**FULL, "profile": {"photos": [{"path": "c.webp"}]}})   # saved before sources: the builder's
+
+
+async def test_photos_copied_from_other_sites_are_never_shown_but_stay_on_the_record():
+    from app.modules.areastats import profile
+    stored = {"highlights": [], "photos": [{"path": "a.webp", "source": "web", "site": "housiey.com"},
+                                           {"path": "b.webp", "source": "builder", "site": "lodhagroup.com"}],
+              "plans": [{"path": "p.webp", "source": "web", "site": "magicbricks.com"}, {"path": "q.webp", "source": "brochure"}]}
+    for drawn in (True, False):
+        shown = profile.public(stored, drawn=drawn)
+        assert [p["url"] for p in shown["photos"]] == ["/uploads/b.webp"]
+        assert [p["url"] for p in shown["plans"]] == ["/uploads/q.webp"]
+    assert len(stored["photos"]) == 2 and len(stored["plans"]) == 2   # the reading is kept, only not shown
+    # nothing else to show: no profile at all, so the page shows its no-picture fallback
+    assert profile.public({"highlights": [], "photos": [{"path": "a.webp", "source": "web"}], "plans": []}) is None
 
 
 async def test_marketed_name_and_aliases():

@@ -19,7 +19,7 @@ const page = (intent: string, rows: unknown[], more: Record<string, unknown> = {
   month: null, page_updated: null, indexable: true, as_of: '2026-10-26', source: 'MahaRERA public records', ...more,
 })
 const TOP = page('top', Array.from({ length: 12 }, (_, i) => row(i + 1, i === 0 ? {
-  price: { bhk: 2, from_inr: 9_500_000, to_inr: 9_630_000 }, photo: { url: '/uploads/p1.webp', alt: 'Towers', source: 'web' }, stage: 'possession-soon' } : {})), {
+  price: { bhk: 2, from_inr: 9_500_000, to_inr: 9_630_000 }, photo: { url: '/uploads/p1.webp', alt: 'Towers', source: 'brochure' }, stage: 'possession-soon' } : {})), {
   sold_out: [row(0, { slug: 'aleria', name: 'Aleria Block B', promoter: 'Kolte-Patil', units_total: 27, units_booked: 27, units_open: 0 })], sold_out_count: 1,
 })
 const LISTS: Record<string, unknown> = {
@@ -51,7 +51,7 @@ describe('Top projects page', () => {
     expect(cards).toHaveLength(10)
     expect(cards[0]).toHaveTextContent('2 BHK ₹95')
     expect(cards[0]).toHaveTextContent('Possession soon')
-    expect(cards[0]).toHaveTextContent('Photo from the web')         // a web picture says so
+    expect(cards[0]).toHaveTextContent("Artist's impression")       // a brochure render says so
     expect(cards[0]).toHaveTextContent('20 homes open')
     expect(within(cards[0]).getByRole('link', { name: 'Ask about floor plans' })).toHaveAttribute('href', '/projects/p-1#enquire')
     expect(within(cards[1]).getByRole('link', { name: 'Get the price' })).toHaveAttribute('href', '/projects/p-2#enquire')

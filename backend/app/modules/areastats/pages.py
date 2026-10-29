@@ -168,19 +168,30 @@ def indexable(doc: dict) -> bool:
     return bool(_day(doc.get("completion_now")) and (str(doc.get("promoter") or "").strip() or str(doc.get("pincode") or "").strip()))
 
 
+def shown_pictures(pics: Optional[List[dict]], drawn: bool = True) -> List[dict]:
+    """The pictures of a project profile (areastats.profile) a buyer page may show: the builder's and the brochure's. Never the
+    ones copied from other sites' pages ("web": portals and other agents, 2026-10-29); they stay on the record, unshown. AI
+    illustrations ("ai") only with `drawn`: a page in search shows real pictures or none (2026-10-27)."""
+    hidden = ("web",) if drawn else ("web", "ai")
+    return [p for p in pics or [] if p.get("source") not in hidden]
+
+
 def has_own_content(doc: dict) -> bool:
     """Something on the page beyond the register: written sections, prices read, checked web facts, or the builder's highlights,
-    pictures or floor plans."""
+    or the builder's or brochure's pictures or floor plans. Pictures the page does not show count for nothing: an AI
+    illustration is not the project's own, and a picture copied from another site is that site's."""
     profile = doc.get("profile") or {}
-    real = any(p.get("source") != "ai" for p in profile.get("photos") or [])   # an AI illustration is not the project's own
+    pictures = shown_pictures(profile.get("photos"), drawn=False) or shown_pictures(profile.get("plans"))
     return bool(doc.get("page_text") or (doc.get("prices") or {}).get("rows") or (doc.get("web_facts") or {}).get("facts")
-                or profile.get("highlights") or real or profile.get("plans"))
+                or profile.get("highlights") or pictures)
 
 
 def searchable(doc: dict) -> bool:
     """Asks Google to index the page: a listable page (`indexable`) that also has content of its own. 11,700 register-only pages
     in search on a weeks-old domain sank the whole site on 2026-10-26 (seo-system.md section 11); a page goes back into search
-    by itself once enrichment fills it. The area lists keep showing every listable project."""
+    by itself once enrichment fills it. Pictures copied from other sites never make a page searchable: 663 of them on 131 pages
+    in search came from portals and other agents (2026-10-29), and no page was in search for them alone. The area lists keep
+    showing every listable project."""
     return indexable(doc) and has_own_content(doc)
 
 

@@ -30,9 +30,9 @@ function justOpened(r: FacetRow): boolean {
   return r.stage === 'new-launch' && r.units_booked === 0 && !!r.units_total
 }
 
-// a picture that is not the builder's own says so, as the project page does (ProfilePictures)
-// ("Not checked by us" read as if the project's facts were not checked, on a site whose word is "checked": owner review 2026-10-26)
-const PHOTO_NOTE: Record<string, string> = { ai: 'AI illustration', brochure: "Artist's impression", web: 'Photo from the web' }
+// a picture that is not the builder's own says so, as the project page does (ProfilePictures); pictures copied from other
+// sites are never sent (backend pages.shown_pictures, 2026-10-29), so a card without one draws the skyline
+const PHOTO_NOTE: Record<string, string> = { ai: 'AI illustration', brochure: "Artist's impression" }
 
 export function cardPrice(r: FacetRow): string | null {
   // a size list's own price first: the cheapest of any size put a 1 BHK price on the 2 BHK row (96 Arrcade, 2026-10-26)

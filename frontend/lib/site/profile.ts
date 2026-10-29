@@ -11,10 +11,10 @@ export interface ProfilePicture {
   /** the builder's site it came from, and the page it was on */
   site: string | null
   page_url: string | null
-  /** builder: the builder's own site; web: another site's page about the project, not checked by us; ai: an illustration
-   *  drawn by AI from the MahaRERA facts, not the project (backend profile.illustrations); brochure: a page of the builder's
-   *  brochure an agent uploaded (backend profile.brochure_pictures) */
-  source?: 'builder' | 'brochure' | 'web' | 'ai'
+  /** builder: the builder's own site; ai: an illustration drawn by AI from the MahaRERA facts, not the project (backend
+   *  profile.illustrations); brochure: a page of the builder's brochure an agent uploaded (backend profile.brochure_pictures).
+   *  Pictures copied from other sites stay on the record and are never sent (backend pages.shown_pictures, 2026-10-29). */
+  source?: 'builder' | 'brochure' | 'ai'
 }
 
 export interface ProjectProfile {
