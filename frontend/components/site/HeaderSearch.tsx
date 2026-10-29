@@ -2,12 +2,14 @@
 
 import React, { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { checkHref } from '@/components/site/CheckSearch'
 import { CHECK_STYLE, checkPill, checkState, savedChecks } from '@/lib/site/check'
 import type { SavedCheck } from '@/lib/site/check'
 import { displayName } from '@/lib/site/register'
 import type { RegisterSearchHit } from '@/lib/site/register'
 import { useRegisterSearch } from '@/lib/site/useRegisterSearch'
+import { PlaceRow } from '@/components/site/ProjectSearch'
 
 const SHOWN = 8
 const PHONE = '(max-width: 1023px)'   // below Tailwind's lg: the full-screen sheet; from lg up a panel under the trigger
@@ -60,7 +62,8 @@ export default function HeaderSearch({ askHref }: { askHref: string }) {
   const [modal, setModal] = useState(false)
   const [q, setQ] = useState('')
   const [saved, setSaved] = useState<SavedCheck[]>([])
-  const { hits, done } = useRegisterSearch(open ? q : '', SHOWN + 1)
+  const router = useRouter()
+  const { hits, done, place } = useRegisterSearch(open ? q : '', SHOWN + 1)
   const wrap = useRef<HTMLDivElement>(null)
   const panel = useRef<HTMLDivElement>(null)
   const input = useRef<HTMLInputElement>(null)
@@ -131,18 +134,19 @@ export default function HeaderSearch({ askHref }: { askHref: string }) {
       {open && (
         <div ref={panel} role="dialog" aria-modal={modal || undefined} aria-label="Search projects" onKeyDown={onPanelKey} data-testid="header-search-panel"
           className="fixed inset-0 z-50 flex flex-col bg-white text-slate-900 lg:absolute lg:inset-auto lg:left-0 lg:top-full lg:mt-2 lg:max-h-[70vh] lg:w-[480px] lg:rounded-2xl lg:shadow-2xl lg:ring-1 lg:ring-slate-200">
-          <form action="/projects" method="get" role="search" className="flex flex-none items-center gap-2 border-b border-slate-200 p-3">
+          <form action="/projects" method="get" role="search" className="flex flex-none items-center gap-2 border-b border-slate-200 p-3"
+            onSubmit={(e) => { if (place && done) { e.preventDefault(); close(false); router.push(place.path) } }}>
             <label htmlFor="header-search-q" className="sr-only">Project name, builder or MahaRERA number</label>
             <div className="relative flex-1">
               <Glass className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
               <input ref={input} id="header-search-q" name="q" type="search" value={q} onChange={(e) => setQ(e.target.value)} autoComplete="off"
-                enterKeyHint="search" placeholder="Project, builder or MahaRERA no."
+                enterKeyHint="search" placeholder="Area, project or MahaRERA no."
                 className="min-h-[48px] w-full rounded-xl border border-slate-300 pl-10 pr-3 text-base text-slate-900 placeholder:text-slate-500 focus:border-[#0f2340] focus:outline-none focus:ring-2 focus:ring-[#0f2340]/20" />
             </div>
             <button type="button" onClick={() => close()} className="min-h-[48px] rounded-xl px-2 font-semibold text-[#0f2340] lg:hidden">Cancel</button>
           </form>
           <div className="min-h-0 flex-1 overflow-y-auto">
-            <p aria-live="polite" className="sr-only">{t.length >= 2 && done ? (hits.length ? `${Math.min(hits.length, SHOWN)} projects found` : 'No project found') : ''}</p>
+            <p aria-live="polite" className="sr-only">{t.length >= 2 && done ? [place ? place.label : '', hits.length ? `${Math.min(hits.length, SHOWN)} projects found` : place ? '' : 'No project found'].filter(Boolean).join(', ') : ''}</p>
             {t.length < 2 ? (
               saved.length ? (
                 <section aria-labelledby="header-search-saved" className="p-4">
@@ -155,7 +159,7 @@ export default function HeaderSearch({ askHref }: { askHref: string }) {
                   </ul>
                 </section>
               ) : <p className="p-4 text-slate-600">Type a project name, the builder, or the MahaRERA number on your agreement.</p>
-            ) : !done ? null : hits.length === 0 ? (
+            ) : !done ? null : hits.length === 0 && !place ? (
               <div className="p-4 text-slate-700">
                 <p>We couldn&apos;t find &ldquo;{t}&rdquo; in Pune&apos;s MahaRERA list. Try the builder&apos;s name, or the MahaRERA number on
                   your agreement (it starts with P52 or PR).</p>
@@ -163,6 +167,7 @@ export default function HeaderSearch({ askHref }: { askHref: string }) {
               </div>
             ) : (
               <ul className="m-0 list-none divide-y divide-slate-100 p-0" data-testid="header-search-results">
+                {place && <PlaceRow place={place} onPick={picked} className="px-4" />}
                 {hits.slice(0, SHOWN).map((it) => <Row key={it.regno} it={it} q={q} onPick={picked} />)}
                 {hits.length > SHOWN && (
                   <li><Link href={`/projects?q=${encodeURIComponent(t)}`} onClick={picked}

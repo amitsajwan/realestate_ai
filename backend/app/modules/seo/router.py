@@ -26,7 +26,7 @@ from fastapi import Depends, Response  # noqa: E402
 
 from app.core.database import get_database  # noqa: E402
 
-from . import facets, grow  # noqa: E402
+from . import facets, grow, placesearch  # noqa: E402
 
 CACHE_SECONDS = 300
 
@@ -60,6 +60,13 @@ async def _live_pages(db) -> List[dict]:
         out = await grow.live_pages(db)
         _LIVE["pages"] = (time.monotonic() + CACHE_SECONDS, out)
         return out
+
+
+@public_router.get("/search/place")
+async def public_search_place(response: Response, q: str = "", db=Depends(get_db)) -> Optional[dict]:
+    """The area page a search names ({path, label, place}), or null: the search boxes show it above the projects."""
+    response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
+    return placesearch.pick(q[:80], await _live_pages(db)) if len(q.strip()) >= 3 else None
 
 
 @public_router.get("/place-prices/{place}")

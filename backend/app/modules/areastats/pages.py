@@ -788,6 +788,8 @@ def _score(row: dict, q: str) -> int:
         return 80
     if any(n.startswith(q) for n in row["names"]):
         return 60
+    if any(f" {q}" in f" {n}" for n in row["names"]):   # a word of the name: "ivara" is Godrej Ivara before Bhide Nivara
+        return 55
     if q in row["hay"]:
         return 50
     return 30 if all(w in row["hay"] for w in q.split()) else 0

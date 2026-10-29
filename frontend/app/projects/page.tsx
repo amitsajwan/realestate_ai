@@ -12,7 +12,7 @@ import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
 import { buyerEnquirePath } from '@/components/marketing/siteLinks'
 import { getCatalog } from '@/lib/site/api'
 import { byLocality } from '@/lib/site/projects'
-import { displayName, getRegisterPlaces, getRegisterProjects, placePath, projectSummary, searchRegister } from '@/lib/site/register'
+import { displayName, getRegisterPlaces, getRegisterProjects, placePath, projectSummary, searchPlace, searchRegister } from '@/lib/site/register'
 import type { RegisterListItem, RegisterPlace } from '@/lib/site/register'
 
 export const revalidate = 300
@@ -37,7 +37,7 @@ export default async function ProjectsPage({ searchParams }: Props) {
   // ?q= is the search box without JavaScript: answered here from the backend search
   const raw = (await searchParams)?.q
   const q = (Array.isArray(raw) ? raw[0] : raw ?? '').trim().slice(0, 80)
-  const [catalog, hits] = await Promise.all([getCatalog(), q.length >= 2 ? searchRegister(q) : Promise.resolve([])])
+  const [catalog, hits, place] = await Promise.all([getCatalog(), q.length >= 2 ? searchRegister(q) : Promise.resolve([]), q.length >= 3 ? searchPlace(q) : Promise.resolve(null)])
   const groups = byLocality(catalog)
   const listed = new Set(catalog.map((p) => p.rera_no))
   // the register holds all of Pune district; the lists and search on this page are our covered areas, the rest is by place below
@@ -68,7 +68,7 @@ export default async function ProjectsPage({ searchParams }: Props) {
           earlier than the MahaRERA date, we say so.
         </p>
 
-        <ProjectSearch initialQ={q} initialHits={hits} />
+        <ProjectSearch initialQ={q} initialHits={hits} initialPlace={place} />
         <p className="mt-3 text-slate-700">
           Already bought?{' '}
           <Link href="/check" className="inline-flex min-h-[44px] items-center font-semibold text-[#0f2340] underline underline-offset-2">Check your project&apos;s possession date on MahaRERA</Link>

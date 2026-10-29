@@ -217,3 +217,10 @@ async def test_a_place_is_in_search_only_with_a_project_page_in_search():
     got = await wagholi({})
     assert (got["projects"], got["indexable"]) == (2, 0)    # register-only pages: the place page stays out of search
     assert (await wagholi({"page_text": "Written from the record."}))["indexable"] == 1
+
+
+async def test_a_word_of_the_name_ranks_before_letters_inside_another_word():
+    pages.clear_search_cache()
+    db, store = await seeded(("P52100011111", "Bhide Nivara", "wagholi", FULL), ("P52100022222", "Godrej Ivara", "kharadi", FULL))
+    await pages.assign_all(store)
+    assert [r["regno"] for r in await pages.search(db, "ivara")] == ["P52100022222", "P52100011111"]

@@ -516,6 +516,26 @@ export interface RegisterSearchHit {
   months_later?: number | null
 }
 
+/** The area page a search names ("kharadi", "2 bhk kharadi", "top projects wagholi"): shown above the projects. */
+export interface PlaceMatch { path: string; label: string; place: string }
+
+/** GET /api/v1/public/search/place: the area page the search names, or null (also on any failure). */
+export async function searchPlace(q: string, signal?: AbortSignal): Promise<PlaceMatch | null> {
+  const t = q.trim()
+  if (t.length < 3) return null
+  const server = typeof window === 'undefined'
+  const base = server ? serverApiBase() : (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\/+$/, '')
+  try {
+    const res = await fetch(`${base}/api/v1/public/search/place?q=${encodeURIComponent(t.slice(0, 80))}`,
+      { headers: { Accept: 'application/json' }, signal, ...(server ? { next: { revalidate: 300 } } : {}) })
+    if (!res.ok) return null
+    const data = await res.json()
+    return data && typeof data.path === 'string' && data.path.startsWith('/projects/area/') ? (data as PlaceMatch) : null
+  } catch {
+    return null
+  }
+}
+
 /** Search the register by name (marketed, legal or alias), builder or MahaRERA number. Works in the browser (the public API base,
  *  as lib/config/api) and on the server; any failure gives an empty list. */
 export async function searchRegister(q: string, limit = 20, signal?: AbortSignal): Promise<RegisterSearchHit[]> {
