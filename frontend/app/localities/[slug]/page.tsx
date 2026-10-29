@@ -92,13 +92,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return guide ? { ...meta, alternates: { canonical: getMarketingConfig().siteUrl + topicPath(l.slug) } } : meta
 }
 
-/** Where "I'm interested" leads: the house agent site's enquiry form (configurable at build time). `?src=locality_<key>` is
+/** Where "I'm interested" leads: the enquiry page (app/enquire). `?src=locality_<key>` is
  *  picked up by the site's attribution (lib/site/tracking.ts readAttribution) and stored as the lead's source. */
-const enquireHref = (l: { key: string }) =>
-  `/agent/${process.env.NEXT_PUBLIC_DEFAULT_AGENT_SLUG || 'avasetu'}?src=${localitySource(l)}#enquire`
+const enquireHref = (l: { key: string }) => `/enquire?src=${localitySource(l)}`
 
-const fallbackEnquireHref = (slug: string) =>
-  `/agent/${process.env.NEXT_PUBLIC_DEFAULT_AGENT_SLUG || 'avasetu'}?src=${localitySourceFromSlug(slug)}#enquire`
+const fallbackEnquireHref = (slug: string) => `/enquire?src=${localitySourceFromSlug(slug)}`
 
 const validSlug = (slug: string) => /^[a-z0-9]+(?:-[a-z0-9]+){0,8}$/.test(slug)
 

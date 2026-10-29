@@ -23,8 +23,8 @@ export const agentAnchorForward = (): string =>
 export const INVITE_PATH = '/trial'   // 'Claim your free trial' (WhatsApp TRIAL); the call-back form stays at /request-invite
 /** Studio is the agent's app; it sends a signed-out visitor to the sign-in screen (/join). */
 export const SIGN_IN_PATH = '/studio'
-/** A buyer's 'tell us what you need': the house agent site's existing enquiry form (the same place the area guides send buyers). */
-export const buyerEnquirePath = (): string => `/agent/${process.env.NEXT_PUBLIC_DEFAULT_AGENT_SLUG || 'avasetu'}#enquire`
+/** A buyer's 'tell us what you need': the enquiry page (app/enquire), whose form is on the first screen. */
+export const buyerEnquirePath = (): string => '/enquire'
 
 /** Who a page is for: buyer pages (home, area guides, insights, news, posts) get the buyer button in the header, agent pages the invite. */
 export type Audience = 'buyer' | 'agent'

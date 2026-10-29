@@ -40,7 +40,7 @@ describe('site header', () => {
     const header = screen.getByRole('banner')
     const cta = within(header).getByTestId('header-cta')
     expect(cta).toHaveAccessibleName('Enquire: tell us what you need')
-    expect(cta).toHaveAttribute('href', '/agent/avasetu#enquire')
+    expect(cta).toHaveAttribute('href', '/enquire')
     expect(within(header).queryByRole('link', { name: /request an invite/i })).toBeNull()
     expect(hrefOf(header, /^for agents$/i)).toBe('/agents')  // still a normal link
   })

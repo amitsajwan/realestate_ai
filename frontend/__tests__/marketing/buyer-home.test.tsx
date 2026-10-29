@@ -51,7 +51,7 @@ describe("buyers' home", () => {
     expect(screen.getByText(/66 projects in our areas, read from MahaRERA/i)).toBeInTheDocument()
     const ask = screen.getAllByRole('link', { name: /tell us what you need/i })   // the header button and the hero's
     expect(ask.length).toBe(2)
-    for (const a of ask) expect(a).toHaveAttribute('href', '/agent/avasetu#enquire')
+    for (const a of ask) expect(a).toHaveAttribute('href', '/enquire')
   })
 
   it('links the hottest projects, every area, the live lists and builders with pages', async () => {

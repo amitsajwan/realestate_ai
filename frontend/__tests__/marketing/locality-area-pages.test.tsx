@@ -117,7 +117,7 @@ describe('area pages', () => {
     respond(200, STATS)
     render(await LocalityPage({ params: Promise.resolve({ slug: 'wagholi' }) }))
     expect(screen.getByRole('region', { name: 'In the MahaRERA records' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Tell us what you are looking for' })).toHaveAttribute('href', '/agent/avasetu?src=locality_wagholi#enquire')
+    expect(screen.getByRole('link', { name: 'Tell us what you are looking for' })).toHaveAttribute('href', '/enquire?src=locality_wagholi')
   })
 
   it('still renders the page, without the section, when the stats call fails', async () => {
@@ -125,7 +125,7 @@ describe('area pages', () => {
     render(await LocalityPage({ params: Promise.resolve({ slug: 'keshav-nagar' }) }))
     expect(screen.getByRole('heading', { level: 1, name: 'Keshav Nagar, Pune' })).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'In the MahaRERA records' })).toBeNull()
-    expect(screen.getByRole('link', { name: 'Tell us what you are looking for' })).toHaveAttribute('href', '/agent/avasetu?src=locality_keshav_nagar#enquire')
+    expect(screen.getByRole('link', { name: 'Tell us what you are looking for' })).toHaveAttribute('href', '/enquire?src=locality_keshav_nagar')
   })
 
   it('renders a non-curated locality only from live listing/project data', async () => {
@@ -139,7 +139,7 @@ describe('area pages', () => {
     expect(mockCatalog).toHaveBeenCalledWith('Gulmohar City')
     expect(screen.getByRole('heading', { level: 1, name: 'Gulmohar City, Pune' })).toBeInTheDocument()
     expect(screen.getByText(/do not have a full buyer guide for Gulmohar City yet/i)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Tell us what you are looking for' })).toHaveAttribute('href', '/agent/avasetu?src=locality_gulmohar_city#enquire')
+    expect(screen.getByRole('link', { name: 'Tell us what you are looking for' })).toHaveAttribute('href', '/enquire?src=locality_gulmohar_city')
     expect(screen.getByText('Plot in Gulmohar City')).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Sources' })).toBeNull()
   })

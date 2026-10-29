@@ -103,7 +103,7 @@ const PAGES: Record<string, string> = {
   '/': 'Home page', '/projects': 'All projects', '/news': 'News', '/localities': 'All areas', '/builders': 'All builders',
   '/check': 'Project check', '/insights': 'Insights', '/posts': 'Posts', '/for-agents': 'For agents', '/for-agents/guide': 'Agent guide',
   '/pune-maharera-tracker': 'MahaRERA tracker', '/privacy': 'Privacy policy', '/agents': 'Agents list', '/trial': 'Free trial (agents)',
-  '/request-invite': 'Agent invite form',
+  '/request-invite': 'Agent invite form', '/enquire': 'Enquiry form',
 }
 
 /** "/projects/godrej-ivara-pune" -> "Project: Godrej ivara pune". A page we do not know by name shows its path. */
