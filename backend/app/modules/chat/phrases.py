@@ -15,11 +15,11 @@ LANGS = ("en", "hinglish", "hi", "mr", "mr_latn")
 P: Dict[str, Dict[str, str]] = {
     # ---- greetings (kept short) -----------------------------------------------------------------------------------
     "greet": {
-        "en": f"Hi! I am the {brand.NAME} assistant. We help real estate agents in Pune market their properties, and help buyers find a home. Are you looking for a home, or are you an agent?",
-        "hinglish": f"Namaste! Main {brand.NAME} ka assistant hoon. Hum Pune ke real estate agents ki properties ki marketing karte hain, aur ghar dhoondhne walon ki madad karte hain. Aap ghar dhoondh rahe hain, ya aap agent hain?",
-        "hi": f"नमस्ते! मैं {brand.NAME_DEVANAGARI} का सहायक हूँ। हम पुणे के रियल एस्टेट एजेंटों की प्रॉपर्टी की मार्केटिंग करते हैं, और घर ढूँढने वालों की मदद करते हैं। आप घर ढूँढ रहे हैं, या आप एजेंट हैं?",
-        "mr": f"नमस्कार! मी {brand.NAME_DEVANAGARI} चा सहाय्यक आहे. आम्ही पुण्यातील रिअल इस्टेट एजंटांच्या प्रॉपर्टीचे मार्केटिंग करतो, आणि घर शोधणाऱ्यांना मदत करतो. तुम्ही घर शोधत आहात, की तुम्ही एजंट आहात?",
-        "mr_latn": f"Namaskar! Mi {brand.NAME} cha sahayyak aahe. Aamhi Punyatil real estate agentanchya property che marketing karto, ani ghar shodhnaryanna madat karto. Tumhi ghar shodhat aahat, ki tumhi agent aahat?",
+        "en": f"Hi! I am the {brand.NAME} assistant. I help you find new projects and homes in Pune, each checked against MahaRERA. Tell me the area, a project name or your budget.",
+        "hinglish": f"Namaste! Main {brand.NAME} ka assistant hoon. Main Pune mein naye projects aur ghar dhoondhne mein madad karta hoon, har project MahaRERA se check kiya hua. Mujhe area, project ka naam ya apna budget bataiye.",
+        "hi": f"नमस्ते! मैं {brand.NAME_DEVANAGARI} का सहायक हूँ। मैं पुणे में नए प्रोजेक्ट और घर ढूँढने में मदद करता हूँ, हर प्रोजेक्ट महारेरा से जाँचा हुआ। मुझे इलाका, प्रोजेक्ट का नाम या अपना बजट बताइए।",
+        "mr": f"नमस्कार! मी {brand.NAME_DEVANAGARI} चा सहाय्यक आहे. मी पुण्यात नवीन प्रोजेक्ट आणि घरे शोधायला मदत करतो, प्रत्येक प्रोजेक्ट महारेरावर तपासलेला. मला भाग, प्रोजेक्टचे नाव किंवा तुमचे बजेट सांगा.",
+        "mr_latn": f"Namaskar! Mi {brand.NAME} cha sahayyak aahe. Mi Punyat navin project ani ghare shodhayla madat karto, pratyek project MahaRERA var tapaslela. Mala bhag, projectche naav kiwa tumche budget sanga.",
     },
     "greet_listing": {
         "en": "Asking about the {home}? I can tell you about it or find similar homes.",

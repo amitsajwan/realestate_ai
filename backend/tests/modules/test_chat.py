@@ -45,7 +45,7 @@ def test_kb_never_states_prices_or_predictions():
 async def test_full_journey_captures_requirement_then_phone_with_consent_and_makes_one_lead():
     d = engine.new_data()
     t = await say(d, "hi")
-    assert "are you an agent" in t.reply and t.quick == ["Find a home", "I'm an agent"] and not t.lead
+    assert "new projects and homes in Pune" in t.reply and "agent" not in t.reply and t.quick == ["Find a home"] and not t.lead
     t = await say(d, "Buy")
     assert d["tx"] == "buy" and "Which area" in t.reply
     t = await say(d, "Kharadi")
@@ -321,7 +321,7 @@ async def test_what_do_you_do_is_answered_for_both_sides_without_a_buyer_questio
         d = engine.new_data()
         await say(d, "hi")
         t = await say(d, q)
-        assert "real estate agents in Pune" in t.reply and "/trial" in t.reply and "buy or to rent" not in t.reply
+        assert "find a new home in Pune" in t.reply and "/agents" in t.reply and "buy or to rent" not in t.reply
 
 
 async def test_an_agent_hears_the_trial_and_never_a_price_after_it():
@@ -343,12 +343,21 @@ async def test_find_a_home_starts_the_buyer_questions():
 async def test_platform_and_projects_questions_from_the_live_chat_are_answered():
     d = engine.new_data()
     t = await say(d, "what all project you have")
-    assert "/projects" in t.reply and "buy or to rent" not in t.reply and t.quick == ["Find a home", "I'm an agent"]
+    assert "/projects" in t.reply and "buy or to rent" not in t.reply and t.quick == ["Find a home"]
     t = await say(d, "how can i use your platform")
-    assert "/trial" in t.reply and "guess" not in t.reply
+    assert "find a new home in Pune" in t.reply and "/agents" in t.reply and "guess" not in t.reply
 
 
 async def test_a_longer_llm_answer_is_kept_but_new_numbers_are_not():
     long = "You can start by leaving your name and mobile number and our team will call you back. " * 4
     assert (await site.answer("zzz qqq?", FakeLLM({"answerable": True, "answer": long.strip()}))).answer == long.strip()
     assert await site.answer("zzz qqq?", FakeLLM({"answerable": True, "answer": "It costs 999 a month."})) is None
+
+
+async def test_the_greeting_is_for_buyers_and_an_agent_who_says_so_still_gets_the_agent_answer():
+    d = engine.new_data()
+    t = await say(d, "hello")
+    assert "agent" not in t.reply.lower() and "MahaRERA" in t.reply
+    t = await say(d, "I am an agent")
+    assert "/trial" in t.reply or "first month is free" in t.reply
+    assert "home buyers" not in site.best("what is avasetu").answer and "find a new home in Pune" in site.best("what is avasetu").answer

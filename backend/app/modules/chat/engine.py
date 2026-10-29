@@ -444,7 +444,7 @@ def _greeting(d: dict, whatsapp: bool) -> tuple:
         p, q = _prompt(d, nf)
         return f"{say('greet_area', lang, area=page['locality'])} {p}", q
     d["asked"] = None
-    return say("greet", lang), [qr("find_home", lang), qr("im_agent", lang)]
+    return say("greet", lang), [qr("find_home", lang)]   # buyers first; an agent who says so gets the agent answer (knowledge.site)
 
 
 def _about(g) -> Optional[str]:
@@ -654,7 +654,7 @@ async def turn(d: dict, text: str, llm, grounding=None, finder: Optional[Finder]
         ask, quick = _phone_ask(d)
     elif nf == "tx" and parts and not (d.get("page") or {}).get("kind") and not any(filled(d, f) for f in ("locality", "bhk", "budget")):
         d["asked"] = None
-        quick = [qr("find_home", lang), qr("im_agent", lang)]
+        quick = [qr("find_home", lang)]
     elif nf:
         ask, quick = _prompt(d, nf)
     else:

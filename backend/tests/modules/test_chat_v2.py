@@ -354,7 +354,7 @@ async def test_a_hinglish_buyer_gets_hinglish_fixed_phrases_and_no_english_templ
 async def test_hindi_and_marathi_buyers_get_their_language():
     d = engine.new_data(localise=True)
     tr = await chat(d, ["नमस्ते", "मुझे 2 BHK चाहिए"])
-    assert phrases.say("greet", "hi") == tr[0][1].reply and tr[0][1].quick == [phrases.quick("find_home", "hi"), phrases.quick("im_agent", "hi")]
+    assert phrases.say("greet", "hi") == tr[0][1].reply and tr[0][1].quick == [phrases.quick("find_home", "hi")]
     assert phrases.say("ask_tx", "hi") in tr[1][1].reply and "Are you" not in tr[1][1].reply
     d2 = engine.new_data(localise=True)
     t = (await chat(d2, ["hi", "mala Wagholi madhye ghar pahije aahe"]))[-1][1]

@@ -57,9 +57,10 @@ ENTRIES: List[Entry] = [
                   "what does avasetu do", "about you", "about avasetu", "how does it work", "how it works", "what is pune property",
                   "your platform", "this platform", "how can i use", "how to use", "use this website", "use your website",
                   "aap kya karte", "kya karte ho", "kya karte hai", "avasetu kya hai", "ye kya hai", "तुम्ही काय करता", "आप क्या करते"),
-          f"{brand.NAME} (आवास + सेतु: home + bridge) helps real estate agents in Pune market their properties: your own website, posts and reels "
-          "for Facebook and Instagram, and every buyer enquiry as a lead card. Buyers can ask us about homes and areas in Pune, and we pass "
-          "their requirement to the agent.", "any", "Agents: claim your free trial at /trial. Looking for a home? Tell me the area, BHK and budget."),
+          f"{brand.NAME} (आवास + सेतु: home + bridge) helps you find a new home in Pune. Every new project in the areas we cover is checked "
+          "against MahaRERA: the completion date filed and any move, how many homes are booked, and prices and floor plans by size where "
+          "we have them. Tell us what you need and our team, or a local agent we work with, sends price sheets and helps with visits.",
+          "any", "Tell me the area, BHK and budget, or a project name. Agents: see /agents."),
     Entry("projects", ("what projects", "which projects", "all projects", "all project", "project you have", "projects you have",
                        "projects do you have", "what properties", "properties you have", "homes you have", "flats you have", "new projects",
                        "list of projects", "kaun se project", "konse project"),
