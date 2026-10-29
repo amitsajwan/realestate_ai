@@ -5,7 +5,7 @@ import { displayName, monogram, resolveTheme, safeImage, safeRera, themeVars, MA
 import type { AgentProfile } from '@/lib/site/types'
 import ChatWidget from './ChatWidget'
 import ContactBlock from '@/components/marketing/ContactBlock'
-import { BRAND_NAME } from '@/lib/brand'
+import { BRAND_NAME, isHouseAgent } from '@/lib/brand'
 
 /** Server-rendered wrapper in the AGENT's own brand (preset colours, logo or monogram, business name). Footer carries a small 'Powered by Avasetu'. */
 export default function SiteShell({ agent, children, bottomPad = false }: { agent: AgentProfile; children: React.ReactNode; bottomPad?: boolean }) {
@@ -55,7 +55,8 @@ export default function SiteShell({ agent, children, bottomPad = false }: { agen
           <ContactBlock tone="dark" />
         </div>
         <p className="mt-3">&copy; {new Date().getFullYear()} {name}</p>
-        <p className="mt-2 text-xs text-slate-300">Powered by <Link href="/agents" className="text-white underline underline-offset-2">{BRAND_NAME}</Link></p>
+        {/* an agent's site credits the agents' home; the team's own site is Avasetu, so its credit is the buyers' home */}
+        <p className="mt-2 text-xs text-slate-300">Powered by <Link href={isHouseAgent(agent.slug) ? '/' : '/agents'} className="text-white underline underline-offset-2">{BRAND_NAME}</Link></p>
       </footer>
     </div>
   )

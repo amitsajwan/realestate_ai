@@ -11,6 +11,7 @@ import { livePages } from '@/lib/site/filters'
 import { getBuilders } from '@/lib/site/hubs'
 import { getRegisterProjects, getRegisterPlaces, placePath } from '@/lib/site/register'
 import { agentPath } from '@/lib/site/slug'
+import { isHouseAgent } from '@/lib/brand'
 
 const day = (d?: string | null): Date | undefined => {
   const t = d ? new Date(d) : null
@@ -60,7 +61,8 @@ export async function buildSitemap(): Promise<Grouped> {
     core(at('/insights', 0.7)),
     ...INSIGHTS.map((a) => core(at(`/insights/${a.slug}`, 0.7, a.updated))),
     ...topics.map((t) => core(at(topicPath(t.slug), 0.8, t.checked_on))),
-    ...[...latest].map(([slug, d]) => ({ group: 'agents', entry: at(agentPath(slug), 0.7, d) })),
+    // the team's own agent page names the home page as canonical (lib/site/seo agentMetadata), so it is not listed itself
+    ...[...latest].filter(([slug]) => !isHouseAgent(slug)).map(([slug, d]) => ({ group: 'agents', entry: at(agentPath(slug), 0.7, d) })),
     core(at('/projects', 0.9)),
     ...projects.map((p) => ({ group: areaOfLocality(p.locality), entry: at('/projects/' + p.slug, 0.9, [p.rera?.checked_at, p.updated_at].filter(Boolean).sort().pop()) })),
     ...withoutMovedSizePages(livePages(projects), facets).map((f) => core(at(f.path, 0.7))),
@@ -80,10 +82,9 @@ export async function buildSitemap(): Promise<Grouped> {
     // an agent's copy of a project on a shared page names that page as canonical, so only the others are listed
     ...agents.projects.filter((p) => !shared.has(p.agent_slug + '/' + p.slug)).map((p) => ({ group: 'agents', entry: at(agentPath(p.agent_slug, 'projects/' + p.slug), 0.6, p.updated_at) })),
     ...agents.listings.map((l) => ({ group: 'agents', entry: at(agentPath(l.agent_slug, 'listings/' + l.id), 0.6, l.updated_at) })),
+    // the agents' one page in search; the trial, invite and printable pitch pages are reached from our own links and WhatsApp,
+    // and are noindex so they never stand for the brand (owner 2026-10-29: buyers first)
     core(at('/agents', 0.7)),
-    core(at('/for-agents', 0.6)),
-    core(at('/request-invite', 0.3)),
-    core(at('/trial', 0.6)),
     core(at('/privacy', 0.2)),
     core(at('/terms', 0.2)),
   ]

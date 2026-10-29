@@ -11,6 +11,8 @@ export const metadata: Metadata = pageMetadata(getMarketingConfig(), {
   title: INVITE.metaTitle,
   description: INVITE.metaDescription,
   path: PATHS.invite,
+  // agents reach it from /agents, our posts and WhatsApp; out of search so it never stands for the brand (buyers first, 2026-10-29)
+  noindex: true,
 })
 
 export default function RequestInvitePage() {

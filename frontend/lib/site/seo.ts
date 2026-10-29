@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { bhkLabel, fitDescription, formatPrice, truncate } from './format'
+import { BRAND_NAME, isHouseAgent } from '@/lib/brand'
 import { agentPath, siteOrigin } from './slug'
 import { monthsLater } from './check'
 import { formatDay } from './projects'
@@ -43,7 +44,12 @@ export function agentMetadata(agent: AgentProfile, listings: PublicListing[], ci
   const title = agent.agent_name + (city ? ' | Real estate in ' + city : ' | Real estate agent')
   const description = truncate(tag ? tag + '. ' + (agent.bio || '') : agent.bio || 'Browse properties from ' + agent.agent_name, 160)
   const image = agent.photo || (listings.length ? firstImage(listings[0]) : undefined) || undefined
-  return withPreview(agent, build(title, description, agentPath(agent.slug), image))
+  const md = withPreview(agent, build(title, description, agentPath(agent.slug), image))
+  // The team's own site ("Avasetu Homes") was Google's first answer for "avasetu pune", ahead of the home page (2026-10-29).
+  // It holds a few of our listings, their project and the enquiry form every buyer button on the site opens, so it stays and
+  // keeps working (no redirect); it names the buyers' home as its canonical, so the brand's links and searches go there. Its
+  // listing and project pages keep their own canonicals.
+  return isHouseAgent(agent.slug) ? { ...md, alternates: { canonical: siteOrigin() } } : md
 }
 
 export function listingMetadata(agent: AgentProfile, l: PublicListing): Metadata {
@@ -66,6 +72,8 @@ export function agentJsonLd(agent: AgentProfile, city: string): Record<string, u
     telephone: agent.phone || undefined,
     address: { '@type': 'PostalAddress', streetAddress: agent.office_address || undefined, addressLocality: city || undefined, addressCountry: 'IN' },
     knowsLanguage: agent.languages && agent.languages.length ? agent.languages : undefined,
+    // the team's own site belongs to the Avasetu organisation, whose page is the home page (the Organization there)
+    parentOrganization: isHouseAgent(agent.slug) ? { '@type': 'Organization', name: BRAND_NAME, url: siteOrigin() } : undefined,
   }
 }
 

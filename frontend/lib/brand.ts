@@ -47,3 +47,8 @@ export const demoAgentPath = (): string => '/agent/' + demoAgentSlug()
 
 /** The business name shown on public pages: NEXT_PUBLIC_BUSINESS_NAME, else the brand. */
 export const businessName = (): string => (process.env.NEXT_PUBLIC_BUSINESS_NAME || '').trim() || BRAND_NAME
+
+/** The Avasetu team's own agent site (/agent/avasetu): the homes we list ourselves, and where buyers' enquiries from the public
+ *  pages land. NEXT_PUBLIC_DEFAULT_AGENT_SLUG, else 'avasetu'. It is not the brand's main page: that is the buyers' home. */
+export const HOUSE_AGENT_SLUG = process.env.NEXT_PUBLIC_DEFAULT_AGENT_SLUG || 'avasetu'
+export const isHouseAgent = (slug: string | null | undefined): boolean => !!slug && slug === HOUSE_AGENT_SLUG

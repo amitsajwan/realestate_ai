@@ -13,6 +13,8 @@ export const metadata: Metadata = pageMetadata(getMarketingConfig(), {
   title: 'Getting started on Avasetu: a guide for Pune agents',
   description: 'Claim your free trial, sign in, set up your page, add a property and see where buyer enquiries reach you. Step by step, with pictures.',
   path: '/for-agents/guide',
+  // agents reach it from /agents, our posts and WhatsApp; out of search so it never stands for the brand (buyers first, 2026-10-29)
+  noindex: true,
 })
 
 const HELP = '+91 98342 56406'

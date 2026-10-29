@@ -13,6 +13,8 @@ export const metadata: Metadata = pageMetadata(getMarketingConfig(), {
   title: 'Free trial for Pune agents: 1 month free | Avasetu',
   description: 'Give Avasetu a property: get its page, Facebook and Instagram posts, a Reel and a WhatsApp message. Enquiries come to you. 1 month free for the first 20 Pune agents, no card.',
   path: '/trial',
+  // agents reach it from /agents, our posts and WhatsApp; out of search so it never stands for the brand (buyers first, 2026-10-29)
+  noindex: true,
   image: { path: '/promo/og-pilot.jpg', width: 1200, height: 630, alt: 'Stop chasing “Price?” comments. Get buyers you can call. A sample lead card: 2 BHK in Kharadi, 80 lakh to 1.2 crore, 1 to 3 months, home loan, call today.' },
 })
 

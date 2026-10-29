@@ -17,6 +17,8 @@ export const metadata: Metadata = pageMetadata(getMarketingConfig(), {
   title: C.metaTitle,
   description: C.metaDescription,
   path: FOR_AGENTS_PATH,
+  // agents reach it from /agents, our posts and WhatsApp; out of search so it never stands for the brand (buyers first, 2026-10-29)
+  noindex: true,
 })
 
 const wrap = 'mx-auto max-w-5xl px-4'

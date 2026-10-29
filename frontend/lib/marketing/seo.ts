@@ -8,6 +8,8 @@ export interface PageMeta {
   path: string
   /** Path under /public, e.g. /landing/30-home-actions.jpg */
   image?: { path: string; width: number; height: number; alt: string }
+  /** Kept out of search, links still followed: a page people reach from our own links, not one that should answer a search */
+  noindex?: boolean
 }
 
 export function pageMetadata(cfg: MarketingConfig, m: PageMeta): Metadata {
@@ -24,6 +26,7 @@ export function pageMetadata(cfg: MarketingConfig, m: PageMeta): Metadata {
       images: image ? [image] : undefined,
     },
     twitter: { card: image ? 'summary_large_image' : 'summary', title: m.title, description: m.description, images: image ? [image.url] : undefined },
+    ...(m.noindex ? { robots: { index: false, follow: true } } : {}),
   }
 }
 

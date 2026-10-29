@@ -68,7 +68,8 @@ export const SHOTS = {
 export const SAMPLE_NOTE = 'Screens show sample data.'
 
 export const LANDING = {
-  metaTitle: `${BRAND_NAME} | Free trial for real estate agents in Pune`,
+  // the brand last: the buyers' home is the brand's page (2026-10-29), this one answers agents' searches
+  metaTitle: `Free trial for real estate agents in Pune | ${BRAND_NAME}`,
   metaDescription:
     'Free trial for Pune real estate agents: 1 month free, every property, first 20 agents. Your own website, posts and reels made for you, and every enquiry as a lead card.',
   metaOrgDescription: 'Avasetu (आवास + सेतु: home + bridge) helps real estate agents in Pune market their properties, get buyer enquiries and follow them up. Free trial: 1 month free for the first 20 agents.',

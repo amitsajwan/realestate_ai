@@ -12,7 +12,7 @@ import { getMarketingConfig } from '@/lib/marketing/config'
 import { LOCALITIES, TIER_LABELS, localitiesByTier } from '@/lib/marketing/localities'
 import { jsonLdString, organizationJsonLd, pageMetadata } from '@/lib/marketing/seo'
 import { socialLinks } from '@/lib/marketing/social'
-import { BRAND_NAME } from '@/lib/brand'
+import { BRAND_NAME, BRAND_NAME_DEVANAGARI } from '@/lib/brand'
 import { getFacetQuiet, getFacets } from '@/lib/site/facets'
 import { getBuilders, getSpotlight } from '@/lib/site/hubs'
 import { getRegisterPlaces, placePath } from '@/lib/site/register'
@@ -23,15 +23,19 @@ import { getRegisterPlaces, placePath } from '@/lib/site/register'
 // breaks; kept 5 minutes like the lists it links.
 export const revalidate = 300
 
-// Google shows about 70 characters of a title and 160 of a description: both fit, so none of the facts is cut off
-const TITLE = 'New Projects in Pune, MahaRERA Checked: Possession, Bookings, Builders'
-const DESCRIPTION = 'Every new project in Kharadi, Wagholi, Lohegaon, Hinjawadi, Wakad and more: possession filed with MahaRERA, whether it moved, homes booked, builders\' records.'
+// Google shows about 70 characters of a title and 160 of a description: both fit, so none of the facts is cut off. This page
+// is the brand's face, and it faces buyers (owner 2026-10-29: "our main goal is now end users, not agents. When someone searches
+// avasetu, it should be able to search projects"): the title leads with the brand, then says what a buyer does here. Before,
+// no title on this page named us, so Google answered "avasetu pune" with the team's agent page and the agents' trial page.
+const TITLE = `${BRAND_NAME}: Search New Projects in Pune, Checked Against MahaRERA`
+const DESCRIPTION = 'Search every new project in Kharadi, Wagholi, Lohegaon, Hinjawadi and more: possession filed with MahaRERA, whether it moved, homes booked, builders\' records.'
+const ABOUT = `${BRAND_NAME} (आवास + सेतु: home + bridge) is where home buyers search every new project in Pune's main areas with its MahaRERA record: possession filed, homes booked and builders' delivery records, and ask local agents about the ones they like.`
 
 export const metadata: Metadata = pageMetadata(getMarketingConfig(), {
   title: TITLE,
   description: DESCRIPTION,
   path: '/',
-  image: { path: '/brand/og-landing.jpg', width: 1200, height: 630, alt: `${BRAND_NAME}: new projects in Pune, checked on MahaRERA` },
+  image: { path: '/brand/og-landing.jpg', width: 1200, height: 630, alt: `${BRAND_NAME}: search new projects in Pune, checked against MahaRERA` },
 })
 
 // The look (owner 2026-10-28, "professional, not as if AI made"): one weight for headings, lists as ruled rows rather than a box
@@ -85,9 +89,14 @@ export default async function BuyerHome() {
   const topList = tops.length ? await getFacetQuiet(tops[0].place_slug, ['top']) : null
   const brands = builders.filter((b) => b.indexable).sort((a, b) => Number(!!b.brand) - Number(!!a.brand) || b.projects - a.projects).slice(0, 12)
   const tracked = city?.areas.reduce((n, a) => n + a.projects, 0) ?? 0
+  // the brand's own profiles (sameAs: the Facebook Page and Instagram, lib/marketing/social) and its Devanagari spelling, so
+  // Google can tie the name to this page; WhatsApp is a chat link, not a profile, so it is not one of them
   const ld = [
-    organizationJsonLd(cfg, `${BRAND_NAME} (आवास + सेतु: home + bridge) lists every new project in Pune's main areas with its MahaRERA record: possession filed, homes booked and builders' delivery records, and connects buyers with local agents.`, Object.values(socialLinks())),
-    { '@context': 'https://schema.org', '@type': 'WebSite', name: cfg.businessName, url: cfg.siteUrl,
+    { ...organizationJsonLd(cfg, ABOUT, Object.values(socialLinks())), alternateName: [BRAND_NAME_DEVANAGARI] },
+    // Google retired the sitelinks search box in 2024, so the SearchAction draws no box in results; it still names the search,
+    // and /projects?q= answers on the server, with or without JavaScript
+    { '@context': 'https://schema.org', '@type': 'WebSite', name: cfg.businessName, alternateName: [BRAND_NAME_DEVANAGARI], url: cfg.siteUrl,
+      description: ABOUT,
       potentialAction: { '@type': 'SearchAction', target: { '@type': 'EntryPoint', urlTemplate: `${cfg.siteUrl}/projects?q={search_term_string}` },
         'query-input': 'required name=search_term_string' } },
   ]

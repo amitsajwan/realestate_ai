@@ -15,7 +15,7 @@ import { normalizeSlug } from '@/lib/site/slug'
 import AboutAgent from '@/components/site/AboutAgent'
 import Link from 'next/link'
 import { INSIGHTS } from '@/lib/marketing/insights'
-import { BRAND_NAME } from '@/lib/brand'
+import { BRAND_NAME, isHouseAgent } from '@/lib/brand'
 import DemoRibbon from './DemoRibbon'
 
 interface Props {
@@ -46,6 +46,14 @@ export default async function AgentHomePage({ params }: Props) {
       <TrackingBeacon agentSlug={slug} />
       <DemoRibbon agent={agent} />
       <Hero agent={agent} city={city} />
+      {/* the team's own page ranked above the home page for "avasetu pune" (2026-10-29): it keeps its listings and the enquiry
+          form every buyer button opens, names the home page as canonical (lib/site/seo) and sends a visitor there to search */}
+      {isHouseAgent(slug) && (
+        <p className="mx-auto max-w-5xl px-4 pt-8 text-slate-700" data-testid="house-home-link">
+          These are the homes the {BRAND_NAME} team lists itself. For every new project in Pune with its MahaRERA record, see{' '}
+          <Link href="/" className="font-semibold text-[var(--site-primary,#0f2340)] underline underline-offset-4">{BRAND_NAME}: search new projects in Pune, checked against MahaRERA</Link>.
+        </p>
+      )}
 
       <div className="mx-auto max-w-5xl space-y-12 px-4 py-10">
         <ProjectsSection agentSlug={slug} projects={projects} anchor={projectsOnly ? 'listings' : 'projects'} />

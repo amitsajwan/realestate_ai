@@ -36,7 +36,11 @@ beforeEach(() => {
 
 describe("buyers' home", () => {
   it('is about new projects in Pune, for Google and for people', async () => {
-    expect(String(metadata.title)).toMatch(/^New Projects in Pune/)
+    // the brand first, then what a buyer does here (owner 2026-10-29: someone who searches avasetu should be able to search projects)
+    expect(String(metadata.title)).toBe('Avasetu: Search New Projects in Pune, Checked Against MahaRERA')
+    expect(String(metadata.description)).toMatch(/^Search every new project in Kharadi/)
+    expect((metadata.openGraph as { title?: string; siteName?: string }).title).toBe(metadata.title)
+    expect((metadata.openGraph as { siteName?: string }).siteName).toBe('Avasetu')
     // Google shows about 70 and 160 characters: nothing past that is read in a search result
     expect(String(metadata.title).length).toBeLessThanOrEqual(70)
     expect(String(metadata.description).length).toBeLessThanOrEqual(160)
@@ -88,6 +92,12 @@ describe("buyers' home", () => {
     expect(ld.map((x) => x['@type'])).toEqual(['Organization', 'WebSite'])
     expect(ld[1].potentialAction.target.urlTemplate).toMatch(/\/projects\?q=\{search_term_string\}$/)
     expect(ld[0].contactPoint).toBeUndefined()
+    // the brand's own profiles and its Devanagari name, so Google ties "Avasetu" to this page; no WhatsApp chat link
+    expect(ld[0].name).toBe('Avasetu')
+    expect(ld[0].sameAs).toEqual(['https://www.facebook.com/profile.php?id=61594653947865', 'https://www.instagram.com/avasetu_/'])
+    expect(ld[0].alternateName).toEqual(['आवासेतु'])
+    expect(ld[1].alternateName).toEqual(['आवासेतु'])
+    expect(JSON.stringify(ld)).not.toMatch(/wa\.me/)
     expect(screen.getAllByRole('link', { name: /^for agents$/i }).every((a) => a.getAttribute('href') === '/agents')).toBe(true)
   })
 
