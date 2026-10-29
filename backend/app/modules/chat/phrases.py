@@ -35,12 +35,55 @@ P: Dict[str, Dict[str, str]] = {
         "mr": "सॅम्पल {home} बद्दल विचारायचे आहे? हे फक्त उदाहरण आहे, विक्रीसाठी नाही. मी याबद्दल सांगू शकतो किंवा असेच खरे घर शोधू शकतो.",
         "mr_latn": "Sample {home} baddal vicharayche aahe? He fakt udaharan aahe, vikrisathi nahi. Mi yabaddal sangu shakto kiwa asech khare ghar shodhu shakto.",
     },
-    "greet_area": {
-        "en": "Looking at homes in {area}? I can answer questions about the area or show homes there.",
-        "hinglish": "{area} mein ghar dekh rahe hain? Main area ke sawaalon ke jawab de sakta hoon ya wahan ke ghar dikha sakta hoon.",
-        "hi": "{area} में घर देख रहे हैं? मैं इलाके के सवालों के जवाब दे सकता हूँ या वहाँ के घर दिखा सकता हूँ।",
-        "mr": "{area} मध्ये घर पाहत आहात? मी या भागाबद्दलच्या प्रश्नांची उत्तरे देऊ शकतो किंवा तिथली घरे दाखवू शकतो.",
-        "mr_latn": "{area} madhye ghar pahat aahat? Mi ya bhagabaddal prashnanchi uttare deu shakto kiwa tithli ghare dakhavu shakto.",
+    # ---- one greeting per kind of page (2026-10-29: the page decides the first question; the area is never asked where the page names it)
+    "greet_area": {   # a locality page, or a guide about a place
+        "en": "Reading about {area}? I can answer questions about the area or show new projects there.",
+        "hinglish": "{area} ke baare mein padh rahe hain? Main area ke sawaalon ke jawab de sakta hoon ya wahan ke naye projects dikha sakta hoon.",
+        "hi": "{area} के बारे में पढ़ रहे हैं? मैं इलाके के सवालों के जवाब दे सकता हूँ या वहाँ के नए प्रोजेक्ट दिखा सकता हूँ।",
+        "mr": "{area} बद्दल वाचत आहात? मी या भागाबद्दलच्या प्रश्नांची उत्तरे देऊ शकतो किंवा तिथले नवीन प्रोजेक्ट दाखवू शकतो.",
+        "mr_latn": "{area} baddal vachat aahat? Mi ya bhagabaddal prashnanchi uttare deu shakto kiwa tithle navin project dakhavu shakto.",
+    },
+    "greet_list": {   # an area's project page or one of its lists (top, new launches, ready to move, a BHK): {what} is from LIST_WHAT
+        "en": "Looking at {what} in {area}?",
+        "hinglish": "{area} mein {what} dekh rahe hain?",
+        "hi": "{area} में {what} देख रहे हैं?",
+        "mr": "{area} मधील {what} पाहत आहात?",
+        "mr_latn": "{area} madhil {what} pahat aahat?",
+    },
+    "greet_project": {   # what the project page itself offers (lib/site/strings.ts PROJECT_CTA): the price sheet and floor plans, a visit
+        "en": "Asking about {project}? I can get you its price sheet and floor plans, or set up a site visit.",
+        "hinglish": "{project} ke baare mein jaanna hai? Main aapko iski price sheet aur floor plans dilwa sakta hoon, ya site visit fix karwa sakta hoon.",
+        "hi": "{project} के बारे में जानना है? मैं आपको इसकी प्राइस शीट और फ्लोर प्लान दिलवा सकता हूँ, या साइट विज़िट तय करवा सकता हूँ।",
+        "mr": "{project} बद्दल विचारायचे आहे? मी तुम्हाला याची प्राइस शीट आणि फ्लोर प्लॅन मिळवून देऊ शकतो, किंवा साइट व्हिजिट ठरवू शकतो.",
+        "mr_latn": "{project} baddal vicharayche aahe? Mi tumhala yachi price sheet ani floor plan milvun deu shakto, kiwa site visit tharavu shakto.",
+    },
+    "greet_builder": {
+        "en": "Looking at projects by {builder}? Tell me which project, or which area you want.",
+        "hinglish": "{builder} ke projects dekh rahe hain? Bataiye kaun sa project, ya kaun sa area chahiye.",
+        "hi": "{builder} के प्रोजेक्ट देख रहे हैं? बताइए कौन सा प्रोजेक्ट, या कौन सा इलाका चाहिए।",
+        "mr": "{builder} चे प्रोजेक्ट पाहत आहात? कोणता प्रोजेक्ट, किंवा कोणता भाग हवा ते सांगा.",
+        "mr_latn": "{builder} che project pahat aahat? Konta project, kiwa konta bhag hava te sanga.",
+    },
+    "greet_agent": {   # only on the pages for agents (/agents, /trial, /request-invite, /for-agents)
+        "en": f"Hi! I am the {brand.NAME} assistant for agents. Ask me how we bring you buyer leads, what it costs, or how to start your free trial.",
+        "hinglish": f"Namaste! Main agents ke liye {brand.NAME} ka assistant hoon. Mujhse poochhiye hum aapko buyer leads kaise dete hain, kitna lagta hai, ya free trial kaise shuru karein.",
+        "hi": f"नमस्ते! मैं एजेंटों के लिए {brand.NAME_DEVANAGARI} का सहायक हूँ। मुझसे पूछिए कि हम आपको खरीदारों की लीड कैसे देते हैं, इसका खर्च कितना है, या फ्री ट्रायल कैसे शुरू करें।",
+        "mr": f"नमस्कार! मी एजंटसाठी {brand.NAME_DEVANAGARI} चा सहाय्यक आहे. आम्ही तुम्हाला खरेदीदारांच्या लीड कशा देतो, खर्च किती आहे, किंवा फ्री ट्रायल कसा सुरू करायचा ते मला विचारा.",
+        "mr_latn": f"Namaskar! Mi agent sathi {brand.NAME} cha sahayyak aahe. Aamhi tumhala buyer leads kasha deto, kharch kiti aahe, kiwa free trial kasa suru karaycha te mala vichara.",
+    },
+    "for_agents": {   # someone says they are an agent on a page for buyers: one line, then the chat stays a buyer chat
+        "en": "For agents, see /agents.",
+        "hinglish": "Agents ke liye /agents dekhiye.",
+        "hi": "एजेंटों के लिए /agents देखें।",
+        "mr": "एजंटसाठी /agents पहा.",
+        "mr_latn": "Agent sathi /agents paha.",
+    },
+    "ask_size": {   # the project page's first question (ask_bhk stays word for word for WhatsApp)
+        "en": "Which size (BHK) are you looking for?",
+        "hinglish": "Aap kaun sa size (BHK) dekh rahe hain?",
+        "hi": "आप कौन सा साइज़ (BHK) देख रहे हैं?",
+        "mr": "तुम्ही कोणता साइज (BHK) पाहत आहात?",
+        "mr_latn": "Tumhi konta size (BHK) pahat aahat?",
     },
     # ---- the questions (English kept identical to whatsapp.lang.FIXED) ---------------------------------------------
     "ask_tx": {"en": "Are you looking to buy or to rent?", "hinglish": "Aap ghar kharidna chahte hain ya rent par lena?",
@@ -89,6 +132,13 @@ P: Dict[str, Dict[str, str]] = {
         "hi": "अपना मोबाइल नंबर दें, {team} टीम आपको आज की प्राइस शीट WhatsApp करेगी।",
         "mr": "तुमचा मोबाइल नंबर द्या, {team} टीम तुम्हाला आजची प्राइस शीट WhatsApp करेल.",
         "mr_latn": "Tumcha mobile number dya, {team} team tumhala aajchi price sheet WhatsApp karel.",
+    },
+    "handoff_web_sheet": {   # both at once, as the project page's form offers them
+        "en": "Share your mobile number and the {team} team will WhatsApp you today's price sheet and floor plans.",
+        "hinglish": "Apna mobile number share karein, {team} team aapko aaj ki price sheet aur floor plans WhatsApp karegi.",
+        "hi": "अपना मोबाइल नंबर दें, {team} टीम आपको आज की प्राइस शीट और फ्लोर प्लान WhatsApp करेगी।",
+        "mr": "तुमचा मोबाइल नंबर द्या, {team} टीम तुम्हाला आजची प्राइस शीट आणि फ्लोर प्लॅन WhatsApp करेल.",
+        "mr_latn": "Tumcha mobile number dya, {team} team tumhala aajchi price sheet ani floor plan WhatsApp karel.",
     },
     "handoff_web_visit": {
         "en": "Share your mobile number and the {team} team will call you to fix your site visit.",
@@ -265,6 +315,23 @@ def ack_word(key: str, lang: str = "en", **kw) -> str:
     return table.get(lang, table["en"]).format(**kw)
 
 
+# what an area list is about, inside greet_list ("Looking at the top projects in Kharadi?"); with a BHK, "bhk" ("2 BHK homes")
+LIST_WHAT = {
+    "all": {"en": "new projects", "hinglish": "naye projects", "hi": "नए प्रोजेक्ट", "mr": "नवीन प्रोजेक्ट", "mr_latn": "navin project"},
+    "top": {"en": "the top projects", "hinglish": "top projects", "hi": "टॉप प्रोजेक्ट", "mr": "टॉप प्रोजेक्ट", "mr_latn": "top project"},
+    "new-launches": {"en": "new launch projects", "hinglish": "new launch projects", "hi": "नए लॉन्च प्रोजेक्ट", "mr": "नवीन लाँच प्रोजेक्ट",
+                     "mr_latn": "navin launch project"},
+    "ready-to-move": {"en": "ready to move projects", "hinglish": "ready to move projects", "hi": "रेडी टू मूव प्रोजेक्ट",
+                      "mr": "रेडी टू मूव्ह प्रोजेक्ट", "mr_latn": "ready to move project"},
+    "bhk": {"en": "{bhk} homes", "hinglish": "{bhk} ghar", "hi": "{bhk} घर", "mr": "{bhk} घरे", "mr_latn": "{bhk} ghare"},
+}
+
+
+def list_what(kind: str, lang: str = "en", **kw) -> str:
+    table = LIST_WHAT.get(kind) or LIST_WHAT["all"]
+    return table.get(lang, table["en"]).format(**kw)
+
+
 # quick replies the engine understands in every language (the parser reads the English and these)
 QUICK = {
     "not_now": {"en": "Not now", "hinglish": "Abhi nahi", "hi": "अभी नहीं", "mr": "आता नको", "mr_latn": "Aata nako"},
@@ -273,7 +340,21 @@ QUICK = {
     "find_home": {"en": "Find a home", "hinglish": "Ghar dhoondhna hai", "hi": "घर ढूँढना है", "mr": "घर शोधायचे आहे", "mr_latn": "Ghar shodhayche aahe"},
     "im_agent": {"en": "I'm an agent", "hinglish": "Main agent hoon", "hi": "मैं एजेंट हूँ", "mr": "मी एजंट आहे", "mr_latn": "Mi agent aahe"},
     "show_homes": {"en": "Show homes", "hinglish": "Ghar dikhao", "hi": "घर दिखाइए", "mr": "घरे दाखवा", "mr_latn": "Ghare dakhva"},
+    # a project page's two asks, as its enquiry form names them (lib/site/strings.ts PROJECT_CTA pricesChoice, visitChoice)
+    "sheet": {"en": "Price sheet & floor plans", "hinglish": "Price sheet & floor plans", "hi": "प्राइस शीट और फ्लोर प्लान",
+              "mr": "प्राइस शीट आणि फ्लोर प्लॅन", "mr_latn": "Price sheet ani floor plan"},
+    "visit": {"en": "Site visit", "hinglish": "Site visit", "hi": "साइट विज़िट", "mr": "साइट व्हिजिट", "mr_latn": "Site visit"},
+    # an agent page's asks: English only, since each is a keyword of its answer in knowledge/site.py
+    "agent_trial": {"en": "Free trial"},
+    "agent_price": {"en": "Pricing"},
+    "agent_start": {"en": "How do I start?"},
 }
+
+
+def is_quick(text: str, key: str) -> bool:
+    """The visitor tapped (or typed) this quick reply, in any language."""
+    t = " ".join((text or "").split()).strip(" .!?").lower()
+    return any(t == v.lower().strip(" .!?") for v in QUICK[key].values())
 WHATSAPP = "Continue on WhatsApp"
 
 

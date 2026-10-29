@@ -190,6 +190,19 @@ def _builder_name(mine: List[dict], slug: str = "") -> str:
     return max(counts.items(), key=lambda x: (x[1], -len(x[0])))[0] if counts else ""
 
 
+async def chat_builder(db, slug: str) -> Optional[dict]:
+    """A builder page as the website chat sees it: {slug, name, areas} (at most three of our areas, most projects first). None for a
+    slug that is not a builder page. The register comes from the shared load, so a chat message reads nothing new."""
+    mine = _by_builder(await Store(db).shared_projects()).get(slug)
+    if not mine:
+        return None
+    counts: dict = {}
+    for d in mine:
+        if d.get("locality") in BY_KEY:
+            counts[BY_KEY[d["locality"]].name] = counts.get(BY_KEY[d["locality"]].name, 0) + 1
+    return {"slug": slug, "name": _builder_name(mine, slug), "areas": [a for a, _ in sorted(counts.items(), key=lambda x: (-x[1], x[0]))][:3]}
+
+
 async def builder_page(db, slug: str) -> Optional[dict]:
     """A builder's page: every Pune project of theirs (towers merged) with MahaRERA's dates and bookings, and how often the
     filed completion date moved. None for an unknown builder."""

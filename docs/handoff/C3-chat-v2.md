@@ -12,9 +12,40 @@ capture were already right; v2 fixes the conversation around them.
 | 3 | The long number and consent paragraph four times | The number is asked at most twice per conversation, never in back-to-back replies, and only after the bot has given something: an answer, homes, a no-match or a hand-off. The consent sentence appears once, next to the first ask. The second ask is short. "Not now" (also "abhi nahi" and "aata nako") pauses asking for 5 turns. A "no" to "anything else?" pauses it too. A number the buyer volunteers is confirmed with only its last 4 digits shown. | `engine._can_ask_phone`, `_phone_ask` |
 | 4 | Never showed homes | Once area, BHK and budget are known or skipped, the bot shows up to 3 cards from the agent's live, public, not-stale listings, using `tracking.matching.top_matches` at the 60% "recommend" level. A card from a platform or demo page comes from that listing's agent. Samples get `sample: true`, no price, and a title without "for sale". When nothing matches, the bot says so and offers the agent's help. Cards come again when the requirement changes or the buyer asks ("show homes", "similar homes"). | `service.finder`, `service.card`, `engine._show_homes` |
 | 5 | The agent was not told | `notify(... "new_chat_lead")` fires when a chat lead is stored, with the summary and a `lead_id`. `"chat_needs_you"` fires once per chat when the bot cannot answer or the buyer asks for a person. Summaries never include a number. The Studio badge counts every unread alert kind. | `service._notify`, `notifications/service.KINDS`, `components/app/LeadAlertsBadge.tsx` |
-| 6 | Generic greeting | On a listing page: "Asking about the 2 BHK in Kharadi, 780 sq ft? I can tell you about it or find similar homes." For a sample, the greeting says it is an illustration. The home's area and BHK become soft defaults, so the bot asks the budget instead of "which area?". On a locality page: "Looking at homes in Upper Kharadi?" Everywhere else: the old greeting. "Tell me about it" answers from the listing's vetted facts. | `engine._greeting`, `service.page_for` |
+| 6 | Generic greeting | The greeting and first question follow the page (see "The page and who is asking" below). On a listing page: "Asking about the 2 BHK in Kharadi, 780 sq ft? I can tell you about it or find similar homes." For a sample, the greeting says it is an illustration. A page's area and BHK become soft defaults, so the bot never asks "which area?" there. "Tell me about it" answers from the listing's vetted facts. | `engine._greeting`, `service.page_for` |
 | 7 | WhatsApp | "Continue on WhatsApp" appears only when `WHATSAPP_PUBLIC_NUMBER` (or `NEXT_PUBLIC_WHATSAPP_NUMBER`) is set in the **backend** env. It shows with the listing greeting, with cards, after a hand-off and after the lead. The response carries `whatsapp_url` (wa.me, prefilled with the listing's interest code `ref xxxxxxx` when one exists, else its title, else the requirement; never the buyer's number). The widget shows it as a link only when that URL is a wa.me URL. | `service.whatsapp_url`, `lib/site/chatApi.ts` |
 | 8 | Language | The website chat keeps the buyer's language (en, hinglish, hi, mr, mr_latn; sticky across short answers) for every fixed sentence: greetings, the questions, the number ask, consent, no-match, cards, thanks and the "Got it:" words. KB answers stay as written. WhatsApp state keeps `localise=False`, so the engine still speaks English there and `whatsapp/lang.py` translates it. The English questions are unchanged word for word, so its table still matches. | `chat/phrases.py` |
+
+## The page and who is asking (LIVE from 2026-10-29)
+
+Owner: "For agents should be only page where we know it is agent, and elsewhere customer. Also the bot should know what page the person
+is enquiring from, so it can ask the next question."
+
+The widget sends the page with every message (`frontend/lib/site/chatContext.ts` `chatContextFromPath`; a card's "Ask the price" sends its
+own project). `service.page_for` checks each slug against our records (a project page that exists, a place we know, a builder with
+projects) and gives the engine `{kind, subject, audience, site}`. A page whose subject does not check out reads as "other".
+
+| Page | Kind | Greeting and first question |
+|---|---|---|
+| `/projects/<slug>`, `/check/<slug>` | project | "Asking about {project}? I can get you its price sheet and floor plans, or set up a site visit. Which size (BHK) are you looking for?" Quick replies "Price sheet & floor plans" and "Site visit" hand off at once with the line for that ask (the project page's form promises the same). |
+| `/projects/area/<place>[/top\|new-launches\|ready-to-move][/<n>-bhk]`, `/2-bhk/<a>`, `/3-bhk/<a>`, `/price/<b>/<a>` | list | "Looking at {the top projects / new launch projects / ready to move projects / new projects / 2 BHK homes} in {area}?" then the BHK (or, when the page gives it, the budget). Never the area. |
+| `/localities/<slug>[/<community>]`, `/guides/<place>` | area | "Reading about {area}? I can answer questions about the area or show new projects there." then the BHK. |
+| `/builders/<slug>` | builder | "Looking at projects by {builder}? Tell me which project, or which area you want." Quick replies: up to 3 of the builder's areas. |
+| `/agents`, `/trial`, `/request-invite`, `/for-agents/*` | agents | "Hi! I am the Avasetu assistant for agents. Ask me how we bring you buyer leads, what it costs, or how to start your free trial." Quick replies "Free trial", "Pricing", "How do I start?". |
+| home, news and trackers, other guides, anything else | home / news / guide / other | The general buyer greeting ("Hi! I am the Avasetu assistant. I help you find new projects and homes in Pune..."). |
+| `/agent/<slug>/listings/<id>` | listing (site: agent) | The listing greeting (row 6). |
+
+Audience: only the agents' pages are agent pages. Everywhere else, agents' own sites (`/agent/<slug>`) included, the visitor is a buyer:
+the agents' answers in `knowledge/site.py` are not offered (`site.for_audience("buyer")`), and someone saying they are an agent
+(`site.says_agent`: "I'm an agent", "broker hoon", "free trial") gets one line, "For agents, see /agents.", with no pitch and no buyer
+question after it; the chat carries on as a buyer chat. On the agents' pages "what is Avasetu?" gets the agents' answer (`who_agents`).
+WhatsApp and DMs set no audience and answer agents as before, since agents message that number.
+
+The LLM turn (`chat/agent.py`) gets a PAGE line (kind, subject, who the visitor is). On avasetu.in's own pages it speaks for "our team";
+on an agent's own site for "the agent". An agent read by the model on a buyer page gets the same one line from the rules.
+
+Known limit: the greeting is said once per browser session (the chat log is kept across pages), so moving to another page does not greet
+again; each message still carries its page, so answers and the model's prompt follow the page.
 
 The API is backwards compatible. `POST /api/v1/chat/message` now also returns:
 `cards: [{id, title, locality, bhk, carpet_sqft, price_text, sample, url, image_url}]`, `follow_up` (the next question, which the widget
@@ -42,6 +73,8 @@ To offer "Continue on WhatsApp", set `WHATSAPP_PUBLIC_NUMBER=+91XXXXXXXXXX` in t
 - `e2e/chat-journey.js` follows the new flow (no-match, then the number ask, then the name).
 
 ## Tests
+- `backend/tests/modules/test_chat_pages.py`: a greeting per page kind, the agents' pages against the buyer pages, WhatsApp unchanged, and
+  the model's page line and voice. `frontend/__tests__/unit/lib/chatContext.test.ts`: the context for each kind of path.
 - `backend/tests/modules/test_chat_v2.py`: 45 conversation-level tests, with and without a fake LLM. They cover intent inference (6 phrasings
   plus rent budgets), no repeated questions, the live-test conversation, name capture (14 cases) and use, the number asked at most twice with
   the 5-turn cooldown, cards (agent scoped, sample labelled, none-match, demo agent), notifications, greetings, WhatsApp on and off, and

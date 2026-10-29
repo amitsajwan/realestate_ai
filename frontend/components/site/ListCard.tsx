@@ -139,7 +139,7 @@ export function RailCard({ r, rank }: { r: FacetRow; rank?: number }) {
         </p>
         {!price && (
           <div className="mt-auto pt-3">
-            <OpenChatButton message={`What is the price of ${name}?`} context={{ project: r.slug }} label="Ask the price"
+            <OpenChatButton message={`What is the price of ${name}?`} context={{ page: 'project', project: r.slug }} label="Ask the price"
               className="inline-flex min-h-[44px] w-full items-center justify-center rounded-xl border border-[#0f2340] text-sm font-semibold text-[#0f2340]" />
           </div>
         )}

@@ -300,7 +300,7 @@ async def test_a_sample_listing_greeting_says_it_is_a_sample_and_tell_me_about_i
 async def test_a_locality_page_greeting_is_about_that_area_and_the_general_greeting_elsewhere():
     s, _ = service()
     r = (await talk(s, ["hi"], context={"locality": "upper-kharadi"}))[0][1]
-    assert r["reply"].startswith("Looking at homes in Upper Kharadi?") and ASKS["tx"] in r["reply"] and ASKS["locality"] not in r["reply"]
+    assert r["reply"].startswith("Reading about Upper Kharadi?") and ASKS["bhk"] in r["reply"] and ASKS["locality"] not in r["reply"]
     r = (await talk(s, ["hi"], sid="session-v2-other-0001"))[0][1]
     assert r["reply"].startswith("Hi! I am the Avasetu assistant.") and len(r["reply"]) < 200
 

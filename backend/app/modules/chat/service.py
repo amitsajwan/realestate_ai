@@ -7,8 +7,8 @@ import urllib.parse
 from datetime import datetime, timedelta
 from typing import Callable, List, Optional
 
-from app.core import brand
-from app.modules.areastats import pages as project_pages
+from app.core import areas, brand, pune_places
+from app.modules.areastats import hubs as project_hubs, pages as project_pages
 from app.modules.knowledge.grounding import Grounding, Ref, facts_for
 from app.modules.listings.freshness import is_hidden
 from app.platform.text import money
@@ -32,6 +32,33 @@ MAX_MESSAGES_KEPT = 40
 PUBLIC = {"status": {"$in": list(matching.LIVE)}, "visibility": {"$in": ["public", "network"]}}
 CARD_MIN_PCT = 60  # tracking.matching's 'recommend this to the buyer' level: a 40-59% 'maybe' is not shown as a fit
 MAX_LISTINGS_SCANNED = 200
+# the kinds of page the browser may name (frontend lib/site/chatContext.ts); anything else is read as "other"
+PAGE_KINDS = ("home", "project", "list", "area", "builder", "guide", "news", "listing", "agents", "other")
+LISTS = ("all", "top", "new-launches", "ready-to-move")
+SLUG_RX = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+){0,15}$")
+
+
+def place_name(slug) -> Optional[str]:
+    """A Pune place's name from a page's slug ('upper-kharadi' -> 'Upper Kharadi'): one of our areas, else a place of the register's
+    list. None for a place we do not know, so a greeting never names a place from the URL alone."""
+    s = str(slug or "").strip().lower()
+    if not SLUG_RX.match(s):
+        return None
+    a = areas.get(s)
+    if a:
+        return a.name
+    p = pune_places.BY_SLUG.get(s)
+    return p.name if p else None
+
+
+def page_locality(context: Optional[dict]) -> Optional[str]:
+    """The place a page is about, as a slug: an area page's or list's own, or a guide's when the guide is about a place."""
+    ctx = context or {}
+    if ctx.get("locality"):
+        return str(ctx["locality"])
+    if ctx.get("page") == "guide" and place_name(ctx.get("topic")):
+        return str(ctx["topic"])
+    return None
 
 
 def platform_whatsapp_number() -> Optional[str]:
@@ -106,7 +133,7 @@ class ChatService:
         None when unknown.
         The context comes from the browser, so every id is looked up and checked here; nothing in it is trusted."""
         ctx = context or {}
-        lid, pid, loc = ctx.get("listing_id"), ctx.get("post_id"), ctx.get("locality")
+        lid, pid, loc = ctx.get("listing_id"), ctx.get("post_id"), page_locality(ctx)
         try:
             if await self._public_listing(lid):
                 return await facts_for(Ref.listing(str(lid)), self.db)
@@ -125,19 +152,45 @@ class ChatService:
             log.info("chat grounding failed: %s", e)
         return None
 
-    async def page_for(self, context: Optional[dict], grounding) -> Optional[dict]:
-        """The engine's view of the page (for the greeting and 'similar homes'): only checked, public data."""
+    async def page_for(self, context: Optional[dict], grounding, path: Optional[str] = None, prev: Optional[dict] = None) -> dict:
+        """The engine's view of the page (for the greeting, 'similar homes' and the prompts): only checked, public data.
+
+        Always {kind, audience, site, ...}: `audience` is "agent" only on the pages for agents, else "buyer" (an agent's own site
+        too: its visitors are that agent's buyers); `site` is "agent" on an agent's own site (/agent/<slug>), else "house". The
+        subject comes from our records, never from the URL alone: a project or listing that exists, a place we know, a builder with
+        projects. A page whose subject does not check out is "other". `prev` (the session's page) saves looking a builder up again."""
         ctx = context or {}
+        kind = ctx.get("page") if ctx.get("page") in PAGE_KINDS else None
+        base = {"audience": "agent" if kind == "agents" else "buyer",
+                "site": "agent" if ctx.get("site") == "agent" or str(path or "").startswith("/agent/") else "house"}
         doc = await self._public_listing(ctx.get("listing_id"))
         if doc:
             return {"kind": "listing", "listing_id": doc["_id"], "agent_id": doc.get("agent_id"), "bhk": doc.get("bhk"), "locality": doc.get("locality"),
                     "carpet_sqft": doc.get("carpet_sqft"), "transaction": doc.get("transaction") or "sale", "sample": is_sample(doc),
-                    "title": doc.get("title")}
+                    "title": doc.get("title"), **base}
         if grounding is not None and getattr(grounding, "kind", None) == "project":
-            return {"kind": "project", "name": grounding.subject, "locality": grounding.locality}
+            return {"kind": "project", "name": grounding.subject, "locality": grounding.locality, **base}
+        if kind == "list" and place_name(ctx.get("locality")):
+            bhk = ctx.get("bhk") if isinstance(ctx.get("bhk"), int) and 1 <= ctx["bhk"] <= 4 else None
+            return {"kind": "list", "locality": place_name(ctx["locality"]), "list": ctx.get("list") if ctx.get("list") in LISTS else "all",
+                    "bhk": bhk, **base}
+        slug = str(ctx.get("builder") or "")
+        if kind == "builder" and SLUG_RX.match(slug):
+            b = prev if prev and prev.get("kind") == "builder" and prev.get("builder") == slug else None
+            if b is None:
+                try:
+                    found = await project_hubs.chat_builder(self.db, slug)
+                except Exception as e:   # the greeting is a help, never a reason to fail a chat message
+                    log.info("chat builder lookup failed: %s", e)
+                    found = None
+                b = {"builder": slug, "name": found["name"], "areas": found["areas"]} if found and found.get("name") else None
+            if b:
+                return {"kind": "builder", "builder": slug, "name": b["name"], "areas": list(b.get("areas") or []), **base}
         if grounding is not None and getattr(grounding, "kind", None) == "area" and grounding.locality:
-            return {"kind": "area", "locality": grounding.locality}
-        return None
+            return {"kind": "area", "locality": grounding.locality, **base}
+        if kind in (None, "area", "guide") and place_name(page_locality(ctx)):
+            return {"kind": "area", "locality": place_name(page_locality(ctx)), **base}
+        return {"kind": kind if kind in ("home", "guide", "news", "agents") else "other", **base}
 
     async def homes_agent(self, profile: dict, page: Optional[dict]) -> tuple:
         """-> (agent_id, slug) whose homes are shown: the site's agent; on a page about another agent's home (platform or demo pages), that agent."""
@@ -209,9 +262,9 @@ class ChatService:
         s["hits"].append(now)
 
         grounding = await self.grounding_for(context)
-        page = await self.page_for(context, grounding)
         data = s["data"]
-        data["page"] = page
+        page = await self.page_for(context, grounding, visit.get("path"), data.get("page"))
+        data["page"], data["audience"] = page, page["audience"]
         if page and page.get("kind") == "project":   # the project's area stands for theirs until they name another, so it is not asked
             data["project"] = page["name"]
             if page.get("locality") and not data.get("locality"):

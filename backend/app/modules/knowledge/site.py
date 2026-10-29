@@ -21,6 +21,14 @@ class Entry:
 
 
 MAHARERA = "the MahaRERA website (maharera.maharashtra.gov.in)"
+WHO_KEYS = ("who are you", "what is avasetu", "what is this", "what is this site", "what is this website", "what you do", "what do you do",
+            "what does avasetu do", "about you", "about avasetu", "how does it work", "how it works", "what is pune property",
+            "your platform", "this platform", "how can i use", "how to use", "use this website", "use your website",
+            "aap kya karte", "kya karte ho", "kya karte hai", "avasetu kya hai", "ye kya hai", "तुम्ही काय करता", "आप क्या करते")
+# a visitor saying they are an agent (not a buyer asking for one: "real estate agent" alone, "sell my flat" are left out)
+AGENT_SAYS = ("i am an agent", "i'm an agent", "im an agent", "i am a broker", "i am broker", "i am a real estate agent", "i'm a real estate agent",
+              "join the pilot", "free trial", "become an agent", "agent hoon", "broker hoon", "main agent hoon", "मैं एजेंट हूँ", "मी एजंट आहे",
+              "mi agent aahe")
 
 ENTRIES: List[Entry] = [
     Entry("rera", ("rera", "maharera", "is it registered", "approved project"),
@@ -53,22 +61,23 @@ ENTRIES: List[Entry] = [
           "Listings marked SAMPLE are illustrations of how a listing looks. For real availability, tell us what you are looking for and our team will confirm current options."),
     Entry("negotiation", ("negotiable", "negotiate", "discount", "reduce price", "best price", "final price"),
           "Whether a price can move depends on the seller. Our team can find out for the homes you like. Tell us your area, BHK and budget to start."),
-    Entry("who", ("who are you", "what is avasetu", "what is this", "what is this site", "what is this website", "what you do", "what do you do",
-                  "what does avasetu do", "about you", "about avasetu", "how does it work", "how it works", "what is pune property",
-                  "your platform", "this platform", "how can i use", "how to use", "use this website", "use your website",
-                  "aap kya karte", "kya karte ho", "kya karte hai", "avasetu kya hai", "ye kya hai", "तुम्ही काय करता", "आप क्या करते"),
+    Entry("who", WHO_KEYS,
           f"{brand.NAME} (आवास + सेतु: home + bridge) helps you find a new home in Pune. Every new project in the areas we cover is checked "
           "against MahaRERA: the completion date filed and any move, how many homes are booked, and prices and floor plans by size where "
           "we have them. Tell us what you need and our team, or a local agent we work with, sends price sheets and helps with visits.",
           "any", "Tell me the area, BHK and budget, or a project name. Agents: see /agents."),
+    # the same question asked on a page for agents (/agents, /trial, /for-agents): there the answer is the agents' one. Ties go to the
+    # entry listed first, so everywhere else (and on WhatsApp and comment replies) "who" above still answers it.
+    Entry("who_agents", WHO_KEYS,
+          f"{brand.NAME} helps real estate agents in Pune get buyers: we make your website, posts and reels, every project is checked "
+          "against MahaRERA, and every buyer enquiry becomes a lead card. The first month is free, no card, for the first 20 Pune agents.",
+          "agent", "Start at /trial."),
     Entry("projects", ("what projects", "which projects", "all projects", "all project", "project you have", "projects you have",
                        "projects do you have", "what properties", "properties you have", "homes you have", "flats you have", "new projects",
                        "list of projects", "kaun se project", "konse project"),
           "Our projects page lists the MahaRERA projects in the Pune areas we cover, with the completion date filed and the homes booked. "
           "Tell me the area, BHK and budget and I will show the homes that match.", "buyer", "See them at /projects."),
-    Entry("agent", ("i am an agent", "i'm an agent", "im an agent", "i am a broker", "i am broker", "real estate agent", "list my property",
-                    "join the pilot", "free trial", "become an agent", "sell my", "agent hoon", "broker hoon", "main agent hoon", "मैं एजेंट हूँ", "मी एजंट आहे",
-                    "mi agent aahe"),
+    Entry("agent", AGENT_SAYS + ("real estate agent", "list my property", "sell my"),
           "If you are a real estate agent in Pune: we make your website, posts and reels, and every buyer enquiry becomes a lead card with "
           "budget, area, timing and how warm the buyer is. The first month is free, no card, for the first 20 Pune agents.", "agent", "Start at /trial."),
     Entry("agent_cost", ("price for agents", "cost for agents", "how much for agents", "pricing", "plans", "monthly fee", "subscription",
@@ -100,20 +109,33 @@ def _words(text: str) -> str:
     return " " + re.sub(r"[^a-z0-9ऀ-ॿ ]+", " ", text.lower()) + " "
 
 
-def search(question: str, limit: int = 3) -> List[Tuple[int, Entry]]:
-    """Entries ranked by how many of their keywords appear in the question (multi-word keywords count double)."""
+def _score(e: Entry, q: str) -> int:
+    return sum(2 if " " in k.strip() else 1 for k in e.keywords if _words(k).strip() and (" " + _words(k).strip() + " ") in q)
+
+
+def for_audience(audience: Optional[str] = None) -> List[Entry]:
+    """The entries a visitor may be offered: on a buyer page ("buyer") never the ones for agents; on an agent page ("agent") or where
+    we do not know who is asking (None: WhatsApp, comment replies) all of them."""
+    return [e for e in ENTRIES if audience != "buyer" or e.audience != "agent"]
+
+
+def search(question: str, limit: int = 3, audience: Optional[str] = None) -> List[Tuple[int, Entry]]:
+    """Entries ranked by how many of their keywords appear in the question (multi-word keywords count double). On an agent page an
+    agents' entry wins a tie; otherwise the entry listed first does."""
     q = _words(question)
-    scored = []
-    for e in ENTRIES:
-        score = sum(2 if " " in k.strip() else 1 for k in e.keywords if _words(k).strip() and (" " + _words(k).strip() + " ") in q)
-        if score:
-            scored.append((score, e))
-    return sorted(scored, key=lambda t: -t[0])[:limit]
+    scored = [(s, e) for e in for_audience(audience) if (s := _score(e, q))]
+    return sorted(scored, key=lambda t: (-t[0], audience == "agent" and t[1].audience != "agent"))[:limit]
 
 
-def best(question: str, min_score: int = 1):
-    hits = search(question, 1)
+def best(question: str, min_score: int = 1, audience: Optional[str] = None):
+    hits = search(question, 1, audience)
     return hits[0][1] if hits and hits[0][0] >= min_score else None
+
+
+def says_agent(text: str) -> bool:
+    """'I'm an agent', 'free trial', 'main agent hoon': the visitor says they are a real estate agent (or asks for the agents' trial)."""
+    q = _words(text)
+    return any((" " + _words(k).strip() + " ") in q for k in AGENT_SAYS)
 
 
 def text(e: Entry) -> str:
@@ -132,15 +154,16 @@ LLM_SYSTEM = (
 )
 
 
-async def answer(question: str, llm) -> Optional[Entry]:
-    """The vetted entry for a question: a keyword hit, else the LLM's answer from all entries (an Entry with id 'llm'), else None."""
-    hit = best(question, min_score=1)
+async def answer(question: str, llm, audience: Optional[str] = None) -> Optional[Entry]:
+    """The vetted entry for a question: a keyword hit, else the LLM's answer from the entries this audience may be offered (an Entry
+    with id 'llm'), else None."""
+    hit = best(question, min_score=1, audience=audience)
     if hit:
         return hit
     if llm is None or not hasattr(llm, "json"):
         return None
     from app.modules.engage.brain import HYPE, NUM, PHONE, URL  # engage imports knowledge, so not at module level
-    context = "\n".join(f"- {e.answer}" for e in ENTRIES)
+    context = "\n".join(f"- {e.answer}" for e in for_audience(audience))
     raw = await llm.json(LLM_SYSTEM, f"KNOWLEDGE:\n{context}\n\nQUESTION:\n{question[:400]}")
     if isinstance(raw, dict) and raw.get("answerable") is True:
         draft = (raw.get("answer") or "").strip()

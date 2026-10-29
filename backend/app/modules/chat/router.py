@@ -23,6 +23,13 @@ class ChatContext(BaseModel):
     post_id: Optional[str] = Field(None, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
     locality: Optional[str] = Field(None, max_length=40, pattern=r"^[A-Za-z][A-Za-z _-]+$")
     project: Optional[str] = Field(None, max_length=120, pattern=r"^[a-z0-9][a-z0-9-]+$")
+    # the kind of page and its subject (frontend lib/site/chatContext.ts); an unknown kind or list is read as "other"/"all" by the service
+    page: Optional[str] = Field(None, max_length=20, pattern=r"^[a-z_-]+$")
+    site: Optional[str] = Field(None, max_length=10, pattern=r"^[a-z]+$")
+    list: Optional[str] = Field(None, max_length=20, pattern=r"^[a-z-]+$")
+    bhk: Optional[int] = Field(None, ge=0, le=10)
+    builder: Optional[str] = Field(None, max_length=120, pattern=r"^[a-z0-9][a-z0-9-]*$")
+    topic: Optional[str] = Field(None, max_length=120, pattern=r"^[a-z0-9][a-z0-9-]*$")
 
 
 class MessageIn(BaseModel):

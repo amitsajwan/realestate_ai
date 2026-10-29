@@ -14,6 +14,10 @@ Rules the tests hold us to:
 - after the website lead is made the funnel stops: we answer questions and show homes, we never start the questions again;
 - sample homes are always labelled; homes and prices come only from the finder (the agent's live listings), never invented.
 
+Audience: `data["audience"]` is set by the website chat from the page. "agent" (the pages for agents) greets agents and offers the agents'
+answers; "buyer" (every other page, agents' own sites too) never offers them, and someone saying they are an agent there gets one line
+pointing to /agents. None (WhatsApp, where agents do write) answers agents as before.
+
 Language: when `data["localise"]` is set (the website chat) the fixed sentences follow the buyer's language (phrases.py). WhatsApp leaves it off
 and translates the English sentences itself.
 """
@@ -29,7 +33,7 @@ from app.platform.text import normalize_indian_mobile
 from app.modules.tracking import requirement as rq
 
 from . import phrases
-from .phrases import WHATSAPP, ack_word, quick as qr, say
+from .phrases import WHATSAPP, ack_word, list_what, quick as qr, say
 
 WHATSAPP_LABEL = WHATSAPP
 
@@ -90,7 +94,7 @@ def new_data(localise: bool = False) -> dict:
             # v2
             "localise": localise, "lang": "en", "turn_no": 0, "asks": {}, "phone_asks": 0, "phone_snooze_until": 0, "after_lead": False,
             "name_uses": 0, "value_given": False, "shown_sig": None, "shown_ids": [], "needs_you_sent": False, "phone_asked_turn": 0, "locality_src": None, "bhk_src": None,
-            "page": None, "visit_wanted": False}
+            "page": None, "visit_wanted": False, "audience": None}
 
 
 def _upgrade(d: dict) -> dict:
@@ -279,10 +283,20 @@ def _snooze_phone(d: dict) -> None:
     d["phone_snooze_until"] = d.get("turn_no", 0) + SNOOZE_TURNS + 1
 
 
-def _about_us(text: str) -> bool:
-    """A statement our agent answers cover ('I'm an agent', 'free trial'): answered like a question."""
-    e = site.best(text, min_score=1)
+def _about_us(text: str, audience: Optional[str] = None) -> bool:
+    """A statement our agent answers cover ('I'm an agent', 'free trial'): answered like a question (never on a buyer page)."""
+    e = site.best(text, min_score=1, audience=audience)
     return e is not None and e.audience == "agent"
+
+
+# pages with a subject of their own (a home, a project, a place, a builder): the chat starts from it rather than from 'buy or rent?'
+SUBJECT_PAGES = ("listing", "project", "list", "area", "builder")
+
+
+def for_agents_turn(d: dict) -> Turn:
+    """'I'm an agent' on a page for buyers: one line to the agents' page, no pitch, no buyer question after it."""
+    d["asked"] = None
+    return Turn(say("for_agents", _lang(d)))
 
 
 def is_question(text: str) -> bool:
@@ -423,28 +437,58 @@ def _home_text(page: dict, lang: str) -> str:
     return f"{loc + ' ' if loc else ''}{bhk}{' (' + area + ')' if area else ''}"
 
 
+def _prefill(d: dict, field: str, value) -> None:
+    """A detail the page states stands for the buyer's until they name another, so it is never asked."""
+    if value and not d.get(field):
+        d[field], d[field + "_src"] = value, "page"
+
+
 def _greeting(d: dict, whatsapp: bool) -> tuple:
+    """The first answer to 'hi', from the page: what the page is about, and the one question that fits it. A page never makes us ask
+    what it already says (the area on an area page, the project on a project page)."""
     lang, page = _lang(d), d.get("page") or {}
-    if page.get("kind") == "listing":
+    kind = page.get("kind")
+    if d.get("audience") == "agent":
+        d["asked"] = None
+        return say("greet_agent", lang), [qr("agent_trial", lang), qr("agent_price", lang), qr("agent_start", lang)]
+    if kind == "listing":
         if page.get("transaction") in ("sale", "rent") and not d["tx"]:
             d["tx"] = "rent" if page["transaction"] == "rent" else "buy"
         # the home's area and size are a soft starting point (the buyer naming others replaces them), so we never ask 'which area?' here
-        if page.get("locality") and not d["locality"]:
-            d["locality"], d["locality_src"] = page["locality"], "page"
-        if page.get("bhk") and not d["bhk"]:
-            d["bhk"], d["bhk_src"] = page["bhk"], "page"
+        _prefill(d, "locality", page.get("locality"))
+        _prefill(d, "bhk", page.get("bhk"))
         key = "greet_sample" if page.get("sample") else "greet_listing"
         q = [qr("about_it", lang), qr("similar", lang)] + ([WHATSAPP] if whatsapp else [])
         d["asked"] = None
         return say(key, lang, home=_home_text(page, lang)), q
-    if page.get("kind") == "area" and page.get("locality"):
-        if not d["locality"]:
-            d["locality"], d["locality_src"] = page["locality"], "page"
-        nf = next_field(d) or "tx"
+    if kind == "project" and page.get("name"):
+        # what the page offers (its price sheet and floor plans, a visit), then the size: the area is the project's
+        _prefill(d, "locality", page.get("locality"))
+        q = [qr("sheet", lang), qr("visit", lang)] + ([WHATSAPP] if whatsapp else [])
+        if filled(d, "bhk"):
+            d["asked"] = None
+            return say("greet_project", lang, project=page["name"]), q
+        _prompt(d, "bhk")
+        return f"{say('greet_project', lang, project=page['name'])} {say('ask_size', lang)}", q
+    if kind in ("list", "area") and page.get("locality"):
+        _prefill(d, "locality", page["locality"])
+        _prefill(d, "bhk", page.get("bhk"))
+        if kind == "list":
+            what = list_what("bhk", lang, bhk=rq.bhk_text(page["bhk"])) if page.get("bhk") else list_what(page.get("list") or "all", lang)
+            head = say("greet_list", lang, what=what, area=page["locality"])
+        else:
+            head = say("greet_area", lang, area=page["locality"])
+        nf = "bhk" if not filled(d, "bhk") else "budget" if not filled(d, "budget") else None
+        if nf is None:
+            d["asked"] = None
+            return head, [qr("show_homes", lang)]
         p, q = _prompt(d, nf)
-        return f"{say('greet_area', lang, area=page['locality'])} {p}", q
+        return f"{head} {p}", q
+    if kind == "builder" and page.get("name"):
+        d["asked"] = None   # a project's name or an area, both read from what they type (never 'which area?' word for word)
+        return say("greet_builder", lang, builder=page["name"]), list(page.get("areas") or [])[:3]
     d["asked"] = None
-    return say("greet", lang), [qr("find_home", lang)]   # buyers first; an agent who says so gets the agent answer (knowledge.site)
+    return say("greet", lang), [qr("find_home", lang)]   # buyers first; on a buyer page an agent gets one line to /agents
 
 
 def _about(g) -> Optional[str]:
@@ -523,6 +567,9 @@ async def turn(d: dict, text: str, llm, grounding=None, finder: Optional[Finder]
     if first and GREETING.match(text):
         reply, q = _greeting(d, whatsapp)
         return Turn(reply, q)
+    audience = d.get("audience")
+    if audience == "buyer" and site.says_agent(text):
+        return for_agents_turn(d)
 
     had_name = bool(d["name"])
     was_needed = bool(d["needs_human"])
@@ -579,12 +626,12 @@ async def turn(d: dict, text: str, llm, grounding=None, finder: Optional[Finder]
             d["needs_human"] = needs_human = True
             d.setdefault("missing", []).append((r.missing or "")[:100])
             d["gaps"] = (d.get("gaps") or [])[-19:] + [{"q": text[:200], "topics": list(r.gaps)}]   # read by knowledge.gaps
-    elif (is_question(text) and not (d["asked"] and not site.search(text, 1) and len(text.split()) <= 3)) or _about_us(text):
+    elif (is_question(text) and not (d["asked"] and not site.search(text, 1, audience) and len(text.split()) <= 3)) or _about_us(text, audience):
         d["questions"].append(text[:200])
         # A question about this home in words no keyword knows ('good for a family?', or most Hindi and Marathi): the home's own facts
         # are tried first (reasoned by the LLM, checked), unless our general answers already have a direct hit
-        r = await grounded_answer(text, grounding, "chat", llm) if grounding is not None and llm is not None and not site.best(text, min_score=1) else None
-        e = None if r is not None and r.confident else await site.answer(text, llm)
+        r = await grounded_answer(text, grounding, "chat", llm) if grounding is not None and llm is not None and not site.best(text, 1, audience) else None
+        e = None if r is not None and r.confident else await site.answer(text, llm, audience)
         ans = r.text if e is None and r is not None and r.confident else (site.text(e) if e else None)
         if ans:
             parts.append(ans)
@@ -652,7 +699,7 @@ async def turn(d: dict, text: str, llm, grounding=None, finder: Optional[Finder]
     ask = ""
     if want_phone or nf == "phone":
         ask, quick = _phone_ask(d)
-    elif nf == "tx" and parts and not (d.get("page") or {}).get("kind") and not any(filled(d, f) for f in ("locality", "bhk", "budget")):
+    elif nf == "tx" and parts and (d.get("page") or {}).get("kind") not in SUBJECT_PAGES and not any(filled(d, f) for f in ("locality", "bhk", "budget")):
         d["asked"] = None
         quick = [qr("find_home", lang)]
     elif nf:

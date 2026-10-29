@@ -9,6 +9,11 @@ One turn, when an LLM is configured:
      then the one next question our code chose. The reply is checked before it goes out: no number, price or name that our data does not
      contain, no phone, link, hype or prediction.
 
+The page (2026-10-29): both prompts are told the page the visitor is on (its kind and subject) and who they are. On avasetu.in's own pages
+the voice is "our team"; on an agent's own site it stays "the agent". On a page for buyers the agents' answers are left out of KNOWLEDGE,
+and an agent (said in words, or read by the model) gets the one /agents line from the rules, never the pitch. A project page's two quick
+replies (price sheet and floor plans, site visit) hand off at once with the line for that ask, without the model.
+
 Kept in code, never left to the model: the number (asked only when engine._can_ask_phone allows, with the consent line added here), confirming a
 number, the lead, abuse, the first greeting. Any failure (no LLM, a provider down, a reply that fails the checks) falls back to the rules engine
 (engine.turn) for that turn, on the state as it was, so the chat never breaks.
@@ -32,7 +37,7 @@ from app.modules.knowledge import site, vectors
 from app.modules.knowledge.reply import LANG_NAME, _facts_block, _nums, valid_text
 from app.modules.tracking import requirement as rq
 
-from . import engine
+from . import engine, phrases
 from .phrases import say
 
 log = logging.getLogger(__name__)
@@ -53,7 +58,7 @@ ASK_FOR = (("plans", re.compile(r"floor\s*plans?|layout|brochure|\bplans?\b|рдир
 WEB = "web"                            # channel: the website chat; "message" = WhatsApp and DMs (we already have their number there)
 AREA_NAMES = sorted({a.name for a in area_registry.AREAS})
 
-UNDERSTAND = f"""You read one message from a visitor in the {brand.NAME} website chat (a Pune real estate agent's site) and say what it means.
+UNDERSTAND = f"""You read one message from a visitor in the {brand.NAME} website chat ({{site}}) and say what it means.
 Use the conversation so far to understand short replies: "you tell", "not sure", "10 years", "no name" answer the assistant's last question.
 
 Return ONE JSON object:
@@ -83,9 +88,10 @@ Money: 80 lakh = 8000000, 1.2 crore = 12000000, 25k = 25000. "under 80 lakh" -> 
 timeline: "now/asap/this month", "ready possession", "ready to move", "ready flat" -> now (and intent answer); within 3 months -> 1_3_months; 4-6 months -> 3_6_months; later than 6 months, a year or more, "just looking" -> exploring.
 Never guess a name: "no name", "why", "sir" are not names."""
 
-REPLY = f"""You are the {brand.NAME} assistant in the chat on a Pune real estate agent's website. You talk like a good local property advisor:
-warm, short, honest, helpful before anything else, never pushy. You work for the agent: your aim is to understand what the buyer needs, show
-them fitting homes, and when the moment is right get their number so the agent can help.
+REPLY = f"""You are the {brand.NAME} assistant in the chat {{site}}. You talk like a good local property advisor:
+warm, short, honest, helpful before anything else, never pushy. You work for {{team}}: your aim is to understand what the buyer needs, show
+them fitting homes, and when the moment is right get their number so {{team}} can help. PAGE says where the visitor is: what they ask is
+about that page's subject unless they name another.
 
 How to reply:
 1. First respond to what they just said. Answer a question from KNOWLEDGE or HOMES. If they do not know their budget or ask what homes cost,
@@ -95,13 +101,13 @@ How to reply:
    schools, hospitals, malls, amenities, possession dates, approvals or availability. Prices come only from HOMES. If you cannot answer from
    them, say in one short sentence that you do not have that (our code adds that the team will get back) and set "needs_team": true.
    We find and show homes; we do not give home loans, legal work, discounts, offers or anything KNOWLEDGE does not describe: never offer,
-   promise or say we can arrange one (for a loan: the buyer's bank decides; the agent can tell them which banks the project works with).
+   promise or say we can arrange one (for a loan: the buyer's bank decides; {{team}} can tell them which banks the project works with).
    Floor plans, brochures, today's price sheet and site visits: never describe a layout or give a price that is not in HOMES; say in one
    short sentence that you will get it for them (name the project when the visitor is on a project's page), never who sends it or how
    (our code adds that line), and set "needs_team": true. On a project's page these are about that project: never ask which area.
 3. HOMES are shown as cards right under your message: point to them ("the home below", "these two"), do not list every detail again.
    A home marked SAMPLE is an illustration, never for sale. A card marked PROJECT is one of our project pages in their area: never say it
-   fits or matches their BHK or budget; say these are projects there and the agent can tell the sizes and current prices. Do not repeat a price or detail you already said in CONVERSATION unless asked.
+   fits or matches their BHK or budget; say these are projects there and {{team}} can tell the sizes and current prices. Do not repeat a price or detail you already said in CONVERSATION unless asked.
 4. Put the next step in "question": exactly the one thing NEXT asks for, in your own natural words, or "" when NEXT is none. "reply"
    itself contains no question. Never ask anything else, never ask again for something in BUYER or something they skipped.
 5. Write in {{lang}}. 1 to 3 short sentences in "reply" (under 300 characters), "question" one short sentence. No links, phone numbers,
@@ -116,17 +122,68 @@ def _plain(v) -> str:
     return " ".join(t.split())
 
 
+# where the chat is, in the prompts' words: avasetu.in's own pages ("house"), an agent's own site ("agent"); unknown (WhatsApp, DMs)
+# reads as an agent's, as before
+SITE_WORDS = {"house": f"on {brand.NAME}'s own website, where home buyers in Pune look for new projects",
+              "agent": "on a Pune real estate agent's website"}
+AGENT_PAGE_WORDS = f"on {brand.NAME}'s page for real estate agents (the visitor is most likely an agent; the agents' answers in KNOWLEDGE are for them)"
+PAGE_WORDS = {"home": "the home page", "project": "the page of the project {name}", "list": "a list of {what} in {area}",
+              "area": "the guide to {area}", "builder": "the page of the builder {name} (their projects)", "guide": "a guide",
+              "news": "our news about MahaRERA projects", "listing": "the page of one home", "agents": "the page for agents",
+              "other": "a page of the site"}
+
+
+def _voice(d: dict) -> dict:
+    """{site, team} for the prompts: on our own pages the buyer is helped by our team, on an agent's site by the agent."""
+    page = d.get("page") or {}
+    if d.get("audience") == "agent":
+        return {"site": AGENT_PAGE_WORDS, "team": "our team"}
+    if page.get("site") == "house":
+        return {"site": SITE_WORDS["house"], "team": "our team"}
+    return {"site": SITE_WORDS["agent"], "team": "the agent"}
+
+
+def _page_text(d: dict) -> str:
+    """PAGE, from the checked page only (service.page_for): its kind and subject, and who the visitor is."""
+    page = d.get("page") or {}
+    if not page:
+        return "unknown"
+    kind = page.get("kind") if page.get("kind") in PAGE_WORDS else "other"
+    what = f"{rq.bhk_text(page['bhk'])} homes" if page.get("bhk") else {"top": "the top projects", "new-launches": "new launch projects",
+                                                                        "ready-to-move": "ready to move projects"}.get(page.get("list") or "", "new projects")
+    where = PAGE_WORDS[kind].format(name=page.get("name") or "", area=page.get("locality") or "Pune", what=what)
+    who = {"agent": "probably a real estate agent", "buyer": "a home buyer"}.get(d.get("audience") or "", "unknown")
+    return f"{where}; visitor: {who}"
+
+
 def _rules_only(d: dict, text: str) -> bool:
-    """Turns the rules handle better than a model: the first hello, abuse, anything about the phone number, 'Continue on WhatsApp'."""
+    """Turns the rules handle better than a model: the first hello, abuse, anything about the phone number, 'Continue on WhatsApp',
+    and 'I'm an agent' on a page for buyers (one line to /agents)."""
     return bool((not d.get("greeted") and engine.GREETING.match(text)) or ABUSE.search(text) or engine.PHONE_RX.search(text)
                 or d.get("pending_phone") or engine.WHATSAPP_RX.match(text)
-                or (d.get("asked") == "phone" and (engine.YES.match(text) or engine.NO.match(text))))
+                or (d.get("asked") == "phone" and (engine.YES.match(text) or engine.NO.match(text)))
+                or (d.get("audience") == "buyer" and site.says_agent(text)))
+
+
+def _page_ask(d: dict, text: str) -> Optional[str]:
+    """A project page's quick reply tapped: "sheet" (price sheet and floor plans) or "visit". Both are the team's to send or fix, so
+    the chat hands off at once with the line for that ask (the same promise as the page's enquiry form)."""
+    if (d.get("page") or {}).get("kind") != "project":
+        return None
+    return "sheet" if phrases.is_quick(text, "sheet") else "visit" if phrases.is_quick(text, "visit") else None
 
 
 async def turn(d: dict, text: str, llm, grounding=None, finder: Optional[engine.Finder] = None, whatsapp: bool = False,
                history: Optional[List[dict]] = None, channel: str = WEB) -> engine.Turn:
     engine._upgrade(d)
     text = (text or "").strip()
+    ask = _page_ask(d, text) if channel == WEB else None
+    if ask:
+        d["greeted"], d["turn_no"] = True, d.get("turn_no", 0) + 1
+        d["ask_for"] = ask
+        if ask == "visit" and not d.get("lead_done"):
+            d["visit_wanted"] = d["value_given"] = True
+        return _handoff(d, channel)
     if llm is None or not hasattr(llm, "json") or _rules_only(d, text):
         return await engine.turn(d, text, llm, grounding, finder, whatsapp)
     work = copy.deepcopy(d)
@@ -149,7 +206,8 @@ async def turn(d: dict, text: str, llm, grounding=None, finder: Optional[engine.
 
 
 def _ask_for(text: str) -> Optional[str]:
-    return next((k for k, rx in ASK_FOR if rx.search(text)), None)
+    found = [k for k, rx in ASK_FOR if rx.search(text)]
+    return "sheet" if len(found) == 2 else found[0] if found else None   # plans and prices together: the price sheet and floor plans
 
 
 def _has_number(d: dict) -> bool:
@@ -283,7 +341,7 @@ async def _found(d: dict, text: str, intent: str) -> List[vectors.Passage]:
 
 def _knowledge(d: dict, grounding, found: Optional[List[vectors.Passage]] = None) -> str:
     out = ["About us and buying in Pune:"]
-    out += [f"- {e.answer}" for e in site.ENTRIES]
+    out += [f"- {e.answer}" for e in site.for_audience(d.get("audience"))]
     af = area_kb.area_facts(d.get("locality"))
     if af:
         out.append(f"About {af.name}:")
@@ -303,7 +361,7 @@ def _knowledge(d: dict, grounding, found: Optional[List[vectors.Passage]] = None
 def _homes_text(cards: List[dict], searched: bool, d: dict) -> str:
     if not cards:
         if searched:
-            return f"No listed home matches right now ({engine._budget_text(d) or 'any budget'}). The agent can look for more."
+            return f"No listed home matches right now ({engine._budget_text(d) or 'any budget'}). {_voice(d)['team'].capitalize()} can look for more."
         return "(none shown this turn)"
     lines = []
     for i, c in enumerate(cards, 1):
@@ -313,7 +371,7 @@ def _homes_text(cards: List[dict], searched: bool, d: dict) -> str:
         if c.get("kind") == "project":   # chat/projects.py: one of our project pages, not one of the agent's listings
             facts.append(f"a project page on our site ({c.get('locality')})")
             facts.append(f"from {c['price_text']} for this size (the agent's price sheet)" if c.get("price_text") else
-                         "PROJECT, sizes and prices NOT known to us, not checked against their BHK or budget: the agent tells them")
+                         f"PROJECT, sizes and prices NOT known to us, not checked against their BHK or budget: {_voice(d)['team']} tells them")
             lines.append(f"{i}. " + ", ".join(facts))
             continue
         facts.append("SAMPLE, an illustration, not for sale" if c.get("sample") else (f"price {c['price_text']}" if c.get("price_text") else "price on request"))
@@ -347,9 +405,10 @@ def _next_text(nxt: str, d: dict) -> str:
     if nxt == "none":
         return "none (offer help, ask nothing)"
     if nxt == "phone":
-        why = "so the agent can arrange the visit" if d.get("visit_wanted") else \
-            "so the agent can send new matching homes when they come up" if d.get("timeline") == "exploring" else \
-            "so the agent can send matching options and answer what you could not"
+        team = _voice(d)["team"]
+        why = f"so {team} can arrange the visit" if d.get("visit_wanted") else \
+            f"so {team} can send new matching homes when they come up" if d.get("timeline") == "exploring" else \
+            f"so {team} can send matching options and answer what you could not"
         return f"ask if they would like to share their mobile number, {why} (optional; do not write a consent sentence, it is added)"
     return f"ask {FIELD_WORDS[nxt]}"
 
@@ -365,11 +424,15 @@ async def _turn(d: dict, text: str, llm, grounding, finder, whatsapp: bool, hist
     rules_new = engine.extract(d, text)   # exact for what it catches ('3 BHK', '80 lakh', a name after 'my name is')
     d.pop("price_hint", None)
     d.pop("skipped", None)
-    u = await llm.json(UNDERSTAND, f"ASSISTANT'S LAST QUESTION: {FIELD_WORDS.get(asked_before or '', asked_before or 'none')}\n"
-                                   f"WHAT WE KNOW: {_buyer_text(d)}\nCONVERSATION:\n{_history_text(history)}\n\nMESSAGE:\n{text[:500]}")
+    voice = _voice(d)
+    u = await llm.json(UNDERSTAND.replace("{site}", voice["site"]),
+                       f"PAGE: {_page_text(d)}\nASSISTANT'S LAST QUESTION: {FIELD_WORDS.get(asked_before or '', asked_before or 'none')}\n"
+                       f"WHAT WE KNOW: {_buyer_text(d)}\nCONVERSATION:\n{_history_text(history)}\n\nMESSAGE:\n{text[:500]}")
     if not isinstance(u, dict) or u.get("intent") not in INTENTS:
         return None
     intent = u["intent"]
+    if intent == "agent" and d.get("audience") == "buyer":   # a page for buyers: the one line to /agents, from the rules
+        return engine.for_agents_turn(d)
     _apply(d, u, text, rules_new)
     if asked_before and asked_before != "phone" and not engine.filled(d, asked_before) and intent in ("suggest", "skip", "chat", "question"):
         d.setdefault("asks", {})[asked_before] = engine.MAX_ASKS   # never the same question twice in a row
@@ -396,9 +459,10 @@ async def _turn(d: dict, text: str, llm, grounding, finder, whatsapp: bool, hist
     homes = _homes_text(cards, shown, d) if cards or shown or not d.get("shown_brief") else \
         "No cards this turn (say 'the home I showed you', never 'below'). Shown earlier in the chat:\n" + d["shown_brief"]
     buyer = _buyer_text(d)
-    user = (f"KNOWLEDGE:\n{knowledge}\n\nHOMES (shown under your message):\n{homes}\n\nBUYER: {buyer}\n\nNEXT: {_next_text(nxt, d)}\n\n"
-            f"CONVERSATION:\n{_history_text(history)}\n\nVISITOR NOW: {text[:500]}")
-    r = await llm.json(REPLY.replace("{lang}", LANG_NAME.get(lang, "English")), user)
+    user = (f"PAGE: {_page_text(d)}\n\nKNOWLEDGE:\n{knowledge}\n\nHOMES (shown under your message):\n{homes}\n\nBUYER: {buyer}\n\n"
+            f"NEXT: {_next_text(nxt, d)}\n\nCONVERSATION:\n{_history_text(history)}\n\nVISITOR NOW: {text[:500]}")
+    system = REPLY.replace("{lang}", LANG_NAME.get(lang, "English")).replace("{site}", voice["site"]).replace("{team}", voice["team"])
+    r = await llm.json(system, user)
     if not isinstance(r, dict):
         return None
     reply, question = _plain(r.get("reply")), _plain(r.get("question"))
