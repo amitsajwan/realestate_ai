@@ -97,3 +97,35 @@ async def test_without_a_model_the_builders_pictures_are_still_taken_and_the_hig
     assert sorted(p["image_url"].rsplit("/", 1)[-1] for p in shown["photos"]) == ["pool.jpg", "tower.jpg"]
     assert shown["highlights"] == kept and step["ok"]
     assert "highlights not read: no LLM key" in step["checked"]
+
+
+async def test_pictures_on_other_sites_pages_are_not_downloaded_and_the_stored_ones_stay(tmp_path):
+    # pages never show a picture copied from another site (pages.shown_pictures), so a portal's are not fetched any more
+    from app.modules.newsroom.store import Store
+    from ..fakes import FakeDb
+    portal = "https://www.squareyards.com/pune-residential-property/godrej-ivara/123/project"
+    raw = "<p>Godrej Ivara P52100012345: 2 and 3 BHK homes in Upper Kharadi, Pune.</p>" + \
+        "".join(f'<img src="https://img.squareyards.com/godrej-ivara-{k}.jpg" alt="Godrej Ivara {k}">' for k in ("tower", "pool"))
+    asked = []
+
+    async def search(q):
+        return [{"type": "organic", "position": 1, "link": portal, "title": "Godrej Ivara Upper Kharadi Pune",
+                 "snippet": "Godrej Ivara by Godrej Properties, 2 and 3 BHK in Upper Kharadi"}]
+
+    async def page(url):
+        return raw if url == portal else None
+
+    async def image(url):
+        asked.append(url)
+        return _jpeg(url, (1600, 900))
+
+    async def nothing_drawn(prompt):
+        return None
+    stored = [_photo(IVARA[0], source="web")]
+    doc = {"_id": "P52100012345", "regno": "P52100012345", "name": "Godrej Ivara", "promoter": "Godrej Properties Ltd",
+           "locality": "upper_kharadi", "completion_now": "2032-12-16", "profile": {"highlights": [], "photos": stored}}
+    step, fields = await profile.gather(Store(FakeDb()), doc, None, NOW, fetch=page, image=image, search=search,
+                                        media_dir=tmp_path / "project_media", draw=nothing_drawn)
+    assert any(r["url"] == portal for r in fields["profile"]["read"])   # the portal page was read, for its words
+    assert asked == []
+    assert fields["profile"]["photos"] == stored   # never thrown away (seo-system.md section 8b)

@@ -13,8 +13,9 @@ For one project (a tower group is read once, on its primary record):
    page shows other projects). Each picture is downloaded once, checked (size, shape, not a logo or icon, not a near-duplicate),
    sorted into photo or floor plan by its address and alt text, and kept as WebP under uploads/project_media/<regno>/. Portal
    pictures are never taken (watermarked, theirs). Pages say where each picture came from and that renders are artist's
-   impressions. When the builder's site has none (owner 2026-10-22): pictures from other sites' pages about the project (source
-   "web", shown as not checked by us), else illustrations drawn by AI (source "ai", shown as such; never floor plans).
+   impressions. When the builder's site has none: the brochure's, else illustrations drawn by AI (source "ai", shown as such;
+   never floor plans). Pictures from other sites' pages (source "web", 2026-10-22) are no longer read (2026-10-29): pages never
+   show them (pages.shown_pictures), so the ones stored before stay on the record unread.
 Stored on the register record as `profile` = {at, highlights: [{topic, text, official, sources: [{site, url, quote}]}],
 photos: [...], plans: [...], read: [{site, url, ok, why}]}; a round that finds nothing keeps the last good highlights or pictures.
 `public` is what the pages show.
@@ -34,7 +35,6 @@ import httpx
 from PIL import Image
 
 from app.core.areas import BY_KEY
-from app.modules.newsroom.store import PROJECTS
 
 from . import pages, webfacts, websearch
 
@@ -175,20 +175,6 @@ def agree(readings: List[dict]) -> List[dict]:
 
 
 # ---- pictures --------------------------------------------------------------------------------------------------------------
-
-# words too common to tell one project from another in a picture's address
-COMMON = {"the", "by", "and", "of", "at", "in", "pune", "phase", "project", "tower", "towers", "wing", "building", "park", "city",
-          "heights", "residency", "residences", "homes", "home", "green", "greens", "royal", "new", "one", "sai", "shree", "shri",
-          "sky", "life", "living", "nagar", "kharadi", "upper", "east", "west"}
-
-
-def names_project(url: str, name: str) -> bool:
-    """A picture from another site is this project's only when its address names it (2026-10-22: squareyards' Sai Hemant page
-    also showed Godrej Aqua Vista, Raichandani One and Lodha Camelot; casafy's Park Eden page a VTP villa and brochure filler)."""
-    path = re.sub(r"[^a-z0-9]", "", urlparse(url).path.lower())
-    words = [w for w in re.findall(r"[a-z0-9]+", (name or "").lower()) if w not in COMMON and not w.isdigit() and len(w) >= 4]
-    return any(w in path for w in words)
-
 
 def project_page(url: str, name: str) -> bool:
     """The builder's page for this project, not its home page or a list: the address's path names the project."""
@@ -335,14 +321,12 @@ def _caption(c: dict, kind: str, name: str) -> str:
 
 
 async def pictures(sources: List[dict], raw_of: Dict[str, str], name: str, regno: str, fetch: FetchBytes,
-                   media_dir: Path = MEDIA_DIR, page: Optional[webfacts.Fetch] = None, builder: bool = True) -> tuple:
-    """(photos, plans, why): saved pictures from the builder's own project page(s) and its gallery / plans pages, or with
-    `builder=False` from other sites' pages about the project (source "web": shown as not checked by us)."""
-    pages_ = [s for s in sources if bool(s["official"]) == builder and raw_of.get(s["url"])
-              and (s.get("pinned") or project_page(s["url"], name))]
+                   media_dir: Path = MEDIA_DIR, page: Optional[webfacts.Fetch] = None) -> tuple:
+    """(photos, plans, why): saved pictures from the builder's own project page(s) and its gallery / plans pages."""
+    pages_ = [s for s in sources if s["official"] and raw_of.get(s["url"]) and (s.get("pinned") or project_page(s["url"], name))]
     if not pages_:
-        return [], [], "no builder page for the project" if builder else "no other page about the project"
-    if page is not None and builder:   # its own gallery and plans pages first: the main page spends the budget on icons
+        return [], [], "no builder page for the project"
+    if page is not None:   # its own gallery and plans pages first: the main page spends the budget on icons
         subs = []
         for sub in subpages(raw_of[pages_[0]["url"]], pages_[0]["url"]):
             raw = await page(sub)
@@ -357,8 +341,6 @@ async def pictures(sources: List[dict], raw_of: Dict[str, str], name: str, regno
     photos, plans, hashes, tried = [], [], [], 0
     for src in pages_:
         for c in candidates(raw_of[src["url"]], src["url"]):
-            if not builder and not names_project(c["url"], name):
-                continue   # a portal page also shows other projects (squareyards' "similar projects", brochure filler)
             kind = kind_of(c)
             room = (plans if kind == "plan" else photos)
             if tried >= MAX_CANDIDATES or len(photos) >= MAX_PHOTOS and len(plans) >= MAX_PLANS:
@@ -386,9 +368,8 @@ async def pictures(sources: List[dict], raw_of: Dict[str, str], name: str, regno
             file = f"{h:016x}.webp"
             im.save(tmp / file, "WEBP", quality=82, method=4)
             room.insert(at, {"file": file, "width": im.size[0], "height": im.size[1],
-                             "alt": _caption(c, kind, name) if builder else f"{name}, from {src['site']}",
-                             "image_url": c["url"], "page_url": src["url"], "site": src["site"],
-                             "source": "builder" if builder else "web"})
+                             "alt": _caption(c, kind, name), "image_url": c["url"], "page_url": src["url"], "site": src["site"],
+                             "source": "builder"})
     if not photos and not plans:
         shutil.rmtree(tmp, ignore_errors=True)
         return [], [], f"no usable pictures ({tried} tried)"
@@ -576,22 +557,11 @@ async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[webfacts.
     put_off = llm is None or getattr(llm, "deferred", 0) > deferred
     if put_off and old.get("highlights"):   # some pages were not read: the last full reading stands
         highlights = []
-    shared = await others_pictures(store.db, doc)
-    plans = [x for x in plans if not generic(x, shared)]
-    photos = [x for x in photos if not generic(x, shared)]
-    # the builder's site, then the brochure (its plans first: they are the builder's own), then other sites, then illustrations
+    # the builder's site, then the brochure (its plans first: they are the builder's own), then illustrations. Other sites'
+    # pictures are not read (2026-10-29): no page shows them, so downloading them was work for nothing
     plans = (b_plans + plans)[:MAX_PLANS]
     photos = photos or b_photos
     why = f"{why}; {b_why}"
-    if sources and not photos and not plans:   # owner 2026-10-22: "or best we can find, unverified, from the web"
-        try:
-            photos, plans, also = await pictures(sources, raw_of, name, regno, image or fetch_bytes, media_dir, builder=False)
-            n = len(photos) + len(plans)
-            photos, plans = [x for x in photos if not generic(x, shared)], [x for x in plans if not generic(x, shared)]
-            why = f"{why}; web: {also}" + (f", {n - len(photos) - len(plans)} on other projects too (dropped)" if n > len(photos) + len(plans) else "")
-        except Exception as e:
-            log.exception("profile: web pictures failed for %s", regno)
-            why = f"{why}; web pictures failed ({type(e).__name__})"
     if not photos and not old.get("photos"):
         try:   # nothing real ever found: illustrations, drawn once
             photos = await illustrations(doc, name, regno, place_of(doc), draw, media_dir)
@@ -633,27 +603,6 @@ def distinct_photos(photos: List[dict]) -> List[dict]:
             group.append(p)
     return [min(g, key=lambda p: (SOURCE_RANK.get(p.get("source") or "builder", 9),
                                   -(p.get("width") or 0) * (p.get("height") or 0))) for g in groups]
-
-
-async def others_pictures(db, doc: dict) -> List[int]:
-    """The hashes of the pictures other projects show (not this project's tower group)."""
-    me = {doc.get("regno") or doc["_id"], doc.get("cluster_primary") or doc.get("regno") or doc["_id"]}
-    out = []
-    async for d in db.get_collection(PROJECTS).find(
-            {"$or": [{"profile.photos.0": {"$exists": True}}, {"profile.plans.0": {"$exists": True}}]},
-            {"regno": 1, "cluster_primary": 1, "profile.photos.path": 1, "profile.plans.path": 1}):
-        if {d.get("regno"), d.get("cluster_primary")} & me:
-            continue
-        out += [h for x in (d.get("profile") or {}).get("photos", []) + (d.get("profile") or {}).get("plans", [])
-                if (h := _hash_of(x)) is not None]
-    return out
-
-
-def generic(pic: dict, shared: List[int]) -> bool:
-    """A web picture another project shows too is a portal's or a builder's stock picture, not this project (2026-10-22:
-    magicbricks' "created by AI" banners on ten projects, Ekaanta's three photos among them)."""
-    h = _hash_of(pic)
-    return pic.get("source") == "web" and h is not None and any(bin(h ^ x).count("1") < NEAR for x in shared)
 
 
 def kept(pics: Optional[List[dict]]) -> List[dict]:
