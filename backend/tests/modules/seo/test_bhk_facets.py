@@ -1,8 +1,11 @@
 """Size pages from published prices: /projects/area/<place>/2-bhk (app/modules/seo/facets.py, phrases.py, grow.py)."""
 from datetime import datetime, timedelta, timezone
 
+from app.modules.newsroom.store import Store
 from app.modules.seo import facets, grow, phrases
 from app.modules.seo.facets import Facet
+
+from ..fakes import FakeDb
 
 NOW = datetime(2026, 10, 21, tzinfo=timezone.utc)
 
@@ -104,3 +107,13 @@ def test_a_list_is_in_search_only_when_three_of_its_projects_are():
     assert not facets.facet_view(f, two, NOW)["indexable"]
     three = [{**d, "page_text": "Written."} if d["_id"] in ("P1", "P2", "P3") else d for d in register_only]
     assert facets.facet_view(f, three, NOW)["indexable"]
+
+
+async def test_the_live_page_list_counts_each_pages_projects_and_says_whether_search_may_index_it():
+    # 2026-10-27..29 the list raised on every call (records handed where (record, reason) pairs were expected): /facets was a 500
+    db = FakeDb()
+    for d in DOCS:
+        await Store(db).projects.insert_one(dict(d))
+    await db.get_collection(grow.PAGES).insert_one({"_id": "lohegaon|all|bhk=2", "status": "live"})
+    out = await grow.live_pages(db, NOW)
+    assert [(p["path"], p["count"], p["indexable"]) for p in out] == [("/projects/area/lohegaon/2-bhk", 3, True)]

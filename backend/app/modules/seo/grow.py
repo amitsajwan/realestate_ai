@@ -293,7 +293,8 @@ async def live_pages(db, now: Optional[datetime] = None) -> List[dict]:
         f = facets.from_key(p["_id"])
         if f is None:
             continue
-        listed = [d for d, _ in facets.members(f, by_place.get(f.place, []), now)]
+        members = facets.members(f, by_place.get(f.place, []), now)   # [(record, reason)]: in_search takes them as they come
+        listed = [d for d, _ in members]
         stamp = [u for u in (cluster_updated(d, docs, stamps) for d in listed[:facets.MAX_ROWS]) if u]
         live_at = _aware(p.get("live_at"))
         if live_at:
@@ -304,7 +305,7 @@ async def live_pages(db, now: Optional[datetime] = None) -> List[dict]:
             label = f"{f.bhk} BHK flats" if f.intent == "all" and not f.possession else f"{label}, {f.bhk} BHK"
         out.append({"key": f.key, "path": f.path, "place": f.place, "place_slug": facets.place_slug(f.place), "intent": f.intent,
                     "possession": f.possession, "builder": f.builder, "bhk": f.bhk, "label": label, "count": len(listed),
-                    "indexable": facets.in_search(listed), "page_updated": max(stamp) if stamp else None})
+                    "indexable": facets.in_search(members), "page_updated": max(stamp) if stamp else None})
     out.sort(key=lambda r: (r["place"], facets.INTENTS.index(r["intent"]), r["bhk"] or 0, r["possession"] or 0, r["builder"] or ""))
     return out
 
