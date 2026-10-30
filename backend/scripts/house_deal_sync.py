@@ -13,8 +13,8 @@ skipped (an 8x8 average hash, so a re-saved copy counts as the same), and so is 
 of their pages (their promo banner, the calendar and area icons, a Lodha banner pasted on the VTP pages).
 
 New listings: only the pages in NEW (checked by hand on 2026-10-30), live under House Deal, from their price table, with the
-locality MahaRERA files them under (their site says Upper Kharadi for VTP's Manjari projects). Gulmohar City (agricultural
-plots, no MahaRERA number) is held: the owner decides it.
+locality MahaRERA files them under (their site says Upper Kharadi for VTP's Manjari projects). Gulmohar City's plots are
+published as House Deal shows them (owner 2026-10-30: "just publish as is done by house deal").
 """
 import argparse
 import asyncio
@@ -41,7 +41,7 @@ MAX_PHOTOS = 10
 WIDTH = 1920
 NEW = {   # page -> what it is (checked by hand); the rest of a new listing comes from the page
     "vtp-aurelia-kharadi": "apartment", "vtp-dolce-vita": "apartment", "vtp-altamira": "apartment",
-    "yashoda-east-rise": "apartment", "vtp-never-before": "villa",
+    "yashoda-east-rise": "apartment", "vtp-never-before": "villa", "gulmohar-city": "plot",
 }
 CHROME = re.compile(r"logo|agent-|avatar|icon|favicon|placeholder|calender|calendar|/area\.|banner-img|-banner\.", re.I)
 
@@ -183,16 +183,19 @@ async def _main() -> None:
                 locality = (await db.projects.find_one({"page_slug": place}, {"pune_place_name": 1}) or {}).get("pune_place_name") if place else None
                 locality = locality or p["area"] or "Pune"
                 kind = NEW[key]
-                what = (f"{int(first['bhk'])} BHK and up from {money(first['price_inr'])}" if first and first["bhk"] else "Villas, price on request")
+                what = (f"{int(first['bhk'])} BHK and up from {money(first['price_inr'])}" if first and first["bhk"]
+                        else f"plots of {first['carpet_sqft']:,} sq ft from {money(first['price_inr'])}" if first and kind == "plot"
+                        else "Villas, price on request")
+                offered = [f"{r['bhk']:g} BHK of {r['carpet_sqft']:,} sq ft carpet at Rs {money(r['price_inr'])}" if r["bhk"]
+                           else f"{r['carpet_sqft']:,} sq ft plot at Rs {money(r['price_inr'])}" for r in rows]
                 body = {
                     "visibility": "public", "transaction": "sale", "property_type": kind, "listing_scope": "layout",
                     "title": f"{p['name']}, {locality}: {what}"[:120], "city": "Pune", "locality": locality, "project_name": p["name"],
                     "rera_no": p["rera"], "bhk": first["bhk"] if first else None, "carpet_sqft": first["carpet_sqft"] if first else None,
                     "price_inr": first["price_inr"] if first else None,
-                    "configurations": [r for r in rows if r["bhk"]] if len(rows) > 1 else None,
+                    "configurations": [r for r in rows if r["bhk"]] if len([r for r in rows if r["bhk"]]) > 1 else None,
                     "description": {"en": (f"{p['name']} in {locality}, Pune" + (f", MahaRERA {p['rera']}" if p["rera"] else "") + ". "
-                                           + ("On offer: " + "; ".join(f"{r['bhk']:g} BHK of {r['carpet_sqft']:,} sq ft carpet at Rs {money(r['price_inr'])}" for r in rows if r["bhk"]) + "."
-                                              if rows else "Ask House Deal for prices and a site visit."))},
+                                           + ("On offer: " + "; ".join(offered) + "." if rows else "Ask House Deal for prices and a site visit."))},
                 }
                 doc = ListingCreate(**body).model_dump()
                 lid = uuid.uuid4().hex
