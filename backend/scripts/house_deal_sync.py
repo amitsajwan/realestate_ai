@@ -230,7 +230,7 @@ async def _main() -> None:
                     continue
                 try:
                     h = ahash(r.content)
-                    data, w, ht = jpeg(r.content)
+                    data, w, _ = jpeg(r.content)
                 except Exception:
                     continue
                 if any(same(h, x) for x in have) or w < 600:
@@ -241,8 +241,8 @@ async def _main() -> None:
                 if not a.dry_run:
                     images.mkdir(parents=True, exist_ok=True)
                     (images / fname).write_bytes(data)
-                added.append({"url": f"/uploads/images/{fname}", "kind": "image", "order": len(media) + len(added),
-                              "quality": {"width": w, "height": ht}, "source": src})
+                # Only the fields the listing's Media model takes: a stray key or a quality with no score breaks every read.
+                added.append({"url": f"/uploads/images/{fname}", "kind": "image", "order": len(media) + len(added)})
                 await asyncio.sleep(0.5)
             if added:
                 print(f"   {l.get('title', '')[:50]}: {len(media)} -> {len(media) + len(added)} photos")
