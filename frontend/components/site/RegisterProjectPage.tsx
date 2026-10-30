@@ -767,6 +767,18 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
 
       <Hero p={p} price={price} photo={heroPhoto} linkless={!!seller} />
 
+      {/* a partner agent's listing names them at the top and opens their own page for it (owner 2026-10-30); on that page itself
+          (seller) it would link to itself, and Avasetu's own listings need no line */}
+      {!seller && offer?.agent?.name && offer.agent.slug !== HOUSE_AGENT && offer.agent.listing_id && (
+        <p className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2" data-testid="listed-by">
+          <span className="text-slate-900">Listed by <strong>{offer.agent.name}</strong></span>
+          <Link href={agentPath(offer.agent.slug, 'listings/' + offer.agent.listing_id)}
+            className="inline-flex min-h-[44px] items-center font-semibold text-[#0f2340] underline underline-offset-2">
+            See it on {offer.agent.name}&apos;s page &rarr;
+          </Link>
+        </p>
+      )}
+
       {/* the one answer, written by code from the facts below: what AI search quotes (the model's old summary is not shown) */}
       {answer && (
         <div className="mt-6 max-w-4xl">

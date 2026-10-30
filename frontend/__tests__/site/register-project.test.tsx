@@ -459,6 +459,20 @@ describe("the listing agent's videos", () => {
   })
 })
 
+describe('the listing agent at the top', () => {
+  it("names a partner agent under the hero and opens their page for the listing; Avasetu's own listing gets no line", () => {
+    const hd = { offer: { ...OFFER, agent: { slug: 'house-deal', name: 'House Deal', listing_id: 'l1' } } } as never
+    const { unmount } = render(<RegisterProjectPage p={P} siteUrl="https://avasetu.in" facts={hd} />)
+    const line = screen.getByTestId('listed-by')
+    expect(line).toHaveTextContent('Listed by House Deal')
+    expect(within(line).getByRole('link', { name: /See it on House Deal's page/ })).toHaveAttribute('href', '/agent/house-deal/listings/l1')
+    unmount()
+    const own = { offer: { ...OFFER, agent: { slug: 'avasetu', name: 'Avasetu', listing_id: 'l2' } } } as never
+    render(<RegisterProjectPage p={P} siteUrl="https://avasetu.in" facts={own} />)
+    expect(screen.queryByTestId('listed-by')).toBeNull()
+  })
+})
+
 describe("on the agent's own listing page", () => {
   const listing = (id: string, title: string) => ({ id, title, price_inr: 12_000_000, transaction: 'sale', locality: 'Kharadi', city: 'Pune',
     bhk: 2, property_type: 'apartment', carpet_sqft: 800, media: [], amenities: [], status: 'live' }) as never
