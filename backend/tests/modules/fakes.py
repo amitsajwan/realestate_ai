@@ -95,7 +95,9 @@ class FakeCollection:
         self.docs.append(doc)
         return type("R", (), {"inserted_id": doc["_id"]})
 
-    async def find_one(self, flt=None, sort=None):
+    async def find_one(self, flt=None, projection=None, sort=None):
+        if isinstance(projection, list):   # an older call passed sort second
+            projection, sort = None, projection
         found = [d for d in self.docs if _match(d, flt or {})]
         if sort:
             field, direction = sort[0]
@@ -169,3 +171,8 @@ class FakeDb:
 
     def get_collection(self, name):
         return self.cols.setdefault(name, FakeCollection())
+
+    def __getattr__(self, name):   # db.listings, as Motor allows
+        if name.startswith("_"):
+            raise AttributeError(name)
+        return self.get_collection(name)

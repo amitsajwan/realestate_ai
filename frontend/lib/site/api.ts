@@ -126,7 +126,7 @@ export function agentCity(agent: AgentProfile, listings: PublicListing[]): strin
 }
 
 export interface SitemapEntries {
-  listings: Array<{ agent_slug: string; id: string; updated_at?: string | null; locality?: string | null }>
+  listings: Array<{ agent_slug: string; id: string; updated_at?: string | null; locality?: string | null; rera_no?: string | null }>
   projects: Array<{ agent_slug: string; slug: string; updated_at?: string | null }>
 }
 
@@ -159,12 +159,13 @@ export async function getCatalogProject(slug: string): Promise<CatalogProject | 
 }
 
 /** The verified facts we keep for a property, or null. Optional extra on a page: any failure just hides the box. */
-export async function getPropertyFacts(q: { rera?: string | null; project?: string | null; locality?: string | null }): Promise<PropertyFactsView | null> {
+export async function getPropertyFacts(q: { rera?: string | null; project?: string | null; locality?: string | null; listing?: string | null }): Promise<PropertyFactsView | null> {
   if (fixturesForced() || !(q.rera || q.project)) return null
   const p = new URLSearchParams()
   if (q.rera) p.set('rera', q.rera)
   if (q.project) p.set('project', q.project)
   if (q.locality) p.set('locality', q.locality)
+  if (q.listing) p.set('listing', q.listing)   // that listing's own price sheet and photos, not the project's latest listing
   const r = await getJson<PropertyFactsView>('/api/v1/public/property-facts?' + p.toString())
   return r.ok ? r.data : null
 }

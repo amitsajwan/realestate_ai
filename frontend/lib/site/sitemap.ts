@@ -42,6 +42,8 @@ export async function buildSitemap(): Promise<Grouped> {
     return area((key && placeSlug.get(key)) || placeByName.get(s))
   }
   const listedRegnos = new Set(projects.map((p) => p.rera_no))   // those redirect to the shared agent page, listed above
+  // a listing of a project with its own page in search shows that page and names it as canonical (2026-10-30): only the project
+  const registerRegnos = new Set(register.map((r) => r.regno))
   const shared = new Set(projects.flatMap((p) => p.agents.map((a) => a.slug + '/' + a.project_slug)))
   const latest = new Map<string, string | null | undefined>() // agent slug -> newest change on their site
   for (const e of [...agents.listings, ...agents.projects]) {
@@ -81,7 +83,8 @@ export async function buildSitemap(): Promise<Grouped> {
     ...builders.filter((b) => b.indexable).map((b) => ({ group: 'builders', entry: at('/builders/' + b.slug, b.brand ? 0.8 : 0.6, b.page_updated) })),
     // an agent's copy of a project on a shared page names that page as canonical, so only the others are listed
     ...agents.projects.filter((p) => !shared.has(p.agent_slug + '/' + p.slug)).map((p) => ({ group: 'agents', entry: at(agentPath(p.agent_slug, 'projects/' + p.slug), 0.6, p.updated_at) })),
-    ...agents.listings.map((l) => ({ group: 'agents', entry: at(agentPath(l.agent_slug, 'listings/' + l.id), 0.6, l.updated_at) })),
+    ...agents.listings.filter((l) => !(l.rera_no && registerRegnos.has(l.rera_no)))
+      .map((l) => ({ group: 'agents', entry: at(agentPath(l.agent_slug, 'listings/' + l.id), 0.6, l.updated_at) })),
     // the agents' one page in search; the trial, invite and printable pitch pages are reached from our own links and WhatsApp,
     // and are noindex so they never stand for the brand (owner 2026-10-29: buyers first)
     core(at('/agents', 0.7)),

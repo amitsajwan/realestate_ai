@@ -294,6 +294,14 @@ export async function getRegisterProject(slug: string): Promise<RegisterProject 
   throw new Error('Project data is temporarily unavailable')
 }
 
+/** The register page of a MahaRERA number (any tower of a project), when it has one: a listing of that project shows it. */
+export async function getRegisterProjectByRegno(regno: string | null | undefined): Promise<RegisterProject | null> {
+  const n = (regno || '').trim().toUpperCase()
+  if (!/^P[A-Z0-9]{6,20}$/.test(n)) return null
+  const r = await get<{ slug: string }>('/api/v1/public/register/by-regno/' + encodeURIComponent(n))
+  return r.ok && r.data?.slug ? getRegisterProject(r.data.slug).catch(() => null) : null
+}
+
 /** Lists kept in this process for 5 minutes: the whole register is ~7.5 MB, over the 2 MB Next.js data cache limit, so without
  *  this /projects (rendered per request for ?q=), the homepage and the sitemap each fetched it again on every render (~8 s).
  *  Concurrent renders share one fetch; a failed fetch is not kept. */

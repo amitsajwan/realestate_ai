@@ -209,7 +209,8 @@ class ListingService:
 
     async def sitemap_entries(self, limit: int = 5000) -> List[dict]:
         """Every listing a search engine may index: visible on a public agent site that is neither the fictional demo nor an
-        unpublished preview, and not a sample. Newest first, as {agent_slug, id, updated_at}."""
+        unpublished preview, and not a sample. Newest first, as {agent_slug, id, updated_at, locality, rera_no}: the sitemap leaves
+        out a listing whose MahaRERA project has its own page, since that listing's page names the project page as canonical."""
         docs = await self.listings.find(self._public_flt()).sort("published_at", -1).to_list(limit)
         now = self.now()
         profiles: dict = {}
@@ -223,7 +224,7 @@ class ListingService:
             if not profile or not indexable(profile):
                 continue
             out.append({"agent_slug": profile["slug"], "id": d["_id"], "updated_at": d.get("updated_at"),
-                        "locality": d.get("locality")})
+                        "locality": d.get("locality"), "rera_no": (d.get("rera_no") or "").strip().upper() or None})
         return out
 
     async def public_get(self, listing_id: str) -> PublicListing:

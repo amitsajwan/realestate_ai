@@ -57,17 +57,20 @@ def listing_photos(media: list) -> list:
     return out
 
 
-async def with_sheet(db, out: Optional[dict]) -> Optional[dict]:
+async def with_sheet(db, out: Optional[dict], listing_id: Optional[str] = None) -> Optional[dict]:
     """The page's offer with the live listing's price sheet and payment plan (homes.rows, homes.payment_plan): a project
-    listed with seven home types showed only its first flat ("2 BHK, 730 sq ft, ₹1.2 Cr"; Godrej Ivara, 2026-10-20)."""
+    listed with seven home types showed only its first flat ("2 BHK, 730 sq ft, ₹1.2 Cr"; Godrej Ivara, 2026-10-20).
+    `listing_id`: that listing's own sheet and photos (its page shows the full project page, 2026-10-30), when it is live and of
+    this project; else the project's latest live listing."""
     regno = ((out or {}).get("maharera") or {}).get("rera_no") or ""
     if not out or not out.get("offer") or not regno:
         return out
     from . import homes
-    listing = await db.listings.find_one({"rera_no": regno, "status": {"$in": list(LIVE_STATES)}},
-                                         {"configurations": 1, "payment_plan": 1, "bhk": 1, "price_inr": 1, "carpet_sqft": 1,
-                                          "property_type": 1, "listing_scope": 1, "agent_id": 1, "media": 1},
-                                         sort=[("updated_at", -1)])
+    fields = {"configurations": 1, "payment_plan": 1, "bhk": 1, "price_inr": 1, "carpet_sqft": 1,
+              "property_type": 1, "listing_scope": 1, "agent_id": 1, "media": 1}
+    live = {"rera_no": regno, "status": {"$in": list(LIVE_STATES)}}
+    listing = await db.listings.find_one({**live, "_id": listing_id}, fields) if listing_id else None
+    listing = listing or await db.listings.find_one(live, fields, sort=[("updated_at", -1)])
     if not listing:
         return out
     table = homes.rows(listing) if listing.get("configurations") else []
@@ -78,7 +81,8 @@ async def with_sheet(db, out: Optional[dict]) -> Optional[dict]:
     if profile and indexable(profile):
         b = profile.get("branding_data") or {}
         offer["agent"] = {"slug": profile["slug"], "name": (b.get("business_name") or profile.get("agent_name") or "").strip(),
-                          "phone": profile.get("phone"), "listing_id": listing["_id"]}
+                          # the office line buyers should call when the agent set one (House Deal: 74472 12121, 2026-10-30)
+                          "phone": b.get("office_phone") or profile.get("phone"), "listing_id": listing["_id"]}
         offer["photos"] = listing_photos(listing.get("media") or [])
     if len(table) > 1:
         offer["homes"] = [{"bhk": r["bhk"], "label": r["label"], "carpet_sqft": r.get("carpet_sqft"), "price_inr": r.get("price_inr")}
@@ -91,8 +95,8 @@ async def with_sheet(db, out: Optional[dict]) -> Optional[dict]:
 
 @public_router.get("/property-facts")
 async def public_property_facts(response: Response, rera: Optional[str] = None, project: Optional[str] = None,
-                                locality: Optional[str] = None, db=Depends(get_db)) -> dict:
-    out = await with_sheet(db, view(await FactsStore(db).find(rera or "", project or "", locality or "")))
+                                locality: Optional[str] = None, listing: Optional[str] = None, db=Depends(get_db)) -> dict:
+    out = await with_sheet(db, view(await FactsStore(db).find(rera or "", project or "", locality or "")), (listing or "")[:64] or None)
     if out is None:
         raise HTTPException(status_code=404, detail="No facts kept for this property")
     response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"

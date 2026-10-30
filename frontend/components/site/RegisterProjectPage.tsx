@@ -685,8 +685,20 @@ function FaqBox({ faq }: { faq: Faq[] }) {
 /** Avasetu's own page for a MahaRERA project, in the order a buyer asks (docs/plan/project-page-v2.md): the hero, one answer,
  *  pictures, prices and sizes, floor plans, location, amenities, the model's words about the project, what we checked, other
  *  projects nearby, questions and the forms. Each fact is said once, with its source and date. */
-export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], whatsappUrl }: { p: RegisterProject; siteUrl: string; facts: PropertyFactsView | null; lists?: FacetLink[]; whatsappUrl?: string | null }) {
+/** The agent whose listing this page is (their own site's listing page, inside their SiteShell): enquiries go to them, the page
+ *  takes their colours, and the way back is their home. Without it the page is Avasetu's /projects page. */
+export interface Seller {
+  slug: string
+  name: string
+  home: string
+  listingId: string
+}
+
+export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], whatsappUrl, seller }: { p: RegisterProject; siteUrl: string; facts: PropertyFactsView | null; lists?: FacetLink[]; whatsappUrl?: string | null; seller?: Seller }) {
   const url = `${siteUrl}/projects/${p.slug}`
+  const leadSlug = seller?.slug ?? HOUSE_AGENT
+  const leadName = seller?.name ?? 'Avasetu'
+  const askNote = seller ? `${seller.name} calls or WhatsApps you back; your number is never shared without your OK.` : ASK_NOTE
   const shown = displayName(p)
   // GST is added only while MahaRERA's completion date is ahead; past it (or not yet read) the OC decides, so the page asks
   const stage: Stage = p.completion_now && !p.completion_passed ? 'building' : 'completion_passed'
@@ -717,10 +729,16 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
   const sections = (p.sections ?? []).filter((x) => x.heading && x.text)
   const enquiryTopic = `${p.name} (MahaRERA ${p.regno})`
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8" style={AVASETU_SITE_VARS}>
-      {registerProjectJsonLd({ p, siteUrl, faq, photos: ownPhotos, offer, updated }).map((x, i) => (
+    <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8" style={seller ? undefined : AVASETU_SITE_VARS}>
+      {/* the project's structured data belongs to its canonical page, /projects/<slug>; a listing page carries its own */}
+      {!seller && registerProjectJsonLd({ p, siteUrl, faq, photos: ownPhotos, offer, updated }).map((x, i) => (
         <script key={i} type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(x) }} />
       ))}
+      {seller ? (
+        <p className="mb-2 text-sm">
+          <Link href={seller.home + '#listings'} className="inline-flex min-h-[44px] items-center text-[var(--site-primary)]">&larr; All properties</Link>
+        </p>
+      ) : (
       <nav aria-label="Breadcrumb" className="mb-4 text-sm">
         <Link href="/" className="text-[#0f2340] underline underline-offset-2">Home</Link>
         <span aria-hidden className="px-1 text-slate-400">/</span>
@@ -728,6 +746,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
         {p.area && <> <span aria-hidden className="px-1 text-slate-400">/</span> <Link href={`/localities/${p.area.slug}`} className="text-[#0f2340] underline underline-offset-2">{p.area.name}</Link></>}
         {!p.area && placeName && placeHref && <> <span aria-hidden className="px-1 text-slate-400">/</span> <Link href={placeHref} className="text-[#0f2340] underline underline-offset-2">{placeName}</Link></>}
       </nav>
+      )}
 
       <Hero p={p} price={price} photo={heroPhoto} />
 
@@ -745,7 +764,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
       <div className="mt-8 grid gap-8 lg:grid-cols-3">
         <div className="min-w-0 space-y-10 lg:col-span-2">
           <PricesSection p={p} shown={shown} offer={liveOffer(facts)} priced={!!price} numbers={facts?.numbers} stage={stage} />
-          <ProjectProfile profile={p.profile} name={shown} part="plans" lead={{ agentSlug: HOUSE_AGENT, agentName: 'Avasetu',
+          <ProjectProfile profile={p.profile} name={shown} part="plans" lead={{ agentSlug: leadSlug, agentName: leadName,
             topic: enquiryTopic, waMessage: `Hi, I want to know about ${p.name} (MahaRERA ${p.regno}): ${url}` }} />
           <LocationSection p={p} shown={shown} nearby={nearby} sources={facts?.nearby_sources ?? []} />
           <ProjectProfile profile={p.profile} name={shown} part="highlights" omit={heroBhks ? ['homes'] : []} />
@@ -766,7 +785,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
 
           <RecordSection p={p} shown={shown} facts={facts} />
 
-          <AskPrompt name={shown} note={ASK_NOTE} whatsappUrl={whatsappUrl} label={PROJECT_CTA.today} />
+          <AskPrompt name={shown} note={askNote} whatsappUrl={whatsappUrl} label={PROJECT_CTA.today} />
 
           {p.same_area.length > 0 && (p.area || placeName) && (
             <section aria-labelledby="same-title" data-testid="compare">
@@ -820,7 +839,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
 
         <aside className="min-w-0 space-y-6 lg:sticky lg:top-20 lg:self-start">
           {/* the side column stays in view on desktop, so the ask does too; phones get the bottom bar instead */}
-          <div className="hidden lg:block"><AskPrompt name={shown} note={ASK_NOTE} whatsappUrl={whatsappUrl} label={PROJECT_CTA.today} compact /></div>
+          <div className="hidden lg:block"><AskPrompt name={shown} note={askNote} whatsappUrl={whatsappUrl} label={PROJECT_CTA.today} compact /></div>
         </aside>
       </div>
 
@@ -828,7 +847,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
       {/* One form for the hero's two actions (two side-by-side copies read as a duplicate): the buyer picks price sheet or visit in
           it, `#visit` opens it on the visit, and a visit carries its own topic so the team knows what to arrange. */}
       <div className="max-w-2xl">
-        <EnquiryForm agentSlug={HOUSE_AGENT} agentName="Avasetu" note={ASK_NOTE} topic={enquiryTopic}
+        <EnquiryForm agentSlug={leadSlug} agentName={leadName} note={askNote} topic={enquiryTopic} listingId={seller?.listingId}
           waMessage={`Hi, I want to know about ${p.name} (MahaRERA ${p.regno}): ${url}`}
           choices={[
             { anchor: 'enquire', label: PROJECT_CTA.pricesChoice, title: PROJECT_CTA.formTitle(p.name), topic: enquiryTopic,
