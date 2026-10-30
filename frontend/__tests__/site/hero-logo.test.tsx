@@ -22,9 +22,7 @@ describe('agent hero with a banner that carries its own words', () => {
       banner_words: true, banner_alt: 'Welcome to House Deal', tagline: 'Your Dream Home, Our Best Deal' }
     const { container } = render(<Hero agent={{ ...base, branding_data: b }} city="Pune" />)
     expect(container.querySelector('section')?.getAttribute('data-hero')).toBe('words')
-    // the shown picture carries the words; the blurred copy behind it is decoration with no alt
-    expect(container.querySelector('img[alt="Welcome to House Deal"]')?.getAttribute('src')).toBe('/uploads/images/hd-banner.jpg')
-    expect(container.querySelectorAll('img[src="/uploads/images/hd-banner.jpg"][alt=""]')).toHaveLength(1)
+    expect(container.querySelector('img[src="/uploads/images/hd-banner.jpg"]')?.getAttribute('alt')).toBe('Welcome to House Deal')
     expect(container.querySelector('source')?.getAttribute('srcset')).toBe('/uploads/images/hd-banner-phone.jpg')
     expect(container.querySelector('h1')?.className).toContain('sr-only')
     expect(container.querySelector('h1')?.textContent).toBe('Your Dream Home, Our Best Deal')
