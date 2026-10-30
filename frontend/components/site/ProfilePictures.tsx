@@ -65,25 +65,18 @@ export function Credit({ pics, name }: { pics: ProfilePicture[]; name?: string }
           From the builder&apos;s brochure, shared by an agent. Renders are artist&apos;s impressions; the plans are indicative. Check the sanctioned plans before you book.
         </p>
       )}
-      {own.length > 0 && <Sites pics={own} lead="From the builder's website:"
+      {own.length > 0 && <Sites pics={own}
         end="Renders are the builder's artist's impressions; the plans are indicative. Check the sanctioned plans before you book." />}
     </>
   )
 }
 
-function Sites({ pics, lead, end }: { pics: ProfilePicture[]; lead: string; end: string }) {
-  const sites = Array.from(new Map(pics.filter((p) => p.site).map((p) => [p.site, p.page_url])).entries())
-  if (!sites.length) return null
+/** The builder's own pages the pictures came from, linked as "the builder's website" (its domain is not printed, owner 2026-10-30). */
+function Sites({ pics, end }: { pics: ProfilePicture[]; end: string }) {
+  const url = pics.find((p) => p.page_url)?.page_url
   return (
     <p className="mt-2 text-xs text-slate-600">
-      {lead}{' '}
-      {sites.map(([site, url], i) => (
-        <React.Fragment key={site}>
-          {i > 0 && ', '}
-          {url ? <a href={url} target="_blank" rel="noopener nofollow" className="underline underline-offset-2">{site}</a> : site}
-        </React.Fragment>
-      ))}
-      . {end}
+      From {url ? <a href={url} target="_blank" rel="noopener nofollow" className="underline underline-offset-2">the builder&apos;s website</a> : "the builder's website"}. {end}
     </p>
   )
 }

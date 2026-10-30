@@ -1,4 +1,5 @@
 import React from 'react'
+import SourceKind from './SourceKind'
 import { formatDay } from '@/lib/site/projects'
 import type { ProjectProfile as Profile } from '@/lib/site/profile'
 import { Credit, Picture, distinctPhotos, sourceOf } from '@/components/site/ProfilePictures'
@@ -30,12 +31,7 @@ export default function ProjectProfile({ profile, name, part, lead, skip, omit =
                 <span>
                   {h.text}.{' '}
                   <span className="text-xs text-slate-500">
-                    ({h.sources.map((s, i) => (
-                      <React.Fragment key={s.url}>
-                        {i > 0 && ', '}
-                        {h.official ? <a href={s.url} target="_blank" rel="noopener nofollow" className="underline underline-offset-2">{s.site}</a> : s.site}
-                      </React.Fragment>
-                    ))})
+                    (<SourceKind sources={h.sources} official={h.official} />)
                   </span>
                 </span>
               </li>

@@ -1,4 +1,5 @@
 import React from 'react'
+import SourceKind from './SourceKind'
 import CostBreakdown from '@/components/site/CostBreakdown'
 import type { Stage } from '@/lib/site/allin'
 import { formatPrice } from '@/lib/site/format'
@@ -30,13 +31,7 @@ export default function PriceBox({ prices, stage }: { prices: ProjectPrices | nu
               </p>
             ) : null}
             <p className="mt-1 text-xs text-slate-600">
-              As listed on{' '}
-              {r.sources.map((s, i) => (
-                <React.Fragment key={s.site}>
-                  {i > 0 && ' and '}
-                  {s.url ? <a href={s.url} target="_blank" rel="noopener nofollow" className="underline underline-offset-2">{s.site} (the builder&apos;s site)</a> : s.site}
-                </React.Fragment>
-              ))}
+              As listed on <SourceKind sources={r.sources} />
               {read ? `, ${read}` : ''}
             </p>
             {r.bhk !== 'Plot' && (

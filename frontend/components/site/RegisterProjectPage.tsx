@@ -2,6 +2,7 @@ import React from 'react'
 import Link from 'next/link'
 import AskPrompt from '@/components/site/AskPrompt'
 import EnquiryForm from '@/components/site/EnquiryForm'
+import SourceKind from '@/components/site/SourceKind'
 import StickyJoinBar from '@/components/marketing/StickyJoinBar'
 import { PROJECT_CTA } from '@/lib/site/strings'
 import { jsonLdString } from '@/lib/marketing/seo'
@@ -206,7 +207,7 @@ function Hero({ p, price, photo }: { p: RegisterProject; price: { from: string; 
           <img src={photo.url} alt={photo.alt} width={photo.width ?? undefined} height={photo.height ?? undefined}
             loading="eager" fetchPriority="high" decoding="async" className="h-full w-full object-cover" />
           <figcaption className="absolute bottom-2 right-2 rounded bg-black/60 px-2 py-0.5 text-xs text-white">
-            {photo.source === 'agent' ? `From ${photo.site}'s listing` : <>The builder&apos;s picture{photo.site ? `, ${photo.site}` : ''}</>}
+            {photo.source === 'agent' ? `From ${photo.site}'s listing` : <>The builder&apos;s picture</>}
           </figcaption>
         </figure>
       )}
@@ -545,21 +546,9 @@ function BuilderRecord({ p }: { p: RegisterProject }) {
   )
 }
 
-/** Where a web fact was read: the builder's own site (linked) or the property sites that agree (named, not linked). */
+/** Where a web fact was read: the builder's own site (linked) or how many property sites agree (never named). */
 function WebSources({ f }: { f: WebFact }) {
-  return (
-    <>
-      {f.sources.map((s, i) => (
-        <React.Fragment key={s.url}>
-          {i > 0 && ', '}
-          {/* only the builder's own site is linked: property sites are named, not linked (we do not send buyers to portals) */}
-          {i === 0 && f.official
-            ? <a href={s.url} target="_blank" rel="noopener nofollow" className="underline underline-offset-2">{s.site} (the builder&apos;s site)</a>
-            : s.site}
-        </React.Fragment>
-      ))}
-    </>
-  )
+  return <SourceKind sources={f.sources} official={f.official} />
 }
 
 /** "whole project (builder's site)": a count the sites give for the whole marketed project, said beside MahaRERA's count for this
