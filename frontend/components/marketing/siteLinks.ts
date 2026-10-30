@@ -1,7 +1,7 @@
 /**
  * The public site's link map: one list the landing header, footer and the /for-agents page share, so every page links to
  * the same places. Instagram and Facebook come from lib/marketing/social (env overridable); the demo page slug from
- * NEXT_PUBLIC_DEMO_AGENT_SLUG (default 'demo').
+ * NEXT_PUBLIC_DEMO_AGENT_SLUG (default 'house-deal': the example agent page).
  */
 import { demoAgentPath } from '@/lib/brand'
 import { socialLinks } from '@/lib/marketing/social'

@@ -5,6 +5,13 @@ import ContactButtons from '@/components/site/ContactButtons'
 import EnquiryForm from '@/components/site/EnquiryForm'
 import Hero from '@/components/site/Hero'
 import ListingBrowser from '@/components/site/ListingBrowser'
+import HomeFinder, { type FinderMap } from '@/components/site/finder/HomeFinder'
+import { parseQuery } from '@/lib/site/finder'
+import { fromListings } from '@/lib/site/finderItems'
+import { getRegisterProjects } from '@/lib/site/register'
+import { getAreaMap } from '@/lib/site/hubs'
+import { isSampleListing } from '@/lib/site/format'
+import { agentPath } from '@/lib/site/slug'
 import SiteShell from '@/components/site/SiteShell'
 import { enquiryName } from '@/lib/site/theme'
 import TrackingBeacon from '@/components/site/TrackingBeacon'
@@ -22,6 +29,7 @@ import DemoRibbon from './DemoRibbon'
 
 interface Props {
   params: Promise<{ slug: string }>
+  searchParams?: Promise<Record<string, string | string[] | undefined>>
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -32,7 +40,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return agentMetadata(agent, items, agentCity(agent, items))
 }
 
-export default async function AgentHomePage({ params }: Props) {
+/** The drawn area map for the chosen area, when there is one (Upper Kharadi, Wagholi, Kharadi). */
+async function finderMaps(area?: string): Promise<Record<string, FinderMap>> {
+  if (!area) return {}
+  const m = await getAreaMap(area.replace(/-/g, '_')).catch(() => null)
+  return m ? { [area]: { name: m.name, map: m.map, box: m.box, attribution: m.attribution } } : {}
+}
+
+export default async function AgentHomePage({ params, searchParams }: Props) {
   const slug = normalizeSlug((await params).slug)
   const agent = slug ? await getAgent(slug) : null
   if (!slug || !agent) notFound()
@@ -41,6 +56,9 @@ export default async function AgentHomePage({ params }: Props) {
   // An agent with projects and no listings: the projects take the 'Properties' anchor the header links to.
   const projectsOnly = projects.length > 0 && items.length === 0
   const msg = whatsappMessage(agent.agent_name)
+  const q = parseQuery(await searchParams)
+  const live = items.filter((x) => !isSampleListing(x.title))
+  const finderItems = live.length ? fromListings(live, slug, await getRegisterProjects(undefined, true)) : []
 
   return (
     <SiteShell agent={agent}>
@@ -60,7 +78,13 @@ export default async function AgentHomePage({ params }: Props) {
       <div className="mx-auto max-w-5xl space-y-12 px-4 py-10">
         <ProjectsSection agentSlug={slug} projects={projects} anchor={projectsOnly ? 'listings' : 'projects'} />
 
-        {!projectsOnly && (
+        {/* the home finder (lib/site/finder): area, budget, size, move-in and the MahaRERA checks over the agent's own listings */}
+        {!projectsOnly && finderItems.length > 0 && (
+          <HomeFinder id="listings" title={`Find your home with ${enquiryName(agent)}`} q={q} basePath={agentPath(slug)} items={finderItems}
+            lead={{ agentSlug: slug, agentName: enquiryName(agent), agentPhone: agent.phone }} maps={await finderMaps(q.area)} />
+        )}
+        {/* only sample homes (the demo agent): the plain list, which labels them */}
+        {!projectsOnly && finderItems.length === 0 && (
           <section id="listings" aria-labelledby="listings-title" className="scroll-mt-16">
             <h2 id="listings-title" className="mb-4 text-2xl font-bold">Properties</h2>
             <ListingBrowser slug={slug} items={items} />

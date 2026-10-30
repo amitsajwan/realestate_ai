@@ -53,6 +53,10 @@ export interface PublicListing {
   updated_at?: string
   published_at?: string | null
   agent?: { slug: string; agent_name: string; phone?: string | null; photo?: string | null }
+  /** the price sheet: every home type with size and price (a project listed with several) */
+  configurations?: { bhk: number; carpet_sqft?: number | null; price_inr?: number | null }[]
+  /** how many sample-flat videos are attached (played from the agent's site) */
+  video_count?: number
 }
 
 export interface AgentBranding {

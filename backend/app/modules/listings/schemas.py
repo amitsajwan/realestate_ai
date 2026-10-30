@@ -335,6 +335,14 @@ class PublicAgent(BaseModel):
     photo: Optional[str] = None
 
 
+class PublicConfiguration(BaseModel):
+    """A price-sheet row as the public sees it; rows written by scripts may carry more keys, which are left out."""
+    model_config = ConfigDict(extra="ignore")
+    bhk: float
+    carpet_sqft: Optional[int] = None
+    price_inr: Optional[int] = None
+
+
 class PublicListing(BaseModel):
     """Listing minus agent-private fields (visibility, freshness_confirmed_at, agent_id) plus the agent card."""
     model_config = ConfigDict(extra="ignore")
@@ -359,6 +367,19 @@ class PublicListing(BaseModel):
     amenities: List[str] = Field(default_factory=list)
     media: List[PublicMedia] = Field(default_factory=list)
     about: Optional[PublicAbout] = None
+    # the price sheet (every home type with size and price) and whether the agent's sample-flat videos are attached: the home
+    # finder matches a buyer's BHK and budget against the real rows, not the project's lowest price (owner 2026-10-30)
+    configurations: List["PublicConfiguration"] = Field(default_factory=list)
+    video_count: int = 0
+
+    @model_validator(mode="before")
+    @classmethod
+    def _videos(cls, v):
+        if isinstance(v, dict) and "video_count" not in v:
+            v = {**v, "video_count": len(v.get("videos") or [])}
+        if isinstance(v, dict) and v.get("configurations") is None:
+            v = {**v, "configurations": []}
+        return v
 
     @field_validator("media", mode="before")
     @classmethod

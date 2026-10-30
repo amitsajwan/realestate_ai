@@ -728,8 +728,18 @@ async def listing(db, area: Optional[str] = None, only_indexable: bool = True, l
         docs = [d for d in docs if indexable(d)]
     docs.sort(key=lambda d: (_day(d.get("last_modified")) or "", d.get("name", "")), reverse=True)
     stamps = cluster_stamps(every)
-    from .prices import price_from
-    return [{"slug": d["page_slug"], "regno": d.get("regno") or d["_id"], "name": d.get("name", ""), "marketed_name": names(d)[0],
+    from .prices import price_from, public as shown_prices
+
+    def finder(d: dict) -> dict:
+        """What the home finder filters on (owner 2026-10-30): each size's lowest published price, months the builder moved the
+        filed date, and the checked map position."""
+        rows = (shown_prices(d.get("prices")) or {}).get("rows") or []
+        geo = d.get("geo") or {}
+        placed = geo.get("lat") is not None and (((d.get("enrichment") or {}).get("steps") or {}).get("places") or {}).get("ok")
+        return {"homes": [{"bhk": r["bhk"], "from_inr": r["from_inr"]} for r in rows], "months_later": months_later(d),
+                "map": {"lat": geo["lat"], "lon": geo["lon"]} if placed else None}
+
+    return [{**finder(d), "slug": d["page_slug"], "regno": d.get("regno") or d["_id"], "name": d.get("name", ""), "marketed_name": names(d)[0],
              "search_name": d.get("search_name") or None,
              "area": d.get("locality"), "units_total": _count(d.get("units_total")), "units_booked": booked(d),
              "place": d.get("pune_place"), "place_name": d.get("pune_place_name"),

@@ -261,6 +261,10 @@ export interface RegisterListItem {
   /** our own last change to the page (details read, enrichment, page text): the sitemap lastmod; never MahaRERA dates */
   page_updated?: string | null
   indexable: boolean
+  /** for the home finder: each size's lowest published price, months the builder moved the filed date, the checked position */
+  homes?: { bhk: string; from_inr: number }[]
+  months_later?: number | null
+  map?: { lat: number; lon: number } | null
 }
 
 /** Retried as getJson in ./api (./retry): a deploy's restart gives a slow page, not a 5xx. */

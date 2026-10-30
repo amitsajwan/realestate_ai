@@ -34,18 +34,18 @@ describe('/for-agents brochure', () => {
     }
   })
 
-  it('links to the free-trial page, the demo agent page, Instagram, /go and /news', () => {
+  it('links to the free-trial page, the sample agent page, Instagram, /go and /news', () => {
     render(<ForAgentsPage />)
     const article = screen.getByRole('article')
     const hrefs = within(article).getAllByRole('link').map((a) => a.getAttribute('href'))
-    expect(hrefs).toEqual(expect.arrayContaining(['/trial', '/agent/demo', socialLinks().instagram, '/go', '/news']))
+    expect(hrefs).toEqual(expect.arrayContaining(['/trial', '/agent/house-deal', socialLinks().instagram, '/go', '/news']))
     expect(within(article).getAllByRole('link', { name: /claim your free trial/i }).length).toBeGreaterThanOrEqual(2)
   })
 
   it('prints the links as addresses and keeps the brand colours in print', () => {
     const { container } = render(<ForAgentsPage />)
     const host = siteUrl().replace(/^https?:\/\//, '')
-    expect(container.textContent).toContain(host + '/agent/demo')
+    expect(container.textContent).toContain(host + '/agent/house-deal')
     expect(container.textContent).toContain(host + '/go')
     expect(screen.getByTestId('print-invite')).toHaveTextContent(host + '/trial')
     const css = container.querySelector('style')!.innerHTML

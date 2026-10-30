@@ -13,7 +13,7 @@ jest.mock('@/components/marketing/BuyerProjectLinks', () => ({ __esModule: true,
 const cfg = buildMarketingConfig({})
 const EXPECTED: Array<[RegExp, string]> = [
   [/^for agents$/i, '/agents'],
-  [/^see a sample agent page$/i, '/agent/demo'],
+  [/^see a sample agent page$/i, '/agent/house-deal'],
   [/^news$/i, '/news'],
   [/^posts$/i, '/posts'],
   [/^area guides$/i, '/localities'],

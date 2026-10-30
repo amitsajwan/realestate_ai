@@ -83,7 +83,7 @@ export default function ForAgentsPage() {
   const site = siteUrl()
   const inviteUrl = site + INVITE_PATH
   const live = [
-    { label: 'A demo agent page', note: 'What your page looks like (fictional agent, sample homes)', href: demoAgentPath(), url: site + demoAgentPath() },
+    { label: 'An agent page', note: 'What your page looks like: House Deal, Upper Kharadi', href: demoAgentPath(), url: site + demoAgentPath() },
     { label: `${BRAND_NAME} on Instagram`, note: 'Designed posts and reels', href: s.instagram.href, url: s.instagram.href, external: true },
     { label: 'Latest homes and posts', note: 'The tap-to-show-interest hub', href: '/go', url: site + '/go' },
     { label: 'Pune property news', note: 'Plain-language news, with sources', href: '/news', url: site + '/news' },

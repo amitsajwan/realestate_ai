@@ -37,8 +37,9 @@ export const DEFAULT_SITE_URL = 'https://avasetu.in'
 /** The public site origin (no trailing slash): NEXT_PUBLIC_SITE_URL, else the production default. Printed links and QR codes use it. */
 export const siteUrl = (): string => ((process.env.NEXT_PUBLIC_SITE_URL || '').trim() || DEFAULT_SITE_URL).replace(/\/+$/, '')
 
-/** Slug of the fictional demo agent page (backend/scripts/create_demo_agent.py creates it): NEXT_PUBLIC_DEMO_AGENT_SLUG, else 'demo'. */
-export const DEFAULT_DEMO_AGENT_SLUG = 'demo'
+/** The agent page shown to agents as an example: NEXT_PUBLIC_DEMO_AGENT_SLUG, else House Deal's (owner 2026-10-30: the fictional
+ *  /agent/demo page was removed; a real agent's page, their own listings, is the example). */
+export const DEFAULT_DEMO_AGENT_SLUG = 'house-deal'
 export const demoAgentSlug = (): string => {
   const v = (process.env.NEXT_PUBLIC_DEMO_AGENT_SLUG || '').trim().toLowerCase()
   return /^[a-z0-9][a-z0-9-]{0,59}$/.test(v) ? v : DEFAULT_DEMO_AGENT_SLUG
