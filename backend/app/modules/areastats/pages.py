@@ -736,8 +736,11 @@ async def listing(db, area: Optional[str] = None, only_indexable: bool = True, l
         rows = (shown_prices(d.get("prices")) or {}).get("rows") or []
         geo = d.get("geo") or {}
         placed = geo.get("lat") is not None and (((d.get("enrichment") or {}).get("steps") or {}).get("places") or {}).get("ok")
+        photo = next((p for p in shown_pictures((d.get("profile") or {}).get("photos"), drawn=False) if p.get("path")), None)
         return {"homes": [{"bhk": r["bhk"], "from_inr": r["from_inr"]} for r in rows], "months_later": months_later(d),
-                "map": {"lat": geo["lat"], "lon": geo["lon"]} if placed else None}
+                "map": {"lat": geo["lat"], "lon": geo["lon"]} if placed else None,
+                # the card's picture: the first one a page may show (never one copied from another site), as the area map's
+                "photo": "/uploads/" + photo["path"] if photo else None}
 
     return [{**finder(d), "slug": d["page_slug"], "regno": d.get("regno") or d["_id"], "name": d.get("name", ""), "marketed_name": names(d)[0],
              "search_name": d.get("search_name") or None,

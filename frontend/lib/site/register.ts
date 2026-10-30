@@ -265,6 +265,8 @@ export interface RegisterListItem {
   homes?: { bhk: string; from_inr: number }[]
   months_later?: number | null
   map?: { lat: number; lon: number } | null
+  /** the card's picture: the builder's or the brochure's (never copied from another site, never an AI drawing) */
+  photo?: string | null
 }
 
 /** Retried as getJson in ./api (./retry): a deploy's restart gives a slow page, not a 5xx. */

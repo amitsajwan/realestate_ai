@@ -51,3 +51,12 @@ it('lives in the address: a shared link opens the same answers, and junk is drop
 it('with nothing asked the page is grouped by area, biggest first', () => {
   expect(byArea(ALL).map((g) => [g.area, g.items.length])).toEqual([['Kharadi', 2], ['Upper Kharadi', 1], ['Wagholi', 1]])
 })
+
+it("an agent's homes with a price come before 'price on request', and MahaRERA's capitals read as a name", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { fromListings, fromRegister } = require('@/lib/site/finderItems')
+  const l = (id: string, price: number | null) => ({ id, title: id, price_inr: price, property_type: 'apartment', locality: 'Wagholi', media: [] })
+  expect(fromListings([l('villa', null), l('flat', 9_000_000)], 'house-deal', []).map((i: { id: string }) => i.id)).toEqual(['flat', 'villa'])
+  const reg = [{ slug: 'r', regno: 'P1', name: 'R', area: 'wagholi', completion_now: null, listed_or_updated: null, indexable: true, promoter: 'INTOFINITY PROMOTERS PRIVATE LIMITED' }]
+  expect(fromRegister(reg, new Map())[0].builder).toBe('Intofinity Promoters')
+})

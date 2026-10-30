@@ -1,6 +1,7 @@
 import { LOCALITIES } from '@/lib/marketing/localities'
 import { bhkOf, type FinderItem, type HomeType } from './finder'
 import { displayName, type RegisterListItem } from './register'
+import { readableName } from './format'
 import { firstImage } from './seo'
 import { agentPath } from './slug'
 import type { PublicListing } from './types'
@@ -13,7 +14,9 @@ const areaName = (key: string | null | undefined, fallback?: string | null) => L
 /** An agent's live listings, each with its MahaRERA record when we hold it (possession, the date's moves, homes booked, the map). */
 export function fromListings(listings: PublicListing[], slug: string, register: RegisterListItem[]): FinderItem[] {
   const byRegno = new Map(register.map((r) => [r.regno.toUpperCase(), r]))
-  return listings.map((l, rank) => {
+  // the agent's order (newest first), but a home with a price before one without (a "price on request" villa does not lead)
+  const ordered = [...listings].sort((a, b) => Number(!a.price_inr) - Number(!b.price_inr))
+  return ordered.map((l, rank) => {
     const r = l.rera_no ? byRegno.get(l.rera_no.trim().toUpperCase()) : undefined
     const sheet = (l.configurations ?? []).filter((c) => c.bhk)
     const homes = sheet.length
@@ -39,11 +42,13 @@ export function fromRegister(items: RegisterListItem[], offers: Map<string, Agen
     const own = offers.get(r.regno.toUpperCase())
     const agent = own ? fromListings([own.listing], 'x', [r])[0] : null
     return {
-      id: r.slug, href: `/projects/${r.slug}`, name: displayName(r), builder: r.promoter ?? null,
+      id: r.slug, href: `/projects/${r.slug}`, name: displayName(r),
+      // "INTOFINITY PROMOTERS PRIVATE LIMITED" as MahaRERA files it reads as shouting on a card
+      builder: r.promoter ? readableName(r.promoter).replace(/\s+(private|pvt\.?)\s+(limited|ltd\.?)$/i, '').replace(/\s+(llp|limited|ltd\.?)$/i, '') : null,
       area: areaName(r.area, r.place_name), type: agent?.type ?? null,
       homes: agent?.homes ?? ((r.homes ?? []).length ? r.homes!.map((h) => ({ bhk: bhkOf(h.bhk), price: h.from_inr })) : [{ bhk: null, price: r.price_from ?? null }]),
       possession: r.completion_now, monthsLater: r.months_later ?? null, booked: r.units_booked ?? null, total: r.units_total ?? null,
-      video: agent?.video ?? false, image: agent?.image ?? null, map: r.map ?? null, listedBy: own?.agentName ?? null,
+      video: agent?.video ?? false, image: agent?.image ?? r.photo ?? null, map: r.map ?? null, listedBy: own?.agentName ?? null,
     }
   })
   const score = (i: FinderItem) => (i.listedBy ? 1e9 : 0) + (i.homes.some((h) => h.price != null) ? 1e8 : 0) + (i.booked ?? 0)

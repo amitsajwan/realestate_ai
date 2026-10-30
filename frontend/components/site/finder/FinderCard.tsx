@@ -1,5 +1,6 @@
 import React from 'react'
 import Link from 'next/link'
+import Skyline from '@/components/site/Skyline'
 import { formatArea, formatPrice } from '@/lib/site/format'
 import { monthYear } from '@/lib/site/register'
 import { bookedShare, matchingHomes, MAX_COMPARE, toSearch, type FinderItem, type FinderQuery } from '@/lib/site/finder'
@@ -32,8 +33,10 @@ export default function FinderCard({ item, q, basePath, anchor = '' }: { item: F
           // eslint-disable-next-line @next/next/no-img-element
           <img src={item.image} alt={item.name} loading="lazy" className="h-full w-full object-cover" />
         ) : (
-          <span aria-hidden className="flex h-full w-full items-end bg-gradient-to-br from-[var(--site-primary,#0f2340)] to-slate-700 p-4 text-2xl font-extrabold text-white/90">
-            {item.name}
+          // no picture yet: a light card with the site's skyline drawing, not a block of colour (owner 2026-10-30)
+          <span className="flex h-full w-full flex-col justify-end bg-gradient-to-b from-slate-50 to-slate-100">
+            <span className="px-4 pb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Pictures coming soon</span>
+            <Skyline className="block h-20 w-full" tower="#cbd5e1" lit="#f0b440" />
           </span>
         )}
         {item.video && <span className="absolute left-2 top-2 rounded-full bg-black/70 px-2.5 py-1 text-xs font-semibold text-white">▶ Video</span>}
