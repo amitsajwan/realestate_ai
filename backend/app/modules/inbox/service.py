@@ -44,6 +44,15 @@ FOLLOWUP_BODY = ("Namaste {} ji, this is Avasetu. You asked about a {} in Pune (
                  "2. Ready to move, or under construction is fine?\n"
                  "3. Is it for your family to live in, or an investment?\n\n"
                  "Hindi mein baat karna ho to bataiye.")
+# An enquiry on a project page already says where and what (2026-10-30: Subhash Girase asked for a site visit at 96 Arrcade,
+# Kharadi, and the template above asked him which part of Pune he wanted). It gets this one; until Meta approves it the send fails
+# and FOLLOWUP_TEMPLATE goes instead, so no lead waits.
+PROJECT_TEMPLATE = "project_enquiry_v1"   # UTILITY, submitted 2026-10-30; the body below must match Meta's copy
+PROJECT_BODY = ("Namaste {} ji, this is Avasetu. Thank you for asking about {} on our website.\n\n"
+                "You asked for {}. Our team will call you shortly about it.\n\n"
+                "If you have a question before that, reply here. Hindi mein baat karna ho to bataiye.\n\n"
+                "Avasetu team")
+PROJECT_WANT = {"A site visit": "a site visit", "Floor plans": "the floor plans"}
 
 
 class InboxError(Exception):
@@ -309,9 +318,16 @@ class InboxService:
                     "data": adapters.new_chat_state("+" + digits, name or None), "messages": [], "created_at": now, "opted_out": False,
                     "notice_sent_at": None, "lead_id": lead_id, "context": None, "language": None, "needs_human_notified": False, "replies": []}
             await self.c("whatsapp_conversations").insert_one(conv)
-        params = followup_params(lead)
-        text = FOLLOWUP_BODY.format(*params)
-        rec = await self.whatsapp.send_template(conv, FOLLOWUP_TEMPLATE, "en", params, text, now)
+        project = await self.project_of(lead)
+        rec = None
+        if project:
+            params = project_params(lead, project)
+            text = PROJECT_BODY.format(*params)
+            rec = await self.whatsapp.send_template(conv, PROJECT_TEMPLATE, "en", params, text, now)
+        if rec is None or rec["status"] == "failed":
+            params = followup_params(lead, project)
+            text = FOLLOWUP_BODY.format(*params)
+            rec = await self.whatsapp.send_template(conv, FOLLOWUP_TEMPLATE, "en", params, text, now)
         await self.c("whatsapp_messages").update_one({"_id": rec["_id"]}, {"$set": {"sent_by": by}})
         if rec["status"] not in ("sent", "dry_run"):
             raise InboxError(f"Not sent: {rec.get('error') or rec['status']}", 502)
@@ -633,15 +649,28 @@ def _money(inr) -> str:
     return f"Rs {inr / 1e7:.2f}".rstrip("0").rstrip(".") + " Cr" if inr >= 1e7 else f"Rs {inr / 1e5:.0f} L"
 
 
-def followup_params(lead: dict) -> List[str]:
-    """{{1}} name, {{2}} what they want, {{3}} the budget or where they asked; WhatsApp rejects empty or multi-line parameters."""
-    req = lead.get("requirement") or {}
+def _first_name(lead: dict) -> str:
     name = (lead.get("name") or "").split()
+    return name[0][:40] if name else "Sir"
+
+
+def project_params(lead: dict, project: dict) -> List[str]:
+    """{{1}} name, {{2}} the project and its area, {{3}} what they asked for on its page (the form's line, handover.ask_of)."""
+    where = f", {project['area']}" if project.get("area") else ""
+    want = PROJECT_WANT.get(handover.ask_of(lead.get("message"))["want"] or "", "the price sheet and floor plans")
+    return [_first_name(lead), re.sub(r"\s+", " ", f"{project['name']}{where}").strip()[:100], want]
+
+
+def followup_params(lead: dict, project: Optional[dict] = None) -> List[str]:
+    """{{1}} name, {{2}} what they want, {{3}} the budget, else the area they asked about, else 'your enquiry on our website';
+    WhatsApp rejects empty or multi-line parameters."""
+    req = lead.get("requirement") or {}
     bhk = req.get("bhk")
     what = f"{int(bhk) if float(bhk).is_integer() else bhk} BHK home" if bhk else "home"
     lo, hi = req.get("budget_min_inr"), req.get("budget_max_inr")
     budget = f"{_money(lo)} to {_money(hi)}" if lo and hi and lo != hi else f"up to {_money(hi)}" if hi else ""
-    return [name[0][:40] if name else "Sir", what, budget or "your enquiry on our website"]
+    area = (project or {}).get("area") or ", ".join(req.get("localities") or [])[:60]
+    return [_first_name(lead), what, budget or area or "your enquiry on our website"]
 
 
 def _live(profile: dict) -> bool:

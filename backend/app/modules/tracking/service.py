@@ -3,13 +3,24 @@ import logging
 import re
 import uuid
 from datetime import datetime, timedelta
-from typing import Callable, List, Optional
+from typing import Awaitable, Callable, List, Optional
+
+from app.core import areas
 
 from . import contact as contactmod, device, limits, matching, origin, outcomes, requirement as reqmod, scoring, summary, visitor
 from .followup import Polish, build_draft, listing_label, polish_safely, whatsapp_url
 from .schemas import DraftIn, EventIn, InquiryIn, PingIn, StageUpdate
 
 logger = logging.getLogger(__name__)
+
+# (db, project page slug) -> the project's area name, or None; set by app/wiring.py (project pages sit above tracking)
+_project_area: Optional[Callable[[object, str], Awaitable[Optional[str]]]] = None
+
+
+def configure(project_area: Optional[Callable[[object, str], Awaitable[Optional[str]]]] = None) -> None:
+    global _project_area
+    _project_area = project_area
+
 
 BOT_MARKERS = ("bot", "crawler", "spider", "preview", "facebookexternalhit", "whatsapp/", "curl", "python-requests")
 MAX_EVENTS_PER_ANON_PER_MINUTE = 60
@@ -202,8 +213,30 @@ class TrackingService:
                 fields["localities"], sources["localities"] = [listing["locality"]], "default"
             if "bhk" not in sources and listing.get("bhk"):
                 fields["bhk"], sources["bhk"] = listing["bhk"], "default"
+        if "localities" not in sources:
+            # an enquiry on a project or area page is about that area (2026-10-30: Subhash asked for a visit at 96 Arrcade, Kharadi,
+            # and our follow-up asked him which part of Pune he wanted, because his lead had no area)
+            area = await self._page_area(i.path)
+            if area:
+                fields["localities"], sources["localities"] = [area], "default"
         # a buyer who only enquired about a listing has no requirement worth storing beyond its defaults
         return fields, sources
+
+    async def _page_area(self, path: Optional[str]) -> Optional[str]:
+        """The area of the page a form was on: /projects/area/<area>/... by its slug, /projects/<slug> by the project's area."""
+        path = (path or "").split("?")[0]
+        m = re.match(r"^/projects/area/([a-z0-9-]{1,60})(/|$)", path)
+        if m:
+            area = areas.get(m.group(1))
+            return area.name if area else None
+        m = re.match(r"^/projects/([a-z0-9-]{1,120})$", path)
+        if not m or _project_area is None:
+            return None
+        try:   # a lookup failure never loses the enquiry
+            return await _project_area(self.db, m.group(1))
+        except Exception:
+            logger.exception("project area lookup failed for %s", path)
+            return None
 
     # ---- agent-facing (owner scoped) ----
 

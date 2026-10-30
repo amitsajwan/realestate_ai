@@ -83,3 +83,62 @@ async def test_waiting_alert_once_per_wait_and_again_when_they_write_again():
     assert await followups.waiting_alerts(db, NOW + timedelta(hours=3), notify) == 2   # Veebha again, and 'fresh' is now 4 h old
     again = [t for t in told[1:] if t[2] == "veebha"]
     assert len(again) == 1 and "replied" in again[0][3]
+
+
+class Templates(FakeWhatsApp):
+    """Records which template went with which parameters; `refuse` names templates Meta has not approved yet."""
+
+    def __init__(self, refuse=()):
+        super().__init__()
+        self.refuse, self.names = refuse, []
+
+    async def send_template(self, conv, name, lang, params, text, now):
+        self.names.append((name, params, text))
+        if name in self.refuse:
+            return {"_id": f"m{len(self.names)}", "status": "failed", "error": "template not approved"}
+        return {"_id": f"m{len(self.names)}", "status": "sent"}
+
+
+ARRCADE = {"slug": "96-arrcade-kharadi", "name": "96 Arrcade", "area": "Kharadi", "regno": "P52100078739"}
+
+
+def subhash():
+    return lead("subhash", name="Subhash Girase", message="About Site visit: 96 Arrcade (MahaRERA P52100078739)",
+                requirement={"bhk": 2, "localities": []}, first_touch={"landing": "/projects/area/kharadi/2-bhk?utm_source=chatgpt.com",
+                                                                       "enquiry_page": "/projects/96-arrcade-kharadi"})
+
+
+async def project_inbox(db, wa):
+    inbox = InboxService(db, wa, now=lambda: NOW)
+
+    async def project_of(c):
+        return ARRCADE if (c.get("first_touch") or {}).get("enquiry_page") == "/projects/96-arrcade-kharadi" else None
+
+    inbox.project_of = project_of
+    return inbox
+
+
+async def test_a_project_page_enquiry_gets_the_project_and_what_they_asked_for_not_which_part_of_pune():
+    db = await setup(subhash())
+    wa = Templates()
+    assert await followups.auto_followups(db, await project_inbox(db, wa), "A", NOW) == 1
+    [(name, params, text)] = wa.names
+    assert name == "project_enquiry_v1" and params == ["Subhash", "96 Arrcade, Kharadi", "a site visit"]
+    assert "part of Pune" not in text
+    conv = await db.get_collection("whatsapp_conversations").find_one({"_id": "P:919730369091"})
+    assert conv["messages"][-1]["text"] == text
+
+
+async def test_until_meta_approves_the_project_template_the_old_one_goes_with_the_area():
+    db = await setup(subhash())
+    wa = Templates(refuse=("project_enquiry_v1",))
+    assert await followups.auto_followups(db, await project_inbox(db, wa), "A", NOW) == 1
+    assert [n for n, _, _ in wa.names] == ["project_enquiry_v1", "enquiry_followup_v1"]
+    assert wa.names[1][1] == ["Subhash", "2 BHK home", "Kharadi"]
+
+
+async def test_an_enquiry_off_a_project_page_keeps_the_general_follow_up():
+    db = await setup(lead("rahul", message="Call me", first_touch={"enquiry_page": "/agent/avasetu"}))
+    wa = Templates()
+    assert await followups.auto_followups(db, await project_inbox(db, wa), "A", NOW) == 1
+    assert [(n, p) for n, p, _ in wa.names] == [("enquiry_followup_v1", ["Rahul", "home", "your enquiry on our website"])]

@@ -144,3 +144,24 @@ async def test_stage_update_with_note_and_hottest_first():
     out = await svc.update_stage("A1", leads[0]["id"], StageUpdate(stage="site_visit", note="Visit Sat 11am"))
     assert out["stage"] == "site_visit" and out["notes"][0]["text"] == "Visit Sat 11am"
     assert [l["id"] for l in await svc.list_leads("A1", stage="site_visit")] == [leads[0]["id"]]
+
+
+async def test_an_enquiry_on_a_project_or_area_page_is_about_that_area(monkeypatch):
+    # Subhash (2026-10-30) asked for a visit on the 96 Arrcade, Kharadi page; his lead had no area, so our follow-up asked which part
+    # of Pune he wanted
+    from app.modules.tracking import service as tracking_service
+
+    async def project_area(db, slug):
+        return {"96-arrcade-kharadi": "Kharadi"}.get(slug)
+
+    monkeypatch.setattr(tracking_service, "_project_area", project_area)
+    svc, db, _ = await make()
+    contacts = db.get_collection("contacts")
+    await svc.capture_inquiry(inquiry(listing_id=None, message="About Site visit: 96 Arrcade (MahaRERA P52100078739)",
+                                      path="/projects/96-arrcade-kharadi"))
+    assert (await contacts.find_one({"phone": "+919876543210"}))["requirement"]["localities"] == ["Kharadi"]
+    await svc.capture_inquiry(inquiry(listing_id=None, phone="98765 43211", message="Call me", path="/projects/area/upper-kharadi/2-bhk"))
+    assert (await contacts.find_one({"phone": "+919876543211"}))["requirement"]["localities"] == ["Upper Kharadi"]
+    # a place they name themselves wins over the page's
+    await svc.capture_inquiry(inquiry(listing_id=None, phone="98765 43212", message="2bhk in Baner", path="/projects/96-arrcade-kharadi"))
+    assert (await contacts.find_one({"phone": "+919876543212"}))["requirement"]["localities"] == ["Baner"]

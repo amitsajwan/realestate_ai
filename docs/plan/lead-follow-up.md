@@ -40,6 +40,13 @@ come in, leads of the last 24 h only), 3 (one Studio alert per 2 h+ wait, kind l
 leads live; no owner WhatsApp/email yet: that needs a paid alert template) and 11 (timeline points in the score). Loop:
 inbox/followups.py, role conversations.
 
+LIVE 2026-10-30: **a project page enquiry is answered as one.** Subhash Girase asked for a site visit on the 96 Arrcade, Kharadi page
+(from ChatGPT) and the follow-up asked him which part of Pune he wanted. Now an enquiry on `/projects/<slug>` gets UTILITY template
+`project_enquiry_v1` ("Thank you for asking about 96 Arrcade, Kharadi ... You asked for a site visit. Our team will call you
+shortly"; submitted 2026-10-30, id 1363081072448084). Until Meta approves it, `enquiry_followup_v1` goes instead, with the area in
+place of "your enquiry on our website" when there is no budget. The lead record also gets the page's area (project page or
+`/projects/area/<area>/...`) when the buyer names none (tracking `_page_area`, the project lookup passed in by `wiring.py`).
+
 TARGET, in this order:
 5. **Contact status on every lead**, worked out by code, shown on the list row and the lead page:
    "Not contacted · 14 h" (red after 2 h) / "Follow-up sent 7:45, no reply" / "Replied 9:08 · waiting for you" / "Bot is talking".

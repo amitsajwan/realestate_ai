@@ -83,6 +83,15 @@ def wire() -> None:
     from app.modules.ai_listing import router as ai_listing_routes
     from app.modules.newsroom.store import Store as NewsroomStore
     ai_listing_routes.configure(register=NewsroomStore)
+    # an enquiry on a project page is about the project's area (buyers' lead record reads inventory's project pages)
+    from app.modules.tracking import service as tracking_service
+    tracking_service.configure(project_area=_project_area)
+
+
+async def _project_area(db, slug: str):
+    from app.modules.areastats.pages import chat_brief
+
+    return ((await chat_brief(db, slug)) or {}).get("area")
 
 
 async def _tell_owner_about_invite_request(name: str, city: str) -> None:
