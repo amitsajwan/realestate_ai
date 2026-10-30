@@ -79,7 +79,9 @@ export default async function ListingPage({ params }: Props) {
   // with this listing's sheet and photos, in the agent's colours and with enquiries to them (owner 2026-10-30: "the listing
   // is what sells; why should it not have it")
   const register = isSampleListing(l.title) ? null : await getRegisterProjectByRegno(l.rera_no || project?.rera_no)
-  const facts = await getPropertyFacts({ rera: register?.regno || l.rera_no || project?.rera_no, project: projectLabel, locality: l.locality, listing: l.id })
+  // the listing's own number first: a project MahaRERA files in phases is one page under its first phase's number, and the
+  // sheet kept for a phase 2 listing is only found by phase 2's (Yashwin Enchante lost its pictures and prices, 2026-10-30)
+  const facts = await getPropertyFacts({ rera: l.rera_no || register?.regno || project?.rera_no, project: projectLabel, locality: l.locality, listing: l.id })
 
   if (register) {
     // the agent's other live listings, same area first: what "More from <agent>" shows instead of other agents' projects
@@ -91,7 +93,8 @@ export default async function ListingPage({ params }: Props) {
         <TrackingBeacon agentSlug={slug} listingId={l.id} />
         <DemoRibbon agent={agent} />
         <RegisterProjectPage p={register} siteUrl={siteOrigin()} facts={facts}
-          seller={{ slug, name: enquiryName(agent), home: agentPath(slug), listingId: l.id, others }} />
+          seller={{ slug, name: enquiryName(agent), home: agentPath(slug), listingId: l.id, others,
+            photos: (l.media || []).filter((m) => m.kind === 'image').sort((a, b) => a.order - b.order).map((m) => m.url) }} />
       </SiteShell>
     )
   }

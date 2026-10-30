@@ -709,6 +709,9 @@ export interface Seller {
   /** the agent's other live listings, same area first: "More from <agent>" takes the place of other projects (owner
    *  2026-10-30: on an agent's page they sell their own homes, so it links nowhere else) */
   others?: PublicListing[]
+  /** the listing's own pictures, in the agent's order: shown when the kept facts carry none for it (a project with no facts
+   *  record yet, or one whose record has no offer: VTP Aurelia, Yashoda East Rise, 2026-10-30) */
+  photos?: string[]
 }
 
 export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], whatsappUrl, seller }: { p: RegisterProject; siteUrl: string; facts: PropertyFactsView | null; lists?: FacetLink[]; whatsappUrl?: string | null; seller?: Seller }) {
@@ -725,10 +728,10 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
   // the same copies the gallery keeps (a render saved twice shows once), so the hero's picture is the one the gallery skips
   const offer = (facts as unknown as { offer?: Offer } | null)?.offer
   // the listing agent's photos come first (owner 2026-10-30: the agent sells it), then the builder's
-  const listed: ProfilePicture[] = offer?.agent && offer.agent.slug !== HOUSE_AGENT
-    ? (offer.photos ?? []).map((x, i) => ({ url: x.url, width: x.width ?? null, height: x.height ?? null, alt: `${shown}, picture ${i + 1}`,
-        site: offer.agent!.name, page_url: null, source: 'agent' as const }))
-    : []
+  const kept = offer?.agent && offer.agent.slug !== HOUSE_AGENT ? (offer.photos ?? []) : []
+  const pics = kept.length ? kept : (seller?.photos ?? []).map((url) => ({ url, width: null, height: null }))
+  const listed: ProfilePicture[] = pics.map((x, i) => ({ url: x.url, width: x.width ?? null, height: x.height ?? null, alt: `${shown}, picture ${i + 1}`,
+    site: kept.length ? offer!.agent!.name : seller!.name, page_url: null, source: 'agent' as const }))
   const ownPhotos = [...listed, ...distinctPhotos(p.profile?.photos ?? []).filter((x) => (x.source ?? 'builder') === 'builder' && !!x.url)]
   // the hero's picture: the first one; the gallery below starts from the next, so it is not shown twice
   const heroPhoto = ownPhotos[0] ?? null

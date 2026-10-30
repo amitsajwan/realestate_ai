@@ -488,4 +488,12 @@ describe("on the agent's own listing page", () => {
     expect(screen.queryByTestId('compare')).toBeNull()
     expect(screen.queryByTestId('same-promoter')).toBeNull()
   })
+
+  it("shows the listing's own pictures when the kept facts carry none for it (no record, or a record with no offer)", () => {
+    const { container } = render(<RegisterProjectPage p={EDEN} siteUrl="https://avasetu.in" facts={null}
+      seller={{ slug: 'house-deal', name: 'House Deal', home: '/agent/house-deal', listingId: 'l1',
+        photos: ['/uploads/images/hd-vtp-aurelia-01.jpg', '/uploads/images/hd-vtp-aurelia-02.jpg'] }} />)
+    expect(container.querySelector('img[src="/uploads/images/hd-vtp-aurelia-01.jpg"]')).not.toBeNull()
+    expect(container.querySelector('img[src="/uploads/images/hd-vtp-aurelia-02.jpg"]')).not.toBeNull()
+  })
 })
