@@ -2,6 +2,7 @@ import React from 'react'
 import Link from 'next/link'
 import AskPrompt from '@/components/site/AskPrompt'
 import EnquiryForm from '@/components/site/EnquiryForm'
+import ListingCard from '@/components/site/ListingCard'
 import SourceKind from '@/components/site/SourceKind'
 import StickyJoinBar from '@/components/marketing/StickyJoinBar'
 import { PROJECT_CTA } from '@/lib/site/strings'
@@ -20,7 +21,7 @@ import { areaName, askedPrices, bhkRange, completionChange, displayName, extensi
   otherNames, projectFaq, placePath, STAGE_LABEL, STAGE_NOTE } from '@/lib/site/register'
 import type { EnrichCheck, Faq, Offer } from '@/lib/site/register'
 import type { ProfilePicture } from '@/lib/site/profile'
-import type { PropertyFactsView } from '@/lib/site/types'
+import type { PropertyFactsView, PublicListing } from '@/lib/site/types'
 import type { WebFact } from '@/lib/site/webfacts'
 import { formatPrice, groupIndian } from '@/lib/site/format'
 import { displayPhone } from '@/lib/app/format'
@@ -182,7 +183,7 @@ function brandLine(p: RegisterProject): string | null {
  *  the four things a buyer asks first (home types, price, possession, how many are booked) and the two actions. The picture comes
  *  first on phones because a navy card of numbers was all the first screen showed (design review 2026-10-25); it is only ever
  *  the builder's own picture, never an AI illustration standing in for a real one. */
-function Hero({ p, price, photo }: { p: RegisterProject; price: { from: string; bhks: string } | null; photo: ProfilePicture | null }) {
+function Hero({ p, price, photo, linkless = false }: { p: RegisterProject; price: { from: string; bhks: string } | null; photo: ProfilePicture | null; linkless?: boolean }) {
   const stats: { label: string; value: React.ReactNode; sub?: React.ReactNode; id: string }[] = []
   // the agent's live sheet when there is one, else the portals' prices: one price on the page, never both
   const asked = price ?? askedPrices(p)
@@ -227,7 +228,8 @@ function Hero({ p, price, photo }: { p: RegisterProject; price: { from: string; 
       {p.group && (
         <p className="mt-2 text-base text-white" data-testid="group">
           Sold as <span className="font-semibold">{p.group.name}</span>{p.group.tower ? ` (${p.group.tower})` : ''} —{' '}
-          <Link href={p.group.path} className="inline-flex min-h-[44px] items-center font-semibold text-amber-300 underline underline-offset-2">see all {p.group.towers} towers</Link>
+          {linkless ? <span className="font-semibold text-amber-300">{p.group.towers} towers</span>
+            : <Link href={p.group.path} className="inline-flex min-h-[44px] items-center font-semibold text-amber-300 underline underline-offset-2">see all {p.group.towers} towers</Link>}
         </p>
       )}
       <p className="mt-2 text-base text-slate-200">{[brandLine(p), where, p.pincode].filter(Boolean).join(' · ')}</p>
@@ -512,7 +514,7 @@ function TowerByTower({ p }: { p: RegisterProject }) {
 }
 
 /** The builder's track record from the MahaRERA records we hold: how many of their projects moved the completion date. */
-function BuilderRecord({ p }: { p: RegisterProject }) {
+function BuilderRecord({ p, linkless = false }: { p: RegisterProject; linkless?: boolean }) {
   const b = p.builder
   if (!b || !b.count) return null
   const others = b.projects.filter((x) => !x.this)
@@ -528,7 +530,7 @@ function BuilderRecord({ p }: { p: RegisterProject }) {
         <ul className="mt-3 space-y-1 p-0">
           {others.map((x) => (
             <li key={x.regno} className="list-none">
-              {x.slug ? <Link href={`/projects/${x.slug}`} className={LINK}>{x.name}</Link>
+              {x.slug && !linkless ? <Link href={`/projects/${x.slug}`} className={LINK}>{x.name}</Link>
                 : <span className="font-semibold text-slate-900">{x.name}</span>}
               <span className="ml-2 text-sm text-slate-600">
                 {x.completion_now ? `completion filed ${longDay(x.completion_now)}` : x.regno}
@@ -538,7 +540,7 @@ function BuilderRecord({ p }: { p: RegisterProject }) {
           ))}
         </ul>
       )}
-      {p.builder_slug && b.count > 1 && (
+      {p.builder_slug && b.count > 1 && !linkless && (
         <p className="mt-2"><Link href={`/builders/${p.builder_slug}`} className={LINK}>All {b.count} projects by {b.name} in Pune</Link></p>
       )}
       <p className="mt-2 text-xs text-slate-500">Counted from MahaRERA records we hold; projects outside Pune are not included.</p>
@@ -607,7 +609,7 @@ function Possession({ p, shown }: { p: RegisterProject; shown: string }) {
 /** "Checked by us" ("<name> RERA details"): one section for the MahaRERA record, the possession date, the checks, the cautions,
  *  tower by tower, what the builder's and property sites say and the builder's track record. It used to be six blocks saying the
  *  same dates and counts (design review 2026-10-25, docs/plan/project-page-v2.md): each fact is said here once. */
-function RecordSection({ p, shown, facts }: { p: RegisterProject; shown: string; facts: PropertyFactsView | null }) {
+function RecordSection({ p, shown, facts, linkless = false }: { p: RegisterProject; shown: string; facts: PropertyFactsView | null; linkless?: boolean }) {
   const d = p.details
   const web = (p.web_facts?.facts ?? []).filter((f) => f.text)
   const webTowers = web.find((f) => f.key === 'towers')
@@ -671,7 +673,7 @@ function RecordSection({ p, shown, facts }: { p: RegisterProject; shown: string;
             </p>
           </div>
         )}
-        <BuilderRecord p={p} />
+        <BuilderRecord p={p} linkless={linkless} />
       </div>
     </section>
   )
@@ -704,6 +706,9 @@ export interface Seller {
   name: string
   home: string
   listingId: string
+  /** the agent's other live listings, same area first: "More from <agent>" takes the place of other projects (owner
+   *  2026-10-30: on an agent's page they sell their own homes, so it links nowhere else) */
+  others?: PublicListing[]
 }
 
 export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], whatsappUrl, seller }: { p: RegisterProject; siteUrl: string; facts: PropertyFactsView | null; lists?: FacetLink[]; whatsappUrl?: string | null; seller?: Seller }) {
@@ -760,7 +765,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
       </nav>
       )}
 
-      <Hero p={p} price={price} photo={heroPhoto} />
+      <Hero p={p} price={price} photo={heroPhoto} linkless={!!seller} />
 
       {/* the one answer, written by code from the facts below: what AI search quotes (the model's old summary is not shown) */}
       {answer && (
@@ -798,11 +803,23 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
             </section>
           )}
 
-          <RecordSection p={p} shown={shown} facts={facts} />
+          <RecordSection p={p} shown={shown} facts={facts} linkless={!!seller} />
 
           <AskPrompt name={shown} note={askNote} whatsappUrl={whatsappUrl} label={PROJECT_CTA.today} />
 
-          {p.same_area.length > 0 && (p.area || placeName) && (
+          {seller && (seller.others ?? []).length > 0 && (
+            <section aria-labelledby="more-title" data-testid="more-from-agent">
+              <h2 id="more-title" className={H2}>More from {seller.name}</h2>
+              <ul className="mt-3 grid list-none gap-4 p-0 sm:grid-cols-2">
+                {(seller.others ?? []).slice(0, 6).map((l) => <ListingCard key={l.id} slug={seller.slug} listing={l} />)}
+              </ul>
+              <Link href={seller.home + '#listings'} className="mt-3 inline-flex min-h-[44px] items-center font-semibold text-[var(--site-primary)] underline underline-offset-2">
+                All homes from {seller.name}
+              </Link>
+            </section>
+          )}
+
+          {!seller && p.same_area.length > 0 && (p.area || placeName) && (
             <section aria-labelledby="same-title" data-testid="compare">
               <h2 id="same-title" className={H2}>Other projects in {p.area?.name ?? placeName}</h2>
               <ul className="mt-3 grid list-none gap-2 p-0 sm:grid-cols-2">
@@ -833,7 +850,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
             </section>
           )}
 
-          {byPromoter.length > 0 && p.promoter && (
+          {!seller && byPromoter.length > 0 && p.promoter && (
             <section aria-labelledby="promoter-title" data-testid="same-promoter">
               <h2 id="promoter-title" className={H2}>More by {p.promoter}</h2>
               <ul className="mt-3 grid list-none gap-2 p-0 sm:grid-cols-2">

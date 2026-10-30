@@ -458,3 +458,20 @@ describe("the listing agent's videos", () => {
     expect(screen.queryByTestId('videos')).toBeNull()
   })
 })
+
+describe("on the agent's own listing page", () => {
+  const listing = (id: string, title: string) => ({ id, title, price_inr: 12_000_000, transaction: 'sale', locality: 'Kharadi', city: 'Pune',
+    bhk: 2, property_type: 'apartment', carpet_sqft: 800, media: [], amenities: [], status: 'live' }) as never
+  it("sells the agent's own homes and links to no other project, builder or area page", () => {
+    const { container } = render(<RegisterProjectPage p={EDEN} siteUrl="https://avasetu.in" facts={SHEET}
+      seller={{ slug: 'house-deal', name: 'House Deal', home: '/agent/house-deal', listingId: 'l1',
+        others: [listing('l2', 'Venkatesh Vanaya'), listing('l3', 'Shubh Tristar')] }} />)
+    const more = screen.getByTestId('more-from-agent')
+    expect(more).toHaveTextContent('More from House Deal')
+    expect(more.querySelector('a[href="/agent/house-deal/listings/l2"]')).not.toBeNull()
+    const hrefs = [...container.querySelectorAll('a[href]')].map((a) => a.getAttribute('href') || '')
+    expect(hrefs.filter((h) => h.startsWith('/') && !h.startsWith('/agent/house-deal'))).toEqual([])
+    expect(screen.queryByTestId('compare')).toBeNull()
+    expect(screen.queryByTestId('same-promoter')).toBeNull()
+  })
+})

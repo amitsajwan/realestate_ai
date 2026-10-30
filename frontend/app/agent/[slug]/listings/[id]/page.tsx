@@ -15,7 +15,7 @@ import { enquiryName } from '@/lib/site/theme'
 import StickyBar from '@/components/site/StickyBar'
 import TrackingBeacon from '@/components/site/TrackingBeacon'
 import VerifiedFacts from '@/components/site/VerifiedFacts'
-import { getAgent, getCatalog, getListing, getPropertyFacts } from '@/lib/site/api'
+import { getAgent, getCatalog, getListing, getListings, getPropertyFacts } from '@/lib/site/api'
 import { formatPrice } from '@/lib/site/format'
 import { whatsappMessage } from '@/lib/site/links'
 import { jsonLdString, listingJsonLd, listingMetadata } from '@/lib/site/seo'
@@ -82,13 +82,16 @@ export default async function ListingPage({ params }: Props) {
   const facts = await getPropertyFacts({ rera: register?.regno || l.rera_no || project?.rera_no, project: projectLabel, locality: l.locality, listing: l.id })
 
   if (register) {
+    // the agent's other live listings, same area first: what "More from <agent>" shows instead of other agents' projects
+    const own = (await getListings(slug).catch(() => ({ items: [] as PublicListing[] }))).items.filter((x) => x.id !== l.id && !isSampleListing(x.title))
+    const others = [...own.filter((x) => x.locality === l.locality), ...own.filter((x) => x.locality !== l.locality)]
     return (
       <SiteShell agent={agent} bottomPad>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(listingJsonLd(agent, l)) }} />
         <TrackingBeacon agentSlug={slug} listingId={l.id} />
         <DemoRibbon agent={agent} />
         <RegisterProjectPage p={register} siteUrl={siteOrigin()} facts={facts}
-          seller={{ slug, name: enquiryName(agent), home: agentPath(slug), listingId: l.id }} />
+          seller={{ slug, name: enquiryName(agent), home: agentPath(slug), listingId: l.id, others }} />
       </SiteShell>
     )
   }
