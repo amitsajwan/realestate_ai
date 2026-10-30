@@ -2,10 +2,13 @@ import React from 'react'
 import Link from 'next/link'
 import EnquiryForm from '@/components/site/EnquiryForm'
 import FinderCard from './FinderCard'
+import CopyLink from './CopyLink'
+import TrackedLink from '@/components/site/TrackedLink'
+import { withParam } from '@/lib/site/links'
 import { formatArea, formatPrice } from '@/lib/site/format'
 import { monthYear } from '@/lib/site/register'
 import {
-  PAGE, SORTS, asked, bookedShare, byArea, describe, facets, findHomes, toSearch,
+  PAGE, SORTS, asked, bookedShare, byArea, describe, facets, findHomes, shareText, toSearch,
   type FinderItem, type FinderQuery, type Option,
 } from '@/lib/site/finder'
 
@@ -23,6 +26,8 @@ interface Props {
   /** the drawn area maps, by area slug: the map view shows when the chosen area has one */
   maps?: Record<string, FinderMap>
   id?: string
+  /** the site's origin ("https://avasetu.in"), for the shared link */
+  origin?: string
 }
 
 const chip = (on: boolean) =>
@@ -125,7 +130,7 @@ function MapView({ items, map }: { items: FinderItem[]; map: FinderMap }) {
  * nothing asked it shows each area's projects in a row to swipe; with no answer it asks for the enquiry, the question filled in.
  * Every choice is a link (works without JavaScript; the address is shareable), marked nofollow: the canonical page has none.
  */
-export default function HomeFinder({ items, q, basePath, title = 'Find your home', lead, maps = {}, id = 'homes' }: Props) {
+export default function HomeFinder({ items, q, basePath, title = 'Find your home', lead, maps = {}, id = 'homes', origin = '' }: Props) {
   const anchor = '#' + id
   const f = facets(items, q)
   const found = findHomes(items, q)
@@ -135,6 +140,10 @@ export default function HomeFinder({ items, q, basePath, title = 'Find your home
   const shown = found.slice(0, q.more ?? PAGE)
   const comparing = (q.compare ?? []).map((c) => items.find((i) => i.id === c)).filter((i): i is FinderItem => !!i)
   const words = describe(q, areaName)
+  // the view as a link to send: the answers asked (not the comparison, paging or map), marked so the visit it brings is counted
+  const url = withParam(origin + basePath + toSearch(q, { compare: undefined, more: undefined, view: undefined }).replace(/^\?$/, ''), 'src', 'share') + anchor
+  const message = shareText(found, q, { who: lead.agentName, url, areaName,
+    fmt: { price: (n) => formatPrice(n), area: (n) => formatArea(n), month: (d) => monthYear(d) } })
   return (
     <section id={id} aria-labelledby={id + '-title'} className="scroll-mt-16" data-testid="home-finder">
       <h2 id={id + '-title'} className="text-2xl font-bold text-slate-900">{title}</h2>
@@ -179,6 +188,17 @@ export default function HomeFinder({ items, q, basePath, title = 'Find your home
           })}
         </div>
       </div>
+
+      {found.length > 0 && (
+        <div className="mt-3 flex flex-wrap items-center gap-2" data-testid="finder-share">
+          <TrackedLink href={'https://wa.me/?text=' + encodeURIComponent(message)} event="share" agentSlug={lead.agentSlug} target="_blank" rel="noopener noreferrer"
+            className="inline-flex min-h-[40px] items-center gap-2 rounded-full bg-[#25D366] px-4 text-sm font-bold text-[#053b1a] no-underline">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.3 14.2c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.4-.7-2.9-1.1-4.7-4-4.8-4.2-.1-.2-1.2-1.6-1.2-3s.7-2.1 1-2.4c.3-.3.6-.3.8-.3h.6c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.4.6-.4.4c-.1.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.3 2.4 1.5.3.1.5.1.6-.1l.9-1c.2-.3.4-.2.6-.1l1.9.9c.3.1.5.2.5.3.1.2.1.7-.1 1.2z" /></svg>
+            {asked(q) ? `Send ${found.length === 1 ? 'this' : `these ${found.length}`} on WhatsApp` : 'Send on WhatsApp'}
+          </TrackedLink>
+          <CopyLink url={url} className="inline-flex min-h-[40px] items-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800" />
+        </div>
+      )}
 
       <Compare items={comparing} q={q} base={basePath} anchor={anchor} />
 

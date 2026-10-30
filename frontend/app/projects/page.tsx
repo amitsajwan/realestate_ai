@@ -89,7 +89,7 @@ export default async function ProjectsPage({ searchParams }: Props) {
         {/* the home finder (lib/site/finder), the same rules as an agent's site: our areas' projects, agent-listed first */}
         <div className="mt-10">
           <HomeFinder id="find" title="Find a project" q={fq} basePath="/projects" items={items} maps={maps}
-            lead={{ agentSlug: process.env.NEXT_PUBLIC_DEFAULT_AGENT_SLUG || 'avasetu', agentName: BRAND_NAME }} />
+            lead={{ agentSlug: process.env.NEXT_PUBLIC_DEFAULT_AGENT_SLUG || 'avasetu', agentName: BRAND_NAME }} origin={cfg.siteUrl} />
           <p className="mt-4 max-w-3xl text-sm text-slate-600">
             {items.length} projects being built or just finished in our areas, each with its MahaRERA record and the date we read it.
             {finished > 0 && <> {finished} older, finished projects are left out; search finds them.</>}

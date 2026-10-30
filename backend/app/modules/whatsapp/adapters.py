@@ -42,6 +42,11 @@ async def chat_turn(data: dict, text: str, llm, grounding, finder=None, history=
     return await engine.turn(data, text, llm, grounding, finder=finder)
 
 
+def site_url() -> str:
+    """The public site's origin for links in messages ("" when not set)."""
+    return _site_url()
+
+
 def _site_url() -> str:
     import os
     return (os.environ.get("PUBLIC_SITE_URL") or "").strip().rstrip("/")

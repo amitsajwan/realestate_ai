@@ -277,3 +277,36 @@ export function bhkOf(label: string | number | null | undefined): number | null 
   const m = /(\d+(?:\.\d)?)\s*bhk/i.exec(label || '')
   return m ? Number(m[1]) : null
 }
+
+/** "2, 3 & 4 BHK": an item's home types in order ("Plots" when it has no BHK). */
+export function bhkRange(item: FinderItem): string {
+  const bs = Array.from(new Set(item.homes.map((h) => h.bhk).filter((b): b is number => b != null))).sort((a, b) => a - b)
+  if (!bs.length) return item.type === 'plot' ? 'Plots' : 'Homes'
+  return bs.length === 1 ? `${bs[0]} BHK` : `${bs.slice(0, -1).join(', ')} & ${bs[bs.length - 1]} BHK`
+}
+
+export const SHARE_TOP = 5
+
+/**
+ * The WhatsApp message for a finder view (owner 2026-10-30: an agent sends "your 4 options" as one message): what was asked,
+ * the first few answers with the home that fits, its price, possession and whether the filed date held, then the link to all.
+ * `fmt` carries the formatters (kept out of this module's imports).
+ */
+export function shareText(found: FinderItem[], q: FinderQuery, o: {
+  who: string; url: string; areaName?: string | null
+  fmt: { price: (n: number) => string; area: (n: number) => string; month: (d: string) => string }
+}): string {
+  const words = describe(q, o.areaName)
+  const head = `${found.length} ${found.length === 1 ? 'home' : 'homes'}${words ? ` for ${words}` : ''} from ${o.who}:`
+  const lines = found.slice(0, SHARE_TOP).map((i, k) => {
+    const fit = matchingHomes(i, q)[0]
+    const from = i.homes.map((h) => h.price).filter((p): p is number => p != null).sort((a, b) => a - b)[0]
+    const home = fit && (q.bhk || q.budget)
+      ? [fit.bhk == null ? 'Plot' : `${fit.bhk} BHK`, fit.sqft ? o.fmt.area(fit.sqft) : null, fit.price ? o.fmt.price(fit.price) : null].filter(Boolean).join(', ')
+      : `${bhkRange(i)}${from ? ` from ${o.fmt.price(from)}` : ''}`
+    const facts = [i.possession ? `possession ${o.fmt.month(i.possession)}` : null, i.monthsLater === 0 ? 'date not moved on MahaRERA' : null].filter(Boolean)
+    return `${k + 1}. ${i.name}${i.area ? `, ${i.area}` : ''}: ${home}${facts.length ? ` (${facts.join(', ')})` : ''}`
+  })
+  const more = found.length > SHARE_TOP ? `…and ${found.length - SHARE_TOP} more.` : null
+  return [head, '', ...lines, ...(more ? [more] : []), '', `All of them with prices and MahaRERA checks: ${o.url}`].join('\n')
+}

@@ -54,6 +54,12 @@ describe('/projects: the home finder over our areas', () => {
     const cards = screen.getAllByTestId('finder-card')
     expect(cards).toHaveLength(1)
     expect(within(cards[0]).getByTestId('fit')).toHaveTextContent('3 BHK · 950 sq.ft · ₹1.12 Cr')
+    // the view goes out on WhatsApp as one message with its link
+    const send = within(screen.getByTestId('finder-share')).getByRole('link', { name: /Send this on WhatsApp/ })
+    const text = decodeURIComponent(send.getAttribute('href')!.replace('https://wa.me/?text=', ''))
+    expect(text).toContain('1 home for 3 BHK from Avasetu:')
+    expect(text).toContain('1. Springshire, Wagholi: 3 BHK, 950 sq.ft, ₹1.12 Cr')
+    expect(text).toMatch(/\/projects\?bhk=3&src=share#find$/)
   })
 
   it('answers ?q= on the server (the search box without JavaScript), by marketed name', async () => {

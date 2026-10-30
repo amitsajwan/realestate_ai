@@ -11,7 +11,7 @@ import { fromListings } from '@/lib/site/finderItems'
 import { getRegisterProjects } from '@/lib/site/register'
 import { getAreaMap } from '@/lib/site/hubs'
 import { isSampleListing } from '@/lib/site/format'
-import { agentPath } from '@/lib/site/slug'
+import { agentPath, siteOrigin } from '@/lib/site/slug'
 import SiteShell from '@/components/site/SiteShell'
 import { enquiryName } from '@/lib/site/theme'
 import TrackingBeacon from '@/components/site/TrackingBeacon'
@@ -81,7 +81,7 @@ export default async function AgentHomePage({ params, searchParams }: Props) {
         {/* the home finder (lib/site/finder): area, budget, size, move-in and the MahaRERA checks over the agent's own listings */}
         {!projectsOnly && finderItems.length > 0 && (
           <HomeFinder id="listings" title={`Find your home with ${enquiryName(agent)}`} q={q} basePath={agentPath(slug)} items={finderItems}
-            lead={{ agentSlug: slug, agentName: enquiryName(agent), agentPhone: agent.phone }} maps={await finderMaps(q.area)} />
+            lead={{ agentSlug: slug, agentName: enquiryName(agent), agentPhone: agent.phone }} maps={await finderMaps(q.area)} origin={siteOrigin()} />
         )}
         {/* only sample homes (the demo agent): the plain list, which labels them */}
         {!projectsOnly && finderItems.length === 0 && (

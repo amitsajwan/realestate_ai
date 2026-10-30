@@ -10,6 +10,7 @@ from app.core import keywords
 from app.modules.engage.config import quiet_topic
 
 from . import adapters, check_flow, lang as L
+from .finder_link import finder_line
 
 log = logging.getLogger(__name__)
 
@@ -332,6 +333,11 @@ class ChatBrain:
         # the homes sit between what we found and what we ask next, as on the website; the links are never translated
         parts = [await self._say(t.reply, lang), adapters.card_lines(t.cards), await self._say(t.follow_up, lang) if t.follow_up else ""]
         reply = _once("\n".join(p for p in [gone] + parts if p))
+        # every project that fits what they told us, as the site's finder link: once for each new ask (2026-10-30)
+        line = finder_line(data, adapters.site_url(), lang)
+        if line and data.get("finder_sent") != line:
+            data["finder_sent"] = line
+            reply = f"{reply}\n\n{line}"
         opts = L.options_line([q for q in t.quick if q and "whatsapp" not in q.lower()], lang)
         return f"{reply}\n{opts}" if opts else reply
 

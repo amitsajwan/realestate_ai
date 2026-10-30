@@ -3,16 +3,9 @@ import Link from 'next/link'
 import Skyline from '@/components/site/Skyline'
 import { formatArea, formatPrice } from '@/lib/site/format'
 import { monthYear } from '@/lib/site/register'
-import { bookedShare, matchingHomes, MAX_COMPARE, toSearch, type FinderItem, type FinderQuery } from '@/lib/site/finder'
+import { bhkRange, bookedShare, matchingHomes, MAX_COMPARE, toSearch, type FinderItem, type FinderQuery } from '@/lib/site/finder'
 
 const bhkText = (b: number | null) => (b == null ? 'Plot' : `${b} BHK`)
-
-/** "2, 3 & 4 BHK": the home types of a project, in order. */
-function bhkRange(item: FinderItem): string {
-  const bs = Array.from(new Set(item.homes.map((h) => h.bhk).filter((b): b is number => b != null))).sort((a, b) => a - b)
-  if (!bs.length) return item.type === 'plot' ? 'Plots' : 'Homes'
-  return bs.length === 1 ? `${bs[0]} BHK` : `${bs.slice(0, -1).join(', ')} & ${bs[bs.length - 1]} BHK`
-}
 
 /**
  * One project in the finder's results. When the buyer asked a BHK or budget it names the home that fits ("3 BHK · 1,115 sq ft ·

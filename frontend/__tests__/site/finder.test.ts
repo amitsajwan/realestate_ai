@@ -60,3 +60,17 @@ it("an agent's homes with a price come before 'price on request', and MahaRERA's
   const reg = [{ slug: 'r', regno: 'P1', name: 'R', area: 'wagholi', completion_now: null, listed_or_updated: null, indexable: true, promoter: 'INTOFINITY PROMOTERS PRIVATE LIMITED' }]
   expect(fromRegister(reg, new Map())[0].builder).toBe('Intofinity Promoters')
 })
+
+it('writes the WhatsApp message an agent sends: what was asked, the home that fits with its price, and the link', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { shareText } = require('@/lib/site/finder')
+  const fmt = { price: (n: number) => `₹${n / 1e5} L`, area: (n: number) => `${n} sq.ft`, month: (d: string) => d.slice(0, 7) }
+  const text = shareText(findHomes(ALL, { bhk: '3', area: 'kharadi' }), { bhk: '3', area: 'kharadi' },
+    { who: 'House Deal', url: 'https://avasetu.in/agent/house-deal?area=kharadi&bhk=3&src=share', areaName: 'Kharadi', fmt })
+  expect(text).toBe([
+    '2 homes for 3 BHK, in Kharadi from House Deal:', '',
+    '1. evolvus, Kharadi: 3 BHK, ₹184 L (possession 2029-06, date not moved on MahaRERA)',
+    '2. vanaya, Kharadi: 3 BHK, ₹160 L (possession 2027-12)', '',
+    'All of them with prices and MahaRERA checks: https://avasetu.in/agent/house-deal?area=kharadi&bhk=3&src=share',
+  ].join('\n'))
+})
