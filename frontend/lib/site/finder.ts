@@ -254,7 +254,8 @@ export function byArea(items: FinderItem[]): { area: string; slug: string; items
     groups.set(a, [...(groups.get(a) ?? []), i])
   }
   return [...groups].map(([area, xs]) => ({ area, slug: areaSlug(area), items: sortItems(xs, {}) }))
-    .sort((a, b) => b.items.length - a.items.length || a.area.localeCompare(b.area))
+    // biggest area first; between equals, the one holding the better-ranked project (agent-listed first on Avasetu's list)
+    .sort((a, b) => b.items.length - a.items.length || (a.items[0].rank ?? 0) - (b.items[0].rank ?? 0) || a.area.localeCompare(b.area))
 }
 
 /** The question in words, for the empty state's enquiry and the page's heading: "3 BHK, ₹1 – 1.5 Cr, in Kharadi". */

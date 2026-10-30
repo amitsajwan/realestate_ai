@@ -30,7 +30,6 @@ jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: jest.fn() }),
 }))
 
-import ProjectsPage from '@/app/projects/page'
 import SharedProjectPage, { generateMetadata } from '@/app/projects/[slug]/page'
 import TwoBhk from '@/app/2-bhk/[area]/page'
 import { BANDS, filterProjects, livePages, matches, MIN_PROJECTS } from '@/lib/site/filters'
@@ -103,12 +102,9 @@ describe('filter pages only exist with enough real projects', () => {
 })
 
 describe('shared project pages', () => {
-  it('groups the index by locality and links each card to /projects', async () => {
+  // /projects itself is the home finder since 2026-10-30 (projects-register-list.test.tsx)
+  it('groups the catalog by locality', () => {
     expect(byLocality(ALL).map(([l, items]) => [l, items.length])).toEqual([['Upper Kharadi', 1], ['Wagholi', 4]])
-    render(await ProjectsPage({}))
-    expect(screen.getByRole('heading', { name: 'Projects in Wagholi' })).toBeInTheDocument()
-    expect(screen.getAllByTestId('project-card')[0]).toHaveAttribute('href', '/projects/goyal-my-home-kharadi')
-    expect(screen.getByRole('link', { name: 'Wagholi buyer guide' })).toHaveAttribute('href', '/localities/wagholi')
   })
 
   it('shows the project with every agent, sends enquiries to the agent whose facts it shows, and links its area', async () => {

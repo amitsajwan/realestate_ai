@@ -2,18 +2,21 @@ import React from 'react'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import MarketingShell from '@/components/marketing/MarketingShell'
-import ProjectCard from '@/components/site/ProjectCard'
 import ProjectSearch from '@/components/site/ProjectSearch'
-import CheckBadge from '@/components/site/CheckBadge'
 import { getMarketingConfig } from '@/lib/marketing/config'
-import { LOCALITIES, localityByName } from '@/lib/marketing/localities'
 import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/seo'
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
-import { buyerEnquirePath } from '@/components/marketing/siteLinks'
-import { getCatalog } from '@/lib/site/api'
-import { byLocality } from '@/lib/site/projects'
-import { displayName, getRegisterPlaces, getRegisterProjects, placePath, projectSummary, searchPlace, searchRegister } from '@/lib/site/register'
-import type { RegisterListItem, RegisterPlace } from '@/lib/site/register'
+import HomeFinder from '@/components/site/finder/HomeFinder'
+import { BRAND_NAME } from '@/lib/brand'
+import { getAgent, getListings, getSitemapEntries } from '@/lib/site/api'
+import { parseQuery } from '@/lib/site/finder'
+import { fromRegister, type AgentOffer } from '@/lib/site/finderItems'
+import { isSampleListing } from '@/lib/site/format'
+import { getAreaMap } from '@/lib/site/hubs'
+import { getRegisterPlaces, getRegisterProjects, placePath, searchPlace, searchRegister } from '@/lib/site/register'
+import type { RegisterPlace } from '@/lib/site/register'
+import { enquiryName } from '@/lib/site/theme'
+import type { PublicListing } from '@/lib/site/types'
 
 export const revalidate = 300
 
@@ -25,36 +28,45 @@ export async function generateMetadata(): Promise<Metadata> {
   })
 }
 
-const PER_AREA = 12
+type Props = { searchParams?: Promise<Record<string, string | string[] | undefined>> }
 
-/** Biggest projects first (the ones most buyers look for), then by name. */
-const byUnits = (a: RegisterListItem, b: RegisterListItem) => (b.units_total ?? 0) - (a.units_total ?? 0) || displayName(a).localeCompare(displayName(b))
-
-type Props = { searchParams?: Promise<{ q?: string | string[] }> }
+/** The live listings of every agent in the sitemap, by MahaRERA number: on this list an agent-listed project shows their sheet. */
+async function agentOffers(): Promise<Map<string, AgentOffer>> {
+  const entries = (await getSitemapEntries()).listings
+  const slugs = Array.from(new Set(entries.filter((e) => e.rera_no).map((e) => e.agent_slug)))
+  const out = new Map<string, AgentOffer>()
+  for (const slug of slugs) {
+    const [agent, { items }] = await Promise.all([getAgent(slug).catch(() => null), getListings(slug).catch(() => ({ items: [] as PublicListing[] }))])
+    if (!agent) continue
+    for (const l of items) {
+      const regno = (l.rera_no || '').trim().toUpperCase()
+      if (regno && !out.has(regno) && !isSampleListing(l.title)) out.set(regno, { agentName: enquiryName(agent), listing: l })
+    }
+  }
+  return out
+}
 
 export default async function ProjectsPage({ searchParams }: Props) {
   const cfg = getMarketingConfig()
+  const sp = (await searchParams) ?? {}
   // ?q= is the search box without JavaScript: answered here from the backend search
-  const raw = (await searchParams)?.q
+  const raw = sp.q
   const q = (Array.isArray(raw) ? raw[0] : raw ?? '').trim().slice(0, 80)
-  const [catalog, hits, place] = await Promise.all([getCatalog(), q.length >= 2 ? searchRegister(q) : Promise.resolve([]), q.length >= 3 ? searchPlace(q) : Promise.resolve(null)])
-  const groups = byLocality(catalog)
-  const listed = new Set(catalog.map((p) => p.rera_no))
-  // the register holds all of Pune district; the lists and search on this page are our covered areas, the rest is by place below
-  const [all, places] = await Promise.all([getRegisterProjects(undefined, true), getRegisterPlaces()])
-  const everything = all.filter((r) => r.area)
+  const fq = parseQuery(sp)
+  const [hits, place] = await Promise.all([q.length >= 2 ? searchRegister(q) : Promise.resolve([]), q.length >= 3 ? searchPlace(q) : Promise.resolve(null)])
+  // the register holds all of Pune district; the finder is our covered areas, the rest is by place below
+  const [all, places, offers] = await Promise.all([getRegisterProjects(undefined, true), getRegisterPlaces(), agentOffers()])
   const zones = places.reduce<[string, RegisterPlace[]][]>((acc, p) => {
     const last = acc[acc.length - 1]
     if (last && last[0] === p.zone) last[1].push(p)
     else acc.push([p.zone, [p]])
     return acc
   }, [])
-  const register = everything.filter((r) => r.indexable && r.active !== false && !listed.has(r.regno))
-  const finished = everything.filter((r) => r.active === false).length
-  // each locality's Pune place hub (/projects/area/{place}) for the "All N projects" link
-  const hubFor = (l: { key: string; name: string }) => places.find((p) => p.key === l.key || p.name.toLowerCase() === l.name.toLowerCase())
-  const byArea = LOCALITIES.map((l) => ({ l, hub: hubFor(l), items: register.filter((r) => r.area === l.key).sort(byUnits) }))
-    .filter((g) => g.items.length > 0)
+  const ours = all.filter((r) => r.area && ((r.indexable && r.active !== false) || offers.has(r.regno.toUpperCase())))
+  const finished = all.filter((r) => r.area && r.active === false).length
+  const items = fromRegister(ours, offers)
+  const mapData = fq.area ? await getAreaMap(fq.area.replace(/-/g, '_')).catch(() => null) : null
+  const maps = mapData && fq.area ? { [fq.area]: { name: mapData.name, map: mapData.map, box: mapData.box, attribution: mapData.attribution } } : {}
   return (
     <MarketingShell search={false}>
       <div className="mx-auto max-w-5xl px-4 py-10 sm:py-14" style={AVASETU_SITE_VARS}>
@@ -74,62 +86,15 @@ export default async function ProjectsPage({ searchParams }: Props) {
           <Link href="/check" className="inline-flex min-h-[44px] items-center font-semibold text-[#0f2340] underline underline-offset-2">Check your project&apos;s possession date on MahaRERA</Link>
         </p>
 
-        {groups.length === 0 ? (
-          <p className="mt-8 rounded-xl bg-slate-50 p-4 text-slate-700">
-            No projects are listed yet. <a href={buyerEnquirePath()} className="font-semibold text-[#0f2340] underline underline-offset-2">Tell us what you are looking for</a> and
-            we will send you options as they come.
+        {/* the home finder (lib/site/finder), the same rules as an agent's site: our areas' projects, agent-listed first */}
+        <div className="mt-10">
+          <HomeFinder id="find" title="Find a project" q={fq} basePath="/projects" items={items} maps={maps}
+            lead={{ agentSlug: process.env.NEXT_PUBLIC_DEFAULT_AGENT_SLUG || 'avasetu', agentName: BRAND_NAME }} />
+          <p className="mt-4 max-w-3xl text-sm text-slate-600">
+            {items.length} projects being built or just finished in our areas, each with its MahaRERA record and the date we read it.
+            {finished > 0 && <> {finished} older, finished projects are left out; search finds them.</>}
           </p>
-        ) : groups.map(([locality, items]) => {
-          const area = localityByName(locality)
-          return (
-            <section key={locality} aria-labelledby={`area-${locality}`} className="mt-10">
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <h2 id={`area-${locality}`} className="text-2xl font-bold text-slate-900">Projects in {locality}</h2>
-                {area && (
-                  <Link href={`/localities/${area.slug}`} className="inline-flex min-h-[44px] items-center font-semibold text-[#0f2340] underline underline-offset-2">
-                    {area.name} buyer guide
-                  </Link>
-                )}
-              </div>
-              <ul className="mt-4 grid list-none gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
-                {items.map((p) => <li key={p.slug}><ProjectCard p={p} href={`/projects/${p.slug}`} /></li>)}
-              </ul>
-            </section>
-          )
-        })}
-
-        {byArea.length > 0 && (
-          <section aria-labelledby="register-title" className="mt-14">
-            <h2 id="register-title" className="text-2xl font-bold text-slate-900">Every MahaRERA project in our areas</h2>
-            <p className="mt-2 max-w-3xl text-slate-700">
-              Our page for each project: the completion date filed with MahaRERA and how many homes are booked, with the date we read
-              the record. {register.length} projects being built or just finished; new ones are added as MahaRERA lists them.
-              {finished > 0 && <> {finished} older, finished projects are left out of these lists; search finds them.</>} Every page starts from MahaRERA;
-              <span className="whitespace-nowrap"> <CheckBadge checked={4} total={4} compact /></span> means our crawler has also checked it
-              against other sources (buildings, location, nearby places).
-            </p>
-            {byArea.map(({ l, hub, items }) => (
-              <section key={l.key} aria-labelledby={`reg-${l.key}`} className="mt-6 rounded-xl border border-slate-200 bg-white p-4">
-                <h3 id={`reg-${l.key}`} className="text-lg font-semibold text-slate-900">
-                  {l.name} <span className="font-normal text-slate-600">· {items.length} projects</span>
-                </h3>
-                <ul className="mt-3 list-none columns-1 p-0 sm:columns-2" data-testid={`register-${l.key}`}>
-                  {items.slice(0, PER_AREA).map((r: RegisterListItem) => (
-                    <li key={r.slug} className="break-inside-avoid py-1.5">
-                      <Link href={`/projects/${r.slug}`} className="font-medium text-[#0f2340] underline underline-offset-2">{displayName(r)}</Link>
-                      {' '}<CheckBadge checked={r.checked} total={r.checks_total} compact />
-                      <span className="block text-sm text-slate-600">{projectSummary(r)}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-2 flex flex-wrap gap-x-5">
-                  {hub && <Link href={placePath(hub.slug)} className="inline-flex min-h-[44px] items-center font-semibold text-[#0f2340] underline underline-offset-2">All {items.length} projects in {l.name} →</Link>}
-                  <Link href={`/localities/${l.slug}`} className="inline-flex min-h-[44px] items-center text-sm text-[#0f2340] underline underline-offset-2">{l.name} buyer guide</Link>
-                </div>
-              </section>
-            ))}
-          </section>
-        )}
+        </div>
 
         {zones.length > 0 && (
           <section aria-labelledby="pune-title" className="mt-14" data-testid="pune-places">

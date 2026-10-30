@@ -29,17 +29,22 @@ export function fromListings(listings: PublicListing[], slug: string, register: 
   })
 }
 
-/** Avasetu's register in our areas: each project's published prices by size, ranked agent-listed first, then most booked. */
-export function fromRegister(items: RegisterListItem[], listed: Map<string, { slug: string; agent?: string | null }>): FinderItem[] {
-  const out = items.map((r) => {
-    const own = listed.get(r.regno)
+/** An agent's listing of a register project, for Avasetu's list: their sheet, photo and video stand for the project. */
+export interface AgentOffer { agentName: string; listing: PublicListing }
+
+/** Avasetu's register in our areas, ranked agent-listed first, then priced, then most booked. A project an agent lists takes the
+ *  agent's price sheet, photo and video (what a buyer can actually book) and says whose it is; the link stays the project page. */
+export function fromRegister(items: RegisterListItem[], offers: Map<string, AgentOffer>): FinderItem[] {
+  const out = items.map((r): FinderItem => {
+    const own = offers.get(r.regno.toUpperCase())
+    const agent = own ? fromListings([own.listing], 'x', [r])[0] : null
     return {
-      id: r.slug, href: `/projects/${own?.slug ?? r.slug}`, name: displayName(r), builder: r.promoter ?? null,
-      area: areaName(r.area, r.place_name), type: null,
-      homes: (r.homes ?? []).length ? r.homes!.map((h) => ({ bhk: bhkOf(h.bhk), price: h.from_inr })) : [{ bhk: null, price: r.price_from ?? null }],
+      id: r.slug, href: `/projects/${r.slug}`, name: displayName(r), builder: r.promoter ?? null,
+      area: areaName(r.area, r.place_name), type: agent?.type ?? null,
+      homes: agent?.homes ?? ((r.homes ?? []).length ? r.homes!.map((h) => ({ bhk: bhkOf(h.bhk), price: h.from_inr })) : [{ bhk: null, price: r.price_from ?? null }]),
       possession: r.completion_now, monthsLater: r.months_later ?? null, booked: r.units_booked ?? null, total: r.units_total ?? null,
-      video: false, image: null, map: r.map ?? null, listedBy: own?.agent ?? null,
-    } as FinderItem
+      video: agent?.video ?? false, image: agent?.image ?? null, map: r.map ?? null, listedBy: own?.agentName ?? null,
+    }
   })
   const score = (i: FinderItem) => (i.listedBy ? 1e9 : 0) + (i.homes.some((h) => h.price != null) ? 1e8 : 0) + (i.booked ?? 0)
   return out.sort((a, b) => score(b) - score(a)).map((i, rank) => ({ ...i, rank }))

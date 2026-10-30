@@ -1,12 +1,19 @@
 import { render, screen, within } from '@testing-library/react'
 import React from 'react'
 
+const HD_LISTING = {
+  id: 'l1', status: 'live', transaction: 'sale', property_type: 'apartment', title: 'Kolte-Patil Springshire', project_name: 'Springshire',
+  price_inr: 8_400_000, locality: 'Wagholi', bhk: 2, rera_no: 'P2', media: [], amenities: [], description: {}, video_count: 1,
+  configurations: [{ bhk: 2, carpet_sqft: 700, price_inr: 8_400_000 }, { bhk: 3, carpet_sqft: 950, price_inr: 11_200_000 }],
+}
 jest.mock('@/lib/site/api', () => ({
-  getCatalog: async () => [{ slug: 'rohan-abhilasha', rera_no: 'P1', locality: 'Wagholi', name: 'Rohan Abhilasha 4', agents: [{ slug: 'house-deal' }] }],
+  getSitemapEntries: async () => ({ listings: [{ agent_slug: 'house-deal', id: 'l1', rera_no: 'P2' }], projects: [] }),
+  getAgent: async () => ({ slug: 'house-deal', agent_name: 'Sharad', branding_data: { business_name: 'House Deal' } }),
+  getListings: async () => ({ items: [HD_LISTING], total: 1 }),
 }))
-jest.mock('@/lib/site/projects', () => ({ byLocality: () => [] }))
-jest.mock('@/components/site/ProjectCard', () => ({ __esModule: true, default: () => null }))
+jest.mock('@/lib/site/hubs', () => ({ getAreaMap: async () => null }))
 jest.mock('@/components/marketing/MarketingShell', () => ({ __esModule: true, default: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }))
+jest.mock('@/components/site/EnquiryForm', () => ({ __esModule: true, default: () => null }))
 const mockSearch = jest.fn(async (_q: string) => [{ slug: 'gera-world-of-joy', name: 'Geras World of Joy M', marketed_name: 'Gera World of Joy', regno: 'P9',
   promoter: 'Gera', completion_now: '2029-03-31', units_total: 400, units_booked: 120 }])
 jest.mock('@/lib/site/register', () => {
@@ -14,10 +21,11 @@ jest.mock('@/lib/site/register', () => {
   return {
     ...actual,
     getRegisterProjects: async () => [
+      { slug: 'titan-tower-kharadi', regno: 'P3', name: 'TITAN TOWER', area: 'kharadi', completion_now: '2030-06-30', listed_or_updated: null, indexable: true,
+        units_total: 100, units_booked: 10, homes: [{ bhk: '2 BHK', from_inr: 9_000_000 }], months_later: 0 },
       { slug: 'springshire-wagholi', regno: 'P2', name: 'SPRINGSHIRE', marketed_name: 'Springshire', promoter: 'Kolte', area: 'wagholi', completion_now: '2028-06-30',
-        units_total: 200, units_booked: 50, listed_or_updated: null, indexable: true },
-      { slug: 'rohan-abhilasha-4-phase-1-wagholi', regno: 'P1', name: 'Rohan Abhilasha 4 Phase 1', area: 'wagholi', completion_now: '2029-10-30', listed_or_updated: null, indexable: true },
-      { slug: 'titan-tower-kharadi', regno: 'P3', name: 'TITAN TOWER', area: 'kharadi', completion_now: null, listed_or_updated: null, indexable: true },
+        units_total: 200, units_booked: 50, listed_or_updated: null, indexable: true, months_later: 3 },
+      { slug: 'old-finished-wagholi', regno: 'P4', name: 'OLD', area: 'wagholi', completion_now: '2020-01-01', listed_or_updated: null, indexable: true, active: false },
     ],
     getRegisterPlaces: async () => [{ key: 'wagholi', slug: 'wagholi', name: 'Wagholi', zone: 'East', projects: 2, indexable: 2 }],
     searchRegister: (q: string) => mockSearch(q),
@@ -26,17 +34,26 @@ jest.mock('@/lib/site/register', () => {
 
 import ProjectsPage from '@/app/projects/page'
 
-describe('/projects lists every MahaRERA project page, by area', () => {
-  it('groups by area with a summary line, links the area hub, and leaves out projects an agent already lists', async () => {
+describe('/projects: the home finder over our areas', () => {
+  it("lists every project by area, an agent-listed one first with the agent's sheet, photo badge and video", async () => {
     render(await ProjectsPage({}))
-    expect(screen.getByRole('heading', { name: 'Every MahaRERA project in our areas' })).toBeInTheDocument()
-    const wagholi = within(screen.getByTestId('register-wagholi'))
-    expect(wagholi.getByRole('link', { name: 'Springshire' })).toHaveAttribute('href', '/projects/springshire-wagholi')
-    expect(wagholi.queryByText(/Rohan Abhilasha 4 Phase 1/)).toBeNull()   // shown above, with its agents
-    expect(wagholi.getByText('by Kolte · possession Jun 2028 · 50/200 booked')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /All 1 projects in Wagholi/ })).toHaveAttribute('href', '/projects/area/wagholi')
-    expect(within(screen.getByTestId('register-kharadi')).getByRole('link', { name: 'TITAN TOWER' })).toHaveAttribute('href', '/projects/titan-tower-kharadi')
+    const finder = screen.getByTestId('home-finder')
+    expect(within(finder).getByTestId('finder-summary')).toHaveTextContent('2 projects')   // the finished one is left out
+    const cards = within(finder).getAllByTestId('finder-card')
+    expect(cards[0]).toHaveTextContent('Springshire')
+    expect(cards[0]).toHaveTextContent('Through House Deal')
+    expect(cards[0]).toHaveTextContent('2 & 3 BHK · from ₹84 L')
+    expect(cards[0]).toHaveTextContent('▶ Video')
+    expect(within(cards[0]).getAllByRole('link', { name: 'Springshire' })[0]).toHaveAttribute('href', '/projects/springshire-wagholi')
+    expect(screen.getByText(/1 older, finished projects are left out/)).toBeInTheDocument()
     expect(mockSearch).not.toHaveBeenCalled()
+  })
+
+  it("answers a shared link: 3 BHK finds the agent's 3 BHK row and names it", async () => {
+    render(await ProjectsPage({ searchParams: Promise.resolve({ bhk: '3' }) }))
+    const cards = screen.getAllByTestId('finder-card')
+    expect(cards).toHaveLength(1)
+    expect(within(cards[0]).getByTestId('fit')).toHaveTextContent('3 BHK · 950 sq.ft · ₹1.12 Cr')
   })
 
   it('answers ?q= on the server (the search box without JavaScript), by marketed name', async () => {
