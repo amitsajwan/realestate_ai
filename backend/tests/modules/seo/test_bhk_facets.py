@@ -87,7 +87,7 @@ def test_place_prices_per_size():
     out = facets.place_prices("lohegaon", DOCS, NOW)
     two = next(s for s in out["sizes"] if s["bhk"] == 2)
     assert two == {"bhk": 2, "projects": 3, "low": 6_900_000, "high": 9_100_000, "cheapest": {"name": "Project 2", "slug": "project-2"},
-                   "path": "/projects/area/lohegaon/2-bhk"}
+                   "path": "/projects/area/lohegaon/2-bhk", "key": "lohegaon|all|bhk=2"}
     assert [s["bhk"] for s in out["sizes"]] == [2]   # one 1 BHK and one 3 BHK price is not a price range
 
 
@@ -117,3 +117,20 @@ async def test_the_live_page_list_counts_each_pages_projects_and_says_whether_se
     await db.get_collection(grow.PAGES).insert_one({"_id": "lohegaon|all|bhk=2", "status": "live"})
     out = await grow.live_pages(db, NOW)
     assert [(p["path"], p["count"], p["indexable"]) for p in out] == [("/projects/area/lohegaon/2-bhk", 3, True)]
+
+
+async def test_a_size_without_a_live_page_is_shown_without_a_link():
+    # the crawl of 2026-10-30 found area pages linking /kharadi/4-bhk and others that answer 404
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from app.modules.seo import router as sr
+    db = FakeDb()
+    for d in DOCS:
+        await Store(db).projects.insert_one(dict(d))
+    app = FastAPI()
+    app.include_router(sr.public_router, prefix="/p")
+    app.dependency_overrides[sr.get_db] = lambda: db
+    get = lambda: TestClient(app).get("/p/place-prices/lohegaon").json()["sizes"]
+    assert [(s["bhk"], s["path"]) for s in get()] == [(2, None)] and "key" not in get()[0]
+    await db.get_collection(grow.PAGES).insert_one({"_id": "lohegaon|all|bhk=2", "status": "live"})
+    assert get()[0]["path"] == "/projects/area/lohegaon/2-bhk"

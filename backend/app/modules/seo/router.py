@@ -73,7 +73,11 @@ async def public_search_place(response: Response, q: str = "", db=Depends(get_db
 async def public_place_prices(place: str, response: Response, db=Depends(get_db)) -> dict:
     """Flat prices by home size for a place page (/projects/area/<place>): published prices only (areastats.prices)."""
     response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
-    return await facets.prices_view(db, place)
+    out = await facets.prices_view(db, place)
+    for s in out["sizes"]:   # a size with no live page is shown unlinked: its /<n>-bhk URL is a 404 (crawl of 2026-10-30)
+        if await grow.status(db, s.pop("key")) not in ("live", "held"):
+            s["path"] = None
+    return out
 
 
 @public_router.get("/facets/{place}/{rest:path}")

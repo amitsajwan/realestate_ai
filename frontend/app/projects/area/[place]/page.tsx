@@ -99,7 +99,9 @@ function Prices({ place, prices }: { place: RegisterPlace; prices: PlacePrices }
                 <th scope="row" className="py-2 pr-4 font-semibold text-slate-900">{s.bhk} BHK</th>
                 <td className="py-2 pr-4 text-slate-800">{formatPrice(s.low)}{s.high > s.low ? ` to ${formatPrice(s.high)}` : ''}</td>
                 <td className="py-2 pr-4"><Link href={`/projects/${s.cheapest.slug}`} className="text-[#0f2340] underline underline-offset-2">{s.cheapest.name}</Link></td>
-                <td className="py-2"><Link href={s.path} className="text-[#0f2340] underline underline-offset-2">{s.projects} with {s.bhk} BHK flats</Link></td>
+                <td className="py-2">{s.path
+                  ? <Link href={s.path} className="text-[#0f2340] underline underline-offset-2">{s.projects} with {s.bhk} BHK flats</Link>
+                  : <>{s.projects} with {s.bhk} BHK flats</>}</td>
               </tr>
             ))}
           </tbody>

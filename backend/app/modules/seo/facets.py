@@ -488,7 +488,8 @@ def place_prices(place: str, docs: List[dict], now: datetime) -> dict:
         got = sorted(((sp["from_inr"], link_name(d), d["page_slug"]) for d in pool if (sp := size_price(d, b, now))), key=lambda x: x[:2])
         if len(got) >= MIN_PRICED:
             sizes.append({"bhk": b, "projects": len(got), "low": got[0][0], "high": got[-1][0],
-                          "cheapest": {"name": got[0][1], "slug": got[0][2]}, "path": Facet(place, "all", bhk=b).path})
+                          "cheapest": {"name": got[0][1], "slug": got[0][2]}, "path": Facet(place, "all", bhk=b).path,
+                          "key": Facet(place, "all", bhk=b).key})
     return {"place": place, "as_of": now.date().isoformat(), "sizes": sizes}
 
 
