@@ -41,7 +41,7 @@ describe('/projects: the home finder over our areas', () => {
     expect(within(finder).getByTestId('finder-summary')).toHaveTextContent('2 projects')   // the finished one is left out
     const cards = within(finder).getAllByTestId('finder-card')
     expect(cards[0]).toHaveTextContent('Springshire')
-    expect(cards[0]).toHaveTextContent('Through House Deal')
+    expect(cards[0]).toHaveTextContent('Listed by House Deal')
     expect(cards[0]).toHaveTextContent('2 & 3 BHK · from ₹84 L')
     expect(cards[0]).toHaveTextContent('▶ Video')
     expect(within(cards[0]).getAllByRole('link', { name: 'Springshire' })[0]).toHaveAttribute('href', '/projects/springshire-wagholi')

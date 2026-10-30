@@ -1,6 +1,7 @@
 import React from 'react'
 import Link from 'next/link'
 import Skyline from '@/components/site/Skyline'
+import { BRAND_NAME } from '@/lib/brand'
 import { formatArea, formatPrice } from '@/lib/site/format'
 import { monthYear } from '@/lib/site/register'
 import { bhkRange, bookedShare, matchingHomes, MAX_COMPARE, toSearch, type FinderItem, type FinderQuery } from '@/lib/site/finder'
@@ -10,7 +11,8 @@ const bhkText = (b: number | null) => (b == null ? 'Plot' : `${b} BHK`)
 /**
  * One project in the finder's results. When the buyer asked a BHK or budget it names the home that fits ("3 BHK · 1,115 sq ft ·
  * ₹1.84 Cr"), not the project's lowest price; otherwise its home types and starting price. Possession, whether the filed date
- * moved and the share booked come from MahaRERA. "Compare" adds it to the comparison in the address (up to three).
+ * moved and the share booked come from MahaRERA. A partner agent's listing says whose it is ("Listed by House Deal", the line
+ * their posts and reels carry); the card still opens our project page, where the enquiry is passed on to them. "Compare" adds it to the comparison in the address (up to three).
  */
 export default function FinderCard({ item, q, basePath, anchor = '' }: { item: FinderItem; q: FinderQuery; basePath: string; anchor?: string }) {
   const fit = q.bhk || q.budget ? matchingHomes(item, q) : []
@@ -33,7 +35,8 @@ export default function FinderCard({ item, q, basePath, anchor = '' }: { item: F
           </span>
         )}
         {item.video && <span className="absolute left-2 top-2 rounded-full bg-black/70 px-2.5 py-1 text-xs font-semibold text-white">▶ Video</span>}
-        {item.listedBy && <span className="absolute bottom-2 left-2 rounded-full bg-[var(--site-accent,#f0b440)] px-2.5 py-1 text-xs font-bold text-[var(--site-on-accent,#0f2340)]">Through {item.listedBy}</span>}
+        {/* our own account's listings are just Avasetu's page, so only a partner agent gets the badge (owner 2026-10-30) */}
+        {item.listedBy && item.listedBy !== BRAND_NAME && <span className="absolute bottom-2 left-2 rounded-full bg-[var(--site-accent,#f0b440)] px-2.5 py-1 text-xs font-bold text-[var(--site-on-accent,#0f2340)]">Listed by {item.listedBy}</span>}
       </Link>
       <div className="flex flex-1 flex-col gap-1.5 p-4">
         <h3 className="text-lg font-semibold leading-snug text-slate-900">
