@@ -6,6 +6,7 @@ import EnquiryForm from '@/components/site/EnquiryForm'
 import Hero from '@/components/site/Hero'
 import ListingBrowser from '@/components/site/ListingBrowser'
 import SiteShell from '@/components/site/SiteShell'
+import { enquiryName } from '@/lib/site/theme'
 import TrackingBeacon from '@/components/site/TrackingBeacon'
 import { agentCity, getAgent, getListings, getProjects } from '@/lib/site/api'
 import ProjectsSection from '@/components/site/ProjectsSection'
@@ -89,7 +90,7 @@ export default async function AgentHomePage({ params }: Props) {
         <section id="contact" aria-labelledby="contact-title" className="scroll-mt-16 space-y-4">
           <h2 id="contact-title" className="text-2xl font-bold">Tell us what you are looking for</h2>
           <ContactButtons agentSlug={slug} phone={agent.phone} waMessage={msg} size="md" className="max-w-md" />
-          <EnquiryForm agentSlug={slug} agentName={BRAND_NAME} agentPhone={agent.phone} waMessage={msg} id="enquire" />
+          <EnquiryForm agentSlug={slug} agentName={enquiryName(agent)} agentPhone={agent.phone} waMessage={msg} id="enquire" />
         </section>
       </div>
     </SiteShell>

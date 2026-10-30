@@ -73,6 +73,13 @@ LIVE (this change):
 - **Retired accounts** (slug `*-retired-*`, profile or user switched off) are left out of the picker and refused.
 - **Leads > Passed** (owner): the last 14 days' passes, card, WhatsApp status, resend from my phone, the rules.
 
+LIVE 2026-10-30: **an enquiry on an agent's own site is theirs.** The form there says "Enquire with <their business>" and the buyer
+agrees to be contacted by them. Every 5 minutes the follow-ups loop sends each new one to the agent's office WhatsApp
+(`branding_data.office_phone`, else the profile phone) from our number as UTILITY template `agent_site_enquiry_v1` ("New buyer enquiry
+on your <business> website", no Studio line, since the office phone may have no login; submitted 2026-10-30, id 1096997010008481).
+Until Meta approves it, `lead_passed_v1` goes instead. The owner gets an `agent_site_enquiry` alert and sees it in Leads > Passed
+("enquired on their site", read only).
+
 TARGET: tell the buyer who will call them (needs a buyer template naming the agent); the agent's outcome back to the owner.
 
 ## Ice breakers OFF (2026-10-23)

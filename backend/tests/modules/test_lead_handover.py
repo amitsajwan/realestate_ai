@@ -198,7 +198,7 @@ async def test_an_enquiry_on_the_agents_own_site_goes_to_their_office_whatsapp_o
         told.append((agent, kind, text))
 
     assert await followups.agent_site_enquiries(db, svc, OWNER, NOW, notify) == 1
-    assert [(to, name, params[0]) for to, name, params in wa.sent] == [("917447200001", "lead_passed_v1", "Ravi Kale")]
+    assert [(to, name, params[:2]) for to, name, params in wa.sent] == [("917447200001", "agent_site_enquiry_v1", ["House Deal", "Ravi Kale"])]
     lead = await db.get_collection("contacts").find_one({"_id": "own"})
     assert lead["agent_wa_status"] == "sent" and lead["agent_id"] == HD
     assert await followups.agent_site_enquiries(db, svc, OWNER, NOW + timedelta(minutes=5), notify) == 0
@@ -210,3 +210,18 @@ async def test_an_enquiry_on_the_agents_own_site_goes_to_their_office_whatsapp_o
     assert row["whatsapp_url"].startswith("https://wa.me/917447200001?text=")
     from app.modules.tracking.service import TrackingService
     assert (await TrackingService(db, now=lambda: NOW).lead_detail(OWNER, "own"))["name"] == "Ravi Kale"
+
+
+async def test_until_meta_approves_the_site_enquiry_template_the_pass_template_goes_instead():
+    db = await setup(form_lead("own", agent_id=HD, name="Ravi Kale", ago=timedelta(minutes=3)))
+
+    class NotApprovedYet(FakeWhatsApp):
+        async def send_template(self, conv, name, lang, params, text, now):
+            self.sent.append((conv["wa_id"], name, params))
+            ok = name != "agent_site_enquiry_v1"
+            return {"_id": "m", "status": "sent" if ok else "failed", "error": None if ok else "template not approved"}
+
+    wa = NotApprovedYet()
+    r = await InboxService(db, wa, now=lambda: NOW).tell_agent_of_lead(await db.get_collection("contacts").find_one({"_id": "own"}))
+    assert [name for _, name, _ in wa.sent] == ["agent_site_enquiry_v1", "lead_passed_v1"]
+    assert r["whatsapp_status"] == "sent" and r["agent_name"] == "House Deal"

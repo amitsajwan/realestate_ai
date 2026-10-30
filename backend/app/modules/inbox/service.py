@@ -458,25 +458,32 @@ class InboxService:
                 "whatsapp_url": f"https://wa.me/{digits}?text={quote(card['text'])}" if digits else None}
 
     async def tell_agent_of_lead(self, lead: dict) -> dict:
-        """A buyer who enquired on an agent's own site: the agent gets the same card a pass sends, as the agent template from our
-        number. -> {whatsapp_status, whatsapp_error}. Raises InboxError for a retired account."""
+        """A buyer who enquired on an agent's own site: the agent gets the card as the site-enquiry template from our number, which
+        names their business; while Meta has not approved that one, the pass template goes instead so no enquiry waits.
+        -> {whatsapp_status, whatsapp_error, text, agent_name}. Raises InboxError for a retired account."""
         agent_id = lead["agent_id"]
         prof = await self._live_agent(agent_id)
         project = await self.project_of(lead)
         card = await self._card(agent_id, lead, project, await self._lead_tids(agent_id, lead))
-        return {**await self._tell_agent(prof, card, self.now()), "text": card["text"], "agent_name": self._agent_name(prof)}
+        name = self._agent_name(prof)
+        sent = await self._tell_agent(prof, card, self.now(), handover.SITE_TEMPLATE, handover.site_params(card, name), handover.SITE_BODY)
+        if sent["whatsapp_status"] == "failed":
+            sent = await self._tell_agent(prof, card, self.now())
+        return {**sent, "text": card["text"], "agent_name": name}
 
-    async def _tell_agent(self, prof: dict, card: dict, now: datetime) -> dict:
-        """The approved agent template from our number. -> {whatsapp_status, whatsapp_error}; a failure never stops the pass."""
+    async def _tell_agent(self, prof: dict, card: dict, now: datetime, template: str = handover.AGENT_TEMPLATE,
+                          params: Optional[List[str]] = None, body: str = handover.AGENT_BODY) -> dict:
+        """An approved agent template from our number (the pass card unless another is given). -> {whatsapp_status,
+        whatsapp_error}; a failure never stops the pass."""
         digits = _lead_digits(prof)
         if not digits:
             return {"whatsapp_status": "no_mobile", "whatsapp_error": "The agent's site has no Indian mobile"}
         if self.whatsapp is None or not self.whatsapp.cfg.phone_number_id:
             return {"whatsapp_status": "failed", "whatsapp_error": "WhatsApp is not connected"}
-        params = handover.template_params(card)
+        params = params or handover.template_params(card)
         conv = {"wa_id": digits, "phone_number_id": str(self.whatsapp.cfg.phone_number_id), "agent_id": str(prof["agent_id"])}
         try:
-            rec = await self.whatsapp.send_template(conv, handover.AGENT_TEMPLATE, "en", params, handover.AGENT_BODY.format(*params), now)
+            rec = await self.whatsapp.send_template(conv, template, "en", params, body.format(*params), now)
         except Exception as e:   # the pass is done either way; the owner still has the wa.me link
             return {"whatsapp_status": "failed", "whatsapp_error": str(e)[:200]}
         return {"whatsapp_status": rec["status"], "whatsapp_error": rec.get("error")}

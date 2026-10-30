@@ -23,6 +23,13 @@ AGENT_BODY = ("New buyer enquiry passed to you by Avasetu.\n\n"
               "Name: {}\nPhone: {}\nProject: {}\nLooking for: {}\nCame from: {}\n\n"
               "Please call them today. Their full details and messages are in Avasetu Studio, Leads.\n\n"
               "Avasetu team")
+# An enquiry made on the agent's own site is theirs, not a pass (owner, 2026-10-30): the card names their business and does not
+# send them to Studio, since the office phone that reads it (House Deal: the team's WhatsApp) may have no Studio login.
+SITE_TEMPLATE = "agent_site_enquiry_v1"   # UTILITY, submitted 2026-10-30; until Meta approves it, AGENT_TEMPLATE goes instead
+SITE_BODY = ("New buyer enquiry on your {} website.\n\n"
+             "Name: {}\nPhone: {}\nProject: {}\nLooking for: {}\nCame from: {}\n\n"
+             "Please call them today.\n\n"
+             "Avasetu team")
 FINANCING_LABEL = {"home_loan": "Home loan", "own_funds": "Own funds", "undecided": "Not decided"}
 SOURCE_LABEL = {"google": "Google search", "bing": "Bing search", "instagram": "Instagram", "facebook": "Facebook",
                 "whatsapp": "WhatsApp", "direct": "Opened the link directly", "youtube": "YouTube", **origin.AI_NAMES}
@@ -148,6 +155,11 @@ def card(lead: dict, project: Optional[dict] = None, chats: Optional[List[dict]]
         body += ["", "Not known yet, please ask: " + ", ".join(missing)]
     body += ["", "Please call them today and tell us how it went.", f"{brand.NAME} team"]
     return {"lines": [{"label": k, "value": v} for k, v in lines], "missing": missing, "text": "\n".join(body)}
+
+
+def site_params(c: dict, business: str) -> List[str]:
+    """The site-enquiry template's six parameters: the agent's business name, then the pass card's five."""
+    return [_one_line(business, 60) or "Avasetu"] + template_params(c)
 
 
 def _one_line(s: Optional[str], n: int) -> str:

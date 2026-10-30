@@ -11,6 +11,7 @@ import ListingFacts from '@/components/site/ListingFacts'
 import { isSampleListing } from '@/lib/site/format'
 import ShareButton from '@/components/site/ShareButton'
 import SiteShell from '@/components/site/SiteShell'
+import { enquiryName } from '@/lib/site/theme'
 import StickyBar from '@/components/site/StickyBar'
 import TrackingBeacon from '@/components/site/TrackingBeacon'
 import VerifiedFacts from '@/components/site/VerifiedFacts'
@@ -124,7 +125,7 @@ export default async function ListingPage({ params }: Props) {
 
         <ListingAbout about={l.about} listingAmenities={l.amenities} />
 
-        <EnquiryForm agentSlug={slug} agentName={BRAND_NAME} agentPhone={phone} listingId={l.id} waMessage={msg} id="enquire" />
+        <EnquiryForm agentSlug={slug} agentName={enquiryName(agent)} agentPhone={phone} listingId={l.id} waMessage={msg} id="enquire" />
       </div>
       <StickyBar agentSlug={slug} phone={phone} waMessage={msg} listingId={l.id} />
     </SiteShell>

@@ -1,6 +1,7 @@
 import { contrast, mix } from './contrast'
 import { BUTTON_RADIUS, DEFAULT_PRESET, PRESETS, isPresetId, type Preset } from './presets'
 import type { AgentBranding } from './types'
+import { BRAND_NAME, isHouseAgent } from '@/lib/brand'
 
 const HEX6 = /^#[0-9a-f]{6}$/i
 
@@ -76,6 +77,12 @@ export const MAHARERA_URL = 'https://maharera.maharashtra.gov.in'
 const RERA = /^A\d{6,18}$/
 export function safeRera(v: unknown): string | null {
   return typeof v === 'string' && RERA.test(v.trim()) ? v.trim() : null
+}
+
+/** Who the enquiry form on an agent's site is with: the agent's business (an enquiry on their own site is theirs, owner
+ * 2026-10-30), or Avasetu on the team's own site. */
+export function enquiryName(agent: { slug: string; agent_name: string; branding_data?: AgentBranding | null }): string {
+  return isHouseAgent(agent.slug) ? BRAND_NAME : displayName(agent)
 }
 
 /** What the public site calls the agent: his business name when he set one, else his own name. */

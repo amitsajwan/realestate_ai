@@ -14,8 +14,7 @@ import { jsonLdString, projectJsonLd, projectMetadata } from '@/lib/site/seo'
 import { breadcrumbJsonLd } from '@/lib/marketing/seo'
 import { localityByName } from '@/lib/marketing/localities'
 import { agentPath, normalizeSlug, siteOrigin } from '@/lib/site/slug'
-import { displayName } from '@/lib/site/theme'
-import { BRAND_NAME } from '@/lib/brand'
+import { displayName, enquiryName } from '@/lib/site/theme'
 import DemoRibbon from '../../DemoRibbon'
 
 interface Props {
@@ -84,7 +83,7 @@ export default async function ProjectPage({ params }: Props) {
           <Link href={agentPath(slug, 'projects/compare')} className="font-semibold text-[var(--site-primary)]">Compare all projects side by side &rarr;</Link>
         </p>
 
-        <EnquiryForm agentSlug={slug} agentName={BRAND_NAME} agentPhone={agent.phone} topic={`${p.name} (${p.rera_no})`} waMessage={msg} id="enquire" />
+        <EnquiryForm agentSlug={slug} agentName={enquiryName(agent)} agentPhone={agent.phone} topic={`${p.name} (${p.rera_no})`} waMessage={msg} id="enquire" />
       </div>
       <StickyBar agentSlug={slug} phone={agent.phone} waMessage={msg} />
     </SiteShell>
