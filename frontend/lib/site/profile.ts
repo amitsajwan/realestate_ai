@@ -14,7 +14,7 @@ export interface ProfilePicture {
   /** builder: the builder's own site; ai: an illustration drawn by AI from the MahaRERA facts, not the project (backend
    *  profile.illustrations); brochure: a page of the builder's brochure an agent uploaded (backend profile.brochure_pictures).
    *  Pictures copied from other sites stay on the record and are never sent (backend pages.shown_pictures, 2026-10-29). */
-  source?: 'builder' | 'brochure' | 'ai'
+  source?: 'builder' | 'brochure' | 'ai' | 'agent'
 }
 
 export interface ProjectProfile {

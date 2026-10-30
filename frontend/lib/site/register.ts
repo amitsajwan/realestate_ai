@@ -475,6 +475,10 @@ export interface Offer {
   /** the live listing's price sheet: every home type with its size and price (a project listed with several) */
   homes?: { bhk: number; label: string; carpet_sqft?: number | null; price_inr?: number | null }[] | null
   payment_plan?: string | null
+  /** the agent who lists it: the page names them with their phone (owner 2026-10-30) */
+  agent?: { slug: string; name: string; phone?: string | null; listing_id: string } | null
+  /** the listing's photos (our /uploads copies), shown before the builder's */
+  photos?: { url: string; width?: number | null; height?: number | null }[] | null
 }
 
 /** "2, 3 & 4 BHK" from a price sheet's home labels; "" when none is a BHK. */

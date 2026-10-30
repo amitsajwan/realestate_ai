@@ -26,6 +26,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.core.auth_backend import current_active_user
 from app.core.database import get_database
 from app.models.user import User
+from app.modules.agentprojects.service import indexable
+from app.platform.media import display_url, upload_path
 
 from . import brochure, jobs
 from .public import view
@@ -43,6 +45,18 @@ def get_db():
 LIVE_STATES = ("live", "under_offer")
 
 
+def listing_photos(media: list) -> list:
+    """A listing's shown photos as our own /uploads paths with their size (the page's pictures need both), in the agent's order."""
+    out = []
+    for m in sorted((m for m in media if isinstance(m, dict) and (m.get("kind") or "image") == "image"),
+                    key=lambda m: m.get("order") or 0):
+        path = upload_path(display_url(m))
+        if path:
+            q = m.get("quality") or {}
+            out.append({"url": path, "width": q.get("width"), "height": q.get("height")})
+    return out
+
+
 async def with_sheet(db, out: Optional[dict]) -> Optional[dict]:
     """The page's offer with the live listing's price sheet and payment plan (homes.rows, homes.payment_plan): a project
     listed with seven home types showed only its first flat ("2 BHK, 730 sq ft, ₹1.2 Cr"; Godrej Ivara, 2026-10-20)."""
@@ -52,11 +66,20 @@ async def with_sheet(db, out: Optional[dict]) -> Optional[dict]:
     from . import homes
     listing = await db.listings.find_one({"rera_no": regno, "status": {"$in": list(LIVE_STATES)}},
                                          {"configurations": 1, "payment_plan": 1, "bhk": 1, "price_inr": 1, "carpet_sqft": 1,
-                                          "property_type": 1, "listing_scope": 1}, sort=[("updated_at", -1)])
+                                          "property_type": 1, "listing_scope": 1, "agent_id": 1, "media": 1},
+                                         sort=[("updated_at", -1)])
     if not listing:
         return out
     table = homes.rows(listing) if listing.get("configurations") else []
     offer = dict(out["offer"])
+    # who sells it and their pictures: the project page names the agent with their phone and shows the listing's photos first
+    # (owner 2026-10-30, House Deal's projects)
+    profile = await db.get_collection("agent_public_profiles").find_one({"agent_id": listing.get("agent_id"), "is_public": True})
+    if profile and indexable(profile):
+        b = profile.get("branding_data") or {}
+        offer["agent"] = {"slug": profile["slug"], "name": (b.get("business_name") or profile.get("agent_name") or "").strip(),
+                          "phone": profile.get("phone"), "listing_id": listing["_id"]}
+        offer["photos"] = listing_photos(listing.get("media") or [])
     if len(table) > 1:
         offer["homes"] = [{"bhk": r["bhk"], "label": r["label"], "carpet_sqft": r.get("carpet_sqft"), "price_inr": r.get("price_inr")}
                           for r in table]

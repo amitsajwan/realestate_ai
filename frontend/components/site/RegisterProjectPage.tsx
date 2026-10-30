@@ -22,6 +22,8 @@ import type { ProfilePicture } from '@/lib/site/profile'
 import type { PropertyFactsView } from '@/lib/site/types'
 import type { WebFact } from '@/lib/site/webfacts'
 import { formatPrice, groupIndian } from '@/lib/site/format'
+import { displayPhone } from '@/lib/app/format'
+import { agentPath } from '@/lib/site/slug'
 import { OWN_CASH_NOTE, ownCash } from '@/lib/site/upfront'
 import { projectUpdated, registerAnswer } from '@/lib/site/projectFacts'
 
@@ -49,6 +51,13 @@ function OfferBox({ o, numbers, stage }: { o: Offer; numbers: PropertyFactsView[
   return (
     <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4" data-testid="offer">
       <h3 className="text-lg font-bold text-slate-900">On offer</h3>
+      {o.agent?.name && o.agent.slug !== HOUSE_AGENT ? (
+        <p className="mt-1 text-slate-900" data-testid="offer-agent">
+          Listed by{' '}
+          <Link href={agentPath(o.agent.slug, 'listings/' + o.agent.listing_id)} className="font-semibold underline underline-offset-2">{o.agent.name}</Link>
+          {o.agent.phone ? <>{' · '}<a href={`tel:${o.agent.phone}`} className="font-semibold underline underline-offset-2">{displayPhone(o.agent.phone)}</a></> : null}
+        </p>
+      ) : null}
       {o.price_inr ? <p className="mt-1 text-2xl font-extrabold text-slate-900">{sheet ? 'From ' : ''}{formatPrice(o.price_inr)}</p> : null}
       {what && <p className="mt-1 text-slate-800">{what}</p>}
       {o.payment_plan ? (
@@ -197,7 +206,7 @@ function Hero({ p, price, photo }: { p: RegisterProject; price: { from: string; 
           <img src={photo.url} alt={photo.alt} width={photo.width ?? undefined} height={photo.height ?? undefined}
             loading="eager" fetchPriority="high" decoding="async" className="h-full w-full object-cover" />
           <figcaption className="absolute bottom-2 right-2 rounded bg-black/60 px-2 py-0.5 text-xs text-white">
-            The builder&apos;s picture{photo.site ? `, ${photo.site}` : ''}
+            {photo.source === 'agent' ? `From ${photo.site}'s listing` : <>The builder&apos;s picture{photo.site ? `, ${photo.site}` : ''}</>}
           </figcaption>
         </figure>
       )}
@@ -685,11 +694,17 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
   const placeName = p.pune_place?.name ?? null
   const placeHref = p.pune_place ? placePath(p.pune_place.key.replace(/_/g, '-')) : null
   // the same copies the gallery keeps (a render saved twice shows once), so the hero's picture is the one the gallery skips
-  const ownPhotos = distinctPhotos(p.profile?.photos ?? []).filter((x) => (x.source ?? 'builder') === 'builder' && !!x.url)
-  // the hero's picture: the builder's first one; the gallery below starts from the next, so it is not shown twice
-  const heroPhoto = ownPhotos[0] ?? null
-  const nearby = (facts as unknown as { nearby?: Near[] } | null)?.nearby ?? []
   const offer = (facts as unknown as { offer?: Offer } | null)?.offer
+  // the listing agent's photos come first (owner 2026-10-30: the agent sells it), then the builder's
+  const listed: ProfilePicture[] = offer?.agent && offer.agent.slug !== HOUSE_AGENT
+    ? (offer.photos ?? []).map((x, i) => ({ url: x.url, width: x.width ?? null, height: x.height ?? null, alt: `${shown}, picture ${i + 1}`,
+        site: offer.agent!.name, page_url: null, source: 'agent' as const }))
+    : []
+  const ownPhotos = [...listed, ...distinctPhotos(p.profile?.photos ?? []).filter((x) => (x.source ?? 'builder') === 'builder' && !!x.url)]
+  // the hero's picture: the first one; the gallery below starts from the next, so it is not shown twice
+  const heroPhoto = ownPhotos[0] ?? null
+  const gallery = listed.length ? { read_at: null, highlights: [], plans: [], ...p.profile, photos: [...listed, ...(p.profile?.photos ?? [])] } : p.profile
+  const nearby = (facts as unknown as { nearby?: Near[] } | null)?.nearby ?? []
   // the agent's live price sheet is the page's one price: the hero quotes it and the portals' prices are not shown beside it
   const price = offerPrice(offer)
   const faq = projectFaq(p, nearby, offer?.price_inr ? `${offer.homes && offer.homes.length > 1 ? 'from ' : ''}${formatPrice(offer.price_inr)}` : null)
@@ -725,7 +740,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
       )}
 
       {/* pictures next: what a buyer looks for before reading (owner 2026-10-20) */}
-      <div className="mt-8"><ProjectProfile profile={p.profile} name={shown} part="photos" skip={heroPhoto?.url} /></div>
+      <div className="mt-8"><ProjectProfile profile={gallery} name={shown} part="photos" skip={heroPhoto?.url} /></div>
 
       <div className="mt-8 grid gap-8 lg:grid-cols-3">
         <div className="min-w-0 space-y-10 lg:col-span-2">

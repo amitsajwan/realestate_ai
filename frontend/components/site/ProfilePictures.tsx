@@ -12,7 +12,7 @@ const hashOf = (p: ProfilePicture): [number, number] | null => {
   return m ? [parseInt(m[1].slice(0, 8), 16), parseInt(m[1].slice(8), 16)] : null
 }
 const bits = (n: number) => { let c = 0; for (let x = n >>> 0; x; x &= x - 1) c++; return c }
-const RANK: Record<string, number> = { builder: 0, brochure: 1, ai: 3 }
+const RANK: Record<string, number> = { agent: 0, builder: 0, brochure: 1, ai: 3 }
 
 /** Photos with near-duplicates dropped (the same render twice, under 21 of 64 bits apart), as the backend's
  * profile.distinct_photos does: profiles saved before that rule still hold both copies until they are read again. */
@@ -34,7 +34,7 @@ export function Picture({ pic, eager }: { pic: ProfilePicture; eager?: boolean }
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={pic.url} alt={pic.alt} width={pic.width ?? undefined} height={pic.height ?? undefined}
         loading={eager ? 'eager' : 'lazy'} decoding="async" className="h-full w-full object-cover" />
-      {sourceOf(pic) !== 'builder' && !(sourceOf(pic) === 'brochure' && !/artist/i.test(pic.alt)) && (
+      {sourceOf(pic) !== 'builder' && sourceOf(pic) !== 'agent' && !(sourceOf(pic) === 'brochure' && !/artist/i.test(pic.alt)) && (
         <span className="absolute left-2 top-2 rounded bg-black/70 px-2 py-0.5 text-xs font-semibold text-white">
           {sourceOf(pic) === 'ai' ? 'AI illustration' : "Artist's impression"}
         </span>
@@ -47,8 +47,14 @@ export function Credit({ pics, name }: { pics: ProfilePicture[]; name?: string }
   const drawn = pics.some((p) => sourceOf(p) === 'ai')
   const own = pics.filter((p) => sourceOf(p) === 'builder')
   const brochure = pics.some((p) => sourceOf(p) === 'brochure')
+  const agent = pics.find((p) => sourceOf(p) === 'agent')?.site
   return (
     <>
+      {agent && (
+        <p className="mt-2 text-xs text-slate-600">
+          From {agent}&apos;s listing. Renders are the builder&apos;s artist&apos;s impressions: check the sanctioned plans before you book.
+        </p>
+      )}
       {drawn && (
         <p className="mt-2 text-xs text-slate-600">
           Illustrations made by AI from the MahaRERA facts (towers, floors): they are not pictures of {name || 'the project'}. Ask us for the builder&apos;s pictures.
