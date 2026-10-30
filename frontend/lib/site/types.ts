@@ -69,6 +69,12 @@ export interface AgentBranding {
   business_name?: string
   about?: string
   banner?: string | null
+  /** Owner-only: the banner already carries the business's own words, so it is shown whole with nothing laid over it. */
+  banner_words?: boolean
+  /** Owner-only, with banner_words: a tall copy of the banner for phones. */
+  banner_mobile?: string | null
+  /** Owner-only, with banner_words: the words on the banner, for screen readers. */
+  banner_alt?: string
   preset?: 'navy-gold' | 'emerald' | 'terracotta' | 'royal-purple' | 'slate-teal' | 'cream-ink'
   custom_primary?: string | null
   rera_agent_no?: string | null

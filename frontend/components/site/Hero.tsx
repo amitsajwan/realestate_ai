@@ -44,6 +44,42 @@ export default function Hero({ agent, city }: { agent: AgentProfile; city: strin
   const fillInk = light ? '#ffffff' : 'var(--site-on-accent)'
   const ghost = light ? 'var(--site-primary)' : 'rgba(255,255,255,.75)'
 
+  // A banner that already carries the business's own words (House Deal's "Welcome to House Deal" picture) is shown whole: no
+  // overlay and no heading laid over its lettering, and a tall copy on phones so the words stay readable. The heading stays for
+  // screen readers and search; the agent, the buttons and the contact links sit in a band under the picture.
+  if (banner && b?.banner_words) {
+    const phone = safeImage(b.banner_mobile)
+    return (
+      <section aria-labelledby="hero-title" data-hero="words" data-preset={t.id} style={{ backgroundImage: 'linear-gradient(165deg, var(--site-hero-from), var(--site-hero-to))', color: 'var(--site-hero-fg)' }}>
+        <picture>
+          {phone && <source media="(max-width: 639px)" srcSet={phone} />}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={banner} alt={(b.banner_alt || '').trim() || name} className="block h-auto w-full" fetchPriority="high" />
+        </picture>
+        <h1 id="hero-title" className="sr-only">{tagline || DEFAULT_HEADLINE}</h1>
+        <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 py-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            {logo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logo} alt="" width={48} height={48} className="h-12 w-12 rounded-full bg-white object-contain p-1" />
+            ) : (
+              <span aria-hidden className="flex h-12 w-12 items-center justify-center rounded-full text-base font-bold" style={{ background: 'var(--site-accent)', color: 'var(--site-on-accent)' }}>{monogram(name)}</span>
+            )}
+            <div className="min-w-0 leading-tight">
+              <p className="truncate text-lg font-bold">{name}</p>
+              <p className="truncate text-sm opacity-90">{eyebrow}</p>
+            </div>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <a href="#enquire" className="inline-flex min-h-[48px] items-center justify-center px-6 font-bold no-underline" style={{ background: 'var(--site-accent)', color: 'var(--site-on-accent)', borderRadius: 'var(--site-radius)' }}>I&apos;m interested</a>
+            <a href="#listings" className="inline-flex min-h-[48px] items-center justify-center border-2 px-6 font-semibold no-underline" style={{ borderColor: 'currentColor', color: 'inherit', borderRadius: 'var(--site-radius)' }}>See properties</a>
+          </div>
+        </div>
+        <div className="mx-auto max-w-5xl px-4 pb-6"><div className="max-w-md"><ContactButtons agentSlug={agent.slug} phone={agent.phone} waMessage={whatsappMessage(agent.agent_name)} /></div></div>
+      </section>
+    )
+  }
+
   return (
     <section aria-labelledby="hero-title" data-hero={banner ? 'banner' : t.art} data-preset={t.id} className="relative overflow-hidden" style={{ ...bg, color: banner ? '#ffffff' : 'var(--site-hero-fg)' }}>
       {banner ? (

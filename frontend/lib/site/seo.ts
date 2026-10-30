@@ -4,6 +4,7 @@ import { BRAND_NAME, isHouseAgent } from '@/lib/brand'
 import { agentPath, siteOrigin } from './slug'
 import { monthsLater } from './check'
 import { agentPhone } from './links'
+import { displayName } from './theme'
 import { formatDay } from './projects'
 import type { AgentProfile, CatalogProject, PublicListing, PublicProject } from './types'
 import { earliestPossession, webFact, type WebFacts } from './webfacts'
@@ -42,7 +43,8 @@ export function withPreview(agent: AgentProfile, md: Metadata): Metadata {
 
 export function agentMetadata(agent: AgentProfile, listings: PublicListing[], city: string): Metadata {
   const tag = agent.branding_data && agent.branding_data.tagline
-  const title = agent.agent_name + (city ? ' | Real estate in ' + city : ' | Real estate agent')
+  // the business name when there is one: House Deal's login is in a person's name, and the tab read "Sharad | Real estate in Pune"
+  const title = displayName(agent) + (city ? ' | Real estate in ' + city : ' | Real estate agent')
   const description = truncate(tag ? tag + '. ' + (agent.bio || '') : agent.bio || 'Browse properties from ' + agent.agent_name, 160)
   const image = agent.photo || (listings.length ? firstImage(listings[0]) : undefined) || undefined
   const md = withPreview(agent, build(title, description, agentPath(agent.slug), image))
@@ -66,7 +68,7 @@ export function agentJsonLd(agent: AgentProfile, city: string): Record<string, u
   return {
     '@context': 'https://schema.org',
     '@type': 'RealEstateAgent',
-    name: agent.agent_name,
+    name: displayName(agent),
     url: siteOrigin() + agentPath(agent.slug),
     image: agent.photo || undefined,
     description: agent.bio || undefined,

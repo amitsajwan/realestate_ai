@@ -44,3 +44,10 @@ describe("the agents' pages", () => {
     expect(String(agentsHome.title)).toBe('Free trial for real estate agents in Pune | Avasetu')
   })
 })
+
+describe('agent page title', () => {
+  it('names the business, not the login', () => {
+    const a = { agent_name: 'Sharad', slug: 'house-deal-x', branding_data: { business_name: 'House Deal' } } as AgentProfile
+    expect(String(agentMetadata(a, [], 'Pune').title)).toBe('House Deal | Real estate in Pune')
+  })
+})
