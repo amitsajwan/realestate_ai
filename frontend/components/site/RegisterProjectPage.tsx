@@ -546,6 +546,29 @@ function BuilderRecord({ p }: { p: RegisterProject }) {
   )
 }
 
+/** Sample-flat videos under the pictures, played from the agent's own website: nothing is downloaded until a buyer presses play
+ *  beyond the first frame (#t=0.1 with preload=metadata). */
+function Videos({ videos, name, agent }: { videos: { url: string; label: string }[]; name: string; agent: string | null }) {
+  const shown = videos.filter((v) => /^https:\/\/[^/\s]+\/\S+\.mp4$/i.test(v.url)).slice(0, 6)
+  if (!shown.length) return null
+  return (
+    <section aria-labelledby="videos-title" className="mt-8" data-testid="videos">
+      <h2 id="videos-title" className={H2}>{shown.length > 1 ? 'Sample flat videos' : 'Sample flat video'} of {name}</h2>
+      <ul className="mt-3 grid list-none gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
+        {shown.map((v) => (
+          <li key={v.url}>
+            <figure className="m-0">
+              {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+              <video controls playsInline preload="metadata" src={v.url + '#t=0.1'} className="aspect-[9/16] max-h-[70vh] w-full rounded-2xl bg-black object-contain sm:aspect-video" />
+              <figcaption className="mt-1 text-sm text-slate-700">{v.label || 'Video'}{agent ? <span className="text-slate-500"> · from {agent}</span> : null}</figcaption>
+            </figure>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
 /** Where a web fact was read: the builder's own site (linked) or how many property sites agree (never named). */
 function WebSources({ f }: { f: WebFact }) {
   return <SourceKind sources={f.sources} official={f.official} />
@@ -749,6 +772,9 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
 
       {/* pictures next: what a buyer looks for before reading (owner 2026-10-20) */}
       <div className="mt-8"><ProjectProfile profile={gallery} name={shown} part="photos" skip={heroPhoto?.url} /></div>
+
+      {/* the listing agent's sample-flat videos, played from their website (owner 2026-10-30) */}
+      <Videos videos={offer?.videos ?? []} name={shown} agent={offer?.agent?.name ?? null} />
 
       <div className="mt-8 grid gap-8 lg:grid-cols-3">
         <div className="min-w-0 space-y-10 lg:col-span-2">

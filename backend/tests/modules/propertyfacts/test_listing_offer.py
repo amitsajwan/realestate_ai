@@ -4,7 +4,7 @@
 offer was always the latest one's, so one agent's page would show the other agent's prices and pictures."""
 from datetime import datetime
 
-from app.modules.propertyfacts.router import with_sheet
+from app.modules.propertyfacts.router import listing_videos, with_sheet
 
 from ..fakes import FakeDb
 
@@ -42,3 +42,12 @@ async def test_the_offer_gives_the_agents_office_line_when_they_set_one():
     await db.get_collection("agent_public_profiles").update_one(
         {"agent_id": "HD"}, {"$set": {"branding_data": {"business_name": "House Deal", "office_phone": "+917447212121"}}})
     assert (await with_sheet(db, facts(), "hd"))["offer"]["agent"]["phone"] == "+917447212121"
+
+
+def test_videos_play_only_from_the_agents_own_website():
+    site = "https://house-deal.com"
+    vids = [{"url": "https://house-deal.com/wp-content/uploads/2026/10/3bhk-sample-flat.mp4", "label": "3 BHK sample flat"},
+            {"url": "http://house-deal.com/x.mp4"}, {"url": "https://evil.example/x.mp4"},
+            {"url": "https://house-deal.com/page.html"}, {"url": "https://www.house-deal.com/y.mp4"}]
+    assert [v["url"].rsplit("/", 1)[1] for v in listing_videos(vids, site)] == ["3bhk-sample-flat.mp4", "y.mp4"]
+    assert listing_videos(vids, None) == []

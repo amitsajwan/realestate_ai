@@ -438,3 +438,23 @@ describe('what changed, as we read it (seo-system.md 8b, H1)', () => {
     expect(screen.queryByTestId('history')).toBeNull()
   })
 })
+
+describe("the listing agent's videos", () => {
+  it('plays the sample-flat videos from the agent site under the pictures, and nothing that is not an https mp4', () => {
+    const facts = { offer: { ...OFFER, agent: { slug: 'house-deal', name: 'House Deal', listing_id: 'l1' }, videos: [
+      { url: 'https://house-deal.com/wp-content/uploads/3bhk-sample-flat.mp4', label: '3 BHK sample flat' },
+      { url: 'javascript:alert(1)', label: 'bad' }] } } as never
+    render(<RegisterProjectPage p={P} siteUrl="https://avasetu.in" facts={facts} />)
+    const box = screen.getByTestId('videos')
+    expect(box).toHaveTextContent('Sample flat video of')
+    expect(box).toHaveTextContent('3 BHK sample flat · from House Deal')
+    const v = box.querySelectorAll('video')
+    expect(v).toHaveLength(1)
+    expect(v[0]).toHaveAttribute('src', 'https://house-deal.com/wp-content/uploads/3bhk-sample-flat.mp4#t=0.1')
+  })
+
+  it('shows no video section without videos', () => {
+    render(<RegisterProjectPage p={P} siteUrl="https://avasetu.in" facts={SHEET} />)
+    expect(screen.queryByTestId('videos')).toBeNull()
+  })
+})

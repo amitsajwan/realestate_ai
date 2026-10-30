@@ -487,6 +487,8 @@ export interface Offer {
   agent?: { slug: string; name: string; phone?: string | null; listing_id: string } | null
   /** the listing's photos (our /uploads copies), shown before the builder's */
   photos?: { url: string; width?: number | null; height?: number | null }[] | null
+  /** the agent's sample-flat videos, played from their own website (only https .mp4 on it; propertyfacts listing_videos) */
+  videos?: { url: string; label: string }[] | null
 }
 
 /** "2, 3 & 4 BHK" from a price sheet's home labels; "" when none is a BHK. */

@@ -18,6 +18,7 @@ or edits a fact, `POST .../brochure/registration` keeps the agent's "registered 
 page's thumbnail, `PATCH .../brochure/images/{image_id}` uses or drops a plan, map or render kept from the brochure, and
 `GET .../brochure/images/{image_id}.jpg` serves it."""
 from typing import Any, Literal, Optional
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile
 from fastapi.responses import FileResponse
@@ -57,6 +58,20 @@ def listing_photos(media: list) -> list:
     return out
 
 
+def listing_videos(videos: list, website: Optional[str]) -> list:
+    """The listing's sample-flat videos, played from the agent's own website (owner 2026-10-30: House Deal's videos play
+    straight from house-deal.com, never copied to our disk). Only https .mp4 files on the host of the agent's website go out."""
+    host = urlparse(website or "").hostname or ""
+    host = host[4:] if host.startswith("www.") else host
+    out = []
+    for v in videos[:6]:
+        u = urlparse(str((v or {}).get("url") or ""))
+        h = (u.hostname or "")[4:] if (u.hostname or "").startswith("www.") else (u.hostname or "")
+        if host and u.scheme == "https" and h == host and u.path.lower().endswith(".mp4"):
+            out.append({"url": u.geturl(), "label": str(v.get("label") or "")[:60]})
+    return out
+
+
 async def with_sheet(db, out: Optional[dict], listing_id: Optional[str] = None) -> Optional[dict]:
     """The page's offer with the live listing's price sheet and payment plan (homes.rows, homes.payment_plan): a project
     listed with seven home types showed only its first flat ("2 BHK, 730 sq ft, ₹1.2 Cr"; Godrej Ivara, 2026-10-20).
@@ -67,7 +82,7 @@ async def with_sheet(db, out: Optional[dict], listing_id: Optional[str] = None) 
         return out
     from . import homes
     fields = {"configurations": 1, "payment_plan": 1, "bhk": 1, "price_inr": 1, "carpet_sqft": 1,
-              "property_type": 1, "listing_scope": 1, "agent_id": 1, "media": 1}
+              "property_type": 1, "listing_scope": 1, "agent_id": 1, "media": 1, "videos": 1}
     live = {"rera_no": regno, "status": {"$in": list(LIVE_STATES)}}
     listing = await db.listings.find_one({**live, "_id": listing_id}, fields) if listing_id else None
     listing = listing or await db.listings.find_one(live, fields, sort=[("updated_at", -1)])
@@ -84,6 +99,7 @@ async def with_sheet(db, out: Optional[dict], listing_id: Optional[str] = None) 
                           # the office line buyers should call when the agent set one (House Deal: 74472 12121, 2026-10-30)
                           "phone": b.get("office_phone") or profile.get("phone"), "listing_id": listing["_id"]}
         offer["photos"] = listing_photos(listing.get("media") or [])
+        offer["videos"] = listing_videos(listing.get("videos") or [], b.get("website"))
     if len(table) > 1:
         offer["homes"] = [{"bhk": r["bhk"], "label": r["label"], "carpet_sqft": r.get("carpet_sqft"), "price_inr": r.get("price_inr")}
                           for r in table]
