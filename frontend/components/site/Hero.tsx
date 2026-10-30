@@ -47,17 +47,25 @@ export default function Hero({ agent, city }: { agent: AgentProfile; city: strin
   // A banner that already carries the business's own words (House Deal's "Welcome to House Deal" picture) is shown whole: no
   // overlay and no heading laid over its lettering, and a tall copy on phones so the words stay readable. The heading stays for
   // screen readers and search; the agent, the buttons and the contact links sit in a band under the picture.
-  // Shown whole it was taller than the window (owner 2026-10-30), so its height is capped and the bottom (road and balcony) is
-  // cropped: the words and the office sit in the top two thirds of both copies.
+  // Shown at full width it was taller than the window (owner 2026-10-30), and cropping lost the metro, so the whole picture is
+  // shrunk to fit the window's height instead.
   if (banner && b?.banner_words) {
     const phone = safeImage(b.banner_mobile)
     return (
       <section aria-labelledby="hero-title" data-hero="words" data-preset={t.id} style={{ backgroundImage: 'linear-gradient(165deg, var(--site-hero-from), var(--site-hero-to))', color: 'var(--site-hero-fg)' }}>
-        <picture>
-          {phone && <source media="(max-width: 639px)" srcSet={phone} />}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={banner} alt={(b.banner_alt || '').trim() || name} className="block h-auto max-h-[60svh] w-full object-cover object-top sm:max-h-[70vh]" fetchPriority="high" />
-        </picture>
+        <div className="relative overflow-hidden">
+          {/* the same picture, blurred, fills the sides left when the whole banner is shrunk to the window's height */}
+          <picture aria-hidden>
+            {phone && <source media="(max-width: 639px)" srcSet={phone} />}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={banner} alt="" className="absolute inset-0 h-full w-full scale-110 object-cover opacity-70 blur-2xl" />
+          </picture>
+          <picture>
+            {phone && <source media="(max-width: 639px)" srcSet={phone} />}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={banner} alt={(b.banner_alt || '').trim() || name} className="relative mx-auto block h-auto max-h-[62svh] w-auto max-w-full sm:max-h-[72vh]" fetchPriority="high" />
+          </picture>
+        </div>
         <h1 id="hero-title" className="sr-only">{tagline || DEFAULT_HEADLINE}</h1>
         <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 py-6 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
