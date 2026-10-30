@@ -24,6 +24,10 @@ def _get(doc, key):
 
 def _match(doc, flt):
     for key, cond in flt.items():
+        if key == "$or":
+            if not any(_match(doc, f) for f in cond):
+                return False
+            continue
         val = _get(doc, key)
         if isinstance(cond, dict):
             for op, arg in cond.items():

@@ -15,6 +15,11 @@ Every INTERVAL_S:
      the full handover card. PASS_DELAY leaves the auto follow-up its turn first (the template goes from Avasetu, then the agent
      calls). Tried once per lead (`auto_pass_at`); the owner gets one 'lead_auto_passed' alert saying who it went to and whether
      the WhatsApp to the agent went out.
+  4. Agent site enquiry (always on). A form lead that came straight to an agent (their own site, not the owner's) in the last
+     AGENT_WA_WINDOW and was never passed is sent to that agent on WhatsApp from our number, as the same card and approved template
+     a pass uses (InboxService.tell_agent_of_lead), to their office number when the site has one (owner, 2026-10-30: House Deal's
+     enquiries reach them on WhatsApp through Avasetu). Tried once per lead (`agent_wa_at`, `agent_wa_status`). The owner follows
+     these like passes: `watched_by` puts the lead in their Leads > Passed (read only) and they get one 'agent_site_enquiry' alert.
 Each lead is handled on its own: an error is logged and the rest go on.
 """
 import asyncio
@@ -38,6 +43,7 @@ ALERT_KIND = "lead_waiting"
 PASS_DELAY = timedelta(minutes=4)
 PASSED_KIND = "lead_auto_passed"
 MAX_LEADS = 500
+AGENT_WA_WINDOW = timedelta(hours=1)    # a lead from before this step went live is not sent late
 
 
 def auto_on() -> bool:
@@ -103,6 +109,39 @@ async def auto_passes(db, inbox, owner: str, now: datetime, notify: Optional[Cal
     return passed
 
 
+SITE_KIND = "agent_site_enquiry"
+
+
+async def agent_site_enquiries(db, inbox, owner: str, now: datetime, notify: Optional[Callable] = None) -> int:
+    """Send each fresh form lead on an agent's own site to that agent's WhatsApp and tell the owner. Returns how many went out."""
+    if notify is None:
+        from app.modules.notifications.service import notify
+    leads = await db.get_collection("contacts").find({
+        "agent_id": {"$nin": [owner, None, ""]}, "channel": "form", "created_at": {"$gte": now - AGENT_WA_WINDOW},
+        "passed_at": {"$exists": False}, "agent_wa_at": {"$exists": False}}).to_list(MAX_LEADS)
+    sent = 0
+    for c in leads:
+        await db.get_collection("contacts").update_one({"_id": c["_id"]}, {"$set": {"agent_wa_at": now, "watched_by": owner}})
+        r: dict = {}
+        try:
+            r = await inbox.tell_agent_of_lead(c)
+            status, error = r["whatsapp_status"], r.get("whatsapp_error")
+        except Exception as e:   # InboxError (retired account) or a send failure: kept on the lead, not retried
+            status, error = "failed", str(e)[:200]
+        if status != "sent":
+            log.warning("agent site enquiry %s not sent to the agent: %s %s", c["_id"], status, error)
+        await db.get_collection("contacts").update_one({"_id": c["_id"]}, {"$set": {
+            "agent_wa_status": status, "agent_wa_error": error, "agent_wa_text": r.get("text")}})
+        sent += status == "sent"
+        wa = "WhatsApp to them sent" if status in ("sent", "dry_run") else f"WhatsApp to them not sent ({error or status})"
+        try:
+            await notify(db, owner, SITE_KIND, f"{c.get('name') or 'A buyer'} enquired on {r.get('agent_name') or 'an agent'}'s site. {wa}.",
+                         {"lead_id": c["_id"], "screen": f"/studio/leads/{c['_id']}"}, now)
+        except Exception:
+            log.exception("owner alert for agent site enquiry %s failed", c["_id"])
+    return sent
+
+
 def _alert_text(c: dict, state: str, waited: timedelta) -> str:
     hours = int(waited.total_seconds() // 3600)
     took = f"{hours // 24} days" if hours >= 48 else f"{hours} hours"
@@ -152,6 +191,9 @@ async def cycle(db, now: datetime) -> None:
         n = await auto_passes(db, inbox, owner, now)
         if n:
             log.info("lead follow-ups: %d passed to agents by rule", n)
+        n = await agent_site_enquiries(db, inbox, owner, now)
+        if n:
+            log.info("lead follow-ups: %d agent site enquiries sent to the agent on WhatsApp", n)
     n = await waiting_alerts(db, now)
     if n:
         log.info("lead follow-ups: %d waiting alerts", n)

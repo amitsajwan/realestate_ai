@@ -3,6 +3,7 @@ import { bhkLabel, fitDescription, formatPrice, truncate } from './format'
 import { BRAND_NAME, isHouseAgent } from '@/lib/brand'
 import { agentPath, siteOrigin } from './slug'
 import { monthsLater } from './check'
+import { agentPhone } from './links'
 import { formatDay } from './projects'
 import type { AgentProfile, CatalogProject, PublicListing, PublicProject } from './types'
 import { earliestPossession, webFact, type WebFacts } from './webfacts'
@@ -69,7 +70,7 @@ export function agentJsonLd(agent: AgentProfile, city: string): Record<string, u
     url: siteOrigin() + agentPath(agent.slug),
     image: agent.photo || undefined,
     description: agent.bio || undefined,
-    telephone: agent.phone || undefined,
+    telephone: agentPhone(agent) || undefined,
     address: { '@type': 'PostalAddress', streetAddress: agent.office_address || undefined, addressLocality: city || undefined, addressCountry: 'IN' },
     knowsLanguage: agent.languages && agent.languages.length ? agent.languages : undefined,
     // the team's own site belongs to the Avasetu organisation, whose page is the home page (the Organization there)

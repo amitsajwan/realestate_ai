@@ -56,7 +56,7 @@ function PassedRow({ p }: { p: PassedLead }) {
       <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="block w-full text-left">
         <span className="font-semibold">{p.name || 'A buyer'}</span> &rarr; {p.agent_name}
         <span className="block text-xs text-gray-600">
-          {timeAgo(p.passed_at)} · {p.by === 'auto' ? `by your ${p.rule ?? ''} rule` : 'by you'} ·{' '}
+          {timeAgo(p.passed_at)} · {p.by === 'site' ? 'enquired on their site' : p.by === 'auto' ? `by your ${p.rule ?? ''} rule` : 'by you'} ·{' '}
           {went ? 'WhatsApp to them sent' : p.whatsapp_status ? <span className="text-amber-800">WhatsApp to them not sent{p.whatsapp_error ? `: ${p.whatsapp_error}` : ''}</span> : 'no WhatsApp record'}
         </span>
       </button>

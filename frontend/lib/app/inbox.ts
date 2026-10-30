@@ -98,7 +98,7 @@ export interface PassedLead {
   passed_at: string
   agent_id: string
   agent_name: string
-  /** owner = passed by hand, auto = by a rule */
+  /** owner = passed by hand, auto = by a rule, site = the buyer enquired on the agent's own site (the owner watches it) */
   by: 'owner' | 'auto' | string
   rule: string | null
   whatsapp_status: string | null

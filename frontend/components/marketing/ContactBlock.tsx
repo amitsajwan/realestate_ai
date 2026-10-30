@@ -6,9 +6,9 @@ import SocialStrip from '@/components/site/SocialStrip'
 
 /**
  * Footer contact block. Contact is the website, the Facebook Page and Instagram: no phone, email or personal name.
- * tone = the footer background it sits on.
+ * tone = the footer background it sits on. invite = false on an agent's own site, where the agents' invite line is out of place.
  */
-export default function ContactBlock({ tone = 'light' }: { tone?: 'light' | 'dark' }) {
+export default function ContactBlock({ tone = 'light', invite = true }: { tone?: 'light' | 'dark'; invite?: boolean }) {
   const { facebook, instagram } = socialLinks()
   const dark = tone === 'dark'
   const a = dark ? 'font-semibold text-white underline underline-offset-4' : 'font-semibold text-[#0f2340] underline underline-offset-4'
@@ -20,10 +20,8 @@ export default function ContactBlock({ tone = 'light' }: { tone?: 'light' | 'dar
         <a href={facebook} target="_blank" rel="noopener noreferrer" className={a}>{CONTACT.facebook}</a>
         {CONTACT.and}
         <a href={instagram} target="_blank" rel="noopener noreferrer" className={a}>{CONTACT.instagram}</a>
-        {CONTACT.after}
-        {CONTACT.agents}
-        <Link href={PATHS.invite} className={a}>{CONTACT.invite}</Link>
-        {CONTACT.end}
+        {invite ? CONTACT.after : CONTACT.after.trim()}
+        {invite && <>{CONTACT.agents}<Link href={PATHS.invite} className={a}>{CONTACT.invite}</Link>{CONTACT.end}</>}
       </p>
       <SocialStrip tone={tone} className="mt-3" />
     </div>

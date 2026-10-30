@@ -17,10 +17,17 @@ export function telLink(phone: string | null | undefined): string | null {
   return n ? 'tel:+' + n : null
 }
 
+type PhoneOwner = { phone?: string | null; branding_data?: { show_phone?: boolean; office_phone?: string | null } | null }
+
+/** The number buyers should reach: the office line when the agent set one, else the profile (login) phone. */
+export function agentPhone(agent: PhoneOwner): string | null {
+  return (waNumber(agent.branding_data?.office_phone) ? agent.branding_data?.office_phone : agent.phone) || null
+}
+
 /** The agent's number printed as text (About, footer): when the call buttons are on, or the owner turned it on for this agent. */
-export function shownPhone(agent: { phone?: string | null; branding_data?: { show_phone?: boolean } | null }): { text: string; href: string } | null {
+export function shownPhone(agent: PhoneOwner): { text: string; href: string } | null {
   if (!showDirectContact() && !agent.branding_data?.show_phone) return null
-  const n = waNumber(agent.phone)
+  const n = waNumber(agentPhone(agent))
   return n ? { text: '+91 ' + n.slice(2, 7) + ' ' + n.slice(7), href: 'tel:+' + n } : null
 }
 

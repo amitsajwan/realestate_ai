@@ -79,6 +79,8 @@ export interface AgentBranding {
   team?: TeamMember[]
   /** Owner-only: print this agent's phone in About and the footer even while the site-wide call/WhatsApp buttons are off. */
   show_phone?: boolean
+  /** The office line buyers see and enquiries go to on WhatsApp, when it differs from the login phone. */
+  office_phone?: string | null
   /** Owner-only: the fictional demo agent page (shows a DEMO ribbon). Agents cannot set it. */
   demo?: boolean
   /** Owner-only: a site prepared for an agent who has not agreed to publish yet (unlisted, shows a PREVIEW note). */

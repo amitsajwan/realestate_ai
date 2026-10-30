@@ -89,7 +89,6 @@ export default async function AgentHomePage({ params }: Props) {
         <section id="contact" aria-labelledby="contact-title" className="scroll-mt-16 space-y-4">
           <h2 id="contact-title" className="text-2xl font-bold">Tell us what you are looking for</h2>
           <ContactButtons agentSlug={slug} phone={agent.phone} waMessage={msg} size="md" className="max-w-md" />
-          {agent.office_address && <p className="text-slate-700">{agent.office_address}</p>}
           <EnquiryForm agentSlug={slug} agentName={BRAND_NAME} agentPhone={agent.phone} waMessage={msg} id="enquire" />
         </section>
       </div>

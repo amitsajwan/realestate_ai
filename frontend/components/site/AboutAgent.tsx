@@ -2,7 +2,6 @@ import React from 'react'
 import type { AgentProfile } from '@/lib/site/types'
 import { MAHARERA_URL, displayName, safeImage, safeRera } from '@/lib/site/theme'
 import { shownPhone } from '@/lib/site/links'
-import SocialLinks from './SocialLinks'
 import TrackedLink from './TrackedLink'
 import { BRAND_NAME } from '@/lib/brand'
 
@@ -10,8 +9,8 @@ const EMAIL = /^[^\s@<>"]{1,64}@[A-Za-z0-9.-]{1,120}\.[A-Za-z]{2,}$/
 
 /**
  * About section of the agent's own page. Left: photo/logo, about text, what the office does, areas, languages, experience.
- * Right, when the agent has any of them: an office card with address, phone (only when shownPhone allows), e-mail and the
- * self-declared RERA agent number.
+ * Right, when the agent has any of them: an office card with address, phone (only when shownPhone allows), e-mail, the
+ * self-declared RERA agent number and the enquiry button. Social links are in the footer (SiteShell), not repeated here.
  */
 export default function AboutAgent({ agent }: { agent: AgentProfile }) {
   const b = agent.branding_data
@@ -32,12 +31,13 @@ export default function AboutAgent({ agent }: { agent: AgentProfile }) {
       <h2 id="about-title" className="mb-3 text-2xl font-bold">About {name}</h2>
       <div className={office ? 'grid gap-8 md:grid-cols-[1.4fr_1fr]' : ''}>
         <div className="min-w-0">
-          {(agent.photo || logo) && (
+          {/* the office card carries the logo; without one the logo sits here */}
+          {(agent.photo || (logo && !office)) && (
             <div className="mb-3 flex items-center gap-3">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               {agent.photo && <img src={agent.photo} alt={'Photo of ' + agent.agent_name} width={64} height={64} className="h-16 w-16 rounded-full object-cover" />}
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              {logo && <img src={logo} alt={name + ' logo'} height={48} className="h-12 w-auto max-w-[9rem] object-contain" />}
+              {logo && !office && <img src={logo} alt={name + ' logo'} height={48} className="h-12 w-auto max-w-[9rem] object-contain" />}
             </div>
           )}
           {about && about.split(/\n\s*\n/).map((p, i) => <p key={i} className="mb-3 max-w-prose leading-relaxed text-slate-800">{p.trim()}</p>)}
@@ -63,7 +63,6 @@ export default function AboutAgent({ agent }: { agent: AgentProfile }) {
               </ul>
             </div>
           )}
-          <SocialLinks social={b?.social} />
           {(agent.specialties || []).length > 0 && (
             <ul className="mt-3 flex list-none flex-wrap gap-2 p-0">
               {(agent.specialties || []).map((s) => (
@@ -101,6 +100,8 @@ export default function AboutAgent({ agent }: { agent: AgentProfile }) {
                 </span>
               </p>
             )}
+            <a href="#enquire" className="mx-4 mb-4 flex min-h-[44px] items-center justify-center rounded-xl font-semibold text-white no-underline"
+              style={{ background: 'var(--site-primary)' }}>Send an enquiry</a>
           </aside>
         )}
       </div>

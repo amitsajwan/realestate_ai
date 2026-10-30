@@ -368,7 +368,7 @@ class InboxService:
         rows = await self.c("agent_public_profiles").find({"agent_id": {"$nin": [owner_id, None, ""]}}).to_list(500)
         phones = [p["phone"] for p in rows if p.get("phone")]
         off = {u.get("phone") for u in await self.c("users").find({"phone": {"$in": phones}, "is_active": False}).to_list(1000)}
-        out = [{"agent_id": str(p["agent_id"]), "name": self._agent_name(p), "has_whatsapp": bool(_wa_digits(p.get("phone"))),
+        out = [{"agent_id": str(p["agent_id"]), "name": self._agent_name(p), "has_whatsapp": bool(_lead_digits(p)),
                 "slug": p.get("slug")} for p in rows if _live(p) and p.get("phone") not in off]
         return sorted(out, key=lambda a: a["name"].lower())
 
@@ -453,13 +453,22 @@ class InboxService:
             added = {"kind": "area", "key": area, "label": area}
         if added:
             await self.add_route(owner_id, to_agent, added["kind"], added["label"], key=added["key"])
-        digits = _wa_digits(prof.get("phone"))
+        digits = _lead_digits(prof)
         return {"passed_to": self._agent_name(prof), "lead_id": kept, "card": card, **sent, "rule_added": added,
                 "whatsapp_url": f"https://wa.me/{digits}?text={quote(card['text'])}" if digits else None}
 
+    async def tell_agent_of_lead(self, lead: dict) -> dict:
+        """A buyer who enquired on an agent's own site: the agent gets the same card a pass sends, as the agent template from our
+        number. -> {whatsapp_status, whatsapp_error}. Raises InboxError for a retired account."""
+        agent_id = lead["agent_id"]
+        prof = await self._live_agent(agent_id)
+        project = await self.project_of(lead)
+        card = await self._card(agent_id, lead, project, await self._lead_tids(agent_id, lead))
+        return {**await self._tell_agent(prof, card, self.now()), "text": card["text"], "agent_name": self._agent_name(prof)}
+
     async def _tell_agent(self, prof: dict, card: dict, now: datetime) -> dict:
         """The approved agent template from our number. -> {whatsapp_status, whatsapp_error}; a failure never stops the pass."""
-        digits = _wa_digits(prof.get("phone"))
+        digits = _lead_digits(prof)
         if not digits:
             return {"whatsapp_status": "no_mobile", "whatsapp_error": "The agent's site has no Indian mobile"}
         if self.whatsapp is None or not self.whatsapp.cfg.phone_number_id:
@@ -503,7 +512,7 @@ class InboxService:
         from app.modules.notifications.service import notify
         await notify(self.db, to_agent, "buyer_passed", f"{who} was passed to you{': ' + wants if wants else ''}. Call or message them soon.",
                      {"screen": f"/studio/inbox/{tid}"}, now)
-        digits = _wa_digits(prof.get("phone"))
+        digits = _lead_digits(prof)
         text = self._handover_text(doc, kind, who, phone, wants)
         return {"passed_to": self._agent_name(prof), "lead_id": None, "card": {"text": text, "lines": [], "missing": []},
                 "whatsapp_status": None, "whatsapp_error": None, "rule_added": None,
@@ -513,17 +522,22 @@ class InboxService:
         """The owner's recent passes, newest first: who, to whom, how (by hand or by a rule), the card and whether the WhatsApp to
         the agent went out, with a wa.me link to send it again from the owner's phone. A passed lead leaves the owner's Leads, so
         this is where the owner still sees it."""
-        rows = await self.c("contacts").find({"passed_by": owner_id, "passed_at": {"$gte": self.now() - timedelta(days=days)}}).to_list(200)
+        since = self.now() - timedelta(days=days)
+        # passes, and the enquiries made on an agent's own site that the owner watches (followups.agent_site_enquiries)
+        rows = await self.c("contacts").find({"$or": [{"passed_by": owner_id, "passed_at": {"$gte": since}},
+                                                      {"watched_by": owner_id, "agent_wa_at": {"$gte": since}}]}).to_list(200)
         profs: dict = {}
         out = []
-        for c in sorted(rows, key=lambda r: r["passed_at"], reverse=True):
+        for c in sorted(rows, key=lambda r: r.get("passed_at") or r["agent_wa_at"], reverse=True):
             to = c.get("passed_to") or c.get("agent_id")
             if to not in profs:
                 profs[to] = await self.c("agent_public_profiles").find_one({"agent_id": to}) or {}
-            h = c.get("handover") or {}
-            digits = _wa_digits(profs[to].get("phone"))
-            out.append({"lead_id": c["_id"], "name": c.get("name"), "passed_at": _iso(c["passed_at"]), "agent_id": to,
-                        "agent_name": self._agent_name(profs[to]) if profs[to] else "Agent", "by": h.get("by") or "owner",
+            site = not c.get("passed_at")
+            h = ({"by": "site", "whatsapp_status": c.get("agent_wa_status"), "whatsapp_error": c.get("agent_wa_error"),
+                  "text": c.get("agent_wa_text")} if site else c.get("handover") or {})
+            digits = _lead_digits(profs[to])
+            out.append({"lead_id": c["_id"], "name": c.get("name"), "passed_at": _iso(c["agent_wa_at"] if site else c["passed_at"]),
+                        "agent_id": to, "agent_name": self._agent_name(profs[to]) if profs[to] else "Agent", "by": h.get("by") or "owner",
                         "rule": (h.get("rule") or {}).get("label"), "whatsapp_status": h.get("whatsapp_status"),
                         "whatsapp_error": h.get("whatsapp_error"), "text": h.get("text"),
                         "whatsapp_url": f"https://wa.me/{digits}?text={quote(h['text'])}" if digits and h.get("text") else None})
@@ -626,6 +640,13 @@ def followup_params(lead: dict) -> List[str]:
 def _live(profile: dict) -> bool:
     """A profile that can take buyers: not switched off and not a merged-away copy (slug '<name>-retired-<date>')."""
     return profile.get("is_active") is not False and "-retired-" not in (profile.get("slug") or "")
+
+
+def _lead_digits(profile: dict) -> Optional[str]:
+    """Where the agent gets buyers on WhatsApp: the office number on their site (branding_data.office_phone) when they set one, else
+    the profile phone. House Deal (2026-10-30): the office line +91 74472 12121 is also the phone of their retired login, so it
+    cannot be the profile phone (that is how a retired account is recognised) and lives in office_phone instead."""
+    return _wa_digits((profile.get("branding_data") or {}).get("office_phone")) or _wa_digits(profile.get("phone"))
 
 
 def _wa_digits(phone) -> Optional[str]:

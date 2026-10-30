@@ -291,7 +291,9 @@ class TrackingService:
         contact = await self.contacts.find_one({"_id": contact_id, "agent_id": agent_id})
         # the owner who passed a buyer still opens the lead to see it went (2026-10-26: Saket's link said "not found" after the pass);
         # it is read only for them: every change goes through the agent's own lead (update_stage reads agent_id)
-        passed_away = contact is None and await self.contacts.find_one({"_id": contact_id, "passed_by": agent_id}) is not None
+        # and an enquiry on an agent's own site that the owner watches (inbox/followups.agent_site_enquiries) opens the same way
+        passed_away = contact is None and await self.contacts.find_one(
+            {"_id": contact_id, "$or": [{"passed_by": agent_id}, {"watched_by": agent_id}]}) is not None
         if passed_away:
             contact = await self.contacts.find_one({"_id": contact_id})
         if not contact:

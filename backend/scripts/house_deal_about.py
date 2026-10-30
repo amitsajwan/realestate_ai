@@ -5,8 +5,10 @@
 
 Idempotent: run it again any time. It downloads the white logo and the three team photos from house-deal.com, saves them as
 small JPEGs under uploads/images/hd-*.jpg (where the upload route keeps files), and sets only the keys below on the profile;
-everything else in branding_data stays. The phone stays +919921993099 (the owner's choice on 2026-10-30, not the site's
-+91 74472 12121), and show_phone prints it in About and the footer while the site-wide call buttons stay off.
+everything else in branding_data stays. office_phone is the office line +91 74472 12121 (owner, 2026-10-30): the site shows it
+(show_phone prints it while the site-wide call buttons stay off) and enquiries go to it on WhatsApp from our number. The
+profile phone stays +919921993099, Sharad's login: 7447212121 is the phone of their retired login, so as the profile phone it
+would mark House Deal as retired.
 Taken from house-deal.com on 2026-10-30; the owner confirmed the team. The RERA agent number is shown as stated by House Deal.
 """
 import argparse
@@ -56,6 +58,7 @@ SETS = {
     "branding_data.areas": ["Upper Kharadi", "Kharadi", "Wagholi", "Mundhwa", "Hadapsar", "Keshav Nagar"],
     "branding_data.team": TEAM,
     "branding_data.show_phone": True,
+    "branding_data.office_phone": "+917447212121",
     "branding_data.website": "https://house-deal.com",
     "branding_data.social": {
         "instagram": "housedeal_official",

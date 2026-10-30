@@ -179,3 +179,34 @@ async def test_the_owner_still_opens_a_lead_he_passed_read_only():
         assert False, "a stranger opened the lead"
     except TrackingError as e:
         assert e.status_code == 404
+
+
+async def test_an_enquiry_on_the_agents_own_site_goes_to_their_office_whatsapp_once():
+    # 2026-10-30: House Deal's own-page enquiries only reached their Studio; the owner wants them on WhatsApp through Avasetu,
+    # to the office line, which is also the phone of their retired login and so lives in office_phone
+    own = form_lead("own", agent_id=HD, name="Ravi Kale", ago=timedelta(minutes=3))
+    old = form_lead("old", agent_id=HD, ago=timedelta(hours=3))                      # from before the step went live
+    passed = form_lead("passed", agent_id=HD, passed_at=NOW, passed_by=OWNER)         # a pass already sent its card
+    mine = form_lead("mine", ago=timedelta(minutes=3))                                # the owner's own lead
+    db = await setup(own, old, passed, mine)
+    await db.get_collection("agent_public_profiles").update_one(
+        {"agent_id": HD}, {"$set": {"branding_data": {"business_name": "House Deal", "office_phone": "+917447200001"}}})
+    wa, told = FakeWhatsApp(), []
+    svc = InboxService(db, wa, now=lambda: NOW)
+
+    async def notify(db_, agent, kind, text, ref, now):
+        told.append((agent, kind, text))
+
+    assert await followups.agent_site_enquiries(db, svc, OWNER, NOW, notify) == 1
+    assert [(to, name, params[0]) for to, name, params in wa.sent] == [("917447200001", "lead_passed_v1", "Ravi Kale")]
+    lead = await db.get_collection("contacts").find_one({"_id": "own"})
+    assert lead["agent_wa_status"] == "sent" and lead["agent_id"] == HD
+    assert await followups.agent_site_enquiries(db, svc, OWNER, NOW + timedelta(minutes=5), notify) == 0
+    assert len(wa.sent) == 1
+    # the owner follows it: one alert, a row in Leads > Passed, and the lead opens read only
+    assert told == [(OWNER, "agent_site_enquiry", "Ravi Kale enquired on House Deal's site. WhatsApp to them sent.")]
+    row = next(r for r in await svc.passed(OWNER) if r["lead_id"] == "own")
+    assert row["by"] == "site" and row["agent_name"] == "House Deal" and "Name: Ravi Kale" in row["text"]
+    assert row["whatsapp_url"].startswith("https://wa.me/917447200001?text=")
+    from app.modules.tracking.service import TrackingService
+    assert (await TrackingService(db, now=lambda: NOW).lead_detail(OWNER, "own"))["name"] == "Ravi Kale"

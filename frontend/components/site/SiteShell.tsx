@@ -93,7 +93,7 @@ export default function SiteShell({ agent, children, bottomPad = false }: { agen
         </div>
         <div className="mx-auto max-w-5xl border-t border-white/10 py-6 text-center">
           <div className="mx-auto flex max-w-md flex-col items-center text-center">
-            <ContactBlock tone="dark" />
+            <ContactBlock tone="dark" invite={false} />
           </div>
           <p className="mt-3">&copy; {new Date().getFullYear()} {name}</p>
           {/* an agent's site credits the agents' home; the team's own site is Avasetu, so its credit is the buyers' home */}
