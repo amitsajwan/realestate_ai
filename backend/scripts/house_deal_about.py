@@ -40,10 +40,11 @@ BANNERS = {
 }
 
 ABOUT = (
-    "House Deal is a property advisory office at RTC Silver, Upper Kharadi. We help buyers choose new projects in Upper "
-    "Kharadi, Kharadi and Wagholi, from the first shortlist to the day you get the keys.\n\n"
-    "We work with the builders of the projects we list, take you on site visits, and help with the home loan and the "
-    "paperwork. Every project on this page shows what MahaRERA says today, next to the builder's own plan."
+    "House Deal is a property advisory office at RTC Silver, Upper Kharadi, for new projects across East Pune: Upper Kharadi, "
+    "Kharadi, Wagholi, Mundhwa, Keshav Nagar and Hadapsar. A house is more than a property: it is a dream, an investment and "
+    "the foundation for your future. We help you choose it well, from the first shortlist to the day you get the keys.\n\n"
+    "We work with the builders of the projects we list, take you on site visits, and help with the home loan, the legal "
+    "checks and the paperwork. Every project on this page shows what MahaRERA says today, next to the builder's own plan."
 )
 TEAM = [
     {"name": "Mohini Bharate", "role": "Team Lead", "photo": "/uploads/images/hd-team-mohini.jpg",
