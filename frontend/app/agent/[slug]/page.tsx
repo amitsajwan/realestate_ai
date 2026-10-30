@@ -13,6 +13,7 @@ import { whatsappMessage } from '@/lib/site/links'
 import { agentJsonLd, agentMetadata, jsonLdString } from '@/lib/site/seo'
 import { normalizeSlug } from '@/lib/site/slug'
 import AboutAgent from '@/components/site/AboutAgent'
+import TeamSection from '@/components/site/TeamSection'
 import Link from 'next/link'
 import { INSIGHTS } from '@/lib/marketing/insights'
 import { BRAND_NAME, isHouseAgent } from '@/lib/brand'
@@ -82,6 +83,8 @@ export default async function AgentHomePage({ params }: Props) {
         </section>
 
         <AboutAgent agent={agent} />
+
+        <TeamSection agent={agent} />
 
         <section id="contact" aria-labelledby="contact-title" className="scroll-mt-16 space-y-4">
           <h2 id="contact-title" className="text-2xl font-bold">Tell us what you are looking for</h2>

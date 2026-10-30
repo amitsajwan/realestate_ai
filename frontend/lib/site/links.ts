@@ -17,6 +17,13 @@ export function telLink(phone: string | null | undefined): string | null {
   return n ? 'tel:+' + n : null
 }
 
+/** The agent's number printed as text (About, footer): when the call buttons are on, or the owner turned it on for this agent. */
+export function shownPhone(agent: { phone?: string | null; branding_data?: { show_phone?: boolean } | null }): { text: string; href: string } | null {
+  if (!showDirectContact() && !agent.branding_data?.show_phone) return null
+  const n = waNumber(agent.phone)
+  return n ? { text: '+91 ' + n.slice(2, 7) + ' ' + n.slice(7), href: 'tel:+' + n } : null
+}
+
 export function whatsappMessage(agentName: string, listing?: PublicListing | null, url?: string): string {
   if (!listing) return 'Hi ' + agentName + ', I found your website and I am interested in your properties.'
   const where = [listing.project_name, listing.locality].filter(Boolean).join(', ')

@@ -60,7 +60,7 @@ export interface AgentBranding {
   /** Legacy stored colours: not used for rendering (the preset / custom_primary decide). */
   colors?: { primary?: string; secondary?: string; accent?: string }
   logo?: string | null
-  social?: { instagram?: string; facebook?: string }
+  social?: { instagram?: string; facebook?: string; youtube?: string; linkedin?: string; x?: string }
   // A1 brand profile (all optional; see docs/handoff/A1-brand.md)
   business_name?: string
   about?: string
@@ -71,10 +71,25 @@ export interface AgentBranding {
   areas?: string[]
   languages?: string[]
   years_experience?: number | null
+  /** The agent's own website (https), linked from the footer. */
+  website?: string
+  /** What the office does for a buyer, one short line each (About section). */
+  services?: string[]
+  /** The people a buyer may meet: name, role, a line on what they do, a photo under /uploads/images. */
+  team?: TeamMember[]
+  /** Owner-only: print this agent's phone in About and the footer even while the site-wide call/WhatsApp buttons are off. */
+  show_phone?: boolean
   /** Owner-only: the fictional demo agent page (shows a DEMO ribbon). Agents cannot set it. */
   demo?: boolean
   /** Owner-only: a site prepared for an agent who has not agreed to publish yet (unlisted, shows a PREVIEW note). */
   preview?: boolean
+}
+
+export interface TeamMember {
+  name: string
+  role?: string
+  about?: string
+  photo?: string | null
 }
 
 export interface AgentProfile {
