@@ -6,7 +6,7 @@ import { Btn, ErrorBox, PageTitle, Spinner, TempChip, inputCls } from '@/compone
 import { errorMessage } from '@/lib/app/client'
 import { timeAgo } from '@/lib/app/format'
 import type { PassResult } from '@/lib/app/inbox'
-import { BOARD_PATH, activityLine, areaCounts, boardApi, boardTitle, shareText, type BoardCard, type OfferKind } from '@/lib/app/leadBoard'
+import { BOARD_PATH, activityLine, areaCounts, boardApi, type BoardDemand, boardTitle, shareText, type BoardCard, type OfferKind } from '@/lib/app/leadBoard'
 import { useAsync } from '@/lib/app/useAsync'
 
 /**
@@ -65,6 +65,7 @@ export default function LeadBoardPage() {
         {asAgent ? 'Viewing as an agent · back to my view' : 'View as an agent'}
       </button>
       {asAgent && <p className="rounded-xl bg-sky-50 p-3 text-sm text-sky-900">This is the board exactly as another agent sees it. Buttons are off here.</p>}
+      {data?.demand && <DemandStrip d={data.demand} />}
       {data?.owner && <ShareBox items={data.items} />}
       {areas.length > 1 && (
         <div className="-mx-1 flex flex-wrap gap-2" role="group" aria-label="Area">
@@ -170,6 +171,37 @@ function ShareBox({ items }: { items: BoardCard[] }) {
   )
 }
 
+/** The last week on our pages, as it happened: people reading, enquiries, new leads, and the most-read areas. */
+function DemandStrip({ d }: { d: BoardDemand }) {
+  const stats = [[d.visitors, 'people read our pages'], [d.enquiries, 'enquiries'], [d.new_leads, 'new leads']] as const
+  return (
+    <section aria-label={`Last ${d.days} days`} className="space-y-2 rounded-2xl border border-gray-200 bg-white p-3">
+      <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Last {d.days} days</p>
+      <div className="grid grid-cols-3 gap-2 text-center">
+        {stats.map(([n, label]) => (
+          <div key={label} className="rounded-xl bg-gray-50 px-1 py-2">
+            <p className="text-xl font-bold text-gray-900">{n.toLocaleString('en-IN')}</p>
+            <p className="text-xs text-gray-600">{label}</p>
+          </div>
+        ))}
+      </div>
+      {d.areas.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-gray-700">Most read areas</p>
+          <ul className="mt-1 space-y-0.5 text-sm text-gray-800">
+            {d.areas.map((a) => (
+              <li key={a.area} className="flex justify-between gap-2">
+                <span>{a.area}</span>
+                <span className="text-xs text-gray-500">{a.readers} reading{a.enquiries ? ` · ${a.enquiries} enquir${a.enquiries === 1 ? 'y' : 'ies'}` : ''}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
+  )
+}
+
 function Chip({ children }: { children: React.ReactNode }) {
   return <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-800">{children}</span>
 }
@@ -193,9 +225,10 @@ function BoardRow({ card: c, owner, preview, fresh, onChange }: { card: BoardCar
         {c.signals.map((s) => <li key={s}>✓ {s}</li>)}
       </ul>
       <Looked card={c} />
+      {c.given && <p className="rounded-lg bg-gray-900 px-2 py-1.5 text-xs font-semibold text-white">{c.given}</p>}
       {c.caution && <p className="rounded-lg bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-800">⚠ {c.caution}</p>}
       <p className="text-xs text-gray-500">{c.age} · from {c.came_from} · active {timeAgo(c.last_active_at)}{c.asked ? ` · ${c.asked} agent${c.asked === 1 ? '' : 's'} asked` : ''}</p>
-      {preview ? <Btn disabled>Ask for this lead</Btn> : owner ? <OwnerAsks card={c} onChange={onChange} /> : <AskBox card={c} onChange={onChange} />}
+      {preview || c.given ? <Btn disabled>{c.given ? 'Taken' : 'Ask for this lead'}</Btn> : owner ? <OwnerAsks card={c} onChange={onChange} /> : <AskBox card={c} onChange={onChange} />}
     </li>
   )
 }

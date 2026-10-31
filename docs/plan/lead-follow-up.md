@@ -124,6 +124,12 @@ first and ticked; tapping "Send to <agent>" opens wa.me with the board message g
 opens one chat at a time); sent ones are ticked on that device for a day. Our number cannot message them outside 24 h without a
 template, so this is the free way. TARGET: a lead_board template on our number.
 
+Real activity, never made up (owner, 2026-10-31, asked for dummy leads to make the system look busy; we show the real week
+instead): a "Last 7 days" strip (people who read our pages, enquiries, new leads) and the most-read areas with readers and
+enquiries, from events (robots and staff browsers out, cached 10 min); on 2026-10-31: 166 people, 14 enquiries, 11 new leads,
+Ravet/Kharadi 10 readers each. A lead given from the board shows the other agents "Given to an agent N hours after it came in" and
+its ask button reads Taken. No made-up leads on the board, ever.
+
 What they looked at (owner, 2026-10-31: "more details, what the visitor was checking, what pages"): each card has the pages in
 order with minutes read (project pages by their shown name, area lists, guides, news), visits and days, phone or computer, the
 city of the visit (an NRI in Bahrain shows "Manama"), and taps on WhatsApp/call; signals add "came back on N days", "sent N

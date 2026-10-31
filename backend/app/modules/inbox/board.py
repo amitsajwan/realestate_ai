@@ -65,7 +65,11 @@ IST = timedelta(hours=5, minutes=30)
 AGENT_PAGES = ("/agents", "/for-agents", "/trial", "/join", "/studio", "/pilot")
 _SKIP = ("/agent/", "/enquire", "/r/", "/i/", "/go/")
 _PROJECT = re.compile(r"^/projects/([a-z0-9-]+)/?$")
-_names: Dict[str, tuple] = {}   # project page slug -> (name, read at): a board read every 30 s must not re-read the register
+_names: Dict[str, tuple] = {}   # project page slug -> (name, read at, area): a board read every 30 s must not re-read the register
+DEMAND_DAYS = 7
+DEMAND_TTL = timedelta(minutes=10)
+MAX_DEMAND_EVENTS = 50000
+_demand: Dict[str, tuple] = {}  # owners key -> (demand, read at)
 
 
 def _title(slug: str) -> str:
@@ -100,6 +104,17 @@ def page_label(path: str, names: Dict[str, str]) -> Optional[str]:
     if prefix and len(parts) >= 2:
         return f"{prefix}: {_title(parts[-1])}"
     return _title(parts[-1])
+
+
+def _took(start: datetime, end: datetime) -> str:
+    """'40 minutes', '2 hours', '3 days'."""
+    mins = max(1, int((end - start).total_seconds() // 60))
+    if mins < 60:
+        return f"{mins} minute{'s' if mins != 1 else ''}"
+    hours = mins // 60
+    if hours < 48:
+        return f"{hours} hour{'s' if hours != 1 else ''}"
+    return f"{hours // 24} days"
 
 
 def _device(label: Optional[str]) -> Optional[str]:
@@ -266,8 +281,52 @@ class LeadBoard:
         for slug in slugs:
             if slug not in _names or now - _names[slug][1] > NAMES_TTL:
                 brief = await project_pages.chat_brief(self.db, slug)
-                _names[slug] = (brief["name"] if brief else None, now)
+                _names[slug] = (brief["name"] if brief else None, now, brief.get("area") if brief else None)
         return {slug: _names[slug][0] for slug in slugs if _names[slug][0]}
+
+    async def _area_of(self, path: str) -> Optional[str]:
+        """The area a page is about: a project page's area, an area list or an area guide; None for other pages."""
+        parts = path.split("?")[0].strip("/").split("/")
+        if len(parts) >= 3 and parts[:2] == ["projects", "area"]:
+            return _title(parts[2])
+        if len(parts) == 2 and parts[0] == "localities":
+            return _title(parts[1])
+        if len(parts) == 2 and parts[0] == "projects":
+            await self._project_names([{"path": path}])
+            return (_names.get(parts[1]) or (None, None, None))[2]
+        return None
+
+    async def demand(self) -> dict:
+        """What buyers did on our pages in the last DEMAND_DAYS, from the events (robots and our own signed-in browsers left out):
+        people who read our pages, enquiries sent, and per area the people who read its pages and the enquiries made on them
+        (owner, 2026-10-31: the board should look like a working system; this is the real activity behind it, never made up)."""
+        now = self.now()
+        key = ",".join(sorted(self.owners))
+        if key in _demand and now - _demand[key][1] < DEMAND_TTL:
+            return _demand[key][0]
+        since = now - timedelta(days=DEMAND_DAYS)
+        rows = await self.c("events").find({"agent_id": {"$in": self.owners}, "ts": {"$gte": since},
+                                            "type": {"$in": live.VIEW_TYPES + ["inquiry"]}},
+                                           {"anon_id": 1, "path": 1, "type": 1, "robot": 1, "staff": 1}).to_list(MAX_DEMAND_EVENTS)
+        skip = {e.get("anon_id") for e in rows if e.get("robot") or e.get("staff")}
+        rows = [e for e in rows if e.get("anon_id") and e["anon_id"] not in skip]
+        readers: Dict[str, set] = {}
+        asked: Dict[str, int] = {}
+        for e in rows:
+            area = await self._area_of(_path(e))
+            if not area:
+                continue
+            if e["type"] == "inquiry":
+                asked[area] = asked.get(area, 0) + 1
+            else:
+                readers.setdefault(area, set()).add(e["anon_id"])
+        areas = [{"area": a, "readers": len(r), "enquiries": asked.get(a, 0)} for a, r in readers.items()]
+        out = {"days": DEMAND_DAYS,
+               "visitors": len({e["anon_id"] for e in rows if e["type"] != "inquiry"}),
+               "enquiries": sum(1 for e in rows if e["type"] == "inquiry"),
+               "areas": sorted(areas, key=lambda r: (-r["readers"], -r["enquiries"], r["area"]))[:8]}
+        _demand[key] = (out, now)
+        return out
 
     async def _known_numbers(self) -> set:
         """Every number that is ours or an agent's, as 12-digit 91... strings: Studio sign-ins, agent pages (their number and
@@ -325,6 +384,11 @@ class LeadBoard:
         for lead in leads:
             row = card(lead, await self.inbox.project_of(lead), convs[lead["_id"]], events[lead["_id"]], names, now)
             mine = next((a for a in asks[lead["_id"]] if a["agent_id"] == viewer), None)
+            # given from the board to another agent: the others see how fast it went, and cannot ask any more
+            h = lead.get("handover") or {}
+            row["given"] = (f"Given to an agent {_took(lead['created_at'], h['at'])} after it came in"
+                            if h.get("by") == "board" and isinstance(h.get("at"), datetime) and lead["agent_id"] != viewer and not owner
+                            else None)
             row["asked"] = len(asks[lead["_id"]])
             row["mine"] = self._ask_view(mine) if mine else None
             if owner:
@@ -332,7 +396,8 @@ class LeadBoard:
                 row["asks"] = [{**self._ask_view(a), "agent_id": a["agent_id"], "agent_name": agents.get(a["agent_id"], "Agent")}
                                for a in sorted(asks[lead["_id"]], key=lambda a: a["at"])]
             out.append(row)
-        return {"items": out, "owner": owner, "preview": viewer == PREVIEW}
+        new_week = sum(1 for r in leads if now - r["created_at"] <= timedelta(days=DEMAND_DAYS))
+        return {"items": out, "owner": owner, "preview": viewer == PREVIEW, "demand": {**await self.demand(), "new_leads": new_week}}
 
     @staticmethod
     def _ask_view(a: dict) -> dict:

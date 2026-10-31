@@ -2,6 +2,7 @@
 gives it to one of them (owner, 2026-10-31)."""
 from datetime import datetime, timedelta
 
+from app.modules.inbox import board as board_mod
 from app.modules.inbox.board import PREVIEW, LeadBoard, ref_of
 from app.modules.inbox.service import InboxError, InboxService
 
@@ -23,6 +24,8 @@ def lead(_id, ago=timedelta(days=2), **kw):
 
 
 async def setup(*leads):
+    board_mod._demand.clear()
+    board_mod._names.clear()
     db = FakeDb()
     await db.get_collection("projects").insert_one({"_id": "P52100028315", "regno": "P52100028315", "name": "MANSHA PHASE-II",
                                                     "locality": "wagholi", "page_slug": "mansha-phase-ii-wagholi"})
@@ -194,3 +197,29 @@ async def test_the_owner_gets_the_agents_to_send_the_board_to_those_with_no_list
         assert False, "an agent got the agent list"
     except InboxError as e:
         assert e.status_code == 403
+
+
+async def test_the_week_counts_real_readers_and_enquiries_per_area_without_robots_or_our_browsers():
+    db, board, _ = await setup(lead("rahul"))
+    ev = db.get_collection("events")
+    rows = [("a1", "/projects/mansha-phase-ii-wagholi", "page_view", {}), ("a1", "/projects/area/wagholi/2-bhk", "page_view", {}),
+            ("a2", "/projects/mansha-phase-ii-wagholi", "page_view", {}), ("a2", "/projects/mansha-phase-ii-wagholi", "inquiry", {}),
+            ("a3", "/localities/kharadi", "page_view", {}), ("bot", "/projects/mansha-phase-ii-wagholi", "page_view", {"robot": True}),
+            ("us", "/localities/kharadi", "page_view", {"staff": True}), ("a4", "/news", "page_view", {})]
+    for i, (anon, path, kind, extra) in enumerate(rows):
+        await ev.insert_one({"_id": f"d{i}", "agent_id": OWNER, "anon_id": anon, "path": path, "type": kind, "ts": NOW - timedelta(days=1), **extra})
+    await ev.insert_one({"_id": "old", "agent_id": OWNER, "anon_id": "a9", "path": "/localities/kharadi", "type": "page_view", "ts": NOW - timedelta(days=9)})
+    d = (await board.cards(HD))["demand"]
+    assert (d["days"], d["visitors"], d["enquiries"], d["new_leads"]) == (7, 4, 1, 1)
+    assert d["areas"] == [{"area": "Wagholi", "readers": 2, "enquiries": 1}, {"area": "Kharadi", "readers": 1, "enquiries": 0}]
+
+
+async def test_a_lead_given_from_the_board_tells_the_other_agents_how_fast_it_went():
+    db, board, _ = await setup(lead("rahul", ago=timedelta(hours=5)))
+    await board.ask(STAVAN, ref_of("rahul"))
+    await db.get_collection("contacts").update_one({"_id": "rahul"}, {"$set": {"created_at": NOW - timedelta(hours=5)}})
+    await board.give(OWNER, ref_of("rahul"), STAVAN)
+    await db.get_collection("contacts").update_one({"_id": "rahul"}, {"$set": {"handover.at": NOW - timedelta(hours=3)}})
+    other = (await board.cards(HD))["items"][0]
+    assert other["given"] == "Given to an agent 2 hours after it came in"
+    assert (await board.cards(STAVAN))["items"][0]["given"] is None

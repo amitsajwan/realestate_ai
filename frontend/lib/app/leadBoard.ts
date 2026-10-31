@@ -69,6 +69,8 @@ export interface BoardCard {
   /** How many agents asked (offers stay sealed). */
   asked: number
   mine: BoardAsk | null
+  /** "Given to an agent 2 hours after it came in": another agent has it, so it cannot be asked for. */
+  given: string | null
   /** Owner only. */
   lead_id?: string
   asks?: OwnerAsk[]
@@ -77,7 +79,19 @@ export interface BoardCard {
 /** Owner: an agent to send the board to from the owner's own WhatsApp. */
 export interface BoardAgent { agent_id: string; name: string; first_name: string; whatsapp: string; listings: number; asked: number }
 
-export interface Board { items: BoardCard[]; owner: boolean; /** "View as an agent": read only. */ preview?: boolean }
+/** What buyers did on our pages in the last `days` (robots and our own browsers left out): real activity, never made up. */
+export interface BoardDemand {
+  days: number
+  /** People who read our pages. */
+  visitors: number
+  enquiries: number
+  /** Leads on the board that came in within `days`. */
+  new_leads: number
+  /** Most-read areas: people who read the area's pages, and enquiries made on them. */
+  areas: { area: string; readers: number; enquiries: number }[]
+}
+
+export interface Board { items: BoardCard[]; owner: boolean; /** "View as an agent": read only. */ preview?: boolean; demand?: BoardDemand }
 
 /** The link the owner sends to agents. */
 export const BOARD_PATH = '/studio/lead-board'
