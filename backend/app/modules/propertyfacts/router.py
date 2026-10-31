@@ -90,14 +90,13 @@ async def with_sheet(db, out: Optional[dict], listing_id: Optional[str] = None) 
         return out
     table = homes.rows(listing) if listing.get("configurations") else []
     offer = dict(out["offer"])
-    # who sells it and their pictures: the project page names the agent with their phone and shows the listing's photos first
-    # (owner 2026-10-30, House Deal's projects)
+    # who sells it and their pictures: the project page names the agent and shows the listing's photos first (owner 2026-10-30,
+    # House Deal's projects). Never their number: our pages send every enquiry through our form and chat (owner 2026-10-31)
     profile = await db.get_collection("agent_public_profiles").find_one({"agent_id": listing.get("agent_id"), "is_public": True})
     if profile and indexable(profile):
         b = profile.get("branding_data") or {}
         offer["agent"] = {"slug": profile["slug"], "name": (b.get("business_name") or profile.get("agent_name") or "").strip(),
-                          # the office line buyers should call when the agent set one (House Deal: 74472 12121, 2026-10-30)
-                          "phone": b.get("office_phone") or profile.get("phone"), "listing_id": listing["_id"]}
+                          "listing_id": listing["_id"]}
         offer["photos"] = listing_photos(listing.get("media") or [])
         offer["videos"] = listing_videos(listing.get("videos") or [], b.get("website"))
     if len(table) > 1:

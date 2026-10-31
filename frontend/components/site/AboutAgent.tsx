@@ -2,7 +2,7 @@ import React from 'react'
 import type { AgentProfile } from '@/lib/site/types'
 import { MAHARERA_URL, displayName, safeImage, safeRera } from '@/lib/site/theme'
 import { shownPhone } from '@/lib/site/links'
-import TrackedLink from './TrackedLink'
+import HiddenPhone from './HiddenPhone'
 import { BRAND_NAME } from '@/lib/brand'
 
 const EMAIL = /^[^\s@<>"]{1,64}@[A-Za-z0-9.-]{1,120}\.[A-Za-z]{2,}$/
@@ -88,7 +88,7 @@ export default function AboutAgent({ agent }: { agent: AgentProfile }) {
               {address && <div><dt className="text-xs font-bold uppercase tracking-wide text-slate-500">Office</dt><dd className="font-semibold text-slate-900">{address}</dd></div>}
               {phone && (
                 <div><dt className="text-xs font-bold uppercase tracking-wide text-slate-500">Phone</dt>
-                  <dd><TrackedLink href={phone.href} event="call_click" agentSlug={agent.slug} className="font-semibold text-slate-900 no-underline">{phone.text}</TrackedLink></dd></div>
+                  <dd><HiddenPhone code={phone} agentSlug={agent.slug} className="font-semibold text-slate-900" /></dd></div>
               )}
               {email && <div><dt className="text-xs font-bold uppercase tracking-wide text-slate-500">Email</dt><dd className="break-all font-semibold text-slate-900">{email}</dd></div>}
             </dl>

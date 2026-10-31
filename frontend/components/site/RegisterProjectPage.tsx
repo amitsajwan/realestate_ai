@@ -24,7 +24,6 @@ import type { ProfilePicture } from '@/lib/site/profile'
 import type { PropertyFactsView, PublicListing } from '@/lib/site/types'
 import type { WebFact } from '@/lib/site/webfacts'
 import { formatPrice, groupIndian } from '@/lib/site/format'
-import { displayPhone } from '@/lib/app/format'
 import { agentPath } from '@/lib/site/slug'
 import { OWN_CASH_NOTE, ownCash } from '@/lib/site/upfront'
 import { projectUpdated, registerAnswer } from '@/lib/site/projectFacts'
@@ -57,7 +56,6 @@ function OfferBox({ o, numbers, stage }: { o: Offer; numbers: PropertyFactsView[
         <p className="mt-1 text-slate-900" data-testid="offer-agent">
           Listed by{' '}
           <Link href={agentPath(o.agent.slug, 'listings/' + o.agent.listing_id)} className="font-semibold underline underline-offset-2">{o.agent.name}</Link>
-          {o.agent.phone ? <>{' · '}<a href={`tel:${o.agent.phone}`} className="font-semibold underline underline-offset-2">{displayPhone(o.agent.phone)}</a></> : null}
         </p>
       ) : null}
       {o.price_inr ? <p className="mt-1 text-2xl font-extrabold text-slate-900">{sheet ? 'From ' : ''}{formatPrice(o.price_inr)}</p> : null}

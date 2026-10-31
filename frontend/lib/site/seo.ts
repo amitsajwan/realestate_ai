@@ -3,7 +3,6 @@ import { bhkLabel, fitDescription, formatPrice, truncate } from './format'
 import { BRAND_NAME, isHouseAgent } from '@/lib/brand'
 import { agentPath, siteOrigin } from './slug'
 import { monthsLater } from './check'
-import { agentPhone } from './links'
 import { displayName } from './theme'
 import { formatDay } from './projects'
 import type { AgentProfile, CatalogProject, PublicListing, PublicProject } from './types'
@@ -72,7 +71,6 @@ export function agentJsonLd(agent: AgentProfile, city: string): Record<string, u
     url: siteOrigin() + agentPath(agent.slug),
     image: agent.photo || undefined,
     description: agent.bio || undefined,
-    telephone: agentPhone(agent) || undefined,
     address: { '@type': 'PostalAddress', streetAddress: agent.office_address || undefined, addressLocality: city || undefined, addressCountry: 'IN' },
     knowsLanguage: agent.languages && agent.languages.length ? agent.languages : undefined,
     // the team's own site belongs to the Avasetu organisation, whose page is the home page (the Organization there)
@@ -99,7 +97,7 @@ export function listingJsonLd(agent: AgentProfile, l: PublicListing): Record<str
       priceCurrency: 'INR',
       availability: l.status === 'live' ? 'https://schema.org/InStock' : 'https://schema.org/LimitedAvailability',
       url,
-      seller: { '@type': 'RealEstateAgent', name: agent.agent_name, telephone: agent.phone || undefined },
+      seller: { '@type': 'RealEstateAgent', name: agent.agent_name },
     },
   }
 }

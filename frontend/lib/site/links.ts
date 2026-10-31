@@ -24,11 +24,12 @@ export function agentPhone(agent: PhoneOwner): string | null {
   return (waNumber(agent.branding_data?.office_phone) ? agent.branding_data?.office_phone : agent.phone) || null
 }
 
-/** The agent's number printed as text (About, footer): when the call buttons are on, or the owner turned it on for this agent. */
-export function shownPhone(agent: PhoneOwner): { text: string; href: string } | null {
+/** The agent's number for About and the footer, reversed for HiddenPhone (shown on a tap, never in the page as digits): when
+ *  the call buttons are on, or the owner turned it on for this agent. */
+export function shownPhone(agent: PhoneOwner): string | null {
   if (!showDirectContact() && !agent.branding_data?.show_phone) return null
   const n = waNumber(agentPhone(agent))
-  return n ? { text: '+91 ' + n.slice(2, 7) + ' ' + n.slice(7), href: 'tel:+' + n } : null
+  return n ? n.split('').reverse().join('') : null
 }
 
 export function whatsappMessage(agentName: string, listing?: PublicListing | null, url?: string): string {

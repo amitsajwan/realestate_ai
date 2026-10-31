@@ -37,11 +37,12 @@ async def test_a_listings_page_shows_its_own_agent_not_the_projects_latest_listi
     assert (await with_sheet(db, facts(), "gone"))["offer"]["agent"]["slug"] == "avasetu"  # an unknown id falls back
 
 
-async def test_the_offer_gives_the_agents_office_line_when_they_set_one():
+async def test_the_offer_names_the_agent_but_never_carries_their_number():
     db = await setup()
     await db.get_collection("agent_public_profiles").update_one(
         {"agent_id": "HD"}, {"$set": {"branding_data": {"business_name": "House Deal", "office_phone": "+917447212121"}}})
-    assert (await with_sheet(db, facts(), "hd"))["offer"]["agent"]["phone"] == "+917447212121"
+    agent = (await with_sheet(db, facts(), "hd"))["offer"]["agent"]
+    assert agent["name"] == "House Deal" and "phone" not in agent and "7447212121" not in str(agent)
 
 
 def test_videos_play_only_from_the_agents_own_website():

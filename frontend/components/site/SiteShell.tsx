@@ -8,6 +8,7 @@ import ContactBlock from '@/components/marketing/ContactBlock'
 import { BRAND_NAME, isHouseAgent } from '@/lib/brand'
 import { shownPhone } from '@/lib/site/links'
 import { SocialIcons, agentSocialLinks } from './SocialLinks'
+import HiddenPhone from './HiddenPhone'
 
 const EMAIL = /^[^\s@<>"]{1,64}@[A-Za-z0-9.-]{1,120}\.[A-Za-z]{2,}$/
 const WEBSITE = /^https:\/\/[A-Za-z0-9.-]{1,120}\/?$/
@@ -74,7 +75,7 @@ export default function SiteShell({ agent, children, bottomPad = false }: { agen
           <div className="min-w-0">
             <h2 className="mb-2 text-xs font-bold uppercase tracking-wider text-[var(--site-accent)]">{address || phone || email ? 'Visit or call' : 'On this site'}</h2>
             {address && <p className="font-semibold text-white">{address}</p>}
-            {phone && <p className="mt-1"><a href={phone.href} className="text-white no-underline">{phone.text}</a></p>}
+            {phone && <p className="mt-1"><HiddenPhone code={phone} agentSlug={agent.slug} className="text-white" /></p>}
             {email && <p className="mt-1 break-all">{email}</p>}
             <ul className="mt-3 grid list-none gap-1 p-0">
               <li><a href={home + '#listings'} className={fLink}>Properties</a></li>
