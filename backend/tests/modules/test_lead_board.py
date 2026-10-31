@@ -50,8 +50,9 @@ async def test_an_agent_sees_what_the_buyer_wants_but_never_their_name_number_or
         assert secret not in shown, secret
 
 
-async def test_won_passed_old_test_and_numberless_leads_stay_off_the_board():
-    _, board, _ = await setup(lead("ok"), lead("won", stage="won"), lead("passed", passed_to=HD), lead("old", ago=timedelta(days=40)),
+async def test_won_given_from_the_board_old_test_and_numberless_leads_stay_off_the_board():
+    _, board, _ = await setup(lead("ok"), lead("won", stage="won"), lead("given", agent_id=STAVAN, passed_by=OWNER, passed_to=STAVAN,
+                                                                          handover={"by": "board"}), lead("old", ago=timedelta(days=40)),
                               lead("test", name="claude test"), lead("nonum", phone=""))
     assert [c["ref"] for c in (await board.cards(HD))["items"]] == [ref_of("ok")]
 
@@ -102,3 +103,17 @@ async def test_a_lead_from_a_team_or_agent_number_is_a_test_and_the_owner_remove
         assert False, "an agent removed a lead"
     except InboxError as e:
         assert e.status_code == 403
+
+
+async def test_a_lead_passed_before_is_on_the_board_for_others_and_giving_it_moves_it_from_the_agent_who_has_it():
+    db, board, _ = await setup(lead("saket", agent_id=HD, passed_by=OWNER, passed_to=HD, passed_at=NOW - timedelta(days=1),
+                                    handover={"by": "owner"}))
+    assert (await board.cards(HD))["items"] == []   # House Deal has it already
+    seen = (await board.cards(STAVAN))["items"][0]
+    assert seen["with_agent"] is True and "holder" not in seen
+    assert (await board.cards(OWNER))["items"][0]["holder"] == "House Deal"
+    await board.ask(STAVAN, ref_of("saket"), "fee", 1500)
+    r = await board.give(OWNER, ref_of("saket"), STAVAN)
+    moved = await db.get_collection("contacts").find_one({"_id": "saket"})
+    assert r["passed_to"] == "Stavan" and moved["agent_id"] == STAVAN and moved["passed_by"] == OWNER
+    assert (await board.cards(STAVAN))["items"] == [] and (await board.cards(OWNER))["items"] == []

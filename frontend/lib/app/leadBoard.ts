@@ -38,8 +38,12 @@ export interface BoardCard {
   /** How many agents asked (offers stay sealed). */
   asked: number
   mine: BoardAsk | null
+  /** Passed to an agent before (by hand or a rule): giving it moves it from them. */
+  with_agent: boolean
   /** Owner only. */
   lead_id?: string
+  /** Owner only: the agent who has it now. */
+  holder?: string | null
   asks?: OwnerAsk[]
 }
 

@@ -101,6 +101,14 @@ The owner shares the link from the board's green box (WhatsApp text counts buyer
 Tests stay off: a lead whose number is a Studio sign-in or an agent page's number, or "test" in the name; the owner removes any
 other with "Remove from board" (`lead_board_off`). The page is live: it reads the board every 30 s while open (and on return to
 the tab), shows "Live · <time>", and marks leads that came in since the viewer last opened it as New.
+Passed leads are on the board too (owner, 2026-10-31): a lead passed by hand or by a rule shows "already shared with one agent"
+to agents (the owner sees who has it), its holder does not see it, and giving it moves it from the holder (passed_by stays the
+owner). A lead given from the board does not come back.
+
+Automatic pass OFF (owner, 2026-10-31: "we will not pass it automatically to House Deal for now"): the six area rules (Upper
+Kharadi, Kharadi, Wagholi, Mundhwa, Hadapsar, Keshav Nagar -> House Deal 6abf5cacd2c1e770709ab741) were deleted from `lead_routes`;
+backup on the VM at /tmp/lead_routes_backup_20261031.json. The code is unchanged: adding a rule (Leads > Passed, or "Next time" in
+the pass box) turns it back on. Enquiries on House Deal's own site still go to them (step 4 of followups).
 
 TARGET: agent asks via WhatsApp (a template with the board link when new leads arrive); auto-give to the best offer after N hours.
 

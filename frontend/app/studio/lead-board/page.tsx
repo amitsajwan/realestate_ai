@@ -125,6 +125,11 @@ function BoardRow({ card: c, owner, fresh, onChange }: { card: BoardCard; owner:
       <ul className="space-y-0.5 text-sm text-gray-700">
         {c.signals.map((s) => <li key={s}>✓ {s}</li>)}
       </ul>
+      {c.with_agent && (
+        <p className="text-xs font-semibold text-gray-600">
+          {owner ? `With ${c.holder ?? 'an agent'} now: giving it moves it from them.` : 'Already shared with one agent.'}
+        </p>
+      )}
       <p className="text-xs text-gray-500">{c.age} · from {c.came_from} · active {timeAgo(c.last_active_at)}{c.asked ? ` · ${c.asked} agent${c.asked === 1 ? '' : 's'} asked` : ''}</p>
       {owner ? <OwnerAsks card={c} onChange={onChange} /> : <AskBox card={c} onChange={onChange} />}
     </li>

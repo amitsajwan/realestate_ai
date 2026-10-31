@@ -3,8 +3,10 @@ one and say what they would pay for it (owner, 2026-10-31: "we are getting leads
 A report of genuine leads, how old and how genuine, they see the lead but no number and name, and decide or bid. A page we can pass
 the link to").
 
-Who is on the board: a lead of an owner account that is not won, lost or passed, came in within BOARD_DAYS, and left an Indian
-mobile number. Tests are left out: a number that belongs to one of our own accounts (a Studio user or an agent's page: the team
+Who is on the board: a lead of an owner account, or one the owner passed to an agent by hand or by a rule (owner, 2026-10-31:
+"include the leads we already passed"), that is not won or lost, came in within BOARD_DAYS, and left an Indian mobile number. A
+lead given from the board is not shown again. A passed lead says so on its card (agents read "already shared with one agent", the
+owner who has it), its holder does not see it, and giving it moves it from the holder to the new agent. Tests are left out: a number that belongs to one of our own accounts (a Studio user or an agent's page: the team
 tries the forms from their own phones), or the word "test" in the name; anything else the owner takes off with "Remove from
 board" (`lead_board_off`, written only here; owner, 2026-10-31: "remove leads which we were testing"). Each card says only what helps an agent decide: the project
 or area, BHK, budget, when, how they pay, where they came from, how old the lead is, and why we think the buyer is real (they wrote
@@ -108,7 +110,8 @@ def card(lead: dict, project: Optional[dict], convs: List[dict], pages: int, now
 
 
 def _on_board(lead: dict, since: datetime) -> bool:
-    return (lead.get("stage") not in ("won", "lost") and not lead.get("passed_to") and bool(contactmod.wa_digits(lead.get("phone")))
+    return (lead.get("stage") not in ("won", "lost") and (lead.get("handover") or {}).get("by") != "board"
+            and bool(contactmod.wa_digits(lead.get("phone")))
             and isinstance(lead.get("created_at"), datetime) and lead["created_at"] >= since
             and not _TEST.search(lead.get("name") or ""))
 
@@ -126,7 +129,8 @@ class LeadBoard:
 
     async def _leads(self) -> List[dict]:
         since = self.now() - timedelta(days=BOARD_DAYS)
-        rows = await self.c("contacts").find({"agent_id": {"$in": self.owners}, "created_at": {"$gte": since}}).sort(
+        rows = await self.c("contacts").find({"$or": [{"agent_id": {"$in": self.owners}}, {"passed_by": {"$in": self.owners}}],
+                                              "created_at": {"$gte": since}}).sort(
             "created_at", -1).limit(MAX_LEADS).to_list(MAX_LEADS)
         rows = [r for r in rows if _on_board(r, since)]
         off = {d["_id"] for d in await self.c("lead_board_off").find({"_id": {"$in": [r["_id"] for r in rows]}}).to_list(MAX_LEADS)}
@@ -174,15 +178,20 @@ class LeadBoard:
         for a in await self.c("lead_asks").find({"lead_id": {"$in": ids}, "status": "open"}).to_list(2000):
             asks[a["lead_id"]].append(a)
         owner = self.is_owner(viewer)
-        names = await self._names({a["agent_id"] for rows in asks.values() for a in rows}) if owner else {}
+        holders = {r["agent_id"] for r in leads if r["agent_id"] not in self.owners}
+        names = await self._names({a["agent_id"] for rows in asks.values() for a in rows} | (holders if owner else set()))
         out = []
         for lead in leads:
+            if lead["agent_id"] == viewer and not owner:
+                continue   # their own lead already
             row = card(lead, await self.inbox.project_of(lead), convs[lead["_id"]], len(pages[lead["_id"]]), now)
+            row["with_agent"] = lead["agent_id"] not in self.owners
             mine = next((a for a in asks[lead["_id"]] if a["agent_id"] == viewer), None)
             row["asked"] = len(asks[lead["_id"]])
             row["mine"] = self._ask_view(mine) if mine else None
             if owner:
                 row["lead_id"] = lead["_id"]
+                row["holder"] = names.get(lead["agent_id"], "an agent") if row["with_agent"] else None
                 row["asks"] = [{**self._ask_view(a), "agent_id": a["agent_id"], "agent_name": names.get(a["agent_id"], "Agent")}
                                for a in sorted(asks[lead["_id"]], key=lambda a: a["at"])]
             out.append(row)
@@ -210,6 +219,8 @@ class LeadBoard:
         if offer_kind == "fee" and not (offer_value and 0 < offer_value <= 1_000_000):
             raise InboxError("Say the fee in rupees", 422)
         lead = await self._find(ref)
+        if lead["agent_id"] == agent_id:
+            raise InboxError("This lead is already yours: it is in your Leads", 409)
         now = self.now()
         rid = f"{lead['_id']}:{agent_id}"
         doc = {"lead_id": lead["_id"], "owner_id": lead["agent_id"], "agent_id": agent_id, "status": "open",
@@ -238,12 +249,16 @@ class LeadBoard:
         if not self.is_owner(owner_id):
             raise InboxError("Only the owner gives leads", 403)
         lead = await self._find(ref)
-        if lead["agent_id"] != owner_id:
+        passed = lead["agent_id"] not in self.owners
+        if not passed and lead["agent_id"] != owner_id or passed and lead.get("passed_by") != owner_id:
             raise InboxError("This lead is in another owner account", 409)
         chosen = await self.c("lead_asks").find_one({"_id": f"{lead['_id']}:{agent_id}", "status": "open"})
         if not chosen:
             raise InboxError("That agent has not asked for this lead", 404)
-        result = await self.inbox.pass_lead(owner_id, lead["_id"], agent_id, by="board")
+        # a lead passed before moves on from the agent who has it, and stays the owner's pass (Leads > Passed)
+        result = await self.inbox.pass_lead(lead["agent_id"], lead["_id"], agent_id, by="board")
+        if passed:
+            await self.c("contacts").update_one({"_id": result["lead_id"]}, {"$set": {"passed_by": owner_id}})
         now = self.now()
         for a in await self.c("lead_asks").find({"lead_id": lead["_id"], "status": "open"}).to_list(200):
             won = a["agent_id"] == agent_id
