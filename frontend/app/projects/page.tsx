@@ -8,15 +8,12 @@ import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/se
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
 import HomeFinder from '@/components/site/finder/HomeFinder'
 import { BRAND_NAME } from '@/lib/brand'
-import { getAgent, getListings, getSitemapEntries } from '@/lib/site/api'
 import { parseQuery } from '@/lib/site/finder'
-import { fromRegister, type AgentOffer } from '@/lib/site/finderItems'
-import { isSampleListing } from '@/lib/site/format'
+import { fromRegister } from '@/lib/site/finderItems'
+import { agentOffers } from '@/lib/site/offers'
 import { getAreaMap } from '@/lib/site/hubs'
 import { getRegisterPlaces, getRegisterProjects, placePath, searchPlace, searchRegister } from '@/lib/site/register'
 import type { RegisterPlace } from '@/lib/site/register'
-import { enquiryName } from '@/lib/site/theme'
-import type { PublicListing } from '@/lib/site/types'
 
 export const revalidate = 300
 
@@ -29,22 +26,6 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 type Props = { searchParams?: Promise<Record<string, string | string[] | undefined>> }
-
-/** The live listings of every agent in the sitemap, by MahaRERA number: on this list an agent-listed project shows their sheet. */
-async function agentOffers(): Promise<Map<string, AgentOffer>> {
-  const entries = (await getSitemapEntries()).listings
-  const slugs = Array.from(new Set(entries.filter((e) => e.rera_no).map((e) => e.agent_slug)))
-  const out = new Map<string, AgentOffer>()
-  for (const slug of slugs) {
-    const [agent, { items }] = await Promise.all([getAgent(slug).catch(() => null), getListings(slug).catch(() => ({ items: [] as PublicListing[] }))])
-    if (!agent) continue
-    for (const l of items) {
-      const regno = (l.rera_no || '').trim().toUpperCase()
-      if (regno && !out.has(regno) && !isSampleListing(l.title)) out.set(regno, { agentName: enquiryName(agent), listing: l })
-    }
-  }
-  return out
-}
 
 export default async function ProjectsPage({ searchParams }: Props) {
   const cfg = getMarketingConfig()
