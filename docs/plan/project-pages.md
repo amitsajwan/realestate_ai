@@ -181,6 +181,32 @@ LLP), August Towers Ph 2, Hemant, The Monarch, Prasun Adara, Ganga Avanta A2. Fo
 
 TARGET: the owner's status list shows the profile check but no picture review yet.
 
+### Builder logos when there is no picture (2026-10-31)
+
+Owner: "we don't have project images, but at least builders' logos we can find? Page looks empty without images." Measured that
+day: 299 of 321 enriched projects had no builder or brochure picture; 37 of them had the builder's own site on record, 36 were
+under a brand. So the logo is read per BUILDER (brand, else MahaRERA promoter), not per project (`areastats/logos.py`):
+- once a day inside the enrichment loop, up to 60 builders, those whose pages have no picture first;
+- the site: an `official` page already on any of the builder's records, else one web search (at most 15 a day), kept only when
+  the domain is the builder's word and the result names the builder;
+- the logo on the home page: structured-data logo, then `<img>` called a logo or named after the builder (file name and alt
+  text, never the site's address), the touch icon last. A Next.js `/_next/image` link is read at its source. SVG logos are drawn
+  to PNG with resvg after scripts and outside references are taken out; no SVG is ever served from our uploads;
+- kept when it has a logo's size and shape and a plain edge or a few flat colours (a photo has neither), trimmed, saved as
+  `uploads/builder_logos/<builder key>.png` with `tone` (light = white lettering for a dark header);
+- stored as `builder_logo` on every record of the builder; "none" is retried after 30 days, a found logo is re-read after 90.
+
+The page: with no picture of the project, the hero's picture slot shows the logo (white panel, or the navy band for a light
+logo) with "The builder's logo, from <site>". With a picture, nothing changes. Tried on 20 Pune builders' home pages before
+going live: 19 found (Goel Ganga's page is drawn by script).
+
+Seen in that trial: vilasjavdekar.com is a channel partner's site ("Authorized Channel Partner" in its logo), yet the web
+facts count it as Vilas Javdekar's own (`webfacts.official` matches the domain word). OPEN: the official-site test cannot
+tell a builder from a partner using its name.
+
+TARGET: a map of the project's location in the same slot for projects with neither picture nor logo (owner said build it
+2026-10-31, after the logos).
+
 ## Learning from Housiey (2026-10-20)
 
 Owner, 2026-10-20: "learn from housiey.com". Housiey is a big channel partner (MahaRERA agent A51900001761, builders pay it). Its

@@ -133,6 +133,8 @@ export interface RegisterBuilding {
   units_total: number | null
 }
 
+export interface BuilderLogo { url: string; width: number | null; height: number | null; tone: 'light' | 'dark'; site: string | null }
+
 export interface BuilderRecord {
   /** the brand's name (backend areastats/brands.py), else the MahaRERA promoter's */
   name: string
@@ -144,6 +146,8 @@ export interface BuilderRecord {
   moved_later: number
   avg_months_later: number | null
   projects: { name: string; regno: string; slug: string | null; completion_now: string | null; months_later: number | null; this: boolean }[]
+  /** the builder's logo from its own home page (backend areastats/logos.py); tone 'light' is drawn for a dark background */
+  logo?: BuilderLogo | null
 }
 
 export interface Faq { q: string; a: string }

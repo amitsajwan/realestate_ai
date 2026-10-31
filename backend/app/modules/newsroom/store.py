@@ -209,6 +209,11 @@ class Store:
         """Set fields on one register record (details from MahaRERA's project API, a corrected locality)."""
         await self.projects.update_one({"_id": regno}, {"$set": fields})
 
+    async def set_projects(self, regnos: List[str], **fields) -> None:
+        """Set the same fields on several register records (a builder's logo on all of its projects, areastats.logos)."""
+        if regnos:
+            await self.projects.update_many({"_id": {"$in": list(regnos)}}, {"$set": fields})
+
     async def add_date_move(self, regno: str, move: dict) -> None:
         """Append one change of the filed completion date ({from, to, seen_at}) to the record's `completion_history`."""
         await self.projects.update_one({"_id": regno}, {"$push": {"completion_history": move}})

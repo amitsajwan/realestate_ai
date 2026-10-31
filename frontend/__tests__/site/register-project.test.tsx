@@ -193,6 +193,22 @@ describe('the hero', () => {
     expect(within(screen.getByTestId('photos')).getAllByRole('img')).toHaveLength(1)
   })
 
+  it("puts the builder's logo where the picture would be when the project has none, and only then", () => {
+    const logo = { url: '/uploads/builder_logos/godrej-properties.png', width: 480, height: 99, tone: 'dark' as const, site: 'godrejproperties.com' }
+    const builder = { name: 'Godrej Properties', count: 3, with_dates: 0, moved_later: 0, avg_months_later: null, projects: [], logo }
+    const { unmount } = render(<RegisterProjectPage p={{ ...P, builder }} siteUrl="https://avasetu.in" facts={null} />)
+    const shown = screen.getByTestId('hero-logo')
+    expect(within(shown).getByRole('img')).toHaveAttribute('src', logo.url)
+    expect(within(shown).getByRole('img')).toHaveAttribute('alt', 'Godrej Properties logo')
+    expect(shown).toHaveTextContent("The builder's logo, from godrejproperties.com")
+    expect(shown).toHaveClass('bg-white')
+    unmount()
+    const profile = { highlights: [], plans: [], read_at: null, photos: [PHOTO('/m/a.webp', 'builder')] } as never
+    render(<RegisterProjectPage p={{ ...P, builder, profile }} siteUrl="https://avasetu.in" facts={null} />)
+    expect(screen.getByTestId('hero-photo')).toBeInTheDocument()
+    expect(screen.queryByTestId('hero-logo')).toBeNull()
+  })
+
   it('shows the registration once, the brand without the SPV, no Registered tile and a plain stage', () => {
     const p: RegisterProject = { ...P, promoter: 'Manjari Housing Projects LLP', stage: 'early',
       builder: { name: 'Godrej Properties', count: 1, with_dates: 0, moved_later: 0, avg_months_later: null, projects: [] },

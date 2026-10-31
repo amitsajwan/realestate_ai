@@ -57,6 +57,9 @@ def wire() -> None:
     from app.modules.areastats import mappins
     mappins.configure(search=_places_search)
     project_enrich.add_daily("map pins", mappins.refresh)
+    # builder logos for project pages with no picture of their own (areastats.logos)
+    from app.modules.areastats import logos
+    project_enrich.add_daily("builder logos", logos.refresh)
     # areas by place: a pinned project belongs to the area it is in (areastats.placement, app/core/area_bounds.py)
     from app.modules.areastats import placement
     placement.configure(pin_address=_pin_address)

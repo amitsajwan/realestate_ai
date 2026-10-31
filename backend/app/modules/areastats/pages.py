@@ -417,6 +417,16 @@ def delivery(mine: List[dict]) -> dict:
             "avg_months_later": round(sum(moved) / len(moved)) if moved else None, "record_ok": len(with_dates) >= RECORD_MIN}
 
 
+def builder_logo(docs: List[dict]) -> Optional[dict]:
+    """The builder's logo from the first of its records that has one (areastats.logos): {url, width, height, tone, site}."""
+    for d in docs:
+        x = d.get("builder_logo")
+        if isinstance(x, dict) and x.get("status") == "found" and x.get("path"):
+            return {"url": "/uploads/" + x["path"], "width": x.get("width"), "height": x.get("height"),
+                    "tone": x.get("tone") or "dark", "site": x.get("site")}
+    return None
+
+
 def track_record(doc: dict, docs: List[dict]) -> Optional[dict]:
     """The builder's (brand's, else promoter's) projects in our register, towers and phases counted once: how many, how many
     moved their completion date later and by how much."""
@@ -430,6 +440,8 @@ def track_record(doc: dict, docs: List[dict]) -> Optional[dict]:
     mine.sort(key=lambda d: (_day(d.get("completion_now")) or "9999", d.get("name", "")))
     b = brands.BY_SLUG.get(key)
     return {"name": b.name if b else doc.get("promoter"), "slug": key, "count": len(mine), **delivery(mine),
+            # read once per builder (areastats.logos) and stored on all its records: the first record that has it
+            "logo": builder_logo(mine),
             "projects": [{"name": d.get("name", ""), "regno": d.get("regno") or d["_id"], "slug": d["page_slug"] if _served(d) else None,
                           "completion_now": _day(d.get("completion_now")), "months_later": months_later(d),
                           "this": d["_id"] == doc["_id"]} for d in mine[:30]]}
