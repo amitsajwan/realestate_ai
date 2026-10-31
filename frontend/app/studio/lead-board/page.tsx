@@ -1,6 +1,6 @@
 'use client'
 import Link from 'next/link'
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { PassedNote } from '@/components/app/PassBox'
 import { Btn, ErrorBox, PageTitle, Spinner, TempChip, inputCls } from '@/components/app/ui'
 import { errorMessage } from '@/lib/app/client'
@@ -12,17 +12,48 @@ import { useAsync } from '@/lib/app/useAsync'
 /**
  * Lead board (owner, 2026-10-31): our open buyer leads without the buyer's name or number. An agent asks for the ones they can
  * serve, with an offer if they like; the owner gives each lead to one agent, and only then do the name and number reach them.
- * The owner sends this page's link to agents on WhatsApp.
+ * The owner sends this page's link to agents on WhatsApp; the page is live (owner: "a realtime page for leads, not a WhatsApp
+ * message only"): it reads the board again every LIVE_MS while open, and marks leads that came in since the viewer last looked.
  */
+const LIVE_MS = 30_000
+const SEEN_KEY = 'lead_board_seen'
+
+function readSeen(): number {
+  try { return Number(window.localStorage.getItem(SEEN_KEY)) || 0 } catch { return 0 }
+}
+
+function writeSeen(at: number) {
+  try { window.localStorage.setItem(SEEN_KEY, String(at)) } catch { /* private window: no New marks next time */ }
+}
+
 export default function LeadBoardPage() {
   const { data, error, loading, reload } = useAsync(() => boardApi.get(), [])
   const [area, setArea] = useState<string | null>(null)
+  const [updated, setUpdated] = useState<Date | null>(null)
+  const [, tick] = useState(0)
+  const seen = useRef<number | null>(null)
+  if (seen.current === null && typeof window !== 'undefined') seen.current = readSeen()
+
+  useEffect(() => {
+    if (data) setUpdated(new Date())
+  }, [data])
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') reload()
+      tick((n) => n + 1)
+    }, LIVE_MS)
+    const back = () => { if (document.visibilityState === 'visible') reload() }
+    document.addEventListener('visibilitychange', back)
+    writeSeen(Date.now())
+    return () => { clearInterval(id); document.removeEventListener('visibilitychange', back) }
+  }, [reload])
+  const isNew = (c: BoardCard) => !!seen.current && Date.parse(c.created_at.endsWith('Z') ? c.created_at : `${c.created_at}Z`) > seen.current
   const areas = useMemo(() => Array.from(new Set((data?.items ?? []).flatMap((c) => c.areas))).sort(), [data])
   const items = (data?.items ?? []).filter((c) => !area || c.areas.includes(area))
 
   return (
     <div className="space-y-4">
-      <PageTitle>Lead board</PageTitle>
+      <PageTitle action={updated && <span className="flex items-center gap-1.5 text-xs font-semibold text-green-700"><span className="h-2 w-2 animate-pulse rounded-full bg-green-600" />Live · {timeAgo(updated.toISOString())}</span>}>Lead board</PageTitle>
       <p className="text-sm text-gray-700">
         Buyers who asked {data?.owner ? 'us' : 'Avasetu'} about a home in the last {data?.days ?? 30} days. Their name and number stay
         hidden: {data?.owner ? 'agents ask for a lead, you give it to one of them.' : 'ask for the ones you can serve, and when a lead is given to you it comes to your Leads with the full details.'}
@@ -42,7 +73,7 @@ export default function LeadBoardPage() {
       {error && <ErrorBox message={error} onRetry={reload} />}
       {data && items.length === 0 && <p className="rounded-2xl bg-gray-50 p-4 text-sm text-gray-700">No open leads right now. New ones come up here as buyers ask.</p>}
       <ul className="space-y-3">
-        {items.map((c) => <BoardRow key={c.ref} card={c} owner={data!.owner} onChange={reload} />)}
+        {items.map((c) => <BoardRow key={c.ref} card={c} owner={data!.owner} fresh={isNew(c)} onChange={reload} />)}
       </ul>
     </div>
   )
@@ -75,12 +106,13 @@ function Chip({ children }: { children: React.ReactNode }) {
   return <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-800">{children}</span>
 }
 
-function BoardRow({ card: c, owner, onChange }: { card: BoardCard; owner: boolean; onChange: () => void }) {
+function BoardRow({ card: c, owner, fresh, onChange }: { card: BoardCard; owner: boolean; fresh: boolean; onChange: () => void }) {
   const facts = [c.bhk, c.budget, c.when && `Buying: ${c.when}`, c.paying, c.wants].filter(Boolean) as string[]
   return (
-    <li className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4">
+    <li className={`space-y-3 rounded-2xl border bg-white p-4 ${fresh ? 'border-green-500' : 'border-gray-200'}`}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
+          {fresh && <p className="text-xs font-bold uppercase tracking-wide text-green-700">New</p>}
           <h2 className="break-words font-semibold text-gray-900">{boardTitle(c)}</h2>
           {c.project && c.areas.length > 0 && <p className="text-sm text-gray-600">{c.areas.join(', ')}</p>}
         </div>
@@ -163,6 +195,19 @@ function OwnerAsks({ card: c, onChange }: { card: BoardCard; onChange: () => voi
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState<PassResult | null>(null)
 
+  async function remove() {
+    if (!window.confirm('Take this lead off the board? Agents will no longer see it.')) return
+    setBusy('remove')
+    setError(null)
+    try {
+      await boardApi.remove(c.ref)
+      onChange()
+    } catch (e) {
+      setError(errorMessage(e))
+      setBusy(null)
+    }
+  }
+
   async function give(agentId: string) {
     setBusy(agentId)
     setError(null)
@@ -198,6 +243,9 @@ function OwnerAsks({ card: c, onChange }: { card: BoardCard; onChange: () => voi
         </ul>
       )}
       {error && <p role="alert" className="text-sm font-semibold text-red-700">{error}</p>}
+      <button type="button" disabled={!!busy} onClick={remove} className="min-h-[44px] w-full text-sm font-semibold text-red-700">
+        {busy === 'remove' ? 'Removing...' : 'Remove from board (a test, or I keep it)'}
+      </button>
     </div>
   )
 }

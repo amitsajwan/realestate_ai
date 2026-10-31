@@ -4,7 +4,9 @@ A report of genuine leads, how old and how genuine, they see the lead but no num
 the link to").
 
 Who is on the board: a lead of an owner account that is not won, lost or passed, came in within BOARD_DAYS, and left an Indian
-mobile number; a test entry (the word "test" in the name) is left out. Each card says only what helps an agent decide: the project
+mobile number. Tests are left out: a number that belongs to one of our own accounts (a Studio user or an agent's page: the team
+tries the forms from their own phones), or the word "test" in the name; anything else the owner takes off with "Remove from
+board" (`lead_board_off`, written only here; owner, 2026-10-31: "remove leads which we were testing"). Each card says only what helps an agent decide: the project
 or area, BHK, budget, when, how they pay, where they came from, how old the lead is, and why we think the buyer is real (they wrote
 back, picked up our call, gave their own budget, read many pages). Never the name, the phone, or their own words, since a buyer's
 words often carry a name or a number.
@@ -126,7 +128,30 @@ class LeadBoard:
         since = self.now() - timedelta(days=BOARD_DAYS)
         rows = await self.c("contacts").find({"agent_id": {"$in": self.owners}, "created_at": {"$gte": since}}).sort(
             "created_at", -1).limit(MAX_LEADS).to_list(MAX_LEADS)
-        return [r for r in rows if _on_board(r, since)]
+        rows = [r for r in rows if _on_board(r, since)]
+        off = {d["_id"] for d in await self.c("lead_board_off").find({"_id": {"$in": [r["_id"] for r in rows]}}).to_list(MAX_LEADS)}
+        team = await self._team_numbers([r["phone"] for r in rows])
+        return [r for r in rows if r["_id"] not in off and contactmod.wa_digits(r["phone"]) not in team]
+
+    async def _team_numbers(self, phones: List[str]) -> set:
+        """Of these lead numbers, the ones that are also a Studio sign-in or an agent page's number (stored as +91..., 91... or
+        10 digits), as 12-digit 91... strings."""
+        digits = {contactmod.wa_digits(p) for p in phones} - {None}
+        forms = [f for d in digits for f in ("+" + d, d, d[2:])]
+        found = await self.c("users").find({"phone": {"$in": forms}}, {"phone": 1}).to_list(1000)
+        found += await self.c("agent_public_profiles").find({"phone": {"$in": forms}}, {"phone": 1}).to_list(1000)
+        return {contactmod.wa_digits(d.get("phone")) for d in found} & digits
+
+    async def remove(self, owner_id: str, ref: str) -> dict:
+        """The owner takes a lead off the board (a test, or one they keep for themselves). Open asks on it close quietly."""
+        if not self.is_owner(owner_id):
+            raise InboxError("Only the owner removes leads", 403)
+        lead = await self._find(ref)
+        now = self.now()
+        await self.c("lead_board_off").insert_one({"_id": lead["_id"], "by": owner_id, "at": now})
+        for a in await self.c("lead_asks").find({"lead_id": lead["_id"], "status": "open"}).to_list(200):
+            await self.c("lead_asks").update_one({"_id": a["_id"]}, {"$set": {"status": "removed", "closed_at": now}})
+        return {"ok": True}
 
     async def _find(self, ref: str) -> dict:
         lead = next((r for r in await self._leads() if ref_of(r["_id"]) == ref), None)

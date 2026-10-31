@@ -86,3 +86,19 @@ async def test_the_owner_cannot_ask_and_a_lead_goes_only_to_an_agent_who_asked()
             assert False, "should be refused"
         except InboxError as e:
             assert e.status_code in (404, 409)
+
+
+async def test_a_lead_from_a_team_or_agent_number_is_a_test_and_the_owner_removes_any_other():
+    db, board, _ = await setup(lead("buyer"), lead("ours", phone="+919767900001"), lead("signin", phone="+919800000009"),
+                               lead("tried", phone="+919800000010"))
+    await db.get_collection("users").insert_one({"_id": "u1", "phone": "9800000009"})   # an older sign-in stored without +91
+    assert {c["ref"] for c in (await board.cards(OWNER))["items"]} == {ref_of("buyer"), ref_of("tried")}
+    await board.ask(HD, ref_of("tried"))
+    await board.remove(OWNER, ref_of("tried"))
+    assert [c["ref"] for c in (await board.cards(HD))["items"]] == [ref_of("buyer")]
+    assert (await db.get_collection("lead_asks").find_one({"_id": "tried:HD"}))["status"] == "removed"
+    try:
+        await board.remove(HD, ref_of("buyer"))
+        assert False, "an agent removed a lead"
+    except InboxError as e:
+        assert e.status_code == 403

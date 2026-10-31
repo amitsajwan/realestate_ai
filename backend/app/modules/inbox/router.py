@@ -21,6 +21,7 @@ Lead board, mounted at /lead-board (board.py): the owner's open leads without na
   POST   /lead-board/{ref}/ask        (agent) ask for a lead: {offer_kind: none|fee|share, offer_value, note}; asking again changes it
   DELETE /lead-board/{ref}/ask        (agent) take the ask back
   POST   /lead-board/{ref}/give       (owner) give the lead to an agent who asked: {agent_id}; an ordinary pass
+  POST   /lead-board/{ref}/remove     (owner) take a lead off the board (a test, or one the owner keeps)
 """
 from typing import Literal, Optional
 
@@ -177,3 +178,8 @@ async def withdraw(ref: str, user: User = Depends(current_active_user), b: LeadB
 @board_router.post("/{ref}/give")
 async def give(ref: str, body: GiveIn, user: User = Depends(owner_only), b: LeadBoard = Depends(get_board)) -> dict:
     return await _run(b.give(str(user.id), ref, body.agent_id))
+
+
+@board_router.post("/{ref}/remove")
+async def remove(ref: str, user: User = Depends(owner_only), b: LeadBoard = Depends(get_board)) -> dict:
+    return await _run(b.remove(str(user.id), ref))

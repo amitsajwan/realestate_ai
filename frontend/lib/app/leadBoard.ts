@@ -77,6 +77,8 @@ export const boardApi = {
   ask: (ref: string, offer_kind: OfferKind, offer_value: number | null, note: string) =>
     call<BoardAsk>(`/${encodeURIComponent(ref)}/ask`, { method: 'POST', json: { offer_kind, offer_value, note: note || null } }),
   withdraw: (ref: string) => call<{ ok: boolean }>(`/${encodeURIComponent(ref)}/ask`, { method: 'DELETE' }),
+  /** Owner: take a lead off the board. */
+  remove: (ref: string) => call<{ ok: boolean }>(`/${encodeURIComponent(ref)}/remove`, { method: 'POST' }),
   give: (ref: string, agentId: string) => call<PassResult>(`/${encodeURIComponent(ref)}/give`, { method: 'POST', json: { agent_id: agentId } }),
 }
 
