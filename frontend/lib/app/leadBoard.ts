@@ -58,8 +58,11 @@ export interface BoardCard {
   created_at: string
   last_active_at: string
   temperature: 'hot' | 'warm' | 'cold'
-  /** talked = they wrote back or picked up our call; number = they left a mobile number, nothing more yet. */
-  genuine: 'talked' | 'number'
+  /** talked = they wrote back or picked up our call; number = they left a mobile number, nothing more yet; no_number = they said what
+   *  they want but left no number. */
+  genuine: 'talked' | 'number' | 'no_number'
+  /** New, Contacted, Site visit, In talks, Marked lost. */
+  stage: string
   signals: string[]
   /** What they did on the site (no names or numbers). */
   activity: BoardActivity
@@ -77,7 +80,7 @@ export interface BoardCard {
   asks?: OwnerAsk[]
 }
 
-export interface Board { items: BoardCard[]; owner: boolean; days: number }
+export interface Board { items: BoardCard[]; owner: boolean }
 
 /** The link the owner sends to agents. */
 export const BOARD_PATH = '/studio/lead-board'

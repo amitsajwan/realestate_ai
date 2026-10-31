@@ -50,11 +50,21 @@ async def test_an_agent_sees_what_the_buyer_wants_but_never_their_name_number_or
         assert secret not in shown, secret
 
 
-async def test_won_given_from_the_board_old_test_and_numberless_leads_stay_off_the_board():
-    _, board, _ = await setup(lead("ok"), lead("won", stage="won"), lead("given", agent_id=STAVAN, passed_by=OWNER, passed_to=STAVAN,
-                                                                          handover={"by": "board"}), lead("old", ago=timedelta(days=40)),
-                              lead("test", name="claude test"), lead("nonum", phone=""))
-    assert [c["ref"] for c in (await board.cards(HD))["items"]] == [ref_of("ok")]
+async def test_every_lead_shows_except_won_deals_tests_and_bare_comments():
+    _, board, _ = await setup(lead("ok"), lead("won", stage="won"), lead("lost", stage="lost"),
+                              lead("given", agent_id=STAVAN, passed_by=OWNER, passed_to=STAVAN, handover={"by": "board"}),
+                              lead("old", ago=timedelta(days=40)), lead("test", name="claude test"), lead("nonum", phone=""),
+                              lead("hello", phone="", message="", requirement=None, source="instagram_comment"))
+    cards = {c["ref"]: c for c in (await board.cards(HD))["items"]}
+    assert set(cards) == {ref_of(i) for i in ("ok", "lost", "given", "old", "nonum")}
+    assert cards[ref_of("lost")]["stage"] == "Marked lost" and cards[ref_of("ok")]["stage"] == "Contacted"
+    assert cards[ref_of("nonum")]["genuine"] == "talked"   # picked up our call, number or not
+    assert cards[ref_of("given")]["with_agent"] is True
+
+
+async def test_a_passed_lead_is_never_dropped_as_a_test():
+    _, board, _ = await setup(lead("hd", agent_id=HD, passed_by=OWNER, passed_to=HD, phone="+919921900002", name="test buyer"))
+    assert [c["ref"] for c in (await board.cards(OWNER))["items"]] == [ref_of("hd")]
 
 
 async def test_offers_are_sealed_and_the_owner_gives_the_lead_to_one_agent():
@@ -74,7 +84,7 @@ async def test_offers_are_sealed_and_the_owner_gives_the_lead_to_one_agent():
     assert r["passed_to"] == "Stavan" and wa.sent[0][0] == "919921900002"
     moved = await db.get_collection("contacts").find_one({"_id": "rahul"})
     assert moved["agent_id"] == STAVAN and moved["handover"]["by"] == "board"
-    assert (await board.cards(HD))["items"] == []
+    assert [c["with_agent"] for c in (await board.cards(HD))["items"]] == [True]   # still on the board, now with Stavan
     closed = await db.get_collection("notifications").find_one({"agent_id": HD, "kind": "lead_ask_closed"})
     assert closed is not None
 
@@ -116,7 +126,8 @@ async def test_a_lead_passed_before_is_on_the_board_for_others_and_giving_it_mov
     r = await board.give(OWNER, ref_of("saket"), STAVAN)
     moved = await db.get_collection("contacts").find_one({"_id": "saket"})
     assert r["passed_to"] == "Stavan" and moved["agent_id"] == STAVAN and moved["passed_by"] == OWNER
-    assert (await board.cards(STAVAN))["items"] == [] and (await board.cards(OWNER))["items"] == []
+    assert (await board.cards(STAVAN))["items"] == []   # theirs now
+    assert (await board.cards(OWNER))["items"][0]["holder"] == "Stavan"
 
 
 async def test_the_card_tells_what_they_read_on_how_many_days_from_which_device_and_city():

@@ -3,15 +3,17 @@ one and say what they would pay for it (owner, 2026-10-31: "we are getting leads
 A report of genuine leads, how old and how genuine, they see the lead but no number and name, and decide or bid. A page we can pass
 the link to").
 
-Who is on the board: a lead of an owner account, or one the owner passed to an agent by hand or by a rule (owner, 2026-10-31:
-"include the leads we already passed"), that is not won or lost, came in within BOARD_DAYS, and left an Indian mobile number. A
-lead given from the board is not shown again. A passed lead says so on its card (agents read "already shared with one agent", the
-owner who has it), its holder does not see it, and giving it moves it from the holder to the new agent.
+Who is on the board (owner, 2026-10-31: "show all leads even if they are passed to House Deal before, we will manage leads from
+there"): every lead of an owner account, and every lead the owner passed to an agent (by hand, by a rule or from the board), at
+any age, unless the deal is won. A lost lead stays, marked lost (another agent may still serve it). A lead with no mobile number
+stays when it says what they want (a BHK, budget, area or date); a comment or hello with nothing more is a conversation and lives
+in the Inbox. Each card carries its stage. A passed lead says so (agents read "already shared with one agent", the owner who has it),
+its holder does not see it, and giving it moves it from the holder to the new agent.
 
-Tests are left out: a number that belongs to one of our own accounts (a Studio user or an agent's page: the team tries the forms
-from their own phones), an enquiry from a signed-in Studio browser (its events are marked staff), or the word "test" in the name;
-anything else the owner takes off with "Remove from board" (`lead_board_off`, written only here; owner, 2026-10-31: "remove leads
-which we were testing").
+Tests are left out of the owner's own leads: a number that belongs to one of our accounts (a Studio user or an agent's page: the
+team tries the forms from their own phones), an enquiry from a signed-in Studio browser (its events are marked staff), or the word
+"test" in the name. A passed lead is never dropped as a test: the owner looked at it when passing it. Anything else the owner takes
+off with "Remove from board" (`lead_board_off`, written only here).
 
 Each card says only what helps an agent decide: the project or area, BHK, budget, when, how they pay, where they came from, how
 old the lead is, why we think the buyer is real (they wrote back, picked up our call, gave their own budget, came back on other
@@ -42,8 +44,8 @@ from .service import InboxError, InboxService
 
 log = logging.getLogger(__name__)
 
-BOARD_DAYS = 30
-MAX_LEADS = 300
+MAX_LEADS = 500
+STAGE_LABEL = {"new": "New", "contacted": "Contacted", "site_visit": "Site visit", "negotiating": "In talks", "lost": "Marked lost"}
 MAX_NOTE = 200
 MANY_PAGES = 5
 OFFER_KINDS = ("none", "fee", "share")
@@ -171,7 +173,8 @@ def signals(lead: dict, convs: List[dict], act: dict) -> List[str]:
         out.append(f"Read {act['page_count']} pages on the site")
     if act["taps"]:
         out.append(", ".join(act["taps"]))
-    out.append("Left a mobile number")
+    out.append("Left a mobile number" if contactmod.wa_digits(lead.get("phone")) else "No number yet: reached us on "
+               + (handover.source_text(lead) if lead.get("source") else "the website"))
     return out
 
 
@@ -199,7 +202,9 @@ def card(lead: dict, project: Optional[dict], convs: List[dict], events: List[di
         "last_active_at": lead["last_activity_at"],
         "temperature": scoring.temperature(value),
         # talked = they answered us (a message or a picked-up call); the rest left a number and nothing more yet
-        "genuine": "talked" if (sig[0].startswith(("Wrote", "Picked")) or state == "in_touch") else "number",
+        "genuine": ("talked" if (sig[0].startswith(("Wrote", "Picked")) or state == "in_touch")
+                    else "number" if contactmod.wa_digits(lead.get("phone")) else "no_number"),
+        "stage": STAGE_LABEL.get(lead.get("stage") or "new", (lead.get("stage") or "new").replace("_", " ").capitalize()),
         "signals": sig,
         "activity": {k: v for k, v in act.items() if k != "agent_pages"},
         # they opened our pages for agents: worth a look before paying for it (an agent trying the form, not a buyer)
@@ -207,11 +212,15 @@ def card(lead: dict, project: Optional[dict], convs: List[dict], events: List[di
     }
 
 
-def _on_board(lead: dict, since: datetime) -> bool:
-    return (lead.get("stage") not in ("won", "lost") and (lead.get("handover") or {}).get("by") != "board"
-            and bool(contactmod.wa_digits(lead.get("phone")))
-            and isinstance(lead.get("created_at"), datetime) and lead["created_at"] >= since
-            and not _TEST.search(lead.get("name") or ""))
+def _wants_something(lead: dict) -> bool:
+    """A BHK, budget, area or date they gave. A comment's text alone is not one (the Studio Leads list draws the same line)."""
+    req = {k: v for k, v in (lead.get("requirement") or {}).items() if k != "source"}
+    return any(req.values())
+
+
+def _on_board(lead: dict) -> bool:
+    return (lead.get("stage") != "won" and isinstance(lead.get("created_at"), datetime) and isinstance(lead.get("last_activity_at"), datetime)
+            and (bool(contactmod.wa_digits(lead.get("phone"))) or _wants_something(lead)))
 
 
 class LeadBoard:
@@ -226,17 +235,20 @@ class LeadBoard:
         return user_id in self.owners
 
     async def _leads(self) -> List[dict]:
-        since = self.now() - timedelta(days=BOARD_DAYS)
-        rows = await self.c("contacts").find({"$or": [{"agent_id": {"$in": self.owners}}, {"passed_by": {"$in": self.owners}}],
-                                              "created_at": {"$gte": since}}).sort(
+        rows = await self.c("contacts").find({"$or": [{"agent_id": {"$in": self.owners}}, {"passed_by": {"$in": self.owners}}]}).sort(
             "created_at", -1).limit(MAX_LEADS).to_list(MAX_LEADS)
-        rows = [r for r in rows if _on_board(r, since)]
+        rows = [r for r in rows if _on_board(r)]
         off = {d["_id"] for d in await self.c("lead_board_off").find({"_id": {"$in": [r["_id"] for r in rows]}}).to_list(MAX_LEADS)}
-        team = await self._team_numbers([r["phone"] for r in rows])
+        own = [r for r in rows if not r.get("passed_by")]
+        team = await self._team_numbers([r.get("phone") or "" for r in own])
         # an enquiry from a signed-in Studio browser (its events are marked staff) is one of us trying the form
         staff = {e["contact_id"] for e in await self.c("events").find(
-            {"contact_id": {"$in": [r["_id"] for r in rows]}, "staff": True}, {"contact_id": 1}).to_list(MAX_LEADS * 20)}
-        return [r for r in rows if r["_id"] not in off and r["_id"] not in staff and contactmod.wa_digits(r["phone"]) not in team]
+            {"contact_id": {"$in": [r["_id"] for r in own]}, "staff": True}, {"contact_id": 1}).to_list(MAX_LEADS * 20)}
+
+        def test(r: dict) -> bool:
+            return not r.get("passed_by") and (r["_id"] in staff or contactmod.wa_digits(r.get("phone")) in team
+                                               or bool(_TEST.search(r.get("name") or "")))
+        return [r for r in rows if r["_id"] not in off and not test(r)]
 
     async def _project_names(self, events: List[dict]) -> Dict[str, str]:
         """The names shown on the project pages in these events; one register read per slug an hour."""
@@ -314,7 +326,7 @@ class LeadBoard:
                 row["asks"] = [{**self._ask_view(a), "agent_id": a["agent_id"], "agent_name": agents.get(a["agent_id"], "Agent")}
                                for a in sorted(asks[lead["_id"]], key=lambda a: a["at"])]
             out.append(row)
-        return {"items": out, "owner": owner, "days": BOARD_DAYS}
+        return {"items": out, "owner": owner}
 
     @staticmethod
     def _ask_view(a: dict) -> dict:

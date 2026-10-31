@@ -105,6 +105,11 @@ Passed leads are on the board too (owner, 2026-10-31): a lead passed by hand or 
 to agents (the owner sees who has it), its holder does not see it, and giving it moves it from the holder (passed_by stays the
 owner). A lead given from the board does not come back.
 
+All leads (owner, 2026-10-31: "show all leads even if passed to House Deal before, we will manage leads from there"): no 30-day
+limit; every passed lead (by hand, rule or board) shows and is never dropped as a test; lost leads show marked "Marked lost"; a
+lead with no number shows when it gave a BHK, budget, area or date (a bare comment stays in the Inbox, like Studio Leads); won
+deals are off. Each card has its stage. On 2026-10-31 that is 18: 7 the owner's, 11 with House Deal.
+
 What they looked at (owner, 2026-10-31: "more details, what the visitor was checking, what pages"): each card has the pages in
 order with minutes read (project pages by their shown name, area lists, guides, news), visits and days, phone or computer, the
 city of the visit (an NRI in Bahrain shows "Manama"), and taps on WhatsApp/call; signals add "came back on N days", "sent N

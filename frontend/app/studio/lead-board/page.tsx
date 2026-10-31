@@ -55,7 +55,7 @@ export default function LeadBoardPage() {
     <div className="space-y-4">
       <PageTitle action={updated && <span className="flex items-center gap-1.5 text-xs font-semibold text-green-700"><span className="h-2 w-2 animate-pulse rounded-full bg-green-600" />Live · {timeAgo(updated.toISOString())}</span>}>Lead board</PageTitle>
       <p className="text-sm text-gray-700">
-        Buyers who asked {data?.owner ? 'us' : 'Avasetu'} about a home in the last {data?.days ?? 30} days. Their name and number stay
+        Every buyer who asked {data?.owner ? 'us' : 'Avasetu'} about a home, newest first. Their name and number stay
         hidden: {data?.owner ? 'agents ask for a lead, you give it to one of them.' : 'ask for the ones you can serve, and when a lead is given to you it comes to your Leads with the full details.'}
       </p>
       {data?.owner && <ShareBox items={data.items} />}
@@ -116,11 +116,14 @@ function BoardRow({ card: c, owner, fresh, onChange }: { card: BoardCard; owner:
           <h2 className="break-words font-semibold text-gray-900">{boardTitle(c)}</h2>
           {c.project && c.areas.length > 0 && <p className="text-sm text-gray-600">{c.areas.join(', ')}</p>}
         </div>
-        <TempChip temperature={c.temperature} />
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <TempChip temperature={c.temperature} />
+          <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${c.stage === 'Marked lost' ? 'bg-red-50 text-red-700' : 'bg-gray-100 text-gray-700'}`}>{c.stage}</span>
+        </div>
       </div>
       {facts.length > 0 && <div className="flex flex-wrap gap-1.5">{facts.map((f) => <Chip key={f}>{f}</Chip>)}</div>}
-      <p className={`rounded-lg px-2 py-1 text-xs font-semibold ${c.genuine === 'talked' ? 'bg-green-50 text-green-800' : 'bg-amber-50 text-amber-800'}`}>
-        {c.genuine === 'talked' ? 'Spoke with us' : 'Left a number, not reached yet'}
+      <p className={`rounded-lg px-2 py-1 text-xs font-semibold ${c.genuine === 'talked' ? 'bg-green-50 text-green-800' : c.genuine === 'number' ? 'bg-amber-50 text-amber-800' : 'bg-gray-100 text-gray-700'}`}>
+        {c.genuine === 'talked' ? 'Spoke with us' : c.genuine === 'number' ? 'Left a number, not reached yet' : 'No number yet'}
       </p>
       <ul className="space-y-0.5 text-sm text-gray-700">
         {c.signals.map((s) => <li key={s}>✓ {s}</li>)}
