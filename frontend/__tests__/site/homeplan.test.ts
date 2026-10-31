@@ -1,6 +1,6 @@
 import type { FinderItem } from '@/lib/site/finder'
 import {
-  checklist, finderLink, isEast, monthsUntil, parsePlan, planHomes, planInquiry, toPlanSearch, type PlanAnswers,
+  checklist, familyNearby, finderLink, hubSummaries, isEast, monthsUntil, parsePlan, planHomes, planInquiry, toPlanSearch, type PlanAnswers,
 } from '@/lib/site/homeplan'
 
 const TODAY = '2026-10-31'
@@ -120,4 +120,30 @@ it('counts months to a filed date', () => {
   expect(monthsUntil(TODAY, '2027-10-31')).toBe(12)
   expect(monthsUntil(TODAY, '2026-06')).toBe(-4)
   expect(monthsUntil(TODAY, null)).toBeNull()
+})
+
+it('shows the nearest school for young or school-going children and the nearest hospital for parents, nothing else', () => {
+  const near = [
+    { label: 'School', name: 'Far School', km: 2.4 }, { label: 'School', name: 'Near School', km: 0.8 },
+    { label: 'Hospital', name: 'City Hospital', km: 1.5 }, { label: 'Bank', name: 'A Bank', km: 0.1 },
+  ]
+  expect(familyNearby({ ...FAMILY, elders: true }, near)).toEqual([
+    'Nearest school: Near School, 0.8 km in a straight line (OpenStreetMap)',
+    'Nearest hospital: City Hospital, 1.5 km in a straight line (OpenStreetMap)',
+  ])
+  expect(familyNearby({ ...FAMILY, kids: 'grown' }, near)).toEqual([])
+  expect(familyNearby({ ...FAMILY, kids: 'young' }, [])).toEqual([])
+})
+
+it('counts, for each East Pune office, the projects within 10 km from a checked position and where most of them are', () => {
+  const s = hubSummaries([
+    item('a', [[2, 9_000_000]], { map: NEAR_EON }),
+    item('b', [[2, null]], { map: MID_EON, area: 'Wagholi' }),
+    item('c', [[2, 9_000_000]], { map: NEAR_EON, area: 'Wagholi' }),
+    item('far', [[2, 9_000_000]], { map: FAR_EON }),
+    item('unplaced', [[2, 9_000_000]], { map: null }),
+  ])
+  expect(s.map((x) => x.key)).toEqual(['kharadi', 'magarpatta', 'airport'])
+  expect(s[0]).toEqual({ key: 'kharadi', hub: 'EON IT Park, Kharadi', near: 3, priced: 2,
+    places: [{ name: 'Wagholi', count: 2 }, { name: 'Kharadi', count: 1 }] })
 })

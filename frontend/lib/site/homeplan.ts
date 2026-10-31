@@ -269,3 +269,52 @@ export function planInquiry(a: PlanAnswers, url: string): { message: string; bhk
     ...(b ? { budget_min_inr: b.min, budget_max_inr: b.max === Infinity ? null : b.max } : {}),
   }
 }
+
+export interface Nearby { label: string; name: string; km: number }
+
+/** Which surroundings this family's answers make worth showing: schools for young or school-going children, hospitals for parents. */
+export function nearbyWanted(a: PlanAnswers): string[] {
+  return [...(a.kids === 'school' || a.kids === 'young' ? ['School'] : []), ...(a.elders ? ['Hospital'] : [])]
+}
+
+/** The nearest school (children under 5 or school-going) and hospital (parents at home) from a pick's stored surroundings
+ *  (propertyfacts: OpenStreetMap, straight line from the project). Nothing when the family's answers do not ask for it. */
+export function familyNearby(a: PlanAnswers, nearby: Nearby[] | null | undefined): string[] {
+  const want = nearbyWanted(a)
+  const out: string[] = []
+  for (const label of want) {
+    const best = (nearby ?? []).filter((n) => n.label === label && n.name && n.km != null).sort((x, y) => x.km - y.km)[0]
+    if (best) out.push(`Nearest ${label.toLowerCase()}: ${best.name}, ${best.km} km in a straight line (OpenStreetMap)`)
+  }
+  return out
+}
+
+export const NEAR_KM = 10
+
+export interface HubSummary {
+  key: WorkKey
+  hub: string
+  /** East Pune projects being sold within NEAR_KM of the office, from a checked position */
+  near: number
+  /** of those, how many publish a price */
+  priced: number
+  /** the places most of them are in, most first (at most 3) */
+  places: { name: string; count: number }[]
+}
+
+/** For each East Pune office: how many projects being sold are within NEAR_KM of it and where they are. The public page's
+ *  dated facts, counted from the same items the plans pick from. */
+export function hubSummaries(items: FinderItem[]): HubSummary[] {
+  const out: HubSummary[] = []
+  for (const w of WORK) {
+    if (!('lat' in w)) continue
+    const near = items.filter((i) => i.map && kmBetween(i.map.lat, i.map.lon, w.lat, w.lon) <= NEAR_KM)
+    const byPlace = new Map<string, number>()
+    for (const i of near) if (i.area) byPlace.set(i.area, (byPlace.get(i.area) ?? 0) + 1)
+    out.push({
+      key: w.key, hub: w.hub, near: near.length, priced: near.filter((i) => i.homes.some((h) => h.price != null)).length,
+      places: [...byPlace].map(([name, count]) => ({ name, count })).sort((x, y) => y.count - x.count || x.name.localeCompare(y.name)).slice(0, 3),
+    })
+  }
+  return out
+}

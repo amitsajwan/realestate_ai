@@ -6,16 +6,15 @@ import { getMarketingConfig } from '@/lib/marketing/config'
 import { pageMetadata } from '@/lib/marketing/seo'
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
 import { formatArea } from '@/lib/site/format'
-import { fromRegister } from '@/lib/site/finderItems'
 import {
-  checklist, complete, describePlan, finderLink, isEast, parsePlan, planHomes, toPlanSearch, type PlanAnswers, type PlanPick,
+  checklist, complete, describePlan, familyNearby, finderLink, isEast, nearbyWanted, parsePlan, planHomes, toPlanSearch, type PlanAnswers, type PlanPick,
 } from '@/lib/site/homeplan'
-import { agentOffers } from '@/lib/site/offers'
-import { getRegisterPlaces, getRegisterProjects, longDay } from '@/lib/site/register'
+import { eastItems, nearbyOf } from '@/lib/site/homeplanData'
+import { longDay } from '@/lib/site/register'
+import PlanLeadForm from '@/components/site/homeplan/PlanLeadForm'
 
 // one family's answers: never in search (pageMetadata noindex), and read fresh, so the plan shows today's facts
 export const dynamic = 'force-dynamic'
-const EAST = 'East Pune'
 
 export const metadata: Metadata = pageMetadata(getMarketingConfig(), {
   title: 'Your East Pune home plan',
@@ -26,17 +25,9 @@ export const metadata: Metadata = pageMetadata(getMarketingConfig(), {
 
 type Props = { searchParams?: Promise<Record<string, string | string[] | undefined>> }
 
-/** East Pune projects still being sold, as finder items: every MahaRERA project whose place is in the East Pune zone. */
-async function eastItems() {
-  const [all, places, offers] = await Promise.all([getRegisterProjects(undefined, true), getRegisterPlaces(), agentOffers()])
-  const east = new Set(places.filter((p) => p.zone === EAST).map((p) => p.key))
-  const selling = all.filter((r) => r.place && east.has(r.place) && r.active !== false
-    && (!r.sold_out || offers.has(r.regno.toUpperCase())))
-  return fromRegister(selling, offers)
-}
-
-function Pick({ p, n }: { p: PlanPick; n: number }) {
+function Pick({ p, n, near }: { p: PlanPick; n: number; near: string[] }) {
   const i = p.item
+  const reasons = [...p.reasons, ...near]
   return (
     <li className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" data-testid="plan-pick">
       <p className="text-sm font-bold uppercase tracking-wide text-[var(--site-accent-text)]">{n}. {i.area ?? 'East Pune'}</p>
@@ -46,10 +37,10 @@ function Pick({ p, n }: { p: PlanPick; n: number }) {
       {i.builder && <p className="text-sm text-slate-600">by {i.builder}</p>}
       {i.listedBy && <p className="mt-1 text-sm text-slate-700">Listed by {i.listedBy}, a partner agent (not ranked higher for it)</p>}
       {p.home?.sqft ? <p className="mt-1 text-sm text-slate-700">{formatArea(p.home.sqft)} home on the price sheet</p> : null}
-      {p.reasons.length > 0 && (
+      {reasons.length > 0 && (
         <>
           <h3 className="mt-3 text-base font-semibold text-slate-900">Why it fits</h3>
-          <ul className="mt-1 list-disc space-y-1 pl-5 text-slate-800">{p.reasons.map((r) => <li key={r}>{r}</li>)}</ul>
+          <ul className="mt-1 list-disc space-y-1 pl-5 text-slate-800">{reasons.map((r) => <li key={r}>{r}</li>)}</ul>
         </>
       )}
       {p.watch.length > 0 && (
@@ -88,7 +79,18 @@ export default async function HomePlanResult({ searchParams }: Props) {
   const a = parsePlan((await searchParams) ?? {})
   const today = new Date().toISOString().slice(0, 10)
   const edit = '/home-plan' + toPlanSearch(a)
-  const picks = complete(a) && isEast(a) ? planHomes(await eastItems(), a, today) : []
+  const path = '/home-plan/result' + toPlanSearch(a)
+  let picks: PlanPick[] = []
+  let near = new Map<string, string[]>()
+  if (complete(a) && isEast(a)) {
+    const { items, regnos } = await eastItems()
+    picks = planHomes(items, a, today)
+    // schools and hospitals only for the families that asked about them, and only for the picks shown
+    if (nearbyWanted(a).length) {
+      const got = await nearbyOf(picks.map((p) => p.item.id), regnos)
+      near = new Map(picks.map((p) => [p.item.id, familyNearby(a, got.get(p.item.id))]))
+    }
+  }
   return (
     <MarketingShell>
       <div className="mx-auto max-w-3xl px-4 py-10 sm:py-14" style={AVASETU_SITE_VARS}>
@@ -104,11 +106,16 @@ export default async function HomePlanResult({ searchParams }: Props) {
           </p>
         )}
 
-        {complete(a) && !isEast(a) && <NotEast a={a} />}
+        {complete(a) && !isEast(a) && (
+          <>
+            <NotEast a={a} />
+            <div className="mt-6"><PlanLeadForm answers={a} path={path} east={false} /></div>
+          </>
+        )}
 
         {complete(a) && isEast(a) && (picks.length ? (
           <>
-            <ol className="mt-6 list-none space-y-4 p-0">{picks.map((p, n) => <Pick key={p.item.id} p={p} n={n + 1} />)}</ol>
+            <ol className="mt-6 list-none space-y-4 p-0">{picks.map((p, n) => <Pick key={p.item.id} p={p} n={n + 1} near={near.get(p.item.id) ?? []} />)}</ol>
             <section className="mt-8 rounded-2xl bg-slate-50 p-5">
               <h2 className="text-xl font-bold text-slate-900">On the site visit</h2>
               <ul className="mt-2 list-disc space-y-1 pl-5 text-slate-800">{checklist(a).map((c) => <li key={c}>{c}</li>)}</ul>
@@ -119,15 +126,15 @@ export default async function HomePlanResult({ searchParams }: Props) {
             <h2 className="text-xl font-bold text-slate-900">Nothing fits every answer yet</h2>
             <p className="mt-2 text-slate-800">
               No East Pune project we hold has a published price in your budget for this size, within reach of your office. Try the
-              next budget, or any move-in date. Our team also has your answers and can check projects with no published price.
+              next budget, or any move-in date. Our team can also check projects with no published price: leave your number below.
             </p>
             <Link href={edit} className="mt-3 inline-flex min-h-[48px] items-center font-semibold text-[#0f2340] underline">Change answers</Link>
           </section>
         ))}
 
         {complete(a) && isEast(a) && (
-          <div className="mt-8 space-y-3">
-            <p className="text-slate-800">Our team has your plan and will call or WhatsApp you with today&apos;s prices and a site visit time.</p>
+          <div className="mt-8 space-y-4">
+            <PlanLeadForm answers={a} path={path} />
             <div className="flex flex-wrap gap-3">
               {cfg.whatsappUrl && (
                 <a href={cfg.whatsappUrl} target="_blank" rel="noopener noreferrer"
