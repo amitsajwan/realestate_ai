@@ -6,7 +6,7 @@ import { Btn, ErrorBox, PageTitle, Spinner, TempChip, inputCls } from '@/compone
 import { errorMessage } from '@/lib/app/client'
 import { timeAgo } from '@/lib/app/format'
 import type { PassResult } from '@/lib/app/inbox'
-import { BOARD_PATH, boardApi, boardTitle, shareText, type BoardCard, type OfferKind } from '@/lib/app/leadBoard'
+import { BOARD_PATH, activityLine, boardApi, boardTitle, shareText, type BoardCard, type OfferKind } from '@/lib/app/leadBoard'
 import { useAsync } from '@/lib/app/useAsync'
 
 /**
@@ -125,6 +125,8 @@ function BoardRow({ card: c, owner, fresh, onChange }: { card: BoardCard; owner:
       <ul className="space-y-0.5 text-sm text-gray-700">
         {c.signals.map((s) => <li key={s}>✓ {s}</li>)}
       </ul>
+      <Looked card={c} />
+      {c.caution && <p className="rounded-lg bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-800">⚠ {c.caution}</p>}
       {c.with_agent && (
         <p className="text-xs font-semibold text-gray-600">
           {owner ? `With ${c.holder ?? 'an agent'} now: giving it moves it from them.` : 'Already shared with one agent.'}
@@ -133,6 +135,30 @@ function BoardRow({ card: c, owner, fresh, onChange }: { card: BoardCard; owner:
       <p className="text-xs text-gray-500">{c.age} · from {c.came_from} · active {timeAgo(c.last_active_at)}{c.asked ? ` · ${c.asked} agent${c.asked === 1 ? '' : 's'} asked` : ''}</p>
       {owner ? <OwnerAsks card={c} onChange={onChange} /> : <AskBox card={c} onChange={onChange} />}
     </li>
+  )
+}
+
+/** What they looked at on the site: visits, reading time, device and city, then the pages in order with minutes read. */
+function Looked({ card: c }: { card: BoardCard }) {
+  const a = c.activity
+  if (!a || (!a.pages.length && !a.visits)) return null
+  const line = activityLine(a)
+  return (
+    <details className="rounded-xl bg-gray-50 p-3 text-sm" open={a.pages.length <= 4}>
+      <summary className="cursor-pointer font-semibold text-gray-800">
+        What they looked at{a.page_count ? ` (${a.page_count} page${a.page_count === 1 ? '' : 's'})` : ''}
+      </summary>
+      {line && <p className="mt-1 text-xs text-gray-600">{line}</p>}
+      <ol className="mt-2 space-y-0.5 text-gray-800">
+        {a.pages.map((p) => (
+          <li key={p.label} className="flex justify-between gap-2">
+            <span className="min-w-0 break-words">{p.label}</span>
+            {p.minutes > 0 && <span className="shrink-0 text-xs text-gray-500">{p.minutes} min</span>}
+          </li>
+        ))}
+      </ol>
+      {a.more_pages > 0 && <p className="mt-1 text-xs text-gray-500">and {a.more_pages} more</p>}
+    </details>
   )
 }
 

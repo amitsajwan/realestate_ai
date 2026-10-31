@@ -1,4 +1,4 @@
-import { boardTitle, shareText, type BoardCard } from '@/lib/app/leadBoard'
+import { activityLine, boardTitle, shareText, type BoardCard } from '@/lib/app/leadBoard'
 import { nextAfterLogin } from '@/lib/app/session'
 
 test('after signing in, only a Studio path in ?next= is followed', () => {
@@ -19,4 +19,11 @@ test('the share text counts the buyers and names the areas', () => {
   const text = shareText([c, { ...c, areas: ['Kharadi'], genuine: 'number' }], 'https://avasetu.in/studio/lead-board')
   expect(text).toContain('2 buyer leads on Avasetu (Wagholi, Kharadi), 1 already spoke with us.')
   expect(text).toContain('https://avasetu.in/studio/lead-board')
+})
+
+test('the activity line reads visits, days, reading, device and city, leaving out what is unknown', () => {
+  const a = { pages: [], more_pages: 0, page_count: 0, projects_seen: 0, visits: 2, days: 2, read_min: 9, device: 'Phone' as const,
+    city: 'Wagholi', taps: [], enquiries: 1 }
+  expect(activityLine(a)).toBe('2 visits on 2 days · 9 min reading · Phone · Wagholi')
+  expect(activityLine({ ...a, visits: 1, days: 1, read_min: 0, city: null })).toBe('1 visit · Phone')
 })

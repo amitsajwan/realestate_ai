@@ -6,12 +6,18 @@ the link to").
 Who is on the board: a lead of an owner account, or one the owner passed to an agent by hand or by a rule (owner, 2026-10-31:
 "include the leads we already passed"), that is not won or lost, came in within BOARD_DAYS, and left an Indian mobile number. A
 lead given from the board is not shown again. A passed lead says so on its card (agents read "already shared with one agent", the
-owner who has it), its holder does not see it, and giving it moves it from the holder to the new agent. Tests are left out: a number that belongs to one of our own accounts (a Studio user or an agent's page: the team
-tries the forms from their own phones), or the word "test" in the name; anything else the owner takes off with "Remove from
-board" (`lead_board_off`, written only here; owner, 2026-10-31: "remove leads which we were testing"). Each card says only what helps an agent decide: the project
-or area, BHK, budget, when, how they pay, where they came from, how old the lead is, and why we think the buyer is real (they wrote
-back, picked up our call, gave their own budget, read many pages). Never the name, the phone, or their own words, since a buyer's
-words often carry a name or a number.
+owner who has it), its holder does not see it, and giving it moves it from the holder to the new agent.
+
+Tests are left out: a number that belongs to one of our own accounts (a Studio user or an agent's page: the team tries the forms
+from their own phones), an enquiry from a signed-in Studio browser (its events are marked staff), or the word "test" in the name;
+anything else the owner takes off with "Remove from board" (`lead_board_off`, written only here; owner, 2026-10-31: "remove leads
+which we were testing").
+
+Each card says only what helps an agent decide: the project or area, BHK, budget, when, how they pay, where they came from, how
+old the lead is, why we think the buyer is real (they wrote back, picked up our call, gave their own budget, came back on other
+days, compared projects), and what they did on the site (owner, 2026-10-31: "what the visitor was checking, what pages, anything
+that helps agents decide"): the pages in order with reading time, visits and days, phone or computer, the city of the visit, taps
+on WhatsApp or call. Never the name, the phone, or their own words, since a buyer's words often carry a name or a number.
 
 A card is named by `ref`, a hash of the lead id, so the board never shows the id that opens the lead in Studio.
 Asks (`lead_asks`, written only here): one per agent per lead, with an optional offer (a fee for the lead, or a share of the
@@ -25,9 +31,10 @@ import re
 from datetime import datetime, timedelta
 from typing import Callable, Dict, Iterable, List, Optional
 
+from app.modules.areastats import pages as project_pages
 from app.modules.notifications.service import notify
 from app.modules.tracking import contact as contactmod
-from app.modules.tracking import scoring
+from app.modules.tracking import live, scoring
 from app.modules.tracking.requirement import TIMELINE_LABEL, bhk_text, budget_text
 
 from . import handover
@@ -42,6 +49,84 @@ MANY_PAGES = 5
 OFFER_KINDS = ("none", "fee", "share")
 CHANNEL_WORDS = {"whatsapp": "WhatsApp", "messenger": "Messenger", "instagram": "Instagram", "website": "the website chat"}
 _TEST = re.compile(r"\btest", re.I)
+MAX_PAGES = 8
+NAMES_TTL = timedelta(hours=1)
+IST = timedelta(hours=5, minutes=30)
+# pages an agent reads, not a buyer: a lead who opened them may be an agent trying us out
+AGENT_PAGES = ("/agents", "/for-agents", "/trial", "/join", "/studio", "/pilot")
+_SKIP = ("/agent/", "/enquire", "/r/", "/i/", "/go/")
+_PROJECT = re.compile(r"^/projects/([a-z0-9-]+)/?$")
+_names: Dict[str, tuple] = {}   # project page slug -> (name, read at): a board read every 30 s must not re-read the register
+
+
+def _title(slug: str) -> str:
+    return slug.replace("-", " ").strip().title()
+
+
+def _path(e: dict) -> str:
+    return (e.get("path") or "").split("?")[0].split("#")[0]
+
+
+def page_label(path: str, names: Dict[str, str]) -> Optional[str]:
+    """A page as a person names it: 'Mansha Phase-II', 'Kharadi projects (2 BHK)', 'Upper Kharadi area guide'. None for pages that
+    say nothing about what a buyer wants (an agent's own site, the enquiry form, a short link, our pages for agents)."""
+    path = path.split("?")[0].split("#")[0].rstrip("/") or "/"
+    if path.startswith(_SKIP) or path.startswith(AGENT_PAGES):
+        return None
+    fixed = {"/": "Home page", "/projects": "All projects", "/localities": "Areas list", "/news": "News", "/builders": "Builders",
+             "/check": "MahaRERA project check", "/insights": "Market insights"}
+    if path in fixed:
+        return fixed[path]
+    parts = path.strip("/").split("/")
+    if parts[0] == "projects" and len(parts) >= 3 and parts[1] == "area":
+        extra = ("top picks" if parts[3] == "top" else parts[3].upper().replace("-", " ")) if len(parts) > 3 else None
+        return f"{_title(parts[2])} projects" + (f" ({extra})" if extra else "")
+    if parts[0] == "projects" and len(parts) == 2:
+        return names.get(parts[1]) or _title(parts[1])
+    if parts[0] == "localities" and len(parts) == 2:
+        return f"{_title(parts[1])} area guide"
+    if parts[0] in ("1-bhk", "2-bhk", "3-bhk") and len(parts) >= 2:
+        return f"{parts[0][0]} BHK in {_title(parts[1])}"
+    prefix = {"news": "News", "guides": "Guide", "builders": "Builder"}.get(parts[0])
+    if prefix and len(parts) >= 2:
+        return f"{prefix}: {_title(parts[-1])}"
+    return _title(parts[-1])
+
+
+def _device(label: Optional[str]) -> Optional[str]:
+    low = (label or "").lower()
+    if not low:
+        return None
+    if "ipad" in low or "tablet" in low:
+        return "Tablet"
+    return "Phone" if ("phone" in low or "android" in low) else "Computer"
+
+
+def activity(events: List[dict], names: Dict[str, str]) -> dict:
+    """What they did on the site, from their events (any order). Robot views are dropped."""
+    evs = sorted((e for e in events if not e.get("robot") and isinstance(e.get("ts"), datetime)), key=lambda e: e["ts"])
+    views = [e for e in evs if e["type"] in live.VIEW_TYPES]
+    pages: Dict[str, dict] = {}
+    for e in views:
+        label = page_label(_path(e), names)
+        if label:
+            row = pages.setdefault(label, {"label": label, "read_s": 0})
+            row["read_s"] += e.get("read_s") or 0
+    last = next((e for e in reversed(views) if e.get("device") or e.get("area")), {})
+    return {
+        "pages": [{"label": r["label"], "minutes": round(r["read_s"] / 60)} for r in list(pages.values())[:MAX_PAGES]],
+        "more_pages": max(0, len(pages) - MAX_PAGES),
+        "page_count": len(pages),
+        "projects_seen": len({_path(e).rstrip("/") for e in views if _PROJECT.match(_path(e))}),
+        "visits": len(live.visits_of(views)),
+        "days": len({(e["ts"] + IST).date() for e in views}),
+        "read_min": round(sum(e.get("read_s") or 0 for e in views) / 60),
+        "device": _device(last.get("device")),
+        "city": (last.get("area") or "").split(",")[0] or None,
+        "taps": [live.ACTIONS[t] for t in ("whatsapp_click", "call_click", "share") if any(e["type"] == t for e in evs)],
+        "enquiries": sum(1 for e in evs if e["type"] == "inquiry"),
+        "agent_pages": any(_path(e).startswith(AGENT_PAGES) for e in views),
+    }
 
 
 def ref_of(lead_id: str) -> str:
@@ -63,7 +148,7 @@ def offer_text(kind: Optional[str], value: Optional[float]) -> Optional[str]:
     return None
 
 
-def signals(lead: dict, convs: List[dict], pages: int) -> List[str]:
+def signals(lead: dict, convs: List[dict], act: dict) -> List[str]:
     """Why we think this is a real buyer, strongest first; each one is something that happened, never a guess."""
     out = []
     wrote = [c["channel"] for c in convs for m in (c["doc"].get("messages") or []) if (m.get("role") or "") in contactmod.THEM]
@@ -76,18 +161,28 @@ def signals(lead: dict, convs: List[dict], pages: int) -> List[str]:
                            ("when", req.get("timeline"))) if v]
     if told and req.get("source") in ("stated", "mixed"):
         out.append("Told us their " + ", ".join(told) + " themselves")
-    if pages >= MANY_PAGES:
-        out.append(f"Read {pages} pages on the site")
+    if act["days"] > 1:
+        out.append(f"Came back on {act['days']} different days")
+    if act["enquiries"] > 1:
+        out.append(f"Sent {act['enquiries']} enquiries")
+    if act["projects_seen"] > 1:
+        out.append(f"Compared {act['projects_seen']} projects")
+    elif act["page_count"] >= MANY_PAGES:
+        out.append(f"Read {act['page_count']} pages on the site")
+    if act["taps"]:
+        out.append(", ".join(act["taps"]))
     out.append("Left a mobile number")
     return out
 
 
-def card(lead: dict, project: Optional[dict], convs: List[dict], pages: int, now: datetime) -> dict:
-    """What an agent sees of one lead. Pure: the caller reads the lead, its project page brief, its chats and its page count."""
+def card(lead: dict, project: Optional[dict], convs: List[dict], events: List[dict], names: Dict[str, str], now: datetime) -> dict:
+    """What an agent sees of one lead. Pure: the caller reads the lead, its project page brief, its chats, its events and the
+    names of the project pages in them."""
     req = lead.get("requirement") or {}
     areas = list(dict.fromkeys(([project["area"]] if project and project.get("area") else []) + list(req.get("localities") or [])))
     value = scoring.score(lead.get("score_base", 0), lead["last_activity_at"], now, req.get("timeline"))
-    sig = signals(lead, convs, pages)
+    act = activity(events, names)
+    sig = signals(lead, convs, act)
     state = contactmod.state_of(lead, convs)["state"]
     return {
         "ref": ref_of(lead["_id"]),
@@ -106,6 +201,9 @@ def card(lead: dict, project: Optional[dict], convs: List[dict], pages: int, now
         # talked = they answered us (a message or a picked-up call); the rest left a number and nothing more yet
         "genuine": "talked" if (sig[0].startswith(("Wrote", "Picked")) or state == "in_touch") else "number",
         "signals": sig,
+        "activity": {k: v for k, v in act.items() if k != "agent_pages"},
+        # they opened our pages for agents: worth a look before paying for it (an agent trying the form, not a buyer)
+        "caution": "Also opened our pages for agents: may be an agent, not a buyer" if act["agent_pages"] else None,
     }
 
 
@@ -135,7 +233,20 @@ class LeadBoard:
         rows = [r for r in rows if _on_board(r, since)]
         off = {d["_id"] for d in await self.c("lead_board_off").find({"_id": {"$in": [r["_id"] for r in rows]}}).to_list(MAX_LEADS)}
         team = await self._team_numbers([r["phone"] for r in rows])
-        return [r for r in rows if r["_id"] not in off and contactmod.wa_digits(r["phone"]) not in team]
+        # an enquiry from a signed-in Studio browser (its events are marked staff) is one of us trying the form
+        staff = {e["contact_id"] for e in await self.c("events").find(
+            {"contact_id": {"$in": [r["_id"] for r in rows]}, "staff": True}, {"contact_id": 1}).to_list(MAX_LEADS * 20)}
+        return [r for r in rows if r["_id"] not in off and r["_id"] not in staff and contactmod.wa_digits(r["phone"]) not in team]
+
+    async def _project_names(self, events: List[dict]) -> Dict[str, str]:
+        """The names shown on the project pages in these events; one register read per slug an hour."""
+        now = self.now()
+        slugs = {m.group(1) for m in (_PROJECT.match(_path(e)) for e in events) if m}
+        for slug in slugs:
+            if slug not in _names or now - _names[slug][1] > NAMES_TTL:
+                brief = await project_pages.chat_brief(self.db, slug)
+                _names[slug] = (brief["name"] if brief else None, now)
+        return {slug: _names[slug][0] for slug in slugs if _names[slug][0]}
 
     async def _team_numbers(self, phones: List[str]) -> set:
         """Of these lead numbers, the ones that are also a Studio sign-in or an agent page's number (stored as +91..., 91... or
@@ -170,29 +281,37 @@ class LeadBoard:
         now = self.now()
         convs = await contactmod.conversations_by_lead(self.db, leads)
         ids = [r["_id"] for r in leads]
-        pages: Dict[str, set] = {i: set() for i in ids}
-        for e in await self.c("events").find({"contact_id": {"$in": ids}}, {"contact_id": 1, "path": 1}).to_list(20000):
-            if e.get("path"):
-                pages[e["contact_id"]].add(e["path"].split("?")[0])
+        # their events: those tied to the lead, and the same browsers' visits that were not (before the enquiry on another page,
+        # or after it)
+        events: Dict[str, List[dict]] = {i: [] for i in ids}
+        by_anon = {a: r["_id"] for r in leads for a in r.get("anon_ids") or []}
+        rows = await self.c("events").find({"$or": [{"contact_id": {"$in": ids}}, {"anon_id": {"$in": list(by_anon)}}]}, {
+            "contact_id": 1, "anon_id": 1, "path": 1, "type": 1, "ts": 1, "last_seen": 1, "read_s": 1, "device": 1, "area": 1,
+            "robot": 1}).to_list(20000)
+        for e in rows:
+            lid = e.get("contact_id") if e.get("contact_id") in events else by_anon.get(e.get("anon_id"))
+            if lid in events:
+                events[lid].append(e)
+        names = await self._project_names(rows)
         asks: Dict[str, List[dict]] = {i: [] for i in ids}
         for a in await self.c("lead_asks").find({"lead_id": {"$in": ids}, "status": "open"}).to_list(2000):
             asks[a["lead_id"]].append(a)
         owner = self.is_owner(viewer)
         holders = {r["agent_id"] for r in leads if r["agent_id"] not in self.owners}
-        names = await self._names({a["agent_id"] for rows in asks.values() for a in rows} | (holders if owner else set()))
+        agents = await self._names({a["agent_id"] for rows in asks.values() for a in rows} | (holders if owner else set()))
         out = []
         for lead in leads:
             if lead["agent_id"] == viewer and not owner:
                 continue   # their own lead already
-            row = card(lead, await self.inbox.project_of(lead), convs[lead["_id"]], len(pages[lead["_id"]]), now)
+            row = card(lead, await self.inbox.project_of(lead), convs[lead["_id"]], events[lead["_id"]], names, now)
             row["with_agent"] = lead["agent_id"] not in self.owners
             mine = next((a for a in asks[lead["_id"]] if a["agent_id"] == viewer), None)
             row["asked"] = len(asks[lead["_id"]])
             row["mine"] = self._ask_view(mine) if mine else None
             if owner:
                 row["lead_id"] = lead["_id"]
-                row["holder"] = names.get(lead["agent_id"], "an agent") if row["with_agent"] else None
-                row["asks"] = [{**self._ask_view(a), "agent_id": a["agent_id"], "agent_name": names.get(a["agent_id"], "Agent")}
+                row["holder"] = agents.get(lead["agent_id"], "an agent") if row["with_agent"] else None
+                row["asks"] = [{**self._ask_view(a), "agent_id": a["agent_id"], "agent_name": agents.get(a["agent_id"], "Agent")}
                                for a in sorted(asks[lead["_id"]], key=lambda a: a["at"])]
             out.append(row)
         return {"items": out, "owner": owner, "days": BOARD_DAYS}
@@ -230,7 +349,7 @@ class LeadBoard:
             await self.c("lead_asks").update_one({"_id": rid}, {"$set": doc})
         else:
             await self.c("lead_asks").insert_one({"_id": rid, **doc})
-        row = card(lead, await self.inbox.project_of(lead), [], 0, now)
+        row = card(lead, await self.inbox.project_of(lead), [], [], {}, now)
         what = " · ".join(p for p in (row["bhk"], row["project"] or ", ".join(row["areas"][:2])) if p) or "a buyer"
         offer = offer_text(doc["offer_kind"], doc["offer_value"])
         await notify(self.db, lead["agent_id"], "lead_asked",

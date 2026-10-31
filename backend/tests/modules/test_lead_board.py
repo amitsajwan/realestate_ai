@@ -117,3 +117,26 @@ async def test_a_lead_passed_before_is_on_the_board_for_others_and_giving_it_mov
     moved = await db.get_collection("contacts").find_one({"_id": "saket"})
     assert r["passed_to"] == "Stavan" and moved["agent_id"] == STAVAN and moved["passed_by"] == OWNER
     assert (await board.cards(STAVAN))["items"] == [] and (await board.cards(OWNER))["items"] == []
+
+
+async def test_the_card_tells_what_they_read_on_how_many_days_from_which_device_and_city():
+    db, board, _ = await setup(lead("rahul"))
+    ev = db.get_collection("events")
+    for i, (path, day, read) in enumerate([("/projects/mansha-phase-ii-wagholi?src=fb", 0, 240), ("/projects/area/wagholi/2-bhk", 0, 60),
+                                           ("/projects/mansha-phase-ii-wagholi", 2, 120), ("/projects/ivy-estate-wagholi", 2, 10),
+                                           ("/enquire", 2, 5)]):
+        await ev.insert_one({"_id": f"e{i}", "contact_id": "rahul", "type": "page_view", "path": path, "read_s": read,
+                             "ts": NOW - timedelta(days=3 - day, minutes=10 - i), "device": "Android phone · Chrome", "area": "Wagholi, Maharashtra"})
+    await ev.insert_one({"_id": "w", "contact_id": "rahul", "type": "whatsapp_click", "ts": NOW - timedelta(days=1)})
+    c = (await board.cards(HD))["items"][0]
+    a = c["activity"]
+    assert [(p["label"], p["minutes"]) for p in a["pages"]] == [("Mansha Phase-II", 6), ("Wagholi projects (2 BHK)", 1), ("Ivy Estate Wagholi", 0)]
+    assert (a["visits"], a["days"], a["device"], a["city"], a["projects_seen"]) == (2, 2, "Phone", "Wagholi", 2)
+    assert "Came back on 2 different days" in c["signals"] and "Compared 2 projects" in c["signals"] and "Tapped WhatsApp" in c["signals"]
+    assert c["caution"] is None
+
+
+async def test_an_enquiry_from_a_signed_in_studio_browser_is_a_test():
+    db, board, _ = await setup(lead("ours"), lead("buyer", phone="+919876500002"))
+    await db.get_collection("events").insert_one({"_id": "s", "contact_id": "ours", "type": "page_view", "path": "/", "ts": NOW, "staff": True})
+    assert [c["ref"] for c in (await board.cards(HD))["items"]] == [ref_of("buyer")]

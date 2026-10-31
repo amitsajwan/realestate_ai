@@ -17,6 +17,32 @@ export interface BoardAsk {
 
 export interface OwnerAsk extends BoardAsk { agent_id: string; agent_name: string }
 
+export interface BoardActivity {
+  /** Pages in the order first opened, with minutes read (0 = under half a minute). */
+  pages: { label: string; minutes: number }[]
+  more_pages: number
+  page_count: number
+  projects_seen: number
+  visits: number
+  days: number
+  read_min: number
+  device: 'Phone' | 'Tablet' | 'Computer' | null
+  city: string | null
+  taps: string[]
+  enquiries: number
+}
+
+/** "2 visits on 2 days · 9 min reading · Phone · Wagholi" */
+export function activityLine(a: BoardActivity): string {
+  const parts = [
+    a.visits ? `${a.visits} visit${a.visits === 1 ? '' : 's'}${a.days > 1 ? ` on ${a.days} days` : ''}` : null,
+    a.read_min ? `${a.read_min} min reading` : null,
+    a.device,
+    a.city,
+  ]
+  return parts.filter(Boolean).join(' · ')
+}
+
 export interface BoardCard {
   ref: string
   project: string | null
@@ -35,6 +61,10 @@ export interface BoardCard {
   /** talked = they wrote back or picked up our call; number = they left a mobile number, nothing more yet. */
   genuine: 'talked' | 'number'
   signals: string[]
+  /** What they did on the site (no names or numbers). */
+  activity: BoardActivity
+  /** A reason to look twice, e.g. they also opened our pages for agents. */
+  caution: string | null
   /** How many agents asked (offers stay sealed). */
   asked: number
   mine: BoardAsk | null

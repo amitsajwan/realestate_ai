@@ -105,6 +105,14 @@ Passed leads are on the board too (owner, 2026-10-31): a lead passed by hand or 
 to agents (the owner sees who has it), its holder does not see it, and giving it moves it from the holder (passed_by stays the
 owner). A lead given from the board does not come back.
 
+What they looked at (owner, 2026-10-31: "more details, what the visitor was checking, what pages"): each card has the pages in
+order with minutes read (project pages by their shown name, area lists, guides, news), visits and days, phone or computer, the
+city of the visit (an NRI in Bahrain shows "Manama"), and taps on WhatsApp/call; signals add "came back on N days", "sent N
+enquiries", "compared N projects". Events are read by the lead and by its browsers (anon_ids), so visits before or after the
+enquiry count. A browser that opened our agent pages (/agents, /for-agents, /trial, /join, /studio) gets a caution "may be an
+agent, not a buyer"; one signed in to Studio (staff events) is a test and stays off. Leads from before visit tracking reached
+them have no pages (most of the 4+ day old ones on 2026-10-31).
+
 Automatic pass OFF (owner, 2026-10-31: "we will not pass it automatically to House Deal for now"): the six area rules (Upper
 Kharadi, Kharadi, Wagholi, Mundhwa, Hadapsar, Keshav Nagar -> House Deal 6abf5cacd2c1e770709ab741) were deleted from `lead_routes`;
 backup on the VM at /tmp/lead_routes_backup_20261031.json. The code is unchanged: adding a rule (Leads > Passed, or "Next time" in
