@@ -17,7 +17,7 @@ from app.core import brand
 from app.core.areas import BY_KEY
 from app.modules.newsroom.store import Store
 
-from . import pagefacts, priceidea
+from . import pagefacts, plans3d, priceidea
 from .service import _count, _day
 from .text import ascii_text, builder_slug, promoter_key, words
 
@@ -718,6 +718,7 @@ async def project_page(db, slug: str, now: Optional[datetime] = None) -> Optiona
     out["web_facts"] = pagefacts.with_scope(web_public(group_primary(doc, docs).get("web_facts")), out["details"])
     from .profile import public as profile_public
     out["profile"] = profile_public(group_primary(doc, docs).get("profile"), drawn=not out["indexable"])
+    out["plans_3d"] = plans3d.public(group_primary(doc, docs).get("plans_3d"))   # 3D drawings of its checked floor plans
     from .prices import ideas, public as prices_public, starts   # asked prices per home size, from the builder's site or two sites
     out["prices"] = prices_public(group_primary(doc, docs).get("prices"), now)
     # the compare list: each other project's lowest published price and the sizes it is priced for

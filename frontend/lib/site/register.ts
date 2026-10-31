@@ -61,6 +61,7 @@ export interface RegisterProject {
   prices?: ProjectPrices | null
   /** the rounded price idea under the exact prices (backend areastats/priceidea.py) */
   price_idea?: PriceIdea | null
+  plans_3d?: Plans3D | null
   /** 'Check before you book': weak points worked out by code from MahaRERA and checked web facts (backend areastats/cautions.py) */
   cautions?: { key: string; text: string; source: 'rera' | 'web' }[]
   stage?: Stage | null
@@ -229,6 +230,12 @@ export const STAGE_LABEL: Record<Stage, string> = { new: 'New launch', early: 'E
   passed: 'Completion date passed' }
 export const STAGE_NOTE = 'Stage by dates: how much of the time between MahaRERA registration and the completion date the builder filed has gone. '
   + 'Not a site check: MahaRERA’s construction progress reports are behind its login.'
+
+/** 3D drawings of a project's checked floor plans (backend areastats/plans3d.py); rooms as the plan prints them */
+export interface Plans3D {
+  items: { url: string; width: number | null; height: number | null; label: string; title: string | null; site: string | null;
+    kind: string | null; rooms: { name: string; sqft: number | null; dims: string | null }[] }[]
+}
 
 /** A rounded asking band (backend areastats/priceidea.py): never a site's own figure */
 export interface PriceBand { bhk: string; low: number; high: number; projects: number }
