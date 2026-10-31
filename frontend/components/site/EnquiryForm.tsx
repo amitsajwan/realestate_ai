@@ -10,7 +10,7 @@ import {
 } from '@/lib/site/qualification'
 import { QUALIFY_STRINGS as S, contactName, contactNameStart } from '@/lib/site/strings'
 
-function ChipGroup<T extends string | number>({ label, options, value, onPick }: {
+export function ChipGroup<T extends string | number>({ label, options, value, onPick }: {
   label: string; options: Choice<T>[]; value: T | null; onPick: (v: T) => void
 }) {
   return (

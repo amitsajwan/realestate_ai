@@ -4,6 +4,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import AgentStrip from '@/components/marketing/AgentStrip'
 import MarketingShell from '@/components/marketing/MarketingShell'
+import HomePlanBox from '@/components/site/homeplan/HomePlanBox'
 import ListingCard from '@/components/site/ListingCard'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { INSIGHT_NOTE, getInsight } from '@/lib/marketing/insights'
@@ -98,6 +99,9 @@ const enquireHref = (l: { key: string }) => `/enquire?src=${localitySource(l)}`
 
 const fallbackEnquireHref = (slug: string) => `/enquire?src=${localitySourceFromSlug(slug)}`
 
+// the guides in East Pune (app/core/pune_places.py zone), where the home plan has projects to pick from
+const EAST_GUIDES = new Set(['kharadi', 'upper-kharadi', 'wagholi', 'lohegaon', 'keshav-nagar'])
+
 const validSlug = (slug: string) => /^[a-z0-9]+(?:-[a-z0-9]+){0,8}$/.test(slug)
 
 function fallbackLocality(slug: string): PageLocality {
@@ -165,6 +169,8 @@ export default async function LocalityPage({ params }: Props) {
         <a href={l.fallback ? fallbackEnquireHref(l.slug) : enquireHref(l)} className="mt-5 inline-flex min-h-[48px] items-center rounded-full bg-amber-400 px-6 font-bold text-slate-900 no-underline">Tell us what you are looking for</a>
         {/* the area's most active projects on its street map, first thing after the intro (only areas with a drawn map) */}
         {showsMap(map) && <AreaMap data={map} listed={listed} allHref={`/projects/area/${l.slug}`} className="mt-10" />}
+
+        {EAST_GUIDES.has(l.slug) && <div className="mt-10"><HomePlanBox area={l.name} /></div>}
 
         <section className="mt-10"><h2 className="text-xl font-semibold text-slate-900">Who {l.name} suits</h2>
           <ul className="mt-3 list-disc space-y-2 pl-6 leading-relaxed text-slate-800">{l.suits.map((s) => <li key={s}>{s}</li>)}</ul></section>

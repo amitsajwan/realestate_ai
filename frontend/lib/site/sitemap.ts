@@ -66,6 +66,8 @@ export async function buildSitemap(): Promise<Grouped> {
     // the team's own agent page names the home page as canonical (lib/site/seo agentMetadata), so it is not listed itself
     ...[...latest].filter(([slug]) => !isHouseAgent(slug)).map(([slug, d]) => ({ group: 'agents', entry: at(agentPath(slug), 0.7, d) })),
     core(at('/projects', 0.9)),
+    // the East Pune home plan's questions and office counts (docs/plan/home-plan.md); each family's plan is noindex and left out
+    core(at('/home-plan', 0.7)),
     ...projects.map((p) => ({ group: areaOfLocality(p.locality), entry: at('/projects/' + p.slug, 0.9, [p.rera?.checked_at, p.updated_at].filter(Boolean).sort().pop()) })),
     ...withoutMovedSizePages(livePages(projects), facets).map((f) => core(at(f.path, 0.7))),
     // Avasetu's own page for each MahaRERA project with real facts (thin ones are noindex and left out)

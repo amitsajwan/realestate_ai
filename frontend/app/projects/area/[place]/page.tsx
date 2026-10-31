@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import MarketingShell from '@/components/marketing/MarketingShell'
+import HomePlanBox from '@/components/site/homeplan/HomePlanBox'
 import ActiveProjects from '@/components/site/ActiveProjects'
 import AreaMap, { showsMap } from '@/components/site/AreaMap'
 import CheckBadge from '@/components/site/CheckBadge'
@@ -195,6 +196,8 @@ export default async function PlaceProjectsPage({ params }: Props) {
         </p>
 
         <FacetChips chips={chips} current={placePath(place.slug)} label={`Lists for ${place.name}`} />
+
+        {place.zone === 'East Pune' && <div className="mt-8"><HomePlanBox area={place.name} /></div>}
 
         {topList && <ProjectRail id="top" title="Top projects you can still buy" sub="Most homes booked first, with 10 or more open" href={topList.path} count={topList.count} rows={topList.rows} ranked />}
         {launchList && <ProjectRail id="launches" title="Just launched" sub="Registered with MahaRERA in the last 12 months" href={launchList.path} count={launchList.count} rows={launchList.rows} />}
