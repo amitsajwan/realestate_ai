@@ -132,11 +132,13 @@ function BoardRow({ card: c, owner, fresh, onChange }: { card: BoardCard; owner:
       {c.caution && <p className="rounded-lg bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-800">⚠ {c.caution}</p>}
       {c.with_agent && (
         <p className="text-xs font-semibold text-gray-600">
-          {owner ? `With ${c.holder ?? 'an agent'} now: giving it moves it from them.` : 'Already shared with one agent.'}
+          {owner ? `With ${c.holder ?? 'an agent'} now: giving it moves it from them.` : c.yours ? 'Yours: it is in your Leads.' : 'Already shared with one agent.'}
         </p>
       )}
       <p className="text-xs text-gray-500">{c.age} · from {c.came_from} · active {timeAgo(c.last_active_at)}{c.asked ? ` · ${c.asked} agent${c.asked === 1 ? '' : 's'} asked` : ''}</p>
-      {owner ? <OwnerAsks card={c} onChange={onChange} /> : <AskBox card={c} onChange={onChange} />}
+      {owner ? <OwnerAsks card={c} onChange={onChange} /> : c.yours ? (
+        <Link href={`/studio/leads/${c.lead_id}`} className="flex min-h-[48px] items-center justify-center rounded-xl border border-gray-300 font-semibold text-gray-800">Open in my Leads</Link>
+      ) : <AskBox card={c} onChange={onChange} />}
     </li>
   )
 }

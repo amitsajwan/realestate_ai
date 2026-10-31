@@ -8,7 +8,8 @@ there"): every lead of an owner account, and every lead the owner passed to an a
 any age, unless the deal is won. A lost lead stays, marked lost (another agent may still serve it). A lead with no mobile number
 stays when it says what they want (a BHK, budget, area or date); a comment or hello with nothing more is a conversation and lives
 in the Inbox. Each card carries its stage. A passed lead says so (agents read "already shared with one agent", the owner who has it),
-its holder does not see it, and giving it moves it from the holder to the new agent.
+its holder sees it marked as theirs (with the way to their Leads, no ask), and giving it moves it from the holder to the
+new agent.
 
 Tests are left out of the owner's own leads: a number that belongs to one of our accounts (a Studio user or an agent's page: the
 team tries the forms from their own phones), an enquiry from a signed-in Studio browser (its events are marked staff), or the word
@@ -313,10 +314,12 @@ class LeadBoard:
         agents = await self._names({a["agent_id"] for rows in asks.values() for a in rows} | (holders if owner else set()))
         out = []
         for lead in leads:
-            if lead["agent_id"] == viewer and not owner:
-                continue   # their own lead already
             row = card(lead, await self.inbox.project_of(lead), convs[lead["_id"]], events[lead["_id"]], names, now)
             row["with_agent"] = lead["agent_id"] not in self.owners
+            # the agent who has it sees it too, as theirs, with the way to their own Leads (2026-10-31: House Deal saw 5 of 15)
+            row["yours"] = lead["agent_id"] == viewer and not owner
+            if row["yours"]:
+                row["lead_id"] = lead["_id"]
             mine = next((a for a in asks[lead["_id"]] if a["agent_id"] == viewer), None)
             row["asked"] = len(asks[lead["_id"]])
             row["mine"] = self._ask_view(mine) if mine else None

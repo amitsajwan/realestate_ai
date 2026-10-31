@@ -118,15 +118,17 @@ async def test_a_lead_from_a_team_or_agent_number_is_a_test_and_the_owner_remove
 async def test_a_lead_passed_before_is_on_the_board_for_others_and_giving_it_moves_it_from_the_agent_who_has_it():
     db, board, _ = await setup(lead("saket", agent_id=HD, passed_by=OWNER, passed_to=HD, passed_at=NOW - timedelta(days=1),
                                     handover={"by": "owner"}))
-    assert (await board.cards(HD))["items"] == []   # House Deal has it already
+    theirs = (await board.cards(HD))["items"][0]   # House Deal has it already: shown as theirs, no ask
+    assert theirs["yours"] is True and theirs["lead_id"] == "saket"
     seen = (await board.cards(STAVAN))["items"][0]
+    assert seen["yours"] is False and "lead_id" not in seen
     assert seen["with_agent"] is True and "holder" not in seen
     assert (await board.cards(OWNER))["items"][0]["holder"] == "House Deal"
     await board.ask(STAVAN, ref_of("saket"), "fee", 1500)
     r = await board.give(OWNER, ref_of("saket"), STAVAN)
     moved = await db.get_collection("contacts").find_one({"_id": "saket"})
     assert r["passed_to"] == "Stavan" and moved["agent_id"] == STAVAN and moved["passed_by"] == OWNER
-    assert (await board.cards(STAVAN))["items"] == []   # theirs now
+    assert [c["yours"] for c in (await board.cards(STAVAN))["items"]] == [True]   # theirs now
     assert (await board.cards(OWNER))["items"][0]["holder"] == "Stavan"
 
 

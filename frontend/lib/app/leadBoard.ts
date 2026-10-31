@@ -73,6 +73,8 @@ export interface BoardCard {
   mine: BoardAsk | null
   /** Passed to an agent before (by hand or a rule): giving it moves it from them. */
   with_agent: boolean
+  /** This agent has it: it is in their Leads (lead_id set), so there is nothing to ask. */
+  yours: boolean
   /** Owner only. */
   lead_id?: string
   /** Owner only: the agent who has it now. */
