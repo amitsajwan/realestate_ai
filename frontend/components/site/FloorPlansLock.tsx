@@ -94,10 +94,12 @@ export default function FloorPlansLock({ plans, drawn = [], name, lead }: {
           </>
         ) : plans.length > 0 ? (
           <>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {/* One plan per row at its own shape: builders' plan sheets are mostly white margin, and two to a row left the
+                rooms and the legend too small to read (owner 2026-11-01: "if we don't have images, just enlarge"). */}
+            <div className="mt-3 space-y-4">
               {plans.map((p) => (
                 <figure key={p.url}>
-                  <div className="aspect-[16/10] [&_img]:object-contain"><Picture pic={p} /></div>
+                  <div className="[&_img]:h-auto [&_img]:bg-white [&_img]:object-contain"><Picture pic={p} /></div>
                   <figcaption className="mt-1 text-sm text-slate-700">{p.alt}</figcaption>
                 </figure>
               ))}
@@ -123,8 +125,13 @@ export default function FloorPlansLock({ plans, drawn = [], name, lead }: {
               // eslint-disable-next-line @next/next/no-img-element
               ? drawn.slice(0, 6).map((i) => <img key={i.url} src={i.url} alt="" className="aspect-[16/9] w-full object-cover" />)
               : plans.length > 0
-              // eslint-disable-next-line @next/next/no-img-element
-              ? plans.slice(0, 6).map((p) => <img key={p.url} src={p.url} alt="" className="aspect-[16/10] w-full object-contain" />)
+              // zoomed past the sheet's white margin, so the blur shows rooms rather than specks
+              ? plans.slice(0, 6).map((p) => (
+                <div key={p.url} className="aspect-[16/10] overflow-hidden bg-white">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={p.url} alt="" className="h-full w-full scale-150 object-contain" />
+                </div>
+              ))
               : [0, 1, 2, 3, 4, 5].map((i) => <div key={i} className="aspect-[16/10]"><Sketch /></div>)}
           </div>
           <form onSubmit={onSubmit} noValidate
