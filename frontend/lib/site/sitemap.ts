@@ -23,6 +23,16 @@ export type SitemapEntry = MetadataRoute.Sitemap[number]
  *  'area-<place slug>', one per Pune place in the register, so Search Console shows how much of each area is indexed. */
 export type Grouped = { group: string; entry: SitemapEntry }[]
 
+/** A list for the sitemap that comes back empty keeps the last one read. The news, guides, trackers and builders reads have no
+ *  retry, so a build while the backend restarts (every deploy) got none of them and still counted as good (it has the area
+ *  sitemaps): Google was then given a sitemap without the guides, the 8 trackers, the news and builders.xml (2026-10-31). A
+ *  list that really empties stays until the server restarts. */
+function lastGood<T>(key: string, list: T[]): T[] {
+  const kept = (holder.__avasetuSitemapLists ??= {})
+  if (list.length) kept[key] = list
+  return list.length ? list : ((kept[key] as T[] | undefined) ?? list)
+}
+
 /** Pages that are public and worth indexing: the fixed pages, then news stories and the agent pages that have real content
  *  (the backend leaves out the demo agent, unpublished previews and sample listings), Avasetu's shared project pages and the
  *  2 BHK / budget pages that have enough projects. Built when Google asks for it, so new
@@ -32,7 +42,9 @@ export type Grouped = { group: string; entry: SitemapEntry }[]
 export async function buildSitemap(): Promise<Grouped> {
   const base = getMarketingConfig().siteUrl
   const at = (path: string, priority: number, date?: string | null): SitemapEntry => ({ url: base + path, lastModified: day(date), priority })
-  const [news, agents, projects, register, places, builders, facets, topics, trackers] = await Promise.all([fetchNews(50), getSitemapEntries(), getCatalog(), getRegisterProjects(undefined, true), getRegisterPlaces(), getBuilders(), getFacets(), fetchTopics(), fetchTrackers()])
+  const [newsRead, agents, projects, register, places, buildersRead, facets, topicsRead, trackersRead] = await Promise.all([fetchNews(50), getSitemapEntries(), getCatalog(), getRegisterProjects(undefined, true), getRegisterPlaces(), getBuilders(), getFacets(), fetchTopics(), fetchTrackers()])
+  const news = { items: lastGood('news', newsRead.items) }
+  const [builders, topics, trackers] = [lastGood('builders', buildersRead), lastGood('topics', topicsRead), lastGood('trackers', trackersRead)]
   const placeSlug = new Map(places.map((p) => [p.key, p.slug]))
   const placeByName = new Map(places.flatMap((p) => [[p.slug, p.slug], [localitySlug(p.name), p.slug]]))
   const area = (slug?: string | null) => (slug ? 'area-' + slug : 'projects')
@@ -104,7 +116,7 @@ const FRESH_MS = 10 * 60 * 1000   // the index and its sitemaps are read togethe
 const THIN_MS = 60 * 1000         // a list without any area sitemap means the API did not answer: try again soon
 type Groups = Map<string, SitemapEntry[]>
 type Cached = { at: number; ttl: number; groups: Promise<Groups> }
-const holder = globalThis as unknown as { __avasetuSitemap?: Cached; __avasetuSitemapGood?: Groups }
+const holder = globalThis as unknown as { __avasetuSitemap?: Cached; __avasetuSitemapGood?: Groups; __avasetuSitemapLists?: Record<string, unknown[]> }
 
 /** The pages per sitemap, shared by /sitemap.xml and /sitemaps/<name>.xml (one build per 10 minutes per server). A build that
  *  comes back without area sitemaps (the API was slow or restarting) never replaces the last good one: Google keeps seeing

@@ -172,6 +172,16 @@ describe('shared project pages', () => {
     expect(urls.some((u) => u.endsWith('/localities/kharadi'))).toBe(true)   // no guide of its own: stays
   })
 
+  it('keeps the last guides when the guides read comes back empty, as when the backend restarts during a deploy', async () => {
+    mockTopics.mockResolvedValue([{ slug: 'upper-kharadi', checked_on: '2026-10-20' }])
+    await sitemap()
+    mockTopics.mockResolvedValue([])
+    const urls = (await sitemap()).map((s) => s.url)
+    delete (globalThis as { __avasetuSitemapLists?: unknown }).__avasetuSitemapLists
+    expect(urls.some((u) => u.endsWith('/guides/upper-kharadi'))).toBe(true)
+    expect(urls.some((u) => u.endsWith('/localities/upper-kharadi'))).toBe(false)
+  })
+
   it('leaves pages made in bulk out of the sitemap: localities without a guide and our social posts', async () => {
     mockCatalog.mockResolvedValueOnce([...ALL, project('gulmohar-heights', 'Gulmohar City', [[2, 60 * L]])])
     const urls = (await sitemap()).map((s) => s.url)

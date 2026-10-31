@@ -8,7 +8,9 @@ not indexed, in `_rank` order: our areas' place pages, guides and area guides; o
 builder pages and other areas' hubs; the other project pages (seen on Google first); tiny neighbourhood guides
 (/localities/<area>/<community>) last. A hub is ours by the area segment in its place (the one after /projects/area/ or
 /localities/), not by any segment, so /localities/lohegaon/viman-nagar is Lohegaon's. Pages since dropped from the sitemap are
-still offered: knowing the sitemap needs a network read, which this list does not do.
+still offered (knowing the sitemap needs a network read, which this list does not do), except project pages: one that is not in
+search (`pages.searchable`) or is a tower shown on its group's page is left out, since it is noindex or redirects. On 2026-10-31
+98 of the first 200 rows were such pages, thin hot projects among them, and a Request indexing on them is a click wasted.
 """
 import re
 from datetime import datetime, timedelta, timezone
@@ -18,6 +20,7 @@ from urllib.parse import urlparse
 from app.core.areas import BY_KEY, BY_SLUG
 from app.core.brand import NAME_DEVANAGARI
 from app.modules.areastats.demand import DEMAND
+from app.modules.areastats.pages import searchable
 from app.modules.insights.collector import owner_ids
 from app.modules.newsroom.store import Store
 from app.modules.notifications.service import notify
@@ -74,7 +77,14 @@ async def request_list(store: Store, n: int = PER_DAY * 7) -> List[dict]:
         p = (by_slug.get(path.rsplit("/", 1)[-1]) if path.startswith("/projects/") else None) or {}
         return _rank(path, p)
 
-    rows = sorted(((ranked(d), d) for d in docs), key=lambda r: r[0][0])
+    def offered(doc: dict) -> bool:
+        path = urlparse(doc["_id"]).path.rstrip("/")
+        if not path.startswith("/projects/") or path.startswith("/projects/area/"):
+            return True
+        p = by_slug.get(path.rsplit("/", 1)[-1])
+        return p is None or (searchable(p) and not p.get("cluster_primary"))
+
+    rows = sorted(((ranked(d), d) for d in docs if offered(d)), key=lambda r: r[0][0])
     return [{"url": d["_id"], "state": d.get("state"), "why": why} for (_, why), d in rows[:n]]
 
 

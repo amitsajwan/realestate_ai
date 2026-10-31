@@ -16,12 +16,14 @@ PATHS = [
     "/projects/area/hadapsar", "/localities/kharadi", "/localities/hadapsar", "/guides/mhada-pune-lottery", "/builders/godrej",
     "/projects/godrej-ivara-pune", "/projects/lodha-camelot", "/projects/quiet-tower", "/projects/seen-tower", "/projects/far-hot",
 ]
+# in search: listable (a filed date and a promoter), written, and a fact of its own (areastats.pages.searchable)
+IN_SEARCH = {"promoter": "Builder", "completion_now": "2029-06-30", "page_text": "Written.", "prices": {"rows": [{"bhk": 2}]}}
 RECORDS = [
-    {"_id": "P1", "page_slug": "godrej-ivara-pune", "locality": "upper_kharadi", "hot_score": 9, "gsc_impressions": 10},
-    {"_id": "P2", "page_slug": "lodha-camelot", "locality": "kharadi", "hot_score": 9, "gsc_impressions": 40},
-    {"_id": "P3", "page_slug": "quiet-tower", "locality": "wagholi"},
-    {"_id": "P4", "page_slug": "seen-tower", "locality": "wagholi", "gsc_impressions": 5},
-    {"_id": "P5", "page_slug": "far-hot", "locality": "hadapsar", "hot_score": 5},
+    {"_id": "P1", "page_slug": "godrej-ivara-pune", "locality": "upper_kharadi", "hot_score": 9, "gsc_impressions": 10, **IN_SEARCH},
+    {"_id": "P2", "page_slug": "lodha-camelot", "locality": "kharadi", "hot_score": 9, "gsc_impressions": 40, **IN_SEARCH},
+    {"_id": "P3", "page_slug": "quiet-tower", "locality": "wagholi", **IN_SEARCH},
+    {"_id": "P4", "page_slug": "seen-tower", "locality": "wagholi", "gsc_impressions": 5, **IN_SEARCH},
+    {"_id": "P5", "page_slug": "far-hot", "locality": "hadapsar", "hot_score": 5, **IN_SEARCH},
 ]
 
 
@@ -63,6 +65,16 @@ async def test_a_neighbourhood_guide_is_judged_by_its_area_segment_not_any_segme
     key, why = note._rank("/localities/hadapsar/viman-nagar", {})
     assert why == "neighbourhood guide" and key[1] is True   # hadapsar is not ours, even though viman-nagar looks like a place
     assert note._rank("/projects/area/hadapsar/kharadi-road", {})[1] == "other area list"
+
+
+async def test_request_list_leaves_out_project_pages_that_are_not_in_search():
+    store = await store_with_waiting_pages()
+    projects = store.db.get_collection(PROJECTS)
+    await projects.update_one({"_id": "P2"}, {"$set": {"prices": None}})                 # thin now: noindex
+    await projects.update_one({"_id": "P1"}, {"$set": {"cluster_primary": "P9"}})        # a tower: redirects to its group
+    urls = [r["url"] for r in await note.request_list(store)]
+    assert SITE + "/projects/lodha-camelot" not in urls and SITE + "/projects/godrej-ivara-pune" not in urls
+    assert SITE + "/projects/quiet-tower" in urls and SITE + "/projects/area/baner" in urls
 
 
 async def test_request_list_is_empty_when_nothing_waits():
