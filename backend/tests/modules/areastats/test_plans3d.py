@@ -107,3 +107,37 @@ async def test_a_plan_drawn_before_is_kept_not_drawn_again(tmp_path):
         raise AssertionError("no model call for a kept drawing")
     out = (await plans3d.make(doc, NOW, read=never, draw=never, uploads=tmp_path))["plans_3d"]
     assert out["items"] == [old] and out["tried"][0]["why"] == "kept"
+
+
+def proj(**kw):
+    return {"_id": "P1", "regno": "P1", "page_slug": "p", "pune_place": "wagholi", "project_type": "Residential / Group Housing",
+            "units_total": 100, "units_booked": 10, "registered_on": "2024-01-10", "completion_now": "2030-06-30", **kw}
+
+
+def test_targets_are_new_or_far_off_homes_in_our_three_areas_not_mostly_booked():
+    today = NOW.date()
+    assert plans3d.target(proj(), today)                                         # possession 2030
+    assert plans3d.target(proj(completion_now="2027-12-31", registered_on="2026-05-01"), today)   # a new launch
+    assert not plans3d.target(proj(completion_now="2027-12-31"), today)          # possession soon, launched long ago
+    assert not plans3d.target(proj(units_booked=70), today)                      # mostly booked
+    assert not plans3d.target(proj(pune_place="baner"), today)
+    assert not plans3d.target(proj(project_type="Plotted"), today)
+    assert not plans3d.target(proj(cluster_primary="P0"), today)                 # a tower: drawn on its primary
+
+
+def test_collected_plans_join_the_profile_plans_and_master_plans_stay_out():
+    doc = {"profile": {"plans": [{"path": "a.webp", "alt": "3 BHK floor plan"}, {"path": "m.webp", "alt": "master plan"}]},
+           "plan_sources": {"plans": [{"path": "b.webp", "alt": "X, from housiey.com"}, {"path": "a.webp", "alt": "again"}]}}
+    assert [p["path"] for p in plans3d.unit_plans(doc)] == ["a.webp", "b.webp"]
+
+
+async def test_a_master_plan_costs_one_reading(tmp_path):
+    (tmp_path / "m.webp").write_bytes(png())
+    asks = []
+
+    async def read(images, prompt, models=None):
+        asks.append(1)
+        return {"unit_plan": False, "rooms": []}
+    out = await plans3d.make({"_id": "P1", "plan_sources": {"plans": [{"path": "m.webp", "alt": "X"}]}}, NOW, read=read,
+                             draw=None, uploads=tmp_path)
+    assert asks == [1] and out["plans_3d"]["items"] == []

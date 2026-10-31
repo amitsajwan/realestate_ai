@@ -4,18 +4,20 @@ import { formatDay } from '@/lib/site/projects'
 import type { ProjectProfile as Profile } from '@/lib/site/profile'
 import { Credit, Picture, distinctPhotos, sourceOf } from '@/components/site/ProfilePictures'
 import FloorPlansLock, { type PlansLead } from '@/components/site/FloorPlansLock'
+import type { Drawing } from '@/components/site/Plans3D'
 
 /** Highlights, the builder's pictures and floor plans of a project still being built (backend areastats/profile.py). `part` shows
  * one of them, so a page can put the pictures first and the plans next to the prices. Floor plans are always behind a short
  * form (owner 2026-10-22: "floor plans locked, ask for the form"): shown only with `lead`, even when we have none yet. `skip` is a
  * picture already shown elsewhere on the page (the register page's hero), so the gallery does not repeat it. `omit` leaves out
- * highlight topics the page already says (the register page's hero names the BHK types, so its "homes" bullet would repeat them). */
-export default function ProjectProfile({ profile, name, part, lead, skip, omit = [] }: {
+ * highlight topics the page already says (the register page's hero names the BHK types, so its "homes" bullet would repeat them).
+ * `plans3d`: our 3D drawings of the checked plans, shown in the plans' place after the form. */
+export default function ProjectProfile({ profile, name, part, lead, skip, omit = [], plans3d = [] }: {
   profile: Profile | null | undefined; name: string; part?: 'highlights' | 'photos' | 'plans'; lead?: PlansLead; skip?: string | null
-  omit?: string[]
+  omit?: string[]; plans3d?: Drawing[]
 }) {
   const showPlans = (!part || part === 'plans') && !!lead
-  if (!profile) return showPlans && lead ? <FloorPlansLock plans={[]} name={name} lead={lead} /> : null
+  if (!profile) return showPlans && lead ? <FloorPlansLock plans={[]} drawn={plans3d} name={name} lead={lead} /> : null
   const highlights = !part || part === 'highlights' ? profile.highlights.filter((h) => !omit.includes(h.topic)) : []
   const photos = !part || part === 'photos' ? distinctPhotos(profile.photos ?? []).filter((x) => !skip || x.url !== skip) : []
   const drawn = photos.length > 0 && photos.every((p) => sourceOf(p) === 'ai')
@@ -56,7 +58,7 @@ export default function ProjectProfile({ profile, name, part, lead, skip, omit =
           <Credit pics={photos} name={name} />
         </section>
       )}
-      {showPlans && lead && <FloorPlansLock plans={profile.plans} name={name} lead={lead} />}
+      {showPlans && lead && <FloorPlansLock plans={profile.plans} drawn={plans3d} name={name} lead={lead} />}
     </>
   )
 }

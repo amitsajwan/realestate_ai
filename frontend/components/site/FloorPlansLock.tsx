@@ -7,6 +7,7 @@ import { submitInquiry } from '@/lib/site/tracking'
 import type { ProfilePicture } from '@/lib/site/profile'
 import { Credit, Picture } from '@/components/site/ProfilePictures'
 import { contactName, contactNameStart } from '@/lib/site/strings'
+import { DrawingCard, type Drawing } from '@/components/site/Plans3D'
 
 /** Who a floor-plan request goes to: the same agent as the page's enquiry form. */
 export interface PlansLead {
@@ -50,8 +51,12 @@ function Sketch() {
 }
 
 /** Floor plans behind a short form (owner 2026-10-22): name, mobile and consent make a lead for the page's agent ("Floor plans
- * of ..."), then the plans we keep are shown; without any, the agent sends them on WhatsApp. Opened once per browser. */
-export default function FloorPlansLock({ plans, name, lead }: { plans: ProfilePicture[]; name: string; lead: PlansLead }) {
+ * of ..."), then the plans we keep are shown; without any, the agent sends them on WhatsApp. Opened once per browser. Our 3D
+ * drawings of the checked plans (`drawn`, backend areastats/plans3d.py) take the plans' place when there are any (owner
+ * 2026-10-31: "once we get their enquiry or contact details, just show them our modified original"). */
+export default function FloorPlansLock({ plans, drawn = [], name, lead }: {
+  plans: ProfilePicture[]; drawn?: Drawing[]; name: string; lead: PlansLead
+}) {
   const [open, setOpen] = useState(false)
   const [who, setWho] = useState('')
   const [phone, setPhone] = useState('')
@@ -82,7 +87,12 @@ export default function FloorPlansLock({ plans, name, lead }: { plans: ProfilePi
     <section aria-labelledby="plans-title" data-testid="plans" id="floor-plans" className="scroll-mt-20">
       <h2 id="plans-title" className="text-xl font-bold">{name} floor plans</h2>
       {open ? (
-        plans.length > 0 ? (
+        drawn.length > 0 ? (
+          <>
+            <div className="mt-3 space-y-6">{drawn.map((i) => <DrawingCard key={i.url} i={i} name={name} />)}</div>
+            <p className="mt-2 text-sm text-slate-700">{contactNameStart(lead.agentName)} will also send you the builder&apos;s plan sheet of the flat you choose.</p>
+          </>
+        ) : plans.length > 0 ? (
           <>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               {plans.map((p) => (
@@ -109,7 +119,10 @@ export default function FloorPlansLock({ plans, name, lead }: { plans: ProfilePi
       ) : (
         <div className="relative mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white px-4 py-6">
           <div aria-hidden className="pointer-events-none absolute inset-0 grid select-none grid-cols-2 content-start gap-2 p-3 blur-md">
-            {plans.length > 0
+            {drawn.length > 0
+              // eslint-disable-next-line @next/next/no-img-element
+              ? drawn.slice(0, 6).map((i) => <img key={i.url} src={i.url} alt="" className="aspect-[16/9] w-full object-cover" />)
+              : plans.length > 0
               // eslint-disable-next-line @next/next/no-img-element
               ? plans.slice(0, 6).map((p) => <img key={p.url} src={p.url} alt="" className="aspect-[16/10] w-full object-contain" />)
               : [0, 1, 2, 3, 4, 5].map((i) => <div key={i} className="aspect-[16/10]"><Sketch /></div>)}
@@ -117,7 +130,8 @@ export default function FloorPlansLock({ plans, name, lead }: { plans: ProfilePi
           <form onSubmit={onSubmit} noValidate
             className="relative mx-auto max-w-sm space-y-3 rounded-2xl bg-white/95 p-4 shadow-lg">
             <p className="font-semibold text-slate-900">
-              {plans.length > 0 ? `See the ${plans.length} floor plan${plans.length > 1 ? 's' : ''}` : 'We send them to you on WhatsApp'}
+              {drawn.length > 0 ? `See ${drawn.length > 1 ? `the ${drawn.length} homes` : 'the home'} in 3D, with room sizes`
+                : plans.length > 0 ? `See the ${plans.length} floor plan${plans.length > 1 ? 's' : ''}` : 'We send them to you on WhatsApp'}
             </p>
             <label className="block text-sm font-medium">Your name
               <input name="name" autoComplete="name" value={who} onChange={(e) => setWho(e.target.value)} className={field} />
@@ -133,7 +147,7 @@ export default function FloorPlansLock({ plans, name, lead }: { plans: ProfilePi
             {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
             <button type="submit" disabled={busy}
               className="min-h-[48px] w-full rounded-xl bg-[var(--site-primary,#0f2340)] px-4 font-bold text-[var(--site-on-primary,#fff)] disabled:opacity-60">
-              {busy ? 'Sending...' : plans.length > 0 ? 'Show the floor plans' : 'Get the floor plans'}
+              {busy ? 'Sending...' : drawn.length > 0 || plans.length > 0 ? 'Show the floor plans' : 'Get the floor plans'}
             </button>
           </form>
         </div>

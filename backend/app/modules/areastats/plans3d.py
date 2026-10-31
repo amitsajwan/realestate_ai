@@ -18,14 +18,17 @@ For each stored unit plan (areastats.profile `plans`: the builder's site, the br
 Kept as WebP under uploads/project_media/<regno>-3d/ and on the record as `plans_3d` = {at, items: [{path, width, height, title,
 label, rooms: [{name, sqft, dims}], source: {site, kind, path}}], tried: [{path, ok, why}]}. Only what passed all four is
 shown (`public`), always called a drawing made from the builder's or the site's plan, with the room sizes the plan prints.
-Run by hand for now (scripts/plans_3d.py <regno>): one project to judge the look before it runs by itself.
+Which projects (owner 2026-10-31, `target`): Kharadi, Upper Kharadi and Wagholi homes, not mostly booked, new launches or
+possession two years or more away. Plans a project lacks are collected first (areastats.planfind). Shown only after the buyer
+leaves their name and number (the floor-plan form): "show them our modified original". Run by hand for now
+(scripts/plans_3d.py <regno> | --targets).
 """
 import asyncio
 import hashlib
 import io
 import logging
 import re
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Awaitable, Callable, List, Optional, Tuple
 
@@ -35,6 +38,10 @@ from app.platform import gemini
 
 log = logging.getLogger(__name__)
 
+AREAS = ("kharadi", "upper_kharadi", "wagholi")
+BOOKED_MAX = 0.6                       # mostly booked: not worth a drawing
+LAUNCH_DAYS = 365
+LATER_DAYS = 730                       # possession two years or more away
 MIN_ROOMS = 4
 LEGEND = (0.8, 2.0)                    # printed sq ft over the legend's area (Camelot 2026-10-31: 1.0 to 1.6, its staff room)
 MAX_PLANS = 6
@@ -143,10 +150,35 @@ def webp(data: bytes) -> Tuple[bytes, int, int]:
     return out.getvalue(), im.width, im.height
 
 
-def unit_plans(profile: Optional[dict]) -> List[dict]:
-    """The stored plans worth reading: not a master or site plan by their caption, with a file on disk."""
-    return [p for p in (profile or {}).get("plans") or []
-            if p.get("path") and not re.search(r"master|site|layout|location|typical", str(p.get("alt") or ""), re.I)][:MAX_PLANS]
+def unit_plans(doc: dict) -> List[dict]:
+    """The stored plans worth reading: the profile's (builder, brochure, other sites' kept before 2026-10-29) and the ones
+    areastats.planfind collected, not a master or site plan by their caption, each file once."""
+    pool = ((doc.get("profile") or {}).get("plans") or []) + ((doc.get("plan_sources") or {}).get("plans") or [])
+    out, seen = [], set()
+    for p in pool:
+        if p.get("path") and p["path"] not in seen and not re.search(r"master|site|layout|location|typical", str(p.get("alt") or ""), re.I):
+            seen.add(p["path"])
+            out.append(p)
+    return out[:MAX_PLANS]
+
+
+def target(doc: dict, today: date) -> bool:
+    """A project whose plans we draw (owner 2026-10-31): in AREAS, homes (not plots, shops or offices), under BOOKED_MAX of its
+    homes booked, and a new launch (registered in the last LAUNCH_DAYS) or possession LATER_DAYS or more away. A tower of a
+    group is drawn on its primary record."""
+    if doc.get("cluster_primary") or doc.get("pune_place") not in AREAS or not doc.get("page_slug"):
+        return False
+    if re.search(r"plot|commercial|others", str(doc.get("project_type") or ""), re.I):
+        return False
+    total, booked = doc.get("units_total") or 0, doc.get("units_booked") or 0
+    if total and booked / total >= BOOKED_MAX:
+        return False
+    try:
+        registered = date.fromisoformat(str(doc.get("registered_on") or "")[:10])
+    except ValueError:
+        registered = None
+    launch = registered is not None and (today - registered).days <= LAUNCH_DAYS
+    return launch or str(doc.get("completion_now") or "") >= (today + timedelta(days=LATER_DAYS)).isoformat()
 
 
 def label_of(plan: dict, title: Optional[str]) -> str:
@@ -164,7 +196,7 @@ async def make(doc: dict, now: datetime, read: Optional[Read] = None, draw: Opti
     regno = str(doc.get("regno") or doc["_id"])
     items, tried = [], []
     done = {} if redo else {(i.get("source") or {}).get("path"): i for i in (doc.get("plans_3d") or {}).get("items") or []}
-    for plan in unit_plans(doc.get("profile")):
+    for plan in unit_plans(doc):
         if plan["path"] in done:   # drawn and checked before: kept, not paid for again
             items.append(done[plan["path"]])
             tried.append({"path": plan["path"], "ok": True, "why": "kept"})
@@ -176,13 +208,12 @@ async def make(doc: dict, now: datetime, read: Optional[Read] = None, draw: Opti
         image = await asyncio.to_thread(src.read_bytes)
         try:
             reading = await read([image], READ, models=gemini.READ_MODELS[:1])
-            second = await read([image], READ, models=gemini.READ_MODELS[1:])
+            ok, why, rooms = check(reading)
+            if ok:   # a second reading only for a plan worth drawing: a master plan costs one
+                ok, why = same_reading(reading, await read([image], READ, models=gemini.READ_MODELS[1:]))
         except gemini.GeminiError as e:
             tried.append({"path": plan["path"], "ok": False, "why": f"read failed: {e}"})
             continue
-        ok, why = same_reading(reading, second)
-        if ok:
-            ok, why, rooms = check(reading)
         reading_title = (" ".join(str(reading.get("title") or "").split()) or None) if isinstance(reading, dict) else None
         if not ok:
             tried.append({"path": plan["path"], "ok": False, "why": why})

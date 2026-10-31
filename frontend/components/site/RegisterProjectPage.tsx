@@ -16,7 +16,6 @@ import { distinctPhotos } from '@/components/site/ProfilePictures'
 import CostBreakdown from '@/components/site/CostBreakdown'
 import PriceBox from '@/components/site/PriceBox'
 import PriceIdea from '@/components/site/PriceIdea'
-import Plans3D from '@/components/site/Plans3D'
 import ProjectHistory from '@/components/site/ProjectHistory'
 import type { Stage } from '@/lib/site/allin'
 import { areaName, askedPrices, bhkRange, completionChange, displayName, extensionSentence, headingName, longDay, monthYear, offerPrice,
@@ -835,8 +834,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
       <div className="mt-8 grid gap-8 lg:grid-cols-3">
         <div className="min-w-0 space-y-10 lg:col-span-2">
           <PricesSection p={p} shown={shown} offer={liveOffer(facts)} priced={!!price} numbers={facts?.numbers} stage={stage} />
-          <Plans3D data={p.plans_3d} name={shown} />
-          <ProjectProfile profile={p.profile} name={shown} part="plans" lead={{ agentSlug: leadSlug, agentName: leadName,
+          <ProjectProfile profile={p.profile} name={shown} part="plans" plans3d={p.plans_3d?.items ?? []} lead={{ agentSlug: leadSlug, agentName: leadName,
             topic: enquiryTopic, waMessage: `Hi, I want to know about ${p.name} (MahaRERA ${p.regno}): ${url}` }} />
           <LocationSection p={p} shown={shown} nearby={nearby} sources={facts?.nearby_sources ?? []} />
           <ProjectProfile profile={p.profile} name={shown} part="highlights" omit={heroBhks ? ['homes'] : []} />
