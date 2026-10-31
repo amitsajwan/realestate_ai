@@ -4,7 +4,8 @@ Each round picks ONE project (`next_project`): an urgent request first (a campai
 selling, in the news, searched for; refreshed every HOT_REFRESH_DAYS), then the pages Google already shows (Search Console
 impressions, when that job has stored them; those just off page one first), then records enriched before the checks below (no
 `enrichment`), then indexable pages never enriched (newest first), then the rest, then the oldest enrichment once it is
-REFRESH_DAYS old (RETRY_DAYS when MahaRERA or the model did not answer: that is the service, not the project). Projects whose filed
+REFRESH_DAYS old (RETRY_DAYS when MahaRERA or the model did not answer: that is the service, not the project; THIN_RETRY_DAYS
+for a page kept out of search as thin). Projects whose filed
 completion date has passed are skipped (status "finished"; owner 2026-10-21: "projects already completed we should not enrich"),
 unless a campaign asks or homes are left on an east Pune Top list; the projects the main pages show (`featured`: the east Pune
 Top lists, pricing.on_top, and the owner's banner picks, areastats.spotlight) go with the hot ones (owner 2026-10-26: "if we are
@@ -75,6 +76,8 @@ REFRESH_DAYS = 60
 RETRY_DAYS = 1                        # a round MahaRERA or the model did not answer is tried again after this
 HOT_REFRESH_DAYS = 14                 # a hot project's page is rewritten from fresh facts this often
 TOP_RETRY_DAYS = 7                    # a top-list project still missing a stage or pictures is tried again after this
+THIN_RETRY_DAYS = 7                   # a page kept out of search as thin (pages.searchable) is tried again after this, not
+                                      # REFRESH_DAYS (owner 2026-10-31: "make cycle bit faster", only pages with proper text in search)
 POLL_SECONDS = 60
 REQUESTS = "enrich_requests"          # {_id: regno, at, by}: urgent enrichments asked for by campaigns
 MAX_TEXT = 2600                       # characters, the sections and the search summary together
@@ -226,7 +229,8 @@ def _priority(d: dict, now: datetime, shown: frozenset = frozenset()) -> Optiona
         return (1, -heat)                                       # hot and still being built, no profile yet: first
     # a hot page missing a stage or pictures is tried again the next day, not after HOT_REFRESH_DAYS
     days = (HOT_REFRESH_DAYS if complete(d) else RETRY_DAYS) if is_hot else RETRY_DAYS if unanswered(d) else \
-        (HOT_REFRESH_DAYS if complete(d) else TOP_RETRY_DAYS) if top else REFRESH_DAYS
+        (HOT_REFRESH_DAYS if complete(d) else TOP_RETRY_DAYS) if top else \
+        THIN_RETRY_DAYS if pages.indexable(d) and not pages.searchable(d) else REFRESH_DAYS
     if not legacy and not old_writer and isinstance(done, datetime) and now - _aware(done) < timedelta(days=days):
         return None
     if is_hot or top:

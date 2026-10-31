@@ -444,11 +444,22 @@ def test_a_page_in_search_keeps_its_text_two_weeks_before_a_newer_writer_takes_i
     # Baner: not on an east Pune Top list, whose pages are re-read for pictures on their own schedule
     old = {"_id": "O", "page_slug": "o", "locality": "baner", **FULL, "enriched_at": NOW - timedelta(days=3),
            "enrichment": {"score": "4/4", "steps": {"web": {"ok": True, "at": NOW - timedelta(days=3)}}}, "page_text_version": 3,
-           "page_text": "About the project.", "page_text_at": NOW - timedelta(days=3)}
+           "page_text": "About the project.", "page_text_at": NOW - timedelta(days=3), "prices": {"rows": [{"bhk": 2}]}}
     assert enrich._priority(old, NOW) is None                                         # in search, written 3 days ago: rests
     assert enrich._priority({**old, "page_text_at": NOW - timedelta(days=15)}, NOW)[0] == enrich.BACKFILL
     thin = {k: v for k, v in old.items() if k != "page_text"}
     assert enrich._priority(thin, NOW)[0] == enrich.BACKFILL                          # not in search: no rest needed
+
+
+def test_a_thin_page_is_tried_again_after_a_week_a_page_in_search_after_two_months():
+    # Baner: not hot, not on an east Pune Top list; enriched 10 days ago with the current writer
+    done = {"_id": "T", "page_slug": "t", "locality": "baner", **FULL, "enriched_at": NOW - timedelta(days=10),
+            "enrichment": {"score": "4/4", "steps": {}}, "page_text_version": enrich.TEXT_VERSION,
+            "page_text": "About the project.", "page_text_at": NOW - timedelta(days=10)}
+    assert enrich._priority(done, NOW) is not None                                    # text only: out of search, due again
+    assert enrich._priority({**done, "enriched_at": NOW - timedelta(days=5)}, NOW) is None   # within the week: waits
+    full = {**done, "profile": {"highlights": ["Clubhouse"]}}
+    assert enrich._priority(full, NOW) is None                                        # in search: waits REFRESH_DAYS
 
 
 # ---- facts often, the model by budget (docs/plan/enrich-lanes.md) ------------------------------------------------------------

@@ -176,23 +176,29 @@ def shown_pictures(pics: Optional[List[dict]], drawn: bool = True) -> List[dict]
     return [p for p in pics or [] if p.get("source") not in hidden]
 
 
-def has_own_content(doc: dict) -> bool:
-    """Something on the page beyond the register: written sections, prices read, checked web facts, or the builder's highlights,
-    or the builder's or brochure's pictures or floor plans. Pictures the page does not show count for nothing: an AI
+def own_facts(doc: dict) -> bool:
+    """A fact of the project's own beyond the register and our paragraph: prices read, checked web facts, or the builder's
+    highlights, or the builder's or brochure's pictures or floor plans. Pictures the page does not show count for nothing: an AI
     illustration is not the project's own, and a picture copied from another site is that site's."""
     profile = doc.get("profile") or {}
     pictures = shown_pictures(profile.get("photos"), drawn=False) or shown_pictures(profile.get("plans"))
-    return bool(doc.get("page_text") or (doc.get("prices") or {}).get("rows") or (doc.get("web_facts") or {}).get("facts")
+    return bool((doc.get("prices") or {}).get("rows") or (doc.get("web_facts") or {}).get("facts")
                 or profile.get("highlights") or pictures)
 
 
+def has_own_content(doc: dict) -> bool:
+    """Something on the page beyond the register: written sections or a fact of its own (`own_facts`)."""
+    return bool(doc.get("page_text")) or own_facts(doc)
+
+
 def searchable(doc: dict) -> bool:
-    """Asks Google to index the page: a listable page (`indexable`) that also has content of its own. 11,700 register-only pages
-    in search on a weeks-old domain sank the whole site on 2026-10-26 (seo-system.md section 11); a page goes back into search
-    by itself once enrichment fills it. Pictures copied from other sites never make a page searchable: 663 of them on 131 pages
-    in search came from portals and other agents (2026-10-29), and no page was in search for them alone. The area lists keep
-    showing every listable project."""
-    return indexable(doc) and has_own_content(doc)
+    """Asks Google to index the page: a listable page (`indexable`) with written sections AND a fact of its own (`own_facts`).
+    11,700 register-only pages in search on a weeks-old domain sank the whole site on 2026-10-26 (seo-system.md section 11).
+    Owner 2026-10-31 ("only have online which have proper text"): either one alone was not enough, since 271 of 537 pages in
+    search had only a two-line paragraph (median 355 characters) and 26 had no text; a page goes back into search by itself once
+    enrichment fills it (`enrich.THIN_RETRY_DAYS`). Pictures copied from other sites never count (663 on 131 pages came from
+    portals and other agents, 2026-10-29). The area lists keep showing every listable project."""
+    return indexable(doc) and bool(doc.get("page_text")) and own_facts(doc)
 
 
 def page_updated(doc: dict) -> Optional[str]:
