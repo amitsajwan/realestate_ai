@@ -15,6 +15,7 @@ import ProjectProfile from '@/components/site/ProjectProfile'
 import { distinctPhotos } from '@/components/site/ProfilePictures'
 import CostBreakdown from '@/components/site/CostBreakdown'
 import PriceBox from '@/components/site/PriceBox'
+import PriceIdea from '@/components/site/PriceIdea'
 import ProjectHistory from '@/components/site/ProjectHistory'
 import type { Stage } from '@/lib/site/allin'
 import { areaName, askedPrices, bhkRange, completionChange, displayName, extensionSentence, headingName, longDay, monthYear, offerPrice,
@@ -280,20 +281,24 @@ function Hero({ p, price, photo, linkless = false }: { p: RegisterProject; price
 }
 
 /** Prices and sizes ("<name> price"): the agent's offer first when there is one (the page's one price), else the published asked
- *  prices per home size; the area's ₹ per sq ft beside them, then the ask for the day's offer. */
+ *  prices per home size, then the rounded price idea (sizes one site prices, the area's usual bands); the area's ₹ per sq ft
+ *  beside them, then the ask for the day's offer. */
 function PricesSection({ p, shown, offer, priced, numbers, stage }: {
   p: RegisterProject; shown: string; offer: Offer | null; priced: boolean; numbers: PropertyFactsView['numbers']; stage: Stage
 }) {
   const rows = !priced && (p.prices?.rows ?? []).length > 0
   const rate = p.area_rate && p.area_rate.per_sqft > 0 ? p.area_rate : null
-  if (!offer && !rows && !rate) return null
+  // the rounded price idea only where no offer is the page's one price
+  const idea = !offer && !priced && p.price_idea && (p.price_idea.rows.length || p.price_idea.area.length) ? p.price_idea : null
+  if (!offer && !rows && !rate && !idea) return null
   return (
     <section aria-labelledby="prices-title" data-testid="prices-section">
       <SectionHead id="prices-title" title={`${shown} price`} />
       <div className="mt-3 space-y-4">
         {offer && <OfferBox o={offer} numbers={numbers} stage={stage} />}
         {!priced && <PriceBox prices={p.prices} stage={stage} />}
-        {!offer && !rows && <p className="text-slate-800">No price for {shown} is published yet: ask and we send you the builder&apos;s price sheet.</p>}
+        {!offer && !rows && !idea?.rows.length && <p className="text-slate-800">No price for {shown} is published yet: ask and we send you the builder&apos;s price sheet.</p>}
+        {idea && <PriceIdea idea={idea} shown={shown} />}
         {rate && (
           <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-800" data-testid="area-rate">
             <span className="font-semibold">{rate.place} average {perSqft(rate.per_sqft)}</span> across {rate.projects} projects

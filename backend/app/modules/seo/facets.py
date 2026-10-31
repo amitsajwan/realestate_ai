@@ -21,7 +21,7 @@ from typing import Dict, List, Optional, Tuple
 
 from app.core import pune_places
 from app.core.areas import AREAS
-from app.modules.areastats import hot, prices
+from app.modules.areastats import hot, priceidea, prices
 from app.modules.areastats.areamap import _photo
 from app.modules.areastats.hubs import _primaries, link_name
 from app.modules.areastats.pages import (OPEN_MIN, _long, booked, builder_key, buyable, cluster_stamps, cluster_updated,
@@ -480,7 +480,8 @@ async def view(db, place: str, segments: List[str], now: Optional[datetime] = No
 
 def place_prices(place: str, docs: List[dict], now: datetime) -> dict:
     """The place page's "Flat prices in <place>" table: per home size, how many projects being sold have a published price, the
-    lowest and highest starting price, and the cheapest project. {as_of, sizes: [{bhk, projects, low, high, cheapest}]}.
+    lowest and highest starting price, and the cheapest project. {as_of, sizes: [{bhk, projects, low, high, cheapest}], usual:
+    [{bhk, low, high, projects}]} (`usual`: the rounded price idea, areastats.priceidea).
     Prices only as areastats.prices publishes them; MIN_PRICED projects or a size is left out (one project is not a price)."""
     pool = [d for d in _primaries(docs) if d.get("pune_place") == place and indexable(d) and not is_old(d, now.date())]
     sizes = []
@@ -490,7 +491,10 @@ def place_prices(place: str, docs: List[dict], now: datetime) -> dict:
             sizes.append({"bhk": b, "projects": len(got), "low": got[0][0], "high": got[-1][0],
                           "cheapest": {"name": got[0][1], "slug": got[0][2]}, "path": Facet(place, "all", bhk=b).path,
                           "key": Facet(place, "all", bhk=b).key})
-    return {"place": place, "as_of": now.date().isoformat(), "sizes": sizes}
+    # the usual band per size (areastats.priceidea): published prices and the ones a single site gives, rounded, never exact
+    usual = priceidea.area_bands(prices.starts(d.get("prices"), now) for d in pool)
+    return {"place": place, "as_of": now.date().isoformat(), "sizes": sizes,
+            "usual": [{k: u[k] for k in ("bhk", "low", "high", "projects")} for u in usual]}
 
 
 async def prices_view(db, place: str, now: Optional[datetime] = None) -> dict:

@@ -6,6 +6,7 @@
  */
 import { serverApiBase } from './api'
 import { badStatus, failed, withRetry, type Got } from './retry'
+import type { PriceBand } from './register'
 
 export type Intent = 'new-launches' | 'top' | 'ready-to-move' | 'all'
 
@@ -99,7 +100,8 @@ async function getOnce<T>(path: string): Promise<Got<T>> {
 }
 
 export interface SizePrice { bhk: number; projects: number; low: number; high: number; cheapest: { name: string; slug: string }; path: string | null }
-export interface PlacePrices { place: string; as_of: string; sizes: SizePrice[] }
+/** usual: the rounded band per size (backend areastats/priceidea.py), published and single-site prices together */
+export interface PlacePrices { place: string; as_of: string; sizes: SizePrice[]; usual?: PriceBand[] }
 
 /** Flat prices by home size for a place page (published prices only); null on any failure: the page shows no prices then. */
 export async function getPlacePrices(placeSlug: string): Promise<PlacePrices | null> {

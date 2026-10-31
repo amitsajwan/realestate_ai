@@ -22,6 +22,7 @@ import { fitDescription, fitTitle, formatPrice } from '@/lib/site/format'
 import { getActive, getAreaMap, getListed } from '@/lib/site/hubs'
 import { displayName, getRegisterPlaces, longDay, getRegisterProjects, placePath, projectSummary, STAGE_LABEL, STAGE_NOTE, STAGES } from '@/lib/site/register'
 import type { RegisterListItem, RegisterPlace } from '@/lib/site/register'
+import { UsualBands } from '@/components/site/PriceIdea'
 
 export const revalidate = 300
 
@@ -75,7 +76,8 @@ function placeDescription(place: RegisterPlace, launches: boolean, names: string
   })
 }
 
-/** "Flat prices in <place>": per home size, the range of starting prices among projects being sold, with a link to its list. */
+/** "Flat prices in <place>": per home size, the range of starting prices among projects being sold, with a link to its list,
+ *  then our rounded usual band per size (more sizes: single-site prices count there). */
 function Prices({ place, prices }: { place: RegisterPlace; prices: PlacePrices }) {
   return (
     <section aria-labelledby="prices-title" className="mt-10" data-testid="place-prices">
@@ -84,7 +86,7 @@ function Prices({ place, prices }: { place: RegisterPlace; prices: PlacePrices }
         Starting prices of new flats in {place.name} by size, from the builder&apos;s own site or two property sites that agree, read in
         the last 45 days. Parking, stamp duty, registration and GST are usually extra.
       </p>
-      <div className="mt-4 overflow-x-auto">
+      {prices.sizes.length > 0 && <div className="mt-4 overflow-x-auto">
         <table className="w-full min-w-[480px] border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-slate-300 text-slate-600">
@@ -107,7 +109,8 @@ function Prices({ place, prices }: { place: RegisterPlace; prices: PlacePrices }
             ))}
           </tbody>
         </table>
-      </div>
+      </div>}
+      {(prices.usual ?? []).length > 0 && <div className="mt-4"><UsualBands place={place.name} rows={prices.usual ?? []} testId="place-usual" /></div>}
     </section>
   )
 }
@@ -203,7 +206,7 @@ export default async function PlaceProjectsPage({ params }: Props) {
         {launchList && <ProjectRail id="launches" title="Just launched" sub="Registered with MahaRERA in the last 12 months" href={launchList.path} count={launchList.count} rows={launchList.rows} />}
         {readyList && <ProjectRail id="ready" title={READY_TITLE} sub={READY_SUB} href={readyList.path} count={readyList.count} rows={readyList.rows} />}
 
-        {prices && prices.sizes.length > 0 && <Prices place={place} prices={prices} />}
+        {prices && (prices.sizes.length > 0 || (prices.usual ?? []).length > 0) && <Prices place={place} prices={prices} />}
 
         {showsMap(map)
           ? <AreaMap data={map} listed={listed} className="mt-10" />

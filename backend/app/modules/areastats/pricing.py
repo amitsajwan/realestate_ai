@@ -37,6 +37,9 @@ FIRST = ("upper_kharadi", "kharadi", "wagholi")
 EAST = FIRST + ("keshav_nagar", "lohegaon")   # east Pune: our main target for now (owner 2026-10-26)
 NEAR_KHARADI = EAST + ("baner", "wakad", "hinjawadi")
 ORDER = tuple(k for k in NEAR_KHARADI if k in {a.key for a in AREAS}) + tuple(a.key for a in AREAS if a.key not in NEAR_KHARADI)
+# read once more, before their turn, so they have the single-site readings (`prices.seen`) the price idea needs (owner
+# 2026-10-31: "lets do upper kharadi and wagholi projects now"); other places get them at their next read
+IDEA_FIRST = ("upper_kharadi", "wagholi")
 EVERY_MINUTES = 15                    # ~96 projects a day, up to 4 model calls each (only pages with price lines are sent)
 REFRESH_DAYS = 30                     # read again well before prices.KEEP_DAYS
 RETRY_DAYS = 1
@@ -106,6 +109,16 @@ def unanswered(d: dict) -> bool:
     return why == "no LLM key" or why.startswith("failed")
 
 
+def no_seen(d: dict) -> bool:
+    """Pages were read for prices before `seen` was kept, in an IDEA_FIRST place, and no read has been tried since that one (a
+    read that fails writes no `prices`: the project waits its normal turn then, instead of coming up every round)."""
+    p = d.get("prices") or {}
+    if place_of(d) not in IDEA_FIRST or not p.get("read") or "seen" in p:
+        return False
+    tried, read_at = _aware(d.get("prices_tried_at")), _aware(p.get("at"))
+    return tried is None or read_at is None or tried <= read_at + timedelta(minutes=1)
+
+
 def priority(d: dict, now: datetime) -> Optional[tuple]:
     """Sort key (lower first) for a project whose prices are due, or None when they are not."""
     if not selling(d, now):
@@ -113,7 +126,9 @@ def priority(d: dict, now: datetime) -> Optional[tuple]:
     tried = _aware(d.get("prices_tried_at"))
     got = (d.get("prices") or {}).get("rows")
     read_at = _aware((d.get("prices") or {}).get("at"))
-    if tried is not None:
+    if no_seen(d):
+        tried = read_at = None   # due now, ordered like a project never read
+    elif tried is not None:
         wait = timedelta(days=RETRY_DAYS if unanswered(d) else REFRESH_DAYS if got else EMPTY_DAYS)
         if now - tried < wait:
             return None

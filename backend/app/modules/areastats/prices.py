@@ -18,7 +18,8 @@ For one project (a tower group is read once, on its primary record):
    or one site gives it and another site's price for the project takes it in (its overall range, within AGREE). Both sites
    are the sources. Never a price from the model's own knowledge.
 Stored on the register record as `prices` = {at, rows: [{bhk, from_inr, to_inr, official, sources: [{site, url, official,
-quote}]}], read: [{site, url, ok, why}]}. Each size's price is also kept, dated, in `price_history` ([{at, bhk, from_inr, to_inr,
+quote}]}], read: [{site, url, ok, why}], seen: [{bhk, from_inr, to_inr, site, url, quote}]} (`seen`: every reading that
+passed the checks, agreed or not, for the rounded price idea in areastats.priceidea). Each size's price is also kept, dated, in `price_history` ([{at, bhk, from_inr, to_inr,
 official, sites}]) when it is new or differs from that size's last reading: `prices` is replaced every round and the sites
 show only today's price, so this is the only record of how a project's prices moved (docs/plan/seo-system.md 8b). A round that finds nothing keeps the last rows while they are under KEEP_DAYS old:
 prices change, an old one goes. `public` is what the pages show (with `sqft`, the size the lowest price is for, when its
@@ -290,12 +291,14 @@ async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[webfacts.
         read.append({"site": src["site"], "url": src["url"], "official": src["official"], "ok": bool(got), "why": why})
     rows = agree(readings)
     old = doc.get("prices") or {}
+    seen = [{k: r.get(k) for k in ("bhk", "from_inr", "to_inr", "site", "url", "quote")} for r in readings]
     if not rows and old.get("rows") and _fresh(old.get("at"), now):
         rows, at = old["rows"], old["at"]   # a site down for a day: keep the last good prices a while
+        seen = seen or old.get("seen") or []
     else:
         at = now
     checked = f"{len(rows)} prices from {sum(1 for r in read if r['ok'])} of {len(read)} sites"
-    fields = {"prices": {"at": at, "name": name, "rows": rows, "read": read}}
+    fields = {"prices": {"at": at, "name": name, "rows": rows, "read": read, "seen": seen}}
     if at == now:   # read this round, not the last good prices kept while a site is down
         fields.update(history(doc, rows, now))
     return {"ok": bool(rows), "at": now, "checked": checked}, fields
@@ -346,6 +349,32 @@ def _quote(row: dict) -> str:
     """The line the shown price was read from: the first source is the one picked (agree)."""
     sources = row.get("sources") or []
     return str(sources[0].get("quote") or "") if sources else ""
+
+
+def ideas(prices: Optional[dict], now: Optional[datetime] = None) -> List[dict]:
+    """[{bhk, from_inr, to_inr}]: the sizes `public` does not show that one site priced (`seen`: every reading that passed the
+    checks, kept since 2026-10-31), lowest price to highest over the sites. For areastats.priceidea, which only shows them
+    rounded; [] when none or the reading is past KEEP_DAYS."""
+    if not prices or not _fresh(prices.get("at"), now or datetime.now(timezone.utc)):
+        return []
+    shown = {r["bhk"] for r in (public(prices, now) or {}).get("rows") or []}
+    per: dict = {}
+    for r in prices.get("seen") or []:
+        if r.get("bhk") in shown or r.get("bhk") in (None, "All homes", "Plot") or not r.get("from_inr"):
+            continue
+        if not rate_ok(r, str(r.get("quote") or "")):
+            continue
+        lo, hi = per.get(r["bhk"], (None, None))
+        top = r.get("to_inr") or r["from_inr"]
+        per[r["bhk"]] = (min(lo or r["from_inr"], r["from_inr"]), max(hi or top, top))
+    return [{"bhk": b, "from_inr": lo, "to_inr": hi if hi > lo else None} for b, (lo, hi) in per.items()]
+
+
+def starts(prices: Optional[dict], now: Optional[datetime] = None) -> dict:
+    """{bhk: starting price} for one project: the published price per size, else one site's (`ideas`). For the area's bands."""
+    out = {r["bhk"]: r["from_inr"] for r in ideas(prices, now)}
+    out.update({r["bhk"]: r["from_inr"] for r in (public(prices, now) or {}).get("rows") or [] if r["bhk"] not in ("All homes", "Plot")})
+    return out
 
 
 def price_from(doc: dict, now: Optional[datetime] = None) -> Optional[int]:

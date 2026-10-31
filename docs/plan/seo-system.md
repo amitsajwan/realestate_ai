@@ -383,6 +383,7 @@ more internal links (link graph already complete; revisit only if one area's lin
 - One fix per page per 28 days, measured; a fix that lost is undone and never applied again.
 - Facts only from MahaRERA, the builder's site or two agreeing sites; never a number from a model's own knowledge.
 - No copying of portal text or data (we compare positions and what kind of fact their result shows); no paid links.
+- One site's price is never shown as a figure: only as our rounded price idea (`areastats/priceidea.py`), checked against the area's band, labelled a rough guide, and kept out of the hero price, the compare list and JSON-LD offers.
 - No year in URLs; a month in a title only on a real change.
 
 ## 10. How the loop fits together
@@ -448,6 +449,7 @@ measure (Search Console, Serper, URL Inspection) → choose (near page one, Magi
 | 2026-10-31 | this | The kept lists did not cover a deploy: the site restarts with the backend, so nothing is kept yet and the first sitemap after 18cf13ee again had no guides, trackers or builders.xml for its 10 minutes. A build with a list still empty is now built again after 1 minute (`THIN_MS`), like one without area sitemaps. Cause: with the backend up, builds still lost them at times (none of those requests reached the backend while the register's 8.5 MB read did): their 4-second timers ran out while the site was busy with the large reads. The small lists (news, builders, guides, trackers) are now read first, then the large ones |
 | 2026-10-31 | — | `/home-plan` linked site-wide: "Home plan" in the buyer header, phone menu and footer; home page hero line and an office section (one link per East Pune office, answer picked); a line in `/llms.txt`. No title, canonical or structured data changed |
 | 2026-10-31 | cc406fd4 | No agent phone numbers in search: `/projects` pages name the listing agent without their number, the agent site's footer and About show it only after a tap (`HiddenPhone`, `data-nosnippet`, reversed in the page data), and `telephone` is gone from the agent and listing JSON-LD |
+| 2026-10-31 | this | Price idea (owner: "price idea from their site also, not exact numbers", Upper Kharadi and Wagholi first). Before: 37 of 264 Wagholi records and 5 of 20 in Upper Kharadi showed a price; a size only one site priced was dropped (Lodha Camelot showed 4 BHK only, MagicBricks' 3 BHK was lost). `prices` now keeps every checked reading (`seen`); project pages show those sizes as rounded bands ("about ₹2.2 – 2.6 Cr") checked against the area, plus the area's usual band per size (middle half of starting prices, 3+ projects); area pages' "Flat prices" adds the usual bands (`usual`). Upper Kharadi and Wagholi records read before `seen` are read once more by the prices round, ahead of their turn (`pricing.no_seen`). No title, canonical or structured data changed |
 
 ## 12. Detail and history
 

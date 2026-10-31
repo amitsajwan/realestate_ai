@@ -17,7 +17,7 @@ from app.core import brand
 from app.core.areas import BY_KEY
 from app.modules.newsroom.store import Store
 
-from . import pagefacts
+from . import pagefacts, priceidea
 from .service import _count, _day
 from .text import ascii_text, builder_slug, promoter_key, words
 
@@ -718,7 +718,7 @@ async def project_page(db, slug: str, now: Optional[datetime] = None) -> Optiona
     out["web_facts"] = pagefacts.with_scope(web_public(group_primary(doc, docs).get("web_facts")), out["details"])
     from .profile import public as profile_public
     out["profile"] = profile_public(group_primary(doc, docs).get("profile"), drawn=not out["indexable"])
-    from .prices import public as prices_public   # asked prices per home size, from the builder's site or two sites
+    from .prices import ideas, public as prices_public, starts   # asked prices per home size, from the builder's site or two sites
     out["prices"] = prices_public(group_primary(doc, docs).get("prices"), now)
     # the compare list: each other project's lowest published price and the sizes it is priced for
     for row, s in zip(out["same_area"], similar):
@@ -730,6 +730,11 @@ async def project_page(db, slug: str, now: Optional[datetime] = None) -> Optiona
     others = [d for d in docs if field and d.get(field) == doc[field] and not d.get("cluster_primary") and d["_id"] != mine
               and d.get("prices")]
     out["area_rate"] = pagefacts.area_rate(place, (prices_public(d.get("prices"), now) for d in others))
+    # the rounded price idea (areastats.priceidea): the sizes one site prices, and the area's usual band per size
+    own = group_primary(doc, docs).get("prices")
+    area_bands = priceidea.area_bands(starts(d.get("prices"), now) for d in others if not is_old(d, (now or datetime.now(timezone.utc)).date()))
+    read = (own or {}).get("at")
+    out["price_idea"] = priceidea.view(ideas(own, now), area_bands, place, read.date().isoformat() if isinstance(read, datetime) else None)
     out["sales"] = pagefacts.sales(doc)
     out["commute"] = pagefacts.commute(out["map"])
     from .cautions import cautions   # 'Check before you book' (docs/plan/project-pages.md)
