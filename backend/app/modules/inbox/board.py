@@ -46,6 +46,9 @@ from .service import InboxError, InboxService
 log = logging.getLogger(__name__)
 
 MAX_LEADS = 500
+# the viewer id of "View as an agent": an agent who holds nothing and asked for nothing (owner, 2026-10-31: "I cannot view it
+# myself, as I am always logged in, I need a third party view")
+PREVIEW = "agent-preview"
 STAGE_LABEL = {"new": "New", "contacted": "Contacted", "site_visit": "Site visit", "negotiating": "In talks", "lost": "Marked lost"}
 MAX_NOTE = 200
 MANY_PAGES = 5
@@ -329,7 +332,7 @@ class LeadBoard:
                 row["asks"] = [{**self._ask_view(a), "agent_id": a["agent_id"], "agent_name": agents.get(a["agent_id"], "Agent")}
                                for a in sorted(asks[lead["_id"]], key=lambda a: a["at"])]
             out.append(row)
-        return {"items": out, "owner": owner}
+        return {"items": out, "owner": owner, "preview": viewer == PREVIEW}
 
     @staticmethod
     def _ask_view(a: dict) -> dict:

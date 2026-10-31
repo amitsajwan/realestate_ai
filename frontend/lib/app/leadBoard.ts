@@ -82,7 +82,7 @@ export interface BoardCard {
   asks?: OwnerAsk[]
 }
 
-export interface Board { items: BoardCard[]; owner: boolean }
+export interface Board { items: BoardCard[]; owner: boolean; /** "View as an agent": read only. */ preview?: boolean }
 
 /** The link the owner sends to agents. */
 export const BOARD_PATH = '/studio/lead-board'
@@ -112,7 +112,8 @@ async function call<T>(path: string, init: { method?: string; json?: unknown } =
 }
 
 export const boardApi = {
-  get: () => call<Board>(''),
+  /** asAgent: the board as any other agent sees it. */
+  get: (asAgent = false) => call<Board>(asAgent ? '?as_agent=true' : ''),
   ask: (ref: string, offer_kind: OfferKind, offer_value: number | null, note: string) =>
     call<BoardAsk>(`/${encodeURIComponent(ref)}/ask`, { method: 'POST', json: { offer_kind, offer_value, note: note || null } }),
   withdraw: (ref: string) => call<{ ok: boolean }>(`/${encodeURIComponent(ref)}/ask`, { method: 'DELETE' }),

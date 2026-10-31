@@ -27,7 +27,8 @@ function writeSeen(at: number) {
 }
 
 export default function LeadBoardPage() {
-  const { data, error, loading, reload } = useAsync(() => boardApi.get(), [])
+  const [asAgent, setAsAgent] = useState(false)
+  const { data, error, loading, reload } = useAsync(() => boardApi.get(asAgent), [asAgent])
   const [area, setArea] = useState<string | null>(null)
   const [updated, setUpdated] = useState<Date | null>(null)
   const [, tick] = useState(0)
@@ -58,6 +59,11 @@ export default function LeadBoardPage() {
         Every buyer who asked {data?.owner ? 'us' : 'Avasetu'} about a home, newest first. Their name and number stay
         hidden: {data?.owner ? 'agents ask for a lead, you give it to one of them.' : 'ask for the ones you can serve, and when a lead is given to you it comes to your Leads with the full details.'}
       </p>
+      <button type="button" onClick={() => setAsAgent((v) => !v)}
+        className={`min-h-[44px] w-full rounded-xl border px-4 text-sm font-semibold ${asAgent ? 'border-[#0f2340] bg-[#0f2340] text-white' : 'border-gray-300 bg-white text-gray-800'}`}>
+        {asAgent ? 'Viewing as an agent · back to my view' : 'View as an agent'}
+      </button>
+      {asAgent && <p className="rounded-xl bg-sky-50 p-3 text-sm text-sky-900">This is the board exactly as another agent sees it. Buttons are off here.</p>}
       {data?.owner && <ShareBox items={data.items} />}
       {areas.length > 1 && (
         <div className="-mx-1 flex flex-wrap gap-2" role="group" aria-label="Area">
@@ -73,7 +79,7 @@ export default function LeadBoardPage() {
       {error && <ErrorBox message={error} onRetry={reload} />}
       {data && items.length === 0 && <p className="rounded-2xl bg-gray-50 p-4 text-sm text-gray-700">No open leads right now. New ones come up here as buyers ask.</p>}
       <ul className="space-y-3">
-        {items.map((c) => <BoardRow key={c.ref} card={c} owner={data!.owner} fresh={isNew(c)} onChange={reload} />)}
+        {items.map((c) => <BoardRow key={c.ref} card={c} owner={data!.owner} preview={!!data!.preview} fresh={isNew(c)} onChange={reload} />)}
       </ul>
     </div>
   )
@@ -106,7 +112,7 @@ function Chip({ children }: { children: React.ReactNode }) {
   return <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-800">{children}</span>
 }
 
-function BoardRow({ card: c, owner, fresh, onChange }: { card: BoardCard; owner: boolean; fresh: boolean; onChange: () => void }) {
+function BoardRow({ card: c, owner, preview, fresh, onChange }: { card: BoardCard; owner: boolean; preview: boolean; fresh: boolean; onChange: () => void }) {
   const facts = [c.bhk, c.budget, c.when && `Buying: ${c.when}`, c.paying, c.wants].filter(Boolean) as string[]
   return (
     <li className={`space-y-3 rounded-2xl border bg-white p-4 ${fresh ? 'border-green-500' : 'border-gray-200'}`}>
@@ -136,7 +142,7 @@ function BoardRow({ card: c, owner, fresh, onChange }: { card: BoardCard; owner:
         </p>
       )}
       <p className="text-xs text-gray-500">{c.age} · from {c.came_from} · active {timeAgo(c.last_active_at)}{c.asked ? ` · ${c.asked} agent${c.asked === 1 ? '' : 's'} asked` : ''}</p>
-      {owner ? <OwnerAsks card={c} onChange={onChange} /> : c.yours ? (
+      {preview ? <Btn disabled>Ask for this lead</Btn> : owner ? <OwnerAsks card={c} onChange={onChange} /> : c.yours ? (
         <Link href={`/studio/leads/${c.lead_id}`} className="flex min-h-[48px] items-center justify-center rounded-xl border border-gray-300 font-semibold text-gray-800">Open in my Leads</Link>
       ) : <AskBox card={c} onChange={onChange} />}
     </li>

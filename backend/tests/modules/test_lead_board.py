@@ -2,7 +2,7 @@
 gives it to one of them (owner, 2026-10-31)."""
 from datetime import datetime, timedelta
 
-from app.modules.inbox.board import LeadBoard, ref_of
+from app.modules.inbox.board import PREVIEW, LeadBoard, ref_of
 from app.modules.inbox.service import InboxError, InboxService
 
 from .fakes import FakeDb
@@ -87,6 +87,15 @@ async def test_offers_are_sealed_and_the_owner_gives_the_lead_to_one_agent():
     assert [c["with_agent"] for c in (await board.cards(HD))["items"]] == [True]   # still on the board, now with Stavan
     closed = await db.get_collection("notifications").find_one({"agent_id": HD, "kind": "lead_ask_closed"})
     assert closed is not None
+
+
+async def test_view_as_an_agent_shows_what_any_agent_reads_and_nothing_of_the_owner():
+    _, board, _ = await setup(lead("rahul"), lead("saket", agent_id=HD, passed_by=OWNER, passed_to=HD))
+    await board.ask(HD, ref_of("rahul"), "fee", 2000)
+    view = await board.cards(PREVIEW)
+    assert view["preview"] is True and view["owner"] is False
+    assert all(not c["yours"] and "lead_id" not in c and "asks" not in c and c["mine"] is None for c in view["items"])
+    assert sorted(c["with_agent"] for c in view["items"]) == [False, True]
 
 
 async def test_the_owner_cannot_ask_and_a_lead_goes_only_to_an_agent_who_asked():

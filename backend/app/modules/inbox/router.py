@@ -17,7 +17,8 @@
   DELETE /conversations/routes/{id}   (owner) remove one
 
 Lead board, mounted at /lead-board (board.py): the owner's open leads without name or number, for signed-in agents
-  GET    /lead-board                  the cards; the owner also gets every ask with its offer
+  GET    /lead-board                  the cards; the owner also gets every ask with its offer; ?as_agent=true: as any other
+                                       agent sees it (the owner and a holder can check what agents read)
   POST   /lead-board/{ref}/ask        (agent) ask for a lead: {offer_kind: none|fee|share, offer_value, note}; asking again changes it
   DELETE /lead-board/{ref}/ask        (agent) take the ask back
   POST   /lead-board/{ref}/give       (owner) give the lead to an agent who asked: {agent_id}; an ordinary pass
@@ -35,7 +36,7 @@ from app.modules.concierge import config as concierge_config
 from app.modules.concierge.router import owner_only
 from app.modules.whatsapp.router import build_service
 
-from .board import LeadBoard
+from .board import PREVIEW, LeadBoard
 from .service import InboxError, InboxService
 
 router = APIRouter()
@@ -161,8 +162,8 @@ async def start(lead_id: str, user: User = Depends(current_active_user), svc: In
 
 
 @board_router.get("")
-async def board(user: User = Depends(current_active_user), b: LeadBoard = Depends(get_board)) -> dict:
-    return await b.cards(str(user.id))
+async def board(as_agent: bool = False, user: User = Depends(current_active_user), b: LeadBoard = Depends(get_board)) -> dict:
+    return await b.cards(PREVIEW if as_agent else str(user.id))
 
 
 @board_router.post("/{ref}/ask")
