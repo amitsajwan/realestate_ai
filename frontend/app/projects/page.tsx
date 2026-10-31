@@ -2,6 +2,7 @@ import React from 'react'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import MarketingShell from '@/components/marketing/MarketingShell'
+import HomePlanBox from '@/components/site/homeplan/HomePlanBox'
 import ProjectSearch from '@/components/site/ProjectSearch'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/seo'
@@ -66,6 +67,8 @@ export default async function ProjectsPage({ searchParams }: Props) {
           Already bought?{' '}
           <Link href="/check" className="inline-flex min-h-[44px] items-center font-semibold text-[#0f2340] underline underline-offset-2">Check your project&apos;s possession date on MahaRERA</Link>
         </p>
+
+        <div className="mt-10"><HomePlanBox /></div>
 
         {/* the home finder (lib/site/finder), the same rules as an agent's site: our areas' projects, agent-listed first */}
         <div className="mt-10">
