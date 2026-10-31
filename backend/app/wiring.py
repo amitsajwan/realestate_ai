@@ -60,6 +60,9 @@ def wire() -> None:
     # builder logos for project pages with no picture of their own (areastats.logos)
     from app.modules.areastats import logos
     project_enrich.add_daily("builder logos", logos.refresh)
+    # a street map of where the project is, for pages with no picture (areastats.locmap)
+    from app.modules.areastats import locmap
+    project_enrich.add_daily("location maps", locmap.refresh)
     # areas by place: a pinned project belongs to the area it is in (areastats.placement, app/core/area_bounds.py)
     from app.modules.areastats import placement
     placement.configure(pin_address=_pin_address)

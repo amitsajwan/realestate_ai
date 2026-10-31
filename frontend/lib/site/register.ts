@@ -40,6 +40,8 @@ export interface RegisterProject {
   details?: ProjectDetailsGrid
   buildings?: RegisterBuilding[]
   map?: { lat: number; lon: number } | null
+  /** a street map drawn around the checked pin, for the hero when there is no picture (backend areastats/locmap.py) */
+  location_picture?: { url: string; width: number; height: number } | null
   builder?: BuilderRecord | null
   place?: string | null
   taluka?: string | null

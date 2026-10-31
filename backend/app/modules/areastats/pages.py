@@ -417,6 +417,33 @@ def delivery(mine: List[dict]) -> dict:
             "avg_months_later": round(sum(moved) / len(moved)) if moved else None, "record_ok": len(with_dates) >= RECORD_MIN}
 
 
+MAP_SIZE = (960, 540)   # the location picture (areastats.locmap)
+MAP_MOVED = 0.0005      # degrees (~50 m): a pin that moved this much gets a new location picture
+
+
+def checked_pin(d: dict) -> Optional[tuple]:
+    """(lat, lon) of the project as the area maps (`map_pin`, auto or approved) or the page's location check (a Google
+    position the places step passed) have it; None when neither is checked."""
+    mp = d.get("map_pin") or {}
+    if mp.get("status") in ("auto", "approved") and mp.get("lat") is not None and mp.get("lon") is not None:
+        return float(mp["lat"]), float(mp["lon"])
+    g = d.get("geo") or {}
+    checked = (((d.get("enrichment") or {}).get("steps") or {}).get("places") or {}).get("ok")
+    if checked and g.get("lat") is not None and g.get("lon") is not None:
+        return float(g["lat"]), float(g["lon"])
+    return None
+
+
+def location_picture(d: dict) -> Optional[dict]:
+    """The street map drawn around the project's pin (areastats.locmap): {url, width, height}, only while the pin is where it
+    was drawn."""
+    m = d.get("location_map") or {}
+    pin = checked_pin(d)
+    if not m.get("path") or pin is None or abs((m.get("lat") or 0) - pin[0]) >= MAP_MOVED             or abs((m.get("lon") or 0) - pin[1]) >= MAP_MOVED:
+        return None
+    return {"url": "/uploads/" + m["path"], "width": MAP_SIZE[0], "height": MAP_SIZE[1]}
+
+
 def builder_logo(docs: List[dict]) -> Optional[dict]:
     """The builder's logo from the first of its records that has one (areastats.logos): {url, width, height, tone, site}."""
     for d in docs:
@@ -500,6 +527,8 @@ def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None) ->
         # a position only when the check put it near the pincode's centre
         "map": {"lat": geo["lat"], "lon": geo["lon"]} if geo.get("lat") is not None and checked.get("ok") else None,
         "map_from": geo.get("located_from") if geo.get("lat") is not None and checked.get("ok") else None,
+        # a street map around the pin, for the hero when the project has no picture (areastats.locmap)
+        "location_picture": location_picture(doc),
         "checks": checks(doc), "text_checked": bool(doc.get("page_text")),
         "builder": track_record(doc, docs) if docs is not None else None,
         "place": doc.get("place_locality") or None, "taluka": doc.get("taluka") or None,

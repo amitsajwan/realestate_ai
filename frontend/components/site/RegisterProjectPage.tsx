@@ -180,8 +180,9 @@ function brandLine(p: RegisterProject): string | null {
 /** The page's opening: the builder's first picture, then name (with its phase), builder, area and registration on a dark band,
  *  the four things a buyer asks first (home types, price, possession, how many are booked) and the two actions. The picture comes
  *  first on phones because a navy card of numbers was all the first screen showed (design review 2026-10-25); it is only ever
- *  the builder's own picture, never an AI illustration standing in for a real one. With no picture, the builder's logo takes its
- *  place (backend areastats/logos.py: most projects have none, 2026-10-31). */
+ *  the builder's own picture, never an AI illustration standing in for a real one. With no picture (most projects, 2026-10-31),
+ *  a street map around the project's pin takes its place with the builder's logo over it (backend areastats/locmap.py,
+ *  logos.py), else the logo alone. */
 function Hero({ p, price, photo, linkless = false }: { p: RegisterProject; price: { from: string; bhks: string } | null; photo: ProfilePicture | null; linkless?: boolean }) {
   const stats: { label: string; value: React.ReactNode; sub?: React.ReactNode; id: string }[] = []
   // the agent's live sheet when there is one, else the portals' prices: one price on the page, never both
@@ -200,8 +201,9 @@ function Hero({ p, price, photo, linkless = false }: { p: RegisterProject; price
   const aka = otherNames(p, [p.name, heading])   // the legal name has its own line
   const legal = p.name.trim().toLowerCase() !== heading.trim().toLowerCase()
   const logo = p.builder?.logo ?? null
+  const whereMap = photo ? null : p.location_picture ?? null
   return (
-    <header id="project-hero" className={`overflow-hidden rounded-3xl bg-[#0f2340] text-white shadow-lg ${photo || logo ? 'lg:grid lg:grid-cols-5' : ''}`}>
+    <header id="project-hero" className={`overflow-hidden rounded-3xl bg-[#0f2340] text-white shadow-lg ${photo || logo || whereMap ? 'lg:grid lg:grid-cols-5' : ''}`}>
       {photo && (
         <figure className="relative m-0 aspect-[16/9] bg-slate-800 lg:order-last lg:col-span-2 lg:aspect-auto lg:h-full" data-testid="hero-photo">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -212,9 +214,25 @@ function Hero({ p, price, photo, linkless = false }: { p: RegisterProject; price
           </figcaption>
         </figure>
       )}
-      {!photo && logo && (
-        // no picture of the project: the builder's logo in its place (owner 2026-10-31, "the page looks empty"); a logo drawn
-        // for a dark header sits on the band itself, any other on white
+      {whereMap && (
+        // no picture of the project: where it is, drawn around its checked pin, with the builder's logo over it when we have one
+        <figure className="relative m-0 aspect-[16/9] bg-slate-200 lg:order-last lg:col-span-2 lg:aspect-auto lg:h-full lg:min-h-[16rem]" data-testid="hero-map">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={whereMap.url} alt={`Map: where ${heading} is`} width={whereMap.width} height={whereMap.height}
+            loading="eager" decoding="async" className="h-full w-full object-cover" />
+          {logo && (
+            <span className="absolute left-3 top-3 flex h-14 max-w-[55%] items-center rounded-xl bg-white px-3 py-2 shadow" data-testid="hero-map-logo">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={logo.url} alt={`${p.builder?.name ?? 'The builder'} logo`} width={logo.width ?? undefined} height={logo.height ?? undefined}
+                className={`max-h-full max-w-full object-contain ${logo.tone === 'light' ? 'rounded bg-[#0f2340] p-1' : ''}`} />
+            </span>
+          )}
+          <figcaption className="sr-only">The project&apos;s position on the map</figcaption>
+        </figure>
+      )}
+      {!photo && !whereMap && logo && (
+        // no picture and no map: the builder's logo in the picture's place (owner 2026-10-31, "the page looks empty"); a logo
+        // drawn for a dark header sits on the band itself, any other on white
         <figure className={`relative m-0 flex h-36 items-center justify-center px-8 py-6 lg:order-last lg:col-span-2 lg:h-full lg:min-h-[16rem] ${logo.tone === 'light' ? 'bg-[#16305a]' : 'bg-white'}`} data-testid="hero-logo">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={logo.url} alt={`${p.builder?.name ?? 'The builder'} logo`} width={logo.width ?? undefined} height={logo.height ?? undefined}

@@ -209,6 +209,22 @@ describe('the hero', () => {
     expect(screen.queryByTestId('hero-logo')).toBeNull()
   })
 
+  it("shows where the project is when it has no picture, with the builder's logo over the map", () => {
+    const logo = { url: '/uploads/builder_logos/kohinoor-group.png', width: 257, height: 70, tone: 'light' as const, site: 'kohinoorpune.com' }
+    const builder = { name: 'Kohinoor Group', count: 2, with_dates: 0, moved_later: 0, avg_months_later: null, projects: [], logo }
+    const location_picture = { url: '/uploads/project_maps/p52100012345.webp', width: 960, height: 540 }
+    const { unmount } = render(<RegisterProjectPage p={{ ...P, builder, location_picture }} siteUrl="https://avasetu.in" facts={null} />)
+    const map = screen.getByTestId('hero-map')
+    expect(within(map).getByRole('img', { name: /^Map: where/ })).toHaveAttribute('src', location_picture.url)
+    expect(within(screen.getByTestId('hero-map-logo')).getByRole('img')).toHaveAttribute('alt', 'Kohinoor Group logo')
+    expect(screen.queryByTestId('hero-logo')).toBeNull()
+    unmount()
+    const profile = { highlights: [], plans: [], read_at: null, photos: [PHOTO('/m/a.webp', 'builder')] } as never
+    render(<RegisterProjectPage p={{ ...P, builder, location_picture, profile }} siteUrl="https://avasetu.in" facts={null} />)
+    expect(screen.getByTestId('hero-photo')).toBeInTheDocument()
+    expect(screen.queryByTestId('hero-map')).toBeNull()
+  })
+
   it('shows the registration once, the brand without the SPV, no Registered tile and a plain stage', () => {
     const p: RegisterProject = { ...P, promoter: 'Manjari Housing Projects LLP', stage: 'early',
       builder: { name: 'Godrej Properties', count: 1, with_dates: 0, moved_later: 0, avg_months_later: null, projects: [] },

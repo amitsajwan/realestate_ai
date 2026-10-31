@@ -204,8 +204,18 @@ Seen in that trial: vilasjavdekar.com is a channel partner's site ("Authorized C
 facts count it as Vilas Javdekar's own (`webfacts.official` matches the domain word). OPEN: the official-site test cannot
 tell a builder from a partner using its name.
 
-TARGET: a map of the project's location in the same slot for projects with neither picture nor logo (owner said build it
-2026-10-31, after the logos).
+### Where it is, when there is no picture (2026-10-31)
+
+Logos reach about one page in five, so every page with a checked pin and no picture of its own also gets a street map
+(`areastats/locmap.py`): drawn once around the pin (`pages.checked_pin`: the area maps' auto/approved `map_pin`, else the
+Google position the places check passed) from OpenStreetMap tiles at zoom 15 (about 3 km across), 960x540, our amber pin
+at the centre, "© OpenStreetMap contributors" in the corner. 40 projects a day, hottest first, at most 20 tiles each, read
+one by one with our User-Agent (OSM's tile policy: light use, cached); a round stops after 3 failures with nothing drawn.
+Stored as `location_map` on the record and drawn again only when the pin moves 50 m or more (`pages.location_picture` hides
+a map drawn at the old place meanwhile).
+
+The hero's picture slot, in order: the builder's (or listing agent's) photo; else the map, with the builder's logo on a
+white card at its top-left; else the logo alone.
 
 ## Learning from Housiey (2026-10-20)
 
