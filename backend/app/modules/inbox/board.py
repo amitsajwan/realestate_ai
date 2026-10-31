@@ -162,7 +162,8 @@ def signals(lead: dict, convs: List[dict], act: dict) -> List[str]:
     out = []
     wrote = [c["channel"] for c in convs for m in (c["doc"].get("messages") or []) if (m.get("role") or "") in contactmod.THEM]
     if wrote:
-        out.append(f"Wrote to us on {CHANNEL_WORDS.get(wrote[-1], wrote[-1])}")
+        n = len(wrote)
+        out.append(f"Replied to us on {CHANNEL_WORDS.get(wrote[-1], wrote[-1])}" + (f" ({n} messages)" if n > 1 else ""))
     if any(k.get("outcome") == "answered" for k in lead.get("calls") or []):
         out.append("Picked up our call")
     req = lead.get("requirement") or {}
@@ -193,7 +194,6 @@ def card(lead: dict, project: Optional[dict], convs: List[dict], events: List[di
     value = scoring.score(lead.get("score_base", 0), lead["last_activity_at"], now, req.get("timeline"))
     act = activity(events, names)
     sig = signals(lead, convs, act)
-    state = contactmod.state_of(lead, convs)["state"]
     return {
         "ref": ref_of(lead["_id"]),
         "project": project["name"] if project else None,
@@ -208,8 +208,10 @@ def card(lead: dict, project: Optional[dict], convs: List[dict], events: List[di
         "created_at": lead["created_at"],
         "last_active_at": lead["last_activity_at"],
         "temperature": scoring.temperature(value),
-        # talked = they answered us (a message or a picked-up call); the rest left a number and nothing more yet
-        "genuine": ("talked" if (sig[0].startswith(("Wrote", "Picked")) or state == "in_touch")
+        # called = a call to them was answered (a person spoke with them); replied = they wrote back to our message (2026-10-31: five
+        # leads read "spoke with us" for replying "Yes" or "Katraj" to our WhatsApp bot, and nobody had called any of them)
+        "genuine": ("called" if any(k.get("outcome") == "answered" for k in lead.get("calls") or [])
+                    else "replied" if sig[0].startswith("Replied")
                     else "number" if contactmod.wa_digits(lead.get("phone")) else "no_number"),
         "signals": sig,
         "activity": {k: v for k, v in act.items() if k != "agent_pages"},

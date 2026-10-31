@@ -112,7 +112,8 @@ deals are off. Each card has its stage. On 2026-10-31 that is 18: 7 the owner's,
 
 From scratch (owner, 2026-10-31: "start from scratch, as if nothing shared"; "think how it can be sold, not information that is not
 required"; "show numbers against areas"): no card says a lead was shared, who has it, or its stage; any agent (the holder too)
-can ask, and giving it to the holder just keeps it with them. Only "Verified: spoke with us" is highlighted. The area chips carry
+can ask, and giving it to the holder just keeps it with them. Only "Spoke with us on the phone" (an answered call) or "Replied on WhatsApp" (they wrote back to our message) is highlighted;
+the first version said "spoke with us" for a WhatsApp reply, and none of the five had been called. The area chips carry
 lead counts, busiest first. Any lead whose number is ours or an agent's is off, passed or not: every Studio sign-in, every agent
 page's number and office number (House Deal's team WhatsApp), our WhatsApp line +91 98342 56406 and the owner's 9767971656. An
 ask alerts the owner, also for a lead an agent holds.

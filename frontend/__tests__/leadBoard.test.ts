@@ -15,9 +15,9 @@ test('a card is titled by its project, else by what and where', () => {
 })
 
 test('the share text counts the buyers and names the areas', () => {
-  const c = { areas: ['Wagholi'], genuine: 'talked' } as BoardCard
+  const c = { areas: ['Wagholi'], genuine: 'replied' } as BoardCard
   const text = shareText([c, { ...c, areas: ['Kharadi'], genuine: 'number' }], 'https://avasetu.in/studio/lead-board')
-  expect(text).toContain('2 buyer leads on Avasetu (Wagholi, Kharadi), 1 already spoke with us.')
+  expect(text).toContain('2 buyer leads on Avasetu (Wagholi, Kharadi), 1 already replied to us.')
   expect(text).toContain('https://avasetu.in/studio/lead-board')
 })
 

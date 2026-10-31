@@ -43,7 +43,7 @@ async def test_an_agent_sees_what_the_buyer_wants_but_never_their_name_number_or
     c = items[0]
     assert (c["project"], c["areas"], c["bhk"], c["budget"], c["when"], c["paying"], c["wants"]) == (
         "Mansha Phase-II", ["Wagholi"], "2 BHK", "under 75L", "1-3 months", "Home loan", "A site visit")
-    assert c["age"] == "Came in 2 days ago" and c["came_from"] == "Google search" and c["genuine"] == "talked"
+    assert c["age"] == "Came in 2 days ago" and c["came_from"] == "Google search" and c["genuine"] == "called"
     assert "Picked up our call" in c["signals"] and "Told us their budget, BHK, when themselves" in c["signals"]
     shown = repr(c)
     for secret in ("Rahul", "Thombare", "98765", "rahul", "call me"):
@@ -58,7 +58,7 @@ async def test_every_lead_shows_except_won_deals_tests_and_bare_comments():
     cards = {c["ref"]: c for c in (await board.cards(HD))["items"]}
     assert set(cards) == {ref_of(i) for i in ("ok", "lost", "given", "old", "nonum")}
     assert all("stage" not in c for c in cards.values())   # no follow-up state on a card: only what sells the lead
-    assert cards[ref_of("nonum")]["genuine"] == "talked"   # picked up our call, number or not
+    assert cards[ref_of("nonum")]["genuine"] == "called"   # picked up our call, number or not
 
 
 async def test_a_number_we_know_keeps_any_lead_off_even_a_passed_one_but_a_passed_lead_is_not_dropped_by_its_name():
@@ -171,3 +171,13 @@ async def test_giving_a_lead_to_the_agent_who_already_has_it_leaves_it_with_them
     r = await board.give(OWNER, ref_of("saket"), HD)
     kept = await db.get_collection("contacts").find_one({"_id": "saket"})
     assert r["passed_to"] == "House Deal" and kept["agent_id"] == HD and kept["handover"]["by"] == "board" and wa.sent == []
+
+
+async def test_a_reply_to_our_whatsapp_is_a_reply_not_a_conversation_with_us():
+    db, board, _ = await setup(lead("vikram", calls=[]))
+    await db.get_collection("whatsapp_conversations").insert_one({"_id": "P:919876500001", "wa_id": "919876500001", "lead_id": "vikram",
+        "agent_id": OWNER, "messages": [{"role": "agent", "sent_by": "auto", "text": "Namaste", "ts": NOW - timedelta(days=1)},
+                                        {"role": "user", "text": "Yes", "ts": NOW - timedelta(days=1)},
+                                        {"role": "user", "text": "Katraj", "ts": NOW - timedelta(days=1)}]})
+    c = (await board.cards(HD))["items"][0]
+    assert c["genuine"] == "replied" and "Replied to us on WhatsApp (2 messages)" in c["signals"]

@@ -126,7 +126,8 @@ function BoardRow({ card: c, owner, preview, fresh, onChange }: { card: BoardCar
         <TempChip temperature={c.temperature} />
       </div>
       {facts.length > 0 && <div className="flex flex-wrap gap-1.5">{facts.map((f) => <Chip key={f}>{f}</Chip>)}</div>}
-      {c.genuine === 'talked' && <p className="rounded-lg bg-green-50 px-2 py-1 text-xs font-semibold text-green-800">Verified: spoke with us</p>}
+      {c.genuine === 'called' && <p className="rounded-lg bg-green-50 px-2 py-1 text-xs font-semibold text-green-800">Spoke with us on the phone</p>}
+      {c.genuine === 'replied' && <p className="rounded-lg bg-green-50 px-2 py-1 text-xs font-semibold text-green-800">Replied on WhatsApp</p>}
       <ul className="space-y-0.5 text-sm text-gray-700">
         {c.signals.map((s) => <li key={s}>✓ {s}</li>)}
       </ul>

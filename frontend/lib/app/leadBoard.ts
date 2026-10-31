@@ -60,7 +60,7 @@ export interface BoardCard {
   temperature: 'hot' | 'warm' | 'cold'
   /** talked = they wrote back or picked up our call; number = they left a mobile number, nothing more yet; no_number = they said what
    *  they want but left no number. */
-  genuine: 'talked' | 'number' | 'no_number'
+  genuine: 'called' | 'replied' | 'number' | 'no_number'
   signals: string[]
   /** What they did on the site (no names or numbers). */
   activity: BoardActivity
@@ -131,9 +131,9 @@ export function boardTitle(c: Pick<BoardCard, 'project' | 'bhk' | 'areas'>): str
 /** The WhatsApp text the owner sends agents with the link: how many buyers, and where. */
 export function shareText(items: BoardCard[], url: string): string {
   const areas = Array.from(new Set(items.flatMap((c) => c.areas))).slice(0, 4)
-  const talked = items.filter((c) => c.genuine === 'talked').length
+  const replied = items.filter((c) => c.genuine === 'called' || c.genuine === 'replied').length
   return [
-    `${items.length} buyer lead${items.length === 1 ? '' : 's'} on Avasetu${areas.length ? ` (${areas.join(', ')})` : ''}${talked ? `, ${talked} already spoke with us` : ''}.`,
+    `${items.length} buyer lead${items.length === 1 ? '' : 's'} on Avasetu${areas.length ? ` (${areas.join(', ')})` : ''}${replied ? `, ${replied} already replied to us` : ''}.`,
     'See what each buyer wants and ask for the ones you can serve. Name and number come to you when the lead is given to you.',
     url,
     'Avasetu team',
