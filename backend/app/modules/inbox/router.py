@@ -23,6 +23,7 @@ Lead board, mounted at /lead-board (board.py): the owner's open leads without na
   DELETE /lead-board/{ref}/ask        (agent) take the ask back
   POST   /lead-board/{ref}/give       (owner) give the lead to an agent who asked: {agent_id}; an ordinary pass
   POST   /lead-board/{ref}/remove     (owner) take a lead off the board (a test, or one the owner keeps)
+  GET    /lead-board/agents           (owner) the agents to send the board to from the owner's own WhatsApp
 """
 from typing import Literal, Optional
 
@@ -164,6 +165,11 @@ async def start(lead_id: str, user: User = Depends(current_active_user), svc: In
 @board_router.get("")
 async def board(as_agent: bool = False, user: User = Depends(current_active_user), b: LeadBoard = Depends(get_board)) -> dict:
     return await b.cards(PREVIEW if as_agent else str(user.id))
+
+
+@board_router.get("/agents")
+async def board_agents(user: User = Depends(owner_only), b: LeadBoard = Depends(get_board)) -> dict:
+    return {"items": await _run(b.agents(str(user.id)))}
 
 
 @board_router.post("/{ref}/ask")

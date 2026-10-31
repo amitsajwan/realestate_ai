@@ -86,10 +86,43 @@ export default function LeadBoardPage() {
   )
 }
 
+const SENT_KEY = 'lead_board_sent'
+
+function readSent(): Record<string, number> {
+  try { return JSON.parse(window.localStorage.getItem(SENT_KEY) || '{}') } catch { return {} }
+}
+
+/**
+ * Owner: send the board from your own WhatsApp (owner, 2026-10-31: "how will I get the agent list; there should be a button to
+ * select agents"). Pick agents (the ones with no listings are picked first), then tap Send by each: WhatsApp opens with the
+ * message typed and their name in it. One tap per agent, since WhatsApp opens one chat at a time. Sent ones are ticked on this
+ * device for a day.
+ */
 function ShareBox({ items }: { items: BoardCard[] }) {
+  const { data: agents, error } = useAsync(() => boardApi.agents(), [])
+  const [picked, setPicked] = useState<Set<string> | null>(null)
+  const [sent, setSent] = useState<Record<string, number>>({})
   const [copied, setCopied] = useState(false)
+  useEffect(() => setSent(readSent()), [])
+  useEffect(() => {
+    if (agents && picked === null) setPicked(new Set(agents.filter((a) => a.listings === 0).map((a) => a.agent_id)))
+  }, [agents, picked])
   const url = typeof window !== 'undefined' ? `${window.location.origin}${BOARD_PATH}` : BOARD_PATH
-  const text = shareText(items, url)
+  const fresh = (id: string) => !!sent[id] && Date.now() - sent[id] < 86_400_000
+
+  function toggle(id: string) {
+    setPicked((p) => {
+      const n = new Set(p ?? [])
+      if (n.has(id)) n.delete(id)
+      else n.add(id)
+      return n
+    })
+  }
+  function markSent(id: string) {
+    const next = { ...readSent(), [id]: Date.now() }
+    try { window.localStorage.setItem(SENT_KEY, JSON.stringify(next)) } catch { /* private window: no ticks */ }
+    setSent(next)
+  }
   async function copy() {
     try {
       await navigator.clipboard.writeText(url)
@@ -98,13 +131,41 @@ function ShareBox({ items }: { items: BoardCard[] }) {
       setCopied(false)
     }
   }
+  const chosen = (agents ?? []).filter((a) => picked?.has(a.agent_id))
   return (
-    <section aria-label="Send to agents" className="space-y-2 rounded-2xl border border-green-200 bg-green-50 p-3">
-      <p className="text-sm font-semibold text-green-900">Send this board to agents</p>
-      <p className="text-xs text-green-900">They sign in with their number, see the leads below without names or numbers, and ask.</p>
-      <a href={`https://wa.me/?text=${encodeURIComponent(text)}`} target="_blank" rel="noreferrer"
-        className="flex min-h-[48px] items-center justify-center rounded-xl bg-green-600 px-4 font-semibold text-white">Share on WhatsApp</a>
-      <Btn variant="secondary" onClick={copy}>{copied ? 'Link copied' : 'Copy link'}</Btn>
+    <section aria-label="Send to agents" className="space-y-3 rounded-2xl border border-green-200 bg-green-50 p-3">
+      <div>
+        <p className="text-sm font-semibold text-green-900">Send this board to agents from your WhatsApp</p>
+        <p className="text-xs text-green-900">Pick the agents, then tap Send by each one. WhatsApp opens with the message typed; press send there.</p>
+      </div>
+      {error && <p role="alert" className="text-sm font-semibold text-red-700">{error}</p>}
+      {!agents && !error && <Spinner />}
+      {agents && (
+        <ul className="space-y-1">
+          {agents.map((a) => (
+            <li key={a.agent_id}>
+              <label className="flex min-h-[44px] items-center gap-3 rounded-lg bg-white px-3 text-sm text-gray-900">
+                <input type="checkbox" checked={!!picked?.has(a.agent_id)} onChange={() => toggle(a.agent_id)} />
+                <span className="min-w-0 flex-1 truncate font-semibold">{a.name}</span>
+                <span className="shrink-0 text-xs text-gray-500">{a.listings ? `${a.listings} listings` : 'no listings'}{a.asked ? ` · asked ${a.asked}` : ''}</span>
+              </label>
+            </li>
+          ))}
+        </ul>
+      )}
+      {chosen.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-green-900">{chosen.filter((a) => fresh(a.agent_id)).length} of {chosen.length} sent</p>
+          {chosen.map((a) => (
+            <a key={a.agent_id} href={`https://wa.me/${a.whatsapp}?text=${encodeURIComponent(shareText(items, url, a.first_name))}`}
+              target="_blank" rel="noreferrer" onClick={() => markSent(a.agent_id)}
+              className={`flex min-h-[48px] items-center justify-center rounded-xl px-4 font-semibold ${fresh(a.agent_id) ? 'border border-green-600 text-green-700' : 'bg-green-600 text-white'}`}>
+              {fresh(a.agent_id) ? `✓ Sent to ${a.name} · send again` : `Send to ${a.name}`}
+            </a>
+          ))}
+        </div>
+      )}
+      <Btn variant="secondary" onClick={copy}>{copied ? 'Link copied' : 'Copy the board link'}</Btn>
     </section>
   )
 }

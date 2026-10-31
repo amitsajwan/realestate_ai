@@ -32,3 +32,10 @@ test('area chips count leads per area, busiest first', () => {
   expect(areaCounts([{ areas: ['Kharadi'] }, { areas: ['Wagholi', 'Kharadi'] }, { areas: ['Wagholi'] }, { areas: ['Baner'] }, { areas: [] }]))
     .toEqual([{ area: 'Kharadi', count: 2 }, { area: 'Wagholi', count: 2 }, { area: 'Baner', count: 1 }])
 })
+
+
+test('the message to one agent greets them by name', () => {
+  const text = shareText([{ areas: ['Moshi'], genuine: 'replied' } as BoardCard], 'https://avasetu.in/studio/lead-board', 'Stavan')
+  expect(text.startsWith('Namaste Stavan ji, Avasetu team here.')).toBe(true)
+  expect(text).toContain('1 buyer lead on Avasetu (Moshi), 1 already replied to us.')
+})

@@ -118,6 +118,12 @@ lead counts, busiest first. Any lead whose number is ours or an agent's is off, 
 page's number and office number (House Deal's team WhatsApp), our WhatsApp line +91 98342 56406 and the owner's 9767971656. An
 ask alerts the owner, also for a lead an agent holds.
 
+Send from the owner's WhatsApp (owner, 2026-10-31: "how will I get the agent list, there should be a button to select agents"):
+the board's green box lists the live agents with a WhatsApp number (GET /lead-board/agents, owner only), those with no listings
+first and ticked; tapping "Send to <agent>" opens wa.me with the board message greeting them by name. One tap per agent (WhatsApp
+opens one chat at a time); sent ones are ticked on that device for a day. Our number cannot message them outside 24 h without a
+template, so this is the free way. TARGET: a lead_board template on our number.
+
 What they looked at (owner, 2026-10-31: "more details, what the visitor was checking, what pages"): each card has the pages in
 order with minutes read (project pages by their shown name, area lists, guides, news), visits and days, phone or computer, the
 city of the visit (an NRI in Bahrain shows "Manama"), and taps on WhatsApp/call; signals add "came back on N days", "sent N

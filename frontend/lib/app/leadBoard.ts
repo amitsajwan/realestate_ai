@@ -74,6 +74,9 @@ export interface BoardCard {
   asks?: OwnerAsk[]
 }
 
+/** Owner: an agent to send the board to from the owner's own WhatsApp. */
+export interface BoardAgent { agent_id: string; name: string; first_name: string; whatsapp: string; listings: number; asked: number }
+
 export interface Board { items: BoardCard[]; owner: boolean; /** "View as an agent": read only. */ preview?: boolean }
 
 /** The link the owner sends to agents. */
@@ -111,6 +114,8 @@ export const boardApi = {
   withdraw: (ref: string) => call<{ ok: boolean }>(`/${encodeURIComponent(ref)}/ask`, { method: 'DELETE' }),
   /** Owner: take a lead off the board. */
   remove: (ref: string) => call<{ ok: boolean }>(`/${encodeURIComponent(ref)}/remove`, { method: 'POST' }),
+  /** Owner: the agents to send the board to. */
+  agents: async (): Promise<BoardAgent[]> => (await call<{ items: BoardAgent[] }>('/agents')).items ?? [],
   give: (ref: string, agentId: string) => call<PassResult>(`/${encodeURIComponent(ref)}/give`, { method: 'POST', json: { agent_id: agentId } }),
 }
 
@@ -129,10 +134,11 @@ export function boardTitle(c: Pick<BoardCard, 'project' | 'bhk' | 'areas'>): str
 }
 
 /** The WhatsApp text the owner sends agents with the link: how many buyers, and where. */
-export function shareText(items: BoardCard[], url: string): string {
+export function shareText(items: BoardCard[], url: string, firstName?: string): string {
   const areas = Array.from(new Set(items.flatMap((c) => c.areas))).slice(0, 4)
   const replied = items.filter((c) => c.genuine === 'called' || c.genuine === 'replied').length
   return [
+    ...(firstName ? [`Namaste ${firstName} ji, Avasetu team here.`] : []),
     `${items.length} buyer lead${items.length === 1 ? '' : 's'} on Avasetu${areas.length ? ` (${areas.join(', ')})` : ''}${replied ? `, ${replied} already replied to us` : ''}.`,
     'See what each buyer wants and ask for the ones you can serve. Name and number come to you when the lead is given to you.',
     url,

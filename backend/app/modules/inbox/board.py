@@ -43,7 +43,7 @@ from app.modules.tracking import live, scoring
 from app.modules.tracking.requirement import TIMELINE_LABEL, bhk_text, budget_text
 
 from . import handover
-from .service import InboxError, InboxService
+from .service import InboxError, InboxService, _lead_digits
 
 log = logging.getLogger(__name__)
 
@@ -377,6 +377,23 @@ class LeadBoard:
     def _owner_of(self, lead: dict) -> str:
         """The owner whose lead it is: the account it is in, or the one that passed it on."""
         return lead["agent_id"] if lead["agent_id"] in self.owners else lead.get("passed_by") or lead["agent_id"]
+
+    async def agents(self, owner_id: str) -> List[dict]:
+        """The live agents the owner can send the board to from their own WhatsApp (owner, 2026-10-31: "if I send from my personal
+        number, how will I get the agent list; there should be a button to select agents"), with their WhatsApp digits, how many
+        listings they have (the ones with none are who the board is for) and whether they asked for a lead yet."""
+        if not self.is_owner(owner_id):
+            raise InboxError("Only the owner sends the board", 403)
+        rows = []
+        for a in await self.inbox.agents(owner_id):
+            prof = await self.c("agent_public_profiles").find_one({"agent_id": a["agent_id"]}) or {}
+            digits = _lead_digits(prof)
+            if not digits:
+                continue
+            rows.append({"agent_id": a["agent_id"], "name": a["name"], "first_name": (prof.get("agent_name") or a["name"]).split()[0].title(),
+                         "whatsapp": digits, "listings": await self.c("listings").count_documents({"agent_id": a["agent_id"]}),
+                         "asked": await self.c("lead_asks").count_documents({"agent_id": a["agent_id"]})})
+        return sorted(rows, key=lambda r: (r["listings"] > 0, r["name"].lower()))
 
     async def withdraw(self, agent_id: str, ref: str) -> dict:
         lead = await self._find(ref)

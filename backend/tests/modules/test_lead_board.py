@@ -181,3 +181,16 @@ async def test_a_reply_to_our_whatsapp_is_a_reply_not_a_conversation_with_us():
                                         {"role": "user", "text": "Katraj", "ts": NOW - timedelta(days=1)}]})
     c = (await board.cards(HD))["items"][0]
     assert c["genuine"] == "replied" and "Replied to us on WhatsApp (2 messages)" in c["signals"]
+
+
+async def test_the_owner_gets_the_agents_to_send_the_board_to_those_with_no_listings_first():
+    db, board, _ = await setup(lead("rahul"))
+    await db.get_collection("listings").insert_one({"_id": "l1", "agent_id": HD})
+    rows = await board.agents(OWNER)
+    assert [(r["name"], r["whatsapp"], r["listings"], r["first_name"]) for r in rows] == [
+        ("Stavan", "919921900002", 0, "Stavan"), ("House Deal", "919921900001", 1, "House")]
+    try:
+        await board.agents(HD)
+        assert False, "an agent got the agent list"
+    except InboxError as e:
+        assert e.status_code == 403
