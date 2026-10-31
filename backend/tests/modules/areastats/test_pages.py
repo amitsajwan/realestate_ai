@@ -57,12 +57,15 @@ async def test_indexable_needs_a_date_and_a_promoter_or_pincode():
 
 async def test_search_sees_only_pages_with_content_beyond_the_register():
     assert not pages.searchable(FULL)                                    # register facts alone: listed, kept out of search
-    assert pages.searchable({**FULL, "page_text": "About the project."})
-    assert pages.searchable({**FULL, "prices": {"rows": [{"bhk": 2}]}})
-    assert pages.searchable({**FULL, "web_facts": {"facts": [{"key": "towers"}]}})
-    assert pages.searchable({**FULL, "profile": {"highlights": [], "photos": [{"url": "x"}]}})
-    assert not pages.searchable({**FULL, "profile": {"highlights": [], "photos": [], "plans": []}, "web_facts": {"facts": []}})
-    assert not pages.searchable({**FULL, "page_text": "About.", "completion_now": None})   # still needs what a listable page needs
+    written = {**FULL, "page_text": "About the project."}
+    assert not pages.searchable(written)                                 # a paragraph alone is thin (owner 2026-10-31)
+    assert not pages.searchable({**FULL, "prices": {"rows": [{"bhk": 2}]}})   # a fact without written text is thin too
+    assert pages.searchable({**written, "prices": {"rows": [{"bhk": 2}]}})
+    assert pages.searchable({**written, "web_facts": {"facts": [{"key": "towers"}]}})
+    assert pages.searchable({**written, "profile": {"highlights": ["Clubhouse"]}})
+    assert pages.searchable({**written, "profile": {"highlights": [], "photos": [{"url": "x"}]}})
+    assert not pages.searchable({**written, "profile": {"highlights": [], "photos": [], "plans": []}, "web_facts": {"facts": []}})
+    assert not pages.searchable({**written, "prices": {"rows": [{"bhk": 2}]}, "completion_now": None})   # still needs what a listable page needs
 
 
 async def test_page_updated_is_our_own_change_never_maharera():
@@ -76,8 +79,9 @@ async def test_page_updated_is_our_own_change_never_maharera():
 
 async def test_an_ai_illustration_is_not_content_of_the_projects_own():
     drawn = {"photos": [{"path": "a.webp", "source": "ai"}]}
-    assert not pages.searchable({**FULL, "profile": drawn})
-    assert pages.searchable({**FULL, "profile": {"photos": [{"path": "b.webp", "source": "builder"}]}})
+    written = {**FULL, "page_text": "About the project."}
+    assert not pages.searchable({**written, "profile": drawn})
+    assert pages.searchable({**written, "profile": {"photos": [{"path": "b.webp", "source": "builder"}]}})
 
 
 async def test_a_page_in_search_shows_no_ai_illustrations():
@@ -92,11 +96,12 @@ async def test_web_photos_do_not_make_a_page_searchable():
     copied = {"photos": [{"path": "a.webp", "source": "web", "site": "housiey.com"}],
               "plans": [{"path": "p.webp", "source": "web", "site": "magicbricks.com"}]}
     assert not pages.has_own_content({**FULL, "profile": copied})
-    assert not pages.searchable({**FULL, "profile": copied})
+    written = {**FULL, "page_text": "About the project."}
+    assert not pages.searchable({**written, "profile": copied})
     # the builder's or the brochure's picture, or plan, still counts
-    assert pages.searchable({**FULL, "profile": {"photos": [{"path": "b.webp", "source": "brochure"}]}})
-    assert pages.searchable({**FULL, "profile": {"plans": [{"path": "p.webp", "source": "builder"}]}})
-    assert pages.searchable({**FULL, "profile": {"photos": [{"path": "c.webp"}]}})   # saved before sources: the builder's
+    assert pages.searchable({**written, "profile": {"photos": [{"path": "b.webp", "source": "brochure"}]}})
+    assert pages.searchable({**written, "profile": {"plans": [{"path": "p.webp", "source": "builder"}]}})
+    assert pages.searchable({**written, "profile": {"photos": [{"path": "c.webp"}]}})   # saved before sources: the builder's
 
 
 async def test_photos_copied_from_other_sites_are_never_shown_but_stay_on_the_record():
@@ -155,7 +160,8 @@ async def test_search_ranking_and_same_promoter():
 
 
 async def test_page_for_and_the_public_api():
-    written = {**FULL, "page_text": "About the project.", "page_text_version": 4}   # content beyond the register: search sees it
+    written = {**FULL, "page_text": "About the project.", "page_text_version": 4,   # text and a fact of its own: search sees it
+               "prices": {"rows": [{"bhk": 2}]}}
     db, store = await seeded(("P52100080076", "Rohan Abhilasha 4", "wagholi", written), ("P2", "Kesnand Greens", "wagholi", {**FULL, "completion_now": "2029-03-31"}),
                              ("P3", "Thin One", "wagholi", {}), ("GULM", "Gulmohar City", None, {"watched_by": ["agent_projects"]}),
                              ("NOTOURS", "Somewhere", None, {}))
@@ -216,7 +222,8 @@ async def test_a_place_is_in_search_only_with_a_project_page_in_search():
         return {p["key"]: p for p in await pages.places(db)}["wagholi"]
     got = await wagholi({})
     assert (got["projects"], got["indexable"]) == (2, 0)    # register-only pages: the place page stays out of search
-    assert (await wagholi({"page_text": "Written from the record."}))["indexable"] == 1
+    assert (await wagholi({"page_text": "Written from the record."}))["indexable"] == 0   # a paragraph alone is thin
+    assert (await wagholi({"page_text": "Written from the record.", "prices": {"rows": [{"bhk": 2}]}}))["indexable"] == 1
 
 
 async def test_a_word_of_the_name_ranks_before_letters_inside_another_word():

@@ -15,6 +15,13 @@
   GET  /conversations/routes          (owner) the rules that pass leads by themselves (lead_routes)
   POST /conversations/routes          (owner) add or change one: {agent_id, kind: area|project, label}
   DELETE /conversations/routes/{id}   (owner) remove one
+
+Lead board, mounted at /lead-board (board.py): the owner's open leads without name or number, for signed-in agents
+  GET    /lead-board                  the cards; the owner also gets every ask with its offer
+  POST   /lead-board/{ref}/ask        (agent) ask for a lead: {offer_kind: none|fee|share, offer_value, note}; asking again changes it
+  DELETE /lead-board/{ref}/ask        (agent) take the ask back
+  POST   /lead-board/{ref}/give       (owner) give the lead to an agent who asked: {agent_id}; an ordinary pass
+  POST   /lead-board/{ref}/remove     (owner) take a lead off the board (a test, or one the owner keeps)
 """
 from typing import Literal, Optional
 
@@ -24,12 +31,15 @@ from pydantic import BaseModel, Field
 from app.core.auth_backend import current_active_user
 from app.core.database import get_database
 from app.models.user import User
+from app.modules.concierge import config as concierge_config
 from app.modules.concierge.router import owner_only
 from app.modules.whatsapp.router import build_service
 
+from .board import LeadBoard
 from .service import InboxError, InboxService
 
 router = APIRouter()
+board_router = APIRouter()
 
 
 class ReplyIn(BaseModel):
@@ -40,6 +50,16 @@ class PassIn(BaseModel):
     agent_id: str = Field(..., min_length=1, max_length=64)
     # also pass future leads like this one by themselves: about the same area, or the same project page
     always: Optional[Literal["area", "project"]] = None
+
+
+class AskIn(BaseModel):
+    offer_kind: Literal["none", "fee", "share"] = "none"
+    offer_value: Optional[float] = Field(None, ge=0, le=1_000_000)
+    note: Optional[str] = Field(None, max_length=200)
+
+
+class GiveIn(BaseModel):
+    agent_id: str = Field(..., min_length=1, max_length=64)
 
 
 class RouteIn(BaseModel):
@@ -56,6 +76,10 @@ def _is_owner(user: User) -> bool:
 def get_inbox() -> InboxService:
     db = get_database()
     return InboxService(db, build_service(db=db))
+
+
+def get_board() -> LeadBoard:
+    return LeadBoard(get_database(), get_inbox(), concierge_config.owner_ids())
 
 
 async def _run(coro):
@@ -134,3 +158,28 @@ async def for_lead(lead_id: str, user: User = Depends(current_active_user), svc:
 @router.post("/lead/{lead_id}/whatsapp")
 async def start(lead_id: str, user: User = Depends(current_active_user), svc: InboxService = Depends(get_inbox)) -> dict:
     return await _run(svc.start(str(user.id), lead_id, "person"))
+
+
+@board_router.get("")
+async def board(user: User = Depends(current_active_user), b: LeadBoard = Depends(get_board)) -> dict:
+    return await b.cards(str(user.id))
+
+
+@board_router.post("/{ref}/ask")
+async def ask(ref: str, body: AskIn, user: User = Depends(current_active_user), b: LeadBoard = Depends(get_board)) -> dict:
+    return await _run(b.ask(str(user.id), ref, body.offer_kind, body.offer_value, body.note))
+
+
+@board_router.delete("/{ref}/ask")
+async def withdraw(ref: str, user: User = Depends(current_active_user), b: LeadBoard = Depends(get_board)) -> dict:
+    return await _run(b.withdraw(str(user.id), ref))
+
+
+@board_router.post("/{ref}/give")
+async def give(ref: str, body: GiveIn, user: User = Depends(owner_only), b: LeadBoard = Depends(get_board)) -> dict:
+    return await _run(b.give(str(user.id), ref, body.agent_id))
+
+
+@board_router.post("/{ref}/remove")
+async def remove(ref: str, user: User = Depends(owner_only), b: LeadBoard = Depends(get_board)) -> dict:
+    return await _run(b.remove(str(user.id), ref))

@@ -13,7 +13,7 @@ NOW = datetime(2026, 10, 21, tzinfo=timezone.utc)
 def _doc(i, rows, completion="2028-06-30", registered="2025-03-01", place="lohegaon"):
     return {"_id": f"P{i}", "regno": f"P{i}", "name": f"Project {i}", "page_slug": f"project-{i}", "pune_place": place,
             "promoter": f"Builder {i}", "completion_now": completion, "registered_on": registered, "units_total": 100,
-            "prices": {"at": NOW - timedelta(days=3), "rows": [
+            "page_text": "Written.", "prices": {"at": NOW - timedelta(days=3), "rows": [
                 {"bhk": b, "from_inr": lo, "to_inr": hi, "official": i % 2 == 0,
                  "sources": [{"site": "builder.in" if i % 2 == 0 else "site-a.com"}] + ([] if i % 2 == 0 else [{"site": "site-b.com"}])}
                 for b, lo, hi in rows]}}
@@ -102,10 +102,11 @@ def test_a_list_is_in_search_only_when_three_of_its_projects_are():
     f = Facet("lohegaon", "all")
     register_only = [{k: v for k, v in d.items() if k != "prices"} for d in DOCS]
     v = facets.facet_view(f, register_only, NOW)
-    assert v["count"] == 5 and not v["indexable"]           # five projects listed, none with content of its own
-    two = [{**d, "page_text": "Written."} if d["_id"] in ("P1", "P2") else d for d in register_only]
+    assert v["count"] == 5 and not v["indexable"]           # five projects listed, written but none with a fact of its own
+    facts = {"web_facts": {"facts": [{"key": "towers"}]}}
+    two = [{**d, **facts} if d["_id"] in ("P1", "P2") else d for d in register_only]
     assert not facets.facet_view(f, two, NOW)["indexable"]
-    three = [{**d, "page_text": "Written."} if d["_id"] in ("P1", "P2", "P3") else d for d in register_only]
+    three = [{**d, **facts} if d["_id"] in ("P1", "P2", "P3") else d for d in register_only]
     assert facets.facet_view(f, three, NOW)["indexable"]
 
 

@@ -69,7 +69,9 @@ export function useSession(require = true): Session {
   useEffect(() => {
     const token = getToken()
     setState({ ready: true, token, siteUrl: getSiteUrl(), phone: getPhone() })
-    if (require && !token) router.replace('/join')
+    // a Studio link sent on WhatsApp (the lead board) opens again after signing in
+    const here = typeof window === 'undefined' ? '' : window.location.pathname
+    if (require && !token) router.replace(here.startsWith('/studio/') ? `/join?next=${encodeURIComponent(here)}` : '/join')
   }, [require, router])
 
   const logout = useCallback(() => {
@@ -78,4 +80,10 @@ export function useSession(require = true): Session {
   }, [router])
 
   return { ...state, logout }
+}
+
+/** Where to go after signing in: the Studio page in ?next=, else Studio home. Only a /studio path is followed. */
+export function nextAfterLogin(search: string = typeof window === 'undefined' ? '' : window.location.search): string {
+  const next = new URLSearchParams(search).get('next') || ''
+  return /^\/studio(\/[\w-]+)*$/.test(next) ? next : '/studio'
 }

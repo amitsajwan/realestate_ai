@@ -89,6 +89,21 @@ Until Meta approves it, `lead_passed_v1` goes instead. The owner gets an `agent_
 
 TARGET: tell the buyer who will call them (needs a buyer template naming the agent); the agent's outcome back to the owner.
 
+## Lead board (2026-10-31, LIVE 3f025910)
+
+Owner: agents have signed in but listed nothing, while our own leads wait. `/studio/lead-board` (backend `/lead-board`,
+inbox/board.py) shows signed-in agents every open owner lead from the last 30 days that left an Indian mobile: project or area,
+BHK, budget, when, how they pay, wants, where they came from, how old, and why it is genuine (wrote back, picked up our call, gave
+their own budget, read 5+ pages). Never the name, the number or their own words. An agent asks, with an optional sealed offer
+(a fee in rupees, or a share of brokerage on closing) and a note; the owner gets a `lead_asked` alert, sees every ask on the same
+page and taps "Give to ...", which is the normal pass (`by: board`): lead, chats and card move, the others get `lead_ask_closed`.
+The owner shares the link from the board's green box (WhatsApp text counts buyers and areas). Sign-in returns to the link (?next=).
+Tests stay off: a lead whose number is a Studio sign-in or an agent page's number, or "test" in the name; the owner removes any
+other with "Remove from board" (`lead_board_off`). The page is live: it reads the board every 30 s while open (and on return to
+the tab), shows "Live · <time>", and marks leads that came in since the viewer last opened it as New.
+
+TARGET: agent asks via WhatsApp (a template with the board link when new leads arrive); auto-give to the best offer after N hours.
+
 ## Ice breakers OFF (2026-10-23)
 
 The three DM starter buttons (scripts/set_dm_menu.py) were removed from Messenger and Instagram on 23 Oct: a tap sent a message
