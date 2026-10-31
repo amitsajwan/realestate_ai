@@ -200,6 +200,10 @@ The page: with no picture of the project, the hero's picture slot shows the logo
 logo) with "The builder's logo, from <site>". With a picture, nothing changes. Tried on 20 Pune builders' home pages before
 going live: 19 found (Goel Ganga's page is drawn by script).
 
+The builders list (`/builders`) and each builder page show the same logo (owner, same day: "we could have put images there"):
+`hubs.builders` and `hubs.builder_page` carry `logo` (pages.builder_logo); a card or list row with a logo shows it in a small
+fixed box, the builder page above its heading (`components/site/BuilderLogoMark.tsx`). Builders with no logo stay text.
+
 Seen in that trial: vilasjavdekar.com is a channel partner's site ("Authorized Channel Partner" in its logo), yet the web
 facts count it as Vilas Javdekar's own (`webfacts.official` matches the domain word). OPEN: the official-site test cannot
 tell a builder from a partner using its name.

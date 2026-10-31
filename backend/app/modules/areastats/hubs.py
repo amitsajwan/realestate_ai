@@ -17,7 +17,7 @@ from app.modules.newsroom.store import Store
 from . import hot
 from .enrich import km_between
 from . import brands as brand_list
-from .pages import (MOVED_MIN, _long, _served, booked, builder_key, can_host, cluster_stamps, cluster_updated, completion_moves,
+from .pages import (MOVED_MIN, _long, _served, booked, builder_key, builder_logo, can_host, cluster_stamps, cluster_updated, completion_moves,
                     delivery, indexable, is_old, months_later, names, searchable)
 from .text import builder_slug
 from .service import _count, _day
@@ -140,7 +140,8 @@ def _by_builder(docs: List[dict]) -> dict:
 
 
 async def builders(db, only_indexable: bool = True) -> List[dict]:
-    """Every builder with projects in the register: [{slug, name, projects, indexable, page_updated}], most projects first."""
+    """Every builder with projects in the register: [{slug, name, projects, indexable, page_updated, logo}], most projects first.
+    `logo` is the builder's own logo (areastats.logos) or None."""
     docs = await Store(db).shared_projects()
     by_cluster = cluster_stamps(docs)
     out = []
@@ -150,7 +151,7 @@ async def builders(db, only_indexable: bool = True) -> List[dict]:
             continue
         stamps = [x for x in (cluster_updated(d, docs, by_cluster) for d in mine) if x]
         out.append({"slug": s, "name": _builder_name(mine, s), "projects": len(mine), "indexable": n >= BUILDER_MIN,
-                    "brand": s in brand_list.BY_SLUG, **delivery(mine),
+                    "brand": s in brand_list.BY_SLUG, **delivery(mine), "logo": builder_logo(mine),
                     "page_updated": max(stamps) if stamps else None})
     out.sort(key=lambda r: (-r["projects"], r["slug"]))
     return out
@@ -226,7 +227,7 @@ async def builder_page(db, slug: str) -> Optional[dict]:
         "slug": slug, "name": _builder_name(mine, slug), "projects_count": len(mine), "areas": areas,
         "active": sum(1 for d in mine if not is_old(d)), "units_total": total or None, "units_booked": sold or None,
         **delivery(mine), "moved_min": MOVED_MIN, "brand": slug in brand_list.BY_SLUG, "companies": _companies(mine),
-        "date_moves": date_moves(mine),
+        "date_moves": date_moves(mine), "logo": builder_logo(mine),
         "indexable": n_index >= BUILDER_MIN, "page_updated": max(stamps) if stamps else None, "source": "MahaRERA public records",
         "projects": [{"slug": d["page_slug"], "name": link_name(d), "legal_name": d.get("name", ""), "regno": d.get("regno") or d["_id"],
                       "area": BY_KEY[d["locality"]].name if d.get("locality") in BY_KEY else d.get("pune_place_name"),

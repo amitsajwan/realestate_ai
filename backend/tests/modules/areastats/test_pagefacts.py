@@ -243,3 +243,14 @@ async def test_the_builder_page_carries_its_date_changes():
                                      "completion_history": [{"from": "2028-12-31", "to": "2029-06-30", "seen_at": NOW}]}))
     page = await hubs.builder_page(db, pages.builder_key({"promoter": FULL["promoter"], "name": "One"}))
     assert [(m["slug"], m["to"]) for m in page["date_moves"]] == [("one", "2029-06-30")]
+
+
+async def test_the_builders_list_and_page_carry_the_builders_logo():
+    from app.modules.areastats import hubs
+    logo = {"status": "found", "path": "builder_logos/rohan-builders.png", "width": 300, "height": 90, "tone": "dark",
+            "site": "rohanbuilders.com"}
+    db = await seeded(("P1", "One", {"builder_logo": logo}), ("P2", "Two", {}))
+    key = pages.builder_key({"promoter": FULL["promoter"], "name": "One"})
+    row = next(r for r in await hubs.builders(db, only_indexable=False) if r["slug"] == key)
+    assert row["logo"]["url"] == "/uploads/builder_logos/rohan-builders.png"
+    assert (await hubs.builder_page(db, key))["logo"]["site"] == "rohanbuilders.com"

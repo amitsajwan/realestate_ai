@@ -2,6 +2,7 @@ import React from 'react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound, permanentRedirect } from 'next/navigation'
+import BuilderLogoMark from '@/components/site/BuilderLogoMark'
 import MarketingShell from '@/components/marketing/MarketingShell'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/seo'
@@ -97,6 +98,7 @@ export default async function BuilderPageView({ params }: Props) {
         <nav aria-label="Breadcrumb" className="text-sm">
           <Link href="/builders" className="inline-flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2">All builders in Pune</Link>
         </nav>
+        {b.logo && <div className="mt-3"><BuilderLogoMark logo={b.logo} name={b.name} size="lg" /></div>}
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">{b.name} projects in Pune</h1>
         <p className="mt-3 text-lg text-slate-800">
           Our MahaRERA register holds {b.projects_count} Pune project{b.projects_count === 1 ? '' : 's'} by {b.name}

@@ -8,6 +8,7 @@
  * Lists come back empty on any failure; a builder page is null on a 404 and throws on an outage (never a cached 404).
  */
 import { serverApiBase } from './api'
+import type { BuilderLogo } from './register'
 
 export interface ActiveProject { slug: string; name: string; fact: string; source: string; km?: number }
 
@@ -32,6 +33,8 @@ export interface BuilderCard {
   /** a brand over several MahaRERA companies (backend areastats/brands.py) */
   brand?: boolean
   with_dates?: number; moved_later?: number; avg_months_later?: number | null; record_ok?: boolean
+  /** the builder's own logo, read from its home page (backend areastats/logos.py) */
+  logo?: BuilderLogo | null
 }
 
 export interface BuilderProject {
@@ -52,6 +55,7 @@ export interface BuilderProject {
 export interface BuilderPage {
   slug: string
   name: string
+  logo?: BuilderLogo | null
   projects_count: number
   areas: string[]
   active: number

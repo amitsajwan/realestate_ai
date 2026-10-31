@@ -1,6 +1,7 @@
 import React from 'react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import BuilderLogoMark from '@/components/site/BuilderLogoMark'
 import MarketingShell from '@/components/marketing/MarketingShell'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/seo'
@@ -52,9 +53,12 @@ export default async function BuildersIndex() {
             <ul className="mt-3 grid list-none gap-2 p-0 sm:grid-cols-2" data-testid="brands">
               {brands.map((b) => (
                 <li key={b.slug}>
-                  <Link href={`/builders/${b.slug}`} className="block h-full min-h-[44px] rounded-xl border border-slate-200 bg-white px-3 py-2 no-underline hover:border-[#0f2340]">
-                    <span className="block font-semibold text-[#0f2340]">{b.name}</span>
-                    <span className="block text-sm text-slate-600">{record(b)}</span>
+                  <Link href={`/builders/${b.slug}`} className="flex h-full min-h-[44px] items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 no-underline hover:border-[#0f2340]">
+                    {b.logo && <BuilderLogoMark logo={b.logo} name={b.name} />}
+                    <span className="min-w-0">
+                      <span className="block font-semibold text-[#0f2340]">{b.name}</span>
+                      <span className="block text-sm text-slate-600">{record(b)}</span>
+                    </span>
                   </Link>
                 </li>
               ))}
@@ -66,9 +70,12 @@ export default async function BuildersIndex() {
             <h2 id="others-title" className="text-2xl font-bold text-slate-900">Other builders</h2>
             <ul className="mt-3 list-none columns-1 p-0 sm:columns-2">
               {others.map((b) => (
-                <li key={b.slug} className="break-inside-avoid py-1">
+                <li key={b.slug} className="flex break-inside-avoid items-center gap-2 py-1">
+                  {b.logo && <BuilderLogoMark logo={b.logo} name={b.name} size="sm" />}
+                  <span>
                   <Link href={`/builders/${b.slug}`} className="font-medium text-[#0f2340] underline underline-offset-2">{b.name}</Link>
                   <span className="ml-2 text-sm text-slate-600">{record(b)}</span>
+                  </span>
                 </li>
               ))}
             </ul>
