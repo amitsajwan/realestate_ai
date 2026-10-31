@@ -86,6 +86,13 @@ describe("buyers' home", () => {
     expect(within(rail).getByRole('link', { name: /Project 1/ })).toHaveAttribute('href', '/projects/p-1')
   })
 
+  it('leads to the East Pune home plan from the hero and with one tap per office, picked in advance', async () => {
+    render(await BuyerHome())
+    expect(screen.getByRole('link', { name: 'Get a free home plan for your family' })).toHaveAttribute('href', '/home-plan')
+    const offices = within(screen.getByTestId('home-plan')).getAllByRole('link').filter((l) => l.textContent?.startsWith('I work in'))
+    expect(offices.map((l) => l.getAttribute('href'))).toEqual(['/home-plan?work=kharadi', '/home-plan?work=magarpatta', '/home-plan?work=airport'])
+  })
+
   it('names the search box target for Google and sends agents to /agents', async () => {
     const { container } = render(await BuyerHome())
     const ld = Array.from(container.querySelectorAll('script[type="application/ld+json"]')).map((s) => JSON.parse(s.textContent || '{}'))

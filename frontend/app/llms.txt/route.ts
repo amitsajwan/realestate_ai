@@ -56,6 +56,7 @@ export async function GET(): Promise<Response> {
     '## Data',
     `- [Pune MahaRERA tracker](${site}/pune-maharera-tracker): projects registered, completion dates moved and homes booked across Pune`,
     `- [All Pune projects](${site}/projects)`,
+    `- [East Pune home plan](${site}/home-plan): projects near EON IT Park, Magarpatta and the airport, and a free shortlist for a family's office, budget and size`,
     `- [Builders in Pune](${site}/builders)`,
     `- [News](${site}/news)`,
     '',

@@ -37,6 +37,8 @@ export function siteLinks() {
   const posts: SiteLink = { href: '/posts', label: 'Posts' }
   const areas: SiteLink = { href: '/localities', label: 'Area guides' }
   const projects: SiteLink = { href: '/projects', label: 'Projects' }
+  // the East Pune home plan (docs/plan/home-plan.md): a buyer's shortlist for their family, in search and in every buyer menu
+  const homePlan: SiteLink = { href: '/home-plan', label: 'Home plan' }
   const builders: SiteLink = { href: '/builders', label: 'Builders' }
   const check: SiteLink = { href: '/check', label: 'Check your project' }
   const insights: SiteLink = { href: '/insights', label: 'Insights' }
@@ -46,13 +48,13 @@ export function siteLinks() {
   const ig: SiteLink = { href: instagram, label: 'Instagram', external: true }
   const fb: SiteLink = { href: facebook, label: 'Facebook', external: true }
   return {
-    forAgents, demo, news, posts, areas, projects, builders, check, insights, invite, signIn, need, instagram: ig, facebook: fb,
+    forAgents, demo, news, posts, areas, projects, homePlan, builders, check, insights, invite, signIn, need, instagram: ig, facebook: fb,
     /** Header, wide screens, by audience (the buyer or invite button sits next to these; 'For agents' is always there). */
-    headerWide: { buyer: [projects, builders, areas, news, forAgents], agent: [projects, forAgents, demo, areas] } as Record<Audience, SiteLink[]>,
+    headerWide: { buyer: [projects, homePlan, builders, areas, news, forAgents], agent: [projects, forAgents, demo, areas] } as Record<Audience, SiteLink[]>,
     /** Header menu on phones: everything. */
-    menu: [projects, builders, check, areas, news, insights, posts, forAgents, demo, signIn, ig, fb],
+    menu: [projects, homePlan, builders, check, areas, news, insights, posts, forAgents, demo, signIn, ig, fb],
     footerAgents: [forAgents, demo, invite, signIn],
-    footerExplore: [projects, builders, check, areas, news, posts, insights],
+    footerExplore: [projects, homePlan, builders, check, areas, news, posts, insights],
     footerFollow: [ig, fb],
   }
 }

@@ -16,6 +16,7 @@ import { BRAND_NAME, BRAND_NAME_DEVANAGARI } from '@/lib/brand'
 import { getFacetQuiet, getFacets } from '@/lib/site/facets'
 import { getBuilders, getSpotlight } from '@/lib/site/hubs'
 import { getRegisterPlaces, placePath } from '@/lib/site/register'
+import { WORK } from '@/lib/site/homeplan'
 
 // The buyers' home (2026-10-22; the agents' home moved to /agents). One topic for Google and for people: new projects in Pune,
 // checked on MahaRERA. Every section is links into the pages that answer buyers' searches: areas, the project lists, the hottest
@@ -121,7 +122,8 @@ export default async function BuyerHome() {
             <ProjectSearch hero />
             <p className="mt-4 text-[15px] text-white/75">
               Not sure where to start?{' '}
-              <a href={buyerEnquirePath()} className="font-semibold text-white underline decoration-[#f0b440] decoration-2 underline-offset-4 hover:text-[#f5c75e]">Tell us what you need</a>
+              <Link href="/home-plan" className="font-semibold text-white underline decoration-[#f0b440] decoration-2 underline-offset-4 hover:text-[#f5c75e]">Get a free home plan for your family</Link>,{' '}
+              <a href={buyerEnquirePath()} className="font-semibold text-white underline decoration-white/40 underline-offset-4 hover:decoration-white">tell us what you need</a>
               {cfg.whatsappUrl && <>
                 {' '}or{' '}
                 <a href={cfg.whatsappUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-white underline decoration-white/40 underline-offset-4 hover:decoration-white">
@@ -161,6 +163,25 @@ export default async function BuyerHome() {
           </ul>
         </section>
       )}
+
+      {/* the East Pune home plan (docs/plan/home-plan.md): one tap per office opens the questions with it already picked */}
+      <section aria-labelledby="plan-title" className={wrap + ' pt-10 sm:pt-14'} data-testid="home-plan">
+        <SectionHead id="plan-title" title="Homes near your office in East Pune" href="/home-plan" link="How the home plan picks" />
+        <p className="mt-2 max-w-2xl text-slate-700">
+          Tell us where you work, your budget and your family, and see the projects that fit, with the MahaRERA facts behind each
+          pick. Free, and no phone number needed.
+        </p>
+        <ul className="mt-4 flex list-none flex-wrap gap-3 p-0">
+          {WORK.filter((w) => w.east && w.key !== 'home').map((w) => (
+            <li key={w.key}>
+              <Link href={`/home-plan?work=${w.key}`}
+                className="inline-flex min-h-[48px] items-center rounded-full border border-[#0f2340] px-5 font-semibold text-[#0f2340] no-underline hover:bg-[#0f2340] hover:text-white">
+                I work in {w.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
 
       {topList && (
         <div className={wrap}>
