@@ -66,6 +66,9 @@ async def test_search_sees_only_pages_with_content_beyond_the_register():
     assert pages.searchable({**written, "profile": {"highlights": [], "photos": [{"url": "x"}]}})
     assert not pages.searchable({**written, "profile": {"highlights": [], "photos": [], "plans": []}, "web_facts": {"facts": []}})
     assert not pages.searchable({**written, "prices": {"rows": [{"bhk": 2}]}, "completion_now": None})   # still needs what a listable page needs
+    done = {**written, "prices": {"rows": [{"bhk": 2}]}, "completion_now": "2015-01-01"}
+    assert not pages.searchable(done)                                    # finished: out of search (owner 2026-11-01)
+    assert pages.searchable({**done, "gsc_impressions": 4})              # unless Google already shows it
 
 
 async def test_page_updated_is_our_own_change_never_maharera():

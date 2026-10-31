@@ -197,7 +197,10 @@ def searchable(doc: dict) -> bool:
     Owner 2026-10-31 ("only have online which have proper text"): either one alone was not enough, since 271 of 537 pages in
     search had only a two-line paragraph (median 355 characters) and 26 had no text; a page goes back into search by itself once
     enrichment fills it (`enrich.THIN_RETRY_DAYS`). Pictures copied from other sites never count (663 on 131 pages came from
-    portals and other agents, 2026-10-29). The area lists keep showing every listable project."""
+    portals and other agents, 2026-10-29). The area lists keep showing every listable project. A finished project (`is_old`)
+    stays out unless Google already shows it (owner 2026-11-01: no new-home buyer is looking for it, and enrichment skips it)."""
+    if is_old(doc) and not int(doc.get("gsc_impressions") or 0):
+        return False
     return indexable(doc) and bool(doc.get("page_text")) and own_facts(doc)
 
 
@@ -583,12 +586,14 @@ def same_promoter(doc: dict, docs: List[dict]) -> List[dict]:
 
 
 def _similar(doc: dict, docs: List[dict]) -> List[dict]:
-    """Other indexable projects in the same area, the closest completion year first."""
+    """Other indexable projects in the same area still being built or finished within a year (not `is_old`), the closest
+    completion year first."""
     key = "locality" if doc.get("locality") else "pune_place" if doc.get("pune_place") else None
     if key is None:
         return []
     year = int((_day(doc.get("completion_now")) or "0")[:4] or 0)
-    others = [d for d in docs if d["_id"] != doc["_id"] and d.get(key) == doc[key] and d.get("page_slug") and indexable(d)]
+    others = [d for d in docs if d["_id"] != doc["_id"] and d.get(key) == doc[key] and d.get("page_slug") and indexable(d)
+              and not is_old(d)]
     others.sort(key=lambda d: (abs(int(_day(d.get("completion_now"))[:4]) - year) if year else 0, d.get("name", "")))
     return others[:SAME_AREA]
 
