@@ -46,7 +46,10 @@ function lastGood<T>(key: string, list: T[]): T[] {
 export async function buildSitemap(): Promise<Grouped> {
   const base = getMarketingConfig().siteUrl
   const at = (path: string, priority: number, date?: string | null): SitemapEntry => ({ url: base + path, lastModified: day(date), priority })
-  const [newsRead, agents, projects, register, places, buildersRead, facets, topicsRead, trackersRead] = await Promise.all([fetchNews(50), getSitemapEntries(), getCatalog(), getRegisterProjects(undefined, true), getRegisterPlaces(), getBuilders(), getFacets(), fetchTopics(), fetchTrackers()])
+  // the small lists first: started beside the register's 8.5 MB read, their 4-second timers ran out before they were even sent
+  // (2026-10-31: no request reached the backend while the large reads did), and the sitemap lost them
+  const [newsRead, buildersRead, topicsRead, trackersRead] = await Promise.all([fetchNews(50), getBuilders(), fetchTopics(), fetchTrackers()])
+  const [agents, projects, register, places, facets] = await Promise.all([getSitemapEntries(), getCatalog(), getRegisterProjects(undefined, true), getRegisterPlaces(), getFacets()])
   const news = { items: lastGood('news', newsRead.items) }
   const [builders, topics, trackers] = [lastGood('builders', buildersRead), lastGood('topics', topicsRead), lastGood('trackers', trackersRead)]
   const placeSlug = new Map(places.map((p) => [p.key, p.slug]))
