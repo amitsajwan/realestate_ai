@@ -4,6 +4,8 @@ Application Routes
 All route definitions and endpoint setup
 """
 
+import mimetypes
+
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -14,6 +16,13 @@ from app.core.auth_backend import current_active_user
 from app.models.user import User
 # Import authentication module - disabled to avoid conflicts
 # from modules.auth.integration import integrate_auth_module, get_auth_config
+
+
+def register_picture_types() -> None:
+    """The content types of the pictures we save under uploads/ (WebP project photos and maps, PNG logos)."""
+    for ext, kind in ((".webp", "image/webp"), (".png", "image/png"), (".jpg", "image/jpeg"), (".jpeg", "image/jpeg"),
+                      (".mp4", "video/mp4")):
+        mimetypes.add_type(kind, ext)
 
 
 class AIPropertySuggestRequest(BaseModel):
@@ -55,7 +64,9 @@ def setup_routes(app: FastAPI):
     #     print(f"Warning: Could not integrate authentication module: {e}")
     #     print("Falling back to existing authentication system")
 
-    # Mount static files for uploads
+    # Mount static files for uploads. The slim server image has no /etc/mime.types, so Python does not know WebP and every
+    # project photo and location map went out as text/plain (seen 2026-10-31): the types our pictures use are named here
+    register_picture_types()
     app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 
