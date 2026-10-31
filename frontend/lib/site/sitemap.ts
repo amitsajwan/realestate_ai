@@ -26,11 +26,15 @@ export type Grouped = { group: string; entry: SitemapEntry }[]
 /** A list for the sitemap that comes back empty keeps the last one read. The news, guides, trackers and builders reads have no
  *  retry, so a build while the backend restarts (every deploy) got none of them and still counted as good (it has the area
  *  sitemaps): Google was then given a sitemap without the guides, the 8 trackers, the news and builders.xml (2026-10-31). A
- *  list that really empties stays until the server restarts. */
+ *  list that really empties stays until the server restarts. Right after a deploy nothing is kept yet (the site restarts with
+ *  the backend), so a list still empty marks the build short (`__avasetuSitemapShort`): it is built again after THIN_MS, not
+ *  FRESH_MS (the first sitemap after the 2026-10-31 deploy had no guides, trackers or builders.xml). */
 function lastGood<T>(key: string, list: T[]): T[] {
   const kept = (holder.__avasetuSitemapLists ??= {})
   if (list.length) kept[key] = list
-  return list.length ? list : ((kept[key] as T[] | undefined) ?? list)
+  const out = list.length ? list : ((kept[key] as T[] | undefined) ?? list)
+  if (!out.length) holder.__avasetuSitemapShort = true
+  return out
 }
 
 /** Pages that are public and worth indexing: the fixed pages, then news stories and the agent pages that have real content
@@ -116,7 +120,7 @@ const FRESH_MS = 10 * 60 * 1000   // the index and its sitemaps are read togethe
 const THIN_MS = 60 * 1000         // a list without any area sitemap means the API did not answer: try again soon
 type Groups = Map<string, SitemapEntry[]>
 type Cached = { at: number; ttl: number; groups: Promise<Groups> }
-const holder = globalThis as unknown as { __avasetuSitemap?: Cached; __avasetuSitemapGood?: Groups; __avasetuSitemapLists?: Record<string, unknown[]> }
+const holder = globalThis as unknown as { __avasetuSitemap?: Cached; __avasetuSitemapGood?: Groups; __avasetuSitemapLists?: Record<string, unknown[]>; __avasetuSitemapShort?: boolean }
 
 /** The pages per sitemap, shared by /sitemap.xml and /sitemaps/<name>.xml (one build per 10 minutes per server). A build that
  *  comes back without area sitemaps (the API was slow or restarting) never replaces the last good one: Google keeps seeing
@@ -125,10 +129,12 @@ export function sitemapGroups(now = Date.now()): Promise<Groups> {
   const c = holder.__avasetuSitemap
   if (c && now - c.at < c.ttl) return c.groups
   const next: Cached = { at: now, ttl: FRESH_MS, groups: Promise.resolve(new Map()) }
+  holder.__avasetuSitemapShort = false
   next.groups = buildSitemap().then((all) => {
     const m: Groups = new Map()
     for (const { group, entry } of all) m.set(group, [...(m.get(group) ?? []), entry])
     if ([...m.keys()].some((k) => k.startsWith('area-'))) {
+      if (holder.__avasetuSitemapShort) next.ttl = THIN_MS   // a list came back empty with none kept: try again soon
       holder.__avasetuSitemapGood = m
       return m
     }

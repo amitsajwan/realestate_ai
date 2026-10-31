@@ -16,8 +16,9 @@ jest.mock('@/lib/site/api', () => ({
 jest.mock('@/components/site/ChatWidget', () => ({ __esModule: true, default: () => null }))
 // Avasetu's own register pages (lib/site/register): none in these tests, so unknown slugs are 404s as before
 const mockRegister = jest.fn(async (): Promise<unknown[]> => [])
+const mockPlaces = jest.fn(async (): Promise<unknown[]> => [])
 jest.mock('@/lib/site/register', () => ({ getRegisterProject: async () => null, getRegisterProjects: () => mockRegister(), longDay: () => '',
-  getRegisterPlaces: async () => [], placePath: (s: string) => `/projects/area/${s}` }))
+  getRegisterPlaces: () => mockPlaces(), placePath: (s: string) => `/projects/area/${s}` }))
 // topic guides (lib/site/topics): none unless a test sets them
 const mockTopics = jest.fn(async (): Promise<unknown[]> => [])
 jest.mock('@/lib/site/topics', () => ({ ...jest.requireActual('@/lib/site/topics'), fetchTopics: () => mockTopics() }))
@@ -36,7 +37,7 @@ import { BANDS, filterProjects, livePages, matches, MIN_PROJECTS } from '@/lib/s
 import { getLocality } from '@/lib/marketing/localities'
 import { byLocality, mainAgent } from '@/lib/site/projects'
 import { projectMetadata } from '@/lib/site/seo'
-import sitemap from '@/lib/site/sitemap'
+import sitemap, { sitemapGroups } from '@/lib/site/sitemap'
 
 function project(slug: string, locality: string, homes: Array<[number, number]>, extra: Partial<CatalogProject> = {}): CatalogProject {
   const configurations = homes.map(([bhk, price]) => ({ label: `${bhk} BHK`, bhk, carpet_sqft: 800, price_inr: price, price_per_sqft: Math.round(price / 800), source: 'agent' as const }))
@@ -180,6 +181,19 @@ describe('shared project pages', () => {
     delete (globalThis as { __avasetuSitemapLists?: unknown }).__avasetuSitemapLists
     expect(urls.some((u) => u.endsWith('/guides/upper-kharadi'))).toBe(true)
     expect(urls.some((u) => u.endsWith('/localities/upper-kharadi'))).toBe(false)
+  })
+
+  it('builds the sitemap again a minute later when a list is still empty, as right after a deploy restarts both', async () => {
+    const g = globalThis as { __avasetuSitemap?: unknown; __avasetuSitemapLists?: unknown }
+    delete g.__avasetuSitemap
+    delete g.__avasetuSitemapLists
+    mockPlaces.mockResolvedValue([{ key: 'wagholi', slug: 'wagholi', name: 'Wagholi', indexable: 1 }])   // an area sitemap: a good build
+    mockTopics.mockClear()
+    await sitemapGroups(0)
+    await sitemapGroups(2 * 60_000)        // inside the usual 10 minutes, but no guides were read
+    mockPlaces.mockResolvedValue([])
+    delete g.__avasetuSitemap
+    expect(mockTopics).toHaveBeenCalledTimes(2)
   })
 
   it('leaves pages made in bulk out of the sitemap: localities without a guide and our social posts', async () => {
