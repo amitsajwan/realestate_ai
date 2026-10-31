@@ -155,7 +155,7 @@ function LeadsList() {
 
   return (
     <div className="space-y-3">
-      <PageTitle>{t('leads')}</PageTitle>
+      <PageTitle action={<Link href="/studio/lead-board" className="min-h-[44px] rounded-full border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-800">Lead board</Link>}>{t('leads')}</PageTitle>
       {data && (
         <TabBar label="Leads" value={tab} onChange={setTab} tabs={[
           { key: 'needs', label: 'Needs you', count: inTab('needs').length, tone: 'urgent' },

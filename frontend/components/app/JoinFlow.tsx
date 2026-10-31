@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
 import { api, errorMessage } from '@/lib/app/client'
 import { displayPhone, normalizePhone } from '@/lib/app/format'
-import { getToken, saveSession, saveSiteUrl } from '@/lib/app/session'
+import { getToken, nextAfterLogin, saveSession, saveSiteUrl } from '@/lib/app/session'
 import { t } from '@/lib/app/strings'
 import { PRESETS, PRESET_IDS } from '@/lib/site/presets'
 import type { SiteResult } from '@/lib/app/types'
@@ -49,7 +49,7 @@ export function JoinFlow() {
   const [preset, setPreset] = useState('navy-gold')
 
   useEffect(() => {
-    if (getToken()) router.replace('/studio') // already signed in
+    if (getToken()) router.replace(nextAfterLogin()) // already signed in
   }, [router])
 
   useEffect(() => {
@@ -86,7 +86,7 @@ export function JoinFlow() {
     try {
       const r = await api.verifyOtp(phone, c)
       saveSession({ token: r.access_token, siteUrl: r.site_url ?? null, phone })
-      if (r.has_site) router.replace('/studio')
+      if (r.has_site) router.replace(nextAfterLogin())
       else setStep('profile')
     } catch (err) {
       setError(errorMessage(err))
