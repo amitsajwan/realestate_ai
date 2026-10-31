@@ -57,13 +57,15 @@ async def test_every_lead_shows_except_won_deals_tests_and_bare_comments():
                               lead("hello", phone="", message="", requirement=None, source="instagram_comment"))
     cards = {c["ref"]: c for c in (await board.cards(HD))["items"]}
     assert set(cards) == {ref_of(i) for i in ("ok", "lost", "given", "old", "nonum")}
-    assert cards[ref_of("lost")]["stage"] == "Marked lost" and cards[ref_of("ok")]["stage"] == "Contacted"
+    assert all("stage" not in c for c in cards.values())   # no follow-up state on a card: only what sells the lead
     assert cards[ref_of("nonum")]["genuine"] == "talked"   # picked up our call, number or not
-    assert cards[ref_of("given")]["with_agent"] is True
 
 
-async def test_a_passed_lead_is_never_dropped_as_a_test():
-    _, board, _ = await setup(lead("hd", agent_id=HD, passed_by=OWNER, passed_to=HD, phone="+919921900002", name="test buyer"))
+async def test_a_number_we_know_keeps_any_lead_off_even_a_passed_one_but_a_passed_lead_is_not_dropped_by_its_name():
+    db, board, _ = await setup(lead("agentnum", agent_id=HD, passed_by=OWNER, passed_to=HD, phone="+919921900002"),
+                               lead("office", phone="9822000111"), lead("mine", phone="+91 97679 71656"),
+                               lead("hd", agent_id=HD, passed_by=OWNER, passed_to=HD, phone="+919876500003", name="test buyer"))
+    await db.get_collection("agent_public_profiles").update_one({"agent_id": HD}, {"$set": {"branding_data.office_phone": "+91 98220 00111"}})
     assert [c["ref"] for c in (await board.cards(OWNER))["items"]] == [ref_of("hd")]
 
 
@@ -84,7 +86,7 @@ async def test_offers_are_sealed_and_the_owner_gives_the_lead_to_one_agent():
     assert r["passed_to"] == "Stavan" and wa.sent[0][0] == "919921900002"
     moved = await db.get_collection("contacts").find_one({"_id": "rahul"})
     assert moved["agent_id"] == STAVAN and moved["handover"]["by"] == "board"
-    assert [c["with_agent"] for c in (await board.cards(HD))["items"]] == [True]   # still on the board, now with Stavan
+    assert len((await board.cards(HD))["items"]) == 1   # still on the board, now with Stavan
     closed = await db.get_collection("notifications").find_one({"agent_id": HD, "kind": "lead_ask_closed"})
     assert closed is not None
 
@@ -93,9 +95,8 @@ async def test_view_as_an_agent_shows_what_any_agent_reads_and_nothing_of_the_ow
     _, board, _ = await setup(lead("rahul"), lead("saket", agent_id=HD, passed_by=OWNER, passed_to=HD))
     await board.ask(HD, ref_of("rahul"), "fee", 2000)
     view = await board.cards(PREVIEW)
-    assert view["preview"] is True and view["owner"] is False
-    assert all(not c["yours"] and "lead_id" not in c and "asks" not in c and c["mine"] is None for c in view["items"])
-    assert sorted(c["with_agent"] for c in view["items"]) == [False, True]
+    assert view["preview"] is True and view["owner"] is False and len(view["items"]) == 2
+    assert all("lead_id" not in c and "asks" not in c and "holder" not in c and c["mine"] is None for c in view["items"])
 
 
 async def test_the_owner_cannot_ask_and_a_lead_goes_only_to_an_agent_who_asked():
@@ -124,21 +125,21 @@ async def test_a_lead_from_a_team_or_agent_number_is_a_test_and_the_owner_remove
         assert e.status_code == 403
 
 
-async def test_a_lead_passed_before_is_on_the_board_for_others_and_giving_it_moves_it_from_the_agent_who_has_it():
+async def test_a_lead_passed_before_reads_as_open_and_giving_it_moves_it_from_the_agent_who_has_it():
     db, board, _ = await setup(lead("saket", agent_id=HD, passed_by=OWNER, passed_to=HD, passed_at=NOW - timedelta(days=1),
                                     handover={"by": "owner"}))
-    theirs = (await board.cards(HD))["items"][0]   # House Deal has it already: shown as theirs, no ask
-    assert theirs["yours"] is True and theirs["lead_id"] == "saket"
-    seen = (await board.cards(STAVAN))["items"][0]
-    assert seen["yours"] is False and "lead_id" not in seen
-    assert seen["with_agent"] is True and "holder" not in seen
-    assert (await board.cards(OWNER))["items"][0]["holder"] == "House Deal"
+    for agent in (HD, STAVAN):   # nothing says it was shared, to anyone but the owner
+        seen = (await board.cards(agent))["items"][0]
+        assert "lead_id" not in seen and "holder" not in seen and "with_agent" not in seen
+    assert "holder" not in (await board.cards(OWNER))["items"][0]   # the owner's card says nothing of it either
+    await board.ask(HD, ref_of("saket"))
+    alert = await db.get_collection("notifications").find_one({"kind": "lead_asked"})
+    assert alert["agent_id"] == OWNER   # the owner hears of the ask, not the agent holding it
     await board.ask(STAVAN, ref_of("saket"), "fee", 1500)
     r = await board.give(OWNER, ref_of("saket"), STAVAN)
     moved = await db.get_collection("contacts").find_one({"_id": "saket"})
     assert r["passed_to"] == "Stavan" and moved["agent_id"] == STAVAN and moved["passed_by"] == OWNER
-    assert [c["yours"] for c in (await board.cards(STAVAN))["items"]] == [True]   # theirs now
-    assert (await board.cards(OWNER))["items"][0]["holder"] == "Stavan"
+
 
 
 async def test_the_card_tells_what_they_read_on_how_many_days_from_which_device_and_city():
@@ -162,3 +163,11 @@ async def test_an_enquiry_from_a_signed_in_studio_browser_is_a_test():
     db, board, _ = await setup(lead("ours"), lead("buyer", phone="+919876500002"))
     await db.get_collection("events").insert_one({"_id": "s", "contact_id": "ours", "type": "page_view", "path": "/", "ts": NOW, "staff": True})
     assert [c["ref"] for c in (await board.cards(HD))["items"]] == [ref_of("buyer")]
+
+
+async def test_giving_a_lead_to_the_agent_who_already_has_it_leaves_it_with_them():
+    db, board, wa = await setup(lead("saket", agent_id=HD, passed_by=OWNER, passed_to=HD, handover={"by": "owner"}))
+    await board.ask(HD, ref_of("saket"))
+    r = await board.give(OWNER, ref_of("saket"), HD)
+    kept = await db.get_collection("contacts").find_one({"_id": "saket"})
+    assert r["passed_to"] == "House Deal" and kept["agent_id"] == HD and kept["handover"]["by"] == "board" and wa.sent == []

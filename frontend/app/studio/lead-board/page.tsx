@@ -6,7 +6,7 @@ import { Btn, ErrorBox, PageTitle, Spinner, TempChip, inputCls } from '@/compone
 import { errorMessage } from '@/lib/app/client'
 import { timeAgo } from '@/lib/app/format'
 import type { PassResult } from '@/lib/app/inbox'
-import { BOARD_PATH, activityLine, boardApi, boardTitle, shareText, type BoardCard, type OfferKind } from '@/lib/app/leadBoard'
+import { BOARD_PATH, activityLine, areaCounts, boardApi, boardTitle, shareText, type BoardCard, type OfferKind } from '@/lib/app/leadBoard'
 import { useAsync } from '@/lib/app/useAsync'
 
 /**
@@ -49,7 +49,8 @@ export default function LeadBoardPage() {
     return () => { clearInterval(id); document.removeEventListener('visibilitychange', back) }
   }, [reload])
   const isNew = (c: BoardCard) => !!seen.current && Date.parse(c.created_at.endsWith('Z') ? c.created_at : `${c.created_at}Z`) > seen.current
-  const areas = useMemo(() => Array.from(new Set((data?.items ?? []).flatMap((c) => c.areas))).sort(), [data])
+  // lead counts per area, busiest first (owner, 2026-10-31: "show numbers against areas")
+  const areas = useMemo(() => areaCounts(data?.items ?? []), [data])
   const items = (data?.items ?? []).filter((c) => !area || c.areas.includes(area))
 
   return (
@@ -67,10 +68,10 @@ export default function LeadBoardPage() {
       {data?.owner && <ShareBox items={data.items} />}
       {areas.length > 1 && (
         <div className="-mx-1 flex flex-wrap gap-2" role="group" aria-label="Area">
-          {[null, ...areas].map((a) => (
+          {[{ area: null as string | null, count: data?.items.length ?? 0 }, ...areas].map(({ area: a, count }) => (
             <button key={a ?? 'all'} type="button" onClick={() => setArea(a)}
               className={`min-h-[40px] rounded-full border px-3 text-sm font-semibold ${area === a ? 'border-[#0f2340] bg-[#0f2340] text-white' : 'border-gray-300 bg-white text-gray-800'}`}>
-              {a ?? 'All areas'}
+              {a ?? 'All areas'} <span className={area === a ? 'text-white/80' : 'text-gray-500'}>{count}</span>
             </button>
           ))}
         </div>
@@ -122,29 +123,17 @@ function BoardRow({ card: c, owner, preview, fresh, onChange }: { card: BoardCar
           <h2 className="break-words font-semibold text-gray-900">{boardTitle(c)}</h2>
           {c.project && c.areas.length > 0 && <p className="text-sm text-gray-600">{c.areas.join(', ')}</p>}
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-1">
-          <TempChip temperature={c.temperature} />
-          <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${c.stage === 'Marked lost' ? 'bg-red-50 text-red-700' : 'bg-gray-100 text-gray-700'}`}>{c.stage}</span>
-        </div>
+        <TempChip temperature={c.temperature} />
       </div>
       {facts.length > 0 && <div className="flex flex-wrap gap-1.5">{facts.map((f) => <Chip key={f}>{f}</Chip>)}</div>}
-      <p className={`rounded-lg px-2 py-1 text-xs font-semibold ${c.genuine === 'talked' ? 'bg-green-50 text-green-800' : c.genuine === 'number' ? 'bg-amber-50 text-amber-800' : 'bg-gray-100 text-gray-700'}`}>
-        {c.genuine === 'talked' ? 'Spoke with us' : c.genuine === 'number' ? 'Left a number, not reached yet' : 'No number yet'}
-      </p>
+      {c.genuine === 'talked' && <p className="rounded-lg bg-green-50 px-2 py-1 text-xs font-semibold text-green-800">Verified: spoke with us</p>}
       <ul className="space-y-0.5 text-sm text-gray-700">
         {c.signals.map((s) => <li key={s}>✓ {s}</li>)}
       </ul>
       <Looked card={c} />
       {c.caution && <p className="rounded-lg bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-800">⚠ {c.caution}</p>}
-      {c.with_agent && (
-        <p className="text-xs font-semibold text-gray-600">
-          {owner ? `With ${c.holder ?? 'an agent'} now: giving it moves it from them.` : c.yours ? 'Yours: it is in your Leads.' : 'Already shared with one agent.'}
-        </p>
-      )}
       <p className="text-xs text-gray-500">{c.age} · from {c.came_from} · active {timeAgo(c.last_active_at)}{c.asked ? ` · ${c.asked} agent${c.asked === 1 ? '' : 's'} asked` : ''}</p>
-      {preview ? <Btn disabled>Ask for this lead</Btn> : owner ? <OwnerAsks card={c} onChange={onChange} /> : c.yours ? (
-        <Link href={`/studio/leads/${c.lead_id}`} className="flex min-h-[48px] items-center justify-center rounded-xl border border-gray-300 font-semibold text-gray-800">Open in my Leads</Link>
-      ) : <AskBox card={c} onChange={onChange} />}
+      {preview ? <Btn disabled>Ask for this lead</Btn> : owner ? <OwnerAsks card={c} onChange={onChange} /> : <AskBox card={c} onChange={onChange} />}
     </li>
   )
 }

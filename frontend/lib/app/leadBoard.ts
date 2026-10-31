@@ -61,8 +61,6 @@ export interface BoardCard {
   /** talked = they wrote back or picked up our call; number = they left a mobile number, nothing more yet; no_number = they said what
    *  they want but left no number. */
   genuine: 'talked' | 'number' | 'no_number'
-  /** New, Contacted, Site visit, In talks, Marked lost. */
-  stage: string
   signals: string[]
   /** What they did on the site (no names or numbers). */
   activity: BoardActivity
@@ -71,14 +69,8 @@ export interface BoardCard {
   /** How many agents asked (offers stay sealed). */
   asked: number
   mine: BoardAsk | null
-  /** Passed to an agent before (by hand or a rule): giving it moves it from them. */
-  with_agent: boolean
-  /** This agent has it: it is in their Leads (lead_id set), so there is nothing to ask. */
-  yours: boolean
   /** Owner only. */
   lead_id?: string
-  /** Owner only: the agent who has it now. */
-  holder?: string | null
   asks?: OwnerAsk[]
 }
 
@@ -120,6 +112,13 @@ export const boardApi = {
   /** Owner: take a lead off the board. */
   remove: (ref: string) => call<{ ok: boolean }>(`/${encodeURIComponent(ref)}/remove`, { method: 'POST' }),
   give: (ref: string, agentId: string) => call<PassResult>(`/${encodeURIComponent(ref)}/give`, { method: 'POST', json: { agent_id: agentId } }),
+}
+
+/** Leads per area, busiest first (ties by name): the counts on the area chips. A lead in two areas counts in both. */
+export function areaCounts(items: Pick<BoardCard, 'areas'>[]): { area: string; count: number }[] {
+  const n = new Map<string, number>()
+  for (const c of items) for (const a of new Set(c.areas)) n.set(a, (n.get(a) ?? 0) + 1)
+  return Array.from(n, ([area, count]) => ({ area, count })).sort((x, y) => y.count - x.count || x.area.localeCompare(y.area))
 }
 
 /** The card's headline: the project they asked about, else what and where. */

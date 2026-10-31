@@ -7,14 +7,15 @@ Who is on the board (owner, 2026-10-31: "show all leads even if they are passed 
 there"): every lead of an owner account, and every lead the owner passed to an agent (by hand, by a rule or from the board), at
 any age, unless the deal is won. A lost lead stays, marked lost (another agent may still serve it). A lead with no mobile number
 stays when it says what they want (a BHK, budget, area or date); a comment or hello with nothing more is a conversation and lives
-in the Inbox. Each card carries its stage. A passed lead says so (agents read "already shared with one agent", the owner who has it),
-its holder sees it marked as theirs (with the way to their Leads, no ask), and giving it moves it from the holder to the
-new agent.
+in the Inbox. Every lead reads as open, whoever had it before (owner, 2026-10-31: "start from scratch, as if nothing shared"):
+any agent, the holder too, can ask, and no card says who has it or how far our follow-up got ("think how it can be sold, not
+information that is not required"). Giving it moves it from the holder to the new agent (or leaves it with the holder, if they
+are the one given it).
 
-Tests are left out of the owner's own leads: a number that belongs to one of our accounts (a Studio user or an agent's page: the
-team tries the forms from their own phones), an enquiry from a signed-in Studio browser (its events are marked staff), or the word
-"test" in the name. A passed lead is never dropped as a test: the owner looked at it when passing it. Anything else the owner takes
-off with "Remove from board" (`lead_board_off`, written only here).
+Left out: any lead whose number is ours or an agent's (every Studio sign-in, every agent page's number and office number, our
+WhatsApp line and the owner's own mobile; owner, 2026-10-31: "remove leads which have any phone numbers we know"), and, of the
+owner's own leads, an enquiry from a signed-in Studio browser (its events are marked staff) or one with "test" in the name.
+Anything else the owner takes off with "Remove from board" (`lead_board_off`, written only here).
 
 Each card says only what helps an agent decide: the project or area, BHK, budget, when, how they pay, where they came from, how
 old the lead is, why we think the buyer is real (they wrote back, picked up our call, gave their own budget, came back on other
@@ -34,6 +35,7 @@ import re
 from datetime import datetime, timedelta
 from typing import Callable, Dict, Iterable, List, Optional
 
+from app.core import brand
 from app.modules.areastats import pages as project_pages
 from app.modules.notifications.service import notify
 from app.modules.tracking import contact as contactmod
@@ -49,7 +51,8 @@ MAX_LEADS = 500
 # the viewer id of "View as an agent": an agent who holds nothing and asked for nothing (owner, 2026-10-31: "I cannot view it
 # myself, as I am always logged in, I need a third party view")
 PREVIEW = "agent-preview"
-STAGE_LABEL = {"new": "New", "contacted": "Contacted", "site_visit": "Site visit", "negotiating": "In talks", "lost": "Marked lost"}
+# our own numbers that may sit on no account (owner's personal mobile, our WhatsApp line); agents' come from their pages
+OUR_NUMBERS = ("+919767971656", "+919834256406")
 MAX_NOTE = 200
 MANY_PAGES = 5
 OFFER_KINDS = ("none", "fee", "share")
@@ -208,7 +211,6 @@ def card(lead: dict, project: Optional[dict], convs: List[dict], events: List[di
         # talked = they answered us (a message or a picked-up call); the rest left a number and nothing more yet
         "genuine": ("talked" if (sig[0].startswith(("Wrote", "Picked")) or state == "in_touch")
                     else "number" if contactmod.wa_digits(lead.get("phone")) else "no_number"),
-        "stage": STAGE_LABEL.get(lead.get("stage") or "new", (lead.get("stage") or "new").replace("_", " ").capitalize()),
         "signals": sig,
         "activity": {k: v for k, v in act.items() if k != "agent_pages"},
         # they opened our pages for agents: worth a look before paying for it (an agent trying the form, not a buyer)
@@ -243,15 +245,16 @@ class LeadBoard:
             "created_at", -1).limit(MAX_LEADS).to_list(MAX_LEADS)
         rows = [r for r in rows if _on_board(r)]
         off = {d["_id"] for d in await self.c("lead_board_off").find({"_id": {"$in": [r["_id"] for r in rows]}}).to_list(MAX_LEADS)}
-        own = [r for r in rows if not r.get("passed_by")]
-        team = await self._team_numbers([r.get("phone") or "" for r in own])
-        # an enquiry from a signed-in Studio browser (its events are marked staff) is one of us trying the form
+        known = await self._known_numbers()
+        # an enquiry from a signed-in Studio browser (its events are marked staff) is one of us trying the form; a passed lead
+        # was looked at when it was passed, so only its number counts
+        own = [r["_id"] for r in rows if not r.get("passed_by")]
         staff = {e["contact_id"] for e in await self.c("events").find(
-            {"contact_id": {"$in": [r["_id"] for r in own]}, "staff": True}, {"contact_id": 1}).to_list(MAX_LEADS * 20)}
+            {"contact_id": {"$in": own}, "staff": True}, {"contact_id": 1}).to_list(MAX_LEADS * 20)}
 
         def test(r: dict) -> bool:
-            return not r.get("passed_by") and (r["_id"] in staff or contactmod.wa_digits(r.get("phone")) in team
-                                               or bool(_TEST.search(r.get("name") or "")))
+            return (contactmod.wa_digits(r.get("phone")) in known
+                    or not r.get("passed_by") and (r["_id"] in staff or bool(_TEST.search(r.get("name") or ""))))
         return [r for r in rows if r["_id"] not in off and not test(r)]
 
     async def _project_names(self, events: List[dict]) -> Dict[str, str]:
@@ -264,14 +267,16 @@ class LeadBoard:
                 _names[slug] = (brief["name"] if brief else None, now)
         return {slug: _names[slug][0] for slug in slugs if _names[slug][0]}
 
-    async def _team_numbers(self, phones: List[str]) -> set:
-        """Of these lead numbers, the ones that are also a Studio sign-in or an agent page's number (stored as +91..., 91... or
-        10 digits), as 12-digit 91... strings."""
-        digits = {contactmod.wa_digits(p) for p in phones} - {None}
-        forms = [f for d in digits for f in ("+" + d, d, d[2:])]
-        found = await self.c("users").find({"phone": {"$in": forms}}, {"phone": 1}).to_list(1000)
-        found += await self.c("agent_public_profiles").find({"phone": {"$in": forms}}, {"phone": 1}).to_list(1000)
-        return {contactmod.wa_digits(d.get("phone")) for d in found} & digits
+    async def _known_numbers(self) -> set:
+        """Every number that is ours or an agent's, as 12-digit 91... strings: Studio sign-ins, agent pages (their number and
+        office number: House Deal's team WhatsApp), our public WhatsApp and the owner's own (owner, 2026-10-31: "remove leads which
+        have any phone numbers we know, like Avasetu 9767971656, House Deal, or any agent numbers")."""
+        found = [u.get("phone") for u in await self.c("users").find({"phone": {"$nin": [None, ""]}}, {"phone": 1}).to_list(5000)]
+        for p in await self.c("agent_public_profiles").find({}, {"phone": 1, "branding_data": 1}).to_list(5000):
+            b = p.get("branding_data") or {}
+            found += [p.get("phone"), b.get("office_phone"), b.get("whatsapp"), b.get("whatsapp_number"), b.get("phone")]
+        found += [brand.posts_whatsapp_number(), *OUR_NUMBERS]
+        return {contactmod.wa_digits(n) for n in found} - {None}
 
     async def remove(self, owner_id: str, ref: str) -> dict:
         """The owner takes a lead off the board (a test, or one they keep for themselves). Open asks on it close quietly."""
@@ -313,22 +318,15 @@ class LeadBoard:
         for a in await self.c("lead_asks").find({"lead_id": {"$in": ids}, "status": "open"}).to_list(2000):
             asks[a["lead_id"]].append(a)
         owner = self.is_owner(viewer)
-        holders = {r["agent_id"] for r in leads if r["agent_id"] not in self.owners}
-        agents = await self._names({a["agent_id"] for rows in asks.values() for a in rows} | (holders if owner else set()))
+        agents = await self._names({a["agent_id"] for rows in asks.values() for a in rows}) if owner else {}
         out = []
         for lead in leads:
             row = card(lead, await self.inbox.project_of(lead), convs[lead["_id"]], events[lead["_id"]], names, now)
-            row["with_agent"] = lead["agent_id"] not in self.owners
-            # the agent who has it sees it too, as theirs, with the way to their own Leads (2026-10-31: House Deal saw 5 of 15)
-            row["yours"] = lead["agent_id"] == viewer and not owner
-            if row["yours"]:
-                row["lead_id"] = lead["_id"]
             mine = next((a for a in asks[lead["_id"]] if a["agent_id"] == viewer), None)
             row["asked"] = len(asks[lead["_id"]])
             row["mine"] = self._ask_view(mine) if mine else None
             if owner:
                 row["lead_id"] = lead["_id"]
-                row["holder"] = agents.get(lead["agent_id"], "an agent") if row["with_agent"] else None
                 row["asks"] = [{**self._ask_view(a), "agent_id": a["agent_id"], "agent_name": agents.get(a["agent_id"], "Agent")}
                                for a in sorted(asks[lead["_id"]], key=lambda a: a["at"])]
             out.append(row)
@@ -356,11 +354,10 @@ class LeadBoard:
         if offer_kind == "fee" and not (offer_value and 0 < offer_value <= 1_000_000):
             raise InboxError("Say the fee in rupees", 422)
         lead = await self._find(ref)
-        if lead["agent_id"] == agent_id:
-            raise InboxError("This lead is already yours: it is in your Leads", 409)
+        owner = self._owner_of(lead)
         now = self.now()
         rid = f"{lead['_id']}:{agent_id}"
-        doc = {"lead_id": lead["_id"], "owner_id": lead["agent_id"], "agent_id": agent_id, "status": "open",
+        doc = {"lead_id": lead["_id"], "owner_id": owner, "agent_id": agent_id, "status": "open",
                "offer_kind": offer_kind, "offer_value": offer_value if offer_kind != "none" else None,
                "note": (note or "").strip()[:MAX_NOTE] or None, "at": now}
         if await self.c("lead_asks").find_one({"_id": rid}):
@@ -370,10 +367,14 @@ class LeadBoard:
         row = card(lead, await self.inbox.project_of(lead), [], [], {}, now)
         what = " · ".join(p for p in (row["bhk"], row["project"] or ", ".join(row["areas"][:2])) if p) or "a buyer"
         offer = offer_text(doc["offer_kind"], doc["offer_value"])
-        await notify(self.db, lead["agent_id"], "lead_asked",
+        await notify(self.db, owner, "lead_asked",
                      f"{self.inbox._agent_name(prof)} asked for the lead ({what}){': ' + offer if offer else ''}.",
                      {"screen": "/studio/lead-board", "lead_id": lead["_id"]}, now)
         return self._ask_view(doc)
+
+    def _owner_of(self, lead: dict) -> str:
+        """The owner whose lead it is: the account it is in, or the one that passed it on."""
+        return lead["agent_id"] if lead["agent_id"] in self.owners else lead.get("passed_by") or lead["agent_id"]
 
     async def withdraw(self, agent_id: str, ref: str) -> dict:
         lead = await self._find(ref)
@@ -392,11 +393,18 @@ class LeadBoard:
         chosen = await self.c("lead_asks").find_one({"_id": f"{lead['_id']}:{agent_id}", "status": "open"})
         if not chosen:
             raise InboxError("That agent has not asked for this lead", 404)
-        # a lead passed before moves on from the agent who has it, and stays the owner's pass (Leads > Passed)
-        result = await self.inbox.pass_lead(lead["agent_id"], lead["_id"], agent_id, by="board")
-        if passed:
-            await self.c("contacts").update_one({"_id": result["lead_id"]}, {"$set": {"passed_by": owner_id}})
         now = self.now()
+        if lead["agent_id"] == agent_id:
+            # they had it from before: it stays with them, now as given from the board
+            await self.c("contacts").update_one({"_id": lead["_id"]}, {"$set": {"handover.by": "board", "handover.at": now}})
+            name = (await self._names([agent_id])).get(agent_id, "the agent")
+            result = {"passed_to": name, "lead_id": lead["_id"], "card": {"text": "", "lines": [], "missing": []},
+                      "whatsapp_status": None, "whatsapp_error": None, "rule_added": None, "whatsapp_url": None}
+        else:
+            # a lead passed before moves on from the agent who has it, and stays the owner's pass (Leads > Passed)
+            result = await self.inbox.pass_lead(lead["agent_id"], lead["_id"], agent_id, by="board")
+            if passed:
+                await self.c("contacts").update_one({"_id": result["lead_id"]}, {"$set": {"passed_by": owner_id}})
         for a in await self.c("lead_asks").find({"lead_id": lead["_id"], "status": "open"}).to_list(200):
             won = a["agent_id"] == agent_id
             await self.c("lead_asks").update_one({"_id": a["_id"]}, {"$set": {"status": "given" if won else "closed", "closed_at": now}})

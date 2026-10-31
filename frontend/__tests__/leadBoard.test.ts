@@ -1,4 +1,4 @@
-import { activityLine, boardTitle, shareText, type BoardCard } from '@/lib/app/leadBoard'
+import { activityLine, areaCounts, boardTitle, shareText, type BoardCard } from '@/lib/app/leadBoard'
 import { nextAfterLogin } from '@/lib/app/session'
 
 test('after signing in, only a Studio path in ?next= is followed', () => {
@@ -26,4 +26,9 @@ test('the activity line reads visits, days, reading, device and city, leaving ou
     city: 'Wagholi', taps: [], enquiries: 1 }
   expect(activityLine(a)).toBe('2 visits on 2 days · 9 min reading · Phone · Wagholi')
   expect(activityLine({ ...a, visits: 1, days: 1, read_min: 0, city: null })).toBe('1 visit · Phone')
+})
+
+test('area chips count leads per area, busiest first', () => {
+  expect(areaCounts([{ areas: ['Kharadi'] }, { areas: ['Wagholi', 'Kharadi'] }, { areas: ['Wagholi'] }, { areas: ['Baner'] }, { areas: [] }]))
+    .toEqual([{ area: 'Kharadi', count: 2 }, { area: 'Wagholi', count: 2 }, { area: 'Baner', count: 1 }])
 })

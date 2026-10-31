@@ -110,6 +110,13 @@ limit; every passed lead (by hand, rule or board) shows and is never dropped as 
 lead with no number shows when it gave a BHK, budget, area or date (a bare comment stays in the Inbox, like Studio Leads); won
 deals are off. Each card has its stage. On 2026-10-31 that is 18: 7 the owner's, 11 with House Deal.
 
+From scratch (owner, 2026-10-31: "start from scratch, as if nothing shared"; "think how it can be sold, not information that is not
+required"; "show numbers against areas"): no card says a lead was shared, who has it, or its stage; any agent (the holder too)
+can ask, and giving it to the holder just keeps it with them. Only "Verified: spoke with us" is highlighted. The area chips carry
+lead counts, busiest first. Any lead whose number is ours or an agent's is off, passed or not: every Studio sign-in, every agent
+page's number and office number (House Deal's team WhatsApp), our WhatsApp line +91 98342 56406 and the owner's 9767971656. An
+ask alerts the owner, also for a lead an agent holds.
+
 What they looked at (owner, 2026-10-31: "more details, what the visitor was checking, what pages"): each card has the pages in
 order with minutes read (project pages by their shown name, area lists, guides, news), visits and days, phone or computer, the
 city of the visit (an NRI in Bahrain shows "Manama"), and taps on WhatsApp/call; signals add "came back on N days", "sent N
