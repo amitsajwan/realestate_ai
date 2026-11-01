@@ -68,7 +68,17 @@ async def test_search_sees_only_pages_with_content_beyond_the_register():
     assert not pages.searchable({**written, "prices": {"rows": [{"bhk": 2}]}, "completion_now": None})   # still needs what a listable page needs
     done = {**written, "prices": {"rows": [{"bhk": 2}]}, "completion_now": "2015-01-01"}
     assert not pages.searchable(done)                                    # finished: out of search (owner 2026-11-01)
-    assert pages.searchable({**done, "gsc_impressions": 4})              # unless Google already shows it
+    assert not pages.searchable({**done, "gsc_impressions": 4})          # even one Google already shows
+
+
+def test_a_finished_project_offers_the_projects_still_being_built_soonest_first():
+    def doc(_id, done, **extra):
+        return {"_id": _id, "name": _id, "locality": "wagholi", "page_slug": _id.lower(), "promoter": "R", "completion_now": done, **extra}
+    old = doc("OLD", "2015-01-01")
+    peers = [old, doc("LATE", "2031-06-30"), doc("SOON", "2027-03-31"), doc("ALSO_OLD", "2016-05-01")]
+    assert [d["_id"] for d in pages._similar(old, peers)] == ["SOON", "LATE"]   # finished ones are never offered
+    assert pages.view(old, [])["finished"] and not pages.view(old, [])["indexable"]
+    assert not pages.view(peers[1], [])["finished"]
 
 
 async def test_page_updated_is_our_own_change_never_maharera():

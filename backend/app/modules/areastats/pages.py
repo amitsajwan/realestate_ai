@@ -22,6 +22,7 @@ from .service import _count, _day
 from .text import ascii_text, builder_slug, promoter_key, words
 
 SAME_AREA = 6
+SAME_AREA_FINISHED = 10   # a finished project's page has no form: the projects still being built are what it offers
 _MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 
 
@@ -198,8 +199,9 @@ def searchable(doc: dict) -> bool:
     search had only a two-line paragraph (median 355 characters) and 26 had no text; a page goes back into search by itself once
     enrichment fills it (`enrich.THIN_RETRY_DAYS`). Pictures copied from other sites never count (663 on 131 pages came from
     portals and other agents, 2026-10-29). The area lists keep showing every listable project. A finished project (`is_old`)
-    stays out unless Google already shows it (owner 2026-11-01: no new-home buyer is looking for it, and enrichment skips it)."""
-    if is_old(doc) and not int(doc.get("gsc_impressions") or 0):
+    stays out, even one Google already shows (owner 2026-11-01: "for completed projects we dont need to have SEO"; no new-home
+    buyer is looking for it, and enrichment skips it)."""
+    if is_old(doc):
         return False
     return indexable(doc) and bool(doc.get("page_text")) and own_facts(doc)
 
@@ -551,6 +553,8 @@ def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None) ->
         # from the writer's version 4 on, page_text is its sections (shown under "About"): the paragraph is the code's own then
         "paragraph": (doc.get("page_text") if int(doc.get("page_text_version") or 1) < 4 else None) or paragraph(doc),
         "indexable": searchable(doc),
+        # finished (is_old): the page drops its enquiry form and leads with the projects still being built nearby
+        "finished": is_old(doc),
         "marketed_name": names(doc)[0], "aliases": names(doc)[1], "page_updated": page_updated(doc),
         # how people search for the page (seo.targets, rank-loop R1): leads the title and H1; the legal name stays in the body
         "search_name": doc.get("search_name") or None,
@@ -587,13 +591,18 @@ def same_promoter(doc: dict, docs: List[dict]) -> List[dict]:
 
 def _similar(doc: dict, docs: List[dict]) -> List[dict]:
     """Other indexable projects in the same area still being built or finished within a year (not `is_old`), the closest
-    completion year first."""
+    completion year first. For a finished project the ones still being built come first, soonest possession first, then the
+    ones just finished (owner 2026-11-01: its page shows what a buyer can still book instead)."""
     key = "locality" if doc.get("locality") else "pune_place" if doc.get("pune_place") else None
     if key is None:
         return []
     year = int((_day(doc.get("completion_now")) or "0")[:4] or 0)
     others = [d for d in docs if d["_id"] != doc["_id"] and d.get(key) == doc[key] and d.get("page_slug") and indexable(d)
               and not is_old(d)]
+    if is_old(doc):
+        today = date.today().isoformat()
+        others.sort(key=lambda d: (_day(d.get("completion_now")) < today, _day(d.get("completion_now")), d.get("name", "")))
+        return others[:SAME_AREA_FINISHED]
     others.sort(key=lambda d: (abs(int(_day(d.get("completion_now"))[:4]) - year) if year else 0, d.get("name", "")))
     return others[:SAME_AREA]
 

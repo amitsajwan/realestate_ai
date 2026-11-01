@@ -184,7 +184,7 @@ function brandLine(p: RegisterProject): string | null {
  *  the builder's own picture, never an AI illustration standing in for a real one. With no picture (most projects, 2026-10-31),
  *  a street map around the project's pin takes its place with the builder's logo over it (backend areastats/locmap.py,
  *  logos.py), else the logo alone. */
-function Hero({ p, price, photo, linkless = false }: { p: RegisterProject; price: { from: string; bhks: string } | null; photo: ProfilePicture | null; linkless?: boolean }) {
+function Hero({ p, price, photo, linkless = false, closed = false }: { p: RegisterProject; price: { from: string; bhks: string } | null; photo: ProfilePicture | null; linkless?: boolean; closed?: boolean }) {
   const stats: { label: string; value: React.ReactNode; sub?: React.ReactNode; id: string }[] = []
   // the agent's live sheet when there is one, else the portals' prices: one price on the page, never both
   const asked = price ?? askedPrices(p)
@@ -269,12 +269,20 @@ function Hero({ p, price, photo, linkless = false }: { p: RegisterProject; price
           {stats.map((s) => <Stat key={s.id} testId={s.id} label={s.label} value={s.value} sub={s.sub} />)}
         </dl>
       )}
+      {closed ? (
+        <div className="mt-6">
+          <a href="#same-title" className="inline-flex min-h-[48px] items-center rounded-full bg-amber-400 px-6 font-bold text-slate-900 no-underline" data-testid="see-building">
+            See projects still being built nearby
+          </a>
+        </div>
+      ) : (
       <div className="mt-6 flex flex-wrap gap-3">
         <a href="#enquire" className="inline-flex min-h-[48px] items-center rounded-full bg-amber-400 px-6 font-bold text-slate-900 no-underline">{PROJECT_CTA.today}</a>
         <a href="#visit" className="inline-flex min-h-[48px] items-center rounded-full px-5 font-semibold text-white no-underline ring-1 ring-inset ring-white/30 hover:bg-white/10">
           {PROJECT_CTA.visit}
         </a>
       </div>
+      )}
       </div>
     </header>
   )
@@ -783,6 +791,48 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
   const heroBhks = !!(price ?? askedPrices(p))?.bhks
   const sections = (p.sections ?? []).filter((x) => x.heading && x.text)
   const enquiryTopic = `${p.name} (MahaRERA ${p.regno})`
+  // a finished project on Avasetu's own page takes no enquiries (owner 2026-11-01: "for completed projects ... no enquiry"): no
+  // form, ask box or phone bar, and the projects still being built nearby come straight after the answer; an agent's listing of
+  // one (a resale flat) keeps its form
+  const closed = !!p.finished && !seller && !offer
+  const others = !seller && (p.same_area.length > 0 || closed) && (p.area || placeName) ? (
+            <section aria-labelledby="same-title" data-testid="compare">
+              <h2 id="same-title" className={H2}>{closed ? `Still being built in ${p.area?.name ?? placeName}` : `Other projects in ${p.area?.name ?? placeName}`}</h2>
+              {closed && (
+                <p className="mt-2 text-slate-800" data-testid="finished-note">
+                  {shown} is finished{p.completion_now ? ` (completion filed for ${monthYear(p.completion_now)})` : ''}, so we do not take
+                  enquiries for it. These projects nearby still have homes to book, the soonest possession first.
+                </p>
+              )}
+              {p.same_area.length > 0 && (
+              <ul className="mt-3 grid list-none gap-2 p-0 sm:grid-cols-2">
+                {p.same_area.map((s) => {
+                  const line = [s.bhk || null, s.price_from ? `from ${formatPrice(s.price_from)}` : null,
+                    s.completion_now ? `possession ${monthYear(s.completion_now)}` : null].filter(Boolean).join(' · ')
+                  return (
+                    <li key={s.slug}>
+                      <Link href={`/projects/${s.slug}`} className="block min-h-[44px] rounded-xl border border-slate-200 bg-white px-3 py-2 no-underline hover:border-[#0f2340]">
+                        <span className="block font-semibold text-[#0f2340]">{s.name}</span>
+                        {line && <span className="text-sm text-slate-600">{line}</span>}
+                      </Link>
+                    </li>
+                  )
+                })}
+              </ul>
+              )}
+              <div className="mt-3 flex flex-wrap gap-x-5">
+                {placeHref && <Link href={placeHref} className="inline-flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2">All projects and flats in {placeName ?? p.area?.name}</Link>}
+                {/* the place's lists (docs/plan/area-intent-pages.md): links into them from every project page in the place */}
+                {lists.map((f) => (
+                  <Link key={f.path} href={f.path} className="inline-flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2" data-testid="facet-link">
+                    {f.label} in {placeName ?? p.area?.name}
+                  </Link>
+                ))}
+                {p.area && <Link href={`/localities/${p.area.slug}`} className="inline-flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2">{p.area.name} area guide</Link>}
+                {p.near_guide && <Link href={p.near_guide.path} className="inline-flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2" data-testid="near-guide">Near {p.near_guide.name} ({p.near_guide.km} km): neighbourhood guide</Link>}
+              </div>
+            </section>
+  ) : null
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8" style={seller ? undefined : AVASETU_SITE_VARS}>
       {/* the project's structured data belongs to its canonical page, /projects/<slug>; a listing page carries its own */}
@@ -803,7 +853,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
       </nav>
       )}
 
-      <Hero p={p} price={price} photo={heroPhoto} linkless={!!seller} />
+      <Hero p={p} price={price} photo={heroPhoto} linkless={!!seller} closed={closed} />
 
       {/* a partner agent's listing names them at the top and opens their own page for it (owner 2026-10-30); on that page itself
           (seller) it would link to itself, and Avasetu's own listings need no line */}
@@ -825,6 +875,8 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
         </div>
       )}
 
+      {closed && <div className="mt-8 max-w-4xl">{others}</div>}
+
       {/* pictures next: what a buyer looks for before reading (owner 2026-10-20) */}
       <div className="mt-8"><ProjectProfile profile={gallery} name={shown} part="photos" skip={heroPhoto?.url} /></div>
 
@@ -833,9 +885,9 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
 
       <div className="mt-8 grid gap-8 lg:grid-cols-3">
         <div className="min-w-0 space-y-10 lg:col-span-2">
-          <PricesSection p={p} shown={shown} offer={liveOffer(facts)} priced={!!price} numbers={facts?.numbers} stage={stage} />
-          <ProjectProfile profile={p.profile} name={shown} part="plans" plans3d={p.plans_3d?.items ?? []} lead={{ agentSlug: leadSlug, agentName: leadName,
-            topic: enquiryTopic, waMessage: `Hi, I want to know about ${p.name} (MahaRERA ${p.regno}): ${url}` }} />
+          {!closed && <PricesSection p={p} shown={shown} offer={liveOffer(facts)} priced={!!price} numbers={facts?.numbers} stage={stage} />}
+          {!closed && <ProjectProfile profile={p.profile} name={shown} part="plans" plans3d={p.plans_3d?.items ?? []} lead={{ agentSlug: leadSlug, agentName: leadName,
+            topic: enquiryTopic, waMessage: `Hi, I want to know about ${p.name} (MahaRERA ${p.regno}): ${url}` }} />}
           <LocationSection p={p} shown={shown} nearby={nearby} sources={facts?.nearby_sources ?? []} />
           <ProjectProfile profile={p.profile} name={shown} part="highlights" omit={heroBhks ? ['homes'] : []} />
 
@@ -855,7 +907,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
 
           <RecordSection p={p} shown={shown} facts={facts} linkless={!!seller} />
 
-          <AskPrompt name={shown} note={askNote} whatsappUrl={whatsappUrl} label={PROJECT_CTA.today} />
+          {!closed && <AskPrompt name={shown} note={askNote} whatsappUrl={whatsappUrl} label={PROJECT_CTA.today} />}
 
           {seller && (seller.others ?? []).length > 0 && (
             <section aria-labelledby="more-title" data-testid="more-from-agent">
@@ -869,36 +921,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
             </section>
           )}
 
-          {!seller && p.same_area.length > 0 && (p.area || placeName) && (
-            <section aria-labelledby="same-title" data-testid="compare">
-              <h2 id="same-title" className={H2}>Other projects in {p.area?.name ?? placeName}</h2>
-              <ul className="mt-3 grid list-none gap-2 p-0 sm:grid-cols-2">
-                {p.same_area.map((s) => {
-                  const line = [s.bhk || null, s.price_from ? `from ${formatPrice(s.price_from)}` : null,
-                    s.completion_now ? `possession ${monthYear(s.completion_now)}` : null].filter(Boolean).join(' · ')
-                  return (
-                    <li key={s.slug}>
-                      <Link href={`/projects/${s.slug}`} className="block min-h-[44px] rounded-xl border border-slate-200 bg-white px-3 py-2 no-underline hover:border-[#0f2340]">
-                        <span className="block font-semibold text-[#0f2340]">{s.name}</span>
-                        {line && <span className="text-sm text-slate-600">{line}</span>}
-                      </Link>
-                    </li>
-                  )
-                })}
-              </ul>
-              <div className="mt-3 flex flex-wrap gap-x-5">
-                {placeHref && <Link href={placeHref} className="inline-flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2">All projects and flats in {placeName ?? p.area?.name}</Link>}
-                {/* the place's lists (docs/plan/area-intent-pages.md): links into them from every project page in the place */}
-                {lists.map((f) => (
-                  <Link key={f.path} href={f.path} className="inline-flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2" data-testid="facet-link">
-                    {f.label} in {placeName ?? p.area?.name}
-                  </Link>
-                ))}
-                {p.area && <Link href={`/localities/${p.area.slug}`} className="inline-flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2">{p.area.name} area guide</Link>}
-                {p.near_guide && <Link href={p.near_guide.path} className="inline-flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2" data-testid="near-guide">Near {p.near_guide.name} ({p.near_guide.km} km): neighbourhood guide</Link>}
-              </div>
-            </section>
-          )}
+          {!closed && others}
 
           {!seller && byPromoter.length > 0 && p.promoter && (
             <section aria-labelledby="promoter-title" data-testid="same-promoter">
@@ -921,14 +944,14 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
 
         <aside className="min-w-0 space-y-6 lg:sticky lg:top-20 lg:self-start">
           {/* the side column stays in view on desktop, so the ask does too; phones get the bottom bar instead */}
-          <div className="hidden lg:block"><AskPrompt name={shown} note={askNote} whatsappUrl={whatsappUrl} label={PROJECT_CTA.today} compact /></div>
+          {!closed && <div className="hidden lg:block"><AskPrompt name={shown} note={askNote} whatsappUrl={whatsappUrl} label={PROJECT_CTA.today} compact /></div>}
         </aside>
       </div>
 
       <div className="mt-10 space-y-8">
       {/* One form for the hero's two actions (two side-by-side copies read as a duplicate): the buyer picks price sheet or visit in
           it, `#visit` opens it on the visit, and a visit carries its own topic so the team knows what to arrange. */}
-      <div className="max-w-2xl">
+      {!closed && <div className="max-w-2xl">
         <EnquiryForm agentSlug={leadSlug} agentName={leadName} note={askNote} topic={enquiryTopic} listingId={seller?.listingId}
           waMessage={`Hi, I want to know about ${p.name} (MahaRERA ${p.regno}): ${url}`}
           choices={[
@@ -937,7 +960,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
             { anchor: 'visit', label: PROJECT_CTA.visitChoice, title: PROJECT_CTA.visitTitle(p.name), topic: `Site visit: ${enquiryTopic}`,
               waMessage: `Hi, I want to book a site visit to ${p.name} (MahaRERA ${p.regno}): ${url}`, submitLabel: PROJECT_CTA.visit },
           ]} />
-      </div>
+      </div>}
 
       <footer className="border-t border-slate-200 pt-4 text-sm text-slate-600">
         Source: {p.source}.{' '}
@@ -945,7 +968,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
         {' '}Facts can change; check the record and your agreement before you book.
       </footer>
       </div>
-      <StickyJoinBar watchId="project-hero" formId="enquire" label={PROJECT_CTA.short} whatsappUrl={whatsappUrl} whatsappLabel="WhatsApp" />
+      {!closed && <StickyJoinBar watchId="project-hero" formId="enquire" label={PROJECT_CTA.short} whatsappUrl={whatsappUrl} whatsappLabel="WhatsApp" />}
     </div>
   )
 }

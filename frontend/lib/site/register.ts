@@ -34,6 +34,9 @@ export interface RegisterProject {
   maharera_url: string | null
   paragraph: string
   indexable: boolean
+  /** finished (backend pages.is_old: the filed completion date passed over a year ago): no enquiry form, out of search, and
+   *  same_area holds the projects still being built nearby, soonest possession first */
+  finished?: boolean
   /** other projects in the area; price_from (rupees) and bhk ("2, 3 BHK") from their published prices, when there are any */
   same_area: { name: string; slug: string; completion_now: string | null; price_from?: number | null; bhk?: string | null }[]
   source: string
