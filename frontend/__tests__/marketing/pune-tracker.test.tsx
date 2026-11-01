@@ -38,16 +38,25 @@ describe('Pune MahaRERA tracker', () => {
     expect(cleanCityStats({ areas: [] })).toBeNull()
   })
 
-  it('an outage gives the refreshing note, kept out of search', async () => {
-    mockFetch.mockResolvedValue({ ok: false, status: 500, json: async () => ({}) })
-    expect(await getCityStats()).toBeNull()
+  it('a failed read before any figures is an error page, never an empty page that asks to leave search', async () => {
     mockFetch.mockRejectedValue(new Error('down'))
-    expect(await getCityStats()).toBeNull()
-    render(await TrackerPage())
-    expect(screen.getByText(/being refreshed/)).toBeTruthy()
-    expect((await generateMetadata()).robots).toEqual({ index: false, follow: true })
+    let fresh: typeof import('@/app/pune-maharera-tracker/page') | undefined
+    jest.isolateModules(() => { fresh = require('@/app/pune-maharera-tracker/page') })   // nothing read yet in this process
+    await expect(fresh!.generateMetadata()).rejects.toThrow(/temporarily unavailable/)
+    await expect(fresh!.default()).rejects.toThrow(/temporarily unavailable/)
+  })
+
+  it('a slow or failed read keeps the last figures, and the page stays in search', async () => {
     mockFetch.mockResolvedValue({ ok: true, status: 200, json: async () => BODY })
+    expect((await getCityStats())?.asOf).toBe('2026-10-04')
+    mockFetch.mockResolvedValue({ ok: false, status: 500, json: async () => ({}) })
+    expect((await getCityStats())?.asOf).toBe('2026-10-04')
+    mockFetch.mockRejectedValue(new Error('timeout'))
+    expect((await getCityStats())?.areas.map((a) => a.area.slug)).toEqual(['wagholi', 'kharadi'])
     expect((await generateMetadata()).robots).toBeUndefined()
+    render(await TrackerPage())
+    expect(screen.queryByText(/being refreshed/)).toBeNull()
+    expect(screen.getAllByRole('row').some((r) => r.textContent?.startsWith('Wagholi'))).toBe(true)
   })
 
   it('shows each area linked to its guide, totals without partial sums, and a citation', async () => {

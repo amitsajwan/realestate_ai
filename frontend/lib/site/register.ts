@@ -331,11 +331,22 @@ export async function getRegisterProject(slug: string): Promise<RegisterProject 
 
 /** The register page of a MahaRERA number (any tower of a project), when it has one: a listing of that project shows it. */
 export async function getRegisterProjectByRegno(regno: string | null | undefined): Promise<RegisterProject | null> {
-  const n = (regno || '').trim().toUpperCase()
+  const n = regnoKey(regno)
   if (!/^P[A-Z0-9]{6,20}$/.test(n)) return null
   const r = await get<{ slug: string }>('/api/v1/public/register/by-regno/' + encodeURIComponent(n))
   return r.ok && r.data?.slug ? getRegisterProject(r.data.slug).catch(() => null) : null
 }
+
+/** The project page an agent's listing of this MahaRERA number shows and names as its canonical page: the number's register page
+ *  (a tower merged into its project resolves to the project's page) when that page is in search; null otherwise or when it
+ *  cannot be read. The listing page and the sitemap both decide with this, so the sitemap never lists a page naming another. */
+export async function projectPageOfListing(regno: string | null | undefined): Promise<string | null> {
+  const r = await getRegisterProjectByRegno(regno)
+  return r?.indexable ? r.slug : null
+}
+
+/** A MahaRERA number as the register keys it. */
+export const regnoKey = (regno: string | null | undefined): string => (regno || '').trim().toUpperCase()
 
 /** Lists kept in this process for 5 minutes: the whole register is ~7.5 MB, over the 2 MB Next.js data cache limit, so without
  *  this /projects (rendered per request for ?q=), the homepage and the sitemap each fetched it again on every render (~8 s).
