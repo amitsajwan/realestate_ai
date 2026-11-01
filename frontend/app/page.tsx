@@ -146,9 +146,11 @@ export default async function BuyerHome() {
         <section aria-labelledby="hot-title" className={wrap + ' pt-10 sm:pt-14'} data-testid="home-hot">
           <SectionHead id="hot-title" title="Hot right now" />
           {/* swiped on a phone, a grid on a laptop; it never moves by itself (ProjectRail) */}
-          <ul className="-mx-4 mt-5 flex list-none snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 lg:grid-cols-3">
+          {/* on a phone the card in the middle is in focus (globals.css .focus-row): snapped to the centre, with the row padded so
+              the first and last cards can reach it */}
+          <ul className="focus-row -mx-4 mt-5 flex list-none snap-x snap-mandatory gap-3 overflow-x-auto px-[10%] pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 lg:grid-cols-3">
             {hot.map((p) => (
-              <li key={p.slug} className="w-[80%] max-w-[300px] shrink-0 snap-start sm:w-auto sm:max-w-none">
+              <li key={p.slug} className="w-[80%] max-w-[300px] shrink-0 snap-center sm:w-auto sm:max-w-none">
                 {/* a picture on top (owner 2026-11-01, "places where we don't have images"): the project's pictures as a
                     slideshow, else its street map and the builder's logo; the picture links itself, its arrows are buttons */}
                 <div className="flex h-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white transition-shadow hover:border-slate-300 hover:shadow-md">

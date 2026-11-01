@@ -664,3 +664,19 @@ body {
 
 /* The header search's phone sheet covers the page (components/site/HeaderSearch): the chat bubble would sit on top of it. */
 html[data-search="open"] [data-chat-bubble] { display: none; }
+
+/* The home page's "Hot right now" row on a phone (app/page.tsx): the card in the middle is in focus and its neighbours step
+   back a little, so the swipe reads as a set to flick through (owner 2026-11-01). Driven by the scroll itself, no script:
+   a browser without scroll-driven animations, or a reader who asked for less motion, gets the plain row. */
+@keyframes focus-card {
+  0%, 100% { transform: scale(0.92); opacity: 0.7; }
+  50% { transform: scale(1); opacity: 1; }
+}
+@supports (animation-timeline: view()) {
+  @media (max-width: 639px) and (prefers-reduced-motion: no-preference) {
+    .focus-row > li {
+      animation: focus-card linear both;
+      animation-timeline: view(inline);
+    }
+  }
+}
