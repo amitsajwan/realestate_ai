@@ -22,7 +22,7 @@ from app.core.areas import BY_KEY
 from app.modules.newsroom.store import Store
 
 from .hubs import _primaries, _slot, link_name
-from .pages import _served, booked, indexable, is_old, shown_pictures, stage
+from .pages import _served, booked, builder_logo, indexable, is_old, location_picture, shown_pictures, stage
 from .prices import price_from
 from .service import _count, _day
 
@@ -104,13 +104,31 @@ def _google(d: dict) -> Optional[Tuple[float, float]]:
     return None
 
 
-def _photo(docs: List[dict]) -> Optional[dict]:
-    """The first picture a card may show (the map's and the area lists', seo.facets): none copied from another site."""
+CARD_PHOTOS = 5   # pictures a card steps through: enough to see the project, few enough to stay a card
+
+
+def _photos(docs: List[dict], limit: int = CARD_PHOTOS) -> List[dict]:
+    """The pictures a card may show, in the profile's order (the map's and the area lists', seo.facets): none copied from
+    another site."""
+    out: List[dict] = []
     for d in docs:
         for p in shown_pictures((d.get("profile") or {}).get("photos")):
-            if p.get("path"):
-                return {"url": "/uploads/" + p["path"], "alt": p.get("alt") or "", "source": p.get("source") or "builder"}
-    return None
+            if p.get("path") and len(out) < limit:
+                out.append({"url": "/uploads/" + p["path"], "alt": p.get("alt") or "", "source": p.get("source") or "builder"})
+    return out
+
+
+def _photo(docs: List[dict]) -> Optional[dict]:
+    """The first picture a card may show."""
+    photos = _photos(docs, limit=1)
+    return photos[0] if photos else None
+
+
+def card_pictures(d: dict) -> dict:
+    """What a project card draws in its picture slot: its pictures (a card with more than one steps through them), and for a
+    card with none, the project page's stand-ins (owner 2026-11-01, "places where we don't have images"): the street map
+    around its checked pin and the builder's logo (pages.location_picture, pages.builder_logo)."""
+    return {"photos": _photos([d]), "location_picture": location_picture(d), "logo": builder_logo([d])}
 
 
 def _young(d: dict, now: datetime) -> bool:

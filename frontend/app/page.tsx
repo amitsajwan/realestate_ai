@@ -3,6 +3,7 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 import MarketingShell from '@/components/marketing/MarketingShell'
 import NewsSection from '@/components/news/NewsSection'
+import CardPicture from '@/components/site/CardPicture'
 import ProjectRail from '@/components/site/ProjectRail'
 import ProjectSearch from '@/components/site/ProjectSearch'
 import CorridorMap, { CorridorStatus } from '@/components/site/CorridorMap'
@@ -148,14 +149,19 @@ export default async function BuyerHome() {
           <ul className="-mx-4 mt-5 flex list-none snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 lg:grid-cols-3">
             {hot.map((p) => (
               <li key={p.slug} className="w-[80%] max-w-[300px] shrink-0 snap-start sm:w-auto sm:max-w-none">
-                <Link href={`/projects/${p.slug}`} className="group flex h-full flex-col rounded-xl border border-slate-200 bg-white p-4 no-underline transition-shadow hover:border-slate-300 hover:shadow-md">
-                  <span className="flex items-start justify-between gap-3">
-                    <span className="font-semibold text-slate-900 group-hover:text-[#0f2340]">{p.name}</span>
-                    <Chevron className="mt-1" />
-                  </span>
-                  {p.area && <span className="block text-sm text-slate-500">{p.area}, Pune</span>}
-                  {' '}<span className="mt-3 block border-t border-slate-100 pt-3 text-sm text-slate-700">{p.note || `${p.fact} (${p.source})`}</span>
-                </Link>
+                {/* a picture on top (owner 2026-11-01, "places where we don't have images"): the project's pictures as a
+                    slideshow, else its street map and the builder's logo; the picture links itself, its arrows are buttons */}
+                <div className="flex h-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white transition-shadow hover:border-slate-300 hover:shadow-md">
+                  <CardPicture m={p} name={p.name} href={`/projects/${p.slug}`} />
+                  <Link href={`/projects/${p.slug}`} className="group flex flex-1 flex-col p-4 no-underline">
+                    <span className="flex items-start justify-between gap-3">
+                      <span className="font-semibold text-slate-900 group-hover:text-[#0f2340]">{p.name}</span>
+                      <Chevron className="mt-1" />
+                    </span>
+                    {p.area && <span className="block text-sm text-slate-500">{p.area}, Pune</span>}
+                    {' '}<span className="mt-3 block border-t border-slate-100 pt-3 text-sm text-slate-700">{p.note || `${p.fact} (${p.source})`}</span>
+                  </Link>
+                </div>
               </li>
             ))}
           </ul>

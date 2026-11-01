@@ -99,3 +99,24 @@ def test_a_card_shows_the_builders_picture_never_one_copied_from_another_site():
     assert areamap._photo([{"profile": {"photos": [web, builder]}}]) == {"url": "/uploads/pr1/b.webp", "alt": "Tower", "source": "builder"}
     # only copied pictures: no picture, so the card draws its skyline
     assert areamap._photo([{"profile": {"photos": [web]}}]) is None
+
+
+def test_a_card_steps_through_up_to_five_of_the_projects_own_pictures():
+    web = {"path": "pr1/w.webp", "source": "web", "alt": "from housiey.com"}
+    own = [{"path": f"pr1/{i}.webp", "source": "builder", "alt": f"View {i}"} for i in range(7)]
+    got = areamap.card_pictures({"profile": {"photos": [web, *own]}})["photos"]
+    assert [p["url"] for p in got] == [f"/uploads/pr1/{i}.webp" for i in range(5)]   # in order, the copied one left out
+    assert areamap._photo([{"profile": {"photos": [web, *own]}}]) == got[0]   # the one-picture field is still the first
+
+
+def test_a_card_with_no_picture_gets_the_pages_street_map_and_the_builders_logo():
+    pin = {"map_pin": {"status": "auto", "lat": 18.5676, "lon": 73.9683},
+           "location_map": {"path": "location_maps/pr2.png", "lat": 18.5676, "lon": 73.9683},
+           "builder_logo": {"status": "found", "path": "builder_logos/lodha.png", "width": 200, "height": 80, "tone": "dark",
+                            "site": "lodhagroup.com"}}
+    got = areamap.card_pictures({"profile": {"photos": [{"path": "pr2/w.webp", "source": "web"}]}, **pin})
+    assert got["photos"] == []
+    assert got["location_picture"]["url"] == "/uploads/location_maps/pr2.png"
+    assert got["logo"]["url"] == "/uploads/builder_logos/lodha.png" and got["logo"]["tone"] == "dark"
+    # nothing of its own at all: the card keeps its drawn skyline
+    assert areamap.card_pictures({}) == {"photos": [], "location_picture": None, "logo": None}

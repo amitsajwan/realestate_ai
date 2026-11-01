@@ -8,7 +8,8 @@ Only project pages that are live and indexable are ever shown: the strip is inte
 link to a 404 or a noindex page. Each entry carries the owner's note, else one sourced fact (hubs.fact_line); never a score.
 
 - get_config(db) / set_config(db, body, by, now): the owner's settings (one document);
-- public(db, area, now): the strip for one page: [{slug, name, area, area_slug, regnos, note, fact, source, picked}]. `regnos` are
+- public(db, area, now): the strip for one page: [{slug, name, area, area_slug, regnos, note, fact, source, picked, photos,
+  location_picture, logo}] (the last three for the home page's cards, areamap.card_pictures). `regnos` are
   the registrations the page stands for (its towers too), so the site can link an agent-listed project's own page directly
   instead of through its 301.
 
@@ -22,6 +23,7 @@ from app.core.areas import BY_KEY
 from app.modules.newsroom.store import Store
 
 from . import hot, upcoming
+from .areamap import card_pictures
 from .hubs import _primaries, fact_line, link_name
 from .pages import indexable, is_old
 
@@ -103,13 +105,15 @@ async def set_config(db, body: Dict, by: str, now: datetime) -> Dict:
 def _entry(d: dict, now: datetime, regnos: List[str], note: str = "", picked: bool = False) -> dict:
     a = BY_KEY.get(d.get("locality") or "")
     return {"slug": d["page_slug"], "name": link_name(d), "area": a.name if a else None, "area_slug": a.slug if a else None,
-            "regnos": regnos, "note": note or None, **fact_line(d, now), "picked": picked}
+            "regnos": regnos, "note": note or None, **fact_line(d, now), "picked": picked,
+            # the home page's cards draw a picture (areamap.card_pictures); the strip itself stays words
+            **card_pictures(d)}
 
 
 def _upcoming_entry(slug: str, u: dict, note: str) -> dict:
     return {"slug": slug, "name": u["name"], "area": u["area_name"], "area_slug": u["area_slug"], "regnos": [],
             "note": note or u.get("note") or None, "fact": "coming soon, not yet registered with MahaRERA", "source": "builder",
-            "picked": True}
+            "picked": True, "photos": [], "location_picture": None, "logo": None}
 
 
 async def public(db, area: Optional[str] = None, now: Optional[datetime] = None, limit: int = MAX) -> List[dict]:

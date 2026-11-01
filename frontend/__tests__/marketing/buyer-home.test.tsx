@@ -22,7 +22,8 @@ const API: Record<string, unknown> = {
   '/public/facets/kharadi/top': { key: 'kharadi|top', path: '/projects/area/kharadi/top', place: { key: 'kharadi', slug: 'kharadi', name: 'Kharadi' },
     intent: 'top', count: 23, rows: [1, 2, 3].map((i) => ({ rank: i, slug: `p-${i}`, name: `Project ${i}`, units_total: 100, units_booked: 80, units_open: 20,
       completion_now: '2029-04-30', stage: 'under-construction', price: null, photo: null })) },
-  '/public/register/spotlight': [{ slug: 'lodha-camelot-kharadi', name: 'Lodha Camelot', area: 'Kharadi', area_slug: 'kharadi', note: 'New tower registered', fact: 'f', source: 'MahaRERA', picked: true }],
+  '/public/register/spotlight': [{ slug: 'lodha-camelot-kharadi', name: 'Lodha Camelot', area: 'Kharadi', area_slug: 'kharadi', note: 'New tower registered', fact: 'f', source: 'MahaRERA', picked: true,
+    photos: [{ url: '/uploads/p1/a.webp', alt: 'Towers', source: 'builder' }, { url: '/uploads/p1/b.webp', alt: 'Clubhouse', source: 'builder' }] }],
   '/public/builders': [{ slug: 'lodha', name: 'Lodha', projects: 9, indexable: true, page_updated: null, brand: true },
     { slug: 'thin', name: 'Thin Builder', projects: 1, indexable: false, page_updated: null }],
 }
@@ -52,6 +53,14 @@ describe("buyers' home", () => {
     const ask = screen.getAllByRole('link', { name: /tell us what you need/i })   // the header button and the hero's
     expect(ask.length).toBe(2)
     for (const a of ask) expect(a).toHaveAttribute('href', '/enquire')
+  })
+
+  it("gives each hot project's card its pictures, stepped through with arrows", async () => {
+    render(await BuyerHome())
+    const hot = within(screen.getByTestId('home-hot'))
+    expect(hot.getByAltText('Towers')).toHaveAttribute('src', '/uploads/p1/a.webp')
+    expect(hot.getByRole('button', { name: 'Next picture of Lodha Camelot' })).toBeInTheDocument()
+    expect(hot.getAllByRole('link', { name: /lodha camelot/i })).toHaveLength(1)   // the picture's own link is not read out twice
   })
 
   it('links the hottest projects, every area, the live lists and builders with pages', async () => {
