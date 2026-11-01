@@ -4,7 +4,7 @@ import type { FacetRow } from '@/lib/site/facets'
 import { formatPrice, readableName } from '@/lib/site/format'
 import { monthYear } from '@/lib/site/register'
 import OpenChatButton from './OpenChatButton'
-import Skyline from './Skyline'
+import CardPicture from './CardPicture'
 
 /** One project as a card, the same on the Top list, the area page's rows and the home page (docs/plan/area-intent-pages.md,
  *  "Top projects" redesign 2026-10-26): picture with where it came from, stage, price or "ask", possession filed, homes open.
@@ -30,10 +30,6 @@ function justOpened(r: FacetRow): boolean {
   return r.stage === 'new-launch' && r.units_booked === 0 && !!r.units_total
 }
 
-// a picture that is not the builder's own says so, as the project page does (ProfilePictures); pictures copied from other
-// sites are never sent (backend pages.shown_pictures, 2026-10-29), so a card without one draws the skyline
-const PHOTO_NOTE: Record<string, string> = { ai: 'AI illustration', brochure: "Artist's impression" }
-
 export function cardPrice(r: FacetRow): string | null {
   // a size list's own price first: the cheapest of any size put a 1 BHK price on the 2 BHK row (96 Arrcade, 2026-10-26)
   if (r.price_from != null) return `${formatPrice(r.price_from)}${r.price_to ? ` to ${formatPrice(r.price_to)}` : ''}`
@@ -41,24 +37,10 @@ export function cardPrice(r: FacetRow): string | null {
   return null
 }
 
+/** The card's picture slot (CardPicture): its pictures as a slideshow, else the project page's map or logo, else the skyline. */
 function Picture({ r, rank, tall }: { r: FacetRow; rank?: number; tall?: boolean }) {
-  const note = r.photo ? PHOTO_NOTE[r.photo.source] : undefined
-  const tag = stageTag(r)
-  return (
-    <div className={`relative overflow-hidden bg-slate-200 ${tall ? 'h-44 sm:h-full sm:min-h-[200px]' : 'h-32'}`}>
-      {r.photo
-        ? <img src={r.photo.url} alt={r.photo.alt || r.name} loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
-        // no picture: the skyline the listing cards use, not a lone first letter (it read as a broken image)
-        : <span aria-hidden className="absolute inset-0 flex flex-col justify-end bg-gradient-to-b from-[#102340] to-[#183a5d]"><Skyline className="block h-1/2 w-full" /></span>}
-      {rank != null && (
-        <span className="absolute left-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-[#0f2340] text-sm font-bold text-white">
-          <span className="sr-only">Rank </span>{rank}
-        </span>
-      )}
-      {tag && <span className={`absolute bottom-2 left-2 rounded-full px-2.5 py-1 text-xs font-bold ${r.stage === 'ready' ? 'bg-[#fdf0d3] text-[#6b4a0b]' : 'bg-white/95 text-[#0f2340]'}`}>{tag}</span>}
-      {note && <span className="absolute bottom-2 right-2 rounded bg-black/60 px-1.5 py-0.5 text-[11px] text-white">{note}</span>}
-    </div>
-  )
+  return <CardPicture m={r} name={readableName(r.name)} href={`/projects/${r.slug}`} rank={rank} tag={stageTag(r)}
+    tagTone={r.stage === 'ready' ? 'warn' : 'plain'} height={tall ? 'h-44 sm:h-full sm:min-h-[200px]' : 'h-32'} />
 }
 
 function Booked({ r }: { r: FacetRow }) {
@@ -110,7 +92,7 @@ export function RankedCard({ r }: { r: FacetRow }) {
   )
 }
 
-/** A small card for a row of cards (ProjectRail): picture and name are one link to the project. The line under the name is
+/** A small card for a row of cards (ProjectRail): picture and name both link to the project. The line under the name is
  *  the price when we have one; without one it is the homes booked (a bar, as on the Top list) and an "Ask the price" button
  *  that opens the chat about this project, so most cards no longer lead with the words "Ask for price" (owner review 2026-10-26). */
 export function RailCard({ r, rank }: { r: FacetRow; rank?: number }) {
@@ -122,8 +104,9 @@ export function RailCard({ r, rank }: { r: FacetRow; rank?: number }) {
     : null
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white hover:border-[#0f2340]">
+      {/* the picture links itself: its slideshow's arrows are buttons, which may not sit inside a link */}
+      <Picture r={r} rank={rank} />
       <Link href={`/projects/${r.slug}`} className="block no-underline">
-        <Picture r={r} rank={rank} />
         <span className="block px-3 pt-3">
           {/* underlined with an arrow: the card reads as a link at a glance on a phone (owner 2026-10-26) */}
           <span className="block font-bold leading-snug text-[#0f2340] underline decoration-[#f0b440] decoration-2 underline-offset-4">{name}<span aria-hidden className="ml-1">→</span></span>

@@ -22,7 +22,7 @@ from typing import Dict, List, Optional, Tuple
 from app.core import pune_places
 from app.core.areas import AREAS
 from app.modules.areastats import hot, priceidea, prices
-from app.modules.areastats.areamap import _photo
+from app.modules.areastats.areamap import _photo, card_pictures
 from app.modules.areastats.hubs import _primaries, link_name
 from app.modules.areastats.pages import (OPEN_MIN, _long, booked, builder_key, buyable, cluster_stamps, cluster_updated,
                                          completion_passed, homes, indexable, is_old, open_homes, searchable)
@@ -347,8 +347,9 @@ def _row(d: dict, why: str, n: int, now: datetime) -> dict:
             "registered_on": _day(d.get("registered_on")), "completion_now": _day(d.get("completion_now")),
             "completion_at_registration": _day(d.get("completion_at_registration")),
             "units_total": total, "units_booked": booked(d), "units_open": _open(d), "reason": why, "source": "MahaRERA",
-            # for the card: where it is, the cheapest published price and one picture (with where it came from)
-            "stage": stage(d, now), "price": lowest_price(d, now), "photo": _photo([d])}
+            # for the card: where it is, the cheapest published price and one picture (with where it came from); `photos` and
+            # the stand-ins for a card with none (areastats.areamap.card_pictures)
+            "stage": stage(d, now), "price": lowest_price(d, now), "photo": _photo([d]), **card_pictures(d)}
 
 
 def _price_row(row: dict, d: dict, bhk: int, now: datetime) -> dict:

@@ -6,7 +6,7 @@
  */
 import { serverApiBase } from './api'
 import { badStatus, failed, withRetry, type Got } from './retry'
-import type { PriceBand } from './register'
+import type { BuilderLogo, PriceBand } from './register'
 
 export type Intent = 'new-launches' | 'top' | 'ready-to-move' | 'all'
 
@@ -48,6 +48,10 @@ export interface FacetRow {
   stage?: 'new-launch' | 'under-construction' | 'possession-soon' | 'ready'
   price?: { bhk: number; from_inr: number; to_inr: number | null } | null
   photo?: { url: string; alt: string; source: string } | null
+  /** up to five pictures for the card's slideshow, and the stand-ins for a card with none (backend areamap.card_pictures) */
+  photos?: { url: string; alt: string; source: string }[]
+  location_picture?: { url: string; width: number; height: number } | null
+  logo?: BuilderLogo | null
 }
 
 export interface FacetChange { at: string; text: string; slug: string; source: string }

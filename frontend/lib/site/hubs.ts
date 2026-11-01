@@ -116,6 +116,10 @@ export interface SpotlightProject {
   slug: string; name: string; area: string | null; area_slug: string | null; note: string | null; fact: string; source: string; picked: boolean
   /** the registrations the page stands for (its towers too) */
   regnos?: string[]
+  /** for the home page's cards (backend areamap.card_pictures): up to five pictures, else the street map and the builder's logo */
+  photos?: { url: string; alt: string; source: string }[]
+  location_picture?: { url: string; width: number; height: number } | null
+  logo?: BuilderLogo | null
 }
 
 /** The banner for a page; on an area's pages (area slug) that area's projects come first. Empty on any failure: never breaks a page. */

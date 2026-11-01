@@ -43,6 +43,15 @@ async def test_with_no_picks_the_strip_is_the_hot_indexable_projects():
     assert got[0]["regnos"] == ["P1"]
 
 
+async def test_the_home_pages_hot_cards_get_the_projects_own_pictures_but_never_copied_ones():
+    db = await seeded(("P1", "camelot-kharadi", "kharadi", {"hot_score": 80, "profile": {"photos": [
+        {"path": "p1/web.webp", "source": "web"}, {"path": "p1/a.webp", "source": "builder", "alt": "Towers"},
+        {"path": "p1/b.webp", "source": "brochure", "alt": "Clubhouse"}]}}))
+    got = (await spotlight.public(db, now=NOW))[0]
+    assert [p["url"] for p in got["photos"]] == ["/uploads/p1/a.webp", "/uploads/p1/b.webp"]
+    assert got["location_picture"] is None and got["logo"] is None   # no checked pin, no logo read yet
+
+
 async def test_an_areas_pages_show_its_own_hot_projects_first():
     db = await world()
     assert [e["slug"] for e in await spotlight.public(db, area="wagholi", now=NOW)] == ["busy-wagholi", "camelot-kharadi"]
