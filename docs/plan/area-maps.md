@@ -59,6 +59,9 @@ projects were elsewhere by Google's own address.
 - The register sweep keeps a position-placed area (`locality_from: "position"`); a hand placement still wins.
 - First run moved 20 projects out of Kharadi (12 Wadgaon Sheri, 6 Viman Nagar, 2 Kalyani Nagar), Ekaanta among them; nothing
   else moved. Kharadi's map was re-centred on its boundary.
+- A project with no checked position stayed in its pincode's area even when every source said otherwise (96 Arrcade, 411014 on
+  MahaRERA, is in Charholi). From 2026-11-01 a hand placement can name a place outside our areas, and 19 such projects were
+  moved. The plan for checking the place on every read is [location-checks.md](location-checks.md).
 
 ## Areas
 

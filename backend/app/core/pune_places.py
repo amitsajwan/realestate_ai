@@ -195,6 +195,29 @@ VERIFIED: Dict[str, str] = {
     "P52100066545": "upper_kharadi",     # Part 2
     "P52100079026": "upper_kharadi",     # Part 3
     "P52100079395": "upper_kharadi",     # Part 4
+    # Gera's 343 Crest (412207): the builder's own page and PropHunt "Upper Kharadi", Google "Upper Kharadi Main Rd" (2026-11-01)
+    "P52100022737": "upper_kharadi",
+    # Filed under 411014 (Kharadi's pincode) but somewhere else, read 2026-11-01 from our stored Google results, Google pins and
+    # portal pages (every one agreeing, none saying Kharadi). They leave our area lists; their pages stay under the real place.
+    "P52100078739": "charholi",          # 96 Arrcade: MahaRERA address Sr No 96, Chovisawadi; Google pincode 412105
+    "P52100053524": "charholi",          # Shivtirth Villa: Charholi Budruk on every listing
+    "P52100047366": "mundhwa",           # Ganga Avanta A1: MahaRERA address S No 47 Mundhwa
+    "PM1260002601565": "mundhwa",        # Ganga Avanta A2
+    "P52100052695": "mundhwa",           # Shubh Tristar Wing-A: Mundhwa / Koregaon Park Annexe
+    "P52100053569": "mundhwa",           # Atulyam-Inclusive Housing: MahaRERA address Sr No 55a Mundhawa
+    "PR1260002500193": "vadgaon_sheri",  # Jag Solitaire: MahaRERA address Vadgaon Sheri
+    "PR1260002500807": "vadgaon_sheri",  # Skygraph 2
+    "P52100078984": "vadgaon_sheri",     # Aqura Prime
+    "P52100077714": "vadgaon_sheri",     # Vardhaman Riddhi
+    "P52100053742": "vadgaon_sheri",     # Kumar Palaash A2: builder "nestled in Wadgaon Sheri"
+    "P52100017868": "vadgaon_sheri",     # Kumar Prajwal: Google "Sainath Nagar, Wadgaon Sheri"
+    "P52100046988": "vadgaon_sheri",     # Evana: Google "Prasad Nagar, Wadgaon Sheri"
+    "PM1260002602250": "vadgaon_sheri",  # Anant Tara
+    "PR1260002502673": "vadgaon_sheri",  # Melody: its own post "in the heart of Wadgaon Sheri"
+    "P52100017050": "vadgaon_sheri",     # Bramhacorp Business Park T9-A1: New Kalyani Nagar / Wadgaon Sheri
+    "P52100023050": "vadgaon_sheri",     # Bramhacorp Business Park T9-A2
+    "P52100032719": "vadgaon_sheri",     # The Collection Premium: builder "New Kalyani Nagar"
+    "P52100022277": "vadgaon_sheri",     # The Collection - Residential W8
 }
 
 BY_KEY: Dict[str, Place] = {p.key: p for p in PLACES}

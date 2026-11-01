@@ -717,7 +717,8 @@ async def project_page(db, slug: str, now: Optional[datetime] = None) -> Optiona
     """The page for a slug. A tower's slug gets its project's primary page, whose own slug the frontend redirects to (301).
     `now` is for the prices' freshness (tests); the clock otherwise."""
     store = Store(db)
-    doc = await store.projects.find_one({"page_slug": slug})
+    # a page whose place word was wrong ("96-arrcade-kharadi") keeps its old address, and the frontend redirects it to the new one
+    doc = await store.projects.find_one({"page_slug": slug}) or await store.projects.find_one({"old_slugs": slug})
     if doc is None or not in_register(doc):
         return None
     docs = await store.shared_projects()   # ~13k records: the same-area list and the builder's track record

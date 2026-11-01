@@ -254,3 +254,11 @@ async def test_the_builders_list_and_page_carry_the_builders_logo():
     row = next(r for r in await hubs.builders(db, only_indexable=False) if r["slug"] == key)
     assert row["logo"]["url"] == "/uploads/builder_logos/rohan-builders.png"
     assert (await hubs.builder_page(db, key))["logo"]["site"] == "rohanbuilders.com"
+
+
+# ---- old addresses -----------------------------------------------------------------------------------------------------
+
+async def test_a_page_moved_to_a_new_address_is_still_found_at_its_old_one():
+    db = await seeded(("P1", "Our Project", {"page_slug": "our-project-charholi", "old_slugs": ["our-project-kharadi"]}))
+    page = await pages.project_page(db, "our-project-kharadi", now=NOW)
+    assert page["slug"] == "our-project-charholi"   # the frontend sends the old address there (301)

@@ -36,6 +36,8 @@ def locality_of(name: str, pincode: str, regno: str = "") -> Optional[Tuple[str,
     hand = pune_places.VERIFIED.get(regno or "")
     if hand in BY_KEY:
         return hand, "checked by hand"
+    if hand:   # placed by hand outside our areas: 96 Arrcade (411014 on MahaRERA) is in Charholi, not Kharadi (2026-11-01)
+        return None
     named = named_areas(name)
     pin = (pincode or "").strip()
     by_pin = AREA_PINCODES.get(pin)
