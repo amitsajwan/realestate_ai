@@ -381,3 +381,15 @@ describe('deals on listing cards', () => {
     expect(screen.queryByTestId('performance-deals')).toBeNull()
   })
 })
+
+describe('recent tab on the leads list', () => {
+  it('lists only leads that came in this week, newest enquiry first, with when they came in', async () => {
+    render(<LeadsPage />)
+    fireEvent.click(await screen.findByRole('tab', { name: /Recent/ }))
+    const rows = await screen.findAllByRole('listitem')
+    const names = rows.map((r) => within(r).getAllByRole('link')[0].querySelector('p')!.textContent)
+    expect(names).not.toContain('Imran Shaikh')
+    expect(names[0]).toBe('Rohit Deshmukh')
+    expect(within(rows[0]).getByText(/Came in 2h ago/)).toBeInTheDocument()
+  })
+})

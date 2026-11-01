@@ -8,20 +8,20 @@ import { PassedPanel } from '@/components/app/PassedPanel'
 import { useIsOwner } from '@/components/app/agents/useIsOwner'
 import { ErrorBox, PageTitle, STAGES, Spinner, TempChip } from '@/components/app/ui'
 import { api } from '@/lib/app/client'
-import { displayPhone, timeAgo } from '@/lib/app/format'
-import { buildWhatsappUrl, channelLabel, CONTACT_TONE, contactLine, matchesSearch, originKey, sortLeads, sourceLabel } from '@/lib/app/leads'
+import { displayPhone } from '@/lib/app/format'
+import { arrivalLine, buildWhatsappUrl, channelLabel, CONTACT_TONE, contactLine, matchesSearch, originKey, RECENT_DAYS, recentLeads, sortLeads, sourceLabel } from '@/lib/app/leads'
 import { t } from '@/lib/app/strings'
 import { useAsync } from '@/lib/app/useAsync'
 import type { Lead, TodayFollowUp } from '@/lib/app/types'
 
-/** Tabs: leads waiting on us first, follow-ups due today, then the stages, then everything (and, for the owner, the ones passed to agents). Kept in the address as ?tab= (and ?hot=1). */
-const TABS = ['needs', 'today', ...STAGES.map((s) => s.key as string), 'all', 'passed']
+/** Tabs: leads waiting on us first, the ones that came in this week (newest enquiry first), follow-ups due today, then the stages, then everything (and, for the owner, the ones passed to agents). Kept in the address as ?tab= (and ?hot=1). */
+const TABS = ['needs', 'recent', 'today', ...STAGES.map((s) => s.key as string), 'all', 'passed']
 /** Home tiles and older links used ?filter=: they still land on the right tab. */
 const LEGACY: Record<string, { tab: string; hot?: boolean }> = {
   new: { tab: 'new' }, hot: { tab: 'all', hot: true }, site_visit: { tab: 'site_visit' }, followups: { tab: 'today' },
 }
 const SHORT: Record<string, string> = { site_visit: 'Visit', negotiating: 'Talks' }
-const EMPTY: Record<string, string> = { needs: 'Everyone has been contacted, and nobody is waiting for a reply.', today: 'No follow-ups due today.', all: t('noLeads') }
+const EMPTY: Record<string, string> = { needs: 'Everyone has been contacted, and nobody is waiting for a reply.', recent: `No new leads in the last ${RECENT_DAYS} days.`, today: 'No follow-ups due today.', all: t('noLeads') }
 /** Nobody reached them yet, or their message is unanswered (2026-10-23: two form leads sat for 10 hours and 3 days). */
 const needsYou = (l: Lead) => l.contact?.state === 'not_contacted' || l.contact?.state === 'waiting_you'
 
@@ -76,7 +76,7 @@ function LeadRow({ lead, title, due }: { lead: Lead; title?: string; due?: Today
         {lead.message && <p className="mt-1 truncate text-sm text-gray-700">“{plainMessage(lead.message)}”</p>}
         <p className="mt-1 truncate text-xs text-gray-500">
           {[originKey(lead) !== 'unknown' ? sourceLabel(originKey(lead)) : channelLabel(lead.channel),
-            title ?? lead.first_touch?.enquiry_page ?? '', timeAgo(lead.last_activity_at)].filter(Boolean).join(' · ')}
+            title ?? lead.first_touch?.enquiry_page ?? '', arrivalLine(lead)].filter(Boolean).join(' · ')}
         </p>
       </Link>
       {lead.phone && (
@@ -149,6 +149,7 @@ function LeadsList() {
   const inTab = (k: string) =>
     k === 'all' ? leads
       : k === 'needs' ? leads.filter(needsYou).sort((a, b) => (a.contact?.at ?? '').localeCompare(b.contact?.at ?? ''))   // longest waiting first
+      : k === 'recent' ? recentLeads(leads)
       : k === 'today' ? (data?.followUps ?? []).map((f) => leads.find((l) => l.id === f.id)).filter((l): l is Lead => !!l)
         : leads.filter((l) => l.stage === k)
   const shown = inTab(tab)
@@ -159,6 +160,7 @@ function LeadsList() {
       {data && (
         <TabBar label="Leads" value={tab} onChange={setTab} tabs={[
           { key: 'needs', label: 'Needs you', count: inTab('needs').length, tone: 'urgent' },
+          { key: 'recent', label: 'Recent', count: inTab('recent').length },
           { key: 'today', label: 'Today', count: inTab('today').length, tone: 'urgent' },
           // short labels and no empty stage tabs (except New and the open one), so the row fits a phone without scrolling
           ...STAGES.map((s) => ({ key: s.key as string, label: SHORT[s.key] ?? s.label, count: inTab(s.key).length, hideWhenEmpty: s.key !== 'new' && s.key !== tab })),
@@ -173,7 +175,7 @@ function LeadsList() {
           className="min-h-[48px] w-full rounded-xl border border-gray-300 bg-white px-4 text-base text-gray-900 placeholder-gray-400 focus:border-[#0f2340] focus:outline-none" />
       )}
       <div className="items-center justify-between gap-2 [display:flex]">
-        <p className="text-xs text-gray-600">{hot ? 'Showing hot buyers only.' : 'Newest first.'}</p>
+        <p className="text-xs text-gray-600">{[hot ? 'Hot buyers only.' : '', tab === 'recent' ? `Came in the last ${RECENT_DAYS} days, newest enquiry first.` : tab === 'needs' ? 'Longest waiting first.' : 'Latest activity first.'].filter(Boolean).join(' ')}</p>
         <button type="button" role="switch" aria-checked={hot} onClick={() => setHot(!hot)}
           className={`min-h-[44px] flex-none rounded-full border px-4 text-sm font-semibold ${hot ? 'border-red-600 bg-red-600 text-white' : 'border-gray-300 bg-white text-gray-700'}`}>
           🔥 Hot only
