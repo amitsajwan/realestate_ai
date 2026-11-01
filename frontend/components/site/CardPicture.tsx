@@ -41,9 +41,11 @@ export default function CardPicture({ m, name, href, rank, tag, tagTone = 'plain
   const map = photos.length ? null : m.location_picture ?? null
   const logo = photos.length ? null : m.logo ?? null
   const step = (by: number) => setAt((i) => (i + by + photos.length) % photos.length)
-  const arrow = 'absolute top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-[#0f2340] shadow hover:bg-white'
+  // a 44px tap target round a small circle: always there on a touch screen, and with a mouse when the pointer is on the picture
+  const arrow = 'absolute top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center text-[#0f2340] transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/pic:opacity-100 focus-visible:opacity-100'
+  const dot = 'flex h-8 w-8 items-center justify-center rounded-full bg-white/85 shadow-sm backdrop-blur-sm'
   return (
-    <div className={`relative overflow-hidden bg-slate-200 ${height}`} data-testid="card-picture">
+    <div className={`group/pic relative overflow-hidden bg-slate-200 ${height}`} data-testid="card-picture">
       <Link href={href} tabIndex={-1} aria-hidden className="absolute inset-0 block">
         {photos.length > 0 && photos.map((p, i) => (
           // every picture is in the page, so the next one is there when the arrow is pressed; only the shown one is visible
@@ -56,9 +58,10 @@ export default function CardPicture({ m, name, href, rank, tag, tagTone = 'plain
           <img src={map.url} alt={`Map: where ${name} is`} loading="lazy" className="absolute inset-0 h-full w-full object-cover" data-testid="card-map" />
         )}
         {!photos.length && !map && logo && (
-          <span className={`absolute inset-0 flex items-center justify-center px-6 py-4 ${logo.tone === 'light' ? 'bg-[#16305a]' : 'bg-white'}`} data-testid="card-logo">
+          // the logo at a logo's size, centred on a quiet ground, not stretched to fill the slot (it read as unfinished)
+          <span className={`absolute inset-0 flex items-center justify-center ${logo.tone === 'light' ? 'bg-[#16305a]' : 'bg-slate-50'}`} data-testid="card-logo">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={logo.url} alt={`${name}: the builder's logo`} loading="lazy" className="max-h-full max-w-full object-contain" />
+            <img src={logo.url} alt={`${name}: the builder's logo`} loading="lazy" className="h-auto max-h-12 w-auto max-w-[55%] object-contain" />
           </span>
         )}
         {!photos.length && !map && !logo && (
@@ -79,13 +82,13 @@ export default function CardPicture({ m, name, href, rank, tag, tagTone = 'plain
       )}
       {many && (
         <>
-          <button type="button" onClick={() => step(-1)} aria-label={`Previous picture of ${name}`} className={arrow + ' left-2'}>
-            <svg aria-hidden viewBox="0 0 20 20" className="h-4 w-4"><path d="M12.5 4.5 7 10l5.5 5.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          <button type="button" onClick={() => step(-1)} aria-label={`Previous picture of ${name}`} className={arrow + ' left-0.5'}>
+            <span className={dot}><svg aria-hidden viewBox="0 0 20 20" className="h-4 w-4"><path d="M12.5 4.5 7 10l5.5 5.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></span>
           </button>
-          <button type="button" onClick={() => step(1)} aria-label={`Next picture of ${name}`} className={arrow + ' right-2'}>
-            <svg aria-hidden viewBox="0 0 20 20" className="h-4 w-4"><path d="M7.5 4.5 13 10l-5.5 5.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          <button type="button" onClick={() => step(1)} aria-label={`Next picture of ${name}`} className={arrow + ' right-0.5'}>
+            <span className={dot}><svg aria-hidden viewBox="0 0 20 20" className="h-4 w-4"><path d="M7.5 4.5 13 10l-5.5 5.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></span>
           </button>
-          <span className="pointer-events-none absolute right-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[11px] font-semibold text-white" aria-live="polite">
+          <span className="pointer-events-none absolute right-2 top-2 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-semibold text-white" aria-live="polite">
             <span className="sr-only">Picture </span>{at + 1} / {photos.length}
           </span>
         </>
