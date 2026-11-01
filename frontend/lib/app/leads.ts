@@ -94,6 +94,34 @@ export function sortLeads(leads: Lead[]): Lead[] {
   return [...leads].sort((a, b) => b.last_activity_at.localeCompare(a.last_activity_at) || b.score - a.score)
 }
 
+/** The backend sends naive UTC datetimes; a missing zone is UTC, like timeAgo. NaN when unparsable. */
+function utcMs(iso: string | null | undefined): number {
+  if (!iso) return NaN
+  return Date.parse(/[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? iso : iso + 'Z')
+}
+
+export const RECENT_DAYS = 7
+
+/**
+ * Leads that came in during the last `days`, newest enquiry first. The other lists go by last activity, which moves with
+ * every page view and bot message, so a lead from this morning could sit under one from last month (2026-11-01).
+ */
+export function recentLeads(leads: Lead[], now: Date = new Date(), days: number = RECENT_DAYS): Lead[] {
+  const since = now.getTime() - days * 24 * 3600 * 1000
+  return leads
+    .filter((l) => utcMs(l.created_at) >= since)
+    .sort((a, b) => utcMs(b.created_at) - utcMs(a.created_at))
+}
+
+/** "Came in 3d ago · active 2h ago", or "Came in 2h ago" when nothing new has happened since (within the hour). */
+export function arrivalLine(lead: Pick<Lead, 'created_at' | 'last_activity_at'>, now: Date = new Date()): string {
+  const came = lead.created_at ? timeAgo(lead.created_at, now) : ''
+  const active = lead.last_activity_at ? timeAgo(lead.last_activity_at, now) : ''
+  if (!came) return active ? `Active ${active}` : ''
+  const later = utcMs(lead.last_activity_at) - utcMs(lead.created_at) > 3600 * 1000
+  return later && active ? `Came in ${came} · active ${active}` : `Came in ${came}`
+}
+
 /** "₹80 L - ₹90 L", "Under ₹50 L", "₹2 Cr+", or '' when there is no budget. Money is integer rupees. */
 export function budgetRange(min?: number | null, max?: number | null): string {
   const lo = min != null && min > 0 ? min : null
