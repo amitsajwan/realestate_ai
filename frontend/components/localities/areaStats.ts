@@ -83,9 +83,13 @@ export function longDate(day: string | null | undefined): string {
 
 export interface CityStats { asOf: string; areas: AreaStats[]; source: string }
 
-/** Every area's facts for the city tracker page: GET /api/v1/public/areas/stats. Areas with no projects are left out. Null in
- *  fixture mode or when the API cannot be read (also at build time, when no backend runs): the page then says the figures are
- *  being refreshed and asks not to be indexed until they are back, like the other list pages. */
+// the last figures read in this process: a slow or failed read shows them rather than an empty page that asks to leave search
+// (2026-11-01: /pune-maharera-tracker answered Googlebot noindex after one such read, as on 10-30)
+let lastCity: CityStats | null = null
+
+/** Every area's facts for the city tracker page: GET /api/v1/public/areas/stats. Areas with no projects are left out. When the
+ *  API cannot be read, the last figures this process read; null in fixture mode or before any read has worked (also at build
+ *  time, when no backend runs). */
 export async function getCityStats(): Promise<CityStats | null> {
   if (fixturesForced()) return null
   try {
@@ -94,9 +98,11 @@ export async function getCityStats(): Promise<CityStats | null> {
       next: { revalidate: 300 },
       signal: AbortSignal.timeout(8000),
     })
-    return res.ok ? cleanCityStats(await res.json()) : null
+    const city = res.ok ? cleanCityStats(await res.json()) : null
+    if (city) lastCity = city
+    return city ?? lastCity
   } catch {
-    return null
+    return lastCity
   }
 }
 

@@ -5,11 +5,12 @@ import type { CatalogProject } from '@/lib/site/types'
 // Avasetu's shared project pages read the catalog from the API: replaced here by a fixed list.
 const mockCatalog = jest.fn<Promise<CatalogProject[]>, [string?]>()
 const mockOne = jest.fn<Promise<CatalogProject | null>, [string]>()
+const mockEntries = jest.fn(async (): Promise<{ listings: unknown[]; projects: unknown[] }> => ({ listings: [], projects: [] }))
 jest.mock('@/lib/site/api', () => ({
   getCatalog: (l?: string) => mockCatalog(l),
   getCatalogProject: (s: string) => mockOne(s),
   getLocalityListings: async () => [],
-  getSitemapEntries: async () => ({ listings: [], projects: [] }),
+  getSitemapEntries: () => mockEntries(),
   fixturesForced: () => true, // news falls back to its fixtures
   serverApiBase: () => 'http://api',
 }))
@@ -17,8 +18,12 @@ jest.mock('@/components/site/ChatWidget', () => ({ __esModule: true, default: ()
 // Avasetu's own register pages (lib/site/register): none in these tests, so unknown slugs are 404s as before
 const mockRegister = jest.fn(async (): Promise<unknown[]> => [])
 const mockPlaces = jest.fn(async (): Promise<unknown[]> => [])
+// the project page a listing's MahaRERA number shows (a tower merged into its project is looked up, not in the register list)
+const mockProjectOfListing = jest.fn(async (_regno?: string | null): Promise<string | null> => null)
 jest.mock('@/lib/site/register', () => ({ getRegisterProject: async () => null, getRegisterProjects: () => mockRegister(), longDay: () => '',
-  getRegisterPlaces: () => mockPlaces(), placePath: (s: string) => `/projects/area/${s}` }))
+  getRegisterPlaces: () => mockPlaces(), placePath: (s: string) => `/projects/area/${s}`,
+  projectPageOfListing: (r?: string | null) => mockProjectOfListing(r),
+  regnoKey: (r?: string | null) => (r || '').trim().toUpperCase() }))
 // topic guides (lib/site/topics): none unless a test sets them
 const mockTopics = jest.fn(async (): Promise<unknown[]> => [])
 jest.mock('@/lib/site/topics', () => ({ ...jest.requireActual('@/lib/site/topics'), fetchTopics: () => mockTopics() }))
@@ -202,6 +207,28 @@ describe('shared project pages', () => {
     expect(urls.some((u) => u.endsWith('/projects/gulmohar-heights'))).toBe(true)
     expect(urls.some((u) => u.endsWith('/localities/gulmohar-city'))).toBe(false)
     expect(urls.some((u) => u.includes('/posts'))).toBe(false)
+  })
+
+  it('lists an agent listing only when its page names itself, as the listing page decides, merged towers included', async () => {
+    mockRegister.mockResolvedValueOnce([
+      { slug: 'kohinoor-kaleido-wagholi', regno: 'P52100046027', name: 'K', area: 'wagholi', completion_now: null, listed_or_updated: null, indexable: true },
+      { slug: 'thin-one-wagholi', regno: 'P52100000001', name: 'T', area: 'wagholi', completion_now: null, listed_or_updated: null, indexable: false },
+    ])
+    const listing = (id: string, rera_no: string | null) => ({ agent_slug: 'house-deal', id, updated_at: '2026-10-30', locality: 'Wagholi', rera_no })
+    mockEntries.mockResolvedValueOnce({ projects: [], listings: [
+      listing('on-project-page', ' p52100046027'),   // the project's own number, written loosely: names the project page
+      listing('on-tower', 'P52100078107'),           // a tower merged into Kohinoor Kaleido: not in the list, names the project page
+      listing('lone-tower', 'P52100080485'),         // a tower whose project is not in search: names itself
+      listing('on-thin-project', 'P52100000001'),    // a project page out of search: the listing names itself
+      listing('resale', null),
+    ] })
+    mockProjectOfListing.mockImplementation(async (r) => (r === 'P52100078107' ? 'kohinoor-kaleido-wagholi' : null))
+    const urls = (await sitemap()).map((s) => s.url)
+    mockProjectOfListing.mockReset()
+    const listed = (id: string) => urls.some((u) => u.endsWith('/listings/' + id))
+    expect(['on-project-page', 'on-tower'].filter(listed)).toEqual([])
+    expect(['lone-tower', 'on-thin-project', 'resale'].every(listed)).toBe(true)
+    expect(urls.some((u) => u.endsWith('/projects/kohinoor-kaleido-wagholi'))).toBe(true)
   })
 
   it('puts shared pages and live filter pages in the sitemap', async () => {

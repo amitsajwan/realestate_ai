@@ -3,21 +3,31 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 import AgentStrip from '@/components/marketing/AgentStrip'
 import MarketingShell from '@/components/marketing/MarketingShell'
-import { type AreaStats, getCityStats, longDate } from '@/components/localities/areaStats'
+import { type AreaStats, type CityStats, getCityStats, longDate } from '@/components/localities/areaStats'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/seo'
+import { fixturesForced } from '@/lib/site/api'
 
 /** Pune's new-home projects by area, from MahaRERA's public records, kept current by the register refresh. A page others can
- *  cite and link to: facts only, each area linked to its guide, a ready-made citation. Rebuilt every 5 minutes at most. */
-export const revalidate = 300
+ *  cite and link to: facts only, each area linked to its guide, a ready-made citation. Rendered per request (the figures are
+ *  cached 5 minutes): built statically, the image build (which cannot reach the API) baked in the noindex page, served to the
+ *  first reader after every deploy. */
+export const dynamic = 'force-dynamic'
 const PATH = '/pune-maharera-tracker'
 const TITLE = 'Pune MahaRERA tracker: new home projects by area'
 const DESCRIPTION = 'How many MahaRERA-registered projects each Pune area has, how many homes are booked and when projects are due to complete. From MahaRERA public records, updated as they change.'
 
+/** The figures, or an error page when none have been read since the site started: Google reads a 5xx again later, while a
+ *  noindex it happens to read drops the page from search. Only fixture mode (no API at all) shows the empty, noindex page. */
+async function figures(): Promise<CityStats | null> {
+  const city = await getCityStats()
+  if (!city && !fixturesForced()) throw new Error('Tracker figures are temporarily unavailable')
+  return city
+}
+
 export async function generateMetadata(): Promise<Metadata> {
   const meta = pageMetadata(getMarketingConfig(), { title: TITLE, description: DESCRIPTION, path: PATH })
-  // no figures (API down): keep the empty page out of search until they are back
-  return (await getCityStats()) ? meta : { ...meta, robots: { index: false, follow: true } }
+  return (await figures()) ? meta : { ...meta, robots: { index: false, follow: true } }
 }
 
 const fmt = (n: number) => n.toLocaleString('en-IN')
@@ -28,7 +38,7 @@ function due(a: AreaStats, year: number): number {
 
 export default async function TrackerPage() {
   const cfg = getMarketingConfig()
-  const city = await getCityStats()
+  const city = await figures()
   const url = cfg.siteUrl + PATH
   const year = city ? Number(city.asOf.slice(0, 4)) : new Date().getFullYear()
   const asOf = city ? longDate(city.asOf) : ''

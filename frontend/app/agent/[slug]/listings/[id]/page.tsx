@@ -25,7 +25,7 @@ import { BRAND_NAME } from '@/lib/brand'
 import DemoRibbon from '../../DemoRibbon'
 import type { CatalogProject, PublicListing } from '@/lib/site/types'
 import RegisterProjectPage from '@/components/site/RegisterProjectPage'
-import { getRegisterProjectByRegno } from '@/lib/site/register'
+import { getRegisterProjectByRegno, projectPageOfListing } from '@/lib/site/register'
 
 interface Props {
   params: Promise<{ slug: string; id: string }>
@@ -53,8 +53,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!agent || !listing) return { title: 'Property not found', robots: { index: false } }
   const md = listingMetadata(agent, listing)
   // a listing of a project with its own page in search is that page in the agent's colours: the project page is the one to rank
-  const r = isSampleListing(listing.title) ? null : await getRegisterProjectByRegno(listing.rera_no)
-  if (r?.indexable) md.alternates = { canonical: siteOrigin() + '/projects/' + r.slug }
+  const shown = isSampleListing(listing.title) ? null : await projectPageOfListing(listing.rera_no)
+  if (shown) md.alternates = { canonical: siteOrigin() + '/projects/' + shown }
   return md
 }
 
