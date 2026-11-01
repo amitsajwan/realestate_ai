@@ -117,12 +117,14 @@ def test_no_commute_without_a_checked_position():
 
 
 async def test_the_page_gives_commute_only_from_a_checked_map_position():
-    geo = {"geo": {"lat": 18.5290, "lon": 73.8745, "located_from": "pincode"}}
+    geo = {"geo": {"lat": 18.5290, "lon": 73.8745, "located_from": "google"}}
+    centre = {"geo": {"lat": 18.5290, "lon": 73.8745, "located_from": "pincode"}}
     checked = {"enrichment": {"steps": {"places": {"ok": True}}}}
-    db = await seeded(("P1", "Our Project", {**geo, **checked}), ("P2", "Unchecked", geo))
+    db = await seeded(("P1", "Our Project", {**geo, **checked}), ("P2", "Unchecked", geo), ("P3", "Pincode Centre", {**centre, **checked}))
     page = await pages.project_page(db, "our-project", now=NOW)
     assert page["commute"][0] == {"name": "Pune Railway Station", "km": 0.0}
     assert (await pages.project_page(db, "unchecked", now=NOW))["commute"] == []
+    assert (await pages.project_page(db, "pincode-centre", now=NOW))["commute"] == []   # the pincode's centre is not the project
 
 
 # ---- web_facts scope ---------------------------------------------------------------------------------------------------

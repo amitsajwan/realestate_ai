@@ -433,10 +433,18 @@ def checked_pin(d: dict) -> Optional[tuple]:
     if mp.get("status") in ("auto", "approved") and mp.get("lat") is not None and mp.get("lon") is not None:
         return float(mp["lat"]), float(mp["lon"])
     g = d.get("geo") or {}
-    checked = (((d.get("enrichment") or {}).get("steps") or {}).get("places") or {}).get("ok")
-    if checked and g.get("lat") is not None and g.get("lon") is not None:
+    if own_position(d):
         return float(g["lat"]), float(g["lon"])
     return None
+
+
+def own_position(d: dict) -> bool:
+    """The places step passed a position measured on the project itself (its Google pin). An area's or a pincode's centre also
+    passes that step (it is near the pincode) but says nothing about the project: 96 Arrcade showed "Position checked" and work
+    hubs measured from Kharadi's centre while it is in Charholi (2026-11-01)."""
+    g = d.get("geo") or {}
+    checked = (((d.get("enrichment") or {}).get("steps") or {}).get("places") or {}).get("ok")
+    return bool(checked) and g.get("located_from") == "google" and g.get("lat") is not None and g.get("lon") is not None
 
 
 def location_picture(d: dict) -> Optional[dict]:
@@ -524,14 +532,14 @@ def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None) ->
     area = BY_KEY.get(doc.get("locality") or "")
     read = doc.get("details_checked_at")
     geo = doc.get("geo") or {}
-    checked = ((doc.get("enrichment") or {}).get("steps") or {}).get("places") or {}
+    own = own_position(doc)
     return {
         "details": details(doc),
         "buildings": [{k: b.get(k) for k in ("name", "wing", "floors", "units_residential", "units_other", "units_total")}
                       for b in doc.get("buildings") or []],
-        # a position only when the check put it near the pincode's centre
-        "map": {"lat": geo["lat"], "lon": geo["lon"]} if geo.get("lat") is not None and checked.get("ok") else None,
-        "map_from": geo.get("located_from") if geo.get("lat") is not None and checked.get("ok") else None,
+        # a position only when it was measured on the project and the check put it near the pincode's centre
+        "map": {"lat": geo["lat"], "lon": geo["lon"]} if own else None,
+        "map_from": geo.get("located_from") if own else None,
         # a street map around the pin, for the hero when the project has no picture (areastats.locmap)
         "location_picture": location_picture(doc),
         "checks": checks(doc), "text_checked": bool(doc.get("page_text")),
@@ -803,7 +811,7 @@ async def listing(db, area: Optional[str] = None, only_indexable: bool = True, l
         filed date, and the checked map position."""
         rows = (shown_prices(d.get("prices")) or {}).get("rows") or []
         geo = d.get("geo") or {}
-        placed = geo.get("lat") is not None and (((d.get("enrichment") or {}).get("steps") or {}).get("places") or {}).get("ok")
+        placed = own_position(d)
         photo = next((p for p in shown_pictures((d.get("profile") or {}).get("photos"), drawn=False) if p.get("path")), None)
         return {"homes": [{"bhk": r["bhk"], "from_inr": r["from_inr"]} for r in rows], "months_later": months_later(d),
                 "map": {"lat": geo["lat"], "lon": geo["lon"]} if placed else None,

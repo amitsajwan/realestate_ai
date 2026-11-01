@@ -30,7 +30,7 @@ from app.modules.agentprojects import maharera as project_api
 from app.modules.newsroom import register
 from app.modules.newsroom.policy import AREA_PINCODES, SHARED_PINCODES
 from app.modules.newsroom.sources import maharera as search
-from app.modules.newsroom.store import Store
+from app.modules.newsroom.store import PLACED, Store
 from app.platform import trace
 
 from . import discover
@@ -106,8 +106,9 @@ async def relabel(store: Store, docs: Optional[List[dict]] = None) -> int:
     for d in docs if docs is not None else await store.all_projects():
         where = register.locality_of(d.get("name", ""), d.get("pincode", ""), d.get("regno") or d["_id"])
         area, how = (where or (None, "not in our areas"))
-        if d.get("locality_from") == "position" and how != "checked by hand":
-            continue   # placed by where it is (areastats.placement): the pincode rules do not move it back; a hand placement wins
+        if d.get("locality_from") in PLACED and how != "checked by hand":
+            continue   # placed by where it is (placement) or what the sources say (placecheck): the pincode rules do not move it
+            # back; a hand placement wins
         place = register.place_fields(d.get("name", ""), d.get("pincode", ""), d["_id"], d.get("taluka", ""))
         if d.get("locality") != area or d.get("locality_from") != how or any(d.get(k) != v for k, v in place.items()):
             await store.set_project(d["_id"], locality=area, locality_from=how, **place)

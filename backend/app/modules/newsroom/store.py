@@ -11,6 +11,7 @@ from .types import STATUSES, RawItem
 
 ITEMS = "newsroom_items"
 STATUS = "newsroom_status"
+PLACED = ("position", "sources")  # register records placed by something better than their pincode
 PROJECTS = "projects"  # one document per MahaRERA registration number in our areas (_id = the number)
 TRACKERS = "newsroom_trackers"  # _id = tracker slug: {updates: [...], checked_at}
 TRACKER_REPORTS = "newsroom_tracker_reports"  # _id = "<slug>|<item id>": one report attached to one tracker
@@ -171,8 +172,9 @@ class Store:
                 except Exception as e:  # inserted meanwhile by another run: refresh it instead
                     if "duplicate" not in f"{type(e).__name__} {e}".lower():
                         raise
-            if (have or {}).get("locality_from") == "position" and r.get("locality_from") != "checked by hand":
-                # placed by where it is (areastats.placement): the pincode does not move it back; a hand placement still wins
+            if (have or {}).get("locality_from") in PLACED and r.get("locality_from") != "checked by hand":
+                # placed by where it is (areastats.placement) or by what the sources say (areastats.placecheck): the pincode does
+                # not move it back; a hand placement still wins
                 r = {k: v for k, v in r.items() if k not in ("locality", "locality_from", "pune_place", "pune_place_name")}
             await self.projects.update_one(key, {"$set": r})
             out["updated"] += 1

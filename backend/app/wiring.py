@@ -1,6 +1,7 @@
 """The composition root: callbacks passed in at startup (docs/ARCHITECTURE.md §2), so that no module imports one above it
 (the operator console, content from buyers or conversations). Called once by the route list (app/api/v1/router.py); safe to call again.
 """
+import re
 
 
 def wire() -> None:
@@ -67,6 +68,10 @@ def wire() -> None:
     from app.modules.areastats import placement
     placement.configure(pin_address=_pin_address)
     project_enrich.add_daily("area placement", placement.refresh)
+    # the place a page names must agree with what the sources say (areastats.placecheck, docs/plan/location-checks.md)
+    from app.modules.areastats import placecheck
+    placecheck.configure(pin_pincodes=_pin_pincodes, forget_place=_forget_place)
+    project_enrich.add_daily("place check", placecheck.refresh)
     # hot projects (areastats.hot): outside signals beyond MahaRERA, news and Search Console; YouTube is on with YOUTUBE_API_KEY
     from app.modules.areastats import hot as hot_projects
     hot_projects.add_signal("youtube", hot_projects.youtube_signal())
@@ -202,6 +207,24 @@ async def _pin_address(db, regno):
 
     doc = await db.get_collection(COLLECTION).find_one({"_id": regno}) or {}
     return doc.get("address") or None
+
+
+async def _pin_pincodes(db, regno):
+    """Pincodes of Google's place for a project: its pin's address, and a best match refused only for its pincode
+    ("not found on Google Maps (pincode 412105, MahaRERA says 411014)")."""
+    from app.modules.propertyfacts.pin import COLLECTION
+
+    doc = await db.get_collection(COLLECTION).find_one({"_id": regno}) or {}
+    found = re.findall(r"\b(4\d{5})\b", doc.get("address") or "")
+    refused = re.findall(r"pincode (\d{6}), MahaRERA says", doc.get("checked") or "")
+    return sorted(set(found + refused))
+
+
+async def _forget_place(db, regno):
+    """Drop a project's gathered fact sheet (propertyfacts): it was gathered for the old place (its nearby list, its centre)."""
+    from app.modules.propertyfacts.store import COLLECTION
+
+    await db.get_collection(COLLECTION).delete_one({"_id": regno})
 
 
 async def _pincode_centre(db, pincode):

@@ -66,18 +66,41 @@ Decision, run after every step that adds a reading (register sweep, pin search, 
 When the decision changes a record's place, the same clean-up as the fix above runs: new slug + old slug kept, clear `geo` /
 `places` / nearby / written text, then enrich again if it is still ours.
 
+## Built 2026-11-01: the daily place check (LIVE)
+
+`areastats/placecheck.py`, once a day inside the enrichment loop (wiring adds it next to "area placement"):
+
+- **Readings**: each site whose title or address is about THIS project (every word of its name) and names a Pune place; from the
+  stored Google results for the project and every page the web facts, prices and profile rounds read. One vote per site. Kesnand
+  counts as Wagholi.
+- **Google's pincodes**: the found pin's address, and the best match refused only for its pincode (`propertyfacts.pin`'s note).
+- **Decision** for a record in our areas placed by its pincode or name: a site naming its own area keeps it; else two or more
+  sites agreeing on a place OUTSIDE our areas, twice any other, filed under the MahaRERA pincode or Google's, move it there
+  (`locality_from: "sources"`, kept by the register sweep and relabel like "position"); the same without the pincode, or naming
+  another of OUR areas (builders sell Wagholi as Kharadi), only sets `place_doubt` (in the status mark `place_check`, for L6).
+- **Address**: every page whose slug ends in an area the record is no longer in gets a new slug, the old one in `old_slugs`
+  (found by `pages.project_page`, 301 in the frontend). An Upper Kharadi page keeps a Wagholi or Kharadi address (same land).
+- **Clean-up** on a new address: the written text and search description where they name the old area; the position, its check
+  and the location picture unless the position is the project's own Google pin; the gathered fact sheet (`property_facts`, through
+  wiring `_forget_place`). A record still ours is enriched again from the new place.
+- **Position checked** (L5): the map, the work-hub distances, the location picture and the home finder's map use a position only
+  when it is the project's own Google pin (`pages.own_position`). An area's or a pincode's centre shows the map search, "Position
+  not checked".
+
+First run, dry on 2026-11-01 over 897 pincode-placed records: 2 moved (Godrej Greens P52100000985 to Undri: 7 sites and Google's
+411060; Nirman Elanza to Wadgaon Sheri: 3 sites), 1 doubt (Kharadi Signet, 412207: Lodha's own site and 6 more say Kharadi), 43
+pages readdressed (the 19 placed by hand above, about 20 moved by their Google pin on 2026-10-23 that still said "-kharadi").
+
 ## Steps
 
 | Step | What | Where | Status |
 |---|---|---|---|
-| L0 | Fix the 20 wrong pages (above) | `pune_places.VERIFIED`, `register.locality_of`, `pages.project_page` | BUILT 2026-11-01 |
-| L1 | Read MahaRERA's address and village. The view page is a micro-frontend: find the endpoint its project-details screen calls (the general-details answer has none; guessed `getProjectLandAddressDetails` etc. answer 401). Store `address`, `village` on the register record, once per record, with the monthly details read | `agentprojects/maharera.py`, `areastats/refresh.details` | TARGET |
-| L2 | Keep Google's best candidate even when refused for its pincode: `{place_id, address, pincode, lat, lon}` as a reading, not as the pin | `propertyfacts/pin.py` | TARGET |
-| L3 | Keep each read listing site's own area (URL words, the page's address line), as `place_readings` | `areastats/webfacts`, `prices`, `profile` | TARGET |
-| L4 | `place_check(doc)`: the decision above, run at the end of each step that added a reading, with the clean-up when the place moves | `areastats/placement.py` (it already writes `locality`, `pune_place`, `position`) | TARGET |
-| L5 | "Position checked" only for a position measured on the project (Google pin, map pin, hand pin). A locality or pincode centre shows the map search with "Position not checked", and no work-hub distances | `enrich.check_places`, `pages.view` (`map`), `RegisterProjectPage` | TARGET (affects every page placed from its area's centre) |
+| L0 | Fix the 20 wrong pages (above) | `pune_places.VERIFIED`, `register.locality_of`, `pages.project_page` | LIVE 2026-11-01 |
+| L1 | Read MahaRERA's address and village. The view page is a micro-frontend: find the endpoint its project-details screen calls (the general-details answer has none; guessed `getProjectLandAddressDetails` etc. answer 401). Store `address`, `village` on the register record with the monthly details read, and count it as the strongest reading in `placecheck.decide` | `agentprojects/maharera.py`, `areastats/refresh.details`, `placecheck` | TARGET |
+| L2 | Google's refused match as a reading | wiring `_pin_pincodes` (pincodes only) | LIVE 2026-11-01; its address as a place reading: TARGET |
+| L3 | Listing sites' areas as readings | `placecheck.readings` (titles and addresses of stored results and read pages) | LIVE 2026-11-01 |
+| L4 | The decision and clean-up | `placecheck.refresh` | LIVE 2026-11-01 (daily; run after each read step: TARGET) |
+| L5 | "Position checked" only for the project's own pin | `pages.own_position` | LIVE 2026-11-01 |
 | L6 | Studio: "Place in doubt" list with the readings side by side, and a one-tap "it is in X" that writes the hand placement to the database (not code) | Studio, `areastats` | TARGET |
-| L7 | Weekly sweep for old records that never get enriched again: Google's stored refusal notes + stored search results vs the pincode place, the same check as the 2026-11-01 one-off | `areastats/placement.refresh` | TARGET |
-
-Order: L5 first (it stops the false "checked" claim on every page at once), then L2 + L3 (cheap: the reads already happen), L4,
-then L1 (needs finding the endpoint), L6, L7.
+| L7 | Old records never enriched again | the daily `placecheck.refresh` covers every record with stored results | LIVE 2026-11-01 |
+| L8 | An agent's listing or the builder's site naming another place counts double | `placecheck.readings` | TARGET |

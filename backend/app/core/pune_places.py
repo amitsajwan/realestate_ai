@@ -114,7 +114,7 @@ PLACES: Tuple[Place, ...] = (
     Place("dapodi", "Dapodi", Z_PCMC, ("411012", "411031"), ("dapodi",)),
     Place("chikhali", "Chikhali", Z_PCMC, ("411062",), ("chikhali", "talawade", "talwade")),
     Place("moshi", "Moshi", Z_PCMC, ("412105",), ("moshi",)),
-    Place("charholi", "Charholi", Z_PCMC, ("412105",), ("charholi", "charoli", "dudulgaon")),
+    Place("charholi", "Charholi", Z_PCMC, ("412105",), ("charholi", "charoli", "dudulgaon", "chovisawadi")),
     Place("alandi", "Alandi", Z_PCMC, ("412105",), ("alandi",)),
     Place("ravet", "Ravet", Z_PCMC, ("412101",), ("ravet",)),
     Place("kiwale", "Kiwale", Z_PCMC, ("412101",), ("kiwale", "dehu road", "dehuroad")),

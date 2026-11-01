@@ -223,7 +223,8 @@ async def test_a_round_stores_buildings_and_the_checks(monkeypatch):
     listed = await enrich.status_list(store)
     assert listed["counts"]["ok"] == 1 and listed["items"][0]["page"].startswith("/projects/")
     page = await pages.project_page(db, doc["page_slug"])
-    assert page["details"]["towers"] == 2 and page["map"]["lat"] == 18.59 and page["builder"]["count"] == 1
+    assert page["details"]["towers"] == 2 and page["builder"]["count"] == 1
+    assert page["map"] is None   # the fact sheet's position is the locality's, not measured on the project (2026-11-01)
 
 
 async def test_another_projects_buildings_are_refused_and_plots_have_none():

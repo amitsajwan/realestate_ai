@@ -135,6 +135,13 @@ class FakeCollection:
                 d[k].append(v)
         for k, v in update.get("$push", {}).items():
             d.setdefault(k, []).append(v)
+        for k in update.get("$unset", {}):
+            *path, last = k.split(".")   # "enrichment.steps.places": a missing step on the way is nothing to remove
+            node = d
+            for part in path:
+                node = node.get(part) if isinstance(node, dict) else None
+            if isinstance(node, dict):
+                node.pop(last, None)
 
     async def delete_one(self, flt):
         for i, d in enumerate(self.docs):

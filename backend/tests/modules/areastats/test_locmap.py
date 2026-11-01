@@ -40,7 +40,9 @@ async def seeded(*docs):
 
 
 def test_the_map_is_drawn_at_the_checked_pin_and_only_there():
-    assert pages.checked_pin({"geo": {"lat": 18.55, "lon": 73.94}, **CHECKED}) == (18.55, 73.94)
+    assert pages.checked_pin({"geo": {"lat": 18.55, "lon": 73.94, "located_from": "google"}, **CHECKED}) == (18.55, 73.94)
+    # an area's centre passes the places check but is not the project (96 Arrcade, 2026-11-01)
+    assert pages.checked_pin({"geo": {"lat": 18.55, "lon": 73.94, "located_from": "locality"}, **CHECKED}) is None
     assert pages.checked_pin({"geo": {"lat": 18.55, "lon": 73.94}}) is None               # the places check did not pass
     assert pages.checked_pin({"map_pin": {"status": "doubtful", "lat": 18.5, "lon": 73.9}}) is None
     assert pages.checked_pin({"map_pin": {"status": "approved", "lat": 18.5, "lon": 73.9}, "geo": {"lat": 1, "lon": 2}, **CHECKED}) == (18.5, 73.9)
@@ -54,8 +56,8 @@ def test_the_pin_is_at_the_centre_of_the_picture():
 
 
 async def test_pages_without_pictures_get_a_map_once_and_a_new_one_when_the_pin_moves(tmp_path):
-    store = await seeded(("P1", {"geo": {"lat": 18.5527, "lon": 73.9427}, **CHECKED, "hot_score": 5}),
-                         ("P2", {"geo": {"lat": 18.56, "lon": 73.95}, **CHECKED,
+    store = await seeded(("P1", {"geo": {"lat": 18.5527, "lon": 73.9427, "located_from": "google"}, **CHECKED, "hot_score": 5}),
+                         ("P2", {"geo": {"lat": 18.56, "lon": 73.95, "located_from": "google"}, **CHECKED,
                                  "profile": {"photos": [{"path": "project_media/p2/a.webp", "source": "builder"}]}}),
                          ("P3", {"geo": {"lat": 18.56, "lon": 73.95}}))           # unchecked position: no map
     tiles = Tiles()
@@ -70,14 +72,14 @@ async def test_pages_without_pictures_get_a_map_once_and_a_new_one_when_the_pin_
     assert await locmap.refresh(store, NOW + timedelta(hours=3), fetch=tiles, map_dir=tmp_path) is None   # once a day
     tiles.urls.clear()
     assert await locmap.refresh(store, NOW + timedelta(days=1), fetch=tiles, map_dir=tmp_path) == {"drawn": 0, "failed": 0}
-    await store.set_project("P1", geo={"lat": 18.5600, "lon": 73.9427})
+    await store.set_project("P1", geo={"lat": 18.5600, "lon": 73.9427, "located_from": "google"})
     moved = await store.project("P1")
     assert pages.location_picture(moved) is None   # the old map is not shown at the new place
     assert await locmap.refresh(store, NOW + timedelta(days=2), fetch=tiles, map_dir=tmp_path) == {"drawn": 1, "failed": 0}
 
 
 async def test_a_tile_server_that_does_not_answer_stops_the_round_and_leaves_no_map(tmp_path):
-    store = await seeded(*[(f"P{i}", {"geo": {"lat": 18.55 + i / 100, "lon": 73.94}, **CHECKED}) for i in range(5)])
+    store = await seeded(*[(f"P{i}", {"geo": {"lat": 18.55 + i / 100, "lon": 73.94, "located_from": "google"}, **CHECKED}) for i in range(5)])
     tiles = Tiles(answer=False)
     assert await locmap.refresh(store, NOW, fetch=tiles, map_dir=tmp_path) == {"drawn": 0, "failed": 3}
     assert len(tiles.urls) == 3 and not list(tmp_path.glob("*.webp"))
