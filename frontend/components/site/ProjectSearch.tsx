@@ -96,7 +96,9 @@ export default function ProjectSearch({ initialQ = '', initialHits = NO_HITS, in
         <div className={hero ? 'flex gap-2' : 'mt-2 flex gap-2'}>
           <input
             ref={input} id="project-search" name="q" type="search" value={q} onChange={(e) => setQ(e.target.value)} autoComplete="off"
-            placeholder="Area, project, builder or MahaRERA number"
+            // short enough for a phone's box beside the button (the longer "... or MahaRERA number" was cut off at "or M");
+            // a MahaRERA number still finds its project
+            placeholder="Project, area or builder"
             className={(hero ? 'min-h-[52px] border-transparent bg-white shadow-sm' : 'min-h-[48px] border-slate-300') + ' w-full rounded-xl border px-4 text-base text-slate-900 placeholder:text-slate-500 focus:border-[#0f2340] focus:outline-none focus:ring-2 focus:ring-[#0f2340]/20'}
           />
           <button type="submit" className={hero ? 'min-h-[52px] rounded-xl bg-[#f0b440] px-5 font-semibold text-[#0f2340] hover:bg-[#f5c75e]' : 'min-h-[48px] rounded-xl bg-[#0f2340] px-4 font-semibold text-white'}>Search</button>

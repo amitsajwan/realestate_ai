@@ -141,8 +141,6 @@ export default async function BuyerHome() {
         </div>
       </section>
 
-      <CorridorStatus />
-
       {hot.length > 0 && (
         <section aria-labelledby="hot-title" className={wrap + ' pt-10 sm:pt-14'} data-testid="home-hot">
           <SectionHead id="hot-title" title="Hot right now" />
@@ -164,6 +162,13 @@ export default async function BuyerHome() {
         </section>
       )}
 
+      {topList && (
+        <div className={wrap}>
+          <ProjectRail id="home-top" title={`Top projects in ${topList.place.name} you can still buy`} sub="Most homes booked first, with 10 or more open (MahaRERA)"
+            href={topList.path} count={topList.count} rows={topList.rows} ranked className="mt-12" />
+        </div>
+      )}
+
       {/* the East Pune home plan (docs/plan/home-plan.md): one tap per office opens the questions with it already picked */}
       <section aria-labelledby="plan-title" className={wrap + ' pt-10 sm:pt-14'} data-testid="home-plan">
         <SectionHead id="plan-title" title="Homes near your office in East Pune" href="/home-plan" link="How the home plan picks" />
@@ -183,12 +188,9 @@ export default async function BuyerHome() {
         </ul>
       </section>
 
-      {topList && (
-        <div className={wrap}>
-          <ProjectRail id="home-top" title={`Top projects in ${topList.place.name} you can still buy`} sub="Most homes booked first, with 10 or more open (MahaRERA)"
-            href={topList.path} count={topList.count} rows={topList.rows} ranked className="mt-12" />
-        </div>
-      )}
+      {/* projects come first on a phone (before, the first one was two screens down, under this list); the hero's diagram
+          still shows the corridor up top */}
+      <div className="mt-12 border-t border-slate-200 sm:mt-14"><CorridorStatus /></div>
 
       <section aria-labelledby="areas-title" className={wrap + ' ' + section}>
         <SectionHead id="areas-title" title="Projects by area" href="/projects" link="All projects in Pune, by place" />
