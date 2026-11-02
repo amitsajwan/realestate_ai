@@ -42,7 +42,7 @@ RECORDS = [
     _record("ceratec-central-park", "Ceratec Central Park", "Ceratec Group", "wagholi", "/upcoming/logos/ceratec.webp",
             "A Ceratec Group project planned in Wagholi. It is not yet registered with MahaRERA; details come out when it is.",
             "Ceratec's website"),
-    _record("vilas-javdekar-upper-kharadi", "Vilas Javdekar new project", "Vilas Javdekar", "upper_kharadi", "",
+    _record("vilas-javdekar-upper-kharadi", "Vilas Javdekar new project", "Vilas Javdekar", "upper_kharadi", "/upcoming/logos/vj.png",
             "A new Vilas Javdekar project listed in Upper Kharadi. It is not yet registered with MahaRERA; details come out when it is.",
             "A Housing.com listing"),
 ]
