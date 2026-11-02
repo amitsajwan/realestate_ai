@@ -16,11 +16,11 @@ export default function WebFactsBox({ web, name }: { web: WebFacts | null | unde
             <dd className="mt-1 text-xs text-slate-600">
               From{' '}
               {f.sources.map((s, i) => (
-                <React.Fragment key={s.url}>
+                <React.Fragment key={s.site}>
                   {i > 0 && ', '}
                   {/* only the builder's own site is linked: property sites are named, not linked (we do not send buyers to portals) */}
                   {i === 0 && f.official
-                    ? <a href={s.url} target="_blank" rel="noopener nofollow" className="underline underline-offset-2">{s.site} (the builder&apos;s site)</a>
+                    ? <a href={s.url ?? undefined} target="_blank" rel="noopener nofollow" className="underline underline-offset-2">{s.site} (the builder&apos;s site)</a>
                     : s.site}
                 </React.Fragment>
               ))}

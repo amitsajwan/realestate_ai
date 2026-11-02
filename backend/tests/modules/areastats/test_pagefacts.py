@@ -264,3 +264,14 @@ async def test_a_page_moved_to_a_new_address_is_still_found_at_its_old_one():
     db = await seeded(("P1", "Our Project", {"page_slug": "our-project-charholi", "old_slugs": ["our-project-kharadi"]}))
     page = await pages.project_page(db, "our-project-kharadi", now=NOW)
     assert page["slug"] == "our-project-charholi"   # the frontend sends the old address there (301)
+
+
+def test_a_web_fact_from_property_sites_has_no_link_and_the_builders_own_keeps_its():
+    portals = [{"site": "housiey.com", "url": "https://housiey.com/p", "official": False, "quote": "12.8 acres"},
+               {"site": "other.com", "url": "https://other.com/p", "official": False, "quote": "12.8 acres"}]
+    builder = {"site": "builder.example", "url": "https://builder.example/", "official": True, "quote": "12.8 acres"}
+    shown = pages.web_public({"facts": [{"key": "land_acres", "official": False, "sources": portals},
+                                        {"key": "towers", "official": True, "sources": [builder, portals[0]]}]})["facts"]
+    assert [x["url"] for x in shown[0]["sources"]] == [None, None]
+    assert [x["url"] for x in shown[1]["sources"]] == ["https://builder.example/", None]
+    assert portals[0]["url"] == "https://housiey.com/p"   # the record keeps it
