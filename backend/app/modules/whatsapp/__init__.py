@@ -1,1 +1,1 @@
-"""WhatsApp buyer assistant (Cloud API). Mounted at /whatsapp by the integrator; nothing else imports this module."""
+"""WhatsApp buyer assistant (Cloud API). Mounted at /whatsapp by the integrator; only app/wiring.py imports this module (login codes)."""

@@ -22,7 +22,7 @@ class OTPVerify(OTPRequest):
 class OTPRequested(BaseModel):
     sent: bool = True
     dev_code: Optional[str] = None  # only populated in development
-    mode: Literal["otp", "invite"] = "otp"  # invite: the agent already has a personal code
+    mode: Literal["otp", "invite"] = "otp"  # invite: nothing was sent, the agent uses a personal code
 
 
 class LoginResult(BaseModel):

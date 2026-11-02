@@ -12,6 +12,7 @@ from .config import WhatsAppConfig
 GRAPH_HOST = "https://graph.facebook.com"
 TIMEOUT_S = 15.0
 MAX_TEXT = 4096  # Cloud API limit for a text body
+LOGIN_TEMPLATE = "login_code_v1"  # AUTHENTICATION template on our WABA: Meta fixes its words, the code fills the body and the copy button
 
 
 class WhatsAppGraphError(Exception):
@@ -73,6 +74,16 @@ class WhatsAppGraph:
         body = {"messaging_product": "whatsapp", "recipient_type": "individual", "to": to, "type": "template",
                 "template": {"name": name, "language": {"code": language},
                              "components": [{"type": "body", "parameters": [{"type": "text", "text": str(p)} for p in params]}]}}
+        res = await self._request("POST", self._url(phone_number_id), json=body)
+        msgs = res.get("messages") or [{}]
+        return (msgs[0] or {}).get("id")
+
+    async def send_login_code(self, phone_number_id: str, to: str, code: str) -> Optional[str]:
+        """A sign-in code. Sent straight to Meta and never stored in the chat history, so it does not show in the Inbox."""
+        body = {"messaging_product": "whatsapp", "recipient_type": "individual", "to": to, "type": "template",
+                "template": {"name": LOGIN_TEMPLATE, "language": {"code": "en"}, "components": [
+                    {"type": "body", "parameters": [{"type": "text", "text": code}]},
+                    {"type": "button", "sub_type": "url", "index": "0", "parameters": [{"type": "text", "text": code}]}]}}
         res = await self._request("POST", self._url(phone_number_id), json=body)
         msgs = res.get("messages") or [{}]
         return (msgs[0] or {}).get("id")

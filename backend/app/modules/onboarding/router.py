@@ -1,4 +1,6 @@
 """POST /join/otp/request -> /join/otp/verify -> /join/site: phone to live website."""
+from typing import Awaitable, Callable, Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi_users.authentication import JWTStrategy
 
@@ -14,6 +16,14 @@ from .service import BeanieUserStore, OnboardingError, OnboardingService
 
 router = APIRouter()
 
+_send_code: Optional[Callable[[str, str], Awaitable[None]]] = None
+
+
+def configure(send_code: Optional[Callable[[str, str], Awaitable[None]]] = None) -> None:
+    """The composition root (app/wiring.py) passes in how a login code reaches a phone: WhatsApp sits above this module."""
+    global _send_code
+    _send_code = send_code
+
 
 def _agent_jwt() -> JWTStrategy:
     # Same secret/algorithm as the app-wide strategy, longer expiry: tokens validate everywhere
@@ -25,7 +35,7 @@ def _agent_jwt() -> JWTStrategy:
 def get_service() -> OnboardingService:
     db = get_database()
     if settings.join_mode == "invite":
-        verifier = InviteService(db, settings.jwt_secret_key)
+        verifier = InviteService(db, settings.jwt_secret_key, send_code=_send_code)
     else:
         verifier = OTPService(db, ConsoleOTPProvider(), settings.jwt_secret_key)
     return OnboardingService(db, verifier, BeanieUserStore(), _agent_jwt().write_token, settings.public_site_url)
@@ -38,7 +48,7 @@ async def request_otp(body: OTPRequest, svc: OnboardingService = Depends(get_ser
     except OTPError as e:
         raise HTTPException(status_code=e.status_code, detail=str(e))
     return OTPRequested(dev_code=code if code and settings.environment == "development" else None,
-                        mode="invite" if settings.join_mode == "invite" else "otp")
+                        mode="invite" if settings.join_mode == "invite" and not code else "otp")
 
 
 @router.post("/otp/verify", response_model=LoginResult)

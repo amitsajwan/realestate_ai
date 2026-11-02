@@ -280,7 +280,7 @@ All backend settings go in `~/app/deploy/gcp/.env` on the VM; Compose passes the
 | `DATABASE_NAME` | `propertyai` | Database name (also used by `backup.sh` and `restore_test.sh`). |
 | `ENVIRONMENT`, `DEBUG` | set by Compose: `production`, `false` | Production hides `/docs` and uses strict CORS. |
 | `JWT_SECRET_KEY` | a placeholder | **Set a long random value.** Signs every login. The placeholder is not rejected at start-up, so check it is set. Changing it signs everyone out. |
-| `JOIN_MODE` | `otp` | `invite` for the pilot: sign-in needs a personal 6-digit invite code. `otp` is for development (code printed in the log). |
+| `JOIN_MODE` | `otp` | `invite` for the pilot: only invited numbers can sign in, with a one-time code sent on WhatsApp (template `login_code_v1`) or their personal 6-digit invite code. `otp` is for development (code printed in the log). |
 | `JOIN_TOKEN_DAYS` | `30` | How long an agent stays signed in. |
 | `CORS_ORIGINS` | built-in list | Extra allowed origins, comma separated. Not needed when the site and API share one host (the normal setup). |
 | `UPLOAD_DIRECTORY` | `uploads` | Where media is stored inside the container (the `uploads` volume). `UPLOADS_DIR` is the same for the showcase module; leave both unset. |

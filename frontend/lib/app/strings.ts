@@ -19,7 +19,7 @@ const en = {
   phoneInvalid: 'Enter a valid 10-digit Indian mobile number',
   sendOtp: 'Send OTP',
   otpLabel: 'Enter the 6-digit OTP',
-  otpSentTo: 'OTP sent to',
+  otpSentTo: 'Code sent on WhatsApp to',
   inviteLabel: 'Enter your 6-digit invite code',
   inviteFor: 'Invite code for',
   inviteHelp: 'Your personal code was sent to you on WhatsApp. No code yet? Message us and we will send one.',

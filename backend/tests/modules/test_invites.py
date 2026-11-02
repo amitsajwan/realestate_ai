@@ -1,13 +1,17 @@
 from datetime import datetime, timedelta
 
+import json
 import time
 
+import httpx
 import jwt
 import pytest
 
 from app.modules.onboarding.invites import HARD_STOP_AFTER, InviteService
 from app.modules.onboarding.otp import OTPError
 from app.modules.onboarding.service import OnboardingService, default_branding
+from app.modules.whatsapp.config import WhatsAppConfig
+from app.modules.whatsapp.graph import WhatsAppGraph
 
 from .fakes import FakeDb
 from .test_onboarding import Clock, FakeUsers
@@ -119,3 +123,72 @@ def test_agent_token_lives_30_days_and_still_validates_under_app_strategy():
     lifetime = claims["exp"] - time.time()
     assert settings.join_token_days * 86400 - 120 < lifetime <= settings.join_token_days * 86400
     assert claims["sub"] == "abc123"
+
+
+def make_with_whatsapp(send=None):
+    clock, db, sent = Clock(), FakeDb(), []
+
+    async def record(phone, code):
+        sent.append((phone, code))
+
+    return InviteService(db, "secret", now=clock, send_code=send or record), sent, clock
+
+
+async def test_invited_number_gets_a_one_time_login_code_on_whatsapp():
+    inv, sent, _ = make_with_whatsapp()
+    await inv.issue(PHONE)
+    code = await inv.request(PHONE)
+    assert sent == [(PHONE, code)]
+    await inv.verify(PHONE, code)
+    with pytest.raises(OTPError):  # used once
+        await inv.verify(PHONE, code)
+
+
+async def test_number_without_an_invite_gets_nothing_on_whatsapp():
+    inv, sent, _ = make_with_whatsapp()
+    with pytest.raises(OTPError) as e:
+        await inv.request(PHONE)
+    assert e.value.status_code == 403 and sent == []
+
+
+async def test_revoked_invite_cannot_use_a_code_already_sent():
+    inv, _, _ = make_with_whatsapp()
+    await inv.issue(PHONE)
+    code = await inv.request(PHONE)
+    await inv.revoke(PHONE)
+    with pytest.raises(OTPError) as e:
+        await inv.verify(PHONE, code)
+    assert e.value.status_code == 403
+
+
+async def test_whatsapp_code_expires_after_five_minutes():
+    inv, _, clock = make_with_whatsapp()
+    await inv.issue(PHONE)
+    code = await inv.request(PHONE)
+    clock.advance(minutes=6)
+    with pytest.raises(OTPError):
+        await inv.verify(PHONE, code)
+
+
+async def test_personal_code_still_signs_in_when_whatsapp_fails():
+    async def broken(phone, code):
+        raise RuntimeError("WhatsApp is not sending")
+
+    inv, _, _ = make_with_whatsapp(broken)
+    personal = await inv.issue(PHONE)
+    assert await inv.request(PHONE) is None
+    await inv.verify(PHONE, personal)
+
+
+async def test_login_code_message_fills_the_body_and_the_copy_button():
+    seen = {}
+
+    def reply(request):
+        seen.update(json.loads(request.content))
+        return httpx.Response(200, json={"messages": [{"id": "wamid.1"}]})
+
+    graph = WhatsAppGraph(WhatsAppConfig(access_token="t"), transport=httpx.MockTransport(reply))
+    assert await graph.send_login_code("123", "919876543210", "482913") == "wamid.1"
+    assert seen["to"] == "919876543210" and seen["template"]["name"] == "login_code_v1"
+    assert [c["parameters"][0]["text"] for c in seen["template"]["components"]] == ["482913", "482913"]
+    assert seen["template"]["components"][1]["sub_type"] == "url"

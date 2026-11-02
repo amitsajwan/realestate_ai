@@ -44,6 +44,10 @@ def wire() -> None:
     # a website request to join shows as an alert in the owner's Studio (it waits in Studio > Admin)
     waitlist_routes.configure(on_new_request=_tell_owner_about_invite_request)
 
+    # a signed-out agent gets a login code on WhatsApp (identity sits below conversations)
+    from app.modules.onboarding import router as onboarding_routes
+    onboarding_routes.configure(send_code=_send_login_code)
+
     # the MahaRERA register keeps every agent's builder project fresh, wherever it is (areastats.watch); add other sources here
     from app.modules.areastats import watch as register_watch
     register_watch.add_source("agent_projects", _agent_project_watch)
@@ -98,6 +102,15 @@ def wire() -> None:
     # an enquiry on a project page is about the project's area (buyers' lead record reads inventory's project pages)
     from app.modules.tracking import service as tracking_service
     tracking_service.configure(project_area=_project_area)
+
+
+async def _send_login_code(phone: str, code: str) -> None:
+    from app.modules.whatsapp import config as whatsapp_config
+    from app.modules.whatsapp.graph import WhatsAppGraph
+    cfg = whatsapp_config.load()
+    if not cfg.enabled or cfg.dry_run or not cfg.can_send:  # outside production nothing goes to Meta; the personal code signs in
+        raise RuntimeError("WhatsApp is not sending")
+    await WhatsAppGraph(cfg).send_login_code(cfg.phone_number_id, phone.lstrip("+"), code)
 
 
 async def _project_area(db, slug: str):
