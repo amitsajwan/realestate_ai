@@ -7,7 +7,7 @@ jest.mock('@/lib/site/api', () => ({
   getCatalogProject: (s: string) => mockCatalogProject(s),
   getPropertyFacts: async () => null,
 }))
-jest.mock('@/lib/site/register', () => ({ getRegisterProject: (s: string) => mockRegister(s), longDay: () => '' }))
+jest.mock('@/lib/site/register', () => ({ getRegisterProject: (s: string) => mockRegister(s), getRegisterPlaces: async () => [], longDay: () => '' }))
 jest.mock('@/components/marketing/MarketingShell', () => ({ __esModule: true, default: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }))
 jest.mock('@/components/site/RegisterProjectPage', () => ({ __esModule: true, default: () => <p>register page</p> }))
 jest.mock('next/navigation', () => ({

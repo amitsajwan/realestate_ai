@@ -167,7 +167,7 @@ export async function getBuilder(slug: string): Promise<BuilderPage | { redirect
 
 /** An upcoming project MahaRERA has not registered yet (backend areastats/upcoming.py): no prices; facts carry their source. */
 export interface UpcomingProject {
-  slug: string; name: string; builder: string; area: string; area_name: string; area_slug: string; address: string
+  slug: string; name: string; builder: string; logo: string; area: string; area_name: string; area_slug: string; address: string
   summary: string; note: string; registered: false; updated_at: string | null
   facts: { label: string; value: string; source: string; to_confirm: boolean }[]
   homes: { bhk: number; carpet_sqft: string; source: string; to_confirm: boolean }[]
@@ -175,6 +175,14 @@ export interface UpcomingProject {
   nearby: { name: string; km: number | null; source: string }[]
   pictures: { url: string; caption: string; illustrative: boolean }[]
   sources: { name: string; url: string; read_on: string }[]
+}
+
+/** The few words the coming-soon band shows of a live upcoming project: the builder, the place and the home types. */
+export type UpcomingBrief = Pick<UpcomingProject, 'slug' | 'name' | 'builder' | 'logo' | 'area' | 'area_name' | 'area_slug' | 'note'>
+
+export async function getUpcomingBriefs(): Promise<UpcomingBrief[]> {
+  const r = await get<UpcomingBrief[]>('/api/v1/public/register/upcoming')
+  return r.ok && Array.isArray(r.data) ? r.data : []
 }
 
 /** null when there is no such live upcoming project; throws on any other failure so the page shows its error, not a 404. */

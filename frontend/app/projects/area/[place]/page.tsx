@@ -7,6 +7,8 @@ import HomePlanBox from '@/components/site/homeplan/HomePlanBox'
 import ActiveProjects from '@/components/site/ActiveProjects'
 import AreaMap, { showsMap } from '@/components/site/AreaMap'
 import CheckBadge from '@/components/site/CheckBadge'
+import { comingSoonFor } from '@/components/site/ComingSoonBand'
+import ComingSoonDock from '@/components/site/ComingSoonDock'
 import FacetChips from '@/components/site/FacetChips'
 import ProjectRail, { READY_SUB, READY_TITLE } from '@/components/site/ProjectRail'
 import { getLocality } from '@/lib/marketing/localities'
@@ -131,6 +133,7 @@ export default async function PlaceProjectsPage({ params }: Props) {
   if (!got) notFound()
   const { place, projects } = got
   const cfg = getMarketingConfig()
+  const comingSoon = await comingSoonFor(place.slug)
   const [active, facets, catalog, prices, map, listed] = await Promise.all([getActive({ place: place.key }), getFacets(), getCatalog().catch(() => []),
     getPlacePrices(place.slug), getAreaMap(place.key), getListed()])
   const chips = placeChips(place, facets, livePages(catalog), getLocality(place.slug) ? `/localities/${place.slug}` : null)
@@ -201,6 +204,8 @@ export default async function PlaceProjectsPage({ params }: Props) {
         <FacetChips chips={chips} current={placePath(place.slug)} label={`Lists for ${place.name}`} />
 
         {place.zone === 'East Pune' && <div className="mt-8"><HomePlanBox area={place.name} /></div>}
+
+        <ComingSoonDock items={comingSoon} />
 
         {topList && <ProjectRail id="top" title="Top projects you can still buy" sub="Most homes booked first, with 10 or more open" href={topList.path} count={topList.count} rows={topList.rows} ranked />}
         {launchList && <ProjectRail id="launches" title="Just launched" sub="Registered with MahaRERA in the last 12 months" href={launchList.path} count={launchList.count} rows={launchList.rows} />}

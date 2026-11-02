@@ -680,3 +680,14 @@ html[data-search="open"] [data-chat-bubble] { display: none; }
     }
   }
 }
+
+/* The East Pune corner card (components/site/ComingSoonDock): it slides in, each project fades in on its turn, and a dot pulses. */
+@keyframes coming-soon-in { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+@keyframes coming-soon-turn { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: none; } }
+@keyframes coming-soon-pulse { 50% { opacity: 0.35; } }
+.coming-soon-dock { animation: coming-soon-in 0.4s ease-out; }
+.coming-soon-turn { animation: coming-soon-turn 0.35s ease-out; }
+.coming-soon-pulse { animation: coming-soon-pulse 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .coming-soon-dock, .coming-soon-turn, .coming-soon-pulse { animation: none; }
+}

@@ -3,6 +3,8 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound, permanentRedirect } from 'next/navigation'
 import MarketingShell from '@/components/marketing/MarketingShell'
+import { comingSoonFor } from '@/components/site/ComingSoonBand'
+import ComingSoonDock from '@/components/site/ComingSoonDock'
 import StickyJoinBar from '@/components/marketing/StickyJoinBar'
 import AskPrompt from '@/components/site/AskPrompt'
 import ContactButtons from '@/components/site/ContactButtons'
@@ -109,6 +111,7 @@ export default async function SharedProjectPage({ params }: Props) {
       <MarketingShell hot={{ area: r.area?.slug, exclude: r.slug }} stickyBar>
         <RegisterProjectPage p={r} siteUrl={getMarketingConfig().siteUrl} facts={facts} whatsappUrl={getMarketingConfig().whatsappUrl}
           lists={r.pune_place ? (await getFacets()).filter((f) => f.place === r.pune_place?.key && f.indexable && !f.builder) : []} />
+        <ComingSoonDock items={await comingSoonFor(r.pune_place?.key)} bottomBar />
       </MarketingShell>
     )
   }
@@ -122,7 +125,7 @@ export default async function SharedProjectPage({ params }: Props) {
   const area = localityByName(p.locality)
   const others = (await getCatalog()).filter((x) => x.slug !== p.slug)
   const similar = [...others.filter((x) => x.locality === p.locality), ...others.filter((x) => x.locality !== p.locality)].slice(0, 3)
-  const [web, profile] = await Promise.all([getWebFacts(p.rera_no), getProfile(p.rera_no)])
+  const [web, profile, comingSoon] = await Promise.all([getWebFacts(p.rera_no), getProfile(p.rera_no), comingSoonFor(area?.slug)])
   const faq = catalogFaq(p, web)
   // the dated answer AI answers and snippets quote (lib/site/projectFacts), and the page's own last change
   const answer = catalogAnswer(p)
@@ -217,6 +220,7 @@ export default async function SharedProjectPage({ params }: Props) {
         <EnquiryForm agentSlug={main.slug} agentName={BRAND_NAME} agentPhone={main.phone ?? undefined} topic={`${p.name} (${p.rera_no})`} waMessage={msg} id="enquire"
           title={PROJECT_CTA.formTitle(p.name)} submitLabel={PROJECT_CTA.full} />
       </div>
+      <ComingSoonDock items={comingSoon} bottomBar />
       <StickyJoinBar watchId="project-hero" formId="enquire" label={PROJECT_CTA.short} whatsappUrl={wa} whatsappLabel="WhatsApp" />
     </MarketingShell>
   )

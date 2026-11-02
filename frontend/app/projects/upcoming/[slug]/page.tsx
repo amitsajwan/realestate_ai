@@ -3,11 +3,12 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import MarketingShell from '@/components/marketing/MarketingShell'
+import ActiveProjects from '@/components/site/ActiveProjects'
 import EnquiryForm from '@/components/site/EnquiryForm'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { pageMetadata } from '@/lib/marketing/seo'
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
-import { getUpcoming, type UpcomingProject } from '@/lib/site/hubs'
+import { getActive, getUpcoming, type UpcomingProject } from '@/lib/site/hubs'
 
 // An upcoming project MahaRERA has not registered yet (backend areastats/upcoming.py). The RERA Act does not let anyone advertise
 // or sell an unregistered project, so this page shows no prices and takes no booking: the only ask is "tell me when it registers".
@@ -66,6 +67,7 @@ function Pictures({ u }: { u: UpcomingProject }) {
 export default async function UpcomingProjectPage({ params }: Props) {
   const u = await getUpcoming((await params).slug)
   if (!u) notFound()
+  const registered = await getActive({ place: u.area }, 6)
   const url = `${getMarketingConfig().siteUrl}/projects/upcoming/${u.slug}`
   return (
     <MarketingShell hot={{ area: u.area_slug, exclude: `upcoming/${u.slug}` }}>
@@ -79,6 +81,8 @@ export default async function UpcomingProjectPage({ params }: Props) {
           <p className="inline-flex rounded-full bg-amber-100 px-3 py-1 text-sm font-medium text-amber-900" data-testid="upcoming-badge">
             Coming soon · Not yet registered with MahaRERA
           </p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          {u.logo && <img src={u.logo} alt={`${u.builder} logo`} className="mt-4 h-12 w-auto max-w-[220px] object-contain" />}
           <h1 className="mt-3 text-3xl font-bold text-slate-900">{u.name}, {u.area_name}</h1>
           <p className="mt-1 text-slate-700">by {u.builder}{u.address ? ` · ${u.address}` : ''}</p>
           <p className="mt-4 max-w-3xl text-slate-800">{u.summary}</p>
@@ -160,6 +164,9 @@ export default async function UpcomingProjectPage({ params }: Props) {
               waMessage={`Hi, please tell me when ${u.name} (${u.area_name}) is registered with MahaRERA: ${url}`} />
           </div>
         </section>
+
+        {/* someone waiting for this project wants a home here: these already have a MahaRERA number */}
+        <ActiveProjects title={`Registered projects in ${u.area_name}`} items={registered} className="" />
 
         <footer className="border-t border-slate-200 pt-4 text-sm text-slate-600">
           Sources:{' '}

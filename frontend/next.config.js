@@ -24,6 +24,8 @@ const nextConfig = {
       { source: '/agent/demo', destination: '/agent/house-deal', permanent: true },
       { source: '/agent/demo/:path*', destination: '/agent/house-deal', permanent: true },
       { source: '/agent/sharad/:path*', destination: '/agent/house-deal/:path*', permanent: true },
+      // the owner places Esbee's upcoming project in Wagholi (2026-11-02); shared links to the old address keep working
+      { source: '/projects/upcoming/esbee-upper-kharadi', destination: '/projects/upcoming/esbee-wagholi', permanent: true },
       // the agents' home moved from / to /agents (2026-10-22); /agent with no name is the address people guess for it
       { source: '/agent', destination: '/agents', permanent: true },
       // the old email/password app (its 'Forgot password' link was a 404): sign-in is the login code at /join, the app is /studio

@@ -62,6 +62,14 @@ The RERA Act bars advertising or selling an unregistered project, so the owner c
   this project's design" unless they are the builder's own, and one ask: "Tell me when it registers" (Avasetu's enquiry form).
 - noindex and in no sitemap. The owner picks it on the banner as `upcoming/<slug>`; `auto` never adds one.
 - When the project registers: hide the record, the register page takes over (and the banner pick moves to its slug).
+- East Pune band (2026-11-02, LIVE): a small corner card (`components/site/ComingSoonDock`) on every East Pune area and project
+  page shows one project at a time; it takes no page space, × folds it to a tab for a day, and it leaves while someone types.
+  `/projects/upcoming` lists the same projects in full (noindex). Builder logo, place, home types and "not yet registered";
+  no price, no offer, no booking, because the Act covers advertising too and showing less limits the exposure without removing it.
+  "Tell me first" goes to the project's own form. Its page also lists the area's registered projects.
+  Records: `backend/scripts/upcoming_east_pune.py` (Esbee moved to Wagholi, Ceratec Central Park, Vilas Javdekar Upper Kharadi: the
+  owner confirmed it is new, not Yashwin Enchante Phase 2, P52100077455, already registered).
+  OPEN: "we tell you that day" is done by hand; nothing alerts us when one of these registers or messages the people waiting.
 
 ## Next (same pattern: one `hot.add_signal(name, fn)` each)
 1. Instagram: hashtag search through the Graph API on our business account (30 hashtags a week): reels and posts per project.

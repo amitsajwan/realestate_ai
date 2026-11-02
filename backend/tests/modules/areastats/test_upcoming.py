@@ -48,3 +48,21 @@ async def test_a_hidden_or_unknown_upcoming_project_is_not_found():
 async def test_records_with_a_price_an_unknown_area_or_no_source_are_refused(change):
     with pytest.raises(ValidationError):
         await upcoming.put(FakeDb(), {**BODY, **change}, NOW)
+
+
+async def test_the_coming_soon_list_shows_only_live_projects_and_only_the_few_words_the_band_needs():
+    db = FakeDb()
+    await upcoming.put(db, {**BODY, "note": "2 & 3 BHK · coming soon", "logo": "/upcoming/logos/esbee.webp"}, NOW)
+    await upcoming.put(db, {**BODY, "slug": "old-page", "status": "hidden"}, NOW)
+    got = client(db).get("/api/v1/public/register/upcoming").json()
+    assert [u["slug"] for u in got] == ["esbee-upper-kharadi"]
+    assert set(got[0]) == {"slug", "name", "builder", "logo", "area", "area_name", "area_slug", "note"}
+
+
+async def test_the_coming_soon_list_shows_only_live_projects_and_only_the_few_words_the_band_needs():
+    db = FakeDb()
+    await upcoming.put(db, {**BODY, "note": "2 & 3 BHK · coming soon", "logo": "/upcoming/logos/esbee.png"}, NOW)
+    await upcoming.put(db, {**BODY, "slug": "old-page", "status": "hidden"}, NOW)
+    got = client(db).get("/api/v1/public/register/upcoming").json()
+    assert [u["slug"] for u in got] == ["esbee-upper-kharadi"]
+    assert set(got[0]) == {"slug", "name", "builder", "logo", "area", "area_name", "area_slug", "note"}
