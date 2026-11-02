@@ -150,6 +150,14 @@ class Pins:
                             "lat": loc["latitude"], "lon": loc["longitude"], "place_id": c["id"], "types": list(c.get("types") or [])})
         return out
 
+    async def keep(self, key: str, c: dict, now: datetime) -> None:
+        """Keep a place found elsewhere as the project's pin ({name, address, lat, lon, place_id}): `find` then answers with it and
+        re-reads it by id. The place check (areastats.placecheck) finds it without assuming the pincode that made `find` refuse it."""
+        note = f"Google Maps: {c.get('name') or ''}, {c.get('address') or ''}".strip(", ")
+        await self.col.update_one({"_id": key}, {"$set": {"at": now, "place_id": c["place_id"], "name": c.get("name") or "",
+                                                          "address": c.get("address") or "", "lat": c["lat"], "lon": c["lon"],
+                                                          "checked": note}}, upsert=True)
+
     async def find(self, key: str, project: str, locality: str, pincode: str = "", centre: Optional[tuple] = None,
                    now: Optional[datetime] = None) -> tuple:
         """(Pin or None, a plain note on how it was found or why not)."""

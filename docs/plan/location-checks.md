@@ -104,3 +104,7 @@ pages readdressed (the 19 placed by hand above, about 20 moved by their Google p
 | L6 | Studio: "Place in doubt" list with the readings side by side, and a one-tap "it is in X" that writes the hand placement to the database (not code) | Studio, `areastats` | TARGET |
 | L7 | Old records never enriched again | the daily `placecheck.refresh` covers every record with stored results | LIVE 2026-11-01 |
 | L8 | An agent's listing or the builder's site naming another place counts double | `placecheck.readings` | TARGET |
+
+## 2026-11-02: the check decides by itself
+
+Nobody reviews a list any more (owner: "our system should decide itself"), so the Studio doubt list is no longer needed and `place_doubt` is cleared. A dispute is two or more sites agreeing on another place. A position settles it: the project's own pin, else Google asked for the project without assuming its pincode (at most 20 searches a day, once per 30 days per project). With no position, sites alone only move a record out of our areas under a matching pincode, never between our areas. The outcome is on the record as `place_check`. Counted read-only on the day: 4 of 897 records disputed (Kohinoor Kaleido, Kharadi Signet, Sai Crystal Court, Panchshil Towers).

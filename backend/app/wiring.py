@@ -70,7 +70,8 @@ def wire() -> None:
     project_enrich.add_daily("area placement", placement.refresh)
     # the place a page names must agree with what the sources say (areastats.placecheck, docs/plan/location-checks.md)
     from app.modules.areastats import placecheck
-    placecheck.configure(pin_pincodes=_pin_pincodes, forget_place=_forget_place)
+    placecheck.configure(pin_pincodes=_pin_pincodes, forget_place=_forget_place, search=_places_search, keep_pin=_keep_pin,
+                         pin_address=_pin_address)
     project_enrich.add_daily("place check", placecheck.refresh)
     # hot projects (areastats.hot): outside signals beyond MahaRERA, news and Search Console; YouTube is on with YOUTUBE_API_KEY
     from app.modules.areastats import hot as hot_projects
@@ -218,6 +219,14 @@ async def _pin_pincodes(db, regno):
     found = re.findall(r"\b(4\d{5})\b", doc.get("address") or "")
     refused = re.findall(r"pincode (\d{6}), MahaRERA says", doc.get("checked") or "")
     return sorted(set(found + refused))
+
+
+async def _keep_pin(db, regno, place, now):
+    """The place the place check found becomes the project's own pin (propertyfacts keeps the pins)."""
+    from app.core.config import settings
+    from app.modules.propertyfacts.pin import Pins
+
+    await Pins(db, settings.google_maps_api_key).keep(regno, place, now)
 
 
 async def _forget_place(db, regno):
