@@ -673,7 +673,7 @@ async def profile_for(db, regno: str) -> Optional[dict]:
         return None
     if doc.get("cluster_primary"):
         doc = await store.project(doc["cluster_primary"]) or doc
-    return profile_public(doc.get("profile"))
+    return profile_public(doc.get("profile"), doc=doc)
 
 
 def primary_of(doc: dict, docs: List[dict]) -> dict:
@@ -761,7 +761,7 @@ async def project_page(db, slug: str, now: Optional[datetime] = None) -> Optiona
     # a count on the builder's or a property site said with its scope: the whole project's, or this registration's
     out["web_facts"] = pagefacts.with_scope(web_public(group_primary(doc, docs).get("web_facts")), out["details"])
     from .profile import public as profile_public
-    out["profile"] = profile_public(group_primary(doc, docs).get("profile"), drawn=not out["indexable"])
+    out["profile"] = profile_public(group_primary(doc, docs).get("profile"), drawn=not out["indexable"], doc=group_primary(doc, docs))
     out["plans_3d"] = plans3d.public(group_primary(doc, docs).get("plans_3d"))   # 3D drawings of its checked floor plans
     from .prices import ideas, public as prices_public, starts   # asked prices per home size, from the builder's site or two sites
     out["prices"] = prices_public(group_primary(doc, docs).get("prices"), now)

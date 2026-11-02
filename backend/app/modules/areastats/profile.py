@@ -8,7 +8,9 @@ For one project (a tower group is read once, on its primary record):
 2. highlights: ONE model call per page answers a fixed list of topics (TOPICS), each with the sentence it came from. Kept only when
    the sentence is on the page, every number of the bullet is in that sentence and it has no sales words. Published when the
    builder's site says it, or when two sites state the same topic (the first site's wording, both sites as sources). Never prices,
-   possession dates or travel times: MahaRERA's dates win, and distances are measured from the project's own pin.
+   possession dates or travel times: MahaRERA's dates win, and distances are measured from the project's own pin. Two sites on a
+   topic need not say the same thing, so what is shown is decided by `shown_highlights`: a second site counts only if its sentence
+   holds the bullet, and a bullet that contradicts MahaRERA's buildings is not shown (the reading stays on the record).
 3. pictures: only from the builder's own site, and only from the project's own page there (its address names the project: a home
    page shows other projects). Each picture is downloaded once, checked (size, shape, not a logo or icon, not a near-duplicate),
    sorted into photo or floor plan by its address and alt text, and kept as WebP under uploads/project_media/<regno>/. Portal
@@ -611,13 +613,69 @@ def kept(pics: Optional[List[dict]]) -> List[dict]:
     return [p for p in pics or [] if p.get("source") != "brochure"]
 
 
-def lines(profile: Optional[dict]) -> List[str]:
+_WORD_NUMBERS = {w: str(n) for n, w in enumerate(("one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
+                                                  "eleven", "twelve"), 1)}
+_WORD_NUMBER = re.compile(r"\b(" + "|".join(_WORD_NUMBERS) + r")\b", re.I)
+_NOT_A_TERM = frozenset("a an and are as at by each for from has have in is it its of on or the this to with".split())
+_COUNT = r"(\d[\d,]*)"
+_TOWERS = re.compile(_COUNT + r"\s+(?:[a-z-]+\s+)?(?:towers?|buildings?|wings?)\b", re.I)
+_FLOORS_EACH = re.compile(r"\b(?:each|all)\b[^.;]*?" + _COUNT + r"\s+(?:[a-z-]+\s+)?(?:floors?|stor(?:eys?|ies))\b|"
+                          + _COUNT + r"\s+(?:[a-z-]+\s+)?(?:floors?|stor(?:eys?|ies))\s+(?:each|all)\b", re.I)
+BACKED_SHARE = 0.5   # of the bullet's words the second site's sentence must hold, as well as every number
+
+
+def _digits(text: str) -> str:
+    return _WORD_NUMBER.sub(lambda m: _WORD_NUMBERS[m.group(1).lower()], text or "")
+
+
+def _terms(text: str) -> set:
+    return {w.rstrip("s") for w in re.findall(r"[a-z0-9]+", _digits(text).lower()) if w not in _NOT_A_TERM}
+
+
+def backed(text: str, quote: str) -> bool:
+    """Does this sentence say what the bullet says? Two sites "agreeing" used to mean each said anything on the same topic: "2 towers"
+    was backed by "The project consists of 3 towers", "six towers on 1.5 acres" by "It occupies an area of 1 Acre" (2026-11-02)."""
+    terms = _terms(text)
+    numbers = {n.replace(",", "") for n in NUM.findall(_digits(text))}
+    if not terms or not numbers <= {n.replace(",", "") for n in NUM.findall(_digits(quote))}:
+        return False
+    return len(terms & _terms(quote)) / len(terms) >= BACKED_SHARE
+
+
+def contradicts(text: str, doc: Optional[dict], official: bool = False) -> bool:
+    """A bullet MahaRERA's buildings prove wrong: fewer towers than this one registration files (more may be the whole project's), or
+    one floor count for each tower where the filed towers differ (Godrej Ivara: "each with 43 floors", filed 37 to 43). Not that second
+    one on the builder's own site: it counts habitable floors where MahaRERA files sanctioned ones (Neco Park Central: "18 habitable")."""
+    built = (doc or {}).get("buildings") or []
+    plain = _digits(text)
+    filed = ((doc or {}).get("building_totals") or {}).get("towers")
+    if filed and any(int(n.replace(",", "")) < filed for n in _TOWERS.findall(plain)):
+        return True
+    floors = {b["floors"] for b in built if isinstance(b.get("floors"), int) and b["floors"] > 0}
+    return not official and len(floors) > 1 and _FLOORS_EACH.search(plain) is not None
+
+
+def shown_highlights(profile: Optional[dict], doc: Optional[dict] = None) -> List[dict]:
+    """The highlights a page, the page-text model and the page check use: those MahaRERA does not contradict, each with only the
+    sources that say it, so the page's "a property site" or "2 property sites" is true. The record keeps every reading."""
+    out = []
+    for h in (profile or {}).get("highlights") or []:
+        if contradicts(str(h.get("text") or ""), doc, bool(h.get("official"))):
+            continue
+        sources = h.get("sources") or []
+        if not h.get("official"):
+            sources = sources[:1] + [x for x in sources[1:] if backed(str(h.get("text") or ""), str(x.get("quote") or ""))]
+        out.append({**h, "sources": sources})
+    return out
+
+
+def lines(profile: Optional[dict], doc: Optional[dict] = None) -> List[str]:
     """The highlights as labelled lines for the page-text model (areastats.enrich.facts_text)."""
     return [f"{TOPICS.get(h['topic'], h['topic'])}: {h['text']} (from {', '.join(s['site'] for s in h['sources'])})"
-            for h in (profile or {}).get("highlights") or []]
+            for h in shown_highlights(profile, doc)]
 
 
-def public(profile: Optional[dict], drawn: bool = True) -> Optional[dict]:
+def public(profile: Optional[dict], drawn: bool = True, doc: Optional[dict] = None) -> Optional[dict]:
     """What a project page shows: highlights with their sources, pictures with where they came from; None when there is nothing.
     Pictures copied from other sites stay on the record and are never shown (pages.shown_pictures); `drawn=False` leaves the AI
     illustrations out too: a page in Google shows real pictures or none (2026-10-27). Only the builder's site keeps its link: the
@@ -635,6 +693,6 @@ def public(profile: Optional[dict], drawn: bool = True) -> Optional[dict]:
     return {"read_at": at.date().isoformat() if isinstance(at, datetime) else None,
             "highlights": [{"topic": h["topic"], "text": h["text"], "official": h.get("official", False),
                             "sources": [{"site": s["site"], "url": s["url"] if h.get("official") else None} for s in h.get("sources") or []]}
-                           for h in profile.get("highlights") or []],
+                           for h in shown_highlights(profile, doc)],
             "photos": [pic(p) for p in distinct_photos([p for p in profile.get("photos") or [] if p.get("path")])],
             "plans": [pic(p) for p in profile.get("plans") or [] if p.get("path")]}

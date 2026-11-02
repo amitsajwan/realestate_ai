@@ -117,7 +117,8 @@ read again and again, but only for projects whose completion date is still to co
   even when its last enrichment is recent (`enrich.needs_profile`).
 - Highlights: one model call per page over a fixed topic list (homes, amenities, clubhouse, open space, towers, design,
   specifications, green, parking, security), each with its sentence. Kept when the sentence is on the page, every number of
-  the bullet is in it and it has no sales words. Published from the builder's site, or when two sites state the topic.
+  the bullet is in it and it has no sales words. Published from the builder's site, or when two sites state the topic. Shown
+  with only the sources that hold the bullet (`profile.shown_highlights`); a bullet MahaRERA's buildings prove wrong is not shown.
   Never prices, possession dates or travel times. The highlights also go to the page-text model, so the summary names them.
 - Pictures: only the builder's own site, only its page for this project (the path names the project) plus that page's own
   gallery / plans sub-pages (up to 3). Junk (logos, icons, maps, awards) left out by address; photos >= 800x450 landscape,

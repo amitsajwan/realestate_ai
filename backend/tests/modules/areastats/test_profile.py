@@ -165,9 +165,64 @@ async def test_highlights_are_read_from_pages_naming_the_whole_project_and_not_f
 def test_only_the_builders_own_site_keeps_its_link_on_a_highlight():
     portal = {"topic": "open_space", "text": "Six towers", "official": False,
               "sources": [{"site": "housiey.com", "url": "https://housiey.com/p", "quote": "6 towers"},
-                          {"site": "magicbricks.com", "url": "https://magicbricks.com/p", "quote": "1 acre"}]}
+                          {"site": "magicbricks.com", "url": "https://magicbricks.com/p", "quote": "Has six towers"}]}
     builder = {"topic": "amenities", "text": "A clubhouse", "official": True,
                "sources": [{"site": "builder.com", "url": "https://builder.com/p", "quote": "A clubhouse"}]}
     shown = profile.public({"at": datetime(2026, 11, 2, tzinfo=timezone.utc), "highlights": [portal, builder]})["highlights"]
     assert [s["url"] for s in shown[0]["sources"]] == [None, None]
     assert shown[1]["sources"][0]["url"] == "https://builder.com/p"
+
+
+SIX = "Limited open space; six towers occupy a 1.5-acre site"
+
+
+def highlight(text, *quotes, official=False):
+    return {"topic": "open_space", "text": text, "official": official,
+            "sources": [{"site": f"site{i}.com", "url": f"https://site{i}.com", "quote": q} for i, q in enumerate(quotes)]}
+
+
+def test_a_second_site_counts_only_if_its_sentence_says_what_the_bullet_says():
+    assert profile.backed(SIX, "Limited open space with 6 towers on a 1.5-acre site")
+    assert not profile.backed(SIX, "It occupies an area of 1 Acre.")
+    assert not profile.backed("2 towers with basement parking", "The project consists of 3 towers.")
+    assert not profile.backed("Swimming pool, gym and a clubhouse", "This locality has essential amenities.")
+
+
+def test_a_bullet_only_one_site_holds_says_one_site_and_keeps_its_wording():
+    h = highlight(SIX, "6 towers on a 1.5-acre site, limited open space", "It occupies an area of 1 Acre.")
+    shown = profile.shown_highlights({"highlights": [h]})
+    assert shown[0]["text"] == SIX and [s["site"] for s in shown[0]["sources"]] == ["site0.com"]
+    assert h["sources"][1]["site"] == "site1.com"   # the record keeps both readings
+
+
+def test_a_builders_own_highlight_keeps_its_source():
+    h = highlight("A clubhouse", "A clubhouse", official=True)
+    assert profile.shown_highlights({"highlights": [h]})[0]["sources"] == h["sources"]
+
+
+FILED = {"building_totals": {"towers": 11}, "buildings": [{"name": "A", "floors": 43}, {"name": "D", "floors": 38}]}
+
+
+def test_mahareras_buildings_hide_a_bullet_they_prove_wrong():
+    assert profile.contradicts("11 towers, each with 43 floors", FILED)
+    assert profile.contradicts("9 towers on 12 acres", FILED)
+    assert profile.contradicts("Five towers of 30 floors each", FILED)
+
+
+def test_a_builders_habitable_floors_are_not_called_wrong_but_its_tower_count_can_be():
+    assert not profile.contradicts("Each wing has 18 habitable floors", FILED, official=True)
+    assert profile.contradicts("9 towers", FILED, official=True)
+
+
+def test_more_towers_than_this_registration_may_be_the_whole_project():
+    assert not profile.contradicts("Fourteen towers across phases", FILED)
+    assert not profile.contradicts("14 towers across phases", FILED)
+    assert not profile.contradicts("A tower with 43 floors", FILED)
+    assert not profile.contradicts("11 towers, each with 43 floors", {"buildings": [{"floors": 43}, {"floors": 43}]})
+    assert not profile.contradicts("2 towers", None)
+
+
+def test_a_hidden_bullet_leaves_the_page_and_the_writers_facts_but_not_the_record():
+    stored = {"at": datetime(2026, 11, 2, tzinfo=timezone.utc), "highlights": [highlight("11 towers, each with 43 floors", "x", "y")]}
+    assert profile.public(stored, doc=FILED)["highlights"] == [] and profile.lines(stored, FILED) == []
+    assert len(stored["highlights"]) == 1

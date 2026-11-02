@@ -27,7 +27,7 @@ from typing import Dict, List, Optional
 import httpx
 
 from app.core.areas import BY_KEY
-from app.modules.areastats import budget, enrich, pages, pricing
+from app.modules.areastats import budget, enrich, pages, pricing, profile
 from app.modules.newsroom.store import Store
 
 from .config import load
@@ -91,7 +91,7 @@ def _sections(doc: dict) -> List[str]:
 def prose(doc: dict) -> List[str]:
     """What we wrote for this page and what we took from sites, as the page shows them."""
     faq = [str(f.get("a") or "") for f in doc.get("seo_faq") or []]
-    highlights = [str(h.get("text") or "") for h in (doc.get("profile") or {}).get("highlights") or []]
+    highlights = [str(h.get("text") or "") for h in profile.shown_highlights(doc.get("profile"), doc)]
     return [t for t in _sections(doc) + highlights + faq if t.strip()]
 
 

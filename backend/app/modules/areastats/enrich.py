@@ -359,7 +359,7 @@ def facts_text(doc: dict, gathered: Optional[dict], web: Optional[dict] = None, 
             line = (f"{f['label']}: {f['text']} for the whole project, from {where} ({sites}); this registration has "
                     f"{scoped[f['key']]} with MahaRERA")
         lines.append(line)
-    lines += [f"Highlight, {x}" for x in profile.lines(prof)]
+    lines += [f"Highlight, {x}" for x in profile.lines(prof, doc)]
     if pinned:
         lines += [f"Nearby {str(x.get('label') or 'place').lower()}: {x['name']}, {x['km']} km in a straight line from the project's pin"
                   for x in (g.get("nearby") or [])[:10] if x.get("name") and isinstance(x.get("km"), (int, float))]
@@ -435,7 +435,7 @@ def on_page(doc: dict, prof: Optional[dict] = None) -> List[str]:
         out.append("Prices: " + "; ".join(f"{r.get('bhk')} from Rs {r['from_inr']:,}" for r in rows
                                           if isinstance(r.get("from_inr"), int)))
         out.append("BHK types: " + ", ".join(dict.fromkeys(str(r["bhk"]) for r in rows if r.get("bhk"))))
-    out += [f"Highlight, {x}" for x in profile.lines(prof)]
+    out += [f"Highlight, {x}" for x in profile.lines(prof, doc)]
     return [x for x in out if x]
 
 

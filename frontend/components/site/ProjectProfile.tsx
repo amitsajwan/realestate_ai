@@ -40,7 +40,7 @@ export default function ProjectProfile({ profile, name, part, lead, skip, omit =
             ))}
           </ul>
           <p className="mt-2 text-xs text-slate-600">
-            Each point is on the builder&apos;s own site or on two property sites{profile.read_at ? `; read on ${formatDay(profile.read_at)}` : ''}.
+            Each point says where it was read{profile.read_at ? `, on ${formatDay(profile.read_at)}` : ''}. Property sites can be wrong: confirm with the builder before you book.
             Dates and bookings come only from MahaRERA.
           </p>
         </section>
