@@ -161,3 +161,13 @@ async def test_highlights_are_read_from_pages_naming_the_whole_project_and_not_f
     assert asked == [("https://a.example/p", "Pristine O2 World")]
     assert [r["why"] for r in fields["profile"]["read"] if r["url"].startswith("https://b")] == ["page names another project of that name"]
 
+
+def test_only_the_builders_own_site_keeps_its_link_on_a_highlight():
+    portal = {"topic": "open_space", "text": "Six towers", "official": False,
+              "sources": [{"site": "housiey.com", "url": "https://housiey.com/p", "quote": "6 towers"},
+                          {"site": "magicbricks.com", "url": "https://magicbricks.com/p", "quote": "1 acre"}]}
+    builder = {"topic": "amenities", "text": "A clubhouse", "official": True,
+               "sources": [{"site": "builder.com", "url": "https://builder.com/p", "quote": "A clubhouse"}]}
+    shown = profile.public({"at": datetime(2026, 11, 2, tzinfo=timezone.utc), "highlights": [portal, builder]})["highlights"]
+    assert [s["url"] for s in shown[0]["sources"]] == [None, None]
+    assert shown[1]["sources"][0]["url"] == "https://builder.com/p"

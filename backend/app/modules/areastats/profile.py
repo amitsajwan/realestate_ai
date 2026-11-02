@@ -620,7 +620,8 @@ def lines(profile: Optional[dict]) -> List[str]:
 def public(profile: Optional[dict], drawn: bool = True) -> Optional[dict]:
     """What a project page shows: highlights with their sources, pictures with where they came from; None when there is nothing.
     Pictures copied from other sites stay on the record and are never shown (pages.shown_pictures); `drawn=False` leaves the AI
-    illustrations out too: a page in Google shows real pictures or none (2026-10-27)."""
+    illustrations out too: a page in Google shows real pictures or none (2026-10-27). Only the builder's site keeps its link: the
+    page calls a linked source "the builder's site", which said so of property portals until 2026-11-02."""
     if profile:
         profile = {**profile, "photos": pages.shown_pictures(profile.get("photos"), drawn),
                    "plans": pages.shown_pictures(profile.get("plans"))}
@@ -633,7 +634,7 @@ def public(profile: Optional[dict], drawn: bool = True) -> Optional[dict]:
                 "site": p.get("site"), "page_url": p.get("page_url"), "source": p.get("source") or "builder"}
     return {"read_at": at.date().isoformat() if isinstance(at, datetime) else None,
             "highlights": [{"topic": h["topic"], "text": h["text"], "official": h.get("official", False),
-                            "sources": [{"site": s["site"], "url": s["url"]} for s in h.get("sources") or []]}
+                            "sources": [{"site": s["site"], "url": s["url"] if h.get("official") else None} for s in h.get("sources") or []]}
                            for h in profile.get("highlights") or []],
             "photos": [pic(p) for p in distinct_photos([p for p in profile.get("photos") or [] if p.get("path")])],
             "plans": [pic(p) for p in profile.get("plans") or [] if p.get("path")]}

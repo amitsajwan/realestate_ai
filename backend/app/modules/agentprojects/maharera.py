@@ -114,14 +114,16 @@ def parse_buildings(body: dict, regno: str, maharera_id: int) -> List[dict]:
 
 
 def building_totals(buildings: List[dict]) -> dict:
-    """{towers, max_floors, units_total, units_residential, units_other}; a tower is a distinct building name."""
-    names = {(b.get("name") or f"#{i}") for i, b in enumerate(buildings)}
+    """{towers, max_floors, units_total, units_residential, units_other}; a tower is one row of MahaRERA's list, an identical row
+    counted once. It was a distinct building name, but builders file every wing under the project's name: Prestigia's six wings
+    of 3 to 9 floors read "Towers 1" beside the six towers its own page describes (2026-11-02)."""
+    rows = {(b.get("name"), b.get("wing"), b.get("floors"), b.get("units_total")) for b in buildings}
     floors = [b["floors"] for b in buildings if b.get("floors")]
 
     def total(k: str) -> Optional[int]:
         return sum(b.get(k) or 0 for b in buildings) or None
 
-    return {"towers": len(names) if buildings else None, "max_floors": max(floors) if floors else None,
+    return {"towers": len(rows) if buildings else None, "max_floors": max(floors) if floors else None,
             "units_total": total("units_total"), "units_residential": total("units_residential"), "units_other": total("units_other")}
 
 
