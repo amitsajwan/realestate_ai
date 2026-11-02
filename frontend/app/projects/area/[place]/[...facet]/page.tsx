@@ -4,14 +4,14 @@ import Link from 'next/link'
 import { notFound, permanentRedirect } from 'next/navigation'
 import MarketingShell from '@/components/marketing/MarketingShell'
 import FacetChips from '@/components/site/FacetChips'
-import { RankedCard } from '@/components/site/ListCard'
+import { ListPicture, RailCard, RankedCard } from '@/components/site/ListCard'
 import ProjectRail, { READY_SUB, READY_TITLE } from '@/components/site/ProjectRail'
 import { getLocality } from '@/lib/marketing/localities'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/seo'
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
 import { getCatalog } from '@/lib/site/api'
-import { facetFaq, getFacet, getFacetQuiet, getFacets, placeChips } from '@/lib/site/facets'
+import { facetFaq, getFacet, getFacetQuiet, getFacets, otherProjects, placeChips } from '@/lib/site/facets'
 import type { FacetPage, FacetRow } from '@/lib/site/facets'
 import { livePages } from '@/lib/site/filters'
 import { fitDescription, formatPrice } from '@/lib/site/format'
@@ -68,9 +68,9 @@ function moved(r: FacetRow): string | null {
 function Row({ r, priceList }: { r: FacetRow; priceList: boolean }) {
   const m = moved(r)
   return (
-    <li className="flex gap-3 rounded-xl border border-slate-200 bg-white p-3 sm:p-4">
-      <span aria-hidden className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-[#0f2340]">{r.rank}</span>
-      <div className="min-w-0">
+    <li className="overflow-hidden rounded-xl border border-slate-200 bg-white sm:grid sm:grid-cols-[220px_1fr]" data-testid="facet-row">
+      <ListPicture r={r} rank={r.rank} tall />
+      <div className="min-w-0 p-3 sm:p-4">
         <Link href={`/projects/${r.slug}`} className="text-lg font-semibold text-[#0f2340] underline underline-offset-2">{r.name}</Link>
         {r.promoter && (
           <span className="text-slate-700"> by {r.builder_slug ? <Link href={`/builders/${r.builder_slug}`} className="text-[#0f2340] underline underline-offset-2">{r.promoter}</Link> : r.promoter}</span>
@@ -145,6 +145,9 @@ export default async function FacetPageView({ params }: Props) {
   const [launches, ready, twoBhk] = top
     ? await Promise.all([getFacetQuiet(p.place.slug, ['new-launches']), getFacetQuiet(p.place.slug, ['ready-to-move']), getFacetQuiet(p.place.slug, ['2-bhk'])])
     : [null, null, null]
+  // the size list holds only projects with a checked price for that size: the others still being sold follow it, marked as such
+  const sizeList = !!p.bhk && p.intent === 'all' && !p.possession && !p.builder
+  const others = sizeList ? otherProjects(await getFacetQuiet(p.place.slug, ['top']), p) : []
   const cards = top ? p.rows.slice(0, TOP_CARDS) : []
   const rest = top ? p.rows.slice(TOP_CARDS) : p.rows
   const ld = [
@@ -199,6 +202,16 @@ export default async function FacetPageView({ params }: Props) {
           </section>
         ) : cards.length > 0 ? null : (
           <p className="mt-8 rounded-xl bg-slate-50 p-4 text-slate-700">No project matches this list in MahaRERA&apos;s records right now.</p>
+        )}
+
+        {others.length > 0 && (
+          <section aria-labelledby="others-title" className="mt-10" data-testid="facet-others">
+            <h2 id="others-title" className="text-xl font-bold text-slate-900">More projects being sold in {p.place.name} ({others.length})</h2>
+            <p className="text-sm text-slate-600">We have no checked {p.bhk} BHK price for these, and MahaRERA does not show home sizes, so ask whether they have {p.bhk} BHK homes.</p>
+            <ul className="mt-3 grid list-none gap-3 p-0 sm:grid-cols-2 lg:grid-cols-3">
+              {others.map((r) => <li key={r.slug}><RailCard r={r} /></li>)}
+            </ul>
+          </section>
         )}
 
         {top && <SoldOut p={p} />}

@@ -38,7 +38,7 @@ export function cardPrice(r: FacetRow): string | null {
 }
 
 /** The card's picture slot (CardPicture): its pictures as a slideshow, else the project page's map or logo, else the skyline. */
-function Picture({ r, rank, tall }: { r: FacetRow; rank?: number; tall?: boolean }) {
+export function ListPicture({ r, rank, tall }: { r: FacetRow; rank?: number; tall?: boolean }) {
   return <CardPicture m={r} name={readableName(r.name)} href={`/projects/${r.slug}`} rank={rank} tag={stageTag(r)}
     tagTone={r.stage === 'ready' ? 'warn' : 'plain'} height={tall ? 'h-44 sm:h-full sm:min-h-[200px]' : 'h-32'} />
 }
@@ -63,7 +63,7 @@ export function RankedCard({ r }: { r: FacetRow }) {
   const price = cardPrice(r)
   return (
     <li className="overflow-hidden rounded-2xl border border-slate-200 bg-white sm:grid sm:grid-cols-[260px_1fr]" data-testid="ranked-card">
-      <Picture r={r} rank={r.rank} tall />
+      <ListPicture r={r} rank={r.rank} tall />
       <div className="flex min-w-0 flex-col gap-2 p-4">
         <div>
           <Link href={`/projects/${r.slug}`} className="text-xl font-bold text-[#0f2340] underline-offset-2 hover:underline">{readableName(r.name)}</Link>
@@ -105,7 +105,7 @@ export function RailCard({ r, rank }: { r: FacetRow; rank?: number }) {
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white hover:border-[#0f2340]">
       {/* the picture links itself: its slideshow's arrows are buttons, which may not sit inside a link */}
-      <Picture r={r} rank={rank} />
+      <ListPicture r={r} rank={rank} />
       <Link href={`/projects/${r.slug}`} className="block no-underline">
         <span className="block px-3 pt-3">
           {/* underlined with an arrow: the card reads as a link at a glance on a phone (owner 2026-10-26) */}

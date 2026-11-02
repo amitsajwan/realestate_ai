@@ -138,6 +138,13 @@ export async function getFacetQuiet(place: string, segments: string[]): Promise<
   }
 }
 
+/** A size page's "more projects being sold": the place's Top list less what the page already lists, and less projects whose
+ *  cheapest published size is above this one (a 4 BHK only project is no answer to "2 BHK flats"). */
+export function otherProjects(top: FacetPage | null, p: FacetPage): FacetRow[] {
+  const listed = new Set(p.rows.map((r) => r.slug))
+  return (top?.rows ?? []).filter((r) => !listed.has(r.slug) && !(p.bhk && r.price && r.price.bhk > p.bhk))
+}
+
 /** The other lists of the same place, for chips: the intents first, then possession years, then builders. */
 export function siblings(all: FacetLink[], placeKey: string, except?: string): FacetLink[] {
   return all.filter((f) => f.place === placeKey && f.indexable && f.path !== except)

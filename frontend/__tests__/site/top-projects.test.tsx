@@ -73,6 +73,38 @@ describe('Top projects page', () => {
   })
 })
 
+describe('Size page', () => {
+  const twoBhk = page('all', [
+    row(1, { price_from: 7_800_000, reason: '2 BHK from ₹78 lakh', photo: { url: '/uploads/p1.webp', alt: 'Towers', source: 'builder' } }),
+    row(2, { price_from: 9_000_000, reason: '2 BHK from ₹90 lakh' }),
+  ], { bhk: 2, path: '/projects/area/kharadi/2-bhk' })
+  const sized = { place: 'kharadi', facet: ['2-bhk'] }
+
+  afterEach(() => { LISTS['2-bhk'] = null; LISTS.top = TOP })
+
+  it('draws a picture on every row of the list', async () => {
+    LISTS['2-bhk'] = twoBhk
+    render(await FacetPageView({ params: Promise.resolve(sized) }))
+    const rows = within(screen.getByTestId('facet-rows')).getAllByTestId('facet-row')
+    expect(rows).toHaveLength(2)
+    rows.forEach((r) => expect(within(r).getByTestId('card-picture')).toBeInTheDocument())
+    expect(rows[0].querySelector('img')).toHaveAttribute('src', '/uploads/p1.webp')
+  })
+
+  it('follows the priced list with the others being sold, marked unconfirmed, without projects that start above the size', async () => {
+    LISTS['2-bhk'] = twoBhk
+    LISTS.top = page('top', [row(1), row(5), row(6, { price: { bhk: 4, from_inr: 27_700_000, to_inr: null } }), row(7, { price: { bhk: 2, from_inr: 9_000_000, to_inr: null } })])
+    render(await FacetPageView({ params: Promise.resolve(sized) }))
+    const others = screen.getByTestId('facet-others')
+    expect(others).toHaveTextContent('More projects being sold in Kharadi (2)')
+    expect(others).toHaveTextContent('We have no checked 2 BHK price')
+    expect(within(others).getByRole('link', { name: /Project 5/ })).toHaveAttribute('href', '/projects/p-5')
+    expect(within(others).queryByRole('link', { name: /Project 1/ })).toBeNull()   // already in the list above
+    expect(within(others).queryByRole('link', { name: /Project 6/ })).toBeNull()     // starts at 4 BHK
+    expect(screen.getByRole('heading', { name: '2 projects' })).toBeInTheDocument()  // the priced count stays what it is
+  })
+})
+
 describe('ProjectRail', () => {
   it('numbers ranked cards and hides itself under three', () => {
     const rows = [row(1), row(2), row(3)] as never[]
