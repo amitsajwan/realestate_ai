@@ -574,6 +574,14 @@ def refused(doc: dict, web: Optional[dict], draft: dict, facts: str) -> List[str
     return list(dict.fromkeys(problems))
 
 
+async def sources_text(db, doc: dict) -> str:
+    """The fact sheet as the writer is given it, for reading the finished page against it (seo.review)."""
+    view = _deps.get("view")
+    gathered = await view(db, doc["_id"]) if view else None
+    return facts_text(doc, gathered, doc.get("web_facts"), doc.get("profile"),
+                      (doc.get("geo") or {}).get("located_from") == "google")
+
+
 async def write_text(llm, doc: dict, gathered: Optional[dict], web: Optional[dict] = None, prof: Optional[dict] = None,
                      pinned: bool = False) -> tuple:
     """({text, sections, summary} or None, why it was refused: [] when accepted). A refused answer is forgotten by a budgeted

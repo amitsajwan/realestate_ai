@@ -53,12 +53,12 @@ async def _seo_rows(svc: AdminService) -> list:
     from app.modules.areastats.enrich import POLL_SECONDS as ENRICH_POLL_S
     from app.modules.areastats.enrich import load as enrich_cfg
     from app.modules.areastats.searchconsole import key as gsc_key
-    from app.modules.seo import freshness
+    from app.modules.seo import freshness, review
     from app.modules.seo.indexnow import key as indexnow_key
     from app.modules.seo.runner import INTERVAL_S as SEO_INTERVAL_S
     from app.modules.seo.runner import enabled as seo_on
     from app.platform import heartbeats
-    names = ["indexnow", "gsc_coverage", "gsc_pages", freshness.MARK]
+    names = ["indexnow", "gsc_coverage", "gsc_pages", freshness.MARK, review.MARK]
     marks = {d["_id"]: d for d in await svc.c("newsroom_status").find({"_id": {"$in": names}}).to_list(len(names))}
     beats, now = await heartbeats.read_all(svc.db), datetime.now(timezone.utc)
     loops = [health.loop_row("seo", "SEO loop", beats.get("seo"), float(SEO_INTERVAL_S) if seo_on() else None, now, "",
@@ -76,7 +76,7 @@ async def _seo_rows(svc: AdminService) -> list:
     return health.seo_rows(indexnow_on=indexnow_key() is not None, gsc_on=gsc_key() is not None, indexnow=marks.get("indexnow"),
                            coverage=marks.get("gsc_coverage"), pages=marks.get("gsc_pages"), articles_on=articles_on(),
                            articles=articles) + [r for r in loops if r] + [
-        health.freshness_row(marks.get(freshness.MARK), freshness.WINDOW.days)]
+        health.freshness_row(marks.get(freshness.MARK), freshness.WINDOW.days), health.page_check_row(marks.get(review.MARK), now)]
 
 
 @router.get("/overview")

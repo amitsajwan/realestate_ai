@@ -120,7 +120,7 @@ def test_overview_counts_waiting_agents_health_and_controls(monkeypatch):
     assert o["agents"][0]["name"] == "Rahul Sharma" and o["agents"][0]["progress"]["total"] == 8 and o["agents"][0]["mobile"] == "98******10"
     rows = {h["key"]: h for h in o["health"]}
     assert set(rows) == {"facebook", "instagram", "whatsapp", "messenger", "ai", "posting", "comments", "news", "indexnow", "google_index",
-                         "neighbourhoods", "enrich", "freshness"}
+                         "neighbourhoods", "enrich", "freshness", "page_check"}
     assert rows["enrich"]["status"] == "warn" and "PROJECT_ENRICH_ENABLED" in rows["enrich"]["fix"]   # off by default
     assert rows["freshness"]["status"] == "ok" and rows["freshness"]["text"] == "First count runs within a day"
     assert rows["messenger"]["status"] == "warn"  # off by default

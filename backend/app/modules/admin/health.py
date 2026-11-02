@@ -4,7 +4,7 @@ Reads only what the app already records: engage_status (Meta token per channel),
 the environment (enabled and dry-run switches) and a cached AI ping. Never returns tokens or phone numbers.
 """
 import time
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Awaitable, Callable, Dict, List, Optional
 
 from app.platform import heartbeats
@@ -149,6 +149,21 @@ def freshness_row(mark: Optional[dict], window_days: int) -> Dict:
     fix = "" if status == OK else ("Read pipeline=enrich in the newsroom worker's log (MahaRERA down, the model refusing, keys)"
                                    + (f"; oldest: {old}" if old else ""))
     return {**_row("freshness", label, status, text, fix), "last_run_at": _iso(m.get("at"))}
+
+
+def page_check_row(mark: Optional[dict], now: datetime) -> Dict:
+    """The daily page check (seo.review): it fails quietly when it stops, or when the model has no room and only the rules read."""
+    m, label = mark or {}, "Page check against sources"
+    at = m.get("at")
+    if not at:
+        return _row("page_check", label, OK, "First check runs within a day")
+    at = at if at.tzinfo else at.replace(tzinfo=timezone.utc)
+    text = f"{m.get('read', 0)} pages read, {m.get('flagged', 0)} with something to look at, {m.get('model', 0)} read by the model"
+    if now - at > timedelta(days=3):
+        return {**_row("page_check", label, WARN, text, "No check in 3 days: read pipeline=seo step=review in the newsroom worker's log"),
+                "last_run_at": _iso(at)}
+    fix = "" if m.get("model") else "The model read none of them: the enrichment's budget is spent or its providers are resting"
+    return {**_row("page_check", label, OK if m.get("model") else WARN, text, fix), "last_run_at": _iso(at)}
 
 
 def build_health(*, social, wa, engage, calendar, newsroom, meta: Dict[str, Optional[dict]], cal_run: dict, news_run: dict,

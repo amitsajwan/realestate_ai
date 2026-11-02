@@ -147,6 +147,18 @@ export interface Rankings {
   request_indexing?: { url: string; state: string | null; why: string }[]
   coverage?: { at: string | null; by_sitemap: { sitemap: string; listed: number; inspected: number; indexed: number }[] }
   ai?: AiVisits
+  page_check?: PageCheck
+}
+
+/** The daily check of finished pages against their sources (backend seo/review.py). */
+export interface PageCheck {
+  at: string | null
+  read: number
+  flagged: number
+  model: number
+  week: number
+  week_flagged: number
+  items: { slug: string; name: string | null; url: string | null; at: string; problems: { kind: string; detail: string; quote?: string; source?: string }[] }[]
 }
 
 /** AI search (backend seo/aivisits.py): AI fetchers that read our pages and visits from AI answers, by day. */

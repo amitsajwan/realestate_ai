@@ -273,6 +273,7 @@ All backend settings go in `~/app/deploy/gcp/.env` on the VM; Compose passes the
 |---|---|---|
 | `SITE_HOST` | none (required) | The public host name. Caddy serves and certifies it; `PUBLIC_SITE_URL` and the frontend's `NEXT_PUBLIC_SITE_URL` follow it. |
 | `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` | empty | Google Search Console's "HTML tag" code (only the `content="..."` value). Read at build time, so redeploy after setting it. Not needed if the domain is verified with a DNS TXT record. |
+| `SEO_PAGE_REVIEW` | on | The daily page check (`seo/review.py`): up to 20 live project pages against their sources, reports only. `off` stops it. It needs `PUBLIC_SITE_URL` to be an https address, and its model calls come out of the enrichment budget. |
 | `INDEXNOW_KEY` | empty (off) | Turns on IndexNow: the worker's `seo` loop tells Bing and other engines about new and changed pages within 30 minutes (docs/plan/seo.md). Any 8 to 128 letters, digits or dashes, e.g. `openssl rand -hex 16`; served at `/indexnow-key.txt`. Restart the backend and worker after setting it. |
 | `COMMUNITY_ARTICLES_ENABLED`, `COMMUNITY_ARTICLES_PER_DAY` | off, `3` | The neighbourhood article bot: finds the named neighbourhoods in each area weekly and writes facts-only pages at `/localities/<area>/<neighbourhood>`, a few a day (docs/plan/seo.md). Needs an AI provider. Restart the worker after changing. |
 | `MONGO_PASSWORD` | none (required) | Password of the `app` root user, used by Compose to build `MONGODB_URL`. Applies only when the database volume is first created. |
@@ -332,7 +333,7 @@ All backend settings go in `~/app/deploy/gcp/.env` on the VM; Compose passes the
 | `AI_LLM_BASE_URL` | `https://api.groq.com/openai/v1` | Primary OpenAI-compatible provider. |
 | `AI_LLM_API_KEY` | empty (falls back to `GROQ_API_KEY`) | **Secret.** Primary key. With no key at all the app runs rule-only and Health shows AI red. |
 | `AI_LISTING_LLM_MODEL` | `openai/gpt-oss-120b` | Model id, or several comma separated (tried in order). |
-| `AI_LLM_FALLBACK_BASE_URL`, `AI_LLM_FALLBACK_API_KEY` | empty | Second provider (OpenRouter on the pilot). Used only when both are set. The key is a **secret**. |
+| `AI_LLM_FALLBACK_BASE_URL`, `AI_LLM_FALLBACK_API_KEY` | empty | Second text provider. Used only when both are set. Not set in production since 2026-11-02 (it pointed at OpenRouter; `AI_OPENROUTER_TEXT` is off too). `OPENROUTER_API_KEYS` stays: photo and brochure reading uses it. The key is a **secret**. |
 | `AI_LLM_PROVIDER_FALLBACK_MODEL` | `openai/gpt-oss-120b` | Model list for the second provider. |
 | `AI_LLM_FALLBACK` | `on` | `off` disables the Gemini backup. |
 | `GEMINI_API_KEY` | empty | **Secret.** Optional Gemini backup (used only when set and `AI_LLM_FALLBACK` is not off). |

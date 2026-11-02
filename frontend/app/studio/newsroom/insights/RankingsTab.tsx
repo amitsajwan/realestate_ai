@@ -5,7 +5,7 @@ import { ErrorBox, Spinner } from '@/components/app/ui'
 import { timeAgo } from '@/lib/app/format'
 import { errorMessage } from '@/lib/app/client'
 import { getRankings, revertPage } from '@/lib/app/insights'
-import type { AiVisits, BoardRow, RankAction, RankTarget, Scoreboard, WeekNumbers } from '@/lib/app/insights'
+import type { AiVisits, BoardRow, PageCheck, RankAction, RankTarget, Scoreboard, WeekNumbers } from '@/lib/app/insights'
 import { useAsync } from '@/lib/app/useAsync'
 import { getNotifications, markNotificationRead } from '@/lib/app/whatsapp'
 
@@ -137,6 +137,36 @@ function AskGoogle({ pages }: { pages: { url: string; state: string | null; why:
   )
 }
 
+const CHECK_KIND: Record<string, string> = {
+  not_in_search: 'Not in search', record: 'Differs from the record', location: 'Place', wrong_project: 'Another project', number: 'Number', unsupported: 'Not in the sources', thin: 'Thin',
+}
+
+/** The daily page check (seo/review.py): finished pages against their sources. It only reports: nothing here changes a page. */
+function PageChecks({ c }: { c: PageCheck }) {
+  const [all, setAll] = useState(false)
+  return (
+    <div className={card}>
+      <p className="font-semibold text-gray-900">Page check</p>
+      <p className="text-xs text-gray-600">Up to 20 pages a day read live and compared with their sources. 7 days: {c.week} read, {c.week_flagged} with something to look at. Last run {c.at ? timeAgo(c.at) : 'not yet'}: {c.model} of {c.read} read by the model too.</p>
+      {c.items.length === 0 ? <p className="mt-1 text-sm text-gray-600">Nothing to look at.</p> : (
+        <ul className="mt-1 space-y-2 p-0">
+          {(all ? c.items : c.items.slice(0, 10)).map((i) => (
+            <li key={i.slug} className="break-words text-xs text-gray-700">
+              {i.url ? <LinkOut href={i.url}>{i.name ?? i.slug}</LinkOut> : (i.name ?? i.slug)}
+              <ul className="mt-0.5 space-y-0.5 p-0">
+                {i.problems.map((p, n) => (
+                  <li key={n}><span className="font-medium">{CHECK_KIND[p.kind] ?? p.kind}:</span> {p.detail}{p.quote ? ` ("${p.quote}")` : ''}</li>
+                ))}
+              </ul>
+            </li>
+          ))}
+        </ul>
+      )}
+      {c.items.length > 10 && <button type="button" className={`${btn} mt-2`} onClick={() => setAll(!all)}>{all ? 'Show 10' : `Show all ${c.items.length}`}</button>}
+    </div>
+  )
+}
+
 const AI_GROUP: Record<string, string> = {
   answer: 'Read to answer a question', referral: 'Visitors from an AI answer', search: 'Search crawlers', training: 'Training crawlers',
 }
@@ -207,6 +237,8 @@ export default function RankingsTab() {
       {!!d.coverage?.by_sitemap.length && <ByArea rows={d.coverage.by_sitemap} at={d.coverage.at} />}
 
       {!!d.request_indexing?.length && <AskGoogle pages={d.request_indexing} />}
+
+      {d.page_check && <PageChecks c={d.page_check} />}
 
       {d.ai && <AiSearch a={d.ai} />}
 
