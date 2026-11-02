@@ -28,23 +28,24 @@ OLD_ESBEE = "esbee-upper-kharadi"
 READ_ON = "2026-11-02"
 
 
-def _record(slug, name, builder, area, logo, summary, source):
+def _record(slug, name, builder, area, logo, summary, source, projects):
     homes = [{"bhk": b, "source": source, "to_confirm": True} for b in (2, 3)]
     return {"slug": slug, "name": name, "builder": builder, "area": area, "logo": logo, "summary": summary, "note": "2 & 3 BHK · coming soon",
             "homes": homes, "facts": [{"label": "Status", "value": "Not yet registered with MahaRERA", "source": "Avasetu's check of the register"}],
-            "sources": [{"name": source, "url": "", "read_on": READ_ON}]}
+            "sources": [{"name": source, "url": "", "read_on": READ_ON}], "builder_projects": projects}
 
 
 RECORDS = [
     _record("esbee-wagholi", "Esbee new project", "Esbee Realty", "wagholi", "/upcoming/logos/esbee.png",
             "A new Esbee Realty project planned in Wagholi. It is not yet registered with MahaRERA; details come out when it is.",
-            "An agent's website"),
+            "An agent's website", ["mizura-residences-by-esbee-manjari", "esbee-azura-mundhwa"]),
     _record("ceratec-central-park", "Ceratec Central Park", "Ceratec Group", "wagholi", "/upcoming/logos/ceratec.webp",
             "A Ceratec Group project planned in Wagholi. It is not yet registered with MahaRERA; details come out when it is.",
-            "Ceratec's website"),
+            "Ceratec's website", ["ceratec-west-winds-hinjawadi", "tower-1o8-baner", "presidential-towers-ravet"]),
     _record("vilas-javdekar-upper-kharadi", "Vilas Javdekar new project", "Vilas Javdekar", "upper_kharadi", "/upcoming/logos/vj.png",
             "A new Vilas Javdekar project listed in Upper Kharadi. It is not yet registered with MahaRERA; details come out when it is.",
-            "A Housing.com listing"),
+            "A Housing.com listing", ["vj-indilife-kharadi", "yashwin-enchante-phase-1-wagholi", "palladio-presidential-towers-phase-1-hadapsar",
+                                      "palladio-laviento-baner"]),
 ]
 
 

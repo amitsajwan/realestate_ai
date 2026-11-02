@@ -66,7 +66,9 @@ The RERA Act bars advertising or selling an unregistered project, so the owner c
   page shows one project at a time; it takes no page space, × folds it to a tab for a day, and it leaves while someone types.
   `/projects/upcoming` lists the same projects in full (noindex). Builder logo, place, home types and "not yet registered";
   no price, no offer, no booking, because the Act covers advertising too and showing less limits the exposure without removing it.
-  "Tell me first" goes to the project's own form. Its page also lists the area's registered projects.
+  "Tell me first" goes to the project's own form. `/projects/upcoming` and each project's page also list that builder's registered
+  projects (`builder_projects`, chosen by hand because a promoter's name does not tell), which can be sold today; a project's page
+  adds the area's. Esbee's Adira is left out: the register has it under Topaz Homes as Gagan Adira.
   Records: `backend/scripts/upcoming_east_pune.py` (Esbee moved to Wagholi, Ceratec Central Park, Vilas Javdekar Upper Kharadi: the
   owner confirmed it is new, not Yashwin Enchante Phase 2, P52100077455, already registered).
   OPEN: "we tell you that day" is done by hand; nothing alerts us when one of these registers or messages the people waiting.

@@ -175,6 +175,7 @@ export interface UpcomingProject {
   nearby: { name: string; km: number | null; source: string }[]
   pictures: { url: string; caption: string; illustrative: boolean }[]
   sources: { name: string; url: string; read_on: string }[]
+  builder_projects: ActiveProject[]   // the same builder's registered projects
 }
 
 /** The few words the coming-soon band shows of a live upcoming project: the builder, the place and the home types. */

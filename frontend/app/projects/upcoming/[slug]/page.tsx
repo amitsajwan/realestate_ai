@@ -67,7 +67,8 @@ function Pictures({ u }: { u: UpcomingProject }) {
 export default async function UpcomingProjectPage({ params }: Props) {
   const u = await getUpcoming((await params).slug)
   if (!u) notFound()
-  const registered = await getActive({ place: u.area }, 6)
+  const fromBuilder = new Set(u.builder_projects.map((p) => p.slug))
+  const registered = (await getActive({ place: u.area }, 6)).filter((p) => !fromBuilder.has(p.slug))
   const url = `${getMarketingConfig().siteUrl}/projects/upcoming/${u.slug}`
   return (
     <MarketingShell hot={{ area: u.area_slug, exclude: `upcoming/${u.slug}` }}>
@@ -165,7 +166,8 @@ export default async function UpcomingProjectPage({ params }: Props) {
           </div>
         </section>
 
-        {/* someone waiting for this project wants a home here: these already have a MahaRERA number */}
+        {/* someone waiting for this project trusts this builder or wants this place: these have a MahaRERA number and can be sold today */}
+        <ActiveProjects id="builder-projects-title" title={`${u.builder}'s registered projects`} items={u.builder_projects} className="" />
         <ActiveProjects title={`Registered projects in ${u.area_name}`} items={registered} className="" />
 
         <footer className="border-t border-slate-200 pt-4 text-sm text-slate-600">

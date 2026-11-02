@@ -12,14 +12,19 @@ does not let anyone advertise or sell an unregistered project, so the page is bu
 Records are written by the owner through `put` (a script); `status` "live" shows the page, "hidden" takes it down.
 - put(db, body, now) / get(db, slug) / live(db)
 - briefs(db): the few words the East Pune band and /projects/upcoming show
+- builder_projects(db, u, now): the same builder's registered projects, which unlike this one can be sold today
 """
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.core.areas import BY_KEY
+from app.modules.newsroom.store import Store
+
+from .hubs import _primaries, fact_line, link_name
+from .pages import is_old
 
 COLLECTION = "upcoming_projects"
 PREFIX = "upcoming/"   # an upcoming project's banner slug: /projects/upcoming/<slug>
@@ -78,6 +83,8 @@ class UpcomingIn(_In):
     nearby: List[Near] = Field(default_factory=list, max_length=10)
     pictures: List[Picture] = Field(default_factory=list, max_length=12)
     sources: List[Source] = Field(..., min_length=1, max_length=8)
+    builder_projects: List[str] = Field(default_factory=list, max_length=8)  # page slugs, chosen by hand: a promoter's name
+    #                                 does not tell (Pandit Javdekar Associates is not Vilas Javdekar; Esbee's Adira is under Topaz Homes)
     status: Literal["live", "hidden"] = "live"
 
     @field_validator("slug")
@@ -124,3 +131,14 @@ async def briefs(db) -> List[Dict]:
     """What the coming-soon band shows of each live project: never more than the builder, the place and the home types."""
     keep = ("slug", "name", "builder", "logo", "area", "area_name", "area_slug", "note")
     return sorted(({k: u.get(k) or "" for k in keep} for u in await live(db)), key=lambda u: u["name"])
+
+
+async def builder_projects(db, u: Dict, now: Optional[datetime] = None) -> List[Dict]:
+    """The chosen projects of this builder that still have a live page and are not finished: [{slug, name, fact, source}]."""
+    slugs = u.get("builder_projects") or []
+    if not slugs:
+        return []
+    now = now or datetime.now(timezone.utc)
+    pages = {d["page_slug"]: d for d in _primaries(await Store(db).shared_projects()) if d.get("page_slug")}
+    found = [pages[s] for s in slugs if s in pages and not is_old(pages[s], now.date())]
+    return [{"slug": d["page_slug"], "name": link_name(d), **fact_line(d, now)} for d in found]

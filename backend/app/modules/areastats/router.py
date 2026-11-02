@@ -165,9 +165,9 @@ async def public_upcoming_list(response: Response, db=Depends(get_db)) -> list:
 
 @public_router.get("/register/upcoming/{slug}")
 async def public_upcoming(slug: str, response: Response, db=Depends(get_db)) -> dict:
-    """An upcoming project's page: facts with their sources, no prices; 404 unless it is live."""
+    """An upcoming project's page: facts with their sources, no prices, and its builder's registered projects; 404 unless it is live."""
     u = await upcoming.get(db, slug)
     if not u:
         raise HTTPException(status_code=404, detail="Upcoming project not found")
     response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
-    return u
+    return {**u, "builder_projects": await upcoming.builder_projects(db, u)}

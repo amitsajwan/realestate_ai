@@ -2,11 +2,12 @@ import React from 'react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import MarketingShell from '@/components/marketing/MarketingShell'
+import ActiveProjects from '@/components/site/ActiveProjects'
 import { ComingSoonView } from '@/components/site/ComingSoonBand'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { pageMetadata } from '@/lib/marketing/seo'
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
-import { getUpcomingBriefs } from '@/lib/site/hubs'
+import { getUpcoming, getUpcomingBriefs } from '@/lib/site/hubs'
 
 // Every project on the coming-soon band, in one place. Out of search like each project's own page (areastats/upcoming.py).
 
@@ -23,6 +24,8 @@ export function generateMetadata(): Metadata {
 
 export default async function UpcomingProjectsPage() {
   const items = await getUpcomingBriefs()
+  // the same builders' registered projects: these can be sold today, which the ones coming soon cannot
+  const full = await Promise.all(items.map((u) => getUpcoming(u.slug).catch(() => null)))
   return (
     <MarketingShell>
       <div className="mx-auto max-w-5xl space-y-6 px-4 py-8 sm:py-10" style={AVASETU_SITE_VARS}>
@@ -31,6 +34,9 @@ export default async function UpcomingProjectsPage() {
         </nav>
         <h1 className="text-3xl font-bold text-slate-900">Coming soon in East Pune</h1>
         {items.length ? <ComingSoonView items={items} /> : <p className="text-slate-700">Nothing is waiting to register right now. <Link href="/projects" className="underline underline-offset-2">See registered projects</Link>.</p>}
+        {full.map((u) => u && (
+          <ActiveProjects key={u.slug} id={`builder-${u.slug}`} title={`${u.builder}'s registered projects`} items={u.builder_projects} className="" />
+        ))}
       </div>
     </MarketingShell>
   )

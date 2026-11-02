@@ -8,6 +8,7 @@ from pydantic import ValidationError
 
 from app.modules.areastats import router as ar
 from app.modules.areastats import upcoming
+from app.modules.newsroom.store import Store
 
 from ..fakes import FakeDb
 
@@ -57,3 +58,17 @@ async def test_the_coming_soon_list_shows_only_live_projects_and_only_the_few_wo
     got = client(db).get("/api/v1/public/register/upcoming").json()
     assert [u["slug"] for u in got] == ["esbee-upper-kharadi"]
     assert set(got[0]) == {"slug", "name", "builder", "logo", "area", "area_name", "area_slug", "note"}
+
+
+async def test_the_page_lists_only_the_chosen_builder_projects_that_are_live_and_not_finished():
+    db = FakeDb()
+    for regno, slug, completion in (("P1", "esbee-azura-mundhwa", "2028-12-31"), ("P2", "old-esbee-camp", "2019-01-31"), ("P3", "not-chosen-wagholi", "2029-01-31")):
+        await Store(db).projects.insert_one({"_id": regno, "regno": regno, "name": slug, "locality": "wagholi", "page_slug": slug, "news": [],
+                                             "promoter": "Esbee", "completion_now": completion})
+    await upcoming.put(db, {**BODY, "builder_projects": ["esbee-azura-mundhwa", "old-esbee-camp", "gone-page"]}, NOW)
+    got = (await upcoming.get(db, "esbee-upper-kharadi"))
+    listed = await upcoming.builder_projects(db, got, NOW)
+    assert [p["slug"] for p in listed] == ["esbee-azura-mundhwa"]
+    assert listed[0]["source"] == "MahaRERA" and "2028" in listed[0]["fact"]
+    served = client(db).get("/api/v1/public/register/upcoming/esbee-upper-kharadi").json()
+    assert [p["slug"] for p in served["builder_projects"]] == ["esbee-azura-mundhwa"]
