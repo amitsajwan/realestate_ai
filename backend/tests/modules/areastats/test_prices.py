@@ -1,4 +1,5 @@
 """A price must fit the size its own line states (app/modules/areastats/prices.py, RATE_PER_SQFT)."""
+import asyncio
 from datetime import datetime, timedelta, timezone
 
 from app.modules.areastats import prices
@@ -166,3 +167,58 @@ async def test_last_good_prices_kept_while_sites_are_down_add_no_reading(monkeyp
     _, fields = await prices.gather(None, doc, _Budgeted(), NOW, fetch=fetch, allow_search=False)
     assert fields["prices"]["rows"] == kept["rows"]
     assert "price_history" not in fields
+
+
+def _project(name, **kw):
+    return {"_id": "P1", "regno": "P1", "name": name, "promoter": "Logipark Warehousing LLP", "pune_place": "upper_kharadi",
+            "pune_place_name": "Upper Kharadi", "locality": "wagholi", **kw}
+
+
+class _Llm:
+    budgeted = True
+
+    def __init__(self, answers):
+        self.answers, self.asked = answers, []
+
+    async def json(self, system, user):
+        self.asked.append(user)
+        return self.answers
+
+
+def _gather(monkeypatch, doc, pages_by_url, results, llm):
+    async def stored(store, d, name, search, now):
+        return results
+
+    async def fetch(url):
+        return pages_by_url.get(url)
+    monkeypatch.setattr(prices.webfacts, "results_for", stored)
+    return asyncio.run(prices.gather(None, doc, llm, NOW, fetch=fetch, allow_search=False))
+
+
+def _result(link, title):
+    return {"type": "organic", "link": link, "title": title, "snippet": "", "position": 1}
+
+
+TWO_BHK = "2 BHK 750 sq ft ₹ 80 L"
+
+
+def test_a_page_naming_the_whole_project_prices_one_registration_of_it(monkeypatch):
+    page = f"<html><body>Pristine O2 World in Wagholi, Pune. RERA registered.\n{TWO_BHK}</body></html>"
+    llm = _Llm({"prices": [{"size": "2 BHK", "from_inr": 8_000_000, "from_quote": TWO_BHK}]})
+    urls = {"https://a.example/p": page, "https://b.example/p": page}
+    results = [_result("https://a.example/p", "Pristine O2 World, Wagholi"), _result("https://b.example/p", "Pristine O2 World Pune")]
+    st, fields = _gather(monkeypatch, _project("Pristine O2 World Part 3"), urls, results, llm)
+    assert st["ok"]
+    assert [r["bhk"] for r in fields["prices"]["rows"]] == ["2 BHK"]
+    assert "Project: Pristine O2 World\n" in llm.asked[0]
+
+
+def test_a_page_with_the_shorter_name_elsewhere_gives_no_price(monkeypatch):
+    # the same words, another builder in another part of Pune
+    page = f"<html><body>Pristine O2 World in Baner, Pune. RERA registered.\n{TWO_BHK}</body></html>"
+    llm = _Llm({"prices": [{"size": "2 BHK", "from_inr": 8_000_000, "from_quote": TWO_BHK}]})
+    st, fields = _gather(monkeypatch, _project("Pristine O2 World Part 3"), {"https://a.example/p": page},
+                         [_result("https://a.example/p", "Pristine O2 World, Baner")], llm)
+    assert not st["ok"]
+    assert fields["prices"]["read"][0]["why"] == "page names another project of that name"
+    assert llm.asked == []

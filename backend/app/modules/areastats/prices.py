@@ -17,6 +17,10 @@ For one project (a tower group is read once, on its primary record):
 3. published per size when the builder's site states it; or two sites give prices within AGREE of each other (the lower one);
    or one site gives it and another site's price for the project takes it in (its overall range, within AGREE). Both sites
    are the sources. Never a price from the model's own knowledge.
+Sites price a project, not one MahaRERA registration of it, so pages are matched on the whole project's name (pages.family_name:
+"Pristine O2 World" for "Pristine O2 World Part 3", whose exact name no page prints: 2026-11-02, 9 of 20 unpriced Upper Kharadi
+projects were losing most of their pages that way). The shorter name matches more, so a page must then also name the builder or
+the place. Only prices read this way: web facts and pictures keep the exact name (a picture of another phase is a wrong picture).
 Stored on the register record as `prices` = {at, rows: [{bhk, from_inr, to_inr, official, sources: [{site, url, official,
 quote}]}], read: [{site, url, ok, why}], seen: [{bhk, from_inr, to_inr, site, url, quote}]} (`seen`: every reading that
 passed the checks, agreed or not, for the rounded price idea in areastats.priceidea). Each size's price is also kept, dated, in `price_history` ([{at, bhk, from_inr, to_inr,
@@ -265,10 +269,10 @@ async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[webfacts.
     if llm is None:
         return {"ok": False, "at": now, "checked": "no LLM key"}, {}
     llm = _model(llm)
-    name = pages.names(doc)[0]
+    exact, name = pages.names(doc)[0], pages.family_name(doc)
     if search is None and allow_search:
         search = websearch.provider()
-    results = await webfacts.results_for(store, doc, name, search if allow_search else None, now)
+    results = await webfacts.results_for(store, doc, exact, search if allow_search else None, now)
     sources = webfacts.sources_for(doc, results, name, limit=webfacts.MAX_TRIES)
     if not sources:
         return {"ok": False, "at": now, "checked": "no web results name the project"}, {}
@@ -283,6 +287,8 @@ async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[webfacts.
             continue
         text = webfacts.page_text(raw)
         ok, not_ok = webfacts.about_project(doc, name, text, src)
+        if ok and name != exact and not src["official"] and not _same_builder_or_place(doc, text):
+            ok, not_ok = False, "page names another project of that name"
         if not ok:
             read.append({"site": src["site"], "url": src["url"], "official": src["official"], "ok": False, "why": not_ok})
             continue
@@ -302,6 +308,14 @@ async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[webfacts.
     if at == now:   # read this round, not the last good prices kept while a site is down
         fields.update(history(doc, rows, now))
     return {"ok": bool(rows), "at": now, "checked": checked}, fields
+
+
+def _same_builder_or_place(doc: dict, text: str) -> bool:
+    """A page matched on the whole project's name also names the builder or the place: "Shree Sai Hills" is a name others use."""
+    low = (text or "").lower()
+    place = str(doc.get("pune_place_name") or doc.get("pune_place") or "").replace("_", " ").lower()
+    locality = str(doc.get("locality") or "").replace("_", " ").lower()
+    return any(w and re.search(rf"\b{re.escape(w)}\b", low) for w in (*webfacts.builder_words(doc), place, locality))
 
 
 def history(doc: dict, rows: List[dict], now: datetime) -> dict:

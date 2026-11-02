@@ -103,3 +103,11 @@ async def test_a_price_read_put_off_for_the_budget_is_not_recorded_as_tried(monk
     assert asked == [budget.PREMIUM]           # Upper Kharadi: a premium project's prices
     assert "prices_tried_at" not in await store.projects.find_one({"_id": "P2"})
     assert await pricing.step(store, None, NOW, None) is None   # no model at all: prices wait
+
+
+def test_a_registration_read_under_its_exact_name_is_read_once_more_under_the_project_name():
+    tried = {"prices_tried_at": NOW - timedelta(days=2), "prices": {"at": NOW - timedelta(days=2), "rows": [], "read": []}}
+    d = doc(1, "upper_kharadi", name="Pristine O2 World Part 3", **tried)
+    assert pricing.priority(d, NOW) is not None
+    assert pricing.priority({**d, "prices_read_as": "Pristine O2 World"}, NOW) is None    # once
+    assert pricing.priority(doc(2, "upper_kharadi", name="Godrej Ivara", **tried), NOW) is None   # same name: waits its turn

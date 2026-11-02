@@ -135,3 +135,9 @@ async def test_a_size_without_a_live_page_is_shown_without_a_link():
     assert [(s["bhk"], s["path"]) for s in get()] == [(2, None)] and "key" not in get()[0]
     await db.get_collection(grow.PAGES).insert_one({"_id": "lohegaon|all|bhk=2", "status": "live"})
     assert get()[0]["path"] == "/projects/area/lohegaon/2-bhk"
+
+
+def test_phases_of_one_project_are_one_row_with_the_cheapest_price():
+    phase = lambda i, n, lo: {**_doc(i, [("2 BHK", lo, None)]), "name": f"Pristine O2 World Part {n}", "promoter": "Logipark"}
+    listed = facets.members(Facet("lohegaon", "all", bhk=2), [phase(11, 1, 8_200_000), phase(12, 2, 8_000_000), _doc(3, [("2 BHK", 9_100_000, None)])], NOW)
+    assert [d["_id"] for d, _ in listed] == ["P12", "P3"]

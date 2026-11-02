@@ -119,6 +119,14 @@ def no_seen(d: dict) -> bool:
     return tried is None or read_at is None or tried <= read_at + timedelta(minutes=1)
 
 
+def unread_by_family(d: dict) -> bool:
+    """No price yet, and its last read looked for the exact registration's name, which most pages do not print (prices,
+    2026-11-02): read once more under the whole project's name instead of waiting EMPTY_DAYS. The step records the name it read
+    under whatever it finds, so this comes up once."""
+    family = pages.family_name(d)
+    return (family != pages.names(d)[0] and d.get("prices_read_as") != family and not (d.get("prices") or {}).get("rows"))
+
+
 def priority(d: dict, now: datetime) -> Optional[tuple]:
     """Sort key (lower first) for a project whose prices are due, or None when they are not."""
     if not selling(d, now):
@@ -126,7 +134,7 @@ def priority(d: dict, now: datetime) -> Optional[tuple]:
     tried = _aware(d.get("prices_tried_at"))
     got = (d.get("prices") or {}).get("rows")
     read_at = _aware((d.get("prices") or {}).get("at"))
-    if no_seen(d):
+    if no_seen(d) or unread_by_family(d):
         tried = read_at = None   # due now, ordered like a project never read
     elif tried is not None:
         wait = timedelta(days=RETRY_DAYS if unanswered(d) else REFRESH_DAYS if got else EMPTY_DAYS)
@@ -197,7 +205,7 @@ async def step(store: Store, llm, now: datetime, last: Optional[datetime], busy:
     if int(getattr(llm, "deferred", 0) or 0) > put_off:   # the day's budget ran out half way: read again when it has room
         log.info("prices: %s put off, the model budget for today is spent", regno)
         return None
-    await store.set_project(doc["_id"], **fields, prices_tried_at=now, prices_checked=st.get("checked"))
+    await store.set_project(doc["_id"], **fields, prices_tried_at=now, prices_checked=st.get("checked"), prices_read_as=pages.family_name(doc))
     docs = [({**d, **fields, "prices_tried_at": now} if d["_id"] == doc["_id"] else d) for d in docs]
     await store.set_mark(MARK, at=now, day=day, searches=used + counted["n"], last={"regno": regno, "place": place_of(doc),
                          "ok": bool(st.get("ok")), "checked": st.get("checked")}, coverage=coverage(docs, now))

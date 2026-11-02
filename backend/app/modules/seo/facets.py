@@ -25,7 +25,7 @@ from app.modules.areastats import hot, priceidea, prices
 from app.modules.areastats.areamap import _photo, card_pictures
 from app.modules.areastats.hubs import _primaries, link_name
 from app.modules.areastats.pages import (OPEN_MIN, _long, booked, builder_key, buyable, cluster_stamps, cluster_updated,
-                                         completion_passed, homes, indexable, is_old, open_homes, searchable)
+                                         completion_passed, family_name, homes, indexable, is_old, open_homes, searchable)
 from app.modules.areastats.service import _count, _day
 from app.modules.areastats.text import builder_slug
 from app.modules.newsroom.store import Store
@@ -263,7 +263,14 @@ def members(f: Facet, docs: List[dict], now: datetime) -> List[Tuple[dict, str]]
                     if not is_old(d, now.date()) and _open(d) != 0 and not (f.builder and builder_slug(d.get("promoter")) != f.builder)
                     and not (f.possession and _year(_day(d.get("completion_now"))) != f.possession)]
             rows.sort(key=lambda r: (r[0], link_name(r[1]).lower()))
-            return [(d, why) for _, d, why in rows]
+            # sites price the whole project, so its phases read the same price: one row, the cheapest (the page says so)
+            seen, out = set(), []
+            for _, d, why in rows:
+                key = (family_name(d).lower(), builder_key(d))
+                if key not in seen:
+                    seen.add(key)
+                    out.append((d, why))
+            return out
         out = members(Facet(f.place, f.intent, f.possession, f.builder), pool, now)
         return [(d, f"{_price_why(sized[id(d)], f.bhk)}; {why}") for d, why in out]
     if f.builder:

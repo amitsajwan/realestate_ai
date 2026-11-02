@@ -280,6 +280,25 @@ def names(doc: dict) -> tuple:
     return marketed, aliases
 
 
+# what MahaRERA adds to one registration of a project: "Part 3", "Phase-9", "Tower C and Tower D", a trailing "Project". A bare
+# "Tower" stays: it is part of the name in "Lake Tower" and "Gera Avive Towers".
+_REGISTRATION_TAIL = re.compile(r"[\s,:\-–]*(?:\b(?:part|phase|ph|towers?|wing|block|building|bldg|stage|sector)\b[\s.\-]*(?:[ivx]+|\d+|[a-z])"
+                                r"(?:\s*(?:to|and|&|,|-)\s*(?:(?:towers?|wing|building)\s*)?(?:\d+|[a-z]))*|\bproject)\s*$", re.I)
+
+
+def family_name(doc: dict) -> str:
+    """The name of the whole project, which sites use for all its registrations: "Pristine O2 World Part 3" -> "Pristine O2
+    World". The marketed name when what is left would match other things: one word ("Lake"), or only place words ("Kharadi
+    Pune", which is an address on every page about the area)."""
+    marketed = names(doc)[0]
+    short, last = marketed, ""
+    while short != last:
+        last, short = short, _REGISTRATION_TAIL.sub("", short).strip()
+    words = re.findall(r"[a-z0-9]+", short.lower())
+    places = set(re.findall(r"[a-z0-9]+", f"pune {doc.get('pune_place_name') or ''} {doc.get('pune_place') or ''} {doc.get('locality') or ''}".lower()))
+    return short if len(words) >= 2 and not set(words) <= places else marketed
+
+
 def _long(day: Optional[str]) -> Optional[str]:
     if not day:
         return None
