@@ -28,7 +28,10 @@ import xml.etree.ElementTree as ET
 
 import httpx
 
-AGENT = "AvasetuSeoAudit/1.0 (+https://github.com/amitsajwan/realestate_ai)"
+# "-Google" puts us in frontend/next.config.js htmlLimitedBots, so we are served the page as Google is. Under another name a slow
+# render streams the title into <body>, which this reports as "no <title>" for a page Google reads whole (2026-11-02: three
+# failed runs in a row, 13 of 320 pages on a cold read, 0 of 320 as Googlebot).
+AGENT = "AvasetuSeoAudit-Google/1.0 (+https://github.com/amitsajwan/realestate_ai)"
 # (robots.txt group, user agent sent): each carries "AvasetuSeoAudit" so our own AI visit log (seo/aivisits.py) leaves it out
 AI_AGENTS = (
     ("oai-searchbot", "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; OAI-SearchBot/1.0; AvasetuSeoAudit/1.0"),

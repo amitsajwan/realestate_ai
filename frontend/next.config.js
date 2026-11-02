@@ -2,7 +2,8 @@
 const nextConfig = {
   // Search and link-preview bots get the title, description and canonical in <head> before the page streams. Next's own list
   // leaves Googlebot out (it runs JavaScript), but on a slow render the tags then land in <body>: an audit found 58 pages so.
-  htmlLimitedBots: /Googlebot|Google-InspectionTool|Storebot-Google|[\w-]+-Google|Google-[\w-]+|Chrome-Lighthouse|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview|Yeti|googleweblight/i,
+  // AI fetchers too (2026-11-02): they read no JavaScript and quote the page's title.
+  htmlLimitedBots: /OAI-SearchBot|ChatGPT-User|GPTBot|PerplexityBot|Perplexity-User|Claude-User|Claude-SearchBot|ClaudeBot|Googlebot|Google-InspectionTool|Storebot-Google|[\w-]+-Google|Google-[\w-]+|Chrome-Lighthouse|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview|Yeti|googleweblight/i,
   images: {
     unoptimized: true
   },
