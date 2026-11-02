@@ -11,7 +11,7 @@ import re
 import time
 from functools import lru_cache
 from datetime import date, datetime, timedelta, timezone
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from app.core import brand
 from app.core.areas import BY_KEY
@@ -636,6 +636,13 @@ def _similar(doc: dict, docs: List[dict]) -> List[dict]:
     return others[:SAME_AREA]
 
 
+def _web_source(src: Any, builders: bool) -> Any:
+    """One source of a web fact as a page may show it: a link only for the builder's own site."""
+    if not isinstance(src, dict):
+        return src
+    return {**src, "url": src.get("url") if builders or src.get("official") else None}
+
+
 def web_public(web: Optional[dict]) -> Optional[dict]:
     """What a project page shows of `web_facts` (areastats.webfacts): the published facts with their sources and the read date;
     never the sites that disagree. Only the builder's site keeps its link: the page calls a linked source "the builder's site",
@@ -646,8 +653,8 @@ def web_public(web: Optional[dict]) -> Optional[dict]:
     return {"read_at": at.date().isoformat() if isinstance(at, datetime) else None,
             # value: the number the cautions work from ('homes per acre'); without it a page with land acres answered 500
             "facts": [{**{k: f.get(k) for k in ("key", "label", "value", "text", "official")},
-                       "sources": [{**x, "url": x.get("url") if x.get("official") or (f.get("official") and i == 0) else None}
-                                   for i, x in enumerate(f.get("sources") or [])]} for f in web["facts"]]}
+                       "sources": [_web_source(x, bool(f.get("official")) and i == 0) for i, x in enumerate(f.get("sources") or [])]}
+                      for f in web["facts"]]}
 
 
 def group_primary(doc: dict, docs: List[dict]) -> dict:
