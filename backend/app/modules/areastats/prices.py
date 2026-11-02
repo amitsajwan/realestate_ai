@@ -287,7 +287,7 @@ async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[webfacts.
             continue
         text = webfacts.page_text(raw)
         ok, not_ok = webfacts.about_project(doc, name, text, src)
-        if ok and name != exact and not src["official"] and not _same_builder_or_place(doc, text):
+        if ok and name != exact and not src["official"] and not webfacts.same_builder_or_place(doc, text):
             ok, not_ok = False, "page names another project of that name"
         if not ok:
             read.append({"site": src["site"], "url": src["url"], "official": src["official"], "ok": False, "why": not_ok})
@@ -308,14 +308,6 @@ async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[webfacts.
     if at == now:   # read this round, not the last good prices kept while a site is down
         fields.update(history(doc, rows, now))
     return {"ok": bool(rows), "at": now, "checked": checked}, fields
-
-
-def _same_builder_or_place(doc: dict, text: str) -> bool:
-    """A page matched on the whole project's name also names the builder or the place: "Shree Sai Hills" is a name others use."""
-    low = (text or "").lower()
-    place = str(doc.get("pune_place_name") or doc.get("pune_place") or "").replace("_", " ").lower()
-    locality = str(doc.get("locality") or "").replace("_", " ").lower()
-    return any(w and re.search(rf"\b{re.escape(w)}\b", low) for w in (*webfacts.builder_words(doc), place, locality))
 
 
 def history(doc: dict, rows: List[dict], now: datetime) -> dict:

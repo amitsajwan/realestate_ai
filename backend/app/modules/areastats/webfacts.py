@@ -329,6 +329,14 @@ def _fact(key: str, label: str, kind: str, value: Any, is_official: bool, backin
     return {"key": key, "label": label, "value": value, "text": show(key, value), "official": is_official, "sources": srcs}
 
 
+def same_builder_or_place(doc: dict, text: str) -> bool:
+    """A page matched on the whole project's name also names the builder or the place: "Shree Sai Hills" is a name others use."""
+    low = (text or "").lower()
+    place = str(doc.get("pune_place_name") or doc.get("pune_place") or "").replace("_", " ").lower()
+    locality = str(doc.get("locality") or "").replace("_", " ").lower()
+    return any(w and re.search(rf"\b{re.escape(w)}\b", low) for w in (*builder_words(doc), place, locality))
+
+
 async def results_for(store, doc: dict, name: str, search: Optional[websearch.Search], now: datetime) -> List[dict]:
     """The stored Google results for this project (newest search first), from searches made under the name buyers use (a search
     under MahaRERA's legal name, "Kharadi New Project - Tower 1", finds other pages); one new search when there are none."""
