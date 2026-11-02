@@ -12,7 +12,6 @@ does not let anyone advertise or sell an unregistered project, so the page is bu
 Records are written by the owner through `put` (a script); `status` "live" shows the page, "hidden" takes it down.
 - put(db, body, now) / get(db, slug) / live(db)
 - briefs(db): the few words the East Pune band and /projects/upcoming show
-- briefs(db): the few words the East Pune band and /projects/upcoming show
 """
 import re
 from datetime import datetime
@@ -69,7 +68,6 @@ class UpcomingIn(_In):
     builder: str = Field(..., min_length=2, max_length=80)
     area: str                                                # an area key we cover: "upper_kharadi"
     logo: str = Field("", max_length=300)                    # the builder's own logo; empty: its name stands in
-    logo: str = Field("", max_length=300)                    # the builder's own logo; empty: its name stands in
     address: str = Field("", max_length=160)
     summary: str = Field(..., min_length=20, max_length=500)
     note: str = Field("", max_length=60)                     # the banner line
@@ -120,12 +118,6 @@ async def get(db, slug: str, live_only: bool = True) -> Optional[Dict]:
 
 async def live(db) -> List[Dict]:
     return [view(d) for d in await db.get_collection(COLLECTION).find({"status": "live"}).to_list(100)]
-
-
-async def briefs(db) -> List[Dict]:
-    """What the coming-soon band shows of each live project: never more than the builder, the place and the home types."""
-    keep = ("slug", "name", "builder", "logo", "area", "area_name", "area_slug", "note")
-    return sorted(({k: u.get(k) or "" for k in keep} for u in await live(db)), key=lambda u: u["name"])
 
 
 async def briefs(db) -> List[Dict]:

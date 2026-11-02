@@ -163,13 +163,6 @@ async def public_upcoming_list(response: Response, db=Depends(get_db)) -> list:
     return await upcoming.briefs(db)
 
 
-@public_router.get("/register/upcoming")
-async def public_upcoming_list(response: Response, db=Depends(get_db)) -> list:
-    """The coming-soon band and /projects/upcoming: builder, place and home types of each live project, nothing more."""
-    response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
-    return await upcoming.briefs(db)
-
-
 @public_router.get("/register/upcoming/{slug}")
 async def public_upcoming(slug: str, response: Response, db=Depends(get_db)) -> dict:
     """An upcoming project's page: facts with their sources, no prices; 404 unless it is live."""
