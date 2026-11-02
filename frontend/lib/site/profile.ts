@@ -19,7 +19,7 @@ export interface ProfilePicture {
 
 export interface ProjectProfile {
   read_at: string | null
-  highlights: { topic: string; text: string; official: boolean; sources: { site: string; url: string }[] }[]
+  highlights: { topic: string; text: string; official: boolean; sources: { site: string; url: string | null }[] }[]
   photos: ProfilePicture[]
   plans: ProfilePicture[]
 }
