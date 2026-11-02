@@ -222,3 +222,39 @@ def test_a_page_with_the_shorter_name_elsewhere_gives_no_price(monkeypatch):
     assert not st["ok"]
     assert fields["prices"]["read"][0]["why"] == "page names another project of that name"
     assert llm.asked == []
+
+
+def _web(monkeypatch, doc, urls, results, llm):
+    async def stored(store, d, name, search, now):
+        return results
+
+    async def fetch(url):
+        return urls.get(url)
+
+    async def no_search(q):
+        return []
+    monkeypatch.setattr(prices.webfacts, "results_for", stored)
+    return asyncio.run(prices.webfacts.gather(None, doc, llm, NOW, fetch=fetch, search=no_search))
+
+
+TOWERS = "Pristine O2 World has 5 towers on 10 acres."
+FACTS = {"facts": [{"key": "towers", "value": 5, "quote": TOWERS}]}
+
+
+def test_web_facts_are_read_from_pages_naming_the_whole_project(monkeypatch):
+    page = f"<html><body>Pristine O2 World in Wagholi, Pune. RERA registered.\n{TOWERS}</body></html>"
+    urls = {"https://a.example/p": page, "https://b.example/p": page}
+    results = [_result("https://a.example/p", "Pristine O2 World, Wagholi"), _result("https://b.example/p", "Pristine O2 World Pune")]
+    st, fields = _web(monkeypatch, _project("Pristine O2 World Part 3"), urls, results, _Llm(FACTS))
+    assert st["ok"] and [f["key"] for f in fields["web_facts"]["facts"]] == ["towers"]
+    assert fields["web_facts"]["name"] == "Pristine O2 World"
+
+
+def test_web_facts_refuse_a_page_with_the_shorter_name_elsewhere(monkeypatch):
+    page = f"<html><body>Pristine O2 World in Baner, Pune. RERA registered.\n{TOWERS}</body></html>"
+    llm = _Llm(FACTS)
+    st, fields = _web(monkeypatch, _project("Pristine O2 World Part 3"), {"https://a.example/p": page},
+                      [_result("https://a.example/p", "Pristine O2 World, Baner")], llm)
+    assert not st["ok"] and llm.asked == []
+    assert fields["web_facts"]["read"][0]["why"] == "page names another project of that name"
+

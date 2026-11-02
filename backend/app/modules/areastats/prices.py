@@ -286,9 +286,7 @@ async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[webfacts.
             read.append({"site": src["site"], "url": src["url"], "official": src["official"], "ok": False, "why": "page not read"})
             continue
         text = webfacts.page_text(raw)
-        ok, not_ok = webfacts.about_project(doc, name, text, src)
-        if ok and name != exact and not src["official"] and not webfacts.same_builder_or_place(doc, text):
-            ok, not_ok = False, "page names another project of that name"
+        ok, not_ok = webfacts.about_whole_project(doc, name, text, src)
         if not ok:
             read.append({"site": src["site"], "url": src["url"], "official": src["official"], "ok": False, "why": not_ok})
             continue

@@ -568,3 +568,19 @@ async def test_a_page_written_as_sections_keeps_the_code_paragraph_as_its_paragr
     doc = await store.project("P1")
     page = await pages.project_page(db, doc["page_slug"])
     assert page["paragraph"] == pages.paragraph(await store.project("P1")) and page["sections"] == sections
+
+
+def _thin_phase(**kw):
+    return {"_id": "P1", "regno": "P1", "name": "Ganga Arcadia A Building", "promoter": "Goel Ganga", "pincode": "411014",
+            "page_slug": "ganga-arcadia", "locality": "kharadi", "completion_now": "2030-01-01", "page_text": "Text.",
+            "page_text_version": enrich.TEXT_VERSION, "enrichment": {"score": "4/4"}, "enriched_at": NOW - timedelta(days=1), **kw}
+
+
+def test_a_thin_page_read_under_its_registration_name_is_read_once_more_under_the_whole_project():
+    assert enrich.priority(_thin_phase(), set(), NOW) is not None
+    assert enrich.priority(_thin_phase(web_read_as="Ganga Arcadia"), set(), NOW) is None      # read once, whatever it found
+    assert enrich.priority(_thin_phase(prices={"rows": [{"bhk": "2 BHK"}]}), set(), NOW) is None   # has a fact of its own
+    assert enrich.priority(_thin_phase(cluster_primary="P9"), set(), NOW) is None            # read on its group's primary
+    assert enrich.priority(_thin_phase(name="Godrej Ivara"), set(), NOW) is None             # the name is already the project's
+    assert enrich.priority(_thin_phase(enriched_at=NOW - timedelta(hours=1)), set(), NOW) is None   # not again within MIN_GAP
+

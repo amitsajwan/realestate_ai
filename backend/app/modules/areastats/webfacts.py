@@ -226,13 +226,22 @@ def about_project(doc: dict, name: str, text: str, src: Optional[dict] = None) -
     return False, "page is not a home listing in Pune"
 
 
+def about_whole_project(doc: dict, name: str, text: str, src: Optional[dict] = None) -> Tuple[bool, str]:
+    """about_project under the whole project's name (pages.family_name): a shorter name is one others use too, so a page that
+    is not the builder's own must also name the builder or the place."""
+    ok, why = about_project(doc, name, text, src)
+    if ok and name != pages.names(doc)[0] and not (src or {}).get("official") and not same_builder_or_place(doc, text):
+        return False, "page names another project of that name"
+    return ok, why
+
+
 async def read_source(llm, src: dict, name: str, fetch: Fetch, doc: Optional[dict] = None) -> tuple:
     """(readings, why): readings are [{key, value, quote, site, url, official}] that passed the page checks."""
     raw = await fetch(src["url"])
     if not raw:
         return [], "page not read"
     text = page_text(raw)
-    ok, why = about_project(doc or {}, name, text, src)
+    ok, why = about_whole_project(doc, name, text, src) if doc else about_project({}, name, text, src)
     if not ok:
         return [], why
     part = relevant(text, name)
@@ -370,8 +379,10 @@ async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[Fetch] = 
         return {"ok": True, "at": now, "checked": "read on the group's primary record"}, {}
     if llm is None:
         return {"ok": False, "at": now, "checked": "no LLM key"}, {}
-    name = pages.names(doc)[0]
-    results = await results_for(store, doc, name, search if search is not None else websearch.provider(), now)
+    # sites write about the project, not one registration of it (2026-11-02: 42 of 87 east Pune pages found nothing under "Ganga
+    # Arcadia A Building" and the like); the search itself stays under the exact name
+    exact, name = pages.names(doc)[0], pages.family_name(doc)
+    results = await results_for(store, doc, exact, search if search is not None else websearch.provider(), now)
     sources = sources_for(doc, results, name, limit=MAX_TRIES)
     if not sources:
         return {"ok": False, "at": now, "checked": "no web results name the project"}, {}

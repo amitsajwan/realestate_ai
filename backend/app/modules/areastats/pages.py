@@ -282,8 +282,10 @@ def names(doc: dict) -> tuple:
 
 # what MahaRERA adds to one registration of a project: "Part 3", "Phase-9", "Tower C and Tower D", a trailing "Project". A bare
 # "Tower" stays: it is part of the name in "Lake Tower" and "Gera Avive Towers".
-_REGISTRATION_TAIL = re.compile(r"[\s,:\-–]*(?:\b(?:part|phase|ph|towers?|wing|block|building|bldg|stage|sector)\b[\s.\-]*(?:[ivx]+|\d+|[a-z])"
-                                r"(?:\s*(?:to|and|&|,|-)\s*(?:(?:towers?|wing|building)\s*)?(?:\d+|[a-z]))*|\bproject)\s*$", re.I)
+# "Phase4" and "Part2" run together (only with a number: "Wings" is a name); "A Building" and "C Wing" have the letter first.
+_REGISTRATION_TAIL = re.compile(r"[\s,:\-–]*(?:\b(?:part|phase|ph|towers?|wing|block|building|bldg|stage|sector)\b[\s.\-]*(?:no\b[\s.]*)?(?:[ivx]+|\d+|[a-z]\d?)"
+                                r"(?:\s*(?:to|and|&|,|-)\s*(?:(?:towers?|wing|building)\s*)?(?:\d+|[a-z]\d?))*"
+                                r"|\b(?:part|phase|ph)\d+|\b[a-z]\s+(?:wing|building|bldg|block)|\bproject)\s*$", re.I)
 
 
 def family_name(doc: dict) -> str:

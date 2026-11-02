@@ -231,6 +231,8 @@ def _priority(d: dict, now: datetime, shown: frozenset = frozenset()) -> Optiona
     days = (HOT_REFRESH_DAYS if complete(d) else RETRY_DAYS) if is_hot else RETRY_DAYS if unanswered(d) else \
         (HOT_REFRESH_DAYS if complete(d) else TOP_RETRY_DAYS) if top else \
         THIN_RETRY_DAYS if pages.indexable(d) and not pages.searchable(d) else REFRESH_DAYS
+    if isinstance(done, datetime) and unread_by_family(d):
+        return (2, 0, -seen)                                    # with the pages Google shows: it decides whether this page may join them
     if not legacy and not old_writer and isinstance(done, datetime) and now - _aware(done) < timedelta(days=days):
         return None
     if is_hot or top:
@@ -244,6 +246,15 @@ def _priority(d: dict, now: datetime, shown: frozenset = frozenset()) -> Optiona
     if seen:   # Google already shows it: just off page one first, then most impressions first
         return (2, 0 if searchconsole.near_page_one(d.get("gsc_position"), seen) else 1, -seen)
     return (4 if pages.indexable(d) else 5, -pages.recency(d), -(int(d.get("units_total") or 0)))   # newest first, then bigger
+
+
+def unread_by_family(d: dict) -> bool:
+    """No fact of its own, and its last reading looked for the exact registration's name, which most pages do not print
+    (webfacts.gather, 2026-11-02): read once more under the whole project's name instead of waiting THIN_RETRY_DAYS. The round
+    records the name it read under whatever it finds, so this comes up once. Towers are read on their group's primary."""
+    family = pages.family_name(d)
+    return (family != pages.names(d)[0] and d.get("web_read_as") != family and not d.get("cluster_primary")
+            and not pages.own_facts(d))
 
 
 def outdated(d: dict) -> List[str]:
@@ -876,6 +887,8 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime, reread: bool =
         fields.update(enriched_at=now, enrich_gathered=bool(gathered))
     if not put_off:
         fields["read_at"] = now
+    if "web" in ran:
+        fields["web_read_as"] = pages.family_name(doc)
     if text:
         fields.update(page_text=text, page_text_version=TEXT_VERSION, page_sections=draft["sections"], page_summary=draft["summary"])
         if text != doc.get("page_text") or draft["summary"] != doc.get("page_summary"):

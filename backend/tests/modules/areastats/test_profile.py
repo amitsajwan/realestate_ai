@@ -129,3 +129,35 @@ async def test_pictures_on_other_sites_pages_are_not_downloaded_and_the_stored_o
     assert any(r["url"] == portal for r in fields["profile"]["read"])   # the portal page was read, for its words
     assert asked == []
     assert fields["profile"]["photos"] == stored   # never thrown away (seo-system.md section 8b)
+
+
+async def test_highlights_are_read_from_pages_naming_the_whole_project_and_not_from_its_namesake(monkeypatch, tmp_path):
+    from app.modules.newsroom.store import Store
+    from ..fakes import FakeDb
+    line = "Pristine O2 World has a rooftop pool."
+    pages_by_url = {"https://a.example/p": f"<p>Pristine O2 World in Wagholi, Pune. RERA registered. {line}</p>",
+                    "https://b.example/p": f"<p>Pristine O2 World in Baner, Pune. RERA registered. {line}</p>"}
+
+    async def stored(store, d, name, search, now):
+        assert name == "Pristine O2 World Part 3"   # the search stays under the exact name
+        return [{"type": "organic", "position": n + 1, "link": u, "title": "Pristine O2 World", "snippet": ""}
+                for n, u in enumerate(pages_by_url)]
+
+    async def page(url):
+        return pages_by_url.get(url)
+
+    async def nothing_drawn(prompt):
+        return None
+    asked = []
+
+    async def highlights(llm, src, name, text):
+        asked.append((src["url"], name))
+        return [], "0 highlights"
+    monkeypatch.setattr(profile.webfacts, "results_for", stored)
+    monkeypatch.setattr(profile, "read_highlights", highlights)
+    doc = {"_id": "P1", "regno": "P1", "name": "Pristine O2 World Part 3", "promoter": "Logipark Warehousing LLP",
+           "locality": "wagholi", "pune_place": "wagholi", "pune_place_name": "Wagholi", "completion_now": "2032-12-16"}
+    _, fields = await profile.gather(Store(FakeDb()), doc, object(), NOW, fetch=page, media_dir=tmp_path / "m", draw=nothing_drawn)
+    assert asked == [("https://a.example/p", "Pristine O2 World")]
+    assert [r["why"] for r in fields["profile"]["read"] if r["url"].startswith("https://b")] == ["page names another project of that name"]
+
