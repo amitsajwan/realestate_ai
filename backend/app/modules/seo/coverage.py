@@ -4,7 +4,8 @@ Once a day (inside the seo loop, app/modules/seo/runner.py) it inspects up to PE
 never inspected first, then those inspected longest ago, so the whole sitemap (~11,000 pages) is covered about once a week
 (Google allows 2,000 a day and 600 a minute; the rest is left for the owner's own inspections). A sitemap read that comes back
 with less than SHORT of the pages the last day counted (the index is served stale for up to 10 minutes after a deploy) does
-not count as the day's run: the next round reads it again. Each answer
+not count as the day's run: the next round reads it again. A sitemap still short after SHORT_WAIT has really shrunk and is
+counted (2026-10-27 we cut it from 13,178 pages to 345, and the check skipped itself for a week). Each answer
 is kept in `seo_index` ({_id: url, state, verdict, crawled, checked_at}) and the summary on the `gsc_coverage` mark: how many
 current sitemap pages are indexed, the same per child sitemap (`by_sitemap`: area-kharadi, core, builders...: listed, inspected,
 indexed, so the lagging area gets the Request-indexing turns first), why the others are not (count per Search Console state, e.g. "Crawled - currently not
@@ -30,6 +31,7 @@ API = "https://searchconsole.googleapis.com/v1/urlInspection/index:inspect"
 PER_DAY = 1800
 PARALLEL = 4
 SHORT = 0.5
+SHORT_WAIT = timedelta(hours=2)
 EVERY = timedelta(hours=24)
 COLLECTION = "seo_index"
 MARK = "gsc_coverage"
@@ -101,8 +103,13 @@ async def run_once(store: Store, now: datetime, transport: Optional[httpx.AsyncB
         urls = list(where)
         before = int((await store.get_mark(MARK)).get("sitemap") or 0)
         if not force and len(urls) < before * SHORT:
-            log.warning("coverage: sitemap lists %s pages, %s yesterday; read again next round", len(urls), before)
-            return None
+            since = _aware((await store.get_mark(MARK)).get("short_since"))
+            if since is None:
+                await store.set_mark(MARK, short_since=now)
+            if since is None or now - since < SHORT_WAIT:
+                log.warning("coverage: sitemap lists %s pages, %s yesterday; read again next round", len(urls), before)
+                return None
+            log.warning("coverage: sitemap has listed under %s pages since %s; counting it as the real size", int(before * SHORT), since)
         bearer = await searchconsole.token(sa, c)
         todo = await pick(store.db, urls, PER_DAY)
         done, stop = 0, False
@@ -126,5 +133,5 @@ async def run_once(store: Store, now: datetime, transport: Optional[httpx.AsyncB
                 break
             await asyncio.gather(*(inspect(u) for u in todo[i:i + PARALLEL]))
     out = await summary(store.db, urls, where)
-    await store.set_mark(MARK, at=now, checked_today=done, **out)
+    await store.set_mark(MARK, at=now, checked_today=done, short_since=None, **out)
     return {"checked": done, "indexed": out["indexed"], "inspected": out["inspected"], "sitemap": out["sitemap"]}

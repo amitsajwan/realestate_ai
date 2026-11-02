@@ -80,6 +80,27 @@ async def test_pages_dropped_from_the_sitemap_are_not_counted(monkeypatch):
     assert (out["inspected"], out["indexed"], out["sitemap"]) == (2, 2, 2)
 
 
+async def test_a_sitemap_short_for_one_round_is_read_again(monkeypatch):
+    store, seen = configured(monkeypatch), []
+    await coverage.run_once(store, NOW, google(seen))
+    later = NOW + timedelta(days=1)
+    assert await coverage.run_once(store, later, google(seen, urls=URLS[:1])) is None
+    assert (await coverage.run_once(store, later + timedelta(minutes=30), google(seen)))["sitemap"] == 4
+    assert (await store.get_mark(coverage.MARK))["short_since"] is None
+
+
+async def test_a_sitemap_that_stays_short_has_really_shrunk_and_is_counted(monkeypatch):
+    store, seen = configured(monkeypatch), []
+    await coverage.run_once(store, NOW, google(seen))
+    later = NOW + timedelta(days=1)
+    short = URLS[:1]
+    assert await coverage.run_once(store, later, google(seen, urls=short)) is None
+    assert await coverage.run_once(store, later + timedelta(minutes=90), google(seen, urls=short)) is None
+    done = await coverage.run_once(store, later + coverage.SHORT_WAIT, google(seen, urls=short))
+    assert done == {"checked": 1, "indexed": 1, "inspected": 1, "sitemap": 1}
+    assert (await store.get_mark(coverage.MARK))["sitemap"] == 1
+
+
 async def test_the_loop_runs_both_steps_and_one_failing_does_not_stop_the_other(monkeypatch):
     calls = []
 
