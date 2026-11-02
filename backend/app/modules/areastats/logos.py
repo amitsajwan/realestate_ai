@@ -272,7 +272,11 @@ def known_site(mine: List[dict]) -> Optional[str]:
                 for s in f.get("sources") or []:
                     if s.get("site"):
                         seen[s["site"]] += 1
-    return seen.most_common(1)[0][0] if seen else None
+    if seen:
+        return seen.most_common(1)[0][0]
+    # no reading names the site, but a logo already came from one (scripts/builder_logos_by_hand.py): read it there again, or the
+    # 90-day refresh would search, may find nothing, and replace a good logo with "none"
+    return next((x["site"] for x in (d.get("builder_logo") for d in mine) if isinstance(x, dict) and x.get("status") == "found" and x.get("site")), None)
 
 
 def names_of(doc: dict) -> List[str]:

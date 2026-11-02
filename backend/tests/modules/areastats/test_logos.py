@@ -163,3 +163,11 @@ async def test_a_builder_without_a_site_on_record_is_searched_once_and_only_its_
     assert await logos.refresh(store, later, page=web.page, fetch=web.fetch, search=search, logo_dir=tmp_path) == \
         {"found": 0, "none": 1, "searched": 1}
     assert len(queries) == 1 and "sai constructions" in queries[0]
+
+
+def test_a_builder_with_no_site_in_its_readings_is_read_again_where_its_logo_came_from():
+    found = {"builder_logo": {"status": "found", "site": "koltepatil.com", "path": "builder_logos/kolte-patil.png"}}
+    assert logos.known_site([{}, found]) == "koltepatil.com"
+    assert logos.known_site([{"builder_logo": {"status": "none", "site": "other.com"}}]) is None
+    official = {"web_facts": {"facts": [{"official": True, "sources": [{"site": "own.com"}]}]}}
+    assert logos.known_site([official, found]) == "own.com"
