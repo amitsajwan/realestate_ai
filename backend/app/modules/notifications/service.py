@@ -1,13 +1,18 @@
 """In-app notifications for agents (collection `notifications`). A row: {_id, agent_id, kind, summary, ref, created_at, read, read_at}.
 
 Any module may call `notify(db, agent_id, kind, summary, ref)`; Studio reads them (agent scoped) to show a badge. No phone numbers in
-summaries: the lead itself holds those.
+summaries: the lead itself holds those. The kinds in push.TITLES also ring the agent's phones that have alerts on (push.py).
 """
+import logging
 import uuid
 from datetime import datetime
 from typing import Callable, Optional
 
-KINDS = ("new_whatsapp_lead", "whatsapp_needs_you", "new_chat_lead", "chat_needs_you", "new_dm_lead", "dm_needs_you", "invite_request",
+from . import push
+
+log = logging.getLogger(__name__)
+
+KINDS = ("new_lead", "new_whatsapp_lead", "whatsapp_needs_you", "new_chat_lead", "chat_needs_you", "new_dm_lead", "dm_needs_you", "invite_request",
          "content_needs_you", "answer_gap", "comment_needs_you", "seo_week")  # content_needs_you: the system cannot fix it alone (e.g. a missing Meta permission);
 #                                              answer_gap: buyers keep asking something about a home that its details do not answer
 #                                              seo_week: the owner's weekly SEO note (seo/note.py)
@@ -20,6 +25,10 @@ async def notify(db, agent_id: str, kind: str, summary: str, ref: Optional[dict]
     doc = {"_id": uuid.uuid4().hex, "agent_id": agent_id, "kind": kind[:40], "summary": (summary or "")[:MAX_SUMMARY],
            "ref": ref or {}, "created_at": now or datetime.utcnow(), "read": False, "read_at": None}
     await db.get_collection("notifications").insert_one(doc)
+    try:   # after the save: a push that fails or hangs never loses the alert, which is on the Studio badge either way
+        await push.alert(db, agent_id, doc["kind"], doc["summary"], doc["ref"], doc["created_at"])
+    except Exception:
+        log.exception("push for notification %s failed", doc["_id"])
     # TODO(paid alerts): when the owner adds a payment method, also send the agent a WhatsApp *utility template* here (e.g. "new_lead_alert"),
     # because the agent has not messaged us in the last 24 hours, so a free-form message is not allowed. Keep it behind a NOTIFY_WHATSAPP_TEMPLATE flag.
     return doc["_id"]
