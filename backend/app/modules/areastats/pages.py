@@ -18,7 +18,7 @@ from app.core import brand
 from app.core.areas import BY_KEY
 from app.modules.newsroom.store import Store
 
-from . import pagefacts, plans3d, priceidea
+from . import clusters, pagefacts, plans3d, priceidea
 from .service import _count, _day
 from .text import ascii_text, builder_slug, promoter_key, words
 
@@ -147,8 +147,10 @@ def open_homes(doc: dict) -> Optional[int]:
 
 
 def homes(doc: dict) -> bool:
-    """Homes, not offices or shops: MahaRERA's project type is "Commercial" for those."""
-    return "commercial" not in str(doc.get("project_type") or "").lower()
+    """Homes, not offices or shops: MahaRERA's project type is "Commercial", or the registration is a PC number or its buildings
+    hold no homes (clusters.commercial). The type alone missed AP4 Tech Park ("Others", 0 homes, 104 offices) and some
+    registrations carry no type at all (2026-11-03)."""
+    return "commercial" not in str(doc.get("project_type") or "").lower() and not clusters.commercial(doc)
 
 
 def buyable(doc: dict, today: Optional[date] = None) -> bool:
@@ -201,8 +203,9 @@ def searchable(doc: dict) -> bool:
     enrichment fills it (`enrich.THIN_RETRY_DAYS`). Pictures copied from other sites never count (663 on 131 pages came from
     portals and other agents, 2026-10-29). The area lists keep showing every listable project. A finished project (`is_old`)
     stays out, even one Google already shows (owner 2026-11-01: "for completed projects we dont need to have SEO"; no new-home
-    buyer is looking for it, and enrichment skips it)."""
-    if is_old(doc):
+    buyer is looking for it, and enrichment skips it). Offices and shops (`homes` False) stay out too (2026-11-03: 24 of 174
+    project pages in search in Kharadi, Upper Kharadi and Wagholi were offices or shops, shown with flat prices)."""
+    if is_old(doc) or not homes(doc):
         return False
     return indexable(doc) and bool(doc.get("page_text")) and own_facts(doc)
 
@@ -619,6 +622,8 @@ def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None) ->
         "completion_now": _day(doc.get("completion_now")), "completion_at_registration": _day(doc.get("completion_at_registration")),
         "units_total": _count(doc.get("units_total")), "units_booked": booked(doc), "completion_passed": completion_passed(doc),
         "stage": stage(doc), "sold_out": sold_out(doc), "extension_only": extension_only(doc),
+        # offices or shops only: the page says units, not homes, and shows no flat prices
+        "homes": homes(doc),
         # what changed, as we read it over time (docs/plan/seo-system.md 8b, H1): MahaRERA shows only today's values
         "booked_readings": pagefacts.booked_readings(doc), "completion_moves": completion_moves(doc),
         "details_read_at": read.date().isoformat() if isinstance(read, datetime) and doc.get("details_ok") else None,
@@ -838,6 +843,10 @@ async def project_page(db, slug: str, now: Optional[datetime] = None) -> Optiona
     area_bands = priceidea.area_bands(starts(d.get("prices"), now) for d in others if not is_old(d, (now or datetime.now(timezone.utc)).date()))
     read = (own or {}).get("at")
     out["price_idea"] = priceidea.view(ideas(own, now), area_bands, place, read.date().isoformat() if isinstance(read, datetime) else None)
+    if not out["homes"]:
+        # offices or shops: a flat price read under the whole project's name is its homes' price (Ganga Altus Building G showed
+        # "2 & 3 BHK from ₹85 L"), and an area's rate or booked share is about homes
+        out["prices"] = out["price_idea"] = out["area_rate"] = out["area_compare"] = None
     out["sales"] = pagefacts.sales(doc)
     out["commute"] = pagefacts.commute(out["map"])
     from .cautions import cautions   # 'Check before you book' (docs/plan/project-pages.md)

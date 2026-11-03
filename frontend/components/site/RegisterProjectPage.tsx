@@ -19,7 +19,7 @@ import PriceIdea from '@/components/site/PriceIdea'
 import ProjectHistory from '@/components/site/ProjectHistory'
 import type { Stage } from '@/lib/site/allin'
 import { areaName, askedPrices, bhkRange, completionChange, displayName, extensionSentence, headingName, longDay, monthYear, offerPrice,
-  otherNames, projectFaq, placePath, STAGE_LABEL, STAGE_NOTE } from '@/lib/site/register'
+  otherNames, projectFaq, placePath, STAGE_LABEL, STAGE_NOTE, unitWord } from '@/lib/site/register'
 import type { EnrichCheck, Faq, Offer } from '@/lib/site/register'
 import type { ProfilePicture } from '@/lib/site/profile'
 import type { PropertyFactsView, PublicListing } from '@/lib/site/types'
@@ -711,7 +711,7 @@ function RecordSection({ p, shown, facts, linkless = false }: { p: RegisterProje
         <div role="group" aria-labelledby="record-title">
           <h3 id="record-title" className="text-lg font-semibold text-slate-900">The record</h3>
           <dl className="mt-1 grid gap-x-6 sm:grid-cols-2">
-            {p.units_total ? <Row label="Homes booked" value={p.units_booked != null ? `${p.units_booked} of ${p.units_total}` : `Not reported (${p.units_total} homes)`}
+            {p.units_total ? <Row label={unitWord(p) === 'units' ? 'Units booked' : 'Homes booked'} value={p.units_booked != null ? `${p.units_booked} of ${p.units_total}` : `Not reported (${p.units_total} ${unitWord(p)})`}
               note={!unitsRow && homesNote ? `${homesNote}.` : undefined} /> : null}
             {d?.towers ? <Row label="Towers" value={`${n(d.towers)} in this registration`}
               note={[d.max_floors ? `The tallest has ${d.max_floors} floors.` : null, towersNote ? `${towersNote}.` : null].filter(Boolean).join(' ') || undefined} /> : null}

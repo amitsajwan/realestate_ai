@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.modules.areastats import pages
+from app.modules.areastats.cautions import cautions
 from app.modules.areastats import router as ar
 from app.modules.newsroom.store import Store
 
@@ -244,3 +245,39 @@ async def test_a_word_of_the_name_ranks_before_letters_inside_another_word():
     db, store = await seeded(("P52100011111", "Bhide Nivara", "wagholi", FULL), ("P52100022222", "Godrej Ivara", "kharadi", FULL))
     await pages.assign_all(store)
     assert [r["regno"] for r in await pages.search(db, "ivara")] == ["P52100022222", "P52100011111"]
+
+
+# ---- offices and shops (2026-11-03: 24 of 174 project pages in search in Kharadi, Upper Kharadi and Wagholi) ----------------
+
+OFFICES = {"building_totals": {"units_residential": 0, "units_other": 104}}
+
+
+def test_a_project_with_no_homes_is_offices_whatever_its_type_says():
+    assert not pages.homes({**FULL, "project_type": "Commercial"})
+    assert not pages.homes({**FULL, "project_type": "Others", **OFFICES})                     # AP4 Tech Park
+    assert not pages.homes({**FULL, "regno": "PC1260002602605"})                              # Ganga Altus Building G
+    assert pages.homes({**FULL, "project_type": "Mixed", "building_totals": {"units_residential": 60, "units_other": 16}})
+    assert pages.homes({**FULL, "project_type": "Residential / Group Housing"})
+
+
+def test_offices_and_shops_are_never_in_search_however_full_the_page():
+    full = {**FULL, "page_text": "About the project.", "profile": {"photos": [{"path": "b.webp", "source": "builder"}]}}
+    assert pages.searchable(full)
+    assert not pages.searchable({**full, "project_type": "Commercial"})
+    assert not pages.searchable({**full, "project_type": "Others", **OFFICES})
+
+
+async def test_an_offices_page_shows_no_flat_prices_and_says_it_has_no_homes():
+    read = datetime(2026, 11, 1, tzinfo=timezone.utc)
+    flats = {"at": read, "rows": [{"bhk": "2 BHK", "from_inr": 8_500_000, "official": True, "sources": []}]}
+    db, _ = await seeded(("P1", "Aastha Business Bay", "kharadi", {**FULL, "project_type": "Commercial", "page_slug": "aastha-business-bay-kharadi",
+                                                                  "prices": flats, **OFFICES}))
+    page = await pages.project_page(db, "aastha-business-bay-kharadi", now=read)
+    assert page["homes"] is False and page["indexable"] is False
+    assert page["prices"] is None and page["price_idea"] is None and page["area_rate"] is None and page["area_compare"] is None
+
+
+def test_the_shops_caution_is_for_homes_beside_shops_not_for_an_office_building():
+    mixed = {**FULL, "building_totals": {"units_residential": 108, "units_other": 34}}
+    assert "shops" in [c["key"] for c in cautions(mixed)]
+    assert "shops" not in [c["key"] for c in cautions({**FULL, **OFFICES})]

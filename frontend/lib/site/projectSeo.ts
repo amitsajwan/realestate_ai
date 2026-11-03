@@ -9,7 +9,7 @@
 import { BRAND_NAME } from '@/lib/brand'
 import { breadcrumbJsonLd } from '@/lib/marketing/seo'
 import { clipWords, fitDescription } from './format'
-import { areaName, askedPrices, displayName, monthYear, offerPrice, otherNames, placePath } from './register'
+import { areaName, askedPrices, displayName, monthYear, offerPrice, otherNames, placePath, unitWord } from './register'
 import type { Faq, Offer, RegisterProject } from './register'
 
 /** Titles longer than this get cut in Google's results on phones; the first option that fits is used. */
@@ -100,7 +100,7 @@ export function registerDescription(p: RegisterProject, price?: QuotedPrice): st
     // "3 & 4 BHK from ₹1.99 Cr", or with the sizes "3 & 4 BHK, 1,310–1,720 sq ft, from ₹1.99 Cr"
     const offer = q ? `${sizes.join(', ')}${sizes.length > 1 || (sizes.length && !q.bhks) ? ',' : ''} from ${q.from}`.trim() : ''
     const homes = p.units_total
-      ? (p.units_booked != null ? `${p.units_booked} of ${p.units_total} homes booked` : `${p.units_total} homes`) : ''
+      ? (p.units_booked != null ? `${p.units_booked} of ${p.units_total} ${unitWord(p)} booked` : `${p.units_total} ${unitWord(p)}`) : ''
     const record = [when ? `Possession ${when}` : '', has(5) ? homes : ''].filter(Boolean).join(', ')
     const check = `MahaRERA ${p.regno}${has(4) ? `, checked by ${BRAND_NAME}` : ''}`
     return [`${head}${offer ? `: ${offer}` : ''}.`, record ? `${record}.` : '', `${check}.`].filter(Boolean).join(' ')

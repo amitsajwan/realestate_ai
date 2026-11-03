@@ -96,7 +96,7 @@ def cautions(doc: dict, towers: Optional[List[dict]] = None, web: Optional[dict]
         out.append({"key": "tall", "source": "rera",
                     "text": f"Towers go up to {d['max_floors']} floors. Ask how many lifts serve your tower and how many "
                             f"homes share them."})
-    if (d.get("units_other") or 0) >= SHOPS:
+    if (d.get("units_other") or 0) >= SHOPS and d.get("units_residential"):   # offices only: there is no residents' gate
         out.append({"key": "shops", "source": "rera",
                     "text": f"{_n(d['units_other'])} shops or offices are part of the project. Ask where they open and whether "
                             f"their visitors use the residents' gate."})

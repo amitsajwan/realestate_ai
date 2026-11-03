@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react'
 import React from 'react'
 import RegisterProjectPage from '@/components/site/RegisterProjectPage'
-import { longDay, offerPrice } from '@/lib/site/register'
+import { longDay, offerPrice, projectFaq } from '@/lib/site/register'
 import { registerDescription, registerTitle } from '@/lib/site/projectSeo'
 import type { RegisterProject } from '@/lib/site/register'
 
@@ -553,5 +553,22 @@ describe('the project against its area', () => {
     const box = screen.getByTestId('area-compare')
     expect(box).toHaveTextContent('Not moved by the builder')
     expect(box).not.toHaveTextContent(/Homes booked/)
+  })
+})
+
+// offices or shops only (backend pages.homes): Aastha Business Bay read "14 of 28 homes booked" with no home in it (2026-11-03)
+describe('a page for offices or shops', () => {
+  const office: RegisterProject = { ...P, name: 'Aastha Business Bay', units_total: 28, units_booked: 14, homes: false, indexable: false }
+
+  it('says units, never homes, in the answer, the record and the FAQ', () => {
+    render(<RegisterProjectPage p={office} siteUrl="https://avasetu.in" facts={null} />)
+    expect(screen.getByTestId('project-answer')).toHaveTextContent('MahaRERA shows 14 of 28 units booked.')
+    expect(screen.getByTestId('project-answer')).not.toHaveTextContent('homes booked')
+    expect(screen.getByText('Units booked')).toBeInTheDocument()
+    expect(projectFaq(office).map((f) => f.q)).toContain('How many units in Aastha Business Bay are booked?')
+  })
+
+  it('a home project still says homes', () => {
+    expect(projectFaq(P).map((f) => f.q)).toContain('How many homes in Rohan Abhilasha 4 are booked?')
   })
 })

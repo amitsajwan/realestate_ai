@@ -5,7 +5,7 @@
  */
 import { formatPrice } from './format'
 import { bhkRange as offerBhks } from './projects'
-import { askedPrices, displayName, extensionSentence, isExtensionOnly, longDay, monthsApart } from './register'
+import { askedPrices, displayName, extensionSentence, isExtensionOnly, longDay, monthsApart, unitWord } from './register'
 import type { RegisterProject } from './register'
 import type { CatalogProject } from './types'
 
@@ -34,6 +34,8 @@ export interface AnswerFacts {
   areaBooked?: { pct: number; area_pct: number; projects: number; place: string } | null
   /** the builder's date record over its Pune projects, only when there are enough to state it (record_ok) */
   builderRecord?: { name: string; with_dates: number; moved_later: number } | null
+  /** "units" for offices or shops only: they are not homes */
+  unitWord?: 'homes' | 'units'
 }
 
 const n = (x: number) => x.toLocaleString('en-IN')
@@ -57,8 +59,9 @@ export function projectAnswer(f: AnswerFacts): string {
   }
   // "27 of 249 homes booked": the total is every home MahaRERA lists, never the ones still for sale
   if (f.unitsTotal && f.unitsBooked != null && f.unitsBooked <= f.unitsTotal) {
-    parts.push(f.unitsBooked === f.unitsTotal ? `MahaRERA shows all ${n(f.unitsTotal)} homes booked.`
-      : `MahaRERA shows ${n(f.unitsBooked)} of ${n(f.unitsTotal)} homes booked.`)
+    const what = f.unitWord ?? 'homes'
+    parts.push(f.unitsBooked === f.unitsTotal ? `MahaRERA shows all ${n(f.unitsTotal)} ${what} booked.`
+      : `MahaRERA shows ${n(f.unitsBooked)} of ${n(f.unitsTotal)} ${what} booked.`)
     if (f.bookedSince && f.bookedSince.rose > 0) {
       parts.push(`${n(f.bookedSince.rose)} of them were booked since ${longDay(f.bookedSince.since)}, by Avasetu's readings of MahaRERA.`)
     }
@@ -97,7 +100,7 @@ export function registerAnswer(p: RegisterProject, offer?: { from: string; bhks:
     extensionMonths: p.details?.extension_months, extensionOnly: p.extension_only, completionPassed: p.completion_passed,
     unitsTotal: p.units_total, unitsBooked: p.units_booked, price, bookedSince: bookedSince(p),
     areaBooked: p.area_compare?.booked ? { ...p.area_compare.booked, place: p.area_compare.place } : null,
-    builderRecord: p.builder?.record_ok ? p.builder : null,
+    builderRecord: p.builder?.record_ok ? p.builder : null, unitWord: unitWord(p),
   })
 }
 
