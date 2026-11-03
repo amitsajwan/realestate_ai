@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import React from 'react'
 import { RankedCard, cardPrice } from '@/components/site/ListCard'
+import { builderLine, cardFacts } from '@/lib/site/facets'
 import type { FacetRow } from '@/lib/site/facets'
 
 const row = (more: Partial<FacetRow> = {}) => ({
@@ -34,5 +35,33 @@ describe('a project card', () => {
   it('keeps a reason that says more: homes booked lately', () => {
     render(<ul><RankedCard r={row({ reason: '47 homes booked in the last 90 days; 20 of 100 homes still open' })} /></ul>)
     expect(screen.getByText(/47 homes booked in the last 90 days/)).toBeInTheDocument()
+  })
+
+  it('names the brand buyers search and the company MahaRERA files it under (Godrej Aqua Vista, Oxford Realty LLP)', () => {
+    render(<ul><RankedCard r={row({ builder_name: 'Godrej Properties', promoter: 'Oxford Realty LLP', builder_slug: 'godrej-properties' })} /></ul>)
+    expect(screen.getByRole('link', { name: 'Godrej Properties' })).toHaveAttribute('href', '/builders/godrej-properties')
+    expect(screen.getByText(/filed by Oxford Realty LLP/)).toBeInTheDocument()
+  })
+
+  it('says the ranking fact and the date record as a sentence, without the homes open part', () => {
+    render(<ul><RankedCard r={row({ reason: 'about 23 homes booked a month since registration (May 2024); 140 of 835 homes still open; completion date not moved by the builder; the builder kept the date on 31 of 32 Pune projects' })} /></ul>)
+    expect(screen.getByTestId('card-facts')).toHaveTextContent(
+      'About 23 homes booked a month since registration (May 2024); completion date not moved by the builder; the builder kept the date on 31 of 32 Pune projects.')
+    expect(screen.queryByText(/140 of 835 homes still open/)).toBeNull()
+  })
+})
+
+describe('the builder named on a card', () => {
+  it('is the brand, with the filing company only when it is another name', () => {
+    expect(builderLine({ builder_name: 'Godrej Properties', promoter: 'Oxford Realty LLP' })).toEqual({ name: 'Godrej Properties', filedBy: 'Oxford Realty LLP' })
+    expect(builderLine({ builder_name: 'Duville Estates', promoter: 'Duville Estates Private Limited' })).toEqual({ name: 'Duville Estates', filedBy: null })
+    expect(builderLine({ builder_name: 'Vilas Javdekar Developers', promoter: 'Vilas Javdekar Greenscape Developers LLP' }).name).toBe('Vilas Javdekar Developers')
+    expect(builderLine({ builder_name: 'SSPL Landmarks LLP', promoter: 'SSPL Landmarks LLP' })).toEqual({ name: 'SSPL Landmarks LLP', filedBy: null })
+    expect(builderLine({ promoter: null })).toEqual({ name: null, filedBy: null })
+  })
+
+  it('has no fact line when the reason is only what is left', () => {
+    expect(cardFacts('20 of 100 homes still open, 80 booked (80%)')).toBeNull()
+    expect(cardFacts('')).toBeNull()
   })
 })

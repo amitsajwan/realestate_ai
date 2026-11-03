@@ -119,3 +119,55 @@ def test_a_row_says_whether_the_date_moved_and_the_builders_date_record():
 def test_a_kept_date_is_said_as_not_moved_by_the_builder():
     kept = _doc(60, 300, 150, completion="2029-04-30", completion_at_registration="2029-04-30")
     assert facets.members(Facet("kharadi", "top"), [kept], NOW)[0][1].endswith("completion date not moved by the builder")
+
+
+def test_a_row_names_the_brand_buyers_search_and_keeps_the_company_it_is_filed_under():
+    godrej = _doc(70, 1582, 323, name="Godrej Aqua Vista", promoter="Oxford Realty LLP")
+    v = facets.facet_view(Facet("kharadi", "top"), [*DOCS, godrej], NOW)
+    by = {r["slug"]: r for r in v["rows"]}
+    assert by["project-70"]["builder_name"] == "Godrej Properties" and by["project-70"]["promoter"] == "Oxford Realty LLP"
+    assert by["project-3"]["builder_name"] == "Builder 3"
+    assert facets.builder_name({"name": "Godrej Aqua Vista"}) is None   # no promoter on record: never joined by name alone
+
+
+def test_picks_name_one_project_per_need_with_the_fact_that_puts_it_there():
+    v = facets.facet_view(Facet("kharadi", "top"), DOCS, NOW)
+    assert [(p["need"], p["slug"], p["fact"]) for p in v["picks"]] == [
+        ("Selling fastest", "project-3", "about 14 homes booked a month since registration (Apr 2023)"),
+        ("Lowest checked price", "project-4", "2 BHK from ₹95 lakh"),
+        ("Earliest possession", "project-5", "possession filed for 31 Mar 2027"),
+        ("Most homes to choose from", "project-6", "156 of 168 homes open"),
+        ("Just launched", "project-6", "registered Jun 2026, 12 of 168 homes booked"),
+    ]
+
+
+def test_a_builder_that_keeps_its_dates_is_picked_only_where_this_project_kept_its_own():
+    b = dict(promoter="Kolte Patil Developers")
+    others = [_doc(81 + i, 100, 50, completion="2028-06-30", completion_at_registration="2028-06-30", pune_place="baner", **b) for i in range(5)]
+    moved = _doc(80, 300, 150, completion="2029-10-31", completion_at_registration="2028-06-30", **b)
+    kept = _doc(86, 200, 60, completion="2029-04-30", completion_at_registration="2029-04-30", **b)
+    need = lambda docs: [p for p in facets.facet_view(Facet("kharadi", "top"), [*DOCS, *docs], NOW)["picks"]
+                         if p["need"] == "Builder that keeps its dates"]
+    assert need([moved, *others]) == []
+    got = need([moved, kept, *others])
+    assert [p["slug"] for p in got] == ["project-86"]
+    assert got[0]["fact"] == "date not moved; the builder kept the date on 6 of 7 Pune projects"
+
+
+def test_a_list_too_short_for_picks_shows_none_and_picks_follow_the_records():
+    assert facets.facet_view(Facet("kharadi", "top"), [DOCS[2]], NOW)["picks"] == []
+    # once another project gets a lower checked price, that pick moves to it on the next build
+    cheaper = {**DOCS[4], "prices": {"at": NOW - timedelta(days=1), "rows": [{"bhk": "2 BHK", "from_inr": 7_900_000, "official": True, "sources": []}]}}
+    picks = facets.facet_view(Facet("kharadi", "top"), [*DOCS[:4], cheaper, DOCS[5]], NOW)["picks"]
+    assert next(p for p in picks if p["need"] == "Lowest checked price")["slug"] == "project-5"
+    assert facets.facet_view(Facet("kharadi", "all", bhk=2), DOCS, NOW)["picks"] == []
+
+
+def test_every_place_gets_picks_from_its_own_projects_and_a_thin_one_gets_none():
+    loh = [{**d, "_id": "L" + d["_id"], "regno": "L" + d["regno"], "page_slug": "loh-" + d["page_slug"], "pune_place": "lohegaon",
+            "pune_place_name": "Lohegaon"} for d in DOCS]
+    picks = facets.facet_view(Facet("lohegaon", "top"), [*DOCS, *loh], NOW)["picks"]
+    assert len(picks) == 5 and all(p["slug"].startswith("loh-") for p in picks)
+    # two projects still selling there: the picks would only repeat the cards
+    thin = [loh[2], loh[4]]
+    assert facets.facet_view(Facet("lohegaon", "top"), [*DOCS, *thin], NOW)["picks"] == []

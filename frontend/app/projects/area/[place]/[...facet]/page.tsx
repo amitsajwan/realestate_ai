@@ -11,7 +11,7 @@ import { getMarketingConfig } from '@/lib/marketing/config'
 import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/seo'
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
 import { getCatalog } from '@/lib/site/api'
-import { facetFaq, getFacet, getFacetQuiet, getFacets, otherProjects, placeChips } from '@/lib/site/facets'
+import { builderLine, facetFaq, getFacet, getFacetQuiet, getFacets, otherProjects, placeChips } from '@/lib/site/facets'
 import type { FacetPage, FacetRow } from '@/lib/site/facets'
 import { livePages } from '@/lib/site/filters'
 import { fitDescription, formatPrice } from '@/lib/site/format'
@@ -67,13 +67,14 @@ function moved(r: FacetRow): string | null {
 
 function Row({ r, priceList }: { r: FacetRow; priceList: boolean }) {
   const m = moved(r)
+  const builder = builderLine(r)
   return (
     <li className="overflow-hidden rounded-xl border border-slate-200 bg-white sm:grid sm:grid-cols-[220px_1fr]" data-testid="facet-row">
       <ListPicture r={r} rank={r.rank} tall />
       <div className="min-w-0 p-3 sm:p-4">
         <Link href={`/projects/${r.slug}`} className="text-lg font-semibold text-[#0f2340] underline underline-offset-2">{r.name}</Link>
-        {r.promoter && (
-          <span className="text-slate-700"> by {r.builder_slug ? <Link href={`/builders/${r.builder_slug}`} className="text-[#0f2340] underline underline-offset-2">{r.promoter}</Link> : r.promoter}</span>
+        {builder.name && (
+          <span className="text-slate-700"> by {r.builder_slug ? <Link href={`/builders/${r.builder_slug}`} className="text-[#0f2340] underline underline-offset-2">{builder.name}</Link> : builder.name}</span>
         )}
         {/* on a size list the reason is the price, which the Price cell already shows */}
         {!priceList && <p className="mt-1 text-sm font-medium text-slate-800">{r.reason}</p>}
@@ -84,7 +85,7 @@ function Row({ r, priceList }: { r: FacetRow; priceList: boolean }) {
           {r.units_total != null && <div><dt className="text-xs text-slate-500">Homes</dt><dd>{n(r.units_total)}</dd></div>}
           {r.units_booked != null && r.units_total ? <div><dt className="text-xs text-slate-500">Booked</dt><dd>{n(r.units_booked)} ({Math.round((100 * r.units_booked) / r.units_total)}%)</dd></div> : null}
         </dl>
-        <p className="mt-1 text-xs text-slate-500">MahaRERA {r.regno}{r.legal_name && r.legal_name.toLowerCase() !== r.name.toLowerCase() ? ` · registered as ${r.legal_name}` : ''}</p>
+        <p className="mt-1 text-xs text-slate-500">MahaRERA {r.regno}{r.legal_name && r.legal_name.toLowerCase() !== r.name.toLowerCase() ? ` · registered as ${r.legal_name}` : ''}{builder.filedBy ? ` · filed by ${builder.filedBy}` : ''}</p>
       </div>
     </li>
   )
@@ -107,10 +108,37 @@ function SoldOut({ p }: { p: FacetPage }) {
             {rows.map((r) => (
               <tr key={r.slug} className="border-t border-slate-200">
                 <td className="px-3 py-2"><Link href={`/projects/${r.slug}`} className="font-semibold text-[#0f2340] underline underline-offset-2">{r.name}</Link></td>
-                <td className="px-3 py-2 text-slate-700">{r.promoter ?? ''}</td>
+                <td className="px-3 py-2 text-slate-700">{builderLine(r).name ?? ''}</td>
                 <td className="px-3 py-2">{r.units_booked != null && r.units_total ? `${n(r.units_booked)} of ${n(r.units_total)}` : ''}</td>
                 <td className="px-3 py-2 text-slate-700">{monthYear(r.completion_now)}</td>
                 <td className="px-3 py-2 text-right"><Link href={`/projects/${r.slug}#enquire`} className="inline-flex min-h-[44px] items-center font-semibold text-[#0f2340] underline underline-offset-2">Ask about resale</Link></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  )
+}
+
+// The Top list read by what a buyer needs: one project per need with the fact that puts it there, worked out by the backend from
+// the same list on every build (seo/facets.picks), so it changes as the records do. None on a list too short to have three.
+function Picks({ p }: { p: FacetPage }) {
+  const picks = p.picks ?? []
+  if (!picks.length) return null
+  return (
+    <section aria-labelledby="picks-title" className="mt-10" data-testid="facet-picks">
+      <h2 id="picks-title" className="text-xl font-semibold text-slate-900">Pick by what you need in {p.place.name}</h2>
+      <p className="mt-1 text-sm text-slate-600">From the list above: MahaRERA&apos;s records, and prices the builder&apos;s site states or two property sites agree on.</p>
+      <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200 bg-white">
+        <table className="w-full min-w-[520px] text-left text-sm">
+          <thead><tr className="text-xs text-slate-500"><th className="px-3 py-2 font-semibold">If you want</th><th className="px-3 py-2 font-semibold">Project</th><th className="px-3 py-2 font-semibold">Why</th></tr></thead>
+          <tbody>
+            {picks.map((x) => (
+              <tr key={x.need} className="border-t border-slate-200 align-top">
+                <th scope="row" className="px-3 py-2 font-semibold text-slate-900">{x.need}</th>
+                <td className="px-3 py-2"><Link href={`/projects/${x.slug}`} className="font-semibold text-[#0f2340] underline underline-offset-2">{x.name}</Link>{x.builder_name ? <span className="block text-xs text-slate-600">{x.builder_name}</span> : null}</td>
+                <td className="px-3 py-2 text-slate-800">{x.fact}</td>
               </tr>
             ))}
           </tbody>
@@ -170,6 +198,8 @@ export default async function FacetPageView({ params }: Props) {
           <Link href={placePath(p.place.slug)} className="text-[#0f2340] underline underline-offset-2">{p.place.name}</Link>
         </nav>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">{p.h1}</h1>
+        {/* the day a listed project's facts last changed (the WebPage dateModified below), else the day the list was worked out */}
+        <p className="mt-2 text-sm text-slate-600" data-testid="facet-updated">Updated {longDay(p.page_updated ?? p.as_of)} · from MahaRERA&apos;s records</p>
         <p className="mt-4 max-w-3xl text-lg leading-relaxed text-slate-800" data-testid="facet-answer">{p.answer}</p>
         <FacetChips chips={chips} current={p.path} label={`Lists for ${p.place.name}`} />
 
@@ -182,6 +212,8 @@ export default async function FacetPageView({ params }: Props) {
             </ol>
           </section>
         )}
+
+        {top && <Picks p={p} />}
 
         {top && (
           <>
