@@ -50,7 +50,7 @@ CSS today.) Background loops: `python -m app.worker --role <conversations|newsro
 - `deploy/gcp/`: the production deploy. Older scripts at the repo root (`deploy*.sh`, `*.ps1`, ngrok files) don't match production.
 
 Don't touch:
-- `frontend/AGENTS.md` (`next dev` writes it)
+- `frontend/AGENTS.md`, `studio/AGENTS.md` (`next dev` writes them)
 - `.env*` files with real values
 - `frontend/package-lock.json` except through npm
 - `docs/archive/`
