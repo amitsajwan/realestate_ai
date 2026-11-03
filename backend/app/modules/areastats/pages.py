@@ -444,19 +444,20 @@ def delivery(mine: List[dict]) -> dict:
             "avg_months_later": round(sum(moved) / len(moved)) if moved else None, "record_ok": len(with_dates) >= RECORD_MIN}
 
 
-COMPARE_MIN = 5          # other projects being built in the area before a comparison with them is stated
+COMPARE_MIN = 8          # other projects being built in the area before a comparison with them is stated: with 5 the middle
+                         # swung with one project (Upper Kharadi has few)
 COMPARE_AGE_DAYS = 365   # homes booked is set against projects registered within this of this one: a launch against a project
                          # selling for three years would only say how old each is
 
 
-def area_compare(doc: dict, others: List[dict], place: Optional[str], own_rate: Optional[float] = None,
-                 area_rate: Optional[dict] = None, today: Optional[date] = None) -> Optional[dict]:
+def area_compare(doc: dict, others: List[dict], place: Optional[str], today: Optional[date] = None) -> Optional[dict]:
     """This project against the other projects still being built in its area, from the register alone (no model): the share of
-    homes booked against those registered within COMPARE_AGE_DAYS of it, its filed date move against how many of them moved
-    theirs, and its ₹ per sq ft against the area's (pagefacts.area_rate). The portals show each project's own numbers; none sets
-    a project beside its area, and the comparison is what a buyer cannot read anywhere else (docs/plan/seo-system.md 8b).
-    Each part is None with fewer than COMPARE_MIN projects to compare with; None when no part can be said.
-    `others`: the area's records, each project once (group primaries), this project left out."""
+    homes booked against those registered within COMPARE_AGE_DAYS of it, and its filed date move against how many of them moved
+    theirs. The portals show each project's own numbers; none sets a project beside its area, and the comparison is what a buyer
+    cannot read anywhere else (docs/plan/seo-system.md 8b). Each part is None with fewer than COMPARE_MIN projects to compare
+    with; None when neither can be said. `others`: the area's records, each project once (group primaries), this one left out.
+    No ₹ per sq ft comparison (owner 2026-11-03): sites mix carpet and super built-up areas, which differ by 30-40%, so a gap
+    between two published rates may be only the measure."""
     if not place:
         return None
     t = today or date.today()
@@ -482,15 +483,9 @@ def area_compare(doc: dict, others: List[dict], place: Optional[str], own_rate: 
         if len(theirs) >= COMPARE_MIN:
             moved_part = {"months": later, "area_moved": sum(1 for m in theirs if m >= MOVED_MIN), "area_with_dates": len(theirs)}
 
-    rate_part = None
-    if own_rate and area_rate and area_rate.get("per_sqft"):
-        area = area_rate["per_sqft"]
-        rate_part = {"per_sqft": int(round(own_rate)), "area_per_sqft": area, "projects": area_rate.get("projects"),
-                     "diff_pct": round(100 * (own_rate - area) / area)}
-
-    if not (booked_part or moved_part or rate_part):
+    if not (booked_part or moved_part):
         return None
-    return {"place": place, "booked": booked_part, "moved": moved_part, "rate": rate_part}
+    return {"place": place, "booked": booked_part, "moved": moved_part}
 
 
 MAP_SIZE = (960, 540)   # the location picture (areastats.locmap)
@@ -835,10 +830,9 @@ async def project_page(db, slug: str, now: Optional[datetime] = None) -> Optiona
     others = [d for d in docs if field and d.get(field) == doc[field] and not d.get("cluster_primary") and d["_id"] != mine
               and d.get("prices")]
     out["area_rate"] = pagefacts.area_rate(place, (prices_public(d.get("prices"), now) for d in others))
-    # this project beside the rest of its area: booked share, date move, ₹ per sq ft (the area's records, each project once)
+    # this project beside the rest of its area: booked share and date move (the area's records, each project once)
     neighbours = [d for d in docs if field and d.get(field) == doc[field] and not d.get("cluster_primary") and d["_id"] != mine]
-    out["area_compare"] = area_compare(doc, neighbours, place, pagefacts.rate_of(out["prices"]), out["area_rate"],
-                                       (now or datetime.now(timezone.utc)).date())
+    out["area_compare"] = area_compare(doc, neighbours, place, (now or datetime.now(timezone.utc)).date())
     # the rounded price idea (areastats.priceidea): the sizes one site prices, and the area's usual band per size
     own = group_primary(doc, docs).get("prices")
     area_bands = priceidea.area_bands(starts(d.get("prices"), now) for d in others if not is_old(d, (now or datetime.now(timezone.utc)).date()))

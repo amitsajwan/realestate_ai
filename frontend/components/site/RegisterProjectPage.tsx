@@ -563,13 +563,13 @@ function TowerByTower({ p }: { p: RegisterProject }) {
   )
 }
 
-/** This project beside the other projects still being built in its area (backend pages.area_compare): the share booked, the
- *  filed date move and the ₹ per sq ft. Each record on MahaRERA or a portal stands alone; set side by side they say what no
- *  single record does. A part shows only when the backend had enough projects to compare with. */
+/** This project beside the other projects still being built in its area (backend pages.area_compare): the share booked and the
+ *  filed date move. Each record on MahaRERA or a portal stands alone; set side by side they say what no single record does. A
+ *  part shows only when the backend had enough projects to compare with. No ₹ per sq ft comparison: sites mix carpet and super
+ *  built-up areas, so a gap may be only the measure (owner 2026-11-03). */
 function AreaCompare({ p, shown }: { p: RegisterProject; shown: string }) {
   const c = p.area_compare
-  if (!c || !(c.booked || c.moved || c.rate)) return null
-  const rateWord = (d: number) => Math.abs(d) <= 3 ? 'about the same as' : `${Math.abs(d)}% ${d > 0 ? 'above' : 'below'}`
+  if (!c || !(c.booked || c.moved)) return null
   return (
     <div role="group" aria-labelledby="compare-area-title" data-testid="area-compare">
       <SectionHead id="compare-area-title" title={`${shown} against ${c.place}`} kind="checked" tag="Worked out by Avasetu" level={3} />
@@ -578,12 +578,12 @@ function AreaCompare({ p, shown }: { p: RegisterProject; shown: string }) {
           note={`The middle of ${n(c.booked.projects)} ${c.place} projects registered within a year of it: ${c.booked.area_pct}%.`} />}
         {c.moved && <Row label="Completion date" value={c.moved.months > 0 ? `Moved ${months(c.moved.months)} later` : 'Not moved by the builder'}
           note={`${n(c.moved.area_moved)} of ${n(c.moved.area_with_dates)} ${c.place} projects being built moved theirs 3 months or more.`} />}
-        {c.rate && <Row label="Asking price" value={perSqft(c.rate.per_sqft)}
-          note={`${rateWord(c.rate.diff_pct)} the ${c.place} middle of ${perSqft(c.rate.area_per_sqft)}${c.rate.projects ? ` across ${n(c.rate.projects)} projects` : ''}.`} />}
       </dl>
-      <p className="mt-2 text-xs text-slate-500">
-        Compared with the other projects still being built in {c.place}, each counted once, from MahaRERA records and published prices.
-        Dates are net of MahaRERA&apos;s August 2026 order.
+      <p className="mt-2 text-xs text-slate-500" data-testid="area-compare-note">
+        Compared with the other projects still being built in {c.place}, each counted once, from MahaRERA records
+        {p.details_read_at ? ` read ${longDay(p.details_read_at)}` : ''}.
+        {c.booked ? ' Homes booked are the builders\' own counts, which they file on MahaRERA each quarter, so some are a few months old.' : ''}
+        {c.moved ? ' Dates are net of MahaRERA\'s August 2026 order.' : ''}
       </p>
     </div>
   )

@@ -147,7 +147,7 @@ describe('the answer sets the project beside its area and its builder', () => {
   const builder = { name: 'Rohan', count: 30, record_ok: true, with_dates: 28, moved_later: 9, avg_months_later: 7, projects: [] }
 
   it('adds the area\'s booked share after the bookings and the builder\'s record before the price', () => {
-    const a = registerAnswer({ ...P, builder, area_compare: { place: 'Wagholi', booked: { pct: 59, area_pct: 41, projects: 12 }, moved: null, rate: null } })
+    const a = registerAnswer({ ...P, builder, area_compare: { place: 'Wagholi', booked: { pct: 59, area_pct: 41, projects: 12 }, moved: null } })
     expect(a).toContain('MahaRERA shows 244 of 416 homes booked. That is 59% booked, against 41% for the middle of 12 Wagholi projects '
       + 'registered within a year of it. Of 28 Rohan projects in Pune with both dates on MahaRERA, 9 moved the completion date 3 months or more later.')
   })

@@ -289,50 +289,44 @@ def project(regno, registered="2025-06-01", total=100, booked=50, at_reg="2029-1
 
 def test_homes_booked_is_set_against_the_median_of_projects_registered_within_a_year():
     mine = project("P0", booked=60)
-    peers = [project(f"N{i}", registered="2025-01-15", booked=b) for i, b in enumerate((10, 20, 30, 40, 50))]
-    old = [project(f"O{i}", registered="2021-03-01", booked=95) for i in range(5)]   # selling for years: not comparable
+    peers = [project(f"N{i}", registered="2025-01-15", booked=b) for i, b in enumerate((10, 20, 30, 40, 50, 60, 70, 80))]
+    old = [project(f"O{i}", registered="2021-03-01", booked=95) for i in range(8)]   # selling for years: not comparable
     got = pages.area_compare(mine, peers + old, "Wagholi", today=TODAY)
-    assert got["booked"] == {"pct": 60, "area_pct": 30, "projects": 5}
+    assert got["booked"] == {"pct": 60, "area_pct": 45, "projects": 8}
 
 
-def test_a_comparison_needs_five_projects_and_is_none_when_nothing_can_be_said():
+def test_a_comparison_needs_eight_projects_and_is_none_when_nothing_can_be_said():
     mine = project("P0")
-    four = [project(f"N{i}") for i in range(4)]
-    assert pages.area_compare(mine, four, "Wagholi", today=TODAY) is None
-    assert pages.area_compare(mine, four + [project("N4")], "Wagholi", today=TODAY)["booked"]["projects"] == 5
-    assert pages.area_compare(mine, four + [project("N4")], None, today=TODAY) is None
+    seven = [project(f"N{i}") for i in range(7)]
+    assert pages.area_compare(mine, seven, "Wagholi", today=TODAY) is None
+    assert pages.area_compare(mine, seven + [project("N7")], "Wagholi", today=TODAY)["booked"]["projects"] == 8
+    assert pages.area_compare(mine, seven + [project("N7")], None, today=TODAY) is None
 
 
 def test_finished_projects_and_offices_are_left_out_of_the_area():
     mine = project("P0")
-    passed = [project(f"F{i}", at_reg="2025-12-31", now="2025-12-31") for i in range(5)]
-    offices = [project(f"C{i}", project_type="Commercial") for i in range(5)]
+    passed = [project(f"F{i}", at_reg="2025-12-31", now="2025-12-31") for i in range(8)]
+    offices = [project(f"C{i}", project_type="Commercial") for i in range(8)]
     assert pages.area_compare(mine, passed + offices, "Wagholi", today=TODAY) is None
 
 
 def test_the_date_move_is_set_against_how_many_projects_in_the_area_moved_theirs():
     # registered after MahaRERA's 2026 extension, so the months are the builder's own
     mine = project("P0", registered="2026-09-01", at_reg="2029-01-31", now="2030-03-31")          # 14 months later
-    moved = [project(f"M{i}", registered="2026-09-01", at_reg="2029-01-31", now="2029-07-31") for i in range(2)]
-    kept = [project(f"K{i}", registered="2026-09-01") for i in range(4)]
+    moved = [project(f"M{i}", registered="2026-09-01", at_reg="2029-01-31", now="2029-07-31") for i in range(3)]
+    kept = [project(f"K{i}", registered="2026-09-01") for i in range(6)]
     got = pages.area_compare(mine, moved + kept, "Wagholi", today=TODAY)
-    assert got["moved"] == {"months": 14, "area_moved": 2, "area_with_dates": 6}
+    assert got["moved"] == {"months": 14, "area_moved": 3, "area_with_dates": 9}
 
 
-def test_the_rate_is_said_against_the_area_rate_as_a_percentage():
-    got = pages.area_compare(project("P0"), [], "Wagholi", own_rate=8_800,
-                             area_rate={"place": "Wagholi", "per_sqft": 8_000, "projects": 7}, today=TODAY)
-    assert got == {"place": "Wagholi", "booked": None, "moved": None,
-                   "rate": {"per_sqft": 8_800, "area_per_sqft": 8_000, "projects": 7, "diff_pct": 10}}
+def test_rates_are_never_compared_since_sites_mix_carpet_and_built_up_areas():
+    got = pages.area_compare(project("P0"), [project(f"N{i}") for i in range(8)], "Wagholi", today=TODAY)
+    assert set(got) == {"place", "booked", "moved"}
 
 
 async def test_the_project_page_carries_the_area_comparison():
-    rate = lambda inr: {"prices": priced(("2 BHK", inr, f"2 BHK 1,000 sq ft ₹ {inr // 100_000} L"))}
     reg = {"registered_on": "2025-06-01"}
-    db = await seeded(("P1", "Our Project", {**reg, **rate(9_000_000)}),
-                      *[(f"P{i}", f"Peer {i}", {**reg, **rate(7_000_000 + i * 100_000)}) for i in range(2, 7)])
+    db = await seeded(("P1", "Our Project", reg), *[(f"P{i}", f"Peer {i}", reg) for i in range(2, 10)])
     page = await pages.project_page(db, "our-project", now=NOW)
-    cmp = page["area_compare"]
-    assert cmp["place"] == "Wagholi"
-    assert cmp["booked"] == {"pct": 59, "area_pct": 59, "projects": 5}
-    assert cmp["rate"]["per_sqft"] == 9_000 and cmp["rate"]["area_per_sqft"] == 7_400 and cmp["rate"]["diff_pct"] == 22
+    assert page["area_compare"] == {"place": "Wagholi", "booked": {"pct": 59, "area_pct": 59, "projects": 8},
+                                    "moved": {"months": 0, "area_moved": 0, "area_with_dates": 8}}

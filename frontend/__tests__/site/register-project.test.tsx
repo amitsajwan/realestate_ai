@@ -534,23 +534,24 @@ describe("on the agent's own listing page", () => {
 
 // a project beside the rest of its area (backend pages.area_compare): what no single MahaRERA or portal record says
 describe('the project against its area', () => {
-  const compare = { place: 'Wagholi', booked: { pct: 59, area_pct: 41, projects: 12 },
-    moved: { months: 14, area_moved: 9, area_with_dates: 31 }, rate: { per_sqft: 7_100, area_per_sqft: 7_900, projects: 18, diff_pct: -10 } }
+  const compare = { place: 'Wagholi', booked: { pct: 59, area_pct: 41, projects: 12 }, moved: { months: 14, area_moved: 9, area_with_dates: 31 } }
 
-  it('shows the share booked, the date move and the rate, each beside the area', () => {
+  it('shows the share booked and the date move beside the area, dated, and says the counts are the builders\' own', () => {
     render(<RegisterProjectPage p={{ ...P, area_compare: compare }} siteUrl="https://avasetu.in" facts={null} />)
     const box = screen.getByTestId('area-compare')
     expect(box).toHaveTextContent('Rohan Abhilasha 4 against Wagholi')
     expect(box).toHaveTextContent('59%The middle of 12 Wagholi projects registered within a year of it: 41%.')
     expect(box).toHaveTextContent('Moved 14 months later9 of 31 Wagholi projects being built moved theirs 3 months or more.')
-    expect(box).toHaveTextContent('₹7,100/sq ft10% below the Wagholi middle of ₹7,900/sq ft across 18 projects.')
+    expect(screen.getByTestId('area-compare-note')).toHaveTextContent('from MahaRERA records read 3 Oct 2026.')
+    expect(screen.getByTestId('area-compare-note')).toHaveTextContent("Homes booked are the builders' own counts, which they file on MahaRERA each quarter")
+    expect(box).not.toHaveTextContent('/sq ft')
   })
 
   it('shows only the parts the backend could compare, and says a date the builder kept was not moved', () => {
-    render(<RegisterProjectPage p={{ ...P, area_compare: { ...compare, booked: null, rate: null, moved: { months: 0, area_moved: 9, area_with_dates: 31 } } }}
+    render(<RegisterProjectPage p={{ ...P, area_compare: { ...compare, booked: null, moved: { months: 0, area_moved: 9, area_with_dates: 31 } } }}
       siteUrl="https://avasetu.in" facts={null} />)
     const box = screen.getByTestId('area-compare')
     expect(box).toHaveTextContent('Not moved by the builder')
-    expect(box).not.toHaveTextContent(/Homes booked|Asking price/)
+    expect(box).not.toHaveTextContent(/Homes booked/)
   })
 })
