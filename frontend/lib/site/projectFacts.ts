@@ -30,6 +30,10 @@ export interface AnswerFacts {
   price?: string | null
   /** homes booked since our first dated reading of MahaRERA (seo-system.md 8b, H1): {rose, since}, only when it went up */
   bookedSince?: { rose: number; since: string } | null
+  /** the share booked beside the area's projects registered within a year of it (backend pages.area_compare) */
+  areaBooked?: { pct: number; area_pct: number; projects: number; place: string } | null
+  /** the builder's date record over its Pune projects, only when there are enough to state it (record_ok) */
+  builderRecord?: { name: string; with_dates: number; moved_later: number } | null
 }
 
 const n = (x: number) => x.toLocaleString('en-IN')
@@ -58,6 +62,14 @@ export function projectAnswer(f: AnswerFacts): string {
     if (f.bookedSince && f.bookedSince.rose > 0) {
       parts.push(`${n(f.bookedSince.rose)} of them were booked since ${longDay(f.bookedSince.since)}, by Avasetu's readings of MahaRERA.`)
     }
+    // set beside its area: a fact no single record shows, so the sentence the page alone can say
+    const c = f.areaBooked
+    if (c) parts.push(`That is ${c.pct}% booked, against ${c.area_pct}% for the middle of ${n(c.projects)} ${c.place} projects registered within a year of it.`)
+  }
+  const b = f.builderRecord
+  if (b && b.with_dates > 0) {
+    parts.push(`Of ${n(b.with_dates)} ${b.name} projects in Pune with both dates on MahaRERA, `
+      + `${b.moved_later ? n(b.moved_later) : 'none'} moved the completion date 3 months or more later.`)
   }
   if (f.price) parts.push(f.price.charAt(0).toUpperCase() + f.price.slice(1) + '.')
   if (f.completionPassed) parts.push('The filed completion date has passed: ask for the occupancy certificate (OC).')
@@ -84,6 +96,8 @@ export function registerAnswer(p: RegisterProject, offer?: { from: string; bhks:
     completionNow: p.completion_now, completionAtRegistration: p.completion_at_registration,
     extensionMonths: p.details?.extension_months, extensionOnly: p.extension_only, completionPassed: p.completion_passed,
     unitsTotal: p.units_total, unitsBooked: p.units_booked, price, bookedSince: bookedSince(p),
+    areaBooked: p.area_compare?.booked ? { ...p.area_compare.booked, place: p.area_compare.place } : null,
+    builderRecord: p.builder?.record_ok ? p.builder : null,
   })
 }
 

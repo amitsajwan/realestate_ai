@@ -442,6 +442,7 @@ describe('project page v2: each fact once, in the order a buyer asks', () => {
     const { container } = render(<RegisterProjectPage p={p} siteUrl="https://avasetu.in" facts={null} />)
     expect(screen.queryByTestId('area-rate')).toBeNull()
     expect(screen.queryByTestId('commute')).toBeNull()
+    expect(screen.queryByTestId('area-compare')).toBeNull()
     expect(screen.getByTestId('chip-booked')).toHaveTextContent(/^Booked244 of 416 booked$/)
     expect(screen.getByTestId('price-row')).not.toHaveTextContent('/sq ft')
     expect(within(screen.getByTestId('compare')).getByRole('link', { name: /Kesnand Greens/ })).toHaveTextContent('possession Mar 2029')
@@ -528,5 +529,28 @@ describe("on the agent's own listing page", () => {
         photos: ['/uploads/images/hd-vtp-aurelia-01.jpg', '/uploads/images/hd-vtp-aurelia-02.jpg'] }} />)
     expect(container.querySelector('img[src="/uploads/images/hd-vtp-aurelia-01.jpg"]')).not.toBeNull()
     expect(container.querySelector('img[src="/uploads/images/hd-vtp-aurelia-02.jpg"]')).not.toBeNull()
+  })
+})
+
+// a project beside the rest of its area (backend pages.area_compare): what no single MahaRERA or portal record says
+describe('the project against its area', () => {
+  const compare = { place: 'Wagholi', booked: { pct: 59, area_pct: 41, projects: 12 },
+    moved: { months: 14, area_moved: 9, area_with_dates: 31 }, rate: { per_sqft: 7_100, area_per_sqft: 7_900, projects: 18, diff_pct: -10 } }
+
+  it('shows the share booked, the date move and the rate, each beside the area', () => {
+    render(<RegisterProjectPage p={{ ...P, area_compare: compare }} siteUrl="https://avasetu.in" facts={null} />)
+    const box = screen.getByTestId('area-compare')
+    expect(box).toHaveTextContent('Rohan Abhilasha 4 against Wagholi')
+    expect(box).toHaveTextContent('59%The middle of 12 Wagholi projects registered within a year of it: 41%.')
+    expect(box).toHaveTextContent('Moved 14 months later9 of 31 Wagholi projects being built moved theirs 3 months or more.')
+    expect(box).toHaveTextContent('₹7,100/sq ft10% below the Wagholi middle of ₹7,900/sq ft across 18 projects.')
+  })
+
+  it('shows only the parts the backend could compare, and says a date the builder kept was not moved', () => {
+    render(<RegisterProjectPage p={{ ...P, area_compare: { ...compare, booked: null, rate: null, moved: { months: 0, area_moved: 9, area_with_dates: 31 } } }}
+      siteUrl="https://avasetu.in" facts={null} />)
+    const box = screen.getByTestId('area-compare')
+    expect(box).toHaveTextContent('Not moved by the builder')
+    expect(box).not.toHaveTextContent(/Homes booked|Asking price/)
   })
 })

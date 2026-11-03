@@ -85,6 +85,9 @@ export interface RegisterProject {
   builder_slug?: string | null
   /** the area's median ₹ per sq ft from at least 3 other projects' published prices with a size (backend pages.project_page) */
   area_rate?: { place: string; per_sqft: number; projects: number } | null
+  /** this project beside the other projects still being built in its area (backend pages.area_compare): each part null with
+   *  fewer than 5 to compare with */
+  area_compare?: AreaCompare | null
   /** homes booked between two MahaRERA reads 30-90 days apart; null without two reads or when none were booked */
   sales?: { booked: number; days: number; since: string } | null
   /** straight-line km from the checked map position to the work hubs people commute to, nearest first */
@@ -142,6 +145,16 @@ export interface RegisterBuilding {
 }
 
 export interface BuilderLogo { url: string; width: number | null; height: number | null; tone: 'light' | 'dark'; site: string | null }
+
+export interface AreaCompare {
+  place: string
+  /** share of homes booked against the middle of the area's projects registered within a year of this one */
+  booked: { pct: number; area_pct: number; projects: number } | null
+  /** months the builder moved the filed date (net of MahaRERA's 2026 order) against how many of the area's projects moved theirs */
+  moved: { months: number; area_moved: number; area_with_dates: number } | null
+  /** ₹ per sq ft against the area's middle (area_rate) */
+  rate: { per_sqft: number; area_per_sqft: number; projects: number | null; diff_pct: number } | null
+}
 
 export interface BuilderRecord {
   /** the brand's name (backend areastats/brands.py), else the MahaRERA promoter's */

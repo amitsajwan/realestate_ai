@@ -563,6 +563,32 @@ function TowerByTower({ p }: { p: RegisterProject }) {
   )
 }
 
+/** This project beside the other projects still being built in its area (backend pages.area_compare): the share booked, the
+ *  filed date move and the ₹ per sq ft. Each record on MahaRERA or a portal stands alone; set side by side they say what no
+ *  single record does. A part shows only when the backend had enough projects to compare with. */
+function AreaCompare({ p, shown }: { p: RegisterProject; shown: string }) {
+  const c = p.area_compare
+  if (!c || !(c.booked || c.moved || c.rate)) return null
+  const rateWord = (d: number) => Math.abs(d) <= 3 ? 'about the same as' : `${Math.abs(d)}% ${d > 0 ? 'above' : 'below'}`
+  return (
+    <div role="group" aria-labelledby="compare-area-title" data-testid="area-compare">
+      <SectionHead id="compare-area-title" title={`${shown} against ${c.place}`} kind="checked" tag="Worked out by Avasetu" level={3} />
+      <dl className="mt-1 grid gap-x-6 sm:grid-cols-2">
+        {c.booked && <Row label="Homes booked" value={`${c.booked.pct}%`}
+          note={`The middle of ${n(c.booked.projects)} ${c.place} projects registered within a year of it: ${c.booked.area_pct}%.`} />}
+        {c.moved && <Row label="Completion date" value={c.moved.months > 0 ? `Moved ${months(c.moved.months)} later` : 'Not moved by the builder'}
+          note={`${n(c.moved.area_moved)} of ${n(c.moved.area_with_dates)} ${c.place} projects being built moved theirs 3 months or more.`} />}
+        {c.rate && <Row label="Asking price" value={perSqft(c.rate.per_sqft)}
+          note={`${rateWord(c.rate.diff_pct)} the ${c.place} middle of ${perSqft(c.rate.area_per_sqft)}${c.rate.projects ? ` across ${n(c.rate.projects)} projects` : ''}.`} />}
+      </dl>
+      <p className="mt-2 text-xs text-slate-500">
+        Compared with the other projects still being built in {c.place}, each counted once, from MahaRERA records and published prices.
+        Dates are net of MahaRERA&apos;s August 2026 order.
+      </p>
+    </div>
+  )
+}
+
 /** The builder's track record from the MahaRERA records we hold: how many of their projects moved the completion date. */
 function BuilderRecord({ p, linkless = false }: { p: RegisterProject; linkless?: boolean }) {
   const b = p.builder
@@ -681,6 +707,7 @@ function RecordSection({ p, shown, facts, linkless = false }: { p: RegisterProje
       <div className="mt-3 space-y-8">
         <Possession p={p} shown={shown} />
         <ProjectHistory p={p} shown={shown} />
+        <AreaCompare p={p} shown={shown} />
         <div role="group" aria-labelledby="record-title">
           <h3 id="record-title" className="text-lg font-semibold text-slate-900">The record</h3>
           <dl className="mt-1 grid gap-x-6 sm:grid-cols-2">
