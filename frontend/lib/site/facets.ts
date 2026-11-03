@@ -168,7 +168,7 @@ export function facetFaq(p: FacetPage): { q: string; a: string }[] {
   } else if (p.intent === 'top') {
     out.push({ q: `Which are the top projects in ${place}, Pune?`, a: `${p.answer} In order: ${names}.` })
     out.push({ q: 'How is this list ranked?',
-      a: 'Only projects with 10 or more homes not booked are ranked: by homes booked in the last 90 days as MahaRERA shows them, then by the share of homes booked. No builder pays to be on it or to move up.' })
+      a: 'Only projects with 10 or more homes not booked and 40 or more homes in all are ranked, one row per project however many MahaRERA registrations it has: by homes booked in the last 90 days where two of our readings show it, else by homes booked a month since registration. MahaRERA\'s counts are the builders\' own, filed each quarter. No builder pays to be on it or to move up.' })
     if (p.sold_out_count) {
       out.push({ q: `Why is a fully booked project in ${place} not on this list?`,
         a: `The builder has fewer than 10 homes left to sell, so it is listed apart below: ${p.sold_out_count} such project${p.sold_out_count === 1 ? '' : 's'}. A resale flat or a cancelled booking can still come up there; ask us.` })

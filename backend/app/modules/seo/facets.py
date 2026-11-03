@@ -25,7 +25,8 @@ from app.modules.areastats import hot, priceidea, prices
 from app.modules.areastats.areamap import _photo, card_pictures
 from app.modules.areastats.hubs import _primaries, link_name
 from app.modules.areastats.pages import (OPEN_MIN, _long, booked, builder_key, buyable, cluster_stamps, cluster_updated,
-                                         completion_passed, family_name, homes, indexable, is_old, open_homes, searchable)
+                                         completion_passed, delivery, family_name, homes, indexable, is_old, months_later,
+                                         open_homes, searchable)
 from app.modules.areastats.service import _count, _day
 from app.modules.areastats.text import builder_slug
 from app.modules.newsroom.store import Store
@@ -188,6 +189,88 @@ def _share(d: dict) -> Optional[float]:
 
 _open = open_homes   # "top" and "ready-to-move" list only homes a buyer can still buy: OPEN_MIN or more (areastats.pages)
 
+TOP_MIN_HOMES = 40     # a project (all its registrations) this small is not what a buyer means by "top projects": Wagholi's
+                       # list was led by buildings of 20-odd homes 90% booked (2026-11-03)
+PACE_MIN_MONTHS = 6    # a project registered more recently counts as this old, so a launch's first bookings do not read as the
+                       # area's fastest seller
+_MONTH_DAYS = 30.44
+
+
+def pace(d: dict, now: datetime) -> Optional[float]:
+    """Homes booked a month since registration, as MahaRERA shows the count: how fast it sells whatever its age, where the
+    share booked only says how old it is (Kharadi's and Wagholi's lists were led by projects 88-97% booked, 2026-11-03). None
+    without a registration day or a booking."""
+    on, b = _aware(d.get("registered_on")), booked(d)
+    if on is None or not b:
+        return None
+    return b / max((now - on).days / _MONTH_DAYS, PACE_MIN_MONTHS)
+
+
+def _family(d: dict) -> tuple:
+    """One project however many registrations it has: the builder and the whole project's name (pages.family_name, the rule
+    prices are read by), so "Pristine O2 World Part 1" and "Part 2" are one row."""
+    return builder_key(d) or str(d.get("promoter") or ""), family_name(d).lower()
+
+
+def _date_note(d: dict) -> Optional[str]:
+    m = months_later(d)
+    if m is None:
+        return None
+    return "completion date not moved by the builder" if m == 0 else f"completion date moved {m} month{'s' if m > 1 else ''} later"
+
+
+def _builder_note(d: dict, records: Dict[str, dict]) -> Optional[str]:
+    r = records.get(builder_key(d) or "")
+    if not r or not r["record_ok"]:
+        return None
+    kept = r["with_dates"] - r["moved_later"]
+    return f"the builder kept the date on {kept} of {r['with_dates']} Pune projects"
+
+
+def builder_records(docs: List[dict]) -> Dict[str, dict]:
+    """{builder key: pages.delivery} over every record we hold, for the top list's rows."""
+    by: Dict[str, List[dict]] = {}
+    for d in docs:
+        k = builder_key(d)
+        if k:
+            by.setdefault(k, []).append(d)
+    return {k: delivery(v) for k, v in by.items()}
+
+
+def _top(pool: List[dict], docs: List[dict], now: datetime) -> List[Tuple[tuple, dict, str]]:
+    """The top list: one row per project, among projects a buyer can still buy (OPEN_MIN or more homes open, TOP_MIN_HOMES or
+    more in the whole project), homes booked in the last 90 days first where two readings show it (hot.bookings), else homes
+    booked a month since registration (`pace`). Each row says how fast it sells, what is left, whether its date moved and the
+    builder's date record: facts no portal sets side by side."""
+    size: Dict[tuple, int] = {}
+    for d in pool:
+        size[_family(d)] = size.get(_family(d), 0) + (_count(d.get("units_total")) or 0)
+    records = builder_records(docs)
+    rows = []
+    for d in pool:
+        # offices and shops are not listed, sold out ones are listed apart (sold_out), never ranked (owner 2026-10-26)
+        if not buyable(d, now.date()) or size[_family(d)] < TOP_MIN_HOMES:
+            continue
+        left = f"{_open(d)} of {_count(d.get('units_total'))} homes still open"
+        sig, p = hot.bookings(d, now), pace(d, now)
+        if sig:
+            key, lead = (0, -sig["value"]), sig["evidence"]
+        elif p is not None:
+            since = _aware(d.get("registered_on"))
+            key, lead = (1, -p), f"about {max(1, round(p))} homes booked a month since registration ({_month(since)})"
+        else:
+            continue
+        notes = [n for n in (_date_note(d), _builder_note(d, records)) if n]
+        rows.append((key, d, "; ".join([lead, left, *notes])))
+    rows.sort(key=lambda r: (r[0], link_name(r[1]).lower()))
+    seen, out = set(), []
+    for r in rows:
+        fam = _family(r[1])
+        if fam not in seen:
+            seen.add(fam)
+            out.append(r)
+    return out
+
 
 def sold_out(f: Facet, docs: List[dict], now: datetime) -> List[Tuple[dict, str]]:
     """The "top" list's other half: projects still being built or just finished with fewer than OPEN_MIN homes not booked,
@@ -277,6 +360,8 @@ def members(f: Facet, docs: List[dict], now: datetime) -> List[Tuple[dict, str]]
         pool = [d for d in pool if builder_slug(d.get("promoter")) == f.builder]
     if f.possession:
         pool = [d for d in pool if _year(_day(d.get("completion_now"))) == f.possession]
+    if f.intent == "top":
+        return [(d, why) for _, d, why in _top(pool, docs, now)]
     rows: List[Tuple[tuple, dict, str]] = []
     for d in pool:
         if f.intent == "new-launches":
@@ -284,17 +369,6 @@ def members(f: Facet, docs: List[dict], now: datetime) -> List[Tuple[dict, str]]
             if sig:
                 on = _aware(d.get("registered_on"))
                 rows.append(((-(on.timestamp() if on else 0),), d, f"registered with MahaRERA on {_long(on.date().isoformat())}"))
-        elif f.intent == "top":
-            # a buyer's "top projects" are homes they can still buy: sold out ones are listed apart (sold_out), never ranked;
-            # offices and shops are not listed (owner 2026-10-26)
-            if not buyable(d, now.date()):
-                continue
-            sig, share = hot.bookings(d, now), _share(d)
-            left = f"{_open(d)} of {_count(d.get('units_total'))} homes still open"
-            if sig:
-                rows.append(((0, -sig["value"], -(share or 0)), d, f"{sig['evidence']}; {left}"))
-            elif share is not None and booked(d):
-                rows.append(((1, 0, -share), d, f"{left}, {booked(d)} booked ({round(100 * share)}%)"))
         elif f.intent == "ready-to-move":
             # "move in now" only where homes are left to buy (owner 2026-10-26): OPEN_MIN or more not booked, not an unknown count
             if _ready(d, now) and homes(d) and (_open(d) or 0) >= OPEN_MIN:
@@ -390,7 +464,7 @@ def answer(f: Facet, place: str, rows: List[dict], as_of: str, count: Optional[i
         n = count if count is not None else n
         gone = f" {sold} more are sold out or nearly (fewer than {OPEN_MIN} homes open)." if sold else ""
         return (f"As of {as_of}, {n} project{'s' if n > 1 else ''}{who} in {place}{year} still have {OPEN_MIN} or more homes open on "
-                f"MahaRERA. {first['name']} leads on homes booked: {first['reason']}.{gone}")
+                f"MahaRERA. {first['name']} sells fastest: {first['reason']}.{gone}")
     if f.intent == "ready-to-move":
         return (f"As of {as_of}, {n} project{'s' if n > 1 else ''}{who} in {place}{year} have passed the completion date filed with "
                 f"MahaRERA in the last three years and still have {OPEN_MIN} or more homes not booked, the newest {first['name']} "

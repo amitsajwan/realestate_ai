@@ -19,7 +19,7 @@ import PriceIdea from '@/components/site/PriceIdea'
 import ProjectHistory from '@/components/site/ProjectHistory'
 import type { Stage } from '@/lib/site/allin'
 import { areaName, askedPrices, bhkRange, completionChange, displayName, extensionSentence, headingName, longDay, monthYear, offerPrice,
-  otherNames, projectFaq, placePath, STAGE_LABEL, STAGE_NOTE } from '@/lib/site/register'
+  otherNames, projectFaq, placePath, STAGE_LABEL, STAGE_NOTE, unitWord } from '@/lib/site/register'
 import type { EnrichCheck, Faq, Offer } from '@/lib/site/register'
 import type { ProfilePicture } from '@/lib/site/profile'
 import type { PropertyFactsView, PublicListing } from '@/lib/site/types'
@@ -563,6 +563,32 @@ function TowerByTower({ p }: { p: RegisterProject }) {
   )
 }
 
+/** This project beside the other projects still being built in its area (backend pages.area_compare): the share booked and the
+ *  filed date move. Each record on MahaRERA or a portal stands alone; set side by side they say what no single record does. A
+ *  part shows only when the backend had enough projects to compare with. No ₹ per sq ft comparison: sites mix carpet and super
+ *  built-up areas, so a gap may be only the measure (owner 2026-11-03). */
+function AreaCompare({ p, shown }: { p: RegisterProject; shown: string }) {
+  const c = p.area_compare
+  if (!c || !(c.booked || c.moved)) return null
+  return (
+    <div role="group" aria-labelledby="compare-area-title" data-testid="area-compare">
+      <SectionHead id="compare-area-title" title={`${shown} against ${c.place}`} kind="checked" tag="Worked out by Avasetu" level={3} />
+      <dl className="mt-1 grid gap-x-6 sm:grid-cols-2">
+        {c.booked && <Row label="Homes booked" value={`${c.booked.pct}%`}
+          note={`The middle of ${n(c.booked.projects)} ${c.place} projects registered within a year of it: ${c.booked.area_pct}%.`} />}
+        {c.moved && <Row label="Completion date" value={c.moved.months > 0 ? `Moved ${months(c.moved.months)} later` : 'Not moved by the builder'}
+          note={`${n(c.moved.area_moved)} of ${n(c.moved.area_with_dates)} ${c.place} projects being built moved theirs 3 months or more.`} />}
+      </dl>
+      <p className="mt-2 text-xs text-slate-500" data-testid="area-compare-note">
+        Compared with the other projects still being built in {c.place}, each counted once, from MahaRERA records
+        {p.details_read_at ? ` read ${longDay(p.details_read_at)}` : ''}.
+        {c.booked ? ' Homes booked are the builders\' own counts, which they file on MahaRERA each quarter, so some are a few months old.' : ''}
+        {c.moved ? ' Dates are net of MahaRERA\'s August 2026 order.' : ''}
+      </p>
+    </div>
+  )
+}
+
 /** The builder's track record from the MahaRERA records we hold: how many of their projects moved the completion date. */
 function BuilderRecord({ p, linkless = false }: { p: RegisterProject; linkless?: boolean }) {
   const b = p.builder
@@ -681,10 +707,11 @@ function RecordSection({ p, shown, facts, linkless = false }: { p: RegisterProje
       <div className="mt-3 space-y-8">
         <Possession p={p} shown={shown} />
         <ProjectHistory p={p} shown={shown} />
+        <AreaCompare p={p} shown={shown} />
         <div role="group" aria-labelledby="record-title">
           <h3 id="record-title" className="text-lg font-semibold text-slate-900">The record</h3>
           <dl className="mt-1 grid gap-x-6 sm:grid-cols-2">
-            {p.units_total ? <Row label="Homes booked" value={p.units_booked != null ? `${p.units_booked} of ${p.units_total}` : `Not reported (${p.units_total} homes)`}
+            {p.units_total ? <Row label={unitWord(p) === 'units' ? 'Units booked' : 'Homes booked'} value={p.units_booked != null ? `${p.units_booked} of ${p.units_total}` : `Not reported (${p.units_total} ${unitWord(p)})`}
               note={!unitsRow && homesNote ? `${homesNote}.` : undefined} /> : null}
             {d?.towers ? <Row label="Towers" value={`${n(d.towers)} in this registration`}
               note={[d.max_floors ? `The tallest has ${d.max_floors} floors.` : null, towersNote ? `${towersNote}.` : null].filter(Boolean).join(' ') || undefined} /> : null}

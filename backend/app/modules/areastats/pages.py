@@ -10,6 +10,7 @@ list first (areastats.watch), and then has its page at once.
 import re
 import time
 from functools import lru_cache
+from statistics import median
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, List, Optional
 
@@ -17,7 +18,7 @@ from app.core import brand
 from app.core.areas import BY_KEY
 from app.modules.newsroom.store import Store
 
-from . import pagefacts, plans3d, priceidea
+from . import clusters, pagefacts, plans3d, priceidea
 from .service import _count, _day
 from .text import ascii_text, builder_slug, promoter_key, words
 
@@ -146,8 +147,10 @@ def open_homes(doc: dict) -> Optional[int]:
 
 
 def homes(doc: dict) -> bool:
-    """Homes, not offices or shops: MahaRERA's project type is "Commercial" for those."""
-    return "commercial" not in str(doc.get("project_type") or "").lower()
+    """Homes, not offices or shops: MahaRERA's project type is "Commercial", or the registration is a PC number or its buildings
+    hold no homes (clusters.commercial). The type alone missed AP4 Tech Park ("Others", 0 homes, 104 offices) and some
+    registrations carry no type at all (2026-11-03)."""
+    return "commercial" not in str(doc.get("project_type") or "").lower() and not clusters.commercial(doc)
 
 
 def buyable(doc: dict, today: Optional[date] = None) -> bool:
@@ -200,8 +203,9 @@ def searchable(doc: dict) -> bool:
     enrichment fills it (`enrich.THIN_RETRY_DAYS`). Pictures copied from other sites never count (663 on 131 pages came from
     portals and other agents, 2026-10-29). The area lists keep showing every listable project. A finished project (`is_old`)
     stays out, even one Google already shows (owner 2026-11-01: "for completed projects we dont need to have SEO"; no new-home
-    buyer is looking for it, and enrichment skips it)."""
-    if is_old(doc):
+    buyer is looking for it, and enrichment skips it). Offices and shops (`homes` False) stay out too (2026-11-03: 24 of 174
+    project pages in search in Kharadi, Upper Kharadi and Wagholi were offices or shops, shown with flat prices)."""
+    if is_old(doc) or not homes(doc):
         return False
     return indexable(doc) and bool(doc.get("page_text")) and own_facts(doc)
 
@@ -443,6 +447,50 @@ def delivery(mine: List[dict]) -> dict:
             "avg_months_later": round(sum(moved) / len(moved)) if moved else None, "record_ok": len(with_dates) >= RECORD_MIN}
 
 
+COMPARE_MIN = 8          # other projects being built in the area before a comparison with them is stated: with 5 the middle
+                         # swung with one project (Upper Kharadi has few)
+COMPARE_AGE_DAYS = 365   # homes booked is set against projects registered within this of this one: a launch against a project
+                         # selling for three years would only say how old each is
+
+
+def area_compare(doc: dict, others: List[dict], place: Optional[str], today: Optional[date] = None) -> Optional[dict]:
+    """This project against the other projects still being built in its area, from the register alone (no model): the share of
+    homes booked against those registered within COMPARE_AGE_DAYS of it, and its filed date move against how many of them moved
+    theirs. The portals show each project's own numbers; none sets a project beside its area, and the comparison is what a buyer
+    cannot read anywhere else (docs/plan/seo-system.md 8b). Each part is None with fewer than COMPARE_MIN projects to compare
+    with; None when neither can be said. `others`: the area's records, each project once (group primaries), this one left out.
+    No ₹ per sq ft comparison (owner 2026-11-03): sites mix carpet and super built-up areas, which differ by 30-40%, so a gap
+    between two published rates may be only the measure."""
+    if not place:
+        return None
+    t = today or date.today()
+    building = [d for d in others if homes(d) and _day(d.get("completion_now")) and not completion_passed(d, t)]
+
+    def pct(d: dict) -> Optional[float]:
+        total, b = _count(d.get("units_total")), booked(d)
+        return 100 * b / total if total and b is not None and b <= total else None
+
+    booked_part = None
+    mine, reg = pct(doc), _day(doc.get("registered_on"))
+    if mine is not None and reg:
+        r = date.fromisoformat(reg)
+        near = [p for d in building if (p := pct(d)) is not None and _day(d.get("registered_on"))
+                and abs((date.fromisoformat(_day(d.get("registered_on"))) - r).days) <= COMPARE_AGE_DAYS]
+        if len(near) >= COMPARE_MIN:
+            booked_part = {"pct": round(mine), "area_pct": round(median(near)), "projects": len(near)}
+
+    moved_part = None
+    later = months_later(doc)
+    if later is not None:
+        theirs = [m for m in (months_later(d) for d in building) if m is not None]
+        if len(theirs) >= COMPARE_MIN:
+            moved_part = {"months": later, "area_moved": sum(1 for m in theirs if m >= MOVED_MIN), "area_with_dates": len(theirs)}
+
+    if not (booked_part or moved_part):
+        return None
+    return {"place": place, "booked": booked_part, "moved": moved_part}
+
+
 MAP_SIZE = (960, 540)   # the location picture (areastats.locmap)
 MAP_MOVED = 0.0005      # degrees (~50 m): a pin that moved this much gets a new location picture
 
@@ -574,6 +622,8 @@ def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None) ->
         "completion_now": _day(doc.get("completion_now")), "completion_at_registration": _day(doc.get("completion_at_registration")),
         "units_total": _count(doc.get("units_total")), "units_booked": booked(doc), "completion_passed": completion_passed(doc),
         "stage": stage(doc), "sold_out": sold_out(doc), "extension_only": extension_only(doc),
+        # offices or shops only: the page says units, not homes, and shows no flat prices
+        "homes": homes(doc),
         # what changed, as we read it over time (docs/plan/seo-system.md 8b, H1): MahaRERA shows only today's values
         "booked_readings": pagefacts.booked_readings(doc), "completion_moves": completion_moves(doc),
         "details_read_at": read.date().isoformat() if isinstance(read, datetime) and doc.get("details_ok") else None,
@@ -785,11 +835,18 @@ async def project_page(db, slug: str, now: Optional[datetime] = None) -> Optiona
     others = [d for d in docs if field and d.get(field) == doc[field] and not d.get("cluster_primary") and d["_id"] != mine
               and d.get("prices")]
     out["area_rate"] = pagefacts.area_rate(place, (prices_public(d.get("prices"), now) for d in others))
+    # this project beside the rest of its area: booked share and date move (the area's records, each project once)
+    neighbours = [d for d in docs if field and d.get(field) == doc[field] and not d.get("cluster_primary") and d["_id"] != mine]
+    out["area_compare"] = area_compare(doc, neighbours, place, (now or datetime.now(timezone.utc)).date())
     # the rounded price idea (areastats.priceidea): the sizes one site prices, and the area's usual band per size
     own = group_primary(doc, docs).get("prices")
     area_bands = priceidea.area_bands(starts(d.get("prices"), now) for d in others if not is_old(d, (now or datetime.now(timezone.utc)).date()))
     read = (own or {}).get("at")
     out["price_idea"] = priceidea.view(ideas(own, now), area_bands, place, read.date().isoformat() if isinstance(read, datetime) else None)
+    if not out["homes"]:
+        # offices or shops: a flat price read under the whole project's name is its homes' price (Ganga Altus Building G showed
+        # "2 & 3 BHK from ₹85 L"), and an area's rate or booked share is about homes
+        out["prices"] = out["price_idea"] = out["area_rate"] = out["area_compare"] = None
     out["sales"] = pagefacts.sales(doc)
     out["commute"] = pagefacts.commute(out["map"])
     from .cautions import cautions   # 'Check before you book' (docs/plan/project-pages.md)

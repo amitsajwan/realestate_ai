@@ -85,6 +85,11 @@ export interface RegisterProject {
   builder_slug?: string | null
   /** the area's median ₹ per sq ft from at least 3 other projects' published prices with a size (backend pages.project_page) */
   area_rate?: { place: string; per_sqft: number; projects: number } | null
+  /** this project beside the other projects still being built in its area (backend pages.area_compare): each part null with
+   *  fewer than 8 to compare with. No rate comparison: sites mix carpet and super built-up areas */
+  area_compare?: AreaCompare | null
+  /** false for offices or shops only (backend pages.homes): the page says units, not homes, and shows no flat prices */
+  homes?: boolean | null
   /** homes booked between two MahaRERA reads 30-90 days apart; null without two reads or when none were booked */
   sales?: { booked: number; days: number; since: string } | null
   /** straight-line km from the checked map position to the work hubs people commute to, nearest first */
@@ -142,6 +147,14 @@ export interface RegisterBuilding {
 }
 
 export interface BuilderLogo { url: string; width: number | null; height: number | null; tone: 'light' | 'dark'; site: string | null }
+
+export interface AreaCompare {
+  place: string
+  /** share of homes booked against the middle of the area's projects registered within a year of this one */
+  booked: { pct: number; area_pct: number; projects: number } | null
+  /** months the builder moved the filed date (net of MahaRERA's 2026 order) against how many of the area's projects moved theirs */
+  moved: { months: number; area_moved: number; area_with_dates: number } | null
+}
 
 export interface BuilderRecord {
   /** the brand's name (backend areastats/brands.py), else the MahaRERA promoter's */
@@ -204,8 +217,9 @@ function ownFaq(p: RegisterProject, nearby: { label?: string | null; name?: stri
       a: `MahaRERA lists ${units} units` + (d?.units_residential != null && d?.units_other ? ` (${d.units_residential} residential, ${d.units_other} other).` : '.') })
   }
   if (p.units_total) {
-    out.push({ topic: 'booked', q: `How many homes in ${shown} are booked?`,
-      a: p.units_booked != null ? `${p.units_booked} of ${p.units_total} homes were booked as per MahaRERA${p.details_read_at ? ` on ${longDay(p.details_read_at)}` : ''}.`
+    const what = unitWord(p)
+    out.push({ topic: 'booked', q: `How many ${what} in ${shown} are booked?`,
+      a: p.units_booked != null ? `${p.units_booked} of ${p.units_total} ${what} were booked as per MahaRERA${p.details_read_at ? ` on ${longDay(p.details_read_at)}` : ''}.`
         : 'The builder has not reported bookings on MahaRERA.' })
   }
   if (p.promoter) {
@@ -612,4 +626,10 @@ export async function searchRegister(q: string, limit = 20, signal?: AbortSignal
   } catch {
     return []
   }
+}
+
+/** "homes", or "units" for a registration of offices or shops only (backend pages.homes): Aastha Business Bay read "14 of 28
+ *  homes booked" with no home in it (2026-11-03). */
+export function unitWord(p: Pick<RegisterProject, 'homes'>): 'homes' | 'units' {
+  return p.homes === false ? 'units' : 'homes'
 }

@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react'
 import React from 'react'
 import RegisterProjectPage from '@/components/site/RegisterProjectPage'
-import { longDay, offerPrice } from '@/lib/site/register'
+import { longDay, offerPrice, projectFaq } from '@/lib/site/register'
 import { registerDescription, registerTitle } from '@/lib/site/projectSeo'
 import type { RegisterProject } from '@/lib/site/register'
 
@@ -442,6 +442,7 @@ describe('project page v2: each fact once, in the order a buyer asks', () => {
     const { container } = render(<RegisterProjectPage p={p} siteUrl="https://avasetu.in" facts={null} />)
     expect(screen.queryByTestId('area-rate')).toBeNull()
     expect(screen.queryByTestId('commute')).toBeNull()
+    expect(screen.queryByTestId('area-compare')).toBeNull()
     expect(screen.getByTestId('chip-booked')).toHaveTextContent(/^Booked244 of 416 booked$/)
     expect(screen.getByTestId('price-row')).not.toHaveTextContent('/sq ft')
     expect(within(screen.getByTestId('compare')).getByRole('link', { name: /Kesnand Greens/ })).toHaveTextContent('possession Mar 2029')
@@ -528,5 +529,46 @@ describe("on the agent's own listing page", () => {
         photos: ['/uploads/images/hd-vtp-aurelia-01.jpg', '/uploads/images/hd-vtp-aurelia-02.jpg'] }} />)
     expect(container.querySelector('img[src="/uploads/images/hd-vtp-aurelia-01.jpg"]')).not.toBeNull()
     expect(container.querySelector('img[src="/uploads/images/hd-vtp-aurelia-02.jpg"]')).not.toBeNull()
+  })
+})
+
+// a project beside the rest of its area (backend pages.area_compare): what no single MahaRERA or portal record says
+describe('the project against its area', () => {
+  const compare = { place: 'Wagholi', booked: { pct: 59, area_pct: 41, projects: 12 }, moved: { months: 14, area_moved: 9, area_with_dates: 31 } }
+
+  it('shows the share booked and the date move beside the area, dated, and says the counts are the builders\' own', () => {
+    render(<RegisterProjectPage p={{ ...P, area_compare: compare }} siteUrl="https://avasetu.in" facts={null} />)
+    const box = screen.getByTestId('area-compare')
+    expect(box).toHaveTextContent('Rohan Abhilasha 4 against Wagholi')
+    expect(box).toHaveTextContent('59%The middle of 12 Wagholi projects registered within a year of it: 41%.')
+    expect(box).toHaveTextContent('Moved 14 months later9 of 31 Wagholi projects being built moved theirs 3 months or more.')
+    expect(screen.getByTestId('area-compare-note')).toHaveTextContent('from MahaRERA records read 3 Oct 2026.')
+    expect(screen.getByTestId('area-compare-note')).toHaveTextContent("Homes booked are the builders' own counts, which they file on MahaRERA each quarter")
+    expect(box).not.toHaveTextContent('/sq ft')
+  })
+
+  it('shows only the parts the backend could compare, and says a date the builder kept was not moved', () => {
+    render(<RegisterProjectPage p={{ ...P, area_compare: { ...compare, booked: null, moved: { months: 0, area_moved: 9, area_with_dates: 31 } } }}
+      siteUrl="https://avasetu.in" facts={null} />)
+    const box = screen.getByTestId('area-compare')
+    expect(box).toHaveTextContent('Not moved by the builder')
+    expect(box).not.toHaveTextContent(/Homes booked/)
+  })
+})
+
+// offices or shops only (backend pages.homes): Aastha Business Bay read "14 of 28 homes booked" with no home in it (2026-11-03)
+describe('a page for offices or shops', () => {
+  const office: RegisterProject = { ...P, name: 'Aastha Business Bay', units_total: 28, units_booked: 14, homes: false, indexable: false }
+
+  it('says units, never homes, in the answer, the record and the FAQ', () => {
+    render(<RegisterProjectPage p={office} siteUrl="https://avasetu.in" facts={null} />)
+    expect(screen.getByTestId('project-answer')).toHaveTextContent('MahaRERA shows 14 of 28 units booked.')
+    expect(screen.getByTestId('project-answer')).not.toHaveTextContent('homes booked')
+    expect(screen.getByText('Units booked')).toBeInTheDocument()
+    expect(projectFaq(office).map((f) => f.q)).toContain('How many units in Aastha Business Bay are booked?')
+  })
+
+  it('a home project still says homes', () => {
+    expect(projectFaq(P).map((f) => f.q)).toContain('How many homes in Rohan Abhilasha 4 are booked?')
   })
 })
