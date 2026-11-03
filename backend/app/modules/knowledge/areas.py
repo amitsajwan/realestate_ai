@@ -1,7 +1,7 @@
 """Curated, stable facts about the areas we cover (the list in app/core/areas.py). Source of truth for what replies may say about an area.
 
 Rules (same as the site pages): no prices, no predictions, no invented distances or school names. Every statement here restates
-something already published on our own pages, frontend/lib/marketing/localities.ts and insights.ts, which cite official sources
+something already published on our own pages, shared/marketing/localities.ts and insights.ts, which cite official sources
 (PIB press releases for Pune Metro Phase-2, Corridor 2B and Line 4; PMRDA pages and press notes for Metro Line 3; the Airports
 Authority of India for Pune airport at Lohegaon; PCMC town planning for Wakad; MahaRERA). A test (tests/modules/knowledge/test_areas.py) parses
 those two files and fails if this file says anything they do not (numbers, metro wording, price words).

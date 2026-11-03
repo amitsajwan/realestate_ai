@@ -1,6 +1,7 @@
 name: Frontend tests and build
 
-# What a contributor runs locally, on every pull request and on pushes to the main line. The backend tests and the import rules
+# What a contributor runs locally, on every pull request and on pushes to the main line: the public site (frontend/) and Studio
+# (studio/), each its own app with its own tests and build; both use shared/. The backend tests and the import rules
 # run in architecture.yml. The old template pipeline (coverage thresholds, Playwright, black/isort) never matched this codebase;
 # end-to-end and deploy workflows are run by hand until they do (e2e-tests.yml, deploy.yml).
 on:
@@ -24,6 +25,29 @@ jobs:
         node-version: '22'
         cache: 'npm'
         cache-dependency-path: frontend/package-lock.json
+
+    - name: Install
+      run: npm ci --no-audit --no-fund
+
+    - name: Unit tests
+      run: npx jest --ci --silent
+
+    - name: Build
+      run: npm run build
+
+  studio:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: studio
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: 'npm'
+        cache-dependency-path: studio/package-lock.json
 
     - name: Install
       run: npm ci --no-audit --no-fund

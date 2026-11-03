@@ -58,7 +58,7 @@ export default async function TrialPage({ searchParams }: { searchParams: Promis
                 See a sample agent page
               </Link>
             </div>
-            <p className="mt-3 text-sm text-slate-300">Already have your code? <Link href="/join" className="font-semibold text-white underline">Sign in</Link></p>
+            <p className="mt-3 text-sm text-slate-300">Already have your code? <a href="/join" className="font-semibold text-white underline">Sign in</a></p>
           </div>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/promo/group-lead.jpg" width={1080} height={1350}

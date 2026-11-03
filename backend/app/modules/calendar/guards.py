@@ -18,6 +18,9 @@ PRICE = re.compile(r"₹|\brs\.?\s*\d|\binr\b|\blakhs?\b|\bcrores?\b|\bper\s*sq\
 PREDICT = re.compile(r"\b(will (?:rise|go up|increase|double|appreciate)|expected to (?:rise|grow|open)|appreciation|guaranteed returns?)\b", re.I)
 PROMPT = re.compile(r"\?|\bsave\b|\bshare\b|\bcomment\b|शेयर|शेअर|सेव", re.I)
 FRONTEND = Path(__file__).resolve().parents[4] / "frontend"
+# the public site (frontend/) and Studio (studio/: /studio, /join) are two Next.js apps on one address; the area list both use
+# is in shared/ (docs/ARCHITECTURE.md section 9)
+SHARED = FRONTEND.parent / "shared"
 
 
 def site_paths(frontend: Optional[Path] = None) -> Optional[Set[str]]:
@@ -27,11 +30,12 @@ def site_paths(frontend: Optional[Path] = None) -> Optional[Set[str]]:
     if not (root / "lib" / "marketing" / "insights.ts").is_file():
         return None
     paths = {"/", "/localities", "/insights", "/request-invite", "/trial"}
-    app = root / "app"   # every top-level page the frontend has (/go, /news, ...), so a new page needs no edit here
-    if app.is_dir():
-        paths |= {f"/{d.name}" for d in app.iterdir() if (d / "page.tsx").is_file() and not d.name.startswith(("[", "(", "_"))}
+    # every top-level page the site and Studio have (/go, /news, /join ...), so a new page needs no edit here
+    for app in (root / "app", root.parent / "studio" / "app"):
+        if app.is_dir():
+            paths |= {f"/{d.name}" for d in app.iterdir() if (d / "page.tsx").is_file() and not d.name.startswith(("[", "(", "_"))}
     ins = root / "lib" / "marketing" / "insights.ts"
-    loc = root / "lib" / "marketing" / "localities.ts"
+    loc = root.parent / "shared" / "marketing" / "localities.ts"
     if ins.is_file():
         paths |= {f"/insights/{s}" for s in re.findall(r"^\s{4}slug: '([a-z0-9-]+)'", ins.read_text(encoding="utf-8"), re.M)}
     if loc.is_file():

@@ -16,6 +16,8 @@ function Column({ title, links }: { title: string; links: SiteLink[] }) {
           <li key={l.href}>
             {l.external ? (
               <a href={l.href} target="_blank" rel="noopener noreferrer" className={link}>{l.label}<span className="sr-only"> (opens in a new tab)</span></a>
+            ) : l.otherApp ? (
+              <a href={l.href} className={link}>{l.label}</a>
             ) : (
               <Link href={l.href} className={link}>{l.label}</Link>
             )}

@@ -1,6 +1,6 @@
 // Client-side tracking helpers. Everything here fails silently: tracking must never break the page.
 import { API_BASE_URL } from '@/lib/config/api'
-import { getToken } from '@/lib/app/session'
+import { getToken } from '@shared/session'
 import type { Attribution } from './types'
 
 export type SiteEventType = 'page_view' | 'listing_view' | 'share' | 'call_click' | 'whatsapp_click' | 'chat_open'

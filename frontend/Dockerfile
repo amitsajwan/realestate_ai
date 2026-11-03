@@ -15,6 +15,9 @@ FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# shared/ at the repo root (plain TypeScript the site and Studio both use; tsconfig @shared/* = ../shared/*): passed as the build
+# context 'shared' (docker-compose additional_contexts, images.yml build-contexts)
+COPY --from=shared . /shared
 
 # Public site settings are baked into the client bundle at BUILD time (Next.js NEXT_PUBLIC_*).
 ARG NEXT_PUBLIC_BUSINESS_NAME="Avasetu"

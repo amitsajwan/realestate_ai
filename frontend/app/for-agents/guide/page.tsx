@@ -1,5 +1,4 @@
 import React from 'react'
-import Link from 'next/link'
 import type { Metadata } from 'next'
 import MarketingShell from '@/components/marketing/MarketingShell'
 import { getMarketingConfig } from '@/lib/marketing/config'
@@ -204,7 +203,7 @@ export default function AgentGuidePage() {
           ))}
         </section>
 
-        <p className={note}><b>Need help?</b> Message us on WhatsApp at <b>{HELP}</b> and the Avasetu team will reply. Ready to start? <Link href="/studio" className="font-semibold underline">Open Studio</Link>.</p>
+        <p className={note}><b>Need help?</b> Message us on WhatsApp at <b>{HELP}</b> and the Avasetu team will reply. Ready to start? <a href="/studio" className="font-semibold underline">Open Studio</a>.</p>
       </div>
     </MarketingShell>
   )

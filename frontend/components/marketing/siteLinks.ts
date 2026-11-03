@@ -10,6 +10,8 @@ export interface SiteLink {
   href: string
   label: string
   external?: boolean
+  /** Served by the Studio app (studio/, routed to it by Caddy): a plain <a>, since Next's client-side navigation stays inside one app. */
+  otherApp?: boolean
 }
 
 export const FOR_AGENTS_PATH = '/for-agents'   // the printable one-page pitch (its QR code is on paper)
@@ -43,7 +45,7 @@ export function siteLinks() {
   const check: SiteLink = { href: '/check', label: 'Check your project' }
   const insights: SiteLink = { href: '/insights', label: 'Insights' }
   const invite: SiteLink = { href: INVITE_PATH, label: 'Claim your free trial' }
-  const signIn: SiteLink = { href: SIGN_IN_PATH, label: 'Sign in' }
+  const signIn: SiteLink = { href: SIGN_IN_PATH, label: 'Sign in', otherApp: true }
   const need: SiteLink = { href: buyerEnquirePath(), label: 'Tell us what you need' }
   const ig: SiteLink = { href: instagram, label: 'Instagram', external: true }
   const fb: SiteLink = { href: facebook, label: 'Facebook', external: true }

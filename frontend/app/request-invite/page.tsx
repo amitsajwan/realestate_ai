@@ -1,5 +1,4 @@
 import React from 'react'
-import Link from 'next/link'
 import type { Metadata } from 'next'
 import MarketingShell from '@/components/marketing/MarketingShell'
 import RequestInviteForm from '@/components/marketing/RequestInviteForm'
@@ -26,7 +25,7 @@ export default function RequestInvitePage() {
         </div>
         <p className="mt-6 text-sm text-slate-700">
           {INVITE.signInHint}{' '}
-          <Link href={PATHS.signIn} className="font-medium text-[#0f2340] underline">Sign in</Link>
+          <a href={PATHS.signIn} className="font-medium text-[#0f2340] underline">Sign in</a>
         </p>
       </section>
     </MarketingShell>

@@ -12,6 +12,8 @@ const customJestConfig = {
   testPathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
+    // plain TypeScript the site shares with Studio (repo root shared/)
+    '^@shared/(.*)$': '<rootDir>/../shared/$1',
   },
   collectCoverageFrom: [
     'components/**/*.{js,jsx,ts,tsx}',

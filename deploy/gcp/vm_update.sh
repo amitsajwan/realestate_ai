@@ -30,7 +30,7 @@ sudo docker image prune -a -f >/dev/null || true
 sudo docker builder prune -a -f >/dev/null 2>&1 || true
 df -h / | tail -1
 # a failed pull (no space, registry down) leaves the site as it is: .env goes back to the commit it runs
-if ! sudo docker compose pull backend conversations newsroom media embedder qdrant frontend; then
+if ! sudo docker compose pull backend conversations newsroom media embedder qdrant frontend studio; then
   [[ -n "$OLD_TAG" ]] && set_tag "$OLD_TAG"
   echo "ERROR: could not pull the images of $SHA; nothing was restarted (IMAGE_TAG back to ${OLD_TAG:-unset})" >&2
   df -h / | tail -1
@@ -40,6 +40,10 @@ fi
 sudo docker compose up -d --no-build --remove-orphans || { echo 'first up failed, retrying'; sleep 10; sudo docker compose up -d --no-build; }
 sleep 8
 sudo docker compose up -d --no-build
+# Caddy reads its Caddyfile through a single-file mount, which keeps the old file after the bundle replaces it: when the routes
+# changed (2026-11-03: /studio and /join go to the studio container), recreate Caddy so it reads the new one (a second or two).
+sudo docker compose exec -T caddy cat /etc/caddy/Caddyfile 2>/dev/null | cmp -s - Caddyfile \
+  || { echo 'Caddyfile changed: recreating caddy'; sudo docker compose up -d --no-build --force-recreate --no-deps caddy; }
 sudo docker compose ps
 sudo docker image prune -a -f --filter until=72h >/dev/null || true
 rm -f ~/pune-property.tgz

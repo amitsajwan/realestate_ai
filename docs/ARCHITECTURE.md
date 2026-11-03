@@ -12,7 +12,8 @@ into networked services is premature for a 3-10 agent pilot and a small team; de
 scaling boundaries.
 
 Production roles:
-- **web**: Next.js, stateless and suitable for CDN-backed public routes.
+- **web**: Next.js, stateless and suitable for CDN-backed public routes. Two apps on one address: the public site (`frontend/`)
+  and Studio (`studio/`: `/studio` and its sign-in `/join`), routed by Caddy. They ship separately (§9).
 - **api**: FastAPI HTTP only; `RUN_BACKGROUND_LOOPS=false` in production.
 - **conversations**: `engage`, `answer_gaps`, `inbound_messages` (Meta webhooks saved by the api, handled here), `lead_followups`
   (alert on leads waiting 2 h+; WhatsApp follow-up template to fresh form leads when `LEAD_AUTO_FOLLOWUP=true`).
@@ -85,7 +86,7 @@ Each domain is a package under `backend/app/modules/`. A domain is made of one o
 | **buyers** | Contacts, requirements, events, scoring, matching, alerts (T2.4), agent reports | tracking, interest, report | `contacts`, `events`, `inquiry_log`, `interest_*`, `hub_items` |
 | **distribution** | One way out (`send` + publish ledger), one adapter per channel (Facebook, Instagram, WhatsApp, YouTube), publication log, tracked links | social (incl. the reel publisher; **only it** imports the Graph client) | `publications`, `publish_ledger` |
 | **content** | Sources → drafts → review → ready to publish; the render kit (brand, layouts, cards, reels) | newsroom, calendar, showcase, marketing packs, creative, reels, photoquality | `newsroom_*`, `content_calendar`, `calendar_status`, `marketing_packs`, `reel_jobs` |
-| **conversations** | Comment replies, website chat, WhatsApp inbound, grounded answers, notifications, the Inbox and passing buyers to agents | engage, chat, whatsapp, knowledge, notifications, inbox | `engage_*`, `chat_sessions`, `whatsapp_*`, `notifications`, `lead_routes` (inbox: the owner's pass-by-area/project rules), `lead_asks` (inbox: agents asking for a lead on the lead board), `lead_board_off` (inbox: leads the owner took off the board) |
+| **conversations** | Comment replies, website chat, WhatsApp inbound, grounded answers, notifications, the Inbox and passing buyers to agents | engage, chat, whatsapp, knowledge, notifications, inbox | `engage_*`, `chat_sessions`, `whatsapp_*`, `notifications`, `push_subscriptions` (notifications: phones with Studio's lead alerts on), `lead_routes` (inbox: the owner's pass-by-area/project rules), `lead_asks` (inbox: agents asking for a lead on the lead board), `lead_board_off` (inbox: leads the owner took off the board) |
 
 **Knowledge search** (LIVE 2026-10-18): `knowledge/index.py` (newsroom role, every 15 min) cuts what we publish into short passages
 (site answers, area facts, topic pages, published posts, served MahaRERA project pages) and stores them in **Qdrant** (compose
@@ -162,8 +163,20 @@ check (MahaRERA fixtures exist), knowledge refusing to answer beyond its facts, 
 
 ## 9. Frontend
 
-- The studio (`lib/app`, `app/studio`) and the public site (`app/agent`, `app/localities`, `app/news`, `app/insights`) use the
-  new API only.
+- **Two Next.js apps, one address** (owner, 2026-11-03: separate teams and separate releases for Studio). The public site is
+  `frontend/`. Studio, the agents' and owner's phone app, is `studio/`: its own package, tests, image and container, serving
+  `/studio/*` and its sign-in `/join`. Caddy sends those paths and `/studio-static/*` (Studio's assets, its `assetPrefix`) to
+  the studio container and everything else to the site (`deploy/gcp/Caddyfile`). One origin keeps one login: the token in
+  localStorage. Next.js calls this multi-zones.
+- **Links between the two apps are plain `<a>` tags**, never `<Link>`: Next's client-side navigation stays inside one app.
+  A link to a page of the same app stays `<Link>`.
+- **`shared/`** at the repo root holds the plain TypeScript both apps use (brand, API base, site types, format, presets, theme,
+  localities, Studio's strings, the login token). No React and no Next in it, and its files import only each other, by
+  relative path. Each app imports it as `@shared/*`; the site keeps shims at the old `lib/` paths. Anything bigger that one
+  app needs from the other is either moved into `shared/` as plain TypeScript or copied with a note to keep them in step
+  (Studio's register search and `VerifiedFacts` are such copies).
+- Studio (`studio/lib/app`, `studio/app/studio`) and the public site (`app/agent`, `app/localities`, `app/news`, `app/insights`)
+  use the new API only.
 - Code is grouped by feature, matching the backend domains: `features/<domain>/{api, hooks, components}`.
 - The old pages (`/dashboard`, `/properties`, `/profile`, `/analytics`) and the three old API clients (`lib/api.ts`,
   `lib/api/centralized-client.ts`, `lib/api/unified-client.ts`) are retired (step 7).

@@ -15,11 +15,16 @@ logger = logging.getLogger(__name__)
 
 # (db, project page slug) -> the project's area name, or None; set by app/wiring.py (project pages sit above tracking)
 _project_area: Optional[Callable[[object, str], Awaitable[Optional[str]]]] = None
+# (db, the new lead) -> None: tells the agent at once that a website form brought a new lead (the Studio badge and their phone);
+# set by app/wiring.py (notifications sit above tracking)
+_on_new_lead: Optional[Callable[[object, dict], Awaitable[None]]] = None
 
 
-def configure(project_area: Optional[Callable[[object, str], Awaitable[Optional[str]]]] = None) -> None:
-    global _project_area
+def configure(project_area: Optional[Callable[[object, str], Awaitable[Optional[str]]]] = None,
+              on_new_lead: Optional[Callable[[object, dict], Awaitable[None]]] = None) -> None:
+    global _project_area, _on_new_lead
     _project_area = project_area
+    _on_new_lead = on_new_lead
 
 
 BOT_MARKERS = ("bot", "crawler", "spider", "preview", "facebookexternalhit", "whatsapp/", "curl", "python-requests")
@@ -184,6 +189,13 @@ class TrackingService:
         points = await self._record(agent_id, i, "inquiry", contact_id, app, visitor.fields(user_agent, ip, False, self.geo))
         await self.contacts.update_one(
             {"_id": contact_id}, {"$inc": {"score_base": points}, "$set": {"last_activity_at": now, "last_message": i.message}})
+        # a new lead from the website form: the agent hears now, not when the 2-hour waiting alert comes (inbox/followups.py).
+        # The website chat tells them itself (new_chat_lead), and a repeat enquiry from the same number is not a new lead.
+        if created and i.channel == "form" and _on_new_lead is not None:
+            try:
+                await _on_new_lead(self.db, await self.contacts.find_one({"_id": contact_id}) or {})
+            except Exception:
+                logger.exception("new lead alert for %s failed", contact_id)
         return {"received": True, "new_lead": created}
 
     async def _own_listing(self, agent_id: str, listing_id: Optional[str]) -> Optional[dict]:

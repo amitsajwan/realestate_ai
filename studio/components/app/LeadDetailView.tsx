@@ -1,0 +1,295 @@
+'use client'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import React, { useState } from 'react'
+import { LeadConversations } from '@/components/app/LeadConversations'
+import { PassBox } from '@/components/app/PassBox'
+import { useIsOwner } from '@/components/app/agents/useIsOwner'
+import { AiSummaryCard, DraftPanel, FollowUpDue, MatchesList, RequirementChips } from '@/components/app/LeadPanels'
+import { DealClosedSheet, LostReasonSheet, MarkSoldPrompt, OutcomeSummary } from '@/components/app/OutcomeSheets'
+import { Btn, ErrorBox, LinkBtn, STAGES, Spinner, TempChip, inputCls } from '@/components/app/ui'
+import { api, errorMessage } from '@/lib/app/client'
+import { displayPhone, timeAgo, waDigits } from '@/lib/app/format'
+import { cameFromLine, CONTACT_TONE, contactLine, eventLabel, pagesReadLine } from '@/lib/app/leads'
+import { inboxApi, type InboxThreadFull } from '@/lib/app/inbox'
+import { dealListings } from '@/lib/app/outcomes'
+import { whatsappChatUrl } from '@/lib/app/share'
+import { t } from '@shared/strings'
+import { useAsync } from '@/lib/app/useAsync'
+import type { LeadDetail, LeadPatch, Listing, OutcomeInput, Stage } from '@/lib/app/types'
+
+type Sheet = 'won' | 'lost' | null
+
+/** The site pages named in a line ("enquired on /projects/x") open the page itself, so the owner sees what the buyer saw. */
+function PageLinks({ text }: { text: string }) {
+  return (
+    <>
+      {text.split(/(\/[^\s·()]+)/).map((part, i) =>
+        part.startsWith('/') ? (
+          <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-blue-700 underline">{part}</a>
+        ) : (
+          part
+        ),
+      )}
+    </>
+  )
+}
+
+export function LeadDetailView({ id }: { id: string }) {
+  const { data, error, loading, setData } = useAsync(async () => {
+    const [lead, listings, threads] = await Promise.all([api.getLead(id), api.listListings().catch(() => [] as Listing[]),
+      // the chats are extra: without them the lead still shows
+      inboxApi.forLead(id).catch(() => [] as InboxThreadFull[])])
+    return { lead, listings, threads, titles: Object.fromEntries(listings.map((l) => [l.id, l.title])) as Record<string, string> }
+  }, [id])
+  const [note, setNote] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  const [showDraft, setShowDraft] = useState(false)
+  const [sheet, setSheet] = useState<Sheet>(null)
+  const [suggest, setSuggest] = useState<NonNullable<LeadDetail['suggest_listing_status']> | null>(null)
+  const router = useRouter()
+  const owner = useIsOwner()
+
+  if (loading && !data) return <Spinner />
+  if (error || !data) return <ErrorBox message={error ?? t('notFound')} />
+  const { lead, titles, listings, threads } = data
+  const contact = contactLine(lead.contact)
+
+  /** Returns the updated lead, or null when the request failed (the message is in `err`). */
+  async function patch(p: LeadPatch, clearNote = false): Promise<LeadDetail | null> {
+    setBusy(true)
+    setErr(null)
+    try {
+      const updated = await api.updateLead(id, p)
+      setData({ ...data!, lead: updated })
+      if (clearNote) setNote('')
+      return updated
+    } catch (e) {
+      setErr(errorMessage(e))
+      return null
+    } finally {
+      setBusy(false)
+    }
+  }
+  const update = (stage: Stage) => patch({ stage })
+  // A note alone never touches the stage (and so never touches a stored deal outcome).
+  const addNote = () => patch({ note: note.trim() }, true)
+
+  function chooseStage(s: Stage) {
+    if (s === lead.stage) return
+    setErr(null)
+    // Won and Lost ask one quick question first; nothing changes until the sheet is saved.
+    if (s === 'won' || s === 'lost') setSheet(s)
+    else update(s)
+  }
+
+  function closeSheets() {
+    setSheet(null)
+    setSuggest(null)
+    setErr(null)
+  }
+
+  async function saveOutcome(stage: 'won' | 'lost', outcome: OutcomeInput | undefined) {
+    const updated = await patch({ stage, ...(outcome ? { outcome } : {}) })
+    if (!updated) return
+    setSheet(null)
+    const s = updated.suggest_listing_status
+    // Nothing to ask when the listing is already in that state.
+    if (s && listings.find((l) => l.id === s.listing_id)?.status !== s.status) setSuggest(s)
+  }
+
+  async function markListing() {
+    if (!suggest) return
+    setBusy(true)
+    setErr(null)
+    try {
+      const l = await api.setListingStatus(suggest.listing_id, suggest.status)
+      setData({ ...data!, listings: data!.listings.map((x) => (x.id === l.id ? l : x)) })
+      setSuggest(null)
+    } catch (e) {
+      setErr(errorMessage(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // Our WhatsApp number runs on the Cloud API (no phone app), so the message goes out from the server and the chat opens in the Inbox
+  async function messageFromBrand() {
+    setBusy(true)
+    setErr(null)
+    try {
+      const r = await inboxApi.startWithLead(lead.id)
+      router.push(`/studio/inbox/${encodeURIComponent(r.id)}`)
+    } catch (e) {
+      setErr(errorMessage(e))
+      setBusy(false)
+    }
+  }
+
+  const firstName = lead.name.split(' ')[0]
+  if (lead.passed_to) {
+    // the owner's look at a buyer he passed: the agent works the lead now, so nothing here changes it
+    return (
+      <div className="space-y-4 pb-4">
+        <div className="flex items-center gap-2">
+          <Link href="/studio/leads?tab=passed" className="flex min-h-[44px] min-w-[44px] items-center text-xl" aria-label={t('back')}>←</Link>
+          <h1 className="flex-1 truncate text-xl font-bold">{lead.name}</h1>
+        </div>
+        <p className="rounded-xl bg-sky-50 p-3 text-sm font-semibold text-sky-900">Passed to {lead.passed_to}. They work this lead now; you see it here as it was passed.</p>
+        <p className="text-gray-600">{displayPhone(lead.phone)}</p>
+        {lead.handover && (
+          <section aria-label="What the agent got" className="space-y-1 rounded-2xl border border-gray-200 bg-white p-3">
+            <h2 className="font-semibold">What {lead.passed_to} got{lead.handover.at ? ` ${timeAgo(lead.handover.at)}` : ''}</h2>
+            <p className="whitespace-pre-line break-words text-sm text-gray-900">{lead.handover.text}</p>
+          </section>
+        )}
+        <LeadConversations threads={threads} />
+      </div>
+    )
+  }
+  return (
+    <div className="space-y-4 pb-4">
+      <div className="flex items-center gap-2">
+        <Link href="/studio/leads" className="flex min-h-[44px] min-w-[44px] items-center text-xl" aria-label={t('back')}>←</Link>
+        <h1 className="flex-1 truncate text-xl font-bold">{lead.name}</h1>
+        <TempChip temperature={lead.temperature} score={lead.score} />
+      </div>
+      <p className="text-gray-600">{displayPhone(lead.phone)}</p>
+      {contact && <p className={`rounded-xl px-3 py-2 text-sm font-semibold ${CONTACT_TONE[contact.tone]}`}>{contact.text}</p>}
+      {cameFromLine(lead) && <p className="break-words text-sm text-gray-600"><PageLinks text={cameFromLine(lead)} /></p>}
+      {pagesReadLine(lead) && <p data-testid="pages-read" className="break-words text-sm text-gray-600">{pagesReadLine(lead)}</p>}
+
+      {lead.outcome && (lead.stage === 'won' || lead.stage === 'lost') && (
+        <OutcomeSummary
+          outcome={lead.outcome}
+          listingTitle={lead.outcome.listing_id ? titles[lead.outcome.listing_id] : null}
+          busy={busy}
+          onReopen={() => update('contacted')}
+        />
+      )}
+
+      <AiSummaryCard
+        lead={lead}
+        busy={busy}
+        onSchedule={() => update('site_visit')}
+        onFollowUp={() => setShowDraft(true)}
+      />
+
+      {lead.message && <p className="rounded-xl bg-white p-3 text-gray-800">“{lead.message}”</p>}
+
+      <div className="grid grid-cols-2 gap-3">
+        <LinkBtn href={`tel:${lead.phone}`}>📞 {t('call')}</LinkBtn>
+        <LinkBtn variant="whatsapp" href={whatsappChatUrl(waDigits(lead.phone), `Hi ${firstName}, this is regarding your property enquiry.`)} target="_blank" rel="noopener noreferrer">
+          {t('whatsappMyPhone')}
+        </LinkBtn>
+      </div>
+      <div className="space-y-1">
+        <p className="text-sm font-semibold text-gray-800">Called them? Log it</p>
+        <div className="grid grid-cols-2 gap-3">
+          <Btn variant="secondary" disabled={busy} onClick={() => patch({ call: 'answered' })}>Answered</Btn>
+          <Btn variant="secondary" disabled={busy} onClick={() => patch({ call: 'no_answer' })}>No answer</Btn>
+        </div>
+        <p className="text-xs text-gray-500">No answer sets a follow-up for tomorrow. A note about the call goes in Add note below.</p>
+      </div>
+      {waDigits(lead.phone) && (
+        <div className="space-y-1">
+          <Btn variant="whatsapp" disabled={busy} onClick={messageFromBrand}>{busy ? t('sending') : t('whatsappFromBrand')}</Btn>
+          <p className="text-xs text-gray-500">{t('whatsappFromBrandHint')}</p>
+        </div>
+      )}
+
+      <LeadConversations threads={threads} />
+
+      {lead.handover && (
+        <section aria-label="Passed to you" className="space-y-1 rounded-2xl border border-sky-200 bg-sky-50 p-3">
+          <h2 className="font-semibold text-sky-900">Passed to you{lead.handover.at ? ` ${timeAgo(lead.handover.at)}` : ''}</h2>
+          <p className="whitespace-pre-line break-words text-sm text-gray-900">{lead.handover.text}</p>
+        </section>
+      )}
+      {owner && !lead.handover && <PassBox leadId={lead.id} />}
+
+      <RequirementChips requirement={lead.requirement} />
+      <MatchesList matches={lead.matches} />
+      <FollowUpDue followUp={lead.follow_up} busy={busy} onSet={(iso) => patch({ follow_up_at: iso })} />
+
+      {showDraft ? (
+        <DraftPanel leadId={lead.id} phone={lead.phone} />
+      ) : (
+        <Btn variant="secondary" onClick={() => setShowDraft(true)}>{t('draftFollowUp')}</Btn>
+      )}
+
+      <section>
+        <h2 className="mb-2 font-semibold">{t('stage')}</h2>
+        <div className="flex flex-wrap gap-2">
+          {STAGES.map((s) => (
+            <button
+              key={s.key}
+              type="button"
+              aria-pressed={lead.stage === s.key}
+              disabled={busy}
+              onClick={() => chooseStage(s.key)}
+              className={`min-h-[44px] rounded-full border px-4 text-sm font-semibold ${lead.stage === s.key ? 'border-[#0f2340] bg-[#0f2340] text-white' : 'border-gray-300 bg-white text-gray-700'}`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="font-semibold">{t('addNote')}</h2>
+        <textarea aria-label={t('addNote')} className={`${inputCls} min-h-[80px] py-3`} placeholder={t('notePlaceholder')} value={note} onChange={(e) => setNote(e.target.value)} />
+        <Btn variant="secondary" disabled={busy || !note.trim()} onClick={addNote}>{t('save')}</Btn>
+        {err && !sheet && !suggest && <ErrorBox message={err} />}
+      </section>
+
+      {lead.notes.length > 0 && (
+        <section>
+          <h2 className="mb-2 font-semibold">{t('notes')}</h2>
+          <ul className="space-y-2">
+            {[...lead.notes].reverse().map((n, i) => (
+              <li key={i} className="rounded-xl bg-white p-3 text-sm">
+                <p>{n.text}</p>
+                <p className="text-xs text-gray-500">{timeAgo(n.ts)}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <section>
+        <h2 className="mb-2 font-semibold">{t('timeline')}</h2>
+        <ol className="space-y-2 border-l-2 border-blue-200 pl-4">
+          {[...lead.timeline].reverse().map((ev, i) => (
+            <li key={i} className="text-sm text-gray-800">{eventLabel(ev, ev.listing_id ? titles[ev.listing_id] : null)}</li>
+          ))}
+        </ol>
+      </section>
+
+      {sheet === 'won' && (
+        <DealClosedSheet
+          listings={dealListings(listings, lead.first_listing_id)}
+          defaultListingId={lead.first_listing_id}
+          busy={busy}
+          error={err}
+          onSave={(o) => saveOutcome('won', o)}
+          onDismiss={closeSheets}
+        />
+      )}
+      {sheet === 'lost' && (
+        <LostReasonSheet busy={busy} error={err} onPick={(o) => saveOutcome('lost', o)} onDismiss={closeSheets} />
+      )}
+      {suggest && (
+        <MarkSoldPrompt
+          label={titles[suggest.listing_id]}
+          status={suggest.status}
+          busy={busy}
+          error={err}
+          onYes={markListing}
+          onDismiss={closeSheets}
+        />
+      )}
+    </div>
+  )
+}

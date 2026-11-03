@@ -15,12 +15,12 @@ A push to `main` goes live by itself (ON since 2026-10-25):
 
 ```
 push to main
-  ├─ Build app images             (images.yml)        backend + frontend images, tagged <sha>, Artifact Registry
-  ├─ Frontend tests and build     (ci.yml)            jest + next build
+  ├─ Build app images             (images.yml)        backend + frontend + studio images, tagged <sha>, Artifact Registry
+  ├─ Frontend tests and build     (ci.yml)            jest + next build, for the site (frontend/) and Studio (studio/)
   └─ Architecture and backend tests (architecture.yml) lint-imports + pytest
         each one, when it finishes, starts  Deploy (deploy.yml)
            gate:   all three green for <sha>?  and  <sha> still the newest commit on main?
-           deploy: ssh to the VM -> deploy/gcp/vm_update.sh <sha> (pull, restart) -> health check
+           deploy: ssh to the VM -> deploy/gcp/vm_update.sh <sha> (pull, restart; Caddy only if its routes changed) -> health check (API, and Studio at /join)
                    health fails -> the previous commit is put back and the run fails (GitHub emails the owner)
            then:   the renderer job is pointed at the same image
 ```

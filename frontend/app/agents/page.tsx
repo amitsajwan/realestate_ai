@@ -64,7 +64,7 @@ export default function LandingPage() {
             <p className="mt-5 text-sm leading-relaxed text-slate-300">{H.facts}</p>
             <p className="mt-1.5 text-sm text-slate-300">
               {H.signInLead}{' '}
-              <Link href={PATHS.signIn} aria-label={`${H.signInLead} ${H.signIn}`} className="font-semibold text-white underline underline-offset-4">{H.signIn}</Link>
+              <a href={PATHS.signIn} aria-label={`${H.signInLead} ${H.signIn}`} className="font-semibold text-white underline underline-offset-4">{H.signIn}</a>
             </p>
           </div>
           <LeadCardMock />

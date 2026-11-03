@@ -10,6 +10,8 @@ function NavLink({ l, className }: { l: SiteLink; className: string }) {
     <a href={l.href} target="_blank" rel="noopener noreferrer" className={className}>
       {l.label}<span className="sr-only"> (opens in a new tab)</span>
     </a>
+  ) : l.otherApp ? (
+    <a href={l.href} className={className}>{l.label}</a>
   ) : (
     <Link href={l.href} className={className}>{l.label}</Link>
   )

@@ -1,5 +1,12 @@
+const path = require('path')
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // shared/ at the repo root holds the plain TypeScript the site and Studio both use (brand, site types, localities, strings)
+  experimental: { externalDir: true },
+  turbopack: { root: path.join(__dirname, '..') },
+  // ...but the server bundle is built from this folder alone (shared/ is compiled in), so .next/standalone/server.js stays flat
+  outputFileTracingRoot: __dirname,
   // Search and link-preview bots get the title, description and canonical in <head> before the page streams. Next's own list
   // leaves Googlebot out (it runs JavaScript), but on a slow render the tags then land in <body>: an audit found 58 pages so.
   // AI fetchers too (2026-11-02): they read no JavaScript and quote the page's title.
@@ -44,6 +51,12 @@ const nextConfig = {
         source: '/api/v1/:path*',
         destination: 'http://localhost:8000/api/v1/:path*',
       },
+      // Studio is its own app (studio/, `npm run dev` there on port 3001). Locally the site hands it Studio's addresses so both
+      // run on one origin and share the login; in production Caddy routes them before they reach the site (deploy/gcp/Caddyfile).
+      ...(process.env.NODE_ENV === 'production' ? [] : ['/studio', '/studio/:path*', '/studio-static/:path*', '/join'].map((source) => ({
+        source,
+        destination: `${process.env.STUDIO_DEV_URL || 'http://localhost:3001'}${source}`,
+      }))),
     ]
   },
 }

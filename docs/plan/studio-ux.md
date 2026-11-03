@@ -1,7 +1,8 @@
 # Studio: how it is laid out and why
 
 Studio (`/studio`) is the phone app for agents and the owner. This page records its shape after the 2026-10-27 pass, so later
-changes keep to it. Code: `frontend/app/studio/`, `frontend/components/app/`, rules in `frontend/lib/app/`.
+changes keep to it. Studio is its own Next.js app since 2026-11-03 (`studio/`, ARCHITECTURE §9). Code: `studio/app/studio/`,
+`studio/components/app/`, rules in `studio/lib/app/`; its copy is in `shared/strings.ts`.
 
 ## Principles
 
@@ -62,6 +63,22 @@ size and possession (`lib/app/listingHints.ts`; hints, never a block). Voice is 
 
 Opens on Needs you while anyone waits. A WhatsApp reply has quick replies that fill the box (sent by hand). Demo mode
 (`app_fixtures`) has three conversations.
+
+## On your phone (2026-11-03)
+
+Studio installs from the browser, with no app store: its own manifest (`/studio/manifest.webmanifest`, scope `/studio`, opens on
+Studio home; long press: Add listing, Leads) and a service worker (`/studio/sw.js`) that shows alerts and a short offline note.
+Nothing is cached, so Studio never shows old leads.
+
+- **Studio on your phone** card (`components/app/PhoneApp.tsx`, rules in `lib/app/phone.ts`): on Home after Get set up, while
+  installing or lead alerts are still to do, until Not now; always on My brand, where alerts can be turned off. Chrome gets an
+  Install button; iPhone gets Share > Add to Home Screen, and alerts only once Studio is on the home screen (iOS 16.4+).
+- **Lead alerts** ring for what has a person waiting: a new lead (website form, chat, WhatsApp, messages), a buyer waiting for an
+  answer, a WhatsApp reply, a comment to answer, a buyer passed to you, the 2-hour waiting alert, and for the owner trials, invite
+  requests and agents asking for a lead (`push.TITLES` in the backend). A tap opens that lead or screen. The SEO week and similar
+  wait on the badge.
+- A lock screen never shows a buyer's number. Signing out turns that phone's alerts off; opening Studio links them to whoever is
+  signed in.
 
 ## Demo mode
 

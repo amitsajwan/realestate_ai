@@ -101,7 +101,8 @@ def wire() -> None:
     ai_listing_routes.configure(register=NewsroomStore)
     # an enquiry on a project page is about the project's area (buyers' lead record reads inventory's project pages)
     from app.modules.tracking import service as tracking_service
-    tracking_service.configure(project_area=_project_area)
+    # ...and a new website form lead is told to its agent at once: the Studio badge and, where they turned it on, their phone
+    tracking_service.configure(project_area=_project_area, on_new_lead=_new_lead_alert)
 
 
 async def _send_login_code(phone: str, code: str) -> None:
@@ -117,6 +118,18 @@ async def _project_area(db, slug: str):
     from app.modules.areastats.pages import chat_brief
 
     return ((await chat_brief(db, slug)) or {}).get("area")
+
+
+async def _new_lead_alert(db, lead: dict) -> None:
+    """A new website form lead, told to its agent: what they wrote, never their number (the lead holds it)."""
+    from app.modules.notifications.service import notify
+
+    if not lead.get("agent_id") or not lead.get("_id"):
+        return
+    said = " ".join((lead.get("message") or "").split())
+    text = f"{lead.get('name') or 'A buyer'} enquired on your website" + (f': "{said[:120]}"' if said else ".")
+    await notify(db, lead["agent_id"], "new_lead", text, {"lead_id": lead["_id"], "screen": f"/studio/leads/{lead['_id']}"},
+                 lead.get("created_at"))
 
 
 async def _tell_owner_about_invite_request(name: str, city: str) -> None:

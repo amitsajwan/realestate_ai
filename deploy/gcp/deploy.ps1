@@ -1,5 +1,5 @@
 <#
-  Redeploy the pilot to the single GCP VM (Caddy + frontend + backend + worker roles + MongoDB via docker compose).
+  Redeploy the pilot to the single GCP VM (Caddy + frontend + studio + backend + worker roles + MongoDB via docker compose).
 
   What it does (default): the app images are built on GitHub (.github/workflows/images.yml) for every push, so a deploy
     1. waits until GitHub has built the images of git HEAD (HEAD must be pushed),
@@ -14,7 +14,7 @@
     .\deploy\gcp\deploy.ps1 -DryRun     # prints every step, contacts nothing
     .\deploy\gcp\deploy.ps1             # does it for real
     .\deploy\gcp\deploy.ps1 -Tag <sha>  # roll back (or forward) to the images of another commit, already built
-    .\deploy\gcp\deploy.ps1 -Build      # the fallback: bundle backend/ and frontend/ too and build on the VM (slow)
+    .\deploy\gcp\deploy.ps1 -Build      # the fallback: bundle backend/, frontend/, studio/ and shared/ too and build on the VM (slow)
     .\deploy\gcp\deploy.ps1 -Iap        # use IAP tunnelling for ssh/scp (once SSH is restricted to IAP)
     .\deploy\gcp\deploy.ps1 -ContactEmail you@example.com
         # also sets NEXT_PUBLIC_CONTACT_EMAIL in the VM's private .env (shown on /privacy, /terms, /data-deletion; never committed to
@@ -68,7 +68,7 @@ if (-not $Build -and -not $Tag) {
 
 Step "Building the bundle from git HEAD (tracked files only)"
 $bundle = Join-Path $env:TEMP "pune-property-$head.tgz"
-if ($Build) { git archive --format=tar.gz -o $bundle HEAD deploy backend frontend -- ":!frontend/screenshots" ":!frontend/e2e" }
+if ($Build) { git archive --format=tar.gz -o $bundle HEAD deploy backend frontend studio shared -- ":!frontend/screenshots" ":!frontend/e2e" }
 else { git archive --format=tar.gz -o $bundle HEAD deploy }
 if ($LASTEXITCODE -ne 0) { throw "git archive failed" }
 $mb = [math]::Round((Get-Item $bundle).Length / 1MB, 1)
@@ -91,13 +91,13 @@ if ($Build) {
   Step "Unpacking and rebuilding on the VM (secrets in deploy/gcp/.env are kept)"
   # Unpacking over the old tree keeps files deleted from git, and they get built in (a removed Next.js route once broke the
   # build). Code files in the code folders that the bundle no longer has are removed; .env files, backups and assets are kept.
-  $prune = "cd $RemoteDir; tar tzf ~/pune-property.tgz | sort > /tmp/deploy-new.txt; find backend/app backend/scripts backend/tests frontend/app frontend/components frontend/lib frontend/__tests__ frontend/hooks frontend/store frontend/types frontend/utils frontend/styles frontend/tests -type f \( -name '*.py' -o -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.jsx' -o -name '*.mjs' -o -name '*.css' \) -not -path '*/node_modules/*' -not -path '*/__pycache__/*' 2>/dev/null | sort | comm -23 - /tmp/deploy-new.txt > /tmp/deploy-stale.txt; echo stale code files removed:; wc -l /tmp/deploy-stale.txt; xargs -r -a /tmp/deploy-stale.txt rm -f; cd ~; "
-  $remote = "set -e; mkdir -p $RemoteDir; tar xzf ~/pune-property.tgz -C $RemoteDir; $prune cd $RemoteDir/deploy/gcp; test -f .env || { echo 'ERROR: deploy/gcp/.env missing on the VM'; exit 1; }; ${setEmail}sudo docker compose up -d --build --remove-orphans || { echo first up failed, retrying; sleep 10; sudo docker compose up -d; }; sleep 8; sudo docker compose up -d; sudo docker compose ps; rm -f ~/pune-property.tgz"
+  $prune = "cd $RemoteDir; tar tzf ~/pune-property.tgz | sort > /tmp/deploy-new.txt; find backend/app backend/scripts backend/tests frontend/app frontend/components frontend/lib frontend/__tests__ frontend/hooks frontend/store frontend/types frontend/utils frontend/styles frontend/tests studio/app studio/components studio/lib studio/__tests__ studio/styles shared -type f \( -name '*.py' -o -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.jsx' -o -name '*.mjs' -o -name '*.css' \) -not -path '*/node_modules/*' -not -path '*/__pycache__/*' 2>/dev/null | sort | comm -23 - /tmp/deploy-new.txt > /tmp/deploy-stale.txt; echo stale code files removed:; wc -l /tmp/deploy-stale.txt; xargs -r -a /tmp/deploy-stale.txt rm -f; cd ~; "
+  $remote = "set -e; mkdir -p $RemoteDir; tar xzf ~/pune-property.tgz -C $RemoteDir; $prune cd $RemoteDir/deploy/gcp; test -f .env || { echo 'ERROR: deploy/gcp/.env missing on the VM'; exit 1; }; ${setEmail}sudo docker compose up -d --build --remove-orphans || { echo first up failed, retrying; sleep 10; sudo docker compose up -d; }; sleep 8; sudo docker compose up -d; sudo docker compose exec -T caddy cat /etc/caddy/Caddyfile 2>/dev/null | cmp -s - Caddyfile || { echo Caddyfile changed: recreating caddy; sudo docker compose up -d --force-recreate --no-deps caddy; }; sudo docker compose ps; rm -f ~/pune-property.tgz"
 } else {
   Step "Unpacking deploy/, pulling the images of $sha and restarting (secrets in deploy/gcp/.env are kept)"
   $setTag = SetEnv "IMAGE_TAG" $sha
   $login = "sudo gcloud auth configure-docker asia-south1-docker.pkg.dev --quiet >/dev/null 2>&1; "
-  $remote = "set -e; mkdir -p $RemoteDir; tar xzf ~/pune-property.tgz -C $RemoteDir; cd $RemoteDir/deploy/gcp; test -f .env || { echo 'ERROR: deploy/gcp/.env missing on the VM'; exit 1; }; ${setEmail}${setTag}${login}sudo docker compose pull backend conversations newsroom media embedder qdrant frontend; sudo docker compose up -d --no-build --remove-orphans || { echo first up failed, retrying; sleep 10; sudo docker compose up -d --no-build; }; sleep 8; sudo docker compose up -d --no-build; sudo docker compose ps; sudo docker image prune -a -f --filter until=72h >/dev/null; rm -f ~/pune-property.tgz"
+  $remote = "set -e; mkdir -p $RemoteDir; tar xzf ~/pune-property.tgz -C $RemoteDir; cd $RemoteDir/deploy/gcp; test -f .env || { echo 'ERROR: deploy/gcp/.env missing on the VM'; exit 1; }; ${setEmail}${setTag}${login}sudo docker compose pull backend conversations newsroom media embedder qdrant frontend studio; sudo docker compose up -d --no-build --remove-orphans || { echo first up failed, retrying; sleep 10; sudo docker compose up -d --no-build; }; sleep 8; sudo docker compose up -d --no-build; sudo docker compose exec -T caddy cat /etc/caddy/Caddyfile 2>/dev/null | cmp -s - Caddyfile || { echo Caddyfile changed: recreating caddy; sudo docker compose up -d --no-build --force-recreate --no-deps caddy; }; sudo docker compose ps; sudo docker image prune -a -f --filter until=72h >/dev/null; rm -f ~/pune-property.tgz"
 }
 Run "gcloud compute ssh $target $common --command `"$remote`""
 
