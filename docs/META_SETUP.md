@@ -24,20 +24,20 @@ you (the token owner) are an admin of both the Page and the app. Agents' own Pag
    pick the option that says it publishes to a Page or an Instagram professional account. Keep the app in **Development** mode: you do NOT need to go Live
    to post to your own Page and Instagram.
 3. App roles: your own Facebook profile must be an **Admin** of the app (it is if you created it).
-4. Settings > Basic, enter (live pilot address; replace with your domain when you have one):
+4. Settings > Basic, enter:
 
 | Meta field | Value |
 |---|---|
-| App domains | `34-180-39-243.sslip.io` |
-| Privacy Policy URL | `https://34-180-39-243.sslip.io/privacy` (page is being added) |
-| Terms of Service URL | `https://34-180-39-243.sslip.io/terms` (page is being added) |
-| User data deletion | Instructions URL `https://34-180-39-243.sslip.io/data-deletion` (page is being added; only required to go Live) |
-| Site URL (Add platform > Website) | `https://34-180-39-243.sslip.io` |
+| App domains | `avasetu.in` |
+| Privacy Policy URL | `https://avasetu.in/privacy` |
+| Terms of Service URL | `https://avasetu.in/terms` |
+| User data deletion | Instructions URL `https://avasetu.in/data-deletion` (only required to go Live) |
+| Site URL (Add platform > Website) | `https://avasetu.in` |
 | Category | Business and pages, or Real estate |
 | App icon (1024x1024) | `docs/brand/pune-property-profile.png` |
-| Contact email | a real address you read (Meta emails policy notices here) |
+| Contact email | `hello@avasetu.in` (forwarded by ImprovMX to the owner's inbox; Meta emails policy notices here) |
 
-A future custom domain means changing these once. Meta is stricter with free hostnames like sslip.io for App Review later, so buy the domain before applying for review.
+The old `34-180-39-243.sslip.io` address still redirects to avasetu.in, but Meta should only see the domain.
 
 Permissions you will request in Graph API Explorer (Development mode, no review needed for your own accounts):
 `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`, `instagram_basic`, `instagram_content_publish`, plus `business_management` only if asked.
@@ -103,9 +103,9 @@ Use this if the app's use cases disappear, the app is deleted, or you create a n
 Do NOT add: Marketing API, app ads, Threads, Instant Games (not needed).
 
 ### H2. App settings to restore (App settings > Basic)
-- Display name, category **Business and pages**, contact email `sajwansavita35@gmail.com`.
-- App domains `34-180-39-243.sslip.io` (change when we have a real domain).
-- Privacy Policy `https://34-180-39-243.sslip.io/privacy`, Terms `/terms`, Data deletion instructions URL `/data-deletion`.
+- Display name, category **Business and pages**, contact email `hello@avasetu.in`. Never a personal address: Meta shows it to the app's users.
+- App domains `avasetu.in`.
+- Privacy Policy `https://avasetu.in/privacy`, Terms `/terms`, Data deletion instructions URL `/data-deletion`.
 - App icon `docs/brand/pune-property-profile.png`.
 
 ### H3. Roles (App roles > Roles)

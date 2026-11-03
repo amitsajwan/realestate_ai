@@ -2,7 +2,9 @@
 """
 Check Specific User Script
 =========================
-Script to check the specific user mentioned in the logs: amitsajwanAB@gmail.com
+Checks one user from the logs: their account, agent profile and what is stored under their id.
+
+Usage: python scripts/check_specific_user.py <email> <user_id_from_logs>
 """
 
 import asyncio
@@ -16,15 +18,12 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.core.database import get_database, init_database
 
-async def check_specific_user():
+async def check_specific_user(email: str, user_id_from_logs: str):
     """Check the specific user mentioned in the logs"""
     try:
         db = get_database()
         agent_profiles_collection = db.agent_profiles
         users_collection = db.users
-        
-        email = "amitsajwanAB@gmail.com"
-        user_id_from_logs = "68d57a4386795570ded00ddc"
         
         print(f"🔍 Checking user: {email}")
         print(f"🔍 User ID from logs: {user_id_from_logs}")
@@ -107,6 +106,10 @@ async def check_specific_user():
 
 async def main():
     """Main function"""
+    if len(sys.argv) != 3:
+        print(__doc__)
+        sys.exit(2)
+    email, user_id_from_logs = sys.argv[1], sys.argv[2]
     print("🚀 Starting Specific User Check Script")
     print("=" * 50)
     
@@ -115,7 +118,7 @@ async def main():
         await init_database()
         print("✅ Database initialized")
         
-        await check_specific_user()
+        await check_specific_user(email, user_id_from_logs)
         print("\n🎉 Script completed successfully!")
         
     except Exception as e:

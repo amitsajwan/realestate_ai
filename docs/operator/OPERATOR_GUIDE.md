@@ -293,7 +293,7 @@ All backend settings go in `~/app/deploy/gcp/.env` on the VM; Compose passes the
 | `PUBLIC_SITE_URL` | `https://${SITE_HOST}` (Compose) | The site in captions, footers, invite messages and links. Set only to override `SITE_HOST`. |
 | `PUBLIC_MEDIA_BASE_URL` | empty | Public **https** base for images and videos Meta must fetch (`<base>/uploads/...`). Normally `https://<DOMAIN>`. Instagram posting fails without it. |
 | `NEXT_PUBLIC_BUSINESS_NAME` (build) | `Avasetu` | Brand name in the frontend. |
-| `NEXT_PUBLIC_CONTACT_EMAIL` (build) | empty | Contact on the legal pages. `deploy.ps1 -ContactEmail` writes it. |
+| `NEXT_PUBLIC_CONTACT_EMAIL` (build) | empty | Contact on the legal pages, shown to anyone. Use `hello@avasetu.in`, never a personal address. The automatic deploy takes it from the GitHub repository variable of the same name (images.yml); `deploy.ps1 -ContactEmail` writes it for a deploy by hand. |
 | `NEXT_PUBLIC_CONTACT_WHATSAPP` (build) | empty | Contact WhatsApp on the legal pages. |
 | `NEXT_PUBLIC_WHATSAPP_NUMBER` (build) | empty | Digits of the public WhatsApp number. Shows the "Chat on WhatsApp" button when set; the backend chat also uses it (see `WHATSAPP_PUBLIC_NUMBER`). Keep empty while on Meta's test number. |
 | `NEXT_PUBLIC_FACEBOOK_URL`, `NEXT_PUBLIC_INSTAGRAM_URL` | empty | Profile links used by the backend. The frontend reads the same names, but Compose does not pass them to the frontend build today. |
