@@ -1,0 +1,227 @@
+'use client'
+import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
+import React, { Suspense, useState } from 'react'
+import { StatusPill, TabBar, useUrlTab } from '@/components/app/list'
+import { OutcomeBadge } from '@/components/app/OutcomeSheets'
+import { PassedPanel } from '@/components/app/PassedPanel'
+import { useIsOwner } from '@/components/app/agents/useIsOwner'
+import { ErrorBox, PageTitle, STAGES, Spinner, TempChip } from '@/components/app/ui'
+import { api } from '@/lib/app/client'
+import { displayPhone } from '@/lib/app/format'
+import { arrivalLine, buildWhatsappUrl, channelLabel, CONTACT_TONE, contactLine, matchesSearch, originKey, RECENT_DAYS, recentLeads, sortLeads, sourceLabel } from '@/lib/app/leads'
+import { t } from '@shared/strings'
+import { useAsync } from '@/lib/app/useAsync'
+import type { Lead, TodayFollowUp } from '@/lib/app/types'
+
+/** Tabs: leads waiting on us first, the ones that came in this week (newest enquiry first), follow-ups due today, then the stages, then everything (and, for the owner, the ones passed to agents). Kept in the address as ?tab= (and ?hot=1). */
+const TABS = ['needs', 'recent', 'today', ...STAGES.map((s) => s.key as string), 'all', 'passed']
+/** Home tiles and older links used ?filter=: they still land on the right tab. */
+const LEGACY: Record<string, { tab: string; hot?: boolean }> = {
+  new: { tab: 'new' }, hot: { tab: 'all', hot: true }, site_visit: { tab: 'site_visit' }, followups: { tab: 'today' },
+}
+const SHORT: Record<string, string> = { site_visit: 'Visit', negotiating: 'Talks' }
+const EMPTY: Record<string, string> = { needs: 'Everyone has been contacted, and nobody is waiting for a reply.', recent: `No new leads in the last ${RECENT_DAYS} days.`, today: 'No follow-ups due today.', all: t('noLeads') }
+/** Nobody reached them yet, or their message is unanswered (2026-10-23: two form leads sat for 10 hours and 3 days). */
+const needsYou = (l: Lead) => l.contact?.state === 'not_contacted' || l.contact?.state === 'waiting_you'
+
+function ContactLine({ lead }: { lead: Lead }) {
+  const c = contactLine(lead.contact)
+  if (!c) return null
+  return <p className={`mt-1 truncate rounded-lg px-2 py-0.5 text-xs font-semibold ${CONTACT_TONE[c.tone]}`}>{c.text}</p>
+}
+
+const isOpen = (l: Lead) => l.stage !== 'won' && l.stage !== 'lost'
+
+/** "Instagram comment: “Dhanori maghe…”" -> "Dhanori maghe…": the channel is already on the row's last line. */
+function plainMessage(m: string): string {
+  return m.replace(/^(instagram|facebook|messenger|whatsapp|website chat)( comment| dm| message)?:\s*/i, '').replace(/^[“"]|[”"]$/g, '')
+}
+
+/**
+ * Someone who only commented or said hello in a DM, with no phone and nothing they want yet, is a conversation, not a lead:
+ * they live in the Inbox (2026-10-18) and join this list once they leave a number or a requirement.
+ */
+const isConversationOnly = (l: Lead) => !l.phone && !l.requirement_line && (l.stage ?? 'new') === 'new'
+
+function setHotInUrl(on: boolean) {
+  if (typeof window === 'undefined') return
+  const u = new URL(window.location.href)
+  if (on) u.searchParams.set('hot', '1')
+  else u.searchParams.delete('hot')
+  u.searchParams.delete('filter')
+  window.history.replaceState(window.history.state, '', u.toString())
+}
+
+function LeadRow({ lead, title, due }: { lead: Lead; title?: string; due?: TodayFollowUp }) {
+  return (
+    <li className="rounded-2xl border border-gray-200 bg-white">
+      <Link href={`/studio/leads/${lead.id}`} className="block min-h-[72px] rounded-t-2xl p-4 pb-2 active:bg-gray-50">
+        <div className="items-center justify-between gap-2 [display:flex]">
+          <p className="truncate font-semibold text-gray-900">{lead.name}</p>
+          <span className="flex-none items-center gap-1 [display:flex]">
+            <OutcomeBadge outcome={lead.outcome} />
+            <TempChip temperature={lead.temperature} score={lead.score} />
+          </span>
+        </div>
+        {due && (
+          <p className="mt-1 items-center gap-2 text-sm text-gray-700 [display:flex]">
+            <StatusPill tone={due.overdue ? 'bad' : 'action'}>{due.overdue ? 'Overdue' : 'Due today'}</StatusPill>
+            <span className="truncate">{due.reason}</span>
+          </p>
+        )}
+        <ContactLine lead={lead} />
+        {lead.requirement_line && <p className="truncate text-sm font-medium text-gray-800">{lead.requirement_line}</p>}
+        <p className="text-sm text-gray-500">{displayPhone(lead.phone)}</p>
+        {lead.message && <p className="mt-1 truncate text-sm text-gray-700">“{plainMessage(lead.message)}”</p>}
+        <p className="mt-1 truncate text-xs text-gray-500">
+          {[originKey(lead) !== 'unknown' ? sourceLabel(originKey(lead)) : channelLabel(lead.channel),
+            title ?? lead.first_touch?.enquiry_page ?? '', arrivalLine(lead)].filter(Boolean).join(' · ')}
+        </p>
+      </Link>
+      {lead.phone && (
+        <div className="grid-cols-2 gap-2 border-t border-gray-100 px-3 py-1 [display:grid]">
+          <a href={`tel:${lead.phone}`} aria-label={`${t('call')} ${lead.name}`}
+            className="min-h-[44px] items-center justify-center rounded-xl text-sm font-semibold text-[#0f2340] active:bg-gray-100 [display:flex]">
+            📞 {t('call')}
+          </a>
+          <a href={buildWhatsappUrl(lead.phone, '')} target="_blank" rel="noopener noreferrer" aria-label={`${t('whatsapp')} ${lead.name}`}
+            className="min-h-[44px] items-center justify-center rounded-xl text-sm font-semibold text-green-700 active:bg-green-50 [display:flex]">
+            {t('whatsapp')}
+          </a>
+        </div>
+      )}
+    </li>
+  )
+}
+
+function LeadsList() {
+  const params = useSearchParams()
+  const legacy = LEGACY[params?.get('filter') ?? '']
+  const owner = useIsOwner()
+  const [hot, setHotState] = useState<boolean>(params?.get('hot') === '1' || !!legacy?.hot)
+  const setHot = (on: boolean) => {
+    setHotState(on)
+    setHotInUrl(on)
+  }
+  const { data, error, loading, reload } = useAsync(async () => {
+    const [leads, listings, today] = await Promise.all([
+      api.listLeads(),
+      api.listListings().catch(() => []),
+      // Follow-ups are a nice-to-have: without them the list still shows (no Follow up today tab count).
+      Promise.resolve().then(() => api.getToday()).then((d) => d?.follow_ups ?? [], () => [] as TodayFollowUp[]),
+    ])
+    return {
+      leads: sortLeads(leads.filter((l) => !isConversationOnly(l))),
+      inInbox: leads.filter(isConversationOnly).length,
+      titles: Object.fromEntries(listings.map((l) => [l.id, l.title])) as Record<string, string>,
+      followUps: today,
+    }
+  }, [])
+
+  // The default (Follow up today when something is due, else All) is fixed once the list loads.
+  const [initial, setInitial] = useState<string | null>(null)
+  React.useEffect(() => {
+    if (data && initial === null) setInitial(data.leads.some(needsYou) ? 'needs' : data.followUps.length ? 'today' : 'all')
+  }, [data, initial])
+  const [tab, setTab] = useUrlTab('tab', legacy?.tab ?? initial ?? 'all', TABS)
+
+  const [from, setFrom] = useState<string>(params?.get('from') ?? '')
+  const pickFrom = (k: string) => {
+    const next = from === k ? '' : k
+    setFrom(next)
+    if (typeof window !== 'undefined') {
+      const u = new URL(window.location.href)
+      if (next) u.searchParams.set('from', next)
+      else u.searchParams.delete('from')
+      window.history.replaceState(window.history.state, '', u.toString())
+    }
+  }
+  // where leads came from: counts over every lead, most first, 'not recorded' last
+  const fromCounts = Object.entries((data?.leads ?? []).reduce<Record<string, number>>((m, l) => {
+    const k = originKey(l)
+    m[k] = (m[k] ?? 0) + 1
+    return m
+  }, {})).sort((a, b) => Number(a[0] === 'unknown') - Number(b[0] === 'unknown') || b[1] - a[1])
+  const [q, setQ] = useState('')
+  const leads = (data?.leads ?? []).filter((l) => (!hot || (l.temperature === 'hot' && isOpen(l))) && (!from || originKey(l) === from) && matchesSearch(l, q))
+  const due = new Map((data?.followUps ?? []).map((f) => [f.id, f]))
+  const inTab = (k: string) =>
+    k === 'all' ? leads
+      : k === 'needs' ? leads.filter(needsYou).sort((a, b) => (a.contact?.at ?? '').localeCompare(b.contact?.at ?? ''))   // longest waiting first
+      : k === 'recent' ? recentLeads(leads)
+      : k === 'today' ? (data?.followUps ?? []).map((f) => leads.find((l) => l.id === f.id)).filter((l): l is Lead => !!l)
+        : leads.filter((l) => l.stage === k)
+  const shown = inTab(tab)
+
+  return (
+    <div className="space-y-3">
+      <PageTitle action={<Link href="/studio/lead-board" className="min-h-[44px] rounded-full border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-800">Lead board</Link>}>{t('leads')}</PageTitle>
+      {data && (
+        <TabBar label="Leads" value={tab} onChange={setTab} tabs={[
+          { key: 'needs', label: 'Needs you', count: inTab('needs').length, tone: 'urgent' },
+          { key: 'recent', label: 'Recent', count: inTab('recent').length },
+          { key: 'today', label: 'Today', count: inTab('today').length, tone: 'urgent' },
+          // short labels and no empty stage tabs (except New and the open one), so the row fits a phone without scrolling
+          ...STAGES.map((s) => ({ key: s.key as string, label: SHORT[s.key] ?? s.label, count: inTab(s.key).length, hideWhenEmpty: s.key !== 'new' && s.key !== tab })),
+          { key: 'all', label: t('all'), count: leads.length },
+          ...(owner ? [{ key: 'passed', label: 'Passed' }] : []),
+        ]} />
+      )}
+      {tab === 'passed' ? <PassedPanel /> : <>
+      {data && data.leads.length > 5 && (
+        <input type="search" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search leads"
+          placeholder="Search name, phone, area or BHK"
+          className="min-h-[48px] w-full rounded-xl border border-gray-300 bg-white px-4 text-base text-gray-900 placeholder-gray-400 focus:border-[#0f2340] focus:outline-none" />
+      )}
+      <div className="items-center justify-between gap-2 [display:flex]">
+        <p className="text-xs text-gray-600">{[hot ? 'Hot buyers only.' : '', tab === 'recent' ? `Came in the last ${RECENT_DAYS} days, newest enquiry first.` : tab === 'needs' ? 'Longest waiting first.' : 'Latest activity first.'].filter(Boolean).join(' ')}</p>
+        <button type="button" role="switch" aria-checked={hot} onClick={() => setHot(!hot)}
+          className={`min-h-[44px] flex-none rounded-full border px-4 text-sm font-semibold ${hot ? 'border-red-600 bg-red-600 text-white' : 'border-gray-300 bg-white text-gray-700'}`}>
+          🔥 Hot only
+        </button>
+      </div>
+      {fromCounts.length > 1 && (
+        <div role="group" aria-label="Where leads came from" className="-mx-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="gap-2 px-1 [display:flex]">
+            <span className="flex-none self-center text-xs text-gray-600">From:</span>
+            {fromCounts.map(([k, n]) => (
+              <button key={k} type="button" aria-pressed={from === k} onClick={() => pickFrom(k)}
+                className={`min-h-[36px] flex-none rounded-full border px-3 text-sm ${from === k ? 'border-[#0f2340] bg-[#0f2340] font-semibold text-white' : 'border-gray-300 bg-white text-gray-700'}`}>
+                {sourceLabel(k)} {n}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {data && data.inInbox > 0 && !from && !hot && (
+        <Link href="/studio/inbox?tab=all" className="block rounded-xl bg-blue-50 px-3 py-2 text-sm text-blue-900 no-underline">
+          {data.inInbox} {data.inInbox === 1 ? 'person has' : 'people have'} only commented or messaged, with no number yet: they are in the Inbox &rsaquo;
+        </Link>
+      )}
+      {loading && !data && <Spinner />}
+      {error && <ErrorBox message={error} onRetry={reload} />}
+      {data && shown.length === 0 && (
+        <p className="rounded-2xl bg-white p-4 text-center text-sm text-gray-600">
+          {q ? `No leads match “${q}”.` : hot ? 'No hot buyers here.' : EMPTY[tab] ?? `No leads in ${STAGES.find((s) => s.key === tab)?.label ?? tab}.`}
+        </p>
+      )}
+      {data && shown.length > 0 && (
+        <ul className="space-y-2 p-0">
+          {shown.map((l) => (
+            <LeadRow key={l.id} lead={l} title={l.first_listing_id ? data.titles[l.first_listing_id] : undefined} due={tab === 'today' ? due.get(l.id) : undefined} />
+          ))}
+        </ul>
+      )}
+      </>}
+    </div>
+  )
+}
+
+export default function LeadsPage() {
+  return (
+    <Suspense fallback={<Spinner />}>
+      <LeadsList />
+    </Suspense>
+  )
+}

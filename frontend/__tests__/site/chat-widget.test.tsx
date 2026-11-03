@@ -8,7 +8,6 @@ jest.mock('@/lib/site/tracking', () => ({
   readAttribution: () => ({ source: 'chat' }), getAnonId: () => 'anon12345', readVisitPages: () => ({ path: '/agent/rahul', landing: '/agent/rahul' }),
   trackEvent: (...args: unknown[]) => mockTrackEvent(...args),
 }))
-jest.mock('@/lib/app/whatsapp', () => ({ getNotifications: jest.fn() }))
 
 const REAL = { id: 'L2', title: '2 BHK in Kharadi, east facing', locality: 'Kharadi', bhk: 2, carpet_sqft: 810, price_text: '₹76 Lakh', sample: false,
   url: '/agent/rahul/listings/L2', image_url: 'https://img.test/L2.jpg' }

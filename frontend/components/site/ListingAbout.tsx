@@ -1,5 +1,5 @@
 import React from 'react'
-import { t } from '@/lib/app/strings'
+import { t } from '@shared/strings'
 import type { PublicAbout } from '@/lib/site/types'
 
 const NEARBY_ICON: Record<string, string> = { school: '🏫', hospital: '🏥', transit: '🚌', office: '🏢', market: '🛒', park: '🌳', other: '📍' }
