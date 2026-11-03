@@ -54,6 +54,17 @@ def area_bands(starts: Iterable[Dict[str, int]]) -> List[dict]:
     return _sort(out)
 
 
+OVERALL_FLOOR = 0.7   # the same share prices.PLAUSIBLE allows a size under its page's overall price
+
+
+def overall_floor(area: List[dict]) -> Optional[int]:
+    """The least a project's overall ("All homes") starting price can be and still be a home's: OVERALL_FLOOR of the low end of
+    the area's cheapest size band (area_bands). A price with no size gets no size or rate check, so a studio's, an office's or a
+    booking amount read as "onwards" passed as the project's homes. None without bands: nothing to judge by."""
+    lows = [a["low"] for a in area if a.get("low")]
+    return int(OVERALL_FLOOR * min(lows)) if lows else None
+
+
 def sane(lo: int, area: Optional[dict]) -> bool:
     """A project's one-site price fits its area's band for the size (no band yet: kept, the checks in prices already ran)."""
     if not area:
