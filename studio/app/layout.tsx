@@ -14,6 +14,7 @@ import '../styles/colors.css'
 import '../styles/spacing.css'
 import '../styles/components.css'
 import '../styles/mobile.css'
+import { MANIFEST_PATH } from '@/lib/app/manifest'
 import { BRAND_NAME, DEFAULT_DESCRIPTION, LOGO, NAVY } from '@shared/brand'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -21,7 +22,7 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   applicationName: BRAND_NAME,
   description: DEFAULT_DESCRIPTION,
-  // the icons and the manifest are the site's files on the same address
+  // the icons are the site's files on the same address
   icons: {
     icon: [
       { url: LOGO.icon32, sizes: '32x32', type: 'image/png' },
@@ -30,7 +31,10 @@ export const metadata: Metadata = {
     ],
     apple: [{ url: LOGO.appleTouch, sizes: '180x180', type: 'image/png' }],
   },
-  manifest: '/manifest.webmanifest',
+  // Studio's own manifest: installs Studio (scope /studio), not the site's project check
+  manifest: MANIFEST_PATH,
+  // iPhone: Add to Home Screen opens Studio full screen, named Studio
+  appleWebApp: { capable: true, title: 'Studio', statusBarStyle: 'default' },
 }
 
 export const viewport = {

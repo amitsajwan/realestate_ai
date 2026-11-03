@@ -16,6 +16,19 @@ const nextConfig = {
   // ...but the server bundle is built from this folder alone (shared/ is compiled in), so .next/standalone/server.js stays flat
   outputFileTracingRoot: __dirname,
   ...(process.env.NODE_ENV === 'production' && { output: 'standalone' }),
+  // The service worker (phone alerts, offline page) lives at /studio/sw.js but looks after all of /studio, which the
+  // Service-Worker-Allowed header permits. Never cached, so a deploy reaches every phone (Next's PWA guide).
+  async headers() {
+    return [{
+      source: '/studio/sw.js',
+      headers: [
+        { key: 'Service-Worker-Allowed', value: '/studio' },
+        { key: 'Content-Type', value: 'application/javascript; charset=utf-8' },
+        { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
+        { key: 'Content-Security-Policy', value: "default-src 'self'; script-src 'self'" },
+      ],
+    }]
+  },
   // Running on its own (npm run dev, port 3001): the API goes to the local backend. Locally the site (port 3000) forwards
   // /studio, /join and /studio-static here, so open the site's address to use both on one origin.
   async rewrites() {

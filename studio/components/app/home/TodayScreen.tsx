@@ -3,6 +3,7 @@ import Link from 'next/link'
 import React from 'react'
 import { useIsOwner } from '@/components/app/agents/useIsOwner'
 import { countWaitingPosts } from '@/components/app/AppShell'
+import { PhoneAppCard } from '@/components/app/PhoneApp'
 import { ReraReminder, reraDue } from '@/components/app/ReraReminder'
 import { ErrorBox, Spinner } from '@/components/app/ui'
 import { WeeklyCard } from '@/components/app/WeeklyCard'
@@ -265,7 +266,7 @@ function CaughtUp({ hasListings }: { hasListings: boolean }) {
 
 /**
  * Studio home, top to bottom: who you are and today's date; Add listing and Share my website; the call list; the to-do list;
- * the setup steps while any is open; this week's numbers. Every list opens its screen already filtered.
+ * the setup steps while any is open; Studio on your phone (install, lead alerts) while either is to do; this week's numbers. Every list opens its screen already filtered.
  */
 export function TodayScreen() {
   const owner = useIsOwner()
@@ -309,6 +310,7 @@ export function TodayScreen() {
       <TodoList rows={data.todo} />
       {/* after the people waiting: a new agent has nobody to call yet, so for them it is at the top anyway */}
       {brand && <SetupCard steps={steps} />}
+      <PhoneAppCard place="home" />
       {quiet && !data.todayError && <CaughtUp hasListings={data.listings.length > 0} />}
       <WeeklyCard report={data.week} />
     </div>

@@ -435,6 +435,25 @@ Steps: `docs/MESSENGER_SETUP.md`. Same Meta app and Page token as posting.
 | `RUN_BACKGROUND_LOOPS` | `false` for `backend` (Compose) | `true` makes the API run the loops too (rollback if the worker misbehaves; leases keep one copy of each loop). |
 | `SSL_VERIFY`, `DISABLE_SSL_WARNINGS` | `true`, `true` | Outgoing HTTPS certificate checks for the old HTTP client. Leave as they are. |
 
+### Phone alerts (Studio on the agent's phone)
+Agents install Studio from the browser (Chrome: **Install Studio** on Home; iPhone: Share > Add to Home Screen) and tap **Turn on
+lead alerts**. Their phone then rings for a new lead, a buyer waiting on WhatsApp, chat or messages, a buyer passed to them and the
+2-hour waiting alert (`backend/app/modules/notifications/push.py`). Alerts stay off until the two keys are set.
+
+| Variable | Default | What it does |
+|---|---|---|
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | empty (alerts off) | The key pair that signs our alerts. Make it once (below); keep the private key secret. Changing it turns alerts off on every phone until Studio is opened there again. |
+| `VAPID_SUBJECT` | `mailto:hello@avasetu.in` | Who the push services (Google, Apple, Mozilla) write to about our alerts. |
+
+Turn them on once:
+```bash
+sudo docker compose exec -T -e PYTHONPATH=. backend python scripts/vapid_keys.py   # prints the two lines
+# add both lines to deploy/gcp/.env, then:
+sudo docker compose up -d backend conversations newsroom media
+```
+Check: an agent's Studio > My brand shows **Turn on lead alerts**; after they turn it on, a test enquiry on their website rings their
+phone within seconds. A phone that turned alerts off or removed Studio is dropped by itself the next time an alert goes out.
+
 ### Owners (Admin, Agents, approvals)
 | Variable | Default | What it does |
 |---|---|---|

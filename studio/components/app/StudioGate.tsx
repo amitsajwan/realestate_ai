@@ -3,6 +3,7 @@ import { usePathname } from 'next/navigation'
 import React from 'react'
 import { useSession } from '@/lib/app/session'
 import { AppShell } from './AppShell'
+import { PhoneAppSetup } from './PhoneApp'
 import { Spinner } from './ui'
 
 /** Session guard + phone shell for everything under /studio. */
@@ -12,7 +13,7 @@ export function StudioGate({ children }: { children: React.ReactNode }) {
   const authed = session.ready && !!session.token
   return (
     <AppShell hideTabs={path.startsWith('/studio/listings/new') || /^\/studio\/agents\/[^/]+\/listings\/new/.test(path)}>
-      {authed ? children : <Spinner />}
+      {authed ? <>{children}<PhoneAppSetup /></> : <Spinner />}
     </AppShell>
   )
 }
