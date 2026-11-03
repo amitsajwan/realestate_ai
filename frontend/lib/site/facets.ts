@@ -32,6 +32,8 @@ export interface FacetRow {
   legal_name: string
   regno: string
   promoter: string | null
+  /** The name buyers know the builder by: its brand ("Godrej Properties"), else `promoter` (backend seo/facets.builder_name). */
+  builder_name?: string | null
   builder_slug: string | null
   registered_on: string | null
   completion_now: string | null
@@ -56,6 +58,9 @@ export interface FacetRow {
 
 export interface FacetChange { at: string; text: string; slug: string; source: string }
 
+/** "top" only: the list read by what a buyer needs, one project and the fact that puts it there (backend seo/facets.picks). */
+export interface FacetPick { need: string; slug: string; name: string; builder_name: string | null; fact: string }
+
 export interface FacetPage {
   key: string
   path: string
@@ -73,6 +78,7 @@ export interface FacetPage {
   /** "top" only: projects with fewer than 10 homes open, most booked first, listed apart and never ranked. */
   sold_out?: FacetRow[]
   sold_out_count?: number
+  picks?: FacetPick[]
   changes: FacetChange[]
   month: string | null
   page_updated: string | null
@@ -151,6 +157,26 @@ export function siblings(all: FacetLink[], placeKey: string, except?: string): F
 }
 
 /** Questions and answers written by code from the page's own numbers; nothing a number on the page does not say. */
+const COMPANY_TAIL = /\s+(?:(?:private|pvt\.?)\s+(?:limited|ltd\.?)|llp|limited|ltd\.?)$/i
+const bare = (s: string) => s.replace(COMPANY_TAIL, '').replace(/[^a-z0-9]+/gi, ' ').trim().toLowerCase()
+
+/** Who to name as the builder on a card: the brand buyers search, and the company MahaRERA files it under when that is a
+ *  different name ("Godrej Properties", filed by "Oxford Realty LLP"). Both null when MahaRERA names no promoter. */
+export function builderLine(r: Pick<FacetRow, 'builder_name' | 'promoter'>): { name: string | null; filedBy: string | null } {
+  const name = r.builder_name || r.promoter || null
+  const filedBy = name && r.promoter && bare(r.promoter) !== bare(name) && !bare(r.promoter).startsWith(bare(name)) ? r.promoter : null
+  return { name, filedBy }
+}
+
+/** The ranked card's line of facts: why it is on the list (how fast it sells) and the date record, as one sentence. The homes
+ *  open part is left out: the bar under the price says it already. */
+export function cardFacts(reason: string | null | undefined): string | null {
+  const parts = (reason || '').split('; ').map((x) => x.trim()).filter((x) => x && !/homes still open(, .*)?$/.test(x))
+  if (!parts.length) return null
+  const s = parts.join('; ')
+  return `${s[0].toUpperCase()}${s.slice(1)}.`
+}
+
 export function facetFaq(p: FacetPage): { q: string; a: string }[] {
   const out: { q: string; a: string }[] = []
   const place = p.place.name

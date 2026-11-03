@@ -1,5 +1,6 @@
 import React from 'react'
 import Link from 'next/link'
+import { builderLine, cardFacts } from '@/lib/site/facets'
 import type { FacetRow } from '@/lib/site/facets'
 import { formatPrice, readableName } from '@/lib/site/format'
 import { monthYear } from '@/lib/site/register'
@@ -61,16 +62,18 @@ function Booked({ r }: { r: FacetRow }) {
 /** The Top list's ranked card: wide, with the reason it is here and two actions. */
 export function RankedCard({ r }: { r: FacetRow }) {
   const price = cardPrice(r)
+  const builder = builderLine(r)
+  const facts = cardFacts(r.reason)
   return (
     <li className="overflow-hidden rounded-2xl border border-slate-200 bg-white sm:grid sm:grid-cols-[260px_1fr]" data-testid="ranked-card">
       <ListPicture r={r} rank={r.rank} tall />
       <div className="flex min-w-0 flex-col gap-2 p-4">
         <div>
           <Link href={`/projects/${r.slug}`} className="text-xl font-bold text-[#0f2340] underline-offset-2 hover:underline">{readableName(r.name)}</Link>
-          {r.promoter && (
+          {builder.name && (
             <span className="text-slate-700"> by {r.builder_slug
-              ? <Link href={`/builders/${r.builder_slug}`} className="text-[#0f2340] underline underline-offset-2">{readableName(r.promoter)}</Link>
-              : readableName(r.promoter)}</span>
+              ? <Link href={`/builders/${r.builder_slug}`} className="text-[#0f2340] underline underline-offset-2">{readableName(builder.name)}</Link>
+              : readableName(builder.name)}</span>
           )}
         </div>
         <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-3">
@@ -79,8 +82,9 @@ export function RankedCard({ r }: { r: FacetRow }) {
           {r.registered_on && <div><dt className="text-xs text-slate-500">Registered</dt><dd>{monthYear(r.registered_on)}</dd></div>}
         </dl>
         <Booked r={r} />
-        {/* the reason only when it adds something (homes booked lately); otherwise it is the line above again */}
-        <p className="text-xs text-slate-500">{r.reason && !r.reason.startsWith(`${r.units_open} of `) ? `${r.reason} · ` : ''}MahaRERA {r.regno}</p>
+        {/* why it is ranked here and the builder's date record, as a sentence; the homes open part is the bar above */}
+        {facts && <p className="text-sm text-slate-800" data-testid="card-facts">{facts}</p>}
+        <p className="text-xs text-slate-500">MahaRERA {r.regno}{builder.filedBy ? ` · filed by ${readableName(builder.filedBy)}` : ''}</p>
         <div className="mt-1 flex flex-wrap gap-2">
           <Link href={`/projects/${r.slug}`} className="inline-flex min-h-[44px] items-center rounded-xl bg-[#0f2340] px-4 text-sm font-semibold text-white no-underline">See project</Link>
           <Link href={`/projects/${r.slug}#enquire`} className="inline-flex min-h-[44px] items-center rounded-xl border border-[#0f2340] px-4 text-sm font-semibold text-[#0f2340] no-underline">

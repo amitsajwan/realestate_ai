@@ -21,7 +21,7 @@ from typing import Dict, List, Optional, Tuple
 
 from app.core import pune_places
 from app.core.areas import AREAS
-from app.modules.areastats import hot, priceidea, prices
+from app.modules.areastats import brands, hot, priceidea, prices
 from app.modules.areastats.areamap import _photo, card_pictures
 from app.modules.areastats.hubs import _primaries, link_name
 from app.modules.areastats.pages import (OPEN_MIN, _long, booked, builder_key, buyable, cluster_stamps, cluster_updated,
@@ -272,6 +272,60 @@ def _top(pool: List[dict], docs: List[dict], now: datetime) -> List[Tuple[tuple,
     return out
 
 
+PICKS_MIN = 3   # different projects the picks must name: fewer is the cards again in a table, left out (a thin place shows none)
+
+
+def builder_name(d: dict) -> Optional[str]:
+    """The name buyers know the builder by: its brand (areastats.brands, "Godrej Properties" for Oxford Realty LLP), else the
+    company MahaRERA files it under, else None."""
+    b = brands.of(d)
+    return b.name if b else (d.get("promoter") or None)
+
+
+def picks(listed: List[Tuple[dict, str]], docs: List[dict], now: datetime) -> List[dict]:
+    """The top list read by what a buyer needs, each pick one project and the fact that puts it there: selling fastest, the
+    lowest checked price, the earliest filed possession, the most homes left, a builder that keeps its dates, the newest launch.
+    Worked out from the same list on every build, so a pick changes when the records do; a need no project answers is left
+    out, and with fewer than PICKS_MIN different projects named there is no table. [{need, slug, name, builder_name, fact}]"""
+    if not listed:
+        return []
+    ds = [d for d, _ in listed]
+    out: List[dict] = []
+
+    def add(need: str, d: dict, fact: str) -> None:
+        out.append({"need": need, "slug": d["page_slug"], "name": link_name(d), "builder_name": builder_name(d), "fact": fact})
+
+    add("Selling fastest", listed[0][0], listed[0][1].split("; ")[0])
+    priced = [(lp["from_inr"], lp["bhk"], i, d) for i, d in enumerate(ds) if (lp := lowest_price(d, now))]
+    if priced:
+        lo, b, _, d = min(priced, key=lambda x: x[:3])
+        add("Lowest checked price", d, f"{b} BHK from {inr(lo)}")
+    today = now.date().isoformat()
+    soon = [(day, i, d) for i, d in enumerate(ds) if (day := _day(d.get("completion_now"))) and day >= today]
+    if soon:
+        day, _, d = min(soon, key=lambda x: x[:2])
+        add("Earliest possession", d, f"possession filed for {_long(day)}")
+    left = [(-o, i, d) for i, d in enumerate(ds) if (o := _open(d))]
+    if left:
+        o, _, d = min(left, key=lambda x: x[:2])
+        add("Most homes to choose from", d, f"{-o:,} of {_count(d.get('units_total')):,} homes open")
+    records = builder_records(docs)
+    steady = []
+    for i, d in enumerate(ds):
+        r = records.get(builder_key(d) or "")
+        if r and r["record_ok"] and months_later(d) == 0:
+            kept = r["with_dates"] - r["moved_later"]
+            steady.append((-kept / r["with_dates"], -r["with_dates"], i, d, kept, r["with_dates"]))
+    if steady:
+        *_, d, kept, n = min(steady, key=lambda x: x[:3])
+        add("Builder that keeps its dates", d, f"date not moved; the builder kept the date on {kept} of {n} Pune projects")
+    launched = [(-on.timestamp(), i, d, on) for i, d in enumerate(ds) if hot.launch(d, now) and (on := _aware(d.get("registered_on")))]
+    if launched:
+        *_, d, on = min(launched, key=lambda x: x[:2])
+        add("Just launched", d, f"registered {_month(on)}, {booked(d) or 0} of {_count(d.get('units_total'))} homes booked")
+    return out if len({p["slug"] for p in out}) >= PICKS_MIN else []
+
+
 def sold_out(f: Facet, docs: List[dict], now: datetime) -> List[Tuple[dict, str]]:
     """The "top" list's other half: projects still being built or just finished with fewer than OPEN_MIN homes not booked,
     most booked first. Kept on the page (people search for them, and resale or a cancellation can still come up), never ranked."""
@@ -424,6 +478,7 @@ def _row(d: dict, why: str, n: int, now: datetime) -> dict:
     total = _count(d.get("units_total"))
     return {"rank": n, "slug": d["page_slug"], "name": link_name(d), "legal_name": d.get("name", ""),
             "regno": d.get("regno") or d["_id"], "promoter": d.get("promoter") or None,
+            "builder_name": builder_name(d),          # the brand buyers search; `promoter` is the company it is filed under
             "builder_slug": builder_key(d) or None,   # the brand page when there is one (areastats.brands)
             "registered_on": _day(d.get("registered_on")), "completion_now": _day(d.get("completion_now")),
             "completion_at_registration": _day(d.get("completion_at_registration")),
@@ -541,6 +596,7 @@ def facet_view(f: Facet, docs: List[dict], now: datetime, stamps: Optional[dict]
         "title": title(f, place, len(listed), _month(last_change), builder_name), "h1": h1(f, place, builder_name),
         "answer": answer(f, place, rows, as_of, len(listed), len(gone)), "rows": rows, "count": len(listed), "changes": changed,
         "sold_out": [_row(d, why, 0, now) for d, why in gone[:MAX_ROWS]], "sold_out_count": len(gone),
+        "picks": picks(listed, prim, now) if f.intent == "top" and not f.bhk else [],
         "month": _month(last_change), "page_updated": max(updated) if updated else None,
         "indexable": in_search(listed), "as_of": now.date().isoformat(), "source": "MahaRERA public records",
     }

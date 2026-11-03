@@ -305,6 +305,26 @@ def family_name(doc: dict) -> str:
     return short if len(words) >= 2 and not set(words) <= places else marketed
 
 
+# words a registration's name carries that say nothing of which project it is ("Kharadi New Project - Tower 3", Lodha Camelot's
+# towers on MahaRERA; "Kharadi Pune P1", Lodha's others)
+_GENERIC = frozenset({"new", "project", "projects", "residential", "residency", "housing", "scheme", "township", "pune", "p",
+                      "east", "west", "north", "south", "annexe", "annex", "road", "the"})
+
+
+def place_only_name(doc: dict) -> bool:
+    """The whole project's name (`family_name`) is only the place and words any project could carry, with no marketed name set:
+    no site prints it, so prices, web facts and the top list's one-row-per-project cannot find or join its registrations. The
+    fix is a marketed name or a confirmed group by hand (scripts/place_only_names.py lists them for every place)."""
+    if (doc.get("marketed_name_override") or "").strip() or (doc.get("group_name") or "").strip():
+        return False
+    short, last = names(doc)[0], ""
+    while short != last:   # the registration's tail off, as family_name does ("Kharadi Pune Phase I - Tower 1 to 4")
+        last, short = short, _REGISTRATION_TAIL.sub("", short).strip()
+    words_ = set(re.findall(r"[a-z]+", short.lower()))
+    places = set(re.findall(r"[a-z]+", f"{doc.get('pune_place_name') or ''} {doc.get('pune_place') or ''} {doc.get('locality') or ''}".lower()))
+    return bool(words_) and words_ <= places | _GENERIC
+
+
 def _long(day: Optional[str]) -> Optional[str]:
     if not day:
         return None
