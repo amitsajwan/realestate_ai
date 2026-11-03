@@ -207,6 +207,7 @@ describe('the hero', () => {
     render(<RegisterProjectPage p={{ ...P, builder, profile }} siteUrl="https://avasetu.in" facts={null} />)
     expect(screen.getByTestId('hero-photo')).toBeInTheDocument()
     expect(screen.queryByTestId('hero-logo')).toBeNull()
+    expect(within(screen.getByTestId('hero-photo-logo')).getByRole('img')).toHaveAttribute('alt', 'Godrej Properties logo')
   })
 
   it("shows where the project is when it has no picture, with the builder's logo over the map", () => {

@@ -183,7 +183,7 @@ function brandLine(p: RegisterProject): string | null {
  *  first on phones because a navy card of numbers was all the first screen showed (design review 2026-10-25); it is only ever
  *  the builder's own picture, never an AI illustration standing in for a real one. With no picture (most projects, 2026-10-31),
  *  a street map around the project's pin takes its place with the builder's logo over it (backend areastats/locmap.py,
- *  logos.py), else the logo alone. */
+ *  logos.py), else the logo alone. Over a photo the builder's logo sits in a white badge (owner 2026-11-03). */
 function Hero({ p, price, photo, linkless = false, closed = false }: { p: RegisterProject; price: { from: string; bhks: string } | null; photo: ProfilePicture | null; linkless?: boolean; closed?: boolean }) {
   const stats: { label: string; value: React.ReactNode; sub?: React.ReactNode; id: string }[] = []
   // the agent's live sheet when there is one, else the portals' prices: one price on the page, never both
@@ -210,6 +210,13 @@ function Hero({ p, price, photo, linkless = false, closed = false }: { p: Regist
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={photo.url} alt={photo.alt} width={photo.width ?? undefined} height={photo.height ?? undefined}
             loading="eager" fetchPriority="high" decoding="async" className="h-full w-full object-cover" />
+          {logo && (
+            <span className="absolute left-3 top-3 flex h-12 max-w-[50%] items-center rounded-xl bg-white px-3 py-1.5 shadow" data-testid="hero-photo-logo">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={logo.url} alt={`${p.builder?.name ?? 'The builder'} logo`} width={logo.width ?? undefined} height={logo.height ?? undefined}
+                className={`max-h-full max-w-full object-contain ${logo.tone === 'light' ? 'rounded bg-[#0f2340] p-1' : ''}`} />
+            </span>
+          )}
           <figcaption className="absolute bottom-2 right-2 rounded bg-black/60 px-2 py-0.5 text-xs text-white">
             {photo.source === 'agent' ? `From ${photo.site}'s listing` : <>The builder&apos;s picture</>}
           </figcaption>

@@ -7,6 +7,7 @@ import { comingSoonFor } from '@/components/site/ComingSoonBand'
 import ComingSoonDock from '@/components/site/ComingSoonDock'
 import StickyJoinBar from '@/components/marketing/StickyJoinBar'
 import AskPrompt from '@/components/site/AskPrompt'
+import BuilderLogoMark from '@/components/site/BuilderLogoMark'
 import ContactButtons from '@/components/site/ContactButtons'
 import EnquiryForm from '@/components/site/EnquiryForm'
 import ProjectCard from '@/components/site/ProjectCard'
@@ -21,7 +22,7 @@ import { getCatalog, getCatalogProject, getPropertyFacts } from '@/lib/site/api'
 import { getFacets } from '@/lib/site/facets'
 import RegisterProjectPage from '@/components/site/RegisterProjectPage'
 import { pageMetadata } from '@/lib/marketing/seo'
-import { getRegisterProject, longDay, offerPrice } from '@/lib/site/register'
+import { getRegisterProject, getRegisterProjectByRegno, longDay, offerPrice } from '@/lib/site/register'
 import { registerDescription, registerTitle } from '@/lib/site/projectSeo'
 import type { Offer } from '@/lib/site/register'
 import { bhkRange, mainAgent, priceRange, projectWhatsAppMessage } from '@/lib/site/projects'
@@ -125,7 +126,10 @@ export default async function SharedProjectPage({ params }: Props) {
   const area = localityByName(p.locality)
   const others = (await getCatalog()).filter((x) => x.slug !== p.slug)
   const similar = [...others.filter((x) => x.locality === p.locality), ...others.filter((x) => x.locality !== p.locality)].slice(0, 3)
-  const [web, profile, comingSoon] = await Promise.all([getWebFacts(p.rera_no), getProfile(p.rera_no), comingSoonFor(area?.slug)])
+  const [web, profile, comingSoon, register] = await Promise.all([getWebFacts(p.rera_no), getProfile(p.rera_no), comingSoonFor(area?.slug),
+    Promise.resolve().then(() => getRegisterProjectByRegno(p.rera_no)).catch(() => null)])
+  // the builder's logo is read once per builder for the register (backend areastats/logos.py)
+  const logo = register?.builder?.logo ?? null
   const faq = catalogFaq(p, web)
   // the dated answer AI answers and snippets quote (lib/site/projectFacts), and the page's own last change
   const answer = catalogAnswer(p)
@@ -152,6 +156,7 @@ export default async function SharedProjectPage({ params }: Props) {
         <header id="project-hero">
           <p className="text-sm font-bold uppercase tracking-wide text-[var(--site-accent-text)]">{p.locality}, Pune</p>
           <h1 className="mt-1 text-3xl font-extrabold leading-tight text-slate-900">{p.name}</h1>
+          {logo && <div className="mt-3"><BuilderLogoMark logo={logo} name={p.builder} /></div>}
           <p className="mt-1 text-slate-600">by {p.builder}{p.rera?.promoter ? ` (promoter on MahaRERA: ${p.rera.promoter})` : ''}</p>
           <p className="mt-3 text-2xl font-extrabold text-[var(--site-primary)]">{priceRange(p)} <span className="text-base font-semibold text-slate-700">· {bhkRange(p.bhk_options)}</span></p>
           {p.positioning && <p className="mt-2 max-w-2xl text-lg text-slate-800">{p.positioning}</p>}

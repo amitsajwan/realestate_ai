@@ -5,10 +5,13 @@ import Link from 'next/link'
 import type { UpcomingBrief } from '@/lib/site/hubs'
 
 /** The East Pune band as a small card in the corner, so the page keeps its place and nobody has to scroll to find it (owner
- *  2026-11-02). It slides in after a moment and shows one project at a time, each for a few seconds. It stops while a pointer or
- *  the keyboard is on it, stands still for reduced motion, and leaves while someone types so it never covers a form on a phone.
+ *  2026-11-02). It slides in after a moment and shows one project at a time, each for a few seconds. It stops while a mouse or
+ *  the keyboard is on it (a tap on a phone does not stop it), and leaves while someone types so it never covers a form on a phone.
+ *  With animations turned off (Windows "Show animations", reduce motion) it still turns, more slowly and without sliding: it stood
+ *  on its first project for the owner on 2026-11-03.
  *  × folds it to a small tab for a day. "Not yet MahaRERA registered" stays on every turn: see ComingSoonBand for why. */
 export const TURN_MS = 5000
+export const STILL_TURN_MS = 8000
 export const SHOW_AFTER_MS = 2500
 export const FOLD_MS = 24 * 60 * 60 * 1000
 const FOLD_KEY = 'coming-soon-folded-at'
@@ -29,6 +32,14 @@ function rememberFold(at: number | null) {
   } catch { /* private window: it folds for this page only */ }
 }
 
+function keyboardFocus(el: EventTarget): boolean {
+  try {
+    return (el as Element).matches(':focus-visible')
+  } catch {
+    return false
+  }
+}
+
 export default function ComingSoonDock({ items, bottomBar = false }: { items: UpcomingBrief[]; bottomBar?: boolean }) {
   const [shown, setShown] = useState(false)
   const [folded, setFolded] = useState(false)
@@ -36,6 +47,7 @@ export default function ComingSoonDock({ items, bottomBar = false }: { items: Up
   const [paused, setPaused] = useState(false)
   const [typing, setTyping] = useState(false)
   const still = useRef(false)
+  const touched = useRef(false)
 
   useEffect(() => {
     still.current = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
@@ -45,8 +57,8 @@ export default function ComingSoonDock({ items, bottomBar = false }: { items: Up
   }, [])
 
   useEffect(() => {
-    if (!shown || folded || paused || still.current || items.length < 2) return
-    const t = window.setInterval(() => setAt((i) => (i + 1) % items.length), TURN_MS)
+    if (!shown || folded || paused || items.length < 2) return
+    const t = window.setInterval(() => setAt((i) => (i + 1) % items.length), still.current ? STILL_TURN_MS : TURN_MS)
     return () => window.clearInterval(t)
   }, [shown, folded, paused, items.length])
 
@@ -75,7 +87,10 @@ export default function ComingSoonDock({ items, bottomBar = false }: { items: Up
   const u = items[at % items.length]
   return (
     <aside aria-label="Launching soon in East Pune" data-print="hide" data-testid="coming-soon-dock"
-      onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onFocus={() => setPaused(true)} onBlur={() => setPaused(false)}
+      // a tap sends a mouseenter with no mouseleave after it: only a real mouse or keyboard focus stops the turns
+      onTouchStart={() => { touched.current = true }}
+      onMouseEnter={() => { if (!touched.current) setPaused(true) }} onMouseLeave={() => setPaused(false)}
+      onFocus={(e) => { if (keyboardFocus(e.target)) setPaused(true) }} onBlur={() => setPaused(false)}
       className={place + ' coming-soon-dock w-[calc(100vw-5.5rem)] max-w-[320px] overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/10 sm:w-80'}>
       <div className="flex h-8 items-center gap-2 bg-[#0f2340] pl-3 pr-1 text-white">
         <span aria-hidden="true" className="coming-soon-pulse h-2 w-2 shrink-0 rounded-full bg-amber-300" />

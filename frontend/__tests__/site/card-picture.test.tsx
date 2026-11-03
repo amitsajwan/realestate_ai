@@ -30,6 +30,13 @@ describe("a project card's picture", () => {
     expect(screen.getByText("Artist's impression")).toBeInTheDocument()
   })
 
+  it("puts the builder's logo in a badge over a photo, with the picture count below it", () => {
+    render(<CardPicture m={{ photos: [pic(1), pic(2)], logo: LOGO }} name="P" href="/projects/x" />)
+    expect(screen.getByTestId('card-photo-logo').querySelector('img')).toHaveAttribute('src', LOGO.url)
+    expect(screen.getByText('1 / 2')).toHaveClass('top-12')
+    expect(screen.queryByTestId('card-logo')).toBeNull()
+  })
+
   it("with no picture shows the street map with the builder's logo over it, as the project page does", () => {
     render(<CardPicture m={{ photos: [], location_picture: MAP, logo: LOGO }} name="P" href="/projects/x" />)
     expect(screen.getByTestId('card-map')).toHaveAttribute('src', MAP.url)

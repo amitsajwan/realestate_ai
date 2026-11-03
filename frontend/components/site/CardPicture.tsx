@@ -29,7 +29,8 @@ export function cardPhotos(m: CardMedia): CardPhoto[] {
  *  sits in (ProjectRail), and the arrows rather than a swipe move it, since a swipe on a phone already moves the row. With no
  *  picture it draws what the project page draws (owner 2026-11-01, "places where we don't have images"): the street map around
  *  the project's pin with the builder's logo over it, else the logo alone, else the skyline. Picture and name are one link to
- *  the project; the picture's link is kept out of the tab order and screen readers, so the name is the one they meet. */
+ *  the project; the picture's link is kept out of the tab order and screen readers, so the name is the one they meet. Over a photo
+ *  the builder's logo sits in a small white badge (owner 2026-11-03, "why project cards don't show builder logos"). */
 export default function CardPicture({ m, name, href, rank, tag, tagTone = 'plain', height = 'h-32' }: {
   m: CardMedia; name: string; href: string; rank?: number; tag?: string | null; tagTone?: 'plain' | 'warn'; height?: string
 }) {
@@ -75,6 +76,12 @@ export default function CardPicture({ m, name, href, rank, tag, tagTone = 'plain
           <img src={logo.url} alt="" loading="lazy" className={`max-h-full max-w-full object-contain ${logo.tone === 'light' ? 'rounded bg-[#0f2340] p-0.5' : ''}`} />
         </span>
       )}
+      {photos.length > 0 && m.logo && (
+        <span className="pointer-events-none absolute right-2 top-2 flex h-8 max-w-[40%] items-center rounded-lg bg-white/95 px-1.5 py-1 shadow" data-testid="card-photo-logo">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={m.logo.url} alt="" loading="lazy" className={`max-h-full max-w-full object-contain ${m.logo.tone === 'light' ? 'rounded bg-[#0f2340] p-0.5' : ''}`} />
+        </span>
+      )}
       {rank != null && (
         <span className="pointer-events-none absolute left-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-[#0f2340] text-sm font-bold text-white">
           <span className="sr-only">Rank </span>{rank}
@@ -88,7 +95,7 @@ export default function CardPicture({ m, name, href, rank, tag, tagTone = 'plain
           <button type="button" onClick={() => step(1)} aria-label={`Next picture of ${name}`} className={arrow + ' right-0.5'}>
             <span className={dot}><svg aria-hidden viewBox="0 0 20 20" className="h-4 w-4"><path d="M7.5 4.5 13 10l-5.5 5.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></span>
           </button>
-          <span className="pointer-events-none absolute right-2 top-2 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-semibold text-white" aria-live="polite">
+          <span className={`pointer-events-none absolute right-2 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-semibold text-white ${m.logo ? 'top-12' : 'top-2'}`} aria-live="polite">
             <span className="sr-only">Picture </span>{at + 1} / {photos.length}
           </span>
         </>
