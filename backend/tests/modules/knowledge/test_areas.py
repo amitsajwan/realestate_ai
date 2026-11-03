@@ -1,15 +1,15 @@
-"""The curated area facts may not say anything our own pages do not: parsed from frontend/lib/marketing/localities.ts and insights.ts like the calendar guards do."""
+"""The curated area facts may not say anything our own pages do not: parsed from shared/marketing/localities.ts and frontend/lib/marketing/insights.ts like the calendar guards do."""
 import re
 from pathlib import Path
 
 import pytest
 
-from app.modules.calendar.guards import FRONTEND, PREDICT, PRICE
+from app.modules.calendar.guards import FRONTEND, PREDICT, PRICE, SHARED
 from app.core import areas as registry
 from app.modules.knowledge.areas import AREAS, area_facts, normalise
 from app.platform.text import HYPE, PHONE
 
-LOC = FRONTEND / "lib" / "marketing" / "localities.ts"
+LOC = SHARED / "marketing" / "localities.ts"
 INS = FRONTEND / "lib" / "marketing" / "insights.ts"
 pytestmark = pytest.mark.skipif(not (LOC.is_file() and INS.is_file()), reason="frontend sources are not on this machine")
 NUM = re.compile(r"\d[\d,]*(?:\.\d+)?")
@@ -53,7 +53,7 @@ def _ts_field(block: str, name: str):
 
 
 def test_the_locality_pages_mirror_the_area_list_in_order_with_the_same_names_tiers_and_spellings():
-    """frontend/lib/marketing/localities.ts copies app/core/areas.py (the /localities index groups by tier, the enquiry tags the key)."""
+    """shared/marketing/localities.ts copies app/core/areas.py (the /localities index groups by tier, the enquiry tags the key)."""
     pages = blocks()
     assert list(pages) == [a.slug for a in registry.AREAS]
     for a in registry.AREAS:

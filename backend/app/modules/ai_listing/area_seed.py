@@ -2,7 +2,7 @@
 general wording about a corridor or traceable to the source listed beside it. No prices, no predictions, no
 distances or travel times. Metro wording is always 'approved is not running'.
 
-Kept in step with frontend/lib/marketing/localities.ts (the public area guides).
+Kept in step with shared/marketing/localities.ts (the public area guides).
 """
 from typing import Optional
 
