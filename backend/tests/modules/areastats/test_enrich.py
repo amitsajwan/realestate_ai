@@ -434,7 +434,8 @@ def test_an_answer_in_an_older_writers_shape_is_no_draft_and_does_not_crash():
 
 def test_pages_written_by_an_older_writer_are_rewritten_after_everything_else():
     old = {"_id": "O", "page_slug": "o", "locality": "baner", **FULL, "enriched_at": NOW - timedelta(days=3),
-           "enrichment": {"score": "4/4", "steps": {"web": {"ok": True, "at": NOW - timedelta(days=3)}}}, "page_text_version": 3}
+           "enrichment": {"score": "4/4", "steps": {"web": {"ok": True, "at": NOW - timedelta(days=3)}}, "versions": dict(enrich.VERSIONS)},
+           "page_text_version": 3}
     assert enrich.TEXT_VERSION == 4
     key = enrich._priority(old, NOW)
     assert key[:2] == (enrich.BACKFILL, 0)                        # web pages read lately: a cheap rewrite (one model call)

@@ -56,7 +56,7 @@ TOP = 10
 KEEP_RESULTS = 40                    # results kept per search: organic, ads, related searches and questions
 SEEN_KEEP = 10                       # places a discovered number was seen, kept per number
 # sites that are not marketing a project: us, the regulator, encyclopaedias and video/social hosts (counted by their own signals)
-NOT_MARKETERS = ("avasetu.in", "maharashtra.gov.in", "wikipedia.org", "youtube.com", "facebook.com", "instagram.com", "x.com",
+NOT_MARKETERS = ("avasetu.in", "maharashtra.gov.in", "reradetails.in", "reunionhq.in", "mhadaexplore.app", "wikipedia.org", "youtube.com", "facebook.com", "instagram.com", "x.com",
                  "twitter.com", "linkedin.com", "reddit.com", "quora.com",
                  # travel, health and directory sites: a hotel or a clinic sharing a project's name is not the project (2026-10-22)
                  "ixigo.com", "goibibo.com", "tripadvisor.in", "tripadvisor.com", "makemytrip.com", "booking.com", "agoda.com",

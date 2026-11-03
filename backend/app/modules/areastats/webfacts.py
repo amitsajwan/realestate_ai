@@ -16,10 +16,11 @@ For one project (a tower group is read once, on its primary record):
 Stored on the register record as `web_facts` = {at, facts: [{key, label, value, text, official, sources: [{site, url, quote}]}],
 disagree: [{key, readings}], read: [{site, url, ok, why}]}; `pages.web_public` is what the pages show.
 """
+import asyncio
 import html
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple
 
 import httpx
@@ -49,7 +50,15 @@ KEYS: Dict[str, tuple] = {
 }
 TOLERANCE = 0.05
 OFFICIAL_SUFFIXES = ("", "group", "developers", "developer", "realty", "homes", "properties", "builders", "corp", "constructions",
-                     "infra", "estates", "living", "lifespaces", "landmarks")
+                     "infra", "estates", "living", "lifespaces", "landmarks", "associates", "buildcon", "spaces", "promoters")
+COMPANY_WORDS = {"private", "pvt", "limited", "ltd", "llp", "and", "the", "group", "developers", "developer", "developments", "builders",
+                 "constructions", "construction", "buildcon", "realty", "properties", "associates", "promoters", "estates", "infra",
+                 "homes", "landmarks", "spaces", "lifespaces", "housing", "enterprises", "corporation", "company", "co"}
+REGNO = re.compile(r"\bP[RMPC]?\d{11,13}\b")
+MAX_REGNOS = 8                        # a project's own page lists its phases; more than this is a list of projects
+MARKETER_WORDS = re.compile(r"(?i)authori[sz]ed marketing partner|marketing partner of|for informational purposes only")
+REGNO_SEARCH_DAYS = 30                # Google is asked about a MahaRERA number again after this
+RETRY_PAUSE = 1.5                     # seconds before a page that did not answer is asked once more
 # words a line must have (one of) to be read: the facts in KEYS, and the project's own name
 HINTS = re.compile(r"\b(towers?|acres?|floors?|storey|storeys|stories|g\s*\+\s*\d+|open\s*space|club\s*house|clubhouse|sq\.?\s*ft|"
                    r"square\s*feet|units|apartments|homes|residences|architect|designed\s*by|landscape|interiors?|partner)\b", re.I)
@@ -58,22 +67,30 @@ Fetch = Callable[[str], Awaitable[Optional[str]]]   # url -> page HTML, or None
 
 
 async def fetch_page(url: str, transport: Optional[httpx.AsyncBaseTransport] = None) -> Optional[str]:
-    """The page's HTML (at most MAX_BYTES), or None when it is not an HTML page that answered 200."""
-    try:
-        async with httpx.AsyncClient(timeout=TIMEOUT, follow_redirects=True, transport=transport,
-                                     headers={"User-Agent": UA, "Accept": "text/html", "Accept-Language": "en-IN,en"}) as c:
-            async with c.stream("GET", url) as r:
-                if r.status_code != 200 or "html" not in (r.headers.get("content-type") or ""):
-                    return None
-                body = b""
-                async for chunk in r.aiter_bytes():
-                    body += chunk
-                    if len(body) > MAX_BYTES:
-                        break
-                return body.decode(r.charset_encoding or "utf-8", errors="replace")
-    except Exception as e:
-        log.info("webfacts: %s not read (%s)", url, type(e).__name__)
-        return None
+    """The page's HTML (at most MAX_BYTES), or None when it is not an HTML page that answered 200. A failed connection or a busy
+    server is tried once more: mahindralifespaces.com answered one read and failed the next within minutes (2026-11-03), and a
+    project round reads its builder's page only once."""
+    for attempt in (1, 2):
+        try:
+            async with httpx.AsyncClient(timeout=TIMEOUT, follow_redirects=True, transport=transport,
+                                         headers={"User-Agent": UA, "Accept": "text/html", "Accept-Language": "en-IN,en"}) as c:
+                async with c.stream("GET", url) as r:
+                    if r.status_code in (429, 502, 503, 504) and attempt == 1:
+                        await asyncio.sleep(RETRY_PAUSE)
+                        continue
+                    if r.status_code != 200 or "html" not in (r.headers.get("content-type") or ""):
+                        return None
+                    body = b""
+                    async for chunk in r.aiter_bytes():
+                        body += chunk
+                        if len(body) > MAX_BYTES:
+                            break
+                    return body.decode(r.charset_encoding or "utf-8", errors="replace")
+        except Exception as e:
+            log.info("webfacts: %s not read (%s)", url, type(e).__name__)
+            if attempt == 1:
+                await asyncio.sleep(RETRY_PAUSE)
+    return None
 
 
 def memo(fetch: Fetch) -> Fetch:
@@ -147,6 +164,7 @@ def official(link: str, builder_word) -> bool:
     # the domain's own name, not a sub-domain: godrej.puneupcomingprojects.com is a marketer's site (2026-10-20)
     parts = websearch.site(link).split(".")
     label = parts[-3] if len(parts) >= 3 and parts[-2] in ("co", "com", "net", "org") else parts[-2] if len(parts) >= 2 else ""
+    label = label.replace("-", "")   # kolte-patil.com
     for word in ([builder_word] if isinstance(builder_word, str) else builder_word or ()):
         w = re.sub(r"[^a-z0-9]", "", (word or "").lower())
         if len(w) >= 3 and any(label == w + s for s in OFFICIAL_SUFFIXES):
@@ -159,11 +177,36 @@ def builder_word(promoter: str) -> str:
     return words[0].lower() if words else ""
 
 
+def whole_name(company: str) -> str:
+    """A company's name run together without its company words: "M/S Kate Mozze Associates" -> "katemozze"."""
+    words = [w for w in re.findall(r"[a-z0-9]+", re.sub(r"(?i)^\s*m\s*/?\s*s\b\.?", "", company or "").lower()) if w not in COMPANY_WORDS]
+    return "".join(words) if len(words) >= 2 else ""
+
+
 def builder_words(doc: dict) -> tuple:
-    """The promoter's word and, when the project is sold under a brand (areastats.brands), the brand's: MahaRERA often files
-    a project under a company formed for it (Godrej Ivara: Manjari Housing Projects LLP), whose word is not the builder's site."""
-    b = brands.of(doc)
-    return tuple(w for w in (builder_word(doc.get("promoter") or ""), builder_word(b.name) if b else "") if w)
+    """What the builder's own domain may be called: the first word and the whole name of the promoter and, when the project is
+    sold under a brand (areastats.brands), of the brand, with the brand's sites checked by hand. MahaRERA often files a project
+    under a company formed for it (Godrej Ivara: Manjari Housing Projects LLP), whose word is not the builder's site, and a first
+    word alone never reached koltepatil.com or katemozzeassociates.com."""
+    b, promoter = brands.of(doc), doc.get("promoter") or ""
+    found = [builder_word(promoter), whole_name(promoter)]
+    if b:
+        found += [builder_word(b.name), whole_name(b.name), *brands.SITES.get(b.slug, ())]
+    return tuple(dict.fromkeys(w for w in found if w))
+
+
+def prints_regno(doc: dict, text: str) -> bool:
+    """The page prints this registration's MahaRERA number, the surest sign it is about this project whatever name it uses
+    ("Gera's Island of Joy" for "Gera Island of Joy Project", "Lodha Giardino" for "Kharadi Pune"). A page printing more than
+    MAX_REGNOS numbers is a list of projects, which proves nothing about any one of them."""
+    regno = str(doc.get("regno") or doc.get("_id") or "").upper()
+    found = set(REGNO.findall((text or "").upper()))
+    return bool(regno) and regno in found and len(found) <= MAX_REGNOS
+
+
+def marketer_page(text: str) -> bool:
+    """The page says it is a marketer's, even on a domain carrying the builder's name (vilasjavdekar.com, 2026-11-03)."""
+    return MARKETER_WORDS.search(text or "") is not None
 
 
 def pick_sources(results: List[dict], name: str, word, limit: int = MAX_SOURCES) -> List[dict]:
@@ -176,7 +219,8 @@ def pick_sources(results: List[dict], name: str, word, limit: int = MAX_SOURCES)
             s, is_official = websearch.site(r["link"]), official(r["link"], word)
             if s in seen or is_official != want_official or len(out) >= limit:
                 continue
-            if not is_official and (not websearch.marketer(r["link"]) or not websearch.mentions(name, r.get("title", "") + " " + r.get("snippet", ""))):
+            if not is_official and (not websearch.marketer(r["link"]) or not (
+                    r.get("by_regno") or websearch.mentions(name, r.get("title", "") + " " + r.get("snippet", "")))):
                 continue
             seen.add(s)
             out.append({"url": r["link"], "site": s, "official": is_official})
@@ -211,14 +255,11 @@ def about_project(doc: dict, name: str, text: str, src: Optional[dict] = None) -
     home listing in Pune (BHK, RERA or carpet-area words, and Pune or the area's name). A page checked by hand (`pinned`) passes
     (the builder's page of "August Towers" stands for August Towers Ph 2). 2026-10-22: a Chakan hotel called The Monarch, a Kharadi dental clinic of a Dr Hemant and a Haridwar retreat
     called Ekaanta named "the project" and gave pictures and highlights to three Kharadi pages."""
-    if (src or {}).get("pinned"):
+    if (src or {}).get("pinned") or prints_regno(doc, text):
         return True, ""
     if not websearch.mentions(name, text):
         return False, "page does not name the project"
     low = (text or "").lower()
-    regno = str(doc.get("regno") or doc.get("_id") or "").lower()
-    if regno and regno in low:
-        return True, ""
     area = BY_KEY.get(doc.get("locality") or "")
     places = ["pune"] + ([area.name.lower()] if area else [])
     if HOME_WORDS.search(low) and any(p in low for p in places):
@@ -230,7 +271,7 @@ def about_whole_project(doc: dict, name: str, text: str, src: Optional[dict] = N
     """about_project under the whole project's name (pages.family_name): a shorter name is one others use too, so a page that
     is not the builder's own must also name the builder or the place."""
     ok, why = about_project(doc, name, text, src)
-    if ok and name != pages.names(doc)[0] and not (src or {}).get("official") and not same_builder_or_place(doc, text):
+    if ok and name != pages.names(doc)[0] and not (src or {}).get("official") and not prints_regno(doc, text) and not same_builder_or_place(doc, text):
         return False, "page names another project of that name"
     return ok, why
 
@@ -346,9 +387,41 @@ def same_builder_or_place(doc: dict, text: str) -> bool:
     return any(w and re.search(rf"\b{re.escape(w)}\b", low) for w in (*builder_words(doc), place, locality))
 
 
+async def regno_results(store, doc: dict, search: Optional[websearch.Search], now: datetime) -> List[dict]:
+    """Google's results for the MahaRERA number itself, kept REGNO_SEARCH_DAYS. A result showing the number is taken whatever name
+    it uses (`by_regno`); the page is still read and checked before anything on it counts."""
+    coll = store.db.get_collection(websearch.RESULTS)
+    regno = str(doc.get("regno") or doc["_id"])
+    kept = await coll.find_one({"_id": regno})
+    at = (kept or {}).get("at")
+    if kept and isinstance(at, datetime) and now - (at if at.tzinfo else at.replace(tzinfo=timezone.utc)) < timedelta(days=REGNO_SEARCH_DAYS):
+        results = kept.get("results") or []
+    elif search is None:
+        results = (kept or {}).get("results") or []
+    else:
+        try:
+            results = (await search(f'"{regno}"'))[:websearch.KEEP_RESULTS]
+        except Exception:
+            log.exception("webfacts: search failed: %s", regno)
+            return []
+        body = {"kind": "regno", "area": doc.get("locality"), "regno": regno, "at": now, "results": results}
+        if kept:
+            await coll.update_one({"_id": regno}, {"$set": body})
+        else:
+            await coll.insert_one({"_id": regno, **body})
+    low = regno.lower()
+    return [{**r, "by_regno": True} for r in results
+            if low in " ".join(str(r.get(k) or "") for k in ("title", "snippet", "link")).lower()]
+
+
 async def results_for(store, doc: dict, name: str, search: Optional[websearch.Search], now: datetime) -> List[dict]:
-    """The stored Google results for this project (newest search first), from searches made under the name buyers use (a search
-    under MahaRERA's legal name, "Kharadi New Project - Tower 1", finds other pages); one new search when there are none."""
+    """The Google results for this project: those for its MahaRERA number first, then the stored ones (newest search first)
+    from searches made under the name buyers use (a search under MahaRERA's legal name, "Kharadi New Project - Tower 1", finds
+    other pages); one new search when there are none."""
+    return await regno_results(store, doc, search, now) + await named_results(store, doc, name, search, now)
+
+
+async def named_results(store, doc: dict, name: str, search: Optional[websearch.Search], now: datetime) -> List[dict]:
     coll = store.db.get_collection(websearch.RESULTS)
     regno = doc.get("regno") or doc["_id"]
     docs = [d for d in await coll.find({"kind": "project"}).sort("at", -1).to_list(500)

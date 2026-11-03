@@ -96,7 +96,9 @@ SECTIONS = ("The project", "Location")
 # an older version is read again, in the BACKFILL group, hot ones first. Kept per project in `enrichment.versions`.
 # profile 2: the builder's site found through the brand, on the domain's own name (ef886e0b, e1c6adb9)
 # profile 3: pictures listed in the page data (sites that draw them by script, godrejproperties.com); room renders are photos
-VERSIONS = {"web": 1, "profile": 3, "prices": 1}
+# web 2, profile 4, prices 2: pages found through the MahaRERA number and the builder's whole name (2026-11-03, owner: "rera number
+# from maha rera, then map with online data"); of 103 projects on the east Pune Top lists only 10 had text, highlights, prices and photos
+VERSIONS = {"web": 2, "profile": 4, "prices": 2}
 # fail and move on (owner 2026-10-20: "note it and continue with others, find a solution offline later"): each reading step
 # has STEP_SECONDS, the whole round ROUND_SECONDS; a project is not taken again within MIN_GAP (urgent requests aside), and
 # after MAX_FAILS failed rounds in a row it is parked for PARK_DAYS with its reason in the owner's list (status "parked")
@@ -202,11 +204,12 @@ def priority(d: dict, urgent: set, now: datetime, shown: frozenset = frozenset()
 
 
 def complete(d: dict) -> bool:
-    """Every stage of the last round passed (score 4/4) and the page has pictures (the builder's, the web's or illustrations)."""
+    """Every stage of the last round passed (score 4/4) and the page shows real pictures. Pictures it does not show do not count:
+    with them 143 of 211 hot and Top-list projects counted as complete while 12 showed a photo, and the queue stood empty (2026-11-03)."""
     e = d.get("enrichment") or {}
     if not e or any(not ((e.get("steps") or {}).get(k) or {}).get("ok") for k in STEPS):
         return False
-    return bool(d.get("cluster_primary") or (d.get("profile") or {}).get("photos"))
+    return bool(d.get("cluster_primary") or pages.shown_pictures((d.get("profile") or {}).get("photos"), drawn=False))
 
 
 def _priority(d: dict, now: datetime, shown: frozenset = frozenset()) -> Optional[tuple]:
@@ -219,7 +222,8 @@ def _priority(d: dict, now: datetime, shown: frozenset = frozenset()) -> Optiona
     legacy = isinstance(done, datetime) and not d.get("enrichment")   # enriched before buildings and checks: redo
     written = d.get("page_text_at")
     resting = pages.searchable(d) and isinstance(written, datetime) and now - _aware(written) < timedelta(days=REST_DAYS)
-    stale = isinstance(done, datetime) and bool(outdated(d)) and not resting   # read by an older version of a step
+    # read by an older version of a step; a page buyers see first does not wait out its rest (owner 2026-11-03: main pages by area need full data)
+    stale = isinstance(done, datetime) and bool(outdated(d)) and (not resting or is_hot or top)
     if stale:   # hot: with the hot ones (after those never given a profile); the rest after everything else, Google's first
         return (1, 1, -heat) if is_hot or top else (BACKFILL, 1, 1, -seen, _aware(done).timestamp())
     # hot pages are rewritten every HOT_REFRESH_DAYS anyway
@@ -227,8 +231,9 @@ def _priority(d: dict, now: datetime, shown: frozenset = frozenset()) -> Optiona
                   and int(d.get("page_text_version") or 1) < TEXT_VERSION)
     if (is_hot or top) and needs_profile(d, now):
         return (1, -heat)                                       # hot and still being built, no profile yet: first
-    # a hot page missing a stage or pictures is tried again the next day, not after HOT_REFRESH_DAYS
-    days = (HOT_REFRESH_DAYS if complete(d) else RETRY_DAYS) if is_hot else RETRY_DAYS if unanswered(d) else \
+    # a hot page that has not got everything is tried again after TOP_RETRY_DAYS, not after HOT_REFRESH_DAYS; the next day only
+    # when a service did not answer (no builder's site found today is not found tomorrow either, and a round costs model calls)
+    days = RETRY_DAYS if unanswered(d) else (HOT_REFRESH_DAYS if complete(d) else TOP_RETRY_DAYS) if is_hot else \
         (HOT_REFRESH_DAYS if complete(d) else TOP_RETRY_DAYS) if top else \
         THIN_RETRY_DAYS if pages.indexable(d) and not pages.searchable(d) else REFRESH_DAYS
     if isinstance(done, datetime) and unread_by_family(d):

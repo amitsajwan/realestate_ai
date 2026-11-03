@@ -325,7 +325,14 @@ def _caption(c: dict, kind: str, name: str) -> str:
 async def pictures(sources: List[dict], raw_of: Dict[str, str], name: str, regno: str, fetch: FetchBytes,
                    media_dir: Path = MEDIA_DIR, page: Optional[webfacts.Fetch] = None) -> tuple:
     """(photos, plans, why): saved pictures from the builder's own project page(s) and its gallery / plans pages."""
-    pages_ = [s for s in sources if s["official"] and raw_of.get(s["url"]) and (s.get("pinned") or project_page(s["url"], name))]
+    # the address names the project, or the page prints its MahaRERA number (rohanbuilders.com/pune-homes/abhilasha-4 for "Rohan
+    # Abhilasha 4 Phase 1"); never a page calling itself a marketer's, even on a domain with the builder's name
+    def builders_page(s: dict) -> bool:
+        if s.get("pinned"):
+            return True
+        text = webfacts.page_text(raw_of[s["url"]])
+        return not webfacts.marketer_page(text) and (project_page(s["url"], name) or webfacts.prints_regno({"regno": regno}, text))
+    pages_ = [s for s in sources if s["official"] and raw_of.get(s["url"]) and builders_page(s)]
     if not pages_:
         return [], [], "no builder page for the project"
     if page is not None:   # its own gallery and plans pages first: the main page spends the budget on icons

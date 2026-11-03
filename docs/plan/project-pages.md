@@ -320,6 +320,29 @@ MahaRERA publishes no prices at all (carpet areas, bookings and dates only), so 
 3. TARGET: registered sale prices (IGR Index-II) beside the asking price. The free e-Search is one search at a time behind a
    captcha and is not to be scraped; it needs a licensed Index-II data feed (owner to decide).
 
+## The MahaRERA number first (2026-11-03)
+
+Owner: "rera number from maha rera, then map with online data, then finalize builder, project name, once there price." On
+2026-11-03 only 10 of 103 projects on the east Pune Top lists had text, highlights, prices and real photos, and the queue stood
+empty. Builders' own pages loaded fine and were refused on the wording of the name.
+
+- **Find:** Google is asked for the number itself once in 30 days (`webfacts.regno_results`); a result showing it is read whatever
+  name it uses.
+- **Prove:** a page printing the number is about the project (`webfacts.prints_regno`), checked before the name. A page printing
+  more than 8 numbers is a list and proves nothing.
+- **Builder:** the promoter's full name is kept unless it reads as a person (`newsroom.sources.maharera._ORG`), and the builder's
+  domain may be its whole name run together (`webfacts.whole_name`, koltepatil.com, katemozzeassociates.com) or a site checked by
+  hand (`brands.SITES`). A page calling itself a marketing partner gives no pictures, even on a domain with the builder's name.
+- **Pictures:** the builder's page counts when its address names the project or it prints the number.
+- **Done:** `enrich.complete` counts only pictures the page shows. A hot project without them comes back after 7 days, not the
+  next day unless a service did not answer. `VERSIONS` went up, so every project is read again, hot and Top-list ones first and
+  without waiting out `REST_DAYS`.
+- `builder_pages` stays for what the rules cannot reach; 32 Top-list projects were set by hand on 2026-11-03.
+
+TARGET: project names are not changed from what was found (the page still says "Kharadi Pune" for Lodha Giardino until
+`marketed_name_override` is set). A site named after the project (prasunadara.com) is read for highlights but gives no pictures
+unless set by hand, since brokers buy such domains too. 99acres and housing.com have never been read from the VM.
+
 ## Enrichment that improves, fails forward and sells (2026-10-20, LIVE)
 Owner, 2026-10-20: enrichment runs again when we improve it, get more info or a better model; a project that fails is noted
 and the loop moves on (fixed offline later), with a cut-off; think SEO always; make the paragraph, lines and highlights better.

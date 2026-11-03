@@ -37,7 +37,7 @@ BRANDS: List[Brand] = [
     _b("godrej-properties", "Godrej Properties", r"\bgodrej\b", r"^godrej\b"),
     _b("lodha", "Lodha", r"\blodha developers\b|\bmacrotech developers\b", r"^lodha\b"),
     _b("kolte-patil", "Kolte Patil", r"\bkolte\s*patil\b", search=r"\bkolte\b"),
-    _b("vtp-realty", "VTP Realty", r"\bvtp\b", r"^vtp\b"),
+    _b("vtp-realty", "VTP Realty", r"\bvtp\b", r"^vtp\b|\bby vtp\b"),   # "Altamira By VTP Luxe" is filed by Merculus Construwell
     _b("panchshil", "Panchshil Realty", r"\bpanchshil\b", r"^panchshil\b"),
     _b("gera-developments", "Gera Developments", r"\bgera (developments|projects|developers)\b", r"^geras?\b", r"\bgeras?\b"),
     _b("rohan-builders", "Rohan Builders", r"\brohan (builders|housing|promoters|lifescapes)\b", search=r"\brohan (builders|lifescapes)\b"),
@@ -67,6 +67,8 @@ BRANDS: List[Brand] = [
     _b("goyal-properties", "Goyal Properties (My Home)", r"^goyal developers\b", r"^my home\b", r"\b(goyal properties|my home)\b"),
 ]
 BY_SLUG = {b.slug: b for b in BRANDS}
+# a brand's own site whose domain does not follow from its name, each checked by hand (2026-11-03); vilasjavdekar.com is a marketer's
+SITES = {"vilas-javdekar": ("javdekars",), "kohinoor-group": ("kohinoorpune",)}
 
 
 def _words(s: object) -> str:
