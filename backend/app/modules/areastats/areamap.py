@@ -23,7 +23,7 @@ from app.modules.newsroom.store import Store
 
 from .hubs import _primaries, _slot, link_name
 from .pages import _served, booked, builder_logo, indexable, is_old, location_picture, shown_pictures, stage
-from .prices import price_from
+from .prices import overall_floors, price_from
 from .service import _count, _day
 
 LIMIT = 10
@@ -179,6 +179,7 @@ async def public(db, area: Optional[str], now: Optional[datetime] = None, limit:
     now = now or datetime.now(timezone.utc)
     every = await Store(db).shared_projects()
     by_regno = {d.get("regno") or d["_id"]: d for d in every if _served(d)}
+    floors = overall_floors(every, now)   # an overall price under its area's floor is a studio's or an office's (prices.homes_only)
     towers: Dict[str, List[dict]] = {}
     for x in every:
         if x.get("cluster_primary"):
@@ -213,7 +214,7 @@ async def public(db, area: Optional[str], now: Optional[datetime] = None, limit:
         known = [x for x in group if booked(x) is not None and _count(x.get("units_total")) and (booked(x) or _young(x, now))]
         total = sum(_count(x.get("units_total")) for x in known)
         sold = sum(booked(x) for x in known)
-        prices = [p for p in (price_from(x) for x in group) if p]
+        prices = [p for p in (price_from(x, floors=floors) for x in group) if p]
         st = stage(d, now.date())
         at = xy(m, g["lat"], g["lon"])
         # the card links ONE phase's page (the most active), so it names that page and says how many phases its homes add up: a

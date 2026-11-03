@@ -2,7 +2,7 @@
 bookings, distance to work hubs, the scope of a web count, the compare list's prices and sizes, and the extension-only date."""
 from datetime import datetime, timedelta, timezone
 
-from app.modules.areastats import pagefacts, pages, prices
+from app.modules.areastats import pagefacts, pages, priceidea, prices
 from app.modules.newsroom.store import Store
 
 from ..fakes import FakeDb
@@ -330,3 +330,37 @@ async def test_the_project_page_carries_the_area_comparison():
     page = await pages.project_page(db, "our-project", now=NOW)
     assert page["area_compare"] == {"place": "Wagholi", "booked": {"pct": 59, "area_pct": 59, "projects": 8},
                                     "moved": {"months": 0, "area_moved": 0, "area_with_dates": 8}}
+
+
+# ---- an overall price far under the area's cheapest homes is not a home's (2026-11-03: VJ IndiLife "Homes from ₹35 L") ------
+
+
+BANDS = [{"bhk": "1 BHK", "low": 6_000_000, "high": 7_000_000, "middle": 6_500_000, "projects": 4},
+         {"bhk": "2 BHK", "low": 9_000_000, "high": 11_000_000, "middle": 10_000_000, "projects": 6}]
+
+
+def test_the_floor_is_seventy_percent_of_the_low_end_of_the_areas_cheapest_size():
+    assert priceidea.overall_floor(BANDS) == 4_200_000
+    assert priceidea.overall_floor([]) is None
+
+
+def test_an_overall_price_under_the_floor_is_dropped_but_sized_prices_and_fair_overall_prices_stay():
+    shown = {"read_at": "2026-10-22", "rows": [{"bhk": "All homes", "from_inr": 3_500_000}]}
+    assert prices.homes_only(shown, 4_200_000) is None
+    assert prices.homes_only({**shown, "rows": [{"bhk": "All homes", "from_inr": 6_000_000}]}, 4_200_000)["rows"][0]["from_inr"] == 6_000_000
+    assert prices.homes_only({**shown, "rows": [{"bhk": "1 RK", "from_inr": 3_000_000}]}, 4_200_000)["rows"][0]["bhk"] == "1 RK"
+    assert prices.homes_only(shown, None) == shown   # no bands in the area: nothing to judge by
+
+
+async def test_a_studios_onwards_price_is_not_shown_as_the_projects_homes_or_in_the_area_lists():
+    one_bhk = lambda inr: {"prices": priced(("1 BHK", inr, f"1 BHK ₹ {inr // 100_000} L"))}
+    db = await seeded(("P1", "VJ IndiLife", {"prices": priced(("All homes", 3_500_000, "35 Lacs* Onwards"))}),
+                      *[(f"P{i}", f"Peer {i}", one_bhk(6_000_000 + i * 200_000)) for i in range(2, 6)])
+    page = await pages.project_page(db, "vj-indilife", now=NOW)
+    assert page["prices"] is None
+    listed = {r["slug"]: r for r in await pages.listing(db, area="wagholi", only_indexable=False)}
+    assert listed["vj-indilife"]["price_from"] is None and listed["vj-indilife"]["homes"] == []
+    assert listed["peer-2"]["price_from"] == 6_400_000
+    # with no area to judge by, the price stays
+    alone = await seeded(("P1", "VJ IndiLife", {"prices": priced(("All homes", 3_500_000, "35 Lacs* Onwards"))}))
+    assert (await pages.project_page(alone, "vj-indilife", now=NOW))["prices"]["rows"][0]["from_inr"] == 3_500_000

@@ -823,24 +823,27 @@ async def project_page(db, slug: str, now: Optional[datetime] = None) -> Optiona
     from .profile import public as profile_public
     out["profile"] = profile_public(group_primary(doc, docs).get("profile"), drawn=not out["indexable"], doc=group_primary(doc, docs))
     out["plans_3d"] = plans3d.public(group_primary(doc, docs).get("plans_3d"))   # 3D drawings of its checked floor plans
-    from .prices import ideas, public as prices_public, starts   # asked prices per home size, from the builder's site or two sites
-    out["prices"] = prices_public(group_primary(doc, docs).get("prices"), now)
-    # the compare list: each other project's lowest published price and the sizes it is priced for
-    for row, s in zip(out["same_area"], similar):
-        shown = prices_public(s.get("prices"), now)
-        row["price_from"], row["bhk"] = pagefacts.price_from(shown), pagefacts.sizes_label(shown)
-    # the area's ₹ per sq ft from the other projects' published prices (each project once: its group's primary record)
+    from .prices import homes_only, ideas, public as prices_public, starts   # asked prices per home size, from the builder's site or two sites
+    # the area's records, each project once (its group's primary record): its prices for the rate and the usual band per size
     field, place = _area_of(doc)
     mine = doc.get("cluster_primary") or doc["_id"]
     others = [d for d in docs if field and d.get(field) == doc[field] and not d.get("cluster_primary") and d["_id"] != mine
               and d.get("prices")]
+    area_bands = priceidea.area_bands(starts(d.get("prices"), now) for d in others if not is_old(d, (now or datetime.now(timezone.utc)).date()))
+    # an overall price far under the area's cheapest homes is a studio's, an office's or a booking amount (VJ IndiLife's "35 Lacs*
+    # Onwards", headed "Studio Apartments, Office Space" on the site, read as "Homes from ₹35 L", 2026-11-03)
+    floor = priceidea.overall_floor(area_bands)
+    out["prices"] = homes_only(prices_public(group_primary(doc, docs).get("prices"), now), floor)
+    # the compare list: each other project's lowest published price and the sizes it is priced for
+    for row, s in zip(out["same_area"], similar):
+        shown = homes_only(prices_public(s.get("prices"), now), floor)
+        row["price_from"], row["bhk"] = pagefacts.price_from(shown), pagefacts.sizes_label(shown)
     out["area_rate"] = pagefacts.area_rate(place, (prices_public(d.get("prices"), now) for d in others))
     # this project beside the rest of its area: booked share and date move (the area's records, each project once)
     neighbours = [d for d in docs if field and d.get(field) == doc[field] and not d.get("cluster_primary") and d["_id"] != mine]
     out["area_compare"] = area_compare(doc, neighbours, place, (now or datetime.now(timezone.utc)).date())
     # the rounded price idea (areastats.priceidea): the sizes one site prices, and the area's usual band per size
     own = group_primary(doc, docs).get("prices")
-    area_bands = priceidea.area_bands(starts(d.get("prices"), now) for d in others if not is_old(d, (now or datetime.now(timezone.utc)).date()))
     read = (own or {}).get("at")
     out["price_idea"] = priceidea.view(ideas(own, now), area_bands, place, read.date().isoformat() if isinstance(read, datetime) else None)
     if not out["homes"]:
@@ -892,12 +895,13 @@ async def listing(db, area: Optional[str] = None, only_indexable: bool = True, l
         docs = [d for d in docs if indexable(d)]
     docs.sort(key=lambda d: (_day(d.get("last_modified")) or "", d.get("name", "")), reverse=True)
     stamps = cluster_stamps(every)
-    from .prices import price_from, public as shown_prices
+    from .prices import floor_for, homes_only, overall_floors, price_from, public as shown_prices
+    floors = overall_floors(every)
 
     def finder(d: dict) -> dict:
         """What the home finder filters on (owner 2026-10-30): each size's lowest published price, months the builder moved the
         filed date, and the checked map position."""
-        rows = (shown_prices(d.get("prices")) or {}).get("rows") or []
+        rows = (homes_only(shown_prices(d.get("prices")), floor_for(d, floors)) or {}).get("rows") or []
         geo = d.get("geo") or {}
         placed = own_position(d)
         photo = next((p for p in shown_pictures((d.get("profile") or {}).get("photos"), drawn=False) if p.get("path")), None)
@@ -913,7 +917,7 @@ async def listing(db, area: Optional[str] = None, only_indexable: bool = True, l
              "promoter": d.get("promoter") or None, "completion_now": _day(d.get("completion_now")),
              "checked": checked_count(d), "checks_total": len(CHECK_LABELS), "active": not is_old(d),
              "listed_or_updated": _day(d.get("last_modified")), "stage": stage(d), "sold_out": sold_out(d),
-             "price_from": price_from(d),   # the lowest asked price we publish (areastats.prices), else None
+             "price_from": price_from(d, floors=floors),   # the lowest asked price we publish (areastats.prices), else None
              "page_updated": cluster_updated(d, every, stamps),   # our own last change (the sitemap's lastmod; a primary: its newest tower), never MahaRERA's dates
              # `only_indexable` keeps every listable page for the area lists; this flag is the stricter one search sees
              "indexable": searchable(d)} for d in docs[:limit]]

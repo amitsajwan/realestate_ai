@@ -34,7 +34,7 @@ import re
 from datetime import datetime, timedelta, timezone
 from typing import Any, List, Optional
 
-from . import pages, webfacts, websearch
+from . import pages, priceidea, webfacts, websearch
 
 log = logging.getLogger(__name__)
 
@@ -349,6 +349,15 @@ def public(prices: Optional[dict], now: Optional[datetime] = None) -> Optional[d
                      for r, q in rows for sqft in (sqft_of(r, q),)]}
 
 
+def homes_only(shown: Optional[dict], floor: Optional[int]) -> Optional[dict]:
+    """`public`'s rows without an overall ("All homes") price under `floor` (priceidea.overall_floor): it is not a home's price.
+    None when no row is left; unchanged without a floor."""
+    if not shown or not floor:
+        return shown
+    rows = [r for r in shown["rows"] if not (r["bhk"] == "All homes" and r["from_inr"] < floor)]
+    return {**shown, "rows": rows} if rows else None
+
+
 def _quote(row: dict) -> str:
     """The line the shown price was read from: the first source is the one picked (agree)."""
     sources = row.get("sources") or []
@@ -381,7 +390,27 @@ def starts(prices: Optional[dict], now: Optional[datetime] = None) -> dict:
     return out
 
 
-def price_from(doc: dict, now: Optional[datetime] = None) -> Optional[int]:
-    """The lowest published price, for the area lists ("from ₹1.25 Cr"); None when there is none."""
-    shown = public(doc.get("prices"), now)
+def price_from(doc: dict, now: Optional[datetime] = None, floors: Optional[dict] = None) -> Optional[int]:
+    """The lowest published price, for the area lists ("from ₹1.25 Cr"); None when there is none. With `floors`
+    (overall_floors) an overall price under its area's floor is not a home's price and is left out."""
+    shown = homes_only(public(doc.get("prices"), now), floor_for(doc, floors or {}))
     return min(r["from_inr"] for r in shown["rows"]) if shown else None
+
+
+def overall_floors(docs: List[dict], now: Optional[datetime] = None) -> dict:
+    """{(field, value): floor}: priceidea.overall_floor per area (pages._area_of: the Pune place, else the locality), from the
+    usual starting price per size of the area's projects still being built, each project once. For lists that show many
+    projects' prices at once; a project page works out its own area's floor."""
+    today = (now or datetime.now(timezone.utc)).date()
+    per: dict = {}
+    for d in docs:
+        if d.get("prices") and not d.get("cluster_primary") and not pages.is_old(d, today):
+            field, _ = pages._area_of(d)
+            if field:
+                per.setdefault((field, d[field]), []).append(starts(d["prices"], now))
+    return {k: f for k, v in per.items() if (f := priceidea.overall_floor(priceidea.area_bands(v)))}
+
+
+def floor_for(doc: dict, floors: dict) -> Optional[int]:
+    field, _ = pages._area_of(doc)
+    return floors.get((field, doc.get(field))) if field else None
