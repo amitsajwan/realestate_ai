@@ -1,7 +1,7 @@
 # Avasetu (realestate_ai)
 
-Real estate platform for Pune agents and buyers. A FastAPI + MongoDB backend built as a modular monolith (`backend/`) and a
-Next.js 16 / React 19 frontend (`frontend/`). The architecture we're moving to is `docs/ARCHITECTURE.md` and the steps to get
+Real estate platform for Pune agents and buyers. A FastAPI + MongoDB backend built as a modular monolith (`backend/`) and two
+Next.js 16 / React 19 apps on one address: the public site (`frontend/`) and Studio, the agents' app (`studio/`). The architecture we're moving to is `docs/ARCHITECTURE.md` and the steps to get
 there are `docs/MODERNIZATION.md`. Read those two before any structural change. Operating and deploying: `docs/operator/OPERATOR_GUIDE.md`.
 SEO and AI search (what runs, the owner's upkeep, the plan): `docs/plan/seo-system.md`, kept current in the same commit as any SEO change.
 
@@ -17,17 +17,20 @@ python -m pytest tests/ -q --tb=short            # full suite; no Mongo needed (
 python -m pytest tests/modules/<module>/ -q      # one module while iterating
 ```
 
-Frontend, from `frontend/` (Node 22):
+Public site, from `frontend/`, and Studio, from `studio/` (Node 22; the same commands in each):
 ```bash
 npm ci --no-audit --no-fund
 npx jest --ci --silent                           # unit tests (__tests__/)
 npm run build                                    # also the type check
 ```
+A change to `shared/` needs both.
 `npm run lint` (`next lint`) does not work on Next 16, so don't use it to check your work. Playwright e2e (`npm run test:e2e`)
 needs a running app and only runs when started by hand.
 
 Run locally: `docker compose -f docker-compose.dev.yml up`, or the backend with `uvicorn app.main:app --reload` (from
-`backend/`) plus `npm run dev` (from `frontend/`). Background loops: `python -m app.worker --role <conversations|newsroom|media>`.
+`backend/`) plus `npx next dev --webpack` in `frontend/` (port 3000) and in `studio/` (`-p 3001`). Open everything through
+port 3000: the site forwards `/studio` and `/join` to Studio. (Plain `npm run dev` uses Turbopack, which rejects the Tailwind
+CSS today.) Background loops: `python -m app.worker --role <conversations|newsroom|media>`.
 
 ## Repo map
 
@@ -39,7 +42,11 @@ Run locally: `docker compose -f docker-compose.dev.yml up`, or the backend with 
 - `backend/app/worker.py`: the background loop table and worker roles.
 - `backend/app/{api,routers,services,repositories,schemas}`: **the old layer**. Don't add to it. New code goes in `modules/`.
 - `backend/tests/modules/<name>/`: tests sit with their module. `tests/modules/fakes.py` holds the in-memory Mongo stand-ins.
-- `frontend/app/`: App Router pages. `frontend/components/`, `lib/` and `__tests__/` are what they sound like.
+- `frontend/app/`: the public site's App Router pages. `frontend/components/`, `lib/` and `__tests__/` are what they sound like.
+- `studio/`: Studio (`/studio/*` and its sign-in `/join`), its own Next.js app, image and container (ARCHITECTURE §9). Screens in
+  `studio/app/studio/`, components in `studio/components/app/`, API client and rules in `studio/lib/app/`.
+- `shared/`: plain TypeScript both apps import as `@shared/*` (brand, site types, localities, Studio's strings, the login token).
+  No React, no Next, only relative imports inside it.
 - `deploy/gcp/`: the production deploy. Older scripts at the repo root (`deploy*.sh`, `*.ps1`, ngrok files) don't match production.
 
 Don't touch:
@@ -67,6 +74,8 @@ Don't touch:
 8. **Moves are separate from fixes.** When code moves, pin its behaviour with tests first, leave a shim at the old path, and
    don't change behaviour in the same commit.
 9. **Login (`core/auth_backend.py`) is not rewritten.**
+10. **The site and Studio do not import each other.** What both need goes in `shared/` as plain TypeScript. A link from one app
+    to a page of the other is a plain `<a>`, never Next's `<Link>`.
 
 ## Conventions
 
@@ -79,7 +88,8 @@ Don't touch:
 
 ## Definition of done
 
-- `lint-imports` passes and the full backend suite passes (and frontend jest + build, if `frontend/` changed).
+- `lint-imports` passes and the full backend suite passes (and jest + build in `frontend/` or `studio/`, whichever changed;
+  both if `shared/` changed).
 - A new behaviour has a test, and a bug fix has a test that failed before the fix.
 - No test was skipped, weakened, or added to `collect_ignore` to get green.
 - The relevant doc (ARCHITECTURE / MODERNIZATION progress log / module doc in `docs/`) is updated if the shape changed.

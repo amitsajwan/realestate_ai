@@ -102,6 +102,8 @@ services:
       # API Configuration
       - NEXT_PUBLIC_API_URL=http://localhost:8000
       - NEXT_PUBLIC_APP_URL=http://localhost:3000
+      # the site forwards /studio, /join and /studio-static to the Studio container (frontend/next.config.js)
+      - STUDIO_DEV_URL=http://studio:3001
       
       # Environment
       - NODE_ENV=development
@@ -136,9 +138,33 @@ services:
       - real-estate-dev-network
     volumes:
       - ./frontend:/app
+      - ./shared:/shared
       - /app/node_modules
       - /app/.next
     command: ["./node_modules/.bin/next", "dev"]
+
+  # Studio (/studio, /join): its own Next.js app. Open it through the site (http://localhost:3000/studio), which forwards
+  # Studio's addresses here, so both share one origin and the login.
+  studio:
+    build:
+      context: ./studio
+      dockerfile: Dockerfile.dev
+    container_name: real-estate-studio-dev
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - STUDIO_DEV_API_URL=http://backend:8000
+    depends_on:
+      - backend
+    networks:
+      - real-estate-dev-network
+    volumes:
+      - ./studio:/app
+      - ./shared:/shared
+      - /app/node_modules
+      - /app/.next
 
 volumes:
   mongodb_dev_data:

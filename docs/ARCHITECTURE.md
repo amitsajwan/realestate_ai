@@ -12,7 +12,8 @@ into networked services is premature for a 3-10 agent pilot and a small team; de
 scaling boundaries.
 
 Production roles:
-- **web**: Next.js, stateless and suitable for CDN-backed public routes.
+- **web**: Next.js, stateless and suitable for CDN-backed public routes. Two apps on one address: the public site (`frontend/`)
+  and Studio (`studio/`: `/studio` and its sign-in `/join`), routed by Caddy. They ship separately (§9).
 - **api**: FastAPI HTTP only; `RUN_BACKGROUND_LOOPS=false` in production.
 - **conversations**: `engage`, `answer_gaps`, `inbound_messages` (Meta webhooks saved by the api, handled here), `lead_followups`
   (alert on leads waiting 2 h+; WhatsApp follow-up template to fresh form leads when `LEAD_AUTO_FOLLOWUP=true`).
@@ -162,8 +163,20 @@ check (MahaRERA fixtures exist), knowledge refusing to answer beyond its facts, 
 
 ## 9. Frontend
 
-- The studio (`lib/app`, `app/studio`) and the public site (`app/agent`, `app/localities`, `app/news`, `app/insights`) use the
-  new API only.
+- **Two Next.js apps, one address** (owner, 2026-11-03: separate teams and separate releases for Studio). The public site is
+  `frontend/`. Studio, the agents' and owner's phone app, is `studio/`: its own package, tests, image and container, serving
+  `/studio/*` and its sign-in `/join`. Caddy sends those paths and `/studio-static/*` (Studio's assets, its `assetPrefix`) to
+  the studio container and everything else to the site (`deploy/gcp/Caddyfile`). One origin keeps one login: the token in
+  localStorage. Next.js calls this multi-zones.
+- **Links between the two apps are plain `<a>` tags**, never `<Link>`: Next's client-side navigation stays inside one app.
+  A link to a page of the same app stays `<Link>`.
+- **`shared/`** at the repo root holds the plain TypeScript both apps use (brand, API base, site types, format, presets, theme,
+  localities, Studio's strings, the login token). No React and no Next in it, and its files import only each other, by
+  relative path. Each app imports it as `@shared/*`; the site keeps shims at the old `lib/` paths. Anything bigger that one
+  app needs from the other is either moved into `shared/` as plain TypeScript or copied with a note to keep them in step
+  (Studio's register search and `VerifiedFacts` are such copies).
+- Studio (`studio/lib/app`, `studio/app/studio`) and the public site (`app/agent`, `app/localities`, `app/news`, `app/insights`)
+  use the new API only.
 - Code is grouped by feature, matching the backend domains: `features/<domain>/{api, hooks, components}`.
 - The old pages (`/dashboard`, `/properties`, `/profile`, `/analytics`) and the three old API clients (`lib/api.ts`,
   `lib/api/centralized-client.ts`, `lib/api/unified-client.ts`) are retired (step 7).

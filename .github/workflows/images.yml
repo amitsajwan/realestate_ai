@@ -1,6 +1,6 @@
 name: Build app images
 
-# Builds the backend image (api and the three worker roles) and the website image on GitHub's machines for every push to the
+# Builds the backend image (api and the three worker roles), the website image and the Studio image on GitHub's machines for every push to the
 # working branch, and stores them in Artifact Registry tagged with the commit. A deploy (deploy/gcp/deploy.ps1) then only
 # pulls the images: the VM never builds (owner, 2026-10-16: a build on the e2-medium took ~20 minutes and slowed the live site).
 # GitHub signs in to Google without a stored key (Workload Identity Federation, limited to this repository).
@@ -26,7 +26,7 @@ jobs:
     timeout-minutes: 40
     strategy:
       matrix:
-        image: [backend, frontend]
+        image: [backend, frontend, studio]
     steps:
       - uses: actions/checkout@v4
 
@@ -48,6 +48,8 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.image }}
+          # shared/: the plain TypeScript the website and Studio both use (COPY --from=shared in their Dockerfiles)
+          build-contexts: shared=./shared
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ matrix.image }}:${{ github.sha }}

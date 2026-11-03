@@ -1,7 +1,7 @@
 # Images: built on GitHub (.github/workflows/images.yml) and pulled by deploy.ps1 (IMAGE_TAG = the commit in .env);
 # deploy.ps1 -Build builds here instead (the fallback).
-# Avasetu on a single GCP VM: Caddy (auto-HTTPS) -> frontend + backend, MongoDB private.
-# Only Caddy publishes ports; Mongo, backend, the worker roles and frontend are reachable only on the internal network.
+# Avasetu on a single GCP VM: Caddy (auto-HTTPS) -> frontend (the public site), studio (/studio, /join) + backend, MongoDB private.
+# Only Caddy publishes ports; Mongo, backend, the worker roles, frontend and studio are reachable only on the internal network.
 # Container logs are capped at 3 x 20 MB each: Mongo alone wrote ~60 MB a day of connection lines into an unrotated log (2026-10-23).
 x-logging: &logging
   driver: json-file
@@ -151,6 +151,9 @@ services:
     image: ${IMAGE_REGISTRY:-asia-south1-docker.pkg.dev/trader-502012/avasetu}/frontend:${IMAGE_TAG:-latest}
     build:
       context: ../../frontend
+      # shared/: the plain TypeScript the site and Studio both use
+      additional_contexts:
+        shared: ../../shared
       args:
         # set these in deploy/gcp/.env on the VM, then redeploy (they are baked in at build time)
         NEXT_PUBLIC_BUSINESS_NAME: ${NEXT_PUBLIC_BUSINESS_NAME:-Avasetu}
@@ -166,6 +169,21 @@ services:
       SITE_API_URL: http://backend:8000
     depends_on:
       - backend
+
+  # Studio (/studio and its sign-in /join): its own Next.js app and image (studio/), so it ships apart from the site.
+  # Caddy sends /studio, /join and /studio-static here. Everything runs in the browser, so it needs little memory.
+  studio:
+    image: ${IMAGE_REGISTRY:-asia-south1-docker.pkg.dev/trader-502012/avasetu}/studio:${IMAGE_TAG:-latest}
+    build:
+      context: ../../studio
+      additional_contexts:
+        shared: ../../shared
+      args:
+        NEXT_PUBLIC_BUSINESS_NAME: ${NEXT_PUBLIC_BUSINESS_NAME:-Avasetu}
+        NEXT_PUBLIC_SITE_URL: https://${SITE_HOST}
+    restart: unless-stopped
+    logging: *logging
+    mem_limit: ${STUDIO_MEMORY_LIMIT:-256m}
 
   caddy:
     image: caddy:2
@@ -186,6 +204,7 @@ services:
       - caddy_config:/config
     depends_on:
       - frontend
+      - studio
       - backend
 
 volumes:

@@ -51,8 +51,9 @@ One Google Cloud VM runs five Docker containers with Docker Compose (`deploy/gcp
 
 | Container | Image | Role |
 |---|---|---|
-| `caddy` | `caddy:2` | The only public service (ports 80 and 443). Automatic HTTPS for `SITE_HOST`. Sends `/api/*`, `/docs`, `/openapi.json` and `/uploads/*` to the backend and everything else to the frontend (`deploy/gcp/Caddyfile`). |
-| `frontend` | built from `frontend/` | Next.js (App Router, standalone output, `next build --webpack`). Public site (agent pages, listings, chat, `/go`, `/news`, `/for-agents`, `/join`, legal pages) and **Studio** (`/studio`, the agents' and owners' phone app). Server-side calls go to `http://backend:8000` (`SITE_API_URL`). |
+| `caddy` | `caddy:2` | The only public service (ports 80 and 443). Automatic HTTPS for `SITE_HOST`. Sends `/api/*`, `/docs`, `/openapi.json` and `/uploads/*` to the backend, `/studio`, `/join` and `/studio-static` to studio, and everything else to the frontend (`deploy/gcp/Caddyfile`). A deploy recreates Caddy only when the Caddyfile changed. |
+| `frontend` | built from `frontend/` | Next.js (App Router, standalone output, `next build --webpack`). The public site (agent pages, listings, chat, `/go`, `/news`, `/for-agents`, legal pages). Server-side calls go to `http://backend:8000` (`SITE_API_URL`). |
+| `studio` | built from `studio/` | **Studio**, the agents' and owner's phone app (`/studio`, its sign-in `/join`): its own Next.js app since 2026-11-03, so it is built and shipped apart from the site. Runs in the browser and calls `/api` through Caddy; about 40 MB of memory (limit `STUDIO_MEMORY_LIMIT`, default 256m). |
 | `backend` | built from `backend/` | FastAPI (Python 3.11, uvicorn) on port 8000. All APIs under `/api/v1`, uploaded and generated media under `/uploads` (Docker volume `uploads`). Serves requests only: the background loops run in `worker`. |
 | `worker` | same image as `backend` | `python -m app.worker`: every background loop (table below), in its own process, so restarting the API never interrupts posting or reels. Same `.env` and the same `uploads` volume. |
 | `mongo` | `mongo:7` | MongoDB, private to the compose network (no published port). Database `propertyai` by default. Volume `mongo_data`. |
@@ -64,7 +65,8 @@ Volumes: `mongo_data` (database), `uploads` (photos, cards, reels, the depth mod
 ```mermaid
 flowchart LR
   buyer["Buyers and agents (phone browser)"] -->|HTTPS| caddy["Caddy: auto-HTTPS, ports 80/443"]
-  caddy -->|"/ and /studio"| fe["Next.js frontend"]
+  caddy -->|"/ (public site)"| fe["Next.js frontend"]
+  caddy -->|"/studio, /join"| st["Next.js studio"]
   caddy -->|"/api, /uploads"| be["FastAPI backend"]
   fe -->|"server-side API calls"| be
   be --> db[("MongoDB")]
@@ -241,7 +243,7 @@ of which publish nothing; then `CALENDAR_ENABLED` and `ENGAGE_ENABLED` with thei
 |---|---|---|
 | Site | open `https://<DOMAIN>/` and `https://<DOMAIN>/projects` on a phone | pages load over https |
 | API | `https://<DOMAIN>/api/v1/health` | says "healthy" |
-| Containers | on the VM: `sudo docker compose ps` | mongo, backend, worker, frontend, caddy all running |
+| Containers | on the VM: `sudo docker compose ps` | mongo, backend, worker, frontend, studio, caddy all running |
 | Loops | on the VM: `sudo docker compose exec -T backend python -m app.worker --check` | every enabled loop is fresh, exit 0 |
 | Keys | `.\deploy\gcp\keys.ps1 -Verify` | OK for every key you set |
 | Health | on the VM: `bash health_check.sh --verbose` | no FAIL line |
@@ -486,10 +488,11 @@ backend and the worker and prints a status line. They never print a secret, and 
 | Check | Workflow | Runs |
 |---|---|---|
 | `backend` | `.github/workflows/architecture.yml` | the import rules (`lint-imports`) and every backend test (`pytest tests/`) |
-| `frontend` | `.github/workflows/ci.yml` | the frontend unit tests (Jest) and the production build (`npm run build`) |
+| `frontend` | `.github/workflows/ci.yml` | the public site's unit tests (Jest) and the production build (`npm run build`) |
+| `studio` | `.github/workflows/ci.yml` | Studio's unit tests (Jest) and the production build (`npm run build`) |
 
 - Run the same checks on your PC when you change code: `cd backend; python -m pytest tests/ -q` and `PYTHONPATH=. lint-imports`;
-  `cd frontend; npx jest; npm run build`.
+  `cd frontend; npx jest; npm run build` and the same in `studio`.
 - Read the pull request for **new settings or keys** (for example `SERPER_API_KEY` for hot projects). Add them on the VM before or
   right after the deploy (sections 3 and 4); a missing optional key only leaves its feature off.
 
@@ -552,7 +555,7 @@ sending it; `--test-alert` sends one test alert).
 | `FAIL site` | `https://<DOMAIN>/` does not answer | `sudo docker compose ps`; Caddy logs; is the VM up? |
 | `FAIL api` | `/api/v1/health` is not "healthy" | `sudo docker compose logs --tail 100 backend`; is mongo up? |
 | `FAIL disk` | Root disk at or above 90% | `sudo docker image prune -a`, check the uploads volume, resize the disk |
-| `FAIL container X` | Service X (mongo, backend, worker, frontend, caddy) is stopped, missing or unhealthy | `sudo docker compose up -d X` and read its logs |
+| `FAIL container X` | Service X (mongo, backend, worker, frontend, studio, caddy) is stopped, missing or unhealthy | `sudo docker compose up -d X` and read its logs |
 | `FAIL facebook-token` | Meta rejected the Page token (error 190 or 102) | Re-run `meta_connect.ps1` (section 6.6) |
 | `FAIL loops` | An enabled background loop has not run for twice its interval (`python -m app.worker --check`) | `sudo docker compose logs --tail 80 worker`; `sudo docker compose up -d worker` |
 | `FAIL backup` | No backup, or the newest is older than 36 hours | `tail ~/backup.log`; `bash backup.sh`; `crontab -l` |
@@ -579,7 +582,7 @@ while it lasts, and once on recovery. In the app, **Admin → Health** shows the
 
 ### 6.3 Logs
 ```
-sudo docker compose logs --tail 100 backend        # also: frontend, caddy, mongo
+sudo docker compose logs --tail 100 backend        # also: frontend, studio, caddy, mongo
 sudo docker compose logs -f backend | grep -i -E "calendar|engage|newsroom|whatsapp"
 tail -n 30 ~/health.log; tail -n 30 ~/backup.log
 ```
@@ -648,7 +651,7 @@ The site address is one setting, but several places cache or copy it.
 - **Set `JWT_SECRET_KEY`.** The start-up check does not catch the placeholder value.
 - **Owner gating is closed by default.** Admin, Agents, Content approval and Newsroom approval need a superuser or an id in
   `CONCIERGE_OWNER_IDS`, `CALENDAR_OWNER_IDS` or `NEWSROOM_OWNER_IDS`. Remove a partner's id when he leaves, and restart the backend and worker.
-- **Network.** Only Caddy publishes ports (80, 443). MongoDB, backend and frontend are internal. SSH is open on the pilot: restrict it
+- **Network.** Only Caddy publishes ports (80, 443). MongoDB, backend, frontend and studio are internal. SSH is open on the pilot: restrict it
   to Google's Identity-Aware Proxy and use `-Iap` on every script. Consider a GCP project used only for Avasetu.
 - **Webhooks.** WhatsApp POSTs are rejected (403) without a valid `X-Hub-Signature-256`. Note that the request log records the URL of
   Meta's one-time GET verification, which contains the verify token; rotate it by re-running the script if that matters.
@@ -707,7 +710,7 @@ Background reading in the repo: `docs/PILOT_RUNBOOK.md`, `docs/META_SETUP.md`, `
 | Path | What it holds |
 |---|---|
 | `deploy/gcp/` | Compose file, Caddyfile, `deploy.ps1`, connect scripts, `keys.ps1`, `invite.ps1`, `backup.sh`, `restore_test.sh`, `health_check.sh` and their cron installers |
-| `.github/workflows/` | The pull-request checks (`architecture.yml`: backend; `ci.yml`: frontend) and the by-hand workflows |
+| `.github/workflows/` | The pull-request checks (`architecture.yml`: backend; `ci.yml`: frontend and studio) and the by-hand workflows |
 | `backend/app/worker.py` | The worker process: the background loops, their leases and `--check` |
 | `backend/app/core/` | Settings (`config.py`), brand (`brand.py`), region (`region.py`), app start-up and background loops (`application.py`), auth, middleware |
 | `backend/app/api/v1/router.py` | Every API route prefix |
@@ -730,7 +733,9 @@ Background reading in the repo: `docs/PILOT_RUNBOOK.md`, `docs/META_SETUP.md`, `
 | `backend/app/modules/insights` | Meta's numbers for published posts |
 | `backend/scripts/` | Server-side admin scripts, run with `sudo docker compose exec -T -e PYTHONPATH=. backend python scripts/<name>.py` (for example `invite.py`, `invite_requests.py`, `calendar_admin.py`, `showcase_admin.py`, `reels_admin.py`, `verify_engage_live.py`, `keys_check.py`, `demand_report.py`) |
 | `backend/tests/` | Backend tests (pytest) |
-| `frontend/app/` | Next.js pages: public site, `/studio/*` (Studio tabs: home, listings, interest, newsroom, content, leads, admin, agents) |
-| `frontend/components/app/` | Studio components (Admin, Agents, listing flow, brand editor) |
-| `frontend/lib/` | API clients, brand, site helpers |
+| `frontend/app/` | Next.js pages of the public site |
+| `frontend/lib/` | API clients and site helpers |
+| `studio/app/studio/`, `studio/app/join/` | Studio, its own Next.js app: `/studio/*` (home, inbox, leads, listings, results, content, newsroom, radar, admin, agents) and sign-in |
+| `studio/components/app/`, `studio/lib/app/` | Studio components (Admin, Agents, listing flow, brand editor) and its API client and rules |
+| `shared/` | Plain TypeScript both apps use: brand, site types, localities, Studio's strings, the login token |
 | `docs/` | Guides (agent, partner, operator), setup notes, runbook, handoff notes, brand assets |

@@ -8,6 +8,8 @@ models/** @backend-team
 repositories/** @backend-team
 services/** @backend-team
 frontend/** @frontend-team
+studio/** @frontend-team
+shared/** @frontend-team
 playwright.config.ts @frontend-team
 
 # Docs

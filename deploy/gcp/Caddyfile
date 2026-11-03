@@ -9,6 +9,15 @@
 			lb_try_interval 500ms
 		}
 	}
+	# Studio is its own Next.js app (studio/): its pages, its sign-in at /join and its assets (assetPrefix /studio-static).
+	# Every other page is the public site.
+	@studio path /studio /studio/* /studio-static/* /join /join/*
+	handle @studio {
+		reverse_proxy studio:3000 {
+			lb_try_duration 30s
+			lb_try_interval 500ms
+		}
+	}
 	handle {
 		reverse_proxy frontend:3000 {
 			lb_try_duration 30s

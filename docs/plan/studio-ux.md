@@ -1,7 +1,8 @@
 # Studio: how it is laid out and why
 
 Studio (`/studio`) is the phone app for agents and the owner. This page records its shape after the 2026-10-27 pass, so later
-changes keep to it. Code: `frontend/app/studio/`, `frontend/components/app/`, rules in `frontend/lib/app/`.
+changes keep to it. Studio is its own Next.js app since 2026-11-03 (`studio/`, ARCHITECTURE §9). Code: `studio/app/studio/`,
+`studio/components/app/`, rules in `studio/lib/app/`; its copy is in `shared/strings.ts`.
 
 ## Principles
 
