@@ -13,9 +13,10 @@ from . import push
 log = logging.getLogger(__name__)
 
 KINDS = ("new_lead", "new_whatsapp_lead", "whatsapp_needs_you", "new_chat_lead", "chat_needs_you", "new_dm_lead", "dm_needs_you", "invite_request",
-         "content_needs_you", "answer_gap", "comment_needs_you", "seo_week")  # content_needs_you: the system cannot fix it alone (e.g. a missing Meta permission);
+         "content_needs_you", "answer_gap", "comment_needs_you", "seo_week", "upcoming_registered")  # content_needs_you: the system cannot fix it alone (e.g. a missing Meta permission);
 #                                              answer_gap: buyers keep asking something about a home that its details do not answer
 #                                              seo_week: the owner's weekly SEO note (seo/note.py)
+#                                              upcoming_registered: a coming-soon project looks registered (wiring.py)
 MAX_SUMMARY = 300
 
 

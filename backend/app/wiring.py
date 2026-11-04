@@ -77,6 +77,10 @@ def wire() -> None:
     placecheck.configure(pin_pincodes=_pin_pincodes, forget_place=_forget_place, search=_places_search, keep_pin=_keep_pin,
                          pin_address=_pin_address)
     project_enrich.add_daily("place check", placecheck.refresh)
+    # a coming-soon project that has registered is the day we promised its waiting buyers (areastats.upcoming)
+    from app.modules.areastats import upcoming
+    upcoming.configure(tell=_tell_upcoming_registered)
+    project_enrich.add_daily("coming-soon registered", upcoming.refresh)
     # hot projects (areastats.hot): outside signals beyond MahaRERA, news and Search Console; YouTube is on with YOUTUBE_API_KEY
     from app.modules.areastats import hot as hot_projects
     hot_projects.add_signal("youtube", hot_projects.youtube_signal())
@@ -130,6 +134,25 @@ async def _new_lead_alert(db, lead: dict) -> None:
     text = f"{lead.get('name') or 'A buyer'} enquired on your website" + (f': "{said[:120]}"' if said else ".")
     await notify(db, lead["agent_id"], "new_lead", text, {"lead_id": lead["_id"], "screen": f"/studio/leads/{lead['_id']}"},
                  lead.get("created_at"))
+
+
+async def _tell_upcoming_registered(db, upcoming: dict, project: dict, now) -> None:
+    """The owner decides whether it is the same project and what the waiting buyers hear: this sends buyers nothing."""
+    import logging
+    import re
+
+    from app.modules.concierge.config import owner_ids
+    from app.modules.notifications.service import notify
+
+    owners = owner_ids()
+    if not owners:
+        logging.getLogger(__name__).warning("coming-soon: no CONCIERGE_OWNER_IDS set, so nobody hears that %s registered", upcoming["slug"])
+    waiting = await db.get_collection("contacts").count_documents({"message": {"$regex": re.escape(upcoming["name"])}})
+    regno = project.get("regno") or project["_id"]
+    text = (f"{upcoming['name']} may be registered: {project.get('name')} ({regno}), by {project.get('promoter') or 'an unnamed promoter'}. "
+            f"{waiting} waiting on its page. If it is the same project, hide the coming-soon card.")
+    for owner in owners:
+        await notify(db, owner, "upcoming_registered", text, {"screen": "/studio/leads"}, now=now)
 
 
 async def _tell_owner_about_invite_request(name: str, city: str) -> None:

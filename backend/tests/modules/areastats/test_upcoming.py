@@ -8,7 +8,7 @@ from pydantic import ValidationError
 
 from app.modules.areastats import router as ar
 from app.modules.areastats import upcoming
-from app.modules.newsroom.store import Store
+from app.modules.newsroom.store import PROJECTS, Store
 
 from ..fakes import FakeDb
 
@@ -72,3 +72,63 @@ async def test_the_page_lists_only_the_chosen_builder_projects_that_are_live_and
     assert listed[0]["source"] == "MahaRERA" and "2028" in listed[0]["fact"]
     served = client(db).get("/api/v1/public/register/upcoming/esbee-upper-kharadi").json()
     assert [p["slug"] for p in served["builder_projects"]] == ["esbee-azura-mundhwa"]
+
+
+VJ = {**BODY, "slug": "vilas-javdekar-upper-kharadi", "name": "Vilas Javdekar new project", "builder": "Vilas Javdekar"}
+FRESH = {"regno": "P1", "name": "Yashwin Grand", "promoter": "Vilas Javdekar Developers", "pincode": "412207",
+         "locality": "upper_kharadi", "registered_on": "2026-10-10"}
+
+
+async def _watching(*records, tells):
+    db = FakeDb()
+    await upcoming.put(db, VJ, NOW)
+    for r in records:
+        await db.get_collection(PROJECTS).insert_one({"_id": r["regno"], **r})
+
+    async def tell(db, u, d, now):
+        tells.append((u["slug"], d["regno"]))
+
+    upcoming.configure(tell=tell)
+    return Store(db)
+
+
+async def test_a_new_project_by_the_builder_is_told_to_the_owner_once():
+    tells = []
+    store = await _watching(FRESH, tells=tells)
+    assert await upcoming.refresh(store, NOW) == {"told": 1}
+    assert tells == [("vilas-javdekar-upper-kharadi", "P1")]
+    assert await upcoming.refresh(store, NOW) is None                      # today's round is done
+    assert await upcoming.refresh(store, NOW, force=True) == {"told": 0}   # and it is not told again
+
+
+async def test_a_shared_surname_or_an_old_project_of_the_builder_is_not_told():
+    tells = []
+    store = await _watching({**FRESH, "regno": "P2", "promoter": "Pandit Javdekar Associates"},
+                            {**FRESH, "regno": "P3", "registered_on": "2024-01-10"}, tells=tells)
+    assert await upcoming.refresh(store, NOW) == {"told": 0} and tells == []
+
+
+async def test_a_new_project_far_from_our_area_is_not_told():
+    tells = []
+    store = await _watching({**FRESH, "regno": "P4", "pincode": "411045", "locality": "baner"}, tells=tells)
+    assert await upcoming.refresh(store, NOW) == {"told": 0} and tells == []
+
+
+def test_the_projects_own_name_matches_in_its_area_when_another_company_filed_it():
+    u = {"name": "Ceratec Central Park", "builder": "Ceratec Group", "area": "wagholi", "area_name": "Wagholi"}
+    assert upcoming.looks_like(u, {"name": "CENTRAL PARK PHASE 1", "promoter": "Sunrise Land LLP", "locality": "wagholi"})
+    assert not upcoming.looks_like(u, {"name": "CENTRAL PARK PHASE 1", "promoter": "Sunrise Land LLP", "locality": "kharadi"})
+
+
+async def test_the_alert_says_how_many_buyers_are_waiting_and_sends_buyers_nothing(monkeypatch):
+    from app import wiring
+
+    monkeypatch.setenv("CONCIERGE_OWNER_IDS", "OWNER")
+    db = FakeDb()
+    u = await upcoming.put(db, VJ, NOW)
+    await db.get_collection("contacts").insert_one({"_id": "c1", "message": "Vilas Javdekar new project (upcoming, not yet MahaRERA registered)"})
+    await db.get_collection("contacts").insert_one({"_id": "c2", "message": "Lodha Camelot, a site visit"})
+    await wiring._tell_upcoming_registered(db, u, FRESH, NOW)
+    sent = await db.get_collection("notifications").find({}).to_list(None)
+    assert [n["agent_id"] for n in sent] == ["OWNER"] and sent[0]["kind"] == "upcoming_registered"
+    assert "1 waiting" in sent[0]["summary"] and "P1" in sent[0]["summary"]

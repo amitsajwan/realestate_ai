@@ -32,6 +32,7 @@ MAX_PER_AGENT = 10        # phones and browsers one agent can have alerts on
 # (the SEO week, answer gaps, content the system could not post) wait on the Studio badge.
 TITLES = {
     "new_lead": "New lead",
+    "upcoming_registered": "A coming-soon project looks registered",
     "new_chat_lead": "New lead from the website chat",
     "new_whatsapp_lead": "New lead on WhatsApp",
     "new_dm_lead": "New lead in messages",

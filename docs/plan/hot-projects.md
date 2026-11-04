@@ -71,7 +71,10 @@ The RERA Act bars advertising or selling an unregistered project, so the owner c
   adds the area's. Esbee's Adira is left out: the register has it under Topaz Homes as Gagan Adira.
   Records: `backend/scripts/upcoming_east_pune.py` (Esbee moved to Wagholi, Ceratec Central Park, Vilas Javdekar Upper Kharadi: the
   owner confirmed it is new, not Yashwin Enchante Phase 2, P52100077455, already registered).
-  OPEN: "we tell you that day" is done by hand; nothing alerts us when one of these registers or messages the people waiting.
+  LIVE 2026-11-04: `upcoming.refresh` (daily, inside the enrichment loop) tells the owner in Studio, and on the phone, when a project
+  registered in the last 60 days looks like a live record: every word of the builder's name in its promoter or name, or the
+  project's own name in the same area, with how many buyers wait on the page. The owner decides; the card stays until hidden.
+  OPEN: messaging the people waiting is still done by hand.
 
 ## Next (same pattern: one `hot.add_signal(name, fn)` each)
 1. Instagram: hashtag search through the Graph API on our business account (30 hashtags a week): reels and posts per project.

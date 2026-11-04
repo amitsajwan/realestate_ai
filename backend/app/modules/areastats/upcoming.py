@@ -13,10 +13,12 @@ Records are written by the owner through `put` (a script); `status` "live" shows
 - put(db, body, now) / get(db, slug) / live(db)
 - briefs(db): the few words the East Pune band and /projects/upcoming show
 - builder_projects(db, u, now): the same builder's registered projects, which unlike this one can be sold today
+- refresh(store, now): once a day, tells the owner when a new register record looks like one of these. A person decides: a
+  promoter's name misleads (below), and the page stays until `put` hides it. Nothing goes to buyers from here.
 """
 import re
-from datetime import datetime, timezone
-from typing import Dict, List, Literal, Optional
+from datetime import date, datetime, timedelta, timezone
+from typing import Any, Awaitable, Callable, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -24,11 +26,25 @@ from app.core.areas import BY_KEY
 from app.modules.newsroom.store import Store
 
 from .hubs import _primaries, fact_line, link_name
-from .pages import is_old
+from .pages import _day, is_old
+from .placement import EAST_PINCODES
+from .text import words
 
 COLLECTION = "upcoming_projects"
 PREFIX = "upcoming/"   # an upcoming project's banner slug: /projects/upcoming/<slug>
 SLUG = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+){0,8}$")
+MARK = "upcoming_registered"
+EVERY = timedelta(hours=24)
+FRESH_DAYS = 60     # registered this recently: an older project of the builder is not the one we announced
+GENERIC = {"realty", "realtors", "group", "developers", "developer", "builders", "builder", "homes", "properties", "associates",
+           "infra", "constructions", "construction", "llp", "pvt", "ltd", "limited", "private", "new", "project", "the", "and"}
+# tell(db, upcoming, project, now) -> the owner hears of it (wiring.py: notifications sit above this module)
+Tell = Callable[[Any, Dict, Dict, datetime], Awaitable[None]]
+_deps: Dict[str, Any] = {"tell": None}
+
+
+def configure(tell: Tell) -> None:
+    _deps["tell"] = tell
 
 
 class _In(BaseModel):
@@ -142,3 +158,43 @@ async def builder_projects(db, u: Dict, now: Optional[datetime] = None) -> List[
     pages = {d["page_slug"]: d for d in _primaries(await Store(db).shared_projects()) if d.get("page_slug")}
     found = [pages[s] for s in slugs if s in pages and not is_old(pages[s], now.date())]
     return [{"slug": d["page_slug"], "name": link_name(d), **fact_line(d, now)} for d in found]
+
+
+
+def _own(text: str) -> set:
+    return set(words(text)) - GENERIC
+
+
+def looks_like(u: Dict, d: Dict) -> bool:
+    """A register record that may be this upcoming project: every word of the builder's name in its promoter or name, or, in the
+    same area, every word of the project's own name. The first word alone would call Pandit Javdekar Vilas Javdekar."""
+    builder = _own(u.get("builder") or "")
+    own = _own(u.get("name") or "") - builder - _own(u.get("area_name") or "")
+    if builder and builder <= set(words(f"{d.get('promoter') or ''} {d.get('name') or ''}")):
+        return True
+    return bool(own) and d.get("locality") == u.get("area") and own <= set(words(d.get("name") or ""))
+
+
+async def refresh(store: Store, now: datetime, force: bool = False) -> Optional[Dict]:
+    """Each newly registered project that looks like a live upcoming one, told once. {told} or None when not due."""
+    mark = await store.get_mark(MARK)
+    last = mark.get("at")
+    if not force and isinstance(last, datetime) and now - (last if last.tzinfo else last.replace(tzinfo=timezone.utc)) < EVERY:
+        return None
+    told, ups = list(mark.get("told") or []), await live(store.db)
+    cut = (now.date() - timedelta(days=FRESH_DAYS)).isoformat()
+    new = 0
+    for d in await store.shared_projects() if ups else []:
+        registered = _day(d.get("registered_on"))
+        if not registered or registered < cut or date.fromisoformat(registered) > now.date():
+            continue
+        for u in ups:
+            key = f"{u['slug']}:{d.get('regno') or d['_id']}"
+            near = d.get("locality") == u.get("area") or str(d.get("pincode") or "") in EAST_PINCODES
+            if key in told or not near or not looks_like(u, d):
+                continue
+            await _deps["tell"](store.db, u, d, now)
+            told.append(key)
+            new += 1
+    await store.set_mark(MARK, at=now, told=told)
+    return {"told": new}
