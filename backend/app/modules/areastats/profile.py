@@ -276,6 +276,8 @@ async def fetch_bytes(url: str, transport: Optional[httpx.AsyncBaseTransport] = 
             async with c.stream("GET", url) as r:
                 if r.status_code != 200 or not (r.headers.get("content-type") or "").startswith("image/"):
                     return None
+                if not websearch.site(str(r.url)).endswith(IMAGE_HOSTS) and not webfacts.same_owner(url, str(r.url)):
+                    return None   # the picture's address sent us to another site
                 body = b""
                 async for chunk in r.aiter_bytes():
                     body += chunk
@@ -336,6 +338,18 @@ def _caption(c: dict, kind: str, name: str) -> str:
     return f"{name} floor plan" if kind == "plan" else f"{name}, from the builder's website"
 
 
+# where a builder's site may keep its pictures. A picture anywhere else is not the builder's (2026-11-04: a dead link on Empyrean's
+# site redirected to a travel site, and the Taj Mahal went on a Kharadi project's page as the builder's picture)
+IMAGE_HOSTS = ("windows.net", "website-files.com", "amazonaws.com", "wixstatic.com", "cloudfront.net", "googleusercontent.com",
+               "cloudinary.com", "imagekit.io", "sanity.io", "azureedge.net", "ctfassets.net", "squarespace-cdn.com", "wp.com")
+FILE_ADDRESS = re.compile(r"\.(?:jpe?g|png|webp|gif|svg|pdf)(?:\?.*)?$", re.I)
+
+
+def foreign_picture(url: str, site: str) -> bool:
+    """The picture is on a host that is neither the builder's site, a place sites keep pictures, nor a site sharing its name."""
+    return not websearch.site(url).endswith(IMAGE_HOSTS) and not webfacts.same_owner(url, "https://" + site)
+
+
 async def pictures(sources: List[dict], raw_of: Dict[str, str], name: str, regno: str, fetch: FetchBytes,
                    media_dir: Path = MEDIA_DIR, page: Optional[webfacts.Fetch] = None) -> tuple:
     """(photos, plans, why): saved pictures from the builder's own project page(s) and its gallery / plans pages."""
@@ -352,6 +366,8 @@ async def pictures(sources: List[dict], raw_of: Dict[str, str], name: str, regno
     if page is not None:   # its own gallery and plans pages first: the main page spends the budget on icons
         subs = []
         for sub in subpages(raw_of[pages_[0]["url"]], pages_[0]["url"]):
+            if FILE_ADDRESS.search(sub):   # a picture is not a page; read as one it can be anything the link now redirects to
+                continue
             raw = await page(sub)
             if raw:
                 raw_of[sub] = raw
@@ -368,7 +384,7 @@ async def pictures(sources: List[dict], raw_of: Dict[str, str], name: str, regno
             room = (plans if kind == "plan" else photos)
             if tried >= MAX_CANDIDATES or len(photos) >= MAX_PHOTOS and len(plans) >= MAX_PLANS:
                 break
-            if len(room) >= (MAX_PLANS if kind == "plan" else MAX_PHOTOS):
+            if len(room) >= (MAX_PLANS if kind == "plan" else MAX_PHOTOS) or foreign_picture(c["url"], src["site"]):
                 continue
             tried += 1
             body = await fetch(c["url"])
@@ -703,8 +719,10 @@ def public(profile: Optional[dict], drawn: bool = True, doc: Optional[dict] = No
     illustrations out too: a page in Google shows real pictures or none (2026-10-27). Only the builder's site keeps its link: the
     page calls a linked source "the builder's site", which said so of property portals until 2026-11-02."""
     if profile:
-        profile = {**profile, "photos": pages.shown_pictures(profile.get("photos"), drawn),
-                   "plans": pages.shown_pictures(profile.get("plans"))}
+        def ours(pics: List[dict]) -> List[dict]:   # the last check, for pictures saved before the reader knew better
+            return [p for p in pics if not (p.get("source") == "builder" and p.get("image_url") and p.get("site") and foreign_picture(p["image_url"], p["site"]))]
+        profile = {**profile, "photos": ours(pages.shown_pictures(profile.get("photos"), drawn)),
+                   "plans": ours(pages.shown_pictures(profile.get("plans")))}
     if not profile or not (profile.get("highlights") or profile.get("photos") or profile.get("plans")):
         return None
     at = profile.get("at")

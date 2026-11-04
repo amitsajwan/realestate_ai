@@ -66,8 +66,19 @@ HINTS = re.compile(r"\b(towers?|acres?|floors?|storey|storeys|stories|g\s*\+\s*\
 Fetch = Callable[[str], Awaitable[Optional[str]]]   # url -> page HTML, or None
 
 
+def same_owner(one: str, other: str) -> bool:
+    """Two addresses are the same site, or share a name: iamkohinoor.com and kohinoorpune.com. The root of what went wrong on
+    2026-11-04: a dead link on a builder's site redirected to a travel site, and what came back was taken for the builder's."""
+    a, b = websearch.site(one), websearch.site(other)
+    if a == b or a.endswith("." + b) or b.endswith("." + a):
+        return True
+    own, label = (x.split(".")[-2].replace("-", "") if "." in x else x for x in (a, b))
+    return own == label or any(own[i:i + 6] in label for i in range(max(len(own) - 5, 0)))
+
+
 async def fetch_page(url: str, transport: Optional[httpx.AsyncBaseTransport] = None) -> Optional[str]:
-    """The page's HTML (at most MAX_BYTES), or None when it is not an HTML page that answered 200. A failed connection or a busy
+    """The page's HTML (at most MAX_BYTES), or None when it is not an HTML page that answered 200, or the address sent us to
+    another site: what is there is not what the link promised. A failed connection or a busy
     server is tried once more: mahindralifespaces.com answered one read and failed the next within minutes (2026-11-03), and a
     project round reads its builder's page only once."""
     for attempt in (1, 2):
@@ -79,6 +90,9 @@ async def fetch_page(url: str, transport: Optional[httpx.AsyncBaseTransport] = N
                         await asyncio.sleep(RETRY_PAUSE)
                         continue
                     if r.status_code != 200 or "html" not in (r.headers.get("content-type") or ""):
+                        return None
+                    if not same_owner(url, str(r.url)):
+                        log.info("webfacts: %s went to another site, %s", url, r.url)
                         return None
                     body = b""
                     async for chunk in r.aiter_bytes():
