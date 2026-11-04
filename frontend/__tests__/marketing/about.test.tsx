@@ -14,6 +14,9 @@ describe('About page', () => {
     expect(String(metadata.title)).toBe('About Avasetu: how we check Pune\'s new projects')
     expect(String(metadata.title).length).toBeLessThanOrEqual(70)
     expect(String(metadata.description).length).toBeLessThanOrEqual(160)
+    // the page names no person yet, so the snippet must not promise "who runs" it
+    expect(String(metadata.description)).toMatch(/^What Avasetu is/)
+    expect(String(metadata.description)).not.toMatch(/who runs/i)
     expect(metadata.alternates?.canonical).toMatch(/\/about$/)
     expect(metadata.robots).toBeUndefined()
   })
@@ -38,6 +41,16 @@ describe('About page', () => {
     expect(ld.find((x) => x['@type'] === 'BreadcrumbList')).toBeTruthy()
     const org = organizationJsonLd(buildMarketingConfig({}), 'd')
     expect(org.publishingPrinciples).toBe(getMarketingConfig().siteUrl + '/about#how-we-check')
+  })
+
+  it('names House Deal as the partner Avasetu powers, and says that never moves a project up a list', () => {
+    render(<AboutPage />)
+    const partner = screen.getByTestId('about-partner')
+    expect(within(partner).getByRole('heading', { name: 'Our partner: House Deal' })).toBeInTheDocument()
+    expect(within(partner).getByRole('link', { name: "House Deal's page" })).toHaveAttribute('href', '/agent/house-deal')
+    expect(within(partner).getByRole('link', { name: /House Deal's own website/ })).toHaveAttribute('href', 'https://house-deal.com')
+    expect(partner).toHaveTextContent('Avasetu powers')
+    expect(partner).toHaveTextContent('never moves a project up our lists')
   })
 
   it('is linked from the footer of every page', () => {
