@@ -5,6 +5,7 @@ import SiteFooter from '@/components/marketing/SiteFooter'
 import LandingPage from '@/app/agents/page'
 import { buildMarketingConfig } from '@/lib/marketing/config'
 import { socialLinks } from '@/lib/marketing/social'
+import { demoAgentPath } from '@/lib/brand'
 
 jest.mock('@/components/site/PostsSection', () => ({ __esModule: true, default: () => null }))
 jest.mock('@/components/news/NewsSection', () => ({ __esModule: true, default: () => null }))
@@ -13,7 +14,6 @@ jest.mock('@/components/marketing/BuyerProjectLinks', () => ({ __esModule: true,
 const cfg = buildMarketingConfig({})
 const EXPECTED: Array<[RegExp, string]> = [
   [/^for agents$/i, '/agents'],
-  [/^see a sample agent page$/i, '/agent/house-deal'],
   [/^news$/i, '/news'],
   [/^posts$/i, '/posts'],
   [/^area guides$/i, '/localities'],
@@ -64,12 +64,21 @@ describe('site header', () => {
     expect(within(screen.getByRole('banner')).queryByTestId('header-cta')).toBeNull()
   })
 
-  it('takes the demo slug from NEXT_PUBLIC_DEMO_AGENT_SLUG', () => {
+  it('never links the sample agent page, on buyer or agent pages', () => {
+    for (const cta of ['buyer', 'agent'] as const) {
+      const { unmount } = render(<SiteHeader businessName="Avasetu" cta={cta} />)
+      const header = screen.getByRole('banner')
+      expect(within(header).queryByRole('link', { name: /sample agent page/i })).toBeNull()
+      expect(header.querySelector('a[href^="/agent/"]')).toBeNull()
+      unmount()
+    }
+  })
+
+  it('takes the sample page slug from NEXT_PUBLIC_DEMO_AGENT_SLUG on the agents\' own pages', () => {
     const before = process.env.NEXT_PUBLIC_DEMO_AGENT_SLUG
     process.env.NEXT_PUBLIC_DEMO_AGENT_SLUG = 'sample-homes'
     try {
-      render(<SiteHeader businessName="Avasetu" />)
-      expect(hrefOf(screen.getByRole('banner'), /^see a sample agent page$/i)).toBe('/agent/sample-homes')
+      expect(demoAgentPath()).toBe('/agent/sample-homes')
     } finally {
       if (before === undefined) delete process.env.NEXT_PUBLIC_DEMO_AGENT_SLUG
       else process.env.NEXT_PUBLIC_DEMO_AGENT_SLUG = before
@@ -90,6 +99,7 @@ describe('site footer', () => {
     expect(hrefs).toEqual(expect.arrayContaining([socialLinks().instagram, socialLinks().facebook]))
     expect(footer.textContent).not.toMatch(/(?:\+?\d[\s\-().]*){10,}/)
     expect(footer.querySelector('a[href^="tel:"], a[href*="wa.me"]')).toBeNull()
+    expect(within(footer).queryByRole('link', { name: /sample agent page/i })).toBeNull()
   })
 })
 

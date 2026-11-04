@@ -63,6 +63,27 @@ describe("buyers' home", () => {
     expect(hot.getAllByRole('link', { name: /lodha camelot/i })).toHaveLength(1)   // the picture's own link is not read out twice
   })
 
+  it("opens an agent-listed hot project at its listed page, never through its register page's redirect", async () => {
+    // live 2026-11-04: Lodha Camelot's card linked /projects/kharadi-new-project-tower-1-wagholi, which 308s to /projects/lodha-camelot
+    const before = API['/public/register/spotlight']
+    API['/public/register/spotlight'] = [{ slug: 'kharadi-new-project-tower-1-wagholi', regnos: ['P52100012345'], name: 'Lodha Camelot', area: 'Kharadi',
+      area_slug: 'kharadi', note: null, fact: 'f', source: 'MahaRERA', picked: true, photos: [] }]
+    API['/public/projects'] = { items: [{ slug: 'lodha-camelot', rera_no: 'P52100012345', agents: [{ slug: 'house-deal' }] }] }
+    try {
+      render(await BuyerHome())
+      for (const a of within(screen.getByTestId('home-hot')).getAllByRole('link')) expect(a).toHaveAttribute('href', '/projects/lodha-camelot')
+    } finally {
+      API['/public/register/spotlight'] = before
+      delete API['/public/projects']
+    }
+  })
+
+  it('says what "Hot right now" and the Top lists each rank, so the two never read as the same list', async () => {
+    render(await BuyerHome())
+    expect(screen.getByTestId('home-hot')).toHaveTextContent(/picked by our team, or drawing the most bookings/i)
+    expect(screen.getByRole('region', { name: /top projects, new launches and ready homes/i })).toHaveTextContent(/top: most homes booked, with homes still open/i)
+  })
+
   it('links the hottest projects, every area, the live lists and builders with pages', async () => {
     render(await BuyerHome())
     expect(within(screen.getByTestId('home-hot')).getByRole('link', { name: /lodha camelot/i })).toHaveAttribute('href', '/projects/lodha-camelot-kharadi')
@@ -70,7 +91,7 @@ describe("buyers' home", () => {
     const it = screen.getByTestId('home-areas-it')
     // named as the page it opens ("Flats and residential projects in Kharadi"); "new projects" is the new-launches list's search
     expect(within(it).getByRole('link', { name: 'Projects in Kharadi' })).toHaveAttribute('href', '/projects/area/kharadi')
-    expect(within(it).getByRole('link', { name: 'Living in Kharadi' })).toHaveAttribute('href', '/localities/kharadi')
+    expect(within(it).getByRole('link', { name: 'Kharadi area guide' })).toHaveAttribute('href', '/localities/kharadi')
     // the link is to new projects: its count leaves out the older ones (every registration was 303)
     expect(it).toHaveTextContent('180 being built or just finished')
     expect(it).not.toHaveTextContent('303')

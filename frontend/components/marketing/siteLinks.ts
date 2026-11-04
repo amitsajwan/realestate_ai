@@ -1,9 +1,9 @@
 /**
  * The public site's link map: one list the landing header, footer and the /for-agents page share, so every page links to
- * the same places. Instagram and Facebook come from lib/marketing/social (env overridable); the demo page slug from
- * NEXT_PUBLIC_DEMO_AGENT_SLUG (default 'house-deal': the example agent page).
+ * the same places. Instagram and Facebook come from lib/marketing/social (env overridable).
+ * The sample agent page is not in the header, menu or footer (owner 2026-11-04: buyers saw it on every page); the agents' own
+ * pitch pages (/agents, /for-agents, /trial) still show it as an example.
  */
-import { demoAgentPath } from '@/lib/brand'
 import { socialLinks } from '@/lib/marketing/social'
 
 export interface SiteLink {
@@ -34,7 +34,6 @@ export type Audience = 'buyer' | 'agent'
 export function siteLinks() {
   const { instagram, facebook } = socialLinks()
   const forAgents: SiteLink = { href: AGENTS_PATH, label: 'For agents' }
-  const demo: SiteLink = { href: demoAgentPath(), label: 'See a sample agent page' }
   const news: SiteLink = { href: '/news', label: 'News' }
   const posts: SiteLink = { href: '/posts', label: 'Posts' }
   const areas: SiteLink = { href: '/localities', label: 'Area guides' }
@@ -50,12 +49,12 @@ export function siteLinks() {
   const ig: SiteLink = { href: instagram, label: 'Instagram', external: true }
   const fb: SiteLink = { href: facebook, label: 'Facebook', external: true }
   return {
-    forAgents, demo, news, posts, areas, projects, homePlan, builders, check, insights, invite, signIn, need, instagram: ig, facebook: fb,
+    forAgents, news, posts, areas, projects, homePlan, builders, check, insights, invite, signIn, need, instagram: ig, facebook: fb,
     /** Header, wide screens, by audience (the buyer or invite button sits next to these; 'For agents' is always there). */
-    headerWide: { buyer: [projects, homePlan, builders, areas, news, forAgents], agent: [projects, forAgents, demo, areas] } as Record<Audience, SiteLink[]>,
+    headerWide: { buyer: [projects, homePlan, builders, areas, news, forAgents], agent: [projects, forAgents, areas] } as Record<Audience, SiteLink[]>,
     /** Header menu on phones: everything. */
-    menu: [projects, homePlan, builders, check, areas, news, insights, posts, forAgents, demo, signIn, ig, fb],
-    footerAgents: [forAgents, demo, invite, signIn],
+    menu: [projects, homePlan, builders, check, areas, news, insights, posts, forAgents, signIn, ig, fb],
+    footerAgents: [forAgents, invite, signIn],
     footerExplore: [projects, homePlan, builders, check, areas, news, posts, insights],
     footerFollow: [ig, fb],
   }
