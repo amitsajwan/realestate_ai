@@ -54,6 +54,7 @@ describe('sitemap and robots', () => {
     expect(urls.some((u) => u.endsWith('/localities/keshav-nagar'))).toBe(true)
     expect(urls.some((u) => u.endsWith('/insights/kharadi-upper-kharadi-wagholi'))).toBe(true)
     expect(urls.some((u) => u.endsWith('/pune-maharera-tracker'))).toBe(true)
+    expect(urls.some((u) => u.endsWith('/about'))).toBe(true)   // who we are and how the lists are ranked
     expect(urls.some((u) => /studio|join|api/.test(u))).toBe(false)
     const r = robots()
     const rule = Array.isArray(r.rules) ? r.rules[0] : r.rules

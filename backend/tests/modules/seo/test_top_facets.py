@@ -171,3 +171,27 @@ def test_every_place_gets_picks_from_its_own_projects_and_a_thin_one_gets_none()
     # two projects still selling there: the picks would only repeat the cards
     thin = [loh[2], loh[4]]
     assert facets.facet_view(Facet("lohegaon", "top"), [*DOCS, *thin], NOW)["picks"] == []
+
+
+def test_a_top_list_title_counts_its_top_ten_says_most_booked_and_keeps_the_month_first():
+    t = facets.title(Facet("kharadi", "top"), "Kharadi", 27, "Nov 2026")
+    assert t == "Top 10 Projects in Kharadi, Pune (Nov 2026): Most Booked"
+    assert facets.title(Facet("kharadi", "top"), "Kharadi", 5, "Nov 2026") == "Top 5 Projects in Kharadi, Pune (Nov 2026): Most Booked"
+    # a long place name loses the tail before the month
+    assert facets.title(Facet("x", "top"), "Pimpri Chinchwad", 27, "Nov 2026") == "Top 10 Projects in Pimpri Chinchwad, Pune (Nov 2026)"
+    for name in ("Upper Kharadi", "Keshav Nagar", "Pimpri Chinchwad"):
+        assert len(facets.title(Facet("x", "top"), name, 27, "Nov 2026")) <= 62
+    assert "best" not in t.lower()   # a claim the facts do not make
+
+
+def test_a_short_top_list_or_a_size_list_keeps_the_plain_title():
+    assert facets.title(Facet("kharadi", "top"), "Kharadi", 2, "Nov 2026") == "Top Projects in Kharadi, Pune (Nov 2026): 2 on MahaRERA"
+    assert facets.title(Facet("kharadi", "top", bhk=2), "Kharadi", 5, "Nov 2026").startswith("Top Projects with 2 BHK Flats")
+
+
+def test_a_list_without_a_dated_change_takes_the_month_its_projects_were_last_read():
+    read = NOW - timedelta(days=2)   # 24 Oct 2026
+    docs = [{**d, "details_checked_at": read} for d in DOCS]
+    v = facets.facet_view(Facet("kharadi", "top"), docs, NOW)
+    assert v["month"] == "Oct 2026" and "(Oct 2026)" in v["title"]
+    assert facets.facet_view(Facet("kharadi", "top"), DOCS, NOW)["month"] is None   # never today's month without a read

@@ -59,6 +59,7 @@ export async function GET(): Promise<Response> {
     `- [East Pune home plan](${site}/home-plan): projects near EON IT Park, Magarpatta and the airport, and a free shortlist for a family's office, budget and size`,
     `- [Builders in Pune](${site}/builders)`,
     `- [News](${site}/news)`,
+    `- [About Avasetu: how we check projects and rank the lists](${site}/about)`,
     '',
   ]
   return new Response(lines.join('\n'), { headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'public, max-age=3600' } })

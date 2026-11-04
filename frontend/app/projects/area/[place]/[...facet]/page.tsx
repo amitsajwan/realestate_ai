@@ -16,6 +16,7 @@ import type { FacetPage, FacetRow } from '@/lib/site/facets'
 import { livePages } from '@/lib/site/filters'
 import { fitDescription, formatPrice } from '@/lib/site/format'
 import { getRegisterPlaces, longDay, monthYear, placePath } from '@/lib/site/register'
+import { HOW, HOW_PATH } from '@/lib/site/listRules'
 
 // Area list pages (docs/plan/area-intent-pages.md): New launches, Top projects, Ready to move, Possession <year>, by builder, for
 // any Pune place. The backend makes a page live only when people search for it and enough projects match (seo/grow.py); anything
@@ -45,6 +46,11 @@ function description(p: FacetPage): string {
   }
   if (p.bhk && lows.length) {
     return fitDescription((has) => `${p.count} new projects in ${p.place.name}, Pune with ${p.bhk} BHK flats from ${formatPrice(Math.min(...lows))}${names(has)}. ${has(1) ? "Price from the builder's site, possession" : 'Possession'} filed with MahaRERA and homes booked.`)
+  }
+  if (p.intent === 'top' && p.rows.length) {
+    // the Top list's snippet answers "which projects sell best here" in its first words, with the leader named (it read
+    // "27 top residential projects in Kharadi, Pune from MahaRERA's records: VJ IndiLife Kharadi.", 2026-11-04)
+    return fitDescription((has) => `${p.count} projects in ${p.place.name}, Pune you can still buy, ranked by homes booked on MahaRERA${has(3) ? `: ${p.rows[0].name} leads` : ''}. Possession filed and whether it moved${has(2) ? ", the builder's date record" : ''}${has(1) ? `, read ${longDay(p.as_of)}` : ''}.`)
   }
   const what = { 'new-launches': 'new launch projects and flats', top: 'top residential projects', 'ready-to-move': 'ready to move flats and projects', all: 'projects' }[p.intent]
   return fitDescription((has) => `${p.count} ${what} in ${p.place.name}, Pune ${has(5) ? "from MahaRERA's records" : 'on MahaRERA'}${names(has)}. ${has(4) ? 'Registration date, possession' : 'Possession'} filed and whether it moved, homes booked${has(1) ? `, read ${longDay(p.as_of)}` : ''}.`)
@@ -148,12 +154,6 @@ function Picks({ p }: { p: FacetPage }) {
   )
 }
 
-const HOW: Record<string, string> = {
-  'new-launches': 'Projects registered with MahaRERA in the last 12 months, newest first.',
-  top: 'Projects still being built or finished within a year that have 10 or more homes not booked and 40 or more homes in all, one row per project, ranked by homes booked in the last 90 days where two of our readings of MahaRERA show it, else by homes booked a month since registration (a project registered under six months counts as six months old). Each row says whether the builder moved the completion date and how many of the builder\'s Pune projects kept theirs. Booked counts are the builders\' own, filed on MahaRERA each quarter. Projects with fewer homes open are listed apart, never ranked. Offices and shops are left out.',
-  'ready-to-move': 'Projects whose completion date filed with MahaRERA passed in the last three years and that still have 10 or more homes not booked, newest first. Offices and shops are left out. MahaRERA does not show the occupancy certificate, so ask the builder for it.',
-  all: 'Projects still being built, earliest filed completion date first.',
-}
 
 export default async function FacetPageView({ params }: Props) {
   const p = await load(params)
@@ -309,6 +309,7 @@ export default async function FacetPageView({ params }: Props) {
             Towers and phases of one project count once. From {p.source}, worked out on {longDay(p.as_of)}; each project&apos;s page shows the
             date we read its record. No builder pays to be on this list. This is general information, not investment or legal advice.
           </p>
+          <p className="mt-2"><Link href={HOW_PATH} className="font-semibold text-[#0f2340] underline underline-offset-2">How we check every project, and who we are</Link></p>
         </section>
       </article>
     </MarketingShell>
