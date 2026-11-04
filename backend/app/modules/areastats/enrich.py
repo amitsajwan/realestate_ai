@@ -106,11 +106,16 @@ MAX_SUMMARY = 160                     # the one-line summary search results may 
 # 6 (owner 2026-11-04: "dont you think points would have been better using AI"): the page opens with 3 to 5 points the model picks
 # from the stored fact sheet (`fact_sheet`, `write_points`), each naming the facts it used, in place of the written sections, which
 # said again what the page shows.
-TEXT_VERSION = 6
+# 7 (the first 170 pages read back, 2026-11-04): a part of a project is not called small, no superlatives, a label says the finding
+# with its number, and a label already on other pages of the area goes back.
+TEXT_VERSION = 7
 SECTIONS = ("The project", "Location", "For buyers")
 MIN_POINTS = 2                        # fewer say nothing a buyer cannot see at a glance
 MAX_POINTS = 5
 MAX_POINT = 240                       # characters
+LABEL_REPEATS = 2                     # a point's label on this many other pages of the area is a template, not a finding
+OVERCLAIM = re.compile(r"\b(?:largest|biggest|tallest|highest|smallest|lowest|strongest|best|reliable|trusted)\b|\baverage\b(?! of about| about)|middle figure|the middle of", re.I)
+PART_OF_PROJECT = re.compile(r"\b(?:phase|part|tower|wing|building|bldg|block)\b", re.I)
 # Each reading step has a version (owner 2026-10-20: "enrichment can happen again: we improve it, get more info, a better model").
 # Raise a step's number when the step gets better (a new rule, a new source, a better model): every project that step read with
 # an older version is read again, in the BACKFILL group, hot ones first. Kept per project in `enrichment.versions`.
@@ -444,7 +449,8 @@ def area_context(doc: dict, others: Optional[List[dict]]) -> List[str]:
 
     beside("its tallest building is higher than that of", _int((doc.get("building_totals") or {}).get("max_floors")),
            [_int((o.get("building_totals") or {}).get("max_floors")) for o in rest])
-    beside("this registration has more homes than", _int(doc.get("units_total")), [_int(o.get("units_total")) for o in rest])
+    if not PART_OF_PROJECT.search(str(doc.get("name") or "")) and not doc.get("cluster_id"):   # "only 4 homes" of Lodha Camelot's tower
+        beside("this registration has more homes than", _int(doc.get("units_total")), [_int(o.get("units_total")) for o in rest])
     same = sum(1 for o in rest if doc.get("promoter") and o.get("promoter") == doc["promoter"])
     if same:
         lines.append(f"The same filing company has {same} other project{'s' if same > 1 else ''} still being built in {area.name}")
@@ -457,9 +463,6 @@ def worth_asking(doc: dict, web: Optional[dict]) -> List[str]:
     out = []
     if pages.completion_passed(doc):
         out.append("Worth asking: the filed completion date has passed, so has the occupancy certificate been given")
-    b = brands.of(doc)
-    if b and doc.get("promoter"):
-        out.append(f"Worth asking: it is sold as {b.name} and filed by {doc['promoter']}, so who is building it")
     if whole_project_counts(doc, web):
         out.append("Worth asking: this registration is part of a bigger project, so which part is being bought")
     return out
@@ -931,7 +934,8 @@ def fact_sheet(doc: dict, gathered: Optional[dict], web: Optional[dict], prof: O
             add("extension", f"{pages.EXTENSION_NOTE}: that is the whole difference between the two dates; the builder did not move it")
     total, sold = _int(doc.get("units_total")), pages.booked(doc)
     if total:
-        add("homes", f"Homes in this registration: {total}")
+        whole = PART_OF_PROJECT.search(str(doc.get("name") or "")) or doc.get("cluster_id")
+        add("homes", f"Homes in this registration: {total}" + (" (one part of a bigger project, not the whole project)" if whole else ""))
     if total and sold is not None and sold <= total:
         add("booked", f"Homes booked: {sold} of {total} ({round(100 * sold / total)}%)")
     t = doc.get("building_totals") or {}
@@ -983,8 +987,11 @@ POINTS_SYSTEM = ("You help home buyers in Pune. From the FACTS about one housing
                  "choosing a home here, and say each as one short point. Fewer is right when few facts matter; never pad. Think like a "
                  "local researcher telling a friend what stands out: what is unusual about this project against its area, what is good "
                  "and what should worry a buyer, said straight. Lead with what makes this project different; leave out what would be "
-                 "true of any project. Each point has a label of 2 to 5 plain words that says the finding itself (\"Very few homes "
-                 "sold\", not \"Bookings\"), and text of one or two short sentences. Use only the facts given, each number exactly as "
+                 "true of any project. Each point has a label of 2 to 6 plain words that says this project's finding with its number "
+                 "when it has one (\"Only 4% of homes booked\", \"Taller than 80 of 83 projects\"; not \"Bookings\", not \"Taller than "
+                 "most neighbors\"), and text of one or two short sentences. Never call a project small when the facts say this is one "
+                 "part of a bigger project. No superlatives such as largest or tallest; say the count. Never say average; say \"similar "
+                 "projects are at about 83%\". Use only the facts given, each number exactly as "
                  "given, and name in `facts` the keys of the lines you used. Plain English, your own words; do not copy a fact's line. "
                  "Say what a middle figure means simply: \"similar projects are at about 53%\". Keep each date with its label. When a line "
                  "says MahaRERA's order is the only change to the date, say MahaRERA's order added the months, and never that the date "
@@ -1016,7 +1023,8 @@ def points_of(out: Any, sheet: List[dict], doc: dict, web: Optional[dict], outsi
         problem = ("no fact named" if not used else "empty" if not label or not text
                    else "says the date moved" if pages.extension_months(doc) and pages.months_later(doc) == 0 and says_moved(said)
                    else f"a number its facts do not say ({', '.join(sorted(_numbers(_without_names(doc, said)) - known)[:3])})" if _numbers(_without_names(doc, said)) - known
-                   else "sales words" if BANNED.search(said) else "stock words" if STOCK.search(said) or AI_WORDS.search(said)
+                   else "sales words" if BANNED.search(said) else "overclaims" if OVERCLAIM.search(said)
+                   else "stock words" if STOCK.search(said) or AI_WORDS.search(said)
                    else "a question its facts do not raise" if ASKS.search(said) and not any(k.startswith("ask") for k in used)
                    else "too long" if len(text) > MAX_POINT else None)
         for site, page in outside or []:
@@ -1037,6 +1045,8 @@ async def write_points(llm, doc: dict, sheet: List[dict], web: Optional[dict] = 
         return None, ["no LLM key"]
     user = "FACTS:\n" + "\n".join(f"[{f['key']}] {f['text']}" for f in sheet)
     problems: List[str] = []
+    used_labels = Counter(x.get("heading", "").lower() for o in others or [] if o.get("_id") != doc.get("_id") and int(o.get("page_text_version") or 1) >= 6
+                          for x in o.get("page_sections") or [])
     for ask in (user, None):
         ask = ask or f"{user}\n\nYour last answer was refused: {'; '.join(problems)}. Write it again without that."
         try:
@@ -1052,6 +1062,11 @@ async def write_points(llm, doc: dict, sheet: List[dict], web: Optional[dict] = 
         twin = alike(doc, body, others or [])
         if twin:
             problems.append(f"reads like the page of {twin}")
+        problems += [f'the label "{x["heading"]}" is on other pages: say this project\'s number' for x in points if used_labels.get(x["heading"].lower(), 0) >= LABEL_REPEATS]
+        if ask is None or ask != user:   # the second answer: a repeated label costs the point, not the page
+            points = [x for x in points if used_labels.get(x["heading"].lower(), 0) < LABEL_REPEATS]
+            body = "\n\n".join(f"{x['heading']}: {x['text']}" for x in points)
+            problems = [p for p in problems if "is on other pages" not in p] + ([] if len(points) >= MIN_POINTS else [f"only {len(points)} points kept"])
         if not problems:
             summary = " ".join(str(out.get("search_summary") or "").split())
             good = 40 <= len(summary) <= MAX_SUMMARY and websearch_mentions(pages.names(doc)[0], summary) and not AI_WORDS.search(summary)

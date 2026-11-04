@@ -449,7 +449,7 @@ def test_pages_written_by_an_older_writer_are_rewritten_after_everything_else():
     old = {"_id": "O", "page_slug": "o", "locality": "baner", **FULL, "enriched_at": NOW - timedelta(days=3),
            "enrichment": {"score": "4/4", "steps": {"web": {"ok": True, "at": NOW - timedelta(days=3)}}, "versions": dict(enrich.VERSIONS)},
            "page_text_version": 3}
-    assert enrich.TEXT_VERSION == 6
+    assert enrich.TEXT_VERSION == 7
     key = enrich._priority(old, NOW)
     assert key[:2] == (enrich.BACKFILL, 0)                        # web pages read lately: a cheap rewrite (one model call)
     assert enrich._priority({**old, "page_text_version": enrich.TEXT_VERSION}, NOW) is None
@@ -974,3 +974,35 @@ def test_homes_per_acre_needs_homes_and_land_to_cover_the_same_ground():
     assert enrich.homes_per_acre({"name": "Rose Court", "units_total": 450, "cluster_id": "c"}, land, {}) is None
     assert enrich.homes_per_acre({"name": "Rose Court", "units_total": 450}, land, {"towers": 2}) is None
     assert enrich.homes_per_acre({"name": "Rose Court", "units_total": 450}, None, {}) is None
+
+
+def test_a_superlative_or_an_average_goes():
+    for text in ("The tallest project in the area.", "It has more homes than the average."):
+        kept, why = enrich.points_of({"points": [_point("Stands out", text, "buildings")]}, SHEET, ROSE, None)
+        assert kept == [] and "overclaims" in why[0]
+
+
+def test_one_part_of_a_project_is_not_ranked_by_its_homes():
+    doc = {**ROSE, "name": "Kharadi New Project Tower 5", "locality": "kharadi", "units_total": 4, "completion_now": "2031-01-01", "building_totals": {"towers": 1, "max_floors": 2}}
+    area = [_building(i, floors=10 + i) for i in range(9)]
+    lines = enrich.area_context(doc, area)
+    assert any("higher than" in x for x in lines) and not any("more homes" in x for x in lines)
+    homes = next(f for f in enrich.fact_sheet(doc, None, None, None, False) if f["key"] == "homes")
+    assert "one part of a bigger project" in homes["text"]
+
+
+def test_a_brand_filing_through_its_own_company_raises_no_question():
+    assert enrich.worth_asking({**ROSE, "name": "Lodha Camelot", "promoter": "Lodha Developers Limited", "completion_now": "2031-01-01"}, None) == []
+
+
+async def test_a_label_on_other_pages_goes_back_then_goes():
+    others = [{"_id": f"O{i}", "name": f"Other {i}", "page_text": "x", "page_text_version": 7, "page_sections": [{"heading": "Taller than most"}]} for i in range(3)]
+
+    class Model:
+        asked = []
+        async def json(self, system, user):
+            Model.asked.append(user)
+            return {"points": [_point("Taller than most", "One block of 4 floors.", "buildings"), _point("Only 4% booked", "Just 1 of 24 homes.", "booked"), _point("Ask on the certificate", "Ask the builder about it.", "ask0")]}
+    draft, why = await enrich.write_points(Model(), ROSE, SHEET, others=others)
+    assert len(Model.asked) == 2 and "Taller than most" in Model.asked[1]
+    assert why == [] and [x["heading"] for x in draft["sections"]] == ["Only 4% booked", "Ask on the certificate"]
