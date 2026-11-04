@@ -55,6 +55,7 @@ describe('/llms.txt', () => {
     expect(text).not.toContain('by-x')
     expect(text).not.toContain('Thin')
     expect(text).toContain('/pune-maharera-tracker')
+    expect(text).toContain('/about)')
   })
 
   it('lists our areas\' project pages: agent-listed first, then priced, then newest, never a page out of search', async () => {

@@ -9,7 +9,8 @@ import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/se
 
 export function generateMetadata(): Metadata {
   return pageMetadata(getMarketingConfig(), {
-    title: 'Pune property insights',
+    // a title someone searches: "Pune property insights" named no search (owner 2026-11-04 review)
+    title: 'Buying a Home in Pune: Guides on Offers, Site Visits and Metro',
     description: 'Plain-language guides for buying a home in Pune: Kharadi, Upper Kharadi, Wagholi, metro, RERA and site visits.',
     path: '/insights',
   })
@@ -22,7 +23,7 @@ export default function InsightsPage() {
         { name: 'Home', path: '/' }, { name: 'Insights', path: '/insights' },
       ])) }} />
       <div className="mx-auto max-w-3xl px-4 py-10 sm:py-14">
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">Pune property insights</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">Guides to buying a home in Pune</h1>
         <p className="mt-3 text-lg leading-relaxed text-slate-700">
           Plain-language guides for buying a home in Pune, starting with Kharadi, Upper Kharadi and Wagholi. Sources are cited, and we do not guess prices.
         </p>

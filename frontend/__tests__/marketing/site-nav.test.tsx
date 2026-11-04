@@ -15,7 +15,6 @@ const cfg = buildMarketingConfig({})
 const EXPECTED: Array<[RegExp, string]> = [
   [/^for agents$/i, '/agents'],
   [/^news$/i, '/news'],
-  [/^posts$/i, '/posts'],
   [/^area guides$/i, '/localities'],
   [/^insights$/i, '/insights'],
   [/^sign in$/i, '/studio'],
@@ -100,6 +99,7 @@ describe('site footer', () => {
     expect(footer.textContent).not.toMatch(/(?:\+?\d[\s\-().]*){10,}/)
     expect(footer.querySelector('a[href^="tel:"], a[href*="wa.me"]')).toBeNull()
     expect(within(footer).queryByRole('link', { name: /sample agent page/i })).toBeNull()
+    expect(within(footer).queryByRole('link', { name: /^posts$/i })).toBeNull()   // out of search: not linked site-wide
   })
 })
 

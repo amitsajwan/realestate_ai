@@ -173,6 +173,14 @@ def _year(day: Optional[str]) -> Optional[int]:
     return int(day[:4]) if day and day[:4].isdigit() else None
 
 
+def _updated_at(day: Optional[str]) -> Optional[datetime]:
+    """A page's last change (pages.cluster_updated, an ISO date or datetime) as a datetime; None when unreadable."""
+    try:
+        return datetime.fromisoformat(str(day)[:10]).replace(tzinfo=timezone.utc) if day else None
+    except ValueError:
+        return None
+
+
 def _month(d: Optional[datetime]) -> Optional[str]:
     return f"{_MONTHS[d.month - 1]} {d.year}" if d else None
 
@@ -529,6 +537,9 @@ def answer(f: Facet, place: str, rows: List[dict], as_of: str, count: Optional[i
             f"{' for ' + str(f.possession) if f.possession else ''}. The earliest is {first['name']} ({_long(first['completion_now'])}).")
 
 
+TOP_TEN_MIN = 3   # projects a top list needs before its title counts them ("Top 3 Projects"); fewer reads as no list at all
+
+
 def title(f: Facet, place: str, n: int, month: Optional[str], builder_name: Optional[str] = None) -> str:
     """Search title, aiming at 60 characters: "New Launch Projects in Kharadi, Pune (Oct 2026): 7 on MahaRERA"."""
     what = {"new-launches": "New Launch Projects", "top": "Top Projects", "ready-to-move": "Ready to Move Flats",
@@ -545,6 +556,16 @@ def title(f: Facet, place: str, n: int, month: Optional[str], builder_name: Opti
         what = f"{builder_name} {what}"
     when = f" ({month})" if month else ""
     tail = f"{n} Projects, Prices" if f.bhk else f"{n} on MahaRERA"
+    if f.intent == "top" and not (f.bhk or f.possession or builder_name) and n >= TOP_TEN_MIN:
+        # people search "top 10 projects in kharadi" and click a dated, ranked list (a rival's "Ranked 2026 - Top 10 Picks" led
+        # that search, 2026-11-03); the tail says how we rank ("most booked" is also searched), never "best", which is a claim
+        # (pune-areas.md rules)
+        what = f"Top {min(n, 10)} Projects"
+        tail = "Most Booked"
+        # the month before the tail: a dated list is what gets the click
+        for t in (f"{what} in {place}, Pune{when}: {tail}", f"{what} in {place}, Pune{when}", f"{what} in {place}{when}"):
+            if len(t) <= 62:
+                return t
     for t in (f"{what} in {place}, Pune{when}: {tail}", f"{what} in {place}, Pune: {tail}", f"{what} in {place}, Pune{when}",
               f"{what} in {place}{when}", f"{what} in {place}"):
         if len(t) <= 62:
@@ -587,8 +608,10 @@ def facet_view(f: Facet, docs: List[dict], now: datetime, stamps: Optional[dict]
     changed = changes(rows_docs, now)
     stamps = stamps if stamps is not None else cluster_stamps(docs)
     updated = [u for u in (cluster_updated(d, docs, stamps) for d in rows_docs) if u]
-    # the month in the title is the month the data last changed, never just today's month
-    last_change = max((datetime.fromisoformat(c["at"]).replace(tzinfo=timezone.utc) for c in changed), default=None)
+    # the month in the title is the month the data last changed, never just today's month: a dated change on the list, else the
+    # newest re-read that changed one of its projects' pages (before, a list with no dated change had no month at all)
+    last_change = max((datetime.fromisoformat(c["at"]).replace(tzinfo=timezone.utc) for c in changed), default=None) \
+        or _updated_at(max(updated) if updated else None)
     builder_name = next((r["promoter"] for r in rows if r.get("promoter")), None) if f.builder else None
     return {
         "key": f.key, "path": f.path, "place": {"key": f.place, "slug": place_slug(f.place), "name": place},

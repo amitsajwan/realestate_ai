@@ -44,6 +44,8 @@ export function organizationJsonLd(cfg: MarketingConfig, description: string, sa
     areaServed: { '@type': 'City', name: 'Pune' },
     sameAs: sameAs && sameAs.length ? sameAs : undefined,
     contactPoint: contact.length ? contact : undefined,
+    // the page that says where our facts come from and how the lists are ranked (app/about)
+    publishingPrinciples: cfg.siteUrl + '/about#how-we-check',
   }
 }
 

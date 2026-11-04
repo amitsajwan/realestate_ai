@@ -43,19 +43,22 @@ export function siteLinks() {
   const builders: SiteLink = { href: '/builders', label: 'Builders' }
   const check: SiteLink = { href: '/check', label: 'Check your project' }
   const insights: SiteLink = { href: '/insights', label: 'Insights' }
+  // who we are and how the lists are ranked (app/about): in the footer and the phone menu, where people look for it
+  const about: SiteLink = { href: '/about', label: 'About us' }
   const invite: SiteLink = { href: INVITE_PATH, label: 'Claim your free trial' }
   const signIn: SiteLink = { href: SIGN_IN_PATH, label: 'Sign in', otherApp: true }
   const need: SiteLink = { href: buyerEnquirePath(), label: 'Tell us what you need' }
   const ig: SiteLink = { href: instagram, label: 'Instagram', external: true }
   const fb: SiteLink = { href: facebook, label: 'Facebook', external: true }
   return {
-    forAgents, news, posts, areas, projects, homePlan, builders, check, insights, invite, signIn, need, instagram: ig, facebook: fb,
+    forAgents, about, news, posts, areas, projects, homePlan, builders, check, insights, invite, signIn, need, instagram: ig, facebook: fb,
     /** Header, wide screens, by audience (the buyer or invite button sits next to these; 'For agents' is always there). */
     headerWide: { buyer: [projects, homePlan, builders, areas, news, forAgents], agent: [projects, forAgents, areas] } as Record<Audience, SiteLink[]>,
     /** Header menu on phones: everything. */
-    menu: [projects, homePlan, builders, check, areas, news, insights, posts, forAgents, signIn, ig, fb],
+    // no Posts: each one repeats a Facebook or Instagram post and is out of search (seo-system.md), so buyers lose nothing
+    menu: [projects, homePlan, builders, check, areas, news, insights, about, forAgents, signIn, ig, fb],
     footerAgents: [forAgents, invite, signIn],
-    footerExplore: [projects, homePlan, builders, check, areas, news, posts, insights],
+    footerExplore: [projects, homePlan, builders, check, areas, news, insights, about],
     footerFollow: [ig, fb],
   }
 }

@@ -99,10 +99,10 @@ describe('search descriptions fit what Google shows', () => {
     expect(String(meta.description).length).toBeLessThanOrEqual(160)
   })
 
-  it('an area list page names fewer projects instead of cutting off the facts', async () => {
+  it('a Top list says how it ranks and names its leader, dropping the extras before the facts', async () => {
     const meta = await facetMetadata({ params: Promise.resolve({ place: 'upper-kharadi', facet: ['top'] }) })
     const d = String(meta.description)
     expect(d.length).toBeLessThanOrEqual(160)
-    expect(d).toBe("23 top residential projects in Upper Kharadi, Pune on MahaRERA: Kharadi Pune Phase I - Tower 1 to 4. Possession filed and whether it moved, homes booked.")
+    expect(d).toBe("23 projects in Upper Kharadi, Pune you can still buy, ranked by homes booked on MahaRERA. Possession filed and whether it moved.")
   })
 })
