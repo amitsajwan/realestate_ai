@@ -15,7 +15,8 @@ import { HOW } from '@/lib/site/listRules'
 
 const PATH = '/about'
 const TITLE = `About ${BRAND_NAME}: how we check Pune's new projects`
-const DESCRIPTION = `Who runs ${BRAND_NAME}, where every fact comes from (the MahaRERA register, builders' sites), how the top, new launch and ready lists are ranked.`
+// "what", not "who": the page names no person yet (owner 2026-11-04: anonymous for now, names to come later)
+const DESCRIPTION = `What ${BRAND_NAME} is, where every fact comes from (the MahaRERA register, builders' sites), how the top, new launch and ready lists are ranked.`
 
 export const metadata: Metadata = pageMetadata(getMarketingConfig(), { title: TITLE, description: DESCRIPTION, path: PATH })
 
@@ -103,6 +104,18 @@ export default function AboutPage() {
             We also make tools for real estate agents in Pune: their own page, buyer enquiries and posts made for them. That is
             how {BRAND_NAME} works as a business. Using the site is free for buyers.{' '}
             <a href="/agents" className={a}>For agents</a>.
+          </p>
+        </section>
+
+        {/* the partner agency Avasetu powers (owner 2026-11-04, "add our partner House Deal, we power them"): only what House
+            Deal's own page says about itself; its own site is linked as theirs */}
+        <section aria-labelledby="partner-title" className="mt-10" data-testid="about-partner">
+          <h2 id="partner-title" className={h2}>Our partner: House Deal</h2>
+          <p className={p}>
+            House Deal is a property advisory office at RTC Silver, Upper Kharadi, for new projects across East Pune. {BRAND_NAME} powers{' '}
+            <a href="/agent/house-deal" className={a}>House Deal&apos;s page</a>: its projects with their prices, the same MahaRERA checks
+            as every page here, and buyer enquiries. Being our partner never moves a project up our lists.{' '}
+            <a href="https://house-deal.com" target="_blank" rel="noopener noreferrer" className={a}>House Deal&apos;s own website<span className="sr-only"> (opens in a new tab)</span></a>.
           </p>
         </section>
 

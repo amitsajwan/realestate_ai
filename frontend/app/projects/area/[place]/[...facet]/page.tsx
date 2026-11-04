@@ -309,7 +309,7 @@ export default async function FacetPageView({ params }: Props) {
             Towers and phases of one project count once. From {p.source}, worked out on {longDay(p.as_of)}; each project&apos;s page shows the
             date we read its record. No builder pays to be on this list. This is general information, not investment or legal advice.
           </p>
-          <p className="mt-2"><Link href={HOW_PATH} className="font-semibold text-[#0f2340] underline underline-offset-2">How we check every project, and who we are</Link></p>
+          <p className="mt-2"><Link href={HOW_PATH} className="font-semibold text-[#0f2340] underline underline-offset-2">How we check every project, and what Avasetu is</Link></p>
         </section>
       </article>
     </MarketingShell>
