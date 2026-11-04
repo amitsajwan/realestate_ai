@@ -681,7 +681,10 @@ def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None) ->
         # else the page writer's one-line summary (enrich.TEXT_VERSION 2)
         "search_description": doc.get("seo_description") or doc.get("page_summary") or None,
         # the writer's sections under the paragraph: {heading, text}, checked with it (enrich.SECTIONS)
-        "sections": (doc.get("page_sections") or []) if doc.get("page_text") else [],
+        "sections": (doc.get("page_sections") or []) if doc.get("page_text") and int(doc.get("page_text_version") or 1) < 6 else [],
+        # the points at the top of the page from the writer's version 6 on (enrich.write_points): {heading, text, facts}
+        "points": [{"label": x.get("heading"), "text": x.get("text")} for x in doc.get("page_sections") or []]
+                  if doc.get("page_text") and int(doc.get("page_text_version") or 1) >= 6 else [],
         "same_promoter": same_promoter(doc, docs) if docs is not None else [],
         "enriched_at": doc["enriched_at"].date().isoformat() if isinstance(doc.get("enriched_at"), datetime) else None,
         # links into other pages say how people search for them (rank-loop R5): search_name, else the marketed name
@@ -858,7 +861,8 @@ async def project_page(db, slug: str, now: Optional[datetime] = None) -> Optiona
     # a count on the builder's or a property site said with its scope: the whole project's, or this registration's
     out["web_facts"] = pagefacts.with_scope(web_public(group_primary(doc, docs).get("web_facts")), out["details"])
     from .profile import public as profile_public
-    out["profile"] = profile_public(group_primary(doc, docs).get("profile"), drawn=not out["indexable"], doc=group_primary(doc, docs))
+    # no AI pictures on any page (owner 2026-11-04); they stay on the record
+    out["profile"] = profile_public(group_primary(doc, docs).get("profile"), drawn=False, doc=group_primary(doc, docs))
     out["plans_3d"] = plans3d.public(group_primary(doc, docs).get("plans_3d"))   # 3D drawings of its checked floor plans
     from .prices import homes_only, ideas, public as prices_public, starts   # asked prices per home size, from the builder's site or two sites
     # the area's records, each project once (its group's primary record): its prices for the rate and the usual band per size

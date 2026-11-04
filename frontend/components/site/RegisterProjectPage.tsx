@@ -824,6 +824,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
   // the hero names the BHK types, so the highlights' "homes" bullet would say them again
   const heroBhks = !!(price ?? askedPrices(p))?.bhks
   const sections = (p.sections ?? []).filter((x) => x.heading && x.text)
+  const points = (p.points ?? []).filter((x) => x.label && x.text)
   const enquiryTopic = `${p.name} (MahaRERA ${p.regno})`
   // a finished project on Avasetu's own page takes no enquiries (owner 2026-11-01: "for completed projects ... no enquiry"): no
   // form, ask box or phone bar, and the projects still being built nearby come straight after the answer; an agent's listing of
@@ -902,7 +903,19 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
       )}
 
       {/* the one answer, written by code from the facts below: what AI search quotes (the model's old summary is not shown) */}
-      {answer && (
+      {points.length > 0 ? (
+        <section className="mt-6 max-w-4xl" aria-labelledby="points-title" data-testid="project-points">
+          <h2 id="points-title" className="text-sm font-medium text-slate-600">
+            {p.details_read_at ? `As of ${longDay(p.details_read_at)}, from MahaRERA ${p.regno} and the sources on this page` : `From MahaRERA ${p.regno} and the sources on this page`}
+          </h2>
+          <ul className="mt-2 list-none space-y-2 p-0">
+            {points.map((x) => (
+              <li key={x.label} className="text-lg leading-relaxed text-slate-900"><strong className="font-semibold">{x.label}:</strong> {x.text}</li>
+            ))}
+          </ul>
+          {updated && <p className="mt-2 text-sm text-slate-600" data-testid="updated">Updated {longDay(updated)}</p>}
+        </section>
+      ) : answer && (
         <div className="mt-6 max-w-4xl">
           <p className="text-lg font-medium leading-relaxed text-slate-900" data-testid="project-answer">{answer}</p>
           {updated && <p className="mt-1 text-sm text-slate-600" data-testid="updated">Updated {longDay(updated)}</p>}

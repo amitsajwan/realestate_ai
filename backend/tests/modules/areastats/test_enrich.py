@@ -1,4 +1,5 @@
 """Slow background enrichment of project pages: priority, the checker, one per interval, urgent requests, the page text."""
+import re
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -14,6 +15,11 @@ FULL = {**FULL, "prices": {"rows": [{"bhk": "2 BHK", "from_inr": 5000000}]}}   #
 GATHERED = {"nearby": [{"label": "school", "name": "Lexicon School", "km": 1.2}], "numbers": {}, "maharera": {"project_type": "Residential"}}
 
 
+POINTS = ("Few homes are left to book here.", "The record is read from MahaRERA.")
+LABELS = ("Few homes left", "On the record", "Third", "Fourth", "Fifth", "Sixth", "Seventh", "Eighth")
+POINTS_TEXT = "Few homes left: Few homes are left to book here.\n\nOn the record: The record is read from MahaRERA."
+
+
 class FakeLLM:
     """Answers with the text's paragraphs as the sections, in SECTIONS order, and a search line."""
     def __init__(self, text):
@@ -21,8 +27,13 @@ class FakeLLM:
 
     async def json(self, system, user):
         self.calls += 1
+        summary = "Rohan Abhilasha 4, Wagholi: homes by Rohan Builders, registered with MahaRERA"
+        if system == enrich.POINTS_SYSTEM:   # the text's sentences as points, each naming every fact
+            keys = re.findall(r"^\[(.+?)\]", user, re.M)
+            said = POINTS if self.text == GOOD else re.split(r"(?<=[.])\s+", self.text.replace("\n\n", " "))
+            return {"points": [{"label": LABELS[i], "text": t, "facts": keys} for i, t in enumerate(said)], "search_summary": summary}
         return {"sections": [{"heading": h, "text": t} for h, t in zip(enrich.SECTIONS, self.text.split("\n\n"))],
-                "search_summary": "Rohan Abhilasha 4, Wagholi: homes by Rohan Builders, registered with MahaRERA"}
+                "search_summary": summary}
 
 
 # what the page does not already show: no dates, no bookings, no prices (TEXT_VERSION 4); stored as page_text, joined
@@ -153,16 +164,16 @@ async def test_a_refused_draft_keeps_the_code_paragraph_and_the_page_shows_accep
     await store.set_project("P1", enriched_at=None)
     await enrich.step(store, FakeLLM(GOOD), NOW, None, timedelta(minutes=30))
     doc = await store.project("P1")
-    assert doc["page_text"] == GOOD and doc["page_text_version"] == enrich.TEXT_VERSION
+    assert doc["page_text"] == POINTS_TEXT and doc["page_text_version"] == enrich.TEXT_VERSION
     page = await pages.project_page(db, doc["page_slug"])
-    assert [s["heading"] for s in page["sections"]] == ["The project", "Location"] and page["enriched_at"] == "2026-10-06"
+    assert page["sections"] == [] and [x["label"] for x in page["points"]] == ["Few homes left", "On the record"] and page["enriched_at"] == "2026-10-06"
     assert page["search_description"] == "Rohan Abhilasha 4, Wagholi: homes by Rohan Builders, registered with MahaRERA"
 
 
 async def test_without_a_gatherer_it_still_writes_from_the_register_facts(monkeypatch):
     monkeypatch.setitem(enrich._deps, "gather", None)
     db, store = await ready(("P1", "Rohan Abhilasha 4", "wagholi", {**FULL, "promoter": "Rohan Builders"}))
-    out = await enrich.step(store, FakeLLM(GOOD.split("\n\n")[0]), NOW, None, timedelta(minutes=30))
+    out = await enrich.step(store, FakeLLM(GOOD), NOW, None, timedelta(minutes=30))
     assert out["text"] and "no gatherer configured" in out["notes"]
 
 
@@ -417,11 +428,11 @@ async def test_park_eden_drafts_that_repeat_the_page_or_misscope_a_count_are_ref
 async def test_an_accepted_draft_is_stored_as_sections_with_the_search_line():
     db, store = await ready((EDEN["_id"], EDEN["name"], "kharadi",
                              {**{k: v for k, v in EDEN.items() if k not in ("_id", "name")}, "web_facts": EDEN_WEB}))
-    llm = DraftLLM(EDEN_PROJECT, summary=EDEN_SUMMARY)
-    await enrich.enrich_one(store, await store.project(EDEN["_id"]), llm, NOW, reread=False)
+    await enrich.enrich_one(store, await store.project(EDEN["_id"]), FakeLLM(GOOD), NOW, reread=False)
     doc = await store.project(EDEN["_id"])
-    assert doc["page_sections"] == [{"heading": "The project", "text": EDEN_PROJECT}]
-    assert doc["page_text"] == EDEN_PROJECT and doc["page_summary"] == EDEN_SUMMARY and doc["page_text_version"] == enrich.TEXT_VERSION
+    assert [x["heading"] for x in doc["page_sections"]] == ["Few homes left", "On the record"] and doc["page_sections"][0]["facts"]
+    assert doc["page_text"] == POINTS_TEXT and doc["page_text_version"] == enrich.TEXT_VERSION
+    assert any(f["key"] == "web_towers" for f in doc["fact_sheet"]["facts"])
 
 
 def test_an_answer_in_an_older_writers_shape_is_no_draft_and_does_not_crash():
@@ -438,7 +449,7 @@ def test_pages_written_by_an_older_writer_are_rewritten_after_everything_else():
     old = {"_id": "O", "page_slug": "o", "locality": "baner", **FULL, "enriched_at": NOW - timedelta(days=3),
            "enrichment": {"score": "4/4", "steps": {"web": {"ok": True, "at": NOW - timedelta(days=3)}}, "versions": dict(enrich.VERSIONS)},
            "page_text_version": 3}
-    assert enrich.TEXT_VERSION == 5
+    assert enrich.TEXT_VERSION == 6
     key = enrich._priority(old, NOW)
     assert key[:2] == (enrich.BACKFILL, 0)                        # web pages read lately: a cheap rewrite (one model call)
     assert enrich._priority({**old, "page_text_version": enrich.TEXT_VERSION}, NOW) is None
@@ -519,7 +530,7 @@ async def test_without_a_model_the_facts_round_runs_and_the_reading_is_put_off_n
     # a model is set up: the reading turn writes the text from the kept facts, without gathering again
     out = await enrich.read_step(store, FakeLLM(GOOD), NOW + timedelta(minutes=1), None, timedelta(minutes=10))
     doc = await store.project("P1")
-    assert out["reading"] and out["text"] and doc["page_text"] == GOOD and not doc["reading_due"]
+    assert out["reading"] and out["text"] and doc["page_text"] == POINTS_TEXT and not doc["reading_due"]
     assert gatherer == ["P1"] and doc["enriched_at"] == NOW and doc["read_at"] == NOW + timedelta(minutes=1)
     assert await enrich.read_step(store, FakeLLM(GOOD), NOW + timedelta(hours=1), None, timedelta(minutes=10)) is None
 
@@ -867,3 +878,68 @@ async def test_a_draft_with_one_bad_sentence_is_kept_without_a_second_call():
     llm = Answers(BODY + " Ask the builder about the floors.")
     draft, why = await enrich.write_text(llm, {**ROSE, "completion_now": "2031-01-01"}, None)
     assert draft["text"] == BODY and why == [] and len(llm.asked) == 1
+
+
+# ---- the fact sheet and the points (owner 2026-11-04) ----------------------------------------------------------------------------
+
+SHEET = [{"key": "booked", "text": "Homes booked: 1 of 24 (4%)"}, {"key": "buildings", "text": "Buildings in this registration: 1, up to 4 floors"},
+         {"key": "ask0", "text": "the filed completion date has passed, so has the occupancy certificate been given"}]
+
+
+def _point(label, text, *facts):
+    return {"label": label, "text": text, "facts": list(facts)}
+
+
+def test_a_fact_sheet_says_where_each_fact_came_from():
+    doc = {**ROSE, "completion_now": "2031-01-01", "units_total": 24, "units_booked": 1, "source_url": "https://maharera.example/1",
+           "building_totals": {"towers": 1, "max_floors": 4}, "prices": {"rows": [{"bhk": "2 BHK", "from_inr": 9000000, "sources": [{"site": "a.com", "url": "https://a.com", "quote": "90 lakh"}]}]}}
+    sheet = {f["key"]: f for f in enrich.fact_sheet(doc, None, None, None, False)}
+    assert sheet["booked"]["text"] == "Homes booked: 1 of 24 (4%)" and sheet["booked"]["source"] == "MahaRERA"
+    assert sheet["booked"]["url"] == "https://maharera.example/1"
+    assert sheet["price_2BHK"]["text"] == "2 BHK from \u20b990 L" and sheet["price_2BHK"]["quote"] == "90 lakh"
+    assert "filed" in sheet and "worked0" in sheet
+
+
+def test_a_point_keeps_only_numbers_from_the_facts_it_names():
+    kept, why = enrich.points_of({"points": [_point("Very few homes sold", "Only 1 of 24 homes are booked.", "booked"),
+                                             _point("Small building", "It has 99 homes.", "buildings")]}, SHEET, ROSE, None)
+    assert [x["heading"] for x in kept] == ["Very few homes sold"] and kept[0]["facts"] == ["booked"]
+    assert "99" in why[0]
+
+
+def test_a_point_naming_no_fact_we_hold_goes():
+    kept, why = enrich.points_of({"points": [_point("Nice", "It is quiet.", "made_up")]}, SHEET, ROSE, None)
+    assert kept == [] and "no fact named" in why[0]
+
+
+def test_a_question_needs_a_fact_that_raises_it():
+    kept, _ = enrich.points_of({"points": [_point("Ask first", "Ask the builder about the certificate.", "ask0"),
+                                           _point("Ask this", "Ask the builder about floors.", "buildings")]}, SHEET, ROSE, None)
+    assert [x["heading"] for x in kept] == ["Ask first"]
+
+
+def test_a_point_copying_a_live_outside_page_goes():
+    text = "Rose Court keeps its two buildings well apart on a corner plot beside the river road here."
+    kept, why = enrich.points_of({"points": [_point("Set apart", text, "buildings")]}, SHEET, ROSE, None, [("99acres.com", "Overview " + text)])
+    assert kept == [] and "copies 99acres.com" in why[0]
+
+
+async def test_points_are_kept_as_sections_with_the_facts_they_used():
+    class Model:
+        async def json(self, system, user):
+            assert "[booked] Homes booked" in user
+            return {"points": [_point("Very few homes sold", "Only 1 of 24 homes are booked.", "booked"), _point("A small building", "One block of 4 floors.", "buildings")],
+                    "search_summary": "Rose Court, Kharadi: one block of 4 floors, 1 of 24 homes booked so far"}
+    draft, why = await enrich.write_points(Model(), ROSE, SHEET)
+    assert why == [] and draft["sections"][0] == {"heading": "Very few homes sold", "text": "Only 1 of 24 homes are booked.", "facts": ["booked"]}
+    assert draft["text"].startswith("Very few homes sold: Only 1 of 24") and draft["summary"].startswith("Rose Court")
+
+
+async def test_one_point_is_too_few_and_goes_back_once():
+    class Model:
+        calls = 0
+        async def json(self, system, user):
+            Model.calls += 1
+            return {"points": [_point("Very few homes sold", "Only 1 of 24 homes are booked.", "booked")]}
+    draft, why = await enrich.write_points(Model(), ROSE, SHEET)
+    assert draft is None and Model.calls == 2 and "only 1 points kept" in why[0]

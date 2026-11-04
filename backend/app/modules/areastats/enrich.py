@@ -103,8 +103,14 @@ MAX_SUMMARY = 160                     # the one-line summary search results may 
 # 5 (owner 2026-11-04: "get LLM to write it, but original content"; 245 pages in search had a median of 380 characters): a third
 # section on what this project's own facts mean for a buyer, more sentences where the facts carry them, numbers code works out,
 # and two checks that the words are our own. Never padding: a short true section beats a long empty one.
-TEXT_VERSION = 5
+# 6 (owner 2026-11-04: "dont you think points would have been better using AI"): the page opens with 3 to 5 points the model picks
+# from the stored fact sheet (`fact_sheet`, `write_points`), each naming the facts it used, in place of the written sections, which
+# said again what the page shows.
+TEXT_VERSION = 6
 SECTIONS = ("The project", "Location", "For buyers")
+MIN_POINTS = 2                        # fewer say nothing a buyer cannot see at a glance
+MAX_POINTS = 5
+MAX_POINT = 240                       # characters
 # Each reading step has a version (owner 2026-10-20: "enrichment can happen again: we improve it, get more info, a better model").
 # Raise a step's number when the step gets better (a new rule, a new source, a better model): every project that step read with
 # an older version is read again, in the BACKFILL group, hot ones first. Kept per project in `enrichment.versions`.
@@ -877,6 +883,159 @@ async def write_text(llm, doc: dict, gathered: Optional[dict], web: Optional[dic
     return None, problems
 
 
+# ---- the fact sheet and the points (owner 2026-11-04: "facts needs to be stored, out of the facts we create the page") ---------
+
+def _money(n: int) -> str:
+    return f"₹{n / 10000000:.2f} Cr".replace(".00 Cr", " Cr") if n >= 10000000 else f"₹{round(n / 100000)} L"
+
+
+def fact_sheet(doc: dict, gathered: Optional[dict], web: Optional[dict], prof: Optional[dict], pinned: bool,
+               others: Optional[List[dict]] = None, docs: Optional[List[dict]] = None, now: Optional[datetime] = None) -> List[dict]:
+    """Every fact the page may say, one per line: {key, text, source, url, quote}. Worked out by code from the record, the checked
+    web facts, highlights and prices. Stored on the record as `fact_sheet`; the writer sees only this, and each point it writes
+    names the keys it used, so a point can be traced to its source and checked by code. MahaRERA's readings stay as they are:
+    this is a view of them for the page, never where a history is kept."""
+    out: List[dict] = []
+    area = BY_KEY.get(doc.get("locality") or "")
+    place = area.name if area else doc.get("pune_place_name") or None
+    read = "MahaRERA"
+
+    def add(key: str, text: str, source: str = read, url: Optional[str] = None, quote: Optional[str] = None) -> None:
+        out.append({"key": key, "text": text, "source": source, "url": url or (doc.get("source_url") if source == read else None), "quote": quote})
+
+    filed, first = _day(doc.get("completion_now")), _day(doc.get("completion_at_registration"))
+    if filed:
+        add("filed", f"Completion date filed with MahaRERA: {pages._long(filed)}")
+    if first and first != filed:
+        add("first", f"Completion date filed at registration: {pages._long(first)}")
+        if pages.extension_months(doc) and pages.months_later(doc) == 0:
+            add("extension", f"{pages.EXTENSION_NOTE}: that is the whole difference between the two dates; the builder did not move it")
+    total, sold = _int(doc.get("units_total")), pages.booked(doc)
+    if total:
+        add("homes", f"Homes in this registration: {total}")
+    if total and sold is not None and sold <= total:
+        add("booked", f"Homes booked: {sold} of {total} ({round(100 * sold / total)}%)")
+    t = doc.get("building_totals") or {}
+    if t.get("towers"):
+        add("buildings", f"Buildings in this registration: {t['towers']}" + (f", up to {t['max_floors']} floors" if t.get("max_floors") else ""))
+    for i, line in enumerate(worked_out(doc)):
+        add(f"worked{i}", line.replace("Worked out: ", ""), "worked out from MahaRERA")
+    rest = [o for o in others or [] if o.get("_id") != doc.get("_id") and not o.get("cluster_primary")]
+    compare = pages.area_compare(doc, rest, place, (now or datetime.now(timezone.utc)).date()) if place else None
+    if compare and compare.get("booked"):
+        c = compare["booked"]
+        add("area_booked", f"{c['pct']}% booked here; the middle of {c['projects']} {place} projects registered within a year of it is {c['area_pct']}%", "worked out from MahaRERA")
+    for i, line in enumerate(area_context(doc, others)):
+        add(f"area{i}", line, "worked out from MahaRERA")
+    record = pages.track_record(doc, docs) if docs else None
+    if record and record.get("record_ok"):
+        add("builder_record", f"Of {record['with_dates']} {record['name']} projects in Pune with both dates on MahaRERA, {record['moved_later'] or 'none'} moved the completion date 3 months or more later", "worked out from MahaRERA")
+    scoped = {f["key"]: mine for f, mine in whole_project_counts(doc, web)}
+    for f, line in zip((web or {}).get("facts") or [], webfacts.lines(web)):
+        src = (f.get("sources") or [{}])[0]
+        add(f"web_{f.get('key')}", f"{f['label']}: {f['text']} for the whole project; this registration has {scoped[f['key']]}" if f.get("key") in scoped else line,
+            ", ".join(s["site"] for s in f.get("sources") or []), src.get("url"), src.get("quote"))
+    for i, (h, line) in enumerate(zip(profile.shown_highlights(prof, doc), profile.lines(prof, doc))):
+        src = (h.get("sources") or [{}])[0]
+        add(f"highlight{i}", line, ", ".join(s["site"] for s in h.get("sources") or []), src.get("url"), src.get("quote"))
+    for r in (doc.get("prices") or {}).get("rows") or []:
+        if isinstance(r, dict) and isinstance(r.get("from_inr"), int) and r.get("bhk"):
+            src = (r.get("sources") or [{}])[0]
+            add(f"price_{str(r['bhk']).replace(' ', '')}", f"{r['bhk']} from {_money(r['from_inr'])}", ", ".join(s["site"] for s in r.get("sources") or []), src.get("url"), src.get("quote"))
+    if pinned:
+        for i, x in enumerate(((gathered or {}).get("nearby") or [])[:10]):
+            if x.get("name") and isinstance(x.get("km"), (int, float)):
+                add(f"near{i}", f"{str(x.get('label') or 'place').capitalize()}: {x['name']}, {x['km']} km in a straight line", "Google Maps")
+    for i, line in enumerate(worth_asking(doc, web)):
+        add(f"ask{i}", line.replace("Worth asking: ", ""), "worked out from MahaRERA")
+    return out
+
+
+POINTS_SYSTEM = ("You help home buyers in Pune. From the FACTS about one housing project, pick the 3 to 5 that matter most to someone "
+                 "choosing a home here, and say each as one short point. Fewer is right when few facts matter; never pad. Think like a "
+                 "local researcher telling a friend what stands out: what is unusual about this project against its area, what is good "
+                 "and what should worry a buyer, said straight. Lead with what makes this project different; leave out what would be "
+                 "true of any project. Each point has a label of 2 to 5 plain words that says the finding itself (\"Very few homes "
+                 "sold\", not \"Bookings\"), and text of one or two short sentences. Use only the facts given, each number exactly as "
+                 "given, and name in `facts` the keys of the lines you used. Plain English, your own words; do not copy a fact's line. "
+                 "Say what a middle figure means simply: \"similar projects are at about 53%\". Keep each date with its label. A line "
+                 "that starts with a question to ask may be used as a point, in your own words; put no other question. No praise, no "
+                 "sales words, no advice to buy or not to buy. Never use: furthermore, moreover, additionally, notably, overall, nestled, "
+                 "boasts, vibrant, seamless, ideal, convenient, proximity, ensures, caters to, designed to, making it, serves as, stands "
+                 "as, residents can, potential buyers, consists of, boutique, footprint, solitary, venture, parcel, residences, or a dash "
+                 "in place of a comma. "
+                 f"search_summary: one line under {MAX_SUMMARY} characters for search results, naming the project and its area. "
+                 'Answer as JSON: {"points": [{"label": "...", "text": "...", "facts": ["key"]}], "search_summary": "..."}')
+
+
+def points_of(out: Any, sheet: List[dict], doc: dict, web: Optional[dict], outside: Optional[List[Tuple[str, str]]] = None) -> Tuple[List[dict], List[str]]:
+    """(points kept as {heading, text, facts}, why the others went). A point goes when it names no fact we hold, says a number its
+    facts do not, or carries stock words, a question its facts do not raise or another site's words. The sheet's lines are ours
+    to say, so lifting from them is not checked; the writer is told to use its own words and the outside pages are what count."""
+    by_key = {f["key"]: f["text"] for f in sheet}
+    names = pages.names(doc)[0]
+    kept, why = [], []
+    raw = out.get("points") if isinstance(out, dict) else None
+    for p in raw if isinstance(raw, list) else []:
+        if not isinstance(p, dict):
+            continue
+        label, text = (" ".join(str(p.get(k) or "").replace("‑", "-").split()) for k in ("label", "text"))
+        used = [k for k in p.get("facts") or [] if k in by_key] if isinstance(p.get("facts"), list) else []
+        said = label + ". " + text
+        known = _numbers(" ".join(by_key[k] for k in used) + " " + names)
+        problem = ("no fact named" if not used else "empty" if not label or not text
+                   else f"a number its facts do not say ({', '.join(sorted(_numbers(_without_names(doc, said)) - known)[:3])})" if _numbers(_without_names(doc, said)) - known
+                   else "sales words" if BANNED.search(said) else "stock words" if STOCK.search(said) or AI_WORDS.search(said)
+                   else "a question its facts do not raise" if ASKS.search(said) and not any(k.startswith("ask") for k in used)
+                   else "too long" if len(text) > MAX_POINT else None)
+        for site, page in outside or []:
+            if not problem and lifted(doc, said, page):
+                problem = f"copies {site}"
+        if problem:
+            why.append(f"{label or 'a point'}: {problem}")
+        elif len(kept) < MAX_POINTS and label.lower() not in {x["heading"].lower() for x in kept}:
+            kept.append({"heading": label, "text": text, "facts": used})
+    return kept, why
+
+
+async def write_points(llm, doc: dict, sheet: List[dict], web: Optional[dict] = None, others: Optional[List[dict]] = None,
+                       outside: Optional[List[Tuple[str, str]]] = None) -> tuple:
+    """({text, sections, summary} or None, why it was refused): the last step of a round. The points are kept in `page_sections` as
+    {heading, text, facts}, so the page check, chat's knowledge and search read them as they read the sections before."""
+    if llm is None:
+        return None, ["no LLM key"]
+    user = "FACTS:\n" + "\n".join(f"[{f['key']}] {f['text']}" for f in sheet)
+    problems: List[str] = []
+    for ask in (user, None):
+        ask = ask or f"{user}\n\nYour last answer was refused: {'; '.join(problems)}. Write it again without that."
+        try:
+            out = await llm.json(POINTS_SYSTEM, ask)
+        except Exception as e:
+            log.exception("enrich: model call failed for %s", doc.get("_id"))
+            return None, problems or [f"model call failed ({type(e).__name__})"]
+        if out is None:
+            return None, problems or ["no model answer"]
+        points, dropped = points_of(out, sheet, doc, web, outside)
+        body = "\n\n".join(f"{x['heading']}: {x['text']}" for x in points)
+        problems = [] if len(points) >= MIN_POINTS else [f"only {len(points)} points kept"] + dropped
+        if pages.extension_months(doc) and pages.months_later(doc) == 0 and says_moved(body):
+            problems.append("says the date moved, but the only change is MahaRERA's 2026 extension")
+        twin = alike(doc, body, others or [])
+        if twin:
+            problems.append(f"reads like the page of {twin}")
+        if not problems:
+            summary = " ".join(str(out.get("search_summary") or "").split())
+            good = 40 <= len(summary) <= MAX_SUMMARY and websearch_mentions(pages.names(doc)[0], summary) and not AI_WORDS.search(summary)
+            return {"text": body, "sections": points, "summary": summary if good else None}, []
+        log.info("enrich: points for %s refused: %s", doc.get("_id"), "; ".join(problems))
+        if hasattr(llm, "forget"):
+            try:
+                await llm.forget(POINTS_SYSTEM, ask)
+            except Exception:
+                log.exception("enrich: forgetting a refused answer failed for %s", doc.get("_id"))
+    return None, problems
+
+
 def sheet_value(sheet: Optional[dict], key: str) -> Any:
     """A usable fact's value from a kept property-facts document (facts are stored as a list of {key, value, usable})."""
     for f in (sheet or {}).get("facts") or []:
@@ -1142,9 +1301,12 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime, reread: bool =
         ask = _ask(llm, tier, "text")
         before = _deferred(ask)
         web_now = (web or {}).get("web_facts") or doc.get("web_facts")
-        draft, refused = await write_text(ask, doc, gathered, web_now, (prof or {}).get("profile") or doc.get("profile"), pinned,
-                                          await store.projects_in([doc["locality"]]) if doc.get("locality") else [],
-                                          await outside_pages(web_now, fetch))
+        area_docs = await store.projects_in([doc["locality"]]) if doc.get("locality") else []
+        latest = await store.project(doc["_id"]) or doc
+        sheet = fact_sheet(latest, gathered, web_now, (prof or {}).get("profile") or latest.get("profile"), pinned, area_docs,
+                           await store.shared_projects(), now)
+        await store.set_project(doc["_id"], fact_sheet={"at": now, "facts": sheet})
+        draft, refused = await write_points(ask, latest, sheet, web_now, area_docs, await outside_pages(web_now, fetch))
         if _deferred(ask) > before:
             put_off.append("text")
             steps["text"] = kept_steps.get("text") or {}

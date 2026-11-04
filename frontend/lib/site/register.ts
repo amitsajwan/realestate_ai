@@ -77,6 +77,8 @@ export interface RegisterProject {
   search_description?: string | null
   /** the page writer's sections under the paragraph (backend areastats/enrich.py SECTIONS), checked with it */
   sections?: { heading: string; text: string }[]
+  /** what stands out, the model's points from the stored fact sheet (backend areastats/enrich.py write_points) */
+  points?: { label: string; text: string }[]
   /** every MahaRERA registration of the project (towers, phases) when this page stands for several (R0) */
   towers?: RegisterTower[]
   /** the nearest neighbourhood guide (R5) */
