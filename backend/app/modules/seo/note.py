@@ -154,9 +154,9 @@ async def run_once(store: Store, now: datetime, force: bool = False) -> Optional
     week = snaps[-1] if snaps else None
     ago = next((h for h in reversed(snaps) if week and _aware(week.get("at")) and _aware(h.get("at"))
                 and _aware(week["at"]) - _aware(h["at"]) >= timedelta(days=7)), None)
-    waiting = await store.db.get_collection(coverage.COLLECTION).count_documents({"state": {"$in": list(WAITING)}})
-    index = store.db.get_collection(coverage.COLLECTION)   # every page inspected so far, not only the last day's batch
-    cov = {"inspected": await index.count_documents({}), "indexed": await index.count_documents({"verdict": "PASS"})}
+    # the daily check's own summary: pages in the sitemap now. `seo_index` also keeps ~12,000 pages since dropped from it
+    cov = await store.get_mark(coverage.MARK)
+    waiting = sum(n for state, n in (cov.get("missing_by_state") or {}).items() if state in WAITING)
     leads = await leads_from_ai(store.db.get_collection("contacts"), now - timedelta(days=7))   # read only: tracking owns contacts
     board = await store.get_mark(scoreboard.MARK)
     parts = notes(summary(week, ago, cov, board, waiting), aivisits.week_line(await aivisits.summary(store.db, now, days=7), leads),

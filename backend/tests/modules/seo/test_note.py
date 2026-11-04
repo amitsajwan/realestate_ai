@@ -139,3 +139,13 @@ async def test_the_weekly_run_sends_its_note_in_parts_that_each_fit(monkeypatch)
     sent = await store.db.get_collection("notifications").find({"agent_id": "OWNER"}).to_list(None)
     assert [n["summary"][:9] for n in sent] == ["SEO week:", "AI search"]
     assert "Searches for Avasetu by name, 28 days: 40 impressions, 9 clicks." in sent[1]["summary"]
+
+
+async def test_the_weekly_note_counts_only_pages_in_the_sitemap_now(monkeypatch):
+    monkeypatch.setenv("INSIGHTS_OWNER_IDS", "OWNER")
+    store = await store_with_waiting_pages()   # `seo_index` holds more pages than the sitemap has since kept
+    await store.set_mark(coverage.MARK, inspected=345, indexed=144,
+                         missing_by_state={"Crawled - currently not indexed": 120, "Discovered - currently not indexed": 80, "Soft 404": 1})
+    assert (await note.run_once(store, NOW))["waiting"] == 200
+    sent = await store.db.get_collection("notifications").find({"agent_id": "OWNER"}).to_list(None)
+    assert "indexed 144 of 345 checked" in sent[0]["summary"] and "200 pages to ask Google for" in sent[0]["summary"]
