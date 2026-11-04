@@ -72,6 +72,10 @@ TOPICS: Dict[str, str] = {
     "parking": "Parking",
     "security": "Security",
 }
+# marketing lines a buyer can do nothing with (owner 2026-11-04: keep every specific fact, drop only the empty lines): "Layouts are
+# planned for natural light, ventilation, and daily comfort". They stay on the record, unshown, and the writer does not get them.
+EMPTY_LINE = re.compile(r"natural light|ventilation|daily comfort|mid to high|multiple amenities|many users|lifestyle|thoughtful|"
+                        r"well[- ]planned|spacious", re.I)
 NOT_SAID = re.compile(r"₹|\brs\.?\s*\d|\blakh|\bcrore|\bprice|\bpossession|\bminutes?\b|\bmins?\b|\bkm\b|\bkms\b|\bdrive\b|\baway\b", re.I)
 NUM = re.compile(r"\d[\d,]*(?:\.\d+)?")
 PLAN = re.compile(r"floor[-_ ]?plan|unit[-_ ]?plan|typical[-_ ]?floor|\b[1-5](?:\.5)?[-_ ]?bhk\b|master[-_ ]?plan|site[-_ ]?plan|"
@@ -678,7 +682,7 @@ def shown_highlights(profile: Optional[dict], doc: Optional[dict] = None) -> Lis
     sources that say it, so the page's "a property site" or "2 property sites" is true. The record keeps every reading."""
     out = []
     for h in (profile or {}).get("highlights") or []:
-        if contradicts(str(h.get("text") or ""), doc, bool(h.get("official"))):
+        if contradicts(str(h.get("text") or ""), doc, bool(h.get("official"))) or EMPTY_LINE.search(str(h.get("text") or "")):
             continue
         sources = h.get("sources") or []
         if not h.get("official"):

@@ -889,6 +889,25 @@ def _money(n: int) -> str:
     return f"₹{n / 10000000:.2f} Cr".replace(".00 Cr", " Cr") if n >= 10000000 else f"₹{round(n / 100000)} L"
 
 
+def size_kind(quote: str) -> str:
+    """What kind of area a price line gives: sites mix them, and saleable area runs 30-40% over carpet (owner 2026-11-03), so a
+    size is never said without it and two sizes of different kinds are never compared."""
+    if re.search(r"carpet|rera area", quote, re.I):
+        return "carpet area"
+    if re.search(r"saleable|sellable|built[- ]?up|super", quote, re.I):
+        return "saleable area"
+    return "area kind not stated"
+
+
+def homes_per_acre(doc: dict, land: Optional[dict], scoped: dict) -> Optional[int]:
+    """Homes per acre, only when the homes and the land surely cover the same ground: land is mostly given for the whole marketed
+    project and homes for one registration, so a phase, a tower, a group of registrations or a scoped count says nothing."""
+    total, acres = _int(doc.get("units_total")), webfacts.number((land or {}).get("value"))
+    if not total or not acres or scoped or doc.get("cluster_id") or re.search(r"\b(?:phase|part|tower|wing|building|bldg)\b", str(doc.get("name") or ""), re.I):
+        return None
+    return round(total / acres)
+
+
 def fact_sheet(doc: dict, gathered: Optional[dict], web: Optional[dict], prof: Optional[dict], pinned: bool,
                others: Optional[List[dict]] = None, docs: Optional[List[dict]] = None, now: Optional[datetime] = None) -> List[dict]:
     """Every fact the page may say, one per line: {key, text, source, url, quote}. Worked out by code from the record, the checked
@@ -935,13 +954,22 @@ def fact_sheet(doc: dict, gathered: Optional[dict], web: Optional[dict], prof: O
         src = (f.get("sources") or [{}])[0]
         add(f"web_{f.get('key')}", f"{f['label']}: {f['text']} for the whole project; this registration has {scoped[f['key']]}" if f.get("key") in scoped else line,
             ", ".join(s["site"] for s in f.get("sources") or []), src.get("url"), src.get("quote"))
+    land = next((f for f in (web or {}).get("facts") or [] if f.get("key") == "land_acres"), None)
+    per_acre = homes_per_acre(doc, land, scoped)
+    if per_acre:
+        add("homes_per_acre", f"About {per_acre} homes per acre", "worked out from MahaRERA and the land size")
     for i, (h, line) in enumerate(zip(profile.shown_highlights(prof, doc), profile.lines(prof, doc))):
         src = (h.get("sources") or [{}])[0]
         add(f"highlight{i}", line, ", ".join(s["site"] for s in h.get("sources") or []), src.get("url"), src.get("quote"))
     for r in (doc.get("prices") or {}).get("rows") or []:
         if isinstance(r, dict) and isinstance(r.get("from_inr"), int) and r.get("bhk"):
             src = (r.get("sources") or [{}])[0]
-            add(f"price_{str(r['bhk']).replace(' ', '')}", f"{r['bhk']} from {_money(r['from_inr'])}", ", ".join(s["site"] for s in r.get("sources") or []), src.get("url"), src.get("quote"))
+            where = ", ".join(s["site"] for s in r.get("sources") or [])
+            add(f"price_{str(r['bhk']).replace(' ', '')}", f"{r['bhk']} from {_money(r['from_inr'])}", where, src.get("url"), src.get("quote"))
+            quote = str(src.get("quote") or "")
+            sqft = prices.sqft_of(r, quote)
+            if sqft:
+                add(f"size_{str(r['bhk']).replace(' ', '')}", f"{r['bhk']} size from {sqft} sq ft, {size_kind(quote)}", where, src.get("url"), quote)
     if pinned:
         for i, x in enumerate(((gathered or {}).get("nearby") or [])[:10]):
             if x.get("name") and isinstance(x.get("km"), (int, float)):

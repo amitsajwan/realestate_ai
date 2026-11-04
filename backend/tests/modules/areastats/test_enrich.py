@@ -953,3 +953,24 @@ def test_a_point_saying_the_date_moved_goes_when_only_the_extension_changed_it_a
     kept, why = enrich.points_of({"points": [_point("Date pushed back", "The completion date was moved to 30 Apr 2030.", "filed"),
                                              _point("Very few homes sold", "Only 1 of 24 homes are booked.", "booked")]}, sheet, doc, None)
     assert [x["heading"] for x in kept] == ["Very few homes sold"] and "says the date moved" in why[0]
+
+
+def test_a_size_says_what_kind_of_area_it_is():
+    assert enrich.size_kind("725 sq ft carpet area") == "carpet area"
+    assert enrich.size_kind("1,100 sq ft super built-up") == "saleable area"
+    assert enrich.size_kind("725 sq ft") == "area kind not stated"
+
+
+def test_the_fact_sheet_keeps_the_size_beside_its_price():
+    row = {"bhk": "2 BHK", "from_inr": 9000000, "sources": [{"site": "a.com", "url": "https://a.com", "quote": "725 sq. ft. carpet area at 90 lakh"}]}
+    sheet = {f["key"]: f for f in enrich.fact_sheet({**ROSE, "prices": {"rows": [row]}}, None, None, None, False)}
+    assert sheet["size_2BHK"]["text"] == "2 BHK size from 725 sq ft, carpet area" and sheet["size_2BHK"]["source"] == "a.com"
+
+
+def test_homes_per_acre_needs_homes_and_land_to_cover_the_same_ground():
+    land = {"key": "land_acres", "value": 2.5}
+    assert enrich.homes_per_acre({"name": "Rose Court", "units_total": 450}, land, {}) == 180
+    assert enrich.homes_per_acre({"name": "Rose Court Phase 2", "units_total": 450}, land, {}) is None
+    assert enrich.homes_per_acre({"name": "Rose Court", "units_total": 450, "cluster_id": "c"}, land, {}) is None
+    assert enrich.homes_per_acre({"name": "Rose Court", "units_total": 450}, land, {"towers": 2}) is None
+    assert enrich.homes_per_acre({"name": "Rose Court", "units_total": 450}, None, {}) is None
