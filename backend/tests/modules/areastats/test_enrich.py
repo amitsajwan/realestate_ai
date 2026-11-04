@@ -390,9 +390,9 @@ async def test_park_eden_drafts_that_repeat_the_page_or_misscope_a_count_are_ref
         return draft, refused
 
     draft, refused = await write(EDEN_PROJECT + " 27 of the 249 homes are booked.", EDEN_LOCATION)
-    assert draft is None and "repeats the homes total (249)" in refused and "repeats the booking count (27)" in refused
+    assert "249" not in draft["text"] and EDEN_LOCATION in draft["text"] and refused == []   # that one sentence is taken out
     draft, refused = await write(EDEN_PROJECT + " Of its homes, 222 are still available.", EDEN_LOCATION)
-    assert draft is None and "repeats the homes left (222)" in refused
+    assert "222" not in draft["text"] and refused == []   # not in the facts: taken out too
     draft, refused = await write(EDEN_PROJECT + " Its completion date is 28 Feb 2031, an increase from 31 Oct 2030.", EDEN_LOCATION)
     assert draft is None
     assert {"repeats the completion date (28 Feb 2031)", "repeats the completion date (31 Oct 2030)",
@@ -403,7 +403,7 @@ async def test_park_eden_drafts_that_repeat_the_page_or_misscope_a_count_are_ref
     draft, refused = await write(misscoped, EDEN_LOCATION)
     assert draft is None and "gives the whole project's towers (5) as this registration's (2)" in refused
     draft, refused = await write(EDEN_PROJECT + " Homes start at Rs 1.99 Cr.", EDEN_LOCATION)
-    assert draft is None and "gives a price (the page shows the prices)" in refused
+    assert "1.99" not in draft["text"] and refused == []   # not in the facts: taken out too
     draft, refused = await write(EDEN_PROJECT, "No specific nearby places are mentioned in the provided facts.")
     assert draft is None and 'the "Location" section is empty or says nothing' in refused
 
@@ -677,16 +677,18 @@ class Answers:
 
 
 async def test_a_refused_draft_goes_back_once_with_the_reasons():
-    llm = Answers(BODY + " Check the sale agreement.", BODY)
-    draft, why = await enrich.write_text(llm, ROSE, None)
+    doc = {**ROSE, "completion_now": "2031-01-01"}
+    llm = Answers(BODY + " It is due on 1 Jan 2031.", BODY)
+    draft, why = await enrich.write_text(llm, doc, None)
     assert draft["text"] == BODY and why == []
-    assert len(llm.asked) == 2 and "sale agreement" in llm.asked[1] and "refused" in llm.asked[1]
+    assert len(llm.asked) == 2 and "completion date" in llm.asked[1] and "refused" in llm.asked[1]
 
 
 async def test_a_draft_refused_twice_keeps_the_old_text_and_says_why():
-    llm = Answers(BODY + " Check the sale agreement.", BODY + " Check the sale agreement.", BODY)
-    draft, why = await enrich.write_text(llm, ROSE, None)
-    assert draft is None and any("stock line" in p for p in why) and len(llm.asked) == 2
+    late = BODY + " It is due on 1 Jan 2031."
+    llm = Answers(late, late, BODY)
+    draft, why = await enrich.write_text(llm, {**ROSE, "completion_now": "2031-01-01"}, None)
+    assert draft is None and any("completion date" in p for p in why) and len(llm.asked) == 2
 
 
 async def test_the_writer_is_held_to_the_other_pages_of_its_area():
@@ -837,3 +839,31 @@ def test_a_tower_is_not_taken_for_a_reading():
 def test_the_stock_openings_of_the_first_pages_are_refused():
     for line in ("Rose Court consists of two buildings.", "Rose Court takes shape as one block.", "A boutique footprint.", "A specific part of the wider development."):
         assert enrich.STOCK.search(line), line
+
+
+def _trim(text, doc=None, facts="Rose Court"):
+    d = {"sections": [{"heading": "The project", "text": text}], "text": text, "summary": None}
+    return enrich.trimmed(doc or {**ROSE, "completion_now": "2031-01-01"}, None, d, facts)["text"]
+
+
+def test_one_bad_sentence_goes_and_the_rest_of_the_draft_stays():
+    assert _trim("Rose Court sits on a corner. Ask the builder about the floors. Its gardens face east.") == "Rose Court sits on a corner. Its gardens face east."
+    assert _trim("Rose Court sits on a corner. It boasts a pool. The gardens are 99 metres long.") == "Rose Court sits on a corner."
+
+
+def test_the_homes_total_is_taken_out_of_the_text():
+    assert _trim("Rose Court sits on a corner. It has 120 homes.", {**ROSE, "units_total": 120}, "Rose Court 120") == "Rose Court sits on a corner."
+
+
+def test_a_question_the_record_raises_stays():
+    assert "Ask" in _trim("Rose Court sits on a corner. Ask about the certificate.", {**ROSE, "completion_now": "2021-01-01"})
+
+
+def test_consists_of_becomes_plain():
+    assert _trim("Rose Court consists of two buildings.") == "Rose Court has two buildings."
+
+
+async def test_a_draft_with_one_bad_sentence_is_kept_without_a_second_call():
+    llm = Answers(BODY + " Ask the builder about the floors.")
+    draft, why = await enrich.write_text(llm, {**ROSE, "completion_now": "2031-01-01"}, None)
+    assert draft["text"] == BODY and why == [] and len(llm.asked) == 1

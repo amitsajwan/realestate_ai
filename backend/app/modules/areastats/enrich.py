@@ -143,6 +143,8 @@ AI_WORDS = re.compile(r"\b(?:furthermore|moreover|additionally|notably|nestled|b
                       r"important to note|well[- ]connected|sought[- ]after|prime location|a blend of|key (?:feature|factor)s?|"
                       r"convenient(?:ly)?|easy access|within reach|proximity|ensur(?:e|es|ing)|caters? to|designed to|"
                       r"residents (?:can|will|have)|potential (?:buyers|residents)|prospective)\b|\u2014", re.I)
+ASKS = re.compile(r"\b(?:ask|clarify|inquire|enquire)\b", re.I)
+CONSISTS = re.compile(r"\bconsists of\b", re.I)
 EVEN_LENGTH = 2.0                     # sentences whose word counts spread less than this read as generated
 # what the first trial of writer 5 ended nearly every page with (2026-11-04): one sentence on hundreds of pages is the "scaled
 # content" of 2026-10-26, however true it is, and the page's own note already says it
@@ -694,6 +696,26 @@ def empty_section(text: str) -> bool:
     return bool(NOTHING.search(text)) or len(text) < 60
 
 
+def trimmed(doc: dict, web: Optional[dict], draft: dict, facts: str) -> dict:
+    """The draft without the sentences our checks would refuse: an invented number, the homes total, a stock line, the marks of
+    machine text, a question the record does not raise. On 2026-11-04 one such sentence threw away whole good drafts (0 of 3 on
+    pages in search) and cost a second model call; code can take it out for nothing. The rest still goes through `refused`."""
+    known, total = _numbers(facts), _int(doc.get("units_total"))
+    asks = bool(worth_asking(doc, web))
+
+    def bad(sentence: str) -> bool:
+        said = _numbers(_without_names(doc, sentence))
+        return bool(STOCK.search(sentence) or AI_WORDS.search(sentence) or said - known or (total and str(total) in said)
+                    or (not asks and ASKS.search(sentence)))
+
+    sections = []
+    for i, x in enumerate(draft["sections"]):
+        kept = " ".join(s for s in _sentences(CONSISTS.sub("has", x["text"])) if not bad(s))
+        if kept or not i:
+            sections.append({**x, "text": kept})
+    return {**draft, "sections": sections, "text": "\n\n".join(x["text"] for x in sections if x["text"])}
+
+
 def sounds_generated(body: str) -> List[str]:
     """What makes a draft read as machine-written: its stock words, every sentence the same length, or one opening word."""
     problems = []
@@ -786,7 +808,7 @@ def refused(doc: dict, web: Optional[dict], draft: dict, facts: str, others: Opt
         copied = lifted(doc, body, text)
         if copied:
             problems.append(f'copies {site} word for word ("{copied}")')
-    if not worth_asking(doc, web) and re.search(r"\b(?:ask|clarify|inquire|enquire)\b", body, re.I):
+    if not worth_asking(doc, web) and ASKS.search(body):
         problems.append("puts a question the record does not raise")
     if not brands.of(doc) and re.search(r"\bbrand\b", body, re.I):
         problems.append("speaks of a brand, and the project has none")
@@ -842,7 +864,7 @@ async def write_text(llm, doc: dict, gathered: Optional[dict], web: Optional[dic
             return None, problems or [f"model call failed ({type(e).__name__})"]
         if out is None:
             return None, problems or ["no model answer"]
-        draft = draft_of(out)
+        draft = trimmed(doc, web, draft_of(out), facts)
         problems = refused(doc, web, draft, facts, others, outside)
         if not problems:
             return draft, []
