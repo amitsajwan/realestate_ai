@@ -8,12 +8,14 @@ not count as the day's run: the next round reads it again. A sitemap still short
 counted (2026-10-27 we cut it from 13,178 pages to 345, and the check skipped itself for a week). Each answer
 is kept in `seo_index` ({_id: url, state, verdict, crawled, checked_at}) and the summary on the `gsc_coverage` mark: how many
 current sitemap pages are indexed, the same per child sitemap (`by_sitemap`: area-kharadi, core, builders...: listed, inspected,
-indexed, so the lagging area gets the Request-indexing turns first), why the others are not (count per Search Console state, e.g. "Crawled - currently not
+indexed, so the lagging area gets the Request-indexing turns first), the same for project pages alone (`projects`: an area's row
+mixes them with its list pages), why the others are not (count per Search Console state, e.g. "Crawled - currently not
 indexed") and up to EXAMPLES of them, for the Admin health row. Same read-only service account as searchconsole.py
 (GSC_SA_KEY_B64); without it this does nothing.
 """
 import asyncio
 import logging
+import re
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
@@ -36,6 +38,7 @@ EVERY = timedelta(hours=24)
 COLLECTION = "seo_index"
 MARK = "gsc_coverage"
 EXAMPLES = 20
+PROJECT_PAGE = re.compile(r"^https?://[^/]+/projects/(?!upcoming$)[^/]+$")
 
 
 def _aware(d) -> Optional[datetime]:
@@ -77,6 +80,14 @@ def by_sitemap(where: Dict[str, str], docs: List[dict]) -> List[dict]:
     return out
 
 
+def project_pages(urls: List[str], docs: List[dict]) -> dict:
+    """{listed, inspected, indexed, missing_by_state} for the project pages of the sitemap alone."""
+    mine = [d for d in docs if PROJECT_PAGE.match(d["_id"])]
+    missing = [d for d in mine if d.get("verdict") != "PASS"]
+    return {"listed": sum(1 for u in urls if PROJECT_PAGE.match(u)), "inspected": len(mine), "indexed": len(mine) - len(missing),
+            "missing_by_state": dict(Counter(d.get("state") or "Unknown" for d in missing).most_common())}
+
+
 async def summary(db, urls: List[str], where: Optional[Dict[str, str]] = None) -> dict:
     """Coverage of the pages in the sitemap now (pages since dropped from it are not counted)."""
     current = set(urls)
@@ -86,7 +97,7 @@ async def summary(db, urls: List[str], where: Optional[Dict[str, str]] = None) -
     return {"sitemap": len(urls), "inspected": len(docs), "indexed": len(indexed),
             "missing_by_state": dict(Counter(d.get("state") or "Unknown" for d in missing).most_common()),
             "not_indexed": [{"url": d["_id"], "state": d.get("state")} for d in missing[:EXAMPLES]],
-            "by_sitemap": by_sitemap(where or {u: "sitemap" for u in urls}, docs)}
+            "by_sitemap": by_sitemap(where or {u: "sitemap" for u in urls}, docs), "projects": project_pages(urls, docs)}
 
 
 async def run_once(store: Store, now: datetime, transport: Optional[httpx.AsyncBaseTransport] = None,

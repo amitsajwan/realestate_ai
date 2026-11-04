@@ -115,3 +115,12 @@ async def test_the_loop_runs_both_steps_and_one_failing_does_not_stop_the_other(
     monkeypatch.setattr(runner.coverage, "run_once", fine)
     assert await runner.round_once(Store(FakeDb()), NOW) == {"indexnow": {"error": "RuntimeError"}, "coverage": {"checked": 1}}
     assert calls == ["indexnow", "coverage"]
+
+
+def test_project_pages_are_counted_alone_with_why_the_others_are_not_in():
+    site = "https://avasetu.in"
+    urls = [f"{site}/projects/rose", f"{site}/projects/lily", f"{site}/projects/area/kharadi", f"{site}/projects/upcoming", f"{site}/about"]
+    docs = [{"_id": urls[0], "verdict": "PASS"}, {"_id": urls[1], "verdict": "NEUTRAL", "state": "Discovered - currently not indexed"},
+            {"_id": urls[2], "verdict": "PASS"}, {"_id": urls[3], "verdict": "PASS"}, {"_id": urls[4], "verdict": "PASS"}]
+    assert coverage.project_pages(urls, docs) == {"listed": 2, "inspected": 2, "indexed": 1,
+                                                  "missing_by_state": {"Discovered - currently not indexed": 1}}

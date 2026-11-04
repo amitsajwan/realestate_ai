@@ -5,7 +5,7 @@ import { ErrorBox, Spinner } from '@/components/app/ui'
 import { timeAgo } from '@/lib/app/format'
 import { errorMessage } from '@/lib/app/client'
 import { getRankings, revertPage } from '@/lib/app/insights'
-import type { AiVisits, BoardRow, PageCheck, RankAction, RankTarget, Scoreboard, WeekNumbers } from '@/lib/app/insights'
+import type { AiVisits, BoardRow, PageCheck, PageContent, ProjectIndex, RankAction, RankTarget, Scoreboard, WeekNumbers } from '@/lib/app/insights'
 import { useAsync } from '@/lib/app/useAsync'
 import { getNotifications, markNotificationRead } from '@/lib/app/whatsapp'
 
@@ -100,6 +100,38 @@ type AreaRow = { sitemap: string; listed: number; inspected: number; indexed: nu
 const sitemapLabel = (s: string) => (s.startsWith('area-') ? s.slice(5).split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ') : s[0].toUpperCase() + s.slice(1))
 
 /** Indexed share per child sitemap (seo/coverage.py), least indexed first: the area to send Request-indexing turns to. */
+/** Project pages alone: how many Google has taken and why the others are not in, then what those pages hold. */
+function ProjectPages({ index, content, at }: { index?: ProjectIndex | null; content?: PageContent; at: string | null }) {
+  const reasons = Object.entries(index?.missing_by_state ?? {})
+  return (
+    <div className={card} data-testid="project-pages">
+      <p className="font-semibold text-gray-900">Project pages in Google</p>
+      {!!index?.inspected && (
+        <>
+          <p className="text-sm text-gray-800">{index.indexed} of {index.inspected} checked are indexed ({Math.round((100 * index.indexed) / index.inspected)}%) · {index.listed} listed</p>
+          {at && <p className="text-xs text-gray-600">Google&apos;s own answer, {timeAgo(at)}.</p>}
+          {reasons.length > 0 && (
+            <ul className="mt-1 space-y-1 p-0">
+              {reasons.map(([state, n]) => (
+                <li key={state} className="flex justify-between gap-2 text-xs text-gray-700"><span>{state}</span><span className="tabular-nums">{n}</span></li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+      {!!content?.pages && (
+        <>
+          <p className="mt-2 text-sm font-medium text-gray-900">What the {content.pages} pages in search hold</p>
+          <p className="text-xs text-gray-700">
+            Prices {content.prices} · web facts {content.facts} · highlights {content.highlights} · photos {content.photos} · plans {content.plans}
+          </p>
+          <p className="text-xs text-gray-700">All five: {content.full} · written text, median {content.median_text} characters</p>
+        </>
+      )}
+    </div>
+  )
+}
+
 function ByArea({ rows, at }: { rows: AreaRow[]; at: string | null }) {
   const [all, setAll] = useState(false)
   const shown = rows.filter((r) => r.inspected > 0)
@@ -233,6 +265,8 @@ export default function RankingsTab() {
       </div>
 
       {d.scoreboard?.at && <Board b={d.scoreboard} />}
+
+      {(!!d.coverage?.projects?.inspected || !!d.coverage?.content?.pages) && <ProjectPages index={d.coverage.projects} content={d.coverage.content} at={d.coverage.at} />}
 
       {!!d.coverage?.by_sitemap.length && <ByArea rows={d.coverage.by_sitemap} at={d.coverage.at} />}
 

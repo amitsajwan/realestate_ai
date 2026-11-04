@@ -79,6 +79,12 @@ export const ignoreFound = (regno: string) => call<{ ignored: boolean }>(`found/
 export const getSystem = () => call<SystemView>('system')
 
 // ---- Rankings (docs/plan/rank-loop.md R9; backend app/modules/seo/report.py) -------------------------------------------------
+/** Project pages alone in the daily Google index check (seo.coverage.project_pages): an area's row mixes them with list pages. */
+export interface ProjectIndex { listed: number; inspected: number; indexed: number; missing_by_state: Record<string, number> }
+
+/** What the project pages in search hold (pages.content_counts). `full`: prices, web facts, highlights, photos and plans. */
+export interface PageContent { pages: number; prices: number; facts: number; highlights: number; photos: number; plans: number; full: number; median_text: number }
+
 export interface WeekNumbers { at: string; clicks: number; impressions: number; page_one: number; near_page_one: number; targeted: number }
 
 export interface FixResult {
@@ -145,7 +151,7 @@ export interface Rankings {
   gaps: { at: string | null; total: number; items: RankGap[] }
   scoreboard?: Scoreboard
   request_indexing?: { url: string; state: string | null; why: string }[]
-  coverage?: { at: string | null; by_sitemap: { sitemap: string; listed: number; inspected: number; indexed: number }[] }
+  coverage?: { at: string | null; by_sitemap: { sitemap: string; listed: number; inspected: number; indexed: number }[]; projects?: ProjectIndex | null; content?: PageContent }
   ai?: AiVisits
   page_check?: PageCheck
 }

@@ -281,3 +281,16 @@ def test_the_shops_caution_is_for_homes_beside_shops_not_for_an_office_building(
     mixed = {**FULL, "building_totals": {"units_residential": 108, "units_other": 34}}
     assert "shops" in [c["key"] for c in cautions(mixed)]
     assert "shops" not in [c["key"] for c in cautions({**FULL, **OFFICES})]
+
+
+def test_content_counts_say_what_the_pages_in_search_hold():
+    base = {"completion_now": "2031-01-01", "promoter": "Rose LLP", "project_type": "Residential", "page_text": "x" * 300}
+    full = {**base, "prices": {"rows": [{}]}, "web_facts": {"facts": [{}]},
+            "profile": {"highlights": ["Clubhouse"], "photos": [{"source": "builder"}], "plans": [{"source": "brochure"}]}}
+    thin = {**base, "prices": {"rows": [{}]}, "profile": {"photos": [{"source": "ai"}, {"source": "web"}]}}
+    out = pages.content_counts([full, thin, {**base}, {**full, "cluster_primary": "P9"}])
+    assert (out["pages"], out["prices"], out["photos"], out["plans"], out["full"], out["median_text"]) == (2, 2, 1, 1, 1, 300)
+
+
+def test_content_counts_with_no_pages():
+    assert pages.content_counts([])["median_text"] == 0

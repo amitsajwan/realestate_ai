@@ -11,7 +11,8 @@ rankings(store, now) -> {
   gaps:      searches with no page in the top 20 (seo.gaps R7);
   scoreboard: searches where we are above MagicBricks, the ones to win next, and the count per week (seo.scoreboard I6);
   request_indexing: pages Google has not indexed, most worth the owner's Request indexing first (seo.note);
-  coverage:  indexed share per child sitemap (area-kharadi, core, builders...), least indexed first (seo.coverage);
+  coverage:  indexed share per child sitemap (area-kharadi, core, builders...), least indexed first, and for project pages alone
+             with why the others are not in (seo.coverage), and what the project pages in search hold (pages.content_counts);
   page_check: finished pages against their sources, the pages with something to look at (seo.review).
 }
 Owner only (marketer sites are never public).
@@ -19,6 +20,7 @@ Owner only (marketer sites are never public).
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
+from app.modules.areastats import pages
 from app.modules.areastats.demand import our_host, rank_of
 from app.modules.areastats.websearch import RESULTS, site
 from app.modules.newsroom.store import Store
@@ -101,7 +103,8 @@ async def rankings(store: Store, now: datetime) -> dict:
         "gaps": {"at": _iso(gapmark.get("at")), "total": gapmark.get("total") or 0, "items": gapmark.get("items") or []},
         "scoreboard": _board(await store.get_mark(scoreboard.MARK)),
         "request_indexing": await note.request_list(store),
-        "coverage": {"at": _iso((cov := await store.get_mark(coverage.MARK)).get("at")), "by_sitemap": cov.get("by_sitemap") or []},
+        "coverage": {"at": _iso((cov := await store.get_mark(coverage.MARK)).get("at")), "by_sitemap": cov.get("by_sitemap") or [],
+                     "projects": cov.get("projects"), "content": pages.content_counts(await store.shared_projects())},
         "ai": await aivisits.summary(store.db, now),
         "page_check": await review.summary(store, now),
     }

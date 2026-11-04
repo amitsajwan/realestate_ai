@@ -210,6 +210,23 @@ def searchable(doc: dict) -> bool:
     return indexable(doc) and bool(doc.get("page_text")) and own_facts(doc)
 
 
+def content_counts(docs: List[dict]) -> dict:
+    """What the project pages in search hold, for the owner's Rankings tab: how many have each kind of fact, how many all of them
+    (`full`) and the written text's median length. One page per project: a tower's facts are on its group's primary."""
+    live = [d for d in docs if searchable(d) and not d.get("cluster_primary")]
+
+    def kinds(d: dict) -> dict:
+        profile = d.get("profile") or {}
+        return {"prices": bool((d.get("prices") or {}).get("rows")), "facts": bool((d.get("web_facts") or {}).get("facts")),
+                "highlights": bool(profile.get("highlights")), "photos": bool(shown_pictures(profile.get("photos"), drawn=False)),
+                "plans": bool(shown_pictures(profile.get("plans")))}
+
+    rows = [kinds(d) for d in live]
+    sizes = sorted(len(d.get("page_text") or "") for d in live)
+    return {"pages": len(live), **{k: sum(r[k] for r in rows) for k in ("prices", "facts", "highlights", "photos", "plans")},
+            "full": sum(all(r.values()) for r in rows), "median_text": sizes[len(sizes) // 2] if sizes else 0}
+
+
 def page_updated(doc: dict) -> Optional[str]:
     """Our own last change to the page (its text written, or the details read), full ISO datetime; never MahaRERA's dates. The
     sitemap's lastmod. Not `enriched_at`: a round that finds the same facts changes nothing a reader sees (2026-10-27)."""
