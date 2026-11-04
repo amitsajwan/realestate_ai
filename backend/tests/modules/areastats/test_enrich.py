@@ -10,6 +10,7 @@ from ..fakes import FakeDb
 from .test_pages import FULL, seeded
 
 NOW = datetime(2026, 10, 6, 12, 0, tzinfo=timezone.utc)
+FULL = {**FULL, "prices": {"rows": [{"bhk": "2 BHK", "from_inr": 5000000}]}}   # a fact of its own: the writer runs only with one
 GATHERED = {"nearby": [{"label": "school", "name": "Lexicon School", "km": 1.2}], "numbers": {}, "maharera": {"project_type": "Residential"}}
 
 
@@ -251,7 +252,8 @@ def test_records_enriched_before_the_checks_are_redone_after_googles_new_pages()
     keys = sorted([(enrich.priority(d, set(), NOW), d["_id"]) for d in (old, seen, new)])
     assert [k[1] for k in keys] == ["S", "O", "N"]
     assert enrich.priority({**old, "enrichment": {"score": "4/4"}, "page_text_version": enrich.TEXT_VERSION}, set(), NOW) is None
-    assert enrich._priority({**old, "enrichment": {"score": "4/4"}}, NOW)[0] == enrich.BACKFILL   # an older writer's text
+    assert enrich._priority({**old, "enrichment": {"score": "4/4"}, "prices": {"rows": [{"bhk": 2}]}}, NOW)[0] == enrich.BACKFILL   # an older writer's text, with facts to write from
+    assert enrich._priority({**old, "enrichment": {"score": "4/4"}}, NOW) is None   # nothing of its own: no rewrite
 
 
 def test_builder_track_record_from_the_register():
@@ -448,14 +450,14 @@ def test_a_page_in_search_keeps_its_text_two_weeks_before_a_newer_writer_takes_i
            "enrichment": {"score": "4/4", "steps": {"web": {"ok": True, "at": NOW - timedelta(days=3)}}}, "page_text_version": 3,
            "page_text": "About the project.", "page_text_at": NOW - timedelta(days=3), "prices": {"rows": [{"bhk": 2}]}}
     assert enrich._priority(old, NOW) is None                                         # in search, written 3 days ago: rests
-    assert enrich._priority({**old, "page_text_at": NOW - timedelta(days=15)}, NOW)[0] == enrich.BACKFILL
+    assert enrich._priority({**old, "page_text_at": NOW - timedelta(days=15)}, NOW)[0] == 2   # read by an older version: with what is in search
     thin = {k: v for k, v in old.items() if k != "page_text"}
     assert enrich._priority(thin, NOW)[0] == enrich.BACKFILL                          # not in search: no rest needed
 
 
 def test_a_thin_page_is_tried_again_after_a_week_a_page_in_search_after_two_months():
     # Baner: not hot, not on an east Pune Top list; enriched 10 days ago with the current writer
-    done = {"_id": "T", "page_slug": "t", "locality": "baner", **FULL, "enriched_at": NOW - timedelta(days=10),
+    done = {"_id": "T", "page_slug": "t", "locality": "baner", **FULL, "prices": {}, "enriched_at": NOW - timedelta(days=10),
             "enrichment": {"score": "4/4", "steps": {}}, "page_text_version": enrich.TEXT_VERSION,
             "page_text": "About the project.", "page_text_at": NOW - timedelta(days=10)}
     assert enrich._priority(done, NOW) is not None                                    # text only: out of search, due again
@@ -764,3 +766,74 @@ def test_a_question_the_record_does_not_raise_is_refused():
     draft = {"sections": [{"heading": "The project", "text": line}], "text": line, "summary": None}
     assert any("question" in p for p in enrich.refused({**ROSE, "completion_now": "2031-01-01"}, None, draft, "Rose Court"))
     assert not any("question" in p for p in enrich.refused({**ROSE, "completion_now": "2021-01-01"}, None, draft, "Rose Court"))
+
+
+# ---- the flow: facts first, the writer last, pages in search first (owner 2026-11-04) -----------------------------------------
+
+OWN = {"prices": {"rows": [{"bhk": "2 BHK", "from_inr": 5000000}]}}
+
+
+def test_towers_and_offices_are_not_worth_a_model():
+    assert enrich.worth_model({"project_type": "Residential"})
+    assert not enrich.worth_model({"cluster_primary": "P9"})
+    assert not enrich.worth_model({"project_type": "Commercial"})
+
+
+def test_a_tower_goes_after_everything_and_only_for_its_facts():
+    key = enrich._priority({"_id": "T", "cluster_primary": "P9", "enriched_at": NOW - timedelta(days=enrich.REFRESH_DAYS + 1)}, NOW)
+    assert key == (enrich.BACKFILL + 1, 0)
+    assert enrich._priority({"_id": "T", "cluster_primary": "P9", "enriched_at": NOW - timedelta(days=9)}, NOW) is None
+
+
+def test_a_page_in_search_on_an_old_writer_is_due_a_rewrite_even_while_resting():
+    assert enrich.rewrite_due(_in_search(page_text_version=enrich.TEXT_VERSION - 1), NOW)
+
+
+def test_a_refused_page_waits_before_it_costs_two_more_calls():
+    d = _in_search(page_text_version=enrich.TEXT_VERSION - 1, text_refused_at=NOW - timedelta(days=1))
+    assert not enrich.rewrite_due(d, NOW)
+    assert enrich.rewrite_due({**d, "text_refused_at": NOW - timedelta(days=enrich.THIN_RETRY_DAYS + 1)}, NOW)
+
+
+def test_pages_in_search_go_first_most_seen_first():
+    a, b = _in_search(_id="A", page_text_version=4, gsc_impressions=5), _in_search(_id="B", page_text_version=4, gsc_impressions=50)
+    assert enrich.priority(b, set(), NOW, rewrite=True) < enrich.priority(a, set(), NOW, rewrite=True)
+    assert enrich.priority(a, set(), NOW, rewrite=True) < (0, 0)
+
+
+async def test_the_rewrites_stop_at_the_days_cap_and_start_again_the_next_day():
+    db, store = await ready(("P1", "Rose Court", "baner", {**FULL}))
+    for _ in range(enrich.REWRITES_PER_DAY):
+        await enrich.count_rewrite(store, NOW)
+    assert await enrich.rewrites_left(store, NOW) == 0
+    assert await enrich.rewrites_left(store, NOW + timedelta(days=1)) == enrich.REWRITES_PER_DAY
+
+
+async def test_no_fact_of_its_own_means_no_model_is_asked_to_write(gatherer):
+    db, store = await ready(("P1", "Rohan Abhilasha 4", "wagholi", {**FULL, "prices": {}, "promoter": "Rohan Builders"}))
+    llm = FakeLLM(GOOD)
+    out = await enrich.enrich_one(store, await store.project("P1"), llm, NOW)
+    assert llm.calls == 0 and not out["text"] and "no text written: no fact of its own yet" in out["notes"]
+
+
+async def test_with_a_fact_of_its_own_the_writer_runs_last(gatherer):
+    db, store = await ready(("P1", "Rohan Abhilasha 4", "wagholi", {**FULL, **OWN, "promoter": "Rohan Builders"}))
+    llm = FakeLLM(GOOD)
+    out = await enrich.enrich_one(store, await store.project("P1"), llm, NOW)
+    assert llm.calls >= 1 and out["text"]
+
+
+async def test_a_tower_costs_no_model_call_and_waits_for_no_reading(gatherer):
+    db, store = await ready(("P1", "Rohan Abhilasha 4", "wagholi", {**FULL, **OWN, "cluster_primary": "P9", "promoter": "Rohan Builders"}))
+    llm = FakeLLM(GOOD)
+    out = await enrich.enrich_one(store, await store.project("P1"), llm, NOW)
+    assert llm.calls == 0 and not out["reading_due"]
+
+
+def test_a_tower_is_not_taken_for_a_reading():
+    assert enrich.reading_key({"_id": "T", "reading_due": True, "cluster_primary": "P9"}, NOW) is None
+
+
+def test_the_stock_openings_of_the_first_pages_are_refused():
+    for line in ("Rose Court consists of two buildings.", "Rose Court takes shape as one block.", "A boutique footprint.", "A specific part of the wider development."):
+        assert enrich.STOCK.search(line), line

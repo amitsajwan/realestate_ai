@@ -103,7 +103,7 @@ async def test_status_old_backlog_reported_as_info_not_warn():
 
 
 async def test_an_enrichment_logs_what_it_did_and_why(caplog):
-    _, store = await ready(("P1", "Rohan Abhilasha 4", "wagholi", {**FULL, "promoter": "Rohan Builders"}))
+    _, store = await ready(("P1", "Rohan Abhilasha 4", "wagholi", {**FULL, "prices": {"rows": [{"bhk": "2 BHK", "from_inr": 5000000}]}, "promoter": "Rohan Builders"}))
     doc = await enrich.next_project(store, ENRICH_NOW)
     with caplog.at_level(logging.INFO, logger=enrich.log.name):
         await enrich.enrich_one(store, doc, FakeLLM(GOOD), ENRICH_NOW)

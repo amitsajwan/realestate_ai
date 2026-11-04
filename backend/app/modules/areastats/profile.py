@@ -57,6 +57,7 @@ NEAR = 10                             # dHash bits under which two pictures are 
 # Photos only: the same render saved at another crop or size moves more bits (Godrej Ivara's pool render twice, 17 bits apart,
 # while its six other pictures sit 25 to 39 apart). Plans keep NEAR: one tower's floor plans look alike to a dHash.
 PHOTO_NEAR = 21
+ILLUSTRATE = False
 SOURCE_RANK = {"builder": 0, "brochure": 1, "web": 2, "ai": 3}   # which copy of a duplicate photo stays, best first
 # topic -> label; the model must use one of these
 TOPICS: Dict[str, str] = {
@@ -452,6 +453,7 @@ async def brochure_pictures(db, regno: str, name: str, media_dir: Path = MEDIA_D
 # ---- illustrations: when no site has pictures of the project ---------------------------------------------------------------
 # Owner 2026-10-22: "if we don't find images, add illustrative images". Drawn by Cloudflare's FLUX (free tier, ~2 s a picture),
 # never called the project: source "ai", and the page says each one is an illustration made by AI. Never drawn as floor plans
+# Off from 2026-11-04 (owner: "stop wasting ai"): 289 pictures on 103 pages, none shown on a page in search; the ones drawn stay.
 # (a made-up layout of a real registered project would mislead); plans are asked for through the page's form instead.
 CF_IMAGE_URL = "https://api.cloudflare.com/client/v4/accounts/{account}/ai/run/@cf/black-forest-labs/flux-1-schnell"
 NO_TEXT = "Photorealistic architectural visualisation, no text, no letters, no logos, no watermarks, no people's faces in close-up."
@@ -580,7 +582,7 @@ async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[webfacts.
     plans = (b_plans + plans)[:MAX_PLANS]
     photos = photos or b_photos
     why = f"{why}; {b_why}"
-    if not photos and not old.get("photos"):
+    if ILLUSTRATE and not photos and not old.get("photos"):
         try:   # nothing real ever found: illustrations, drawn once
             photos = await illustrations(doc, exact, regno, place_of(doc), draw, media_dir)
             why += f"; {len(photos)} illustrations drawn"

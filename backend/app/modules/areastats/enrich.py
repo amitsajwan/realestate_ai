@@ -38,6 +38,12 @@ west side), and in each area new launches and hot projects first (owner 2026-10-
    search line), `enriched_at`, `enrich_notes`, `geo` (the gathered position, checked to be within NEAR_KM of the pincode's
    centre) and `enrichment` = {at, steps: {maharera_general, buildings, places,
    text}: each {ok, at, checked...}, score "n/4"}; `status_list` is the owner's view of it (Studio > Newsroom > Project pages).
+The flow (owner 2026-11-04: "it should be final step", "stop wasting ai", "first target already enriched page"): code's facts
+first; then the model reads the sites, only for a page a buyer can land on (`worth_model`: never a tower, which redirects to its
+group, nor offices and shops, which are never in search); the writer last, only with every read done and a fact of the project's
+own on the record (`pages.own_facts`). Each day the first REWRITES_PER_DAY rounds go to pages already in search that an older
+writer wrote (`rewrite_due`), most seen by Google first: the daily cap, not one wait for all, is what keeps the site from
+rewriting itself at once.
 Facts often, the model by budget (owner 2026-10-25; docs/plan/enrich-lanes.md). Steps 0, 1, the place check and the pictures
 need no model and run every EVERY_MINUTES (5); MahaRERA's general record is not read again while the register's own read
 (areastats.refresh) is under DETAILS_FRESH_DAYS old, the buildings while under BUILDINGS_FRESH_DAYS. The model steps (2, 2b, 2c's
@@ -116,6 +122,8 @@ MIN_GAP = timedelta(hours=6)
 # a page in Google keeps its text this long before a newer writer or reader version takes it again: 87 of 503 searchable
 # pages were rewritten in one day (2026-10-27), and a site rewriting itself that fast reads as machine-made
 REST_DAYS = 14
+REWRITES_PER_DAY = 20                 # pages in search given to a newer writer each day: 240 pages in 12 days
+REWRITES = "enrich_rewrites"          # mark: {day, done}
 MAX_FAILS = 3
 PARK_DAYS = 14
 BACKFILL = 7                          # priority group of a rewrite for a newer writer: after everything else
@@ -139,7 +147,8 @@ EVEN_LENGTH = 2.0                     # sentences whose word counts spread less 
 # what the first trial of writer 5 ended nearly every page with (2026-11-04): one sentence on hundreds of pages is the "scaled
 # content" of 2026-10-26, however true it is, and the page's own note already says it
 STOCK = re.compile(r"sales? agreement|possession (?:date|timeline)|maharera records?|\badvisable\b|living (?:experience|environment)|"
-                   r"specific (?:registration|phase|portion)|broader (?:development|project)", re.I)
+                   r"specific (?:registration|phase|portion|part)|(?:broader|wider|larger) (?:development|project)|consists? of|"
+                   r"takes shape|boutique|footprint|solitary|ventures?\b|true low-rise|the structures? (?:is|are)", re.I)
 
 Gather = Callable[..., Awaitable[Optional[dict]]]   # gather(db, regno, name, locality, city="Pune", now=None) -> {"view", "notes", ...}
 PincodeCentre = Callable[..., Awaitable[Optional[tuple]]]   # centre(db, pincode) -> (lat, lon) or None
@@ -209,11 +218,14 @@ def featured(d: dict, now: datetime, shown: frozenset = frozenset()) -> bool:
     return d.get("page_slug") in shown or pricing.on_top(d, now)
 
 
-def priority(d: dict, urgent: set, now: datetime, shown: frozenset = frozenset()) -> Optional[tuple]:
-    """Sort key (lower first) for a project that needs enriching, or None when it does not need it now."""
+def priority(d: dict, urgent: set, now: datetime, shown: frozenset = frozenset(), rewrite: bool = False) -> Optional[tuple]:
+    """Sort key (lower first) for a project that needs enriching, or None when it does not need it now. `rewrite`: today's
+    rewrites of pages in search are not used up, and they go first, most seen by Google first."""
     regno = d.get("regno") or d["_id"]
     if regno in urgent:
         return (-1,)                                            # a campaign asked: first, completed or not
+    if rewrite and rewrite_due(d, now):
+        return (0, -1, -int(d.get("gsc_impressions") or 0))
     if pages.completion_passed(d, now.date()) and not featured(d, now, shown):
         return None                                             # completed: MahaRERA facts only, unless a campaign asks or homes are left
     key = _priority(d, now, shown)
@@ -237,6 +249,31 @@ def complete(d: dict) -> bool:
     return bool(d.get("cluster_primary") or pages.shown_pictures((d.get("profile") or {}).get("photos"), drawn=False))
 
 
+def worth_model(d: dict) -> bool:
+    """A page a buyer can land on and search can show. 45 of 140 rounds on 2026-11-04 paid for towers (they redirect to their
+    group, so their text is read by nobody) or offices and shops (never in search); their facts rounds need no model."""
+    return not d.get("cluster_primary") and pages.homes(d)
+
+
+def rewrite_due(d: dict, now: datetime) -> bool:
+    """A page in search that an older writer wrote and whose last draft was not refused lately (a refused draft is two model
+    calls, and the same facts would be refused again)."""
+    if not worth_model(d) or not pages.searchable(d) or int(d.get("page_text_version") or 1) >= TEXT_VERSION or parked(d, now):
+        return False
+    done, no = d.get("enriched_at"), d.get("text_refused_at")
+    return (not (isinstance(done, datetime) and now - _aware(done) < MIN_GAP)
+            and not (isinstance(no, datetime) and now - _aware(no) < timedelta(days=THIN_RETRY_DAYS)))
+
+
+async def rewrites_left(store: Store, now: datetime) -> int:
+    mark = await store.get_mark(REWRITES)
+    return REWRITES_PER_DAY - (int(mark.get("done") or 0) if mark.get("day") == budget.day_of(now) else 0)
+
+
+async def count_rewrite(store: Store, now: datetime) -> None:
+    await store.set_mark(REWRITES, day=budget.day_of(now), done=REWRITES_PER_DAY - await rewrites_left(store, now) + 1)
+
+
 def text_resting(d: dict, now: datetime) -> bool:
     """A page in search whose text was written under REST_DAYS ago."""
     written = d.get("page_text_at")
@@ -253,6 +290,8 @@ def _priority(d: dict, now: datetime, shown: frozenset = frozenset()) -> Optiona
     done, heat = d.get("enriched_at"), int(d.get("hot_score") or 0)
     if parked(d, now) or isinstance(done, datetime) and now - _aware(done) < MIN_GAP:
         return None                                             # failing again and again, or just done: the others go first
+    if not worth_model(d):                                      # facts only, after everything else
+        return None if isinstance(done, datetime) and now - _aware(done) < timedelta(days=REFRESH_DAYS) else (BACKFILL + 1, 0)
     is_hot = heat >= hot.HOT_MIN
     top = not is_hot and featured(d, now, shown)                # treated as hot, after the hot ones, retried less often
     seen = int(d.get("gsc_impressions") or 0)
@@ -261,9 +300,11 @@ def _priority(d: dict, now: datetime, shown: frozenset = frozenset()) -> Optiona
     # read by an older version of a step; a page buyers see first does not wait out its rest (owner 2026-11-03: main pages by area need full data)
     stale = isinstance(done, datetime) and bool(outdated(d)) and (not resting or is_hot or top)
     if stale:   # hot: with the hot ones (after those never given a profile); the rest after everything else, Google's first
+        if not is_hot and not top and pages.searchable(d):      # what is already in search is improved first
+            return (2, 1, -seen, _aware(done).timestamp())
         return (1, 1, -heat) if is_hot or top else (BACKFILL, 1, 1, -seen, _aware(done).timestamp())
     # hot pages are rewritten every HOT_REFRESH_DAYS anyway
-    old_writer = (not is_hot and not top and not resting and isinstance(done, datetime)
+    old_writer = (not is_hot and not top and not resting and isinstance(done, datetime) and pages.own_facts(d)
                   and int(d.get("page_text_version") or 1) < TEXT_VERSION)
     if (is_hot or top) and needs_profile(d, now):
         return (1, -heat)                                       # hot and still being built, no profile yet: first
@@ -328,13 +369,14 @@ def needs_profile(d: dict, now: datetime) -> bool:
 async def next_project(store: Store, now: datetime) -> Optional[dict]:
     urgent = {r["_id"] for r in await store.db.get_collection(REQUESTS).find({}).to_list(200)}
     shown = frozenset(await _deps["shown"](store.db)) if _deps["shown"] else frozenset()
+    rewrite = await rewrites_left(store, now) > 0
     ranked = []
     for d in await store.all_projects():
         # an asked-for project is taken even outside our areas (a campaign's project with no locality): skipped, its request
         # stayed and kept the loop running every minute
         if not _ours(d) and (d.get("regno") or d["_id"]) not in urgent:
             continue
-        key = priority(d, urgent, now, shown)
+        key = priority(d, urgent, now, shown, rewrite)
         if key is not None:
             ranked.append((key, d))
     ranked.sort(key=lambda x: x[0])
@@ -505,8 +547,8 @@ SYSTEM = ("You write the \"About the project\" part of a property website's page
           "the same length, and do not start them all the same way. No warming up and no summing up at the end. It must not read "
           "as machine-written: never use furthermore, moreover, additionally, notably, overall, nestled, boasts, vibrant, seamless, "
           "ideal, convenient, proximity, ensures, caters to, designed to, making it, serves as, stands as, residents can, "
-          "potential buyers, this specific registration, specific phase, specific portion, broader development, or a dash in place "
-          "of a comma. Never give the number of homes in this registration, only the average per building. Never copy a phrase from the facts' lines. No set formula: each page "
+          "potential buyers, consists of, takes shape, boutique, footprint, solitary, venture, specific registration, specific "
+          "part, specific phase, broader, wider or larger development, the structure is, or a dash in place of a comma. Never give the number of homes in this registration, only the average per building. Never copy a phrase from the facts' lines. No set formula: each page "
           "must read as written for this one project. "
           "The page already shows, above your text, everything listed under ALREADY ON THE PAGE: do not repeat any of it. No "
           "completion date and no word on whether it changed, no count of homes, bookings or homes left, no price, no list of "
@@ -946,13 +988,14 @@ def buildings_fresh(doc: dict, now: datetime) -> bool:
 
 
 async def enrich_one(store: Store, doc: dict, llm, now: datetime, reread: bool = True, facts: bool = True,
-                     urgent: bool = False) -> dict:
+                     urgent: bool = False, rewrite: bool = False) -> dict:
     """One round for one project. `facts`: the steps that need no model (MahaRERA, the gatherer, the place, the pictures); a
     reading round (`facts=False`, read_step) uses what the last facts round kept. The model steps (web facts, highlights,
     prices, the page text) run when a model may be asked (`can_read`); otherwise, or when today's budget runs out half way
     (areastats.budget), they are put off: the last round's results stay, `reading_due` says the reading waits, and nothing
     counts as failed. `reread=False` (a rewrite for a newer writer, sources_fresh): the web facts and profile kept from the
-    last round are used as they are, and their steps are carried over."""
+    last round are used as they are, and their steps are carried over. `rewrite`: one of the day's rewrites of a page in search,
+    which does not wait out its rest."""
     regno = doc.get("regno") or doc["_id"]
     gather = _deps["gather"]
     gathered, notes, steps, placed = None, [], {}, {}
@@ -962,6 +1005,7 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime, reread: bool =
     sheet_of = _deps["sheet"]
     tier = tier_of(doc, urgent)
     reading = can_read(llm, tier)
+    spends = urgent or worth_model(doc)
 
     async def sheet() -> Optional[dict]:
         if sheet_of is None:
@@ -1050,7 +1094,7 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime, reread: bool =
             await store.set_project(doc["_id"], **fields)
         return fields
 
-    if not reread:
+    if not reread or not spends:
         steps["web"], steps["profile"] = kept_steps.get("web") or {}, kept_steps.get("profile") or {}
         steps["prices"] = kept_steps.get("prices") or {}
     elif reading:
@@ -1065,10 +1109,14 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime, reread: bool =
         else:
             steps["profile"] = kept_steps.get("profile") or {}
     pinned = ((placed or {}).get("geo") or doc.get("geo") or {}).get("located_from") == "google"
-    draft, text = None, None
-    if reading and not urgent and keeps_text(doc, now):
+    draft, text, turned_down = None, None, False
+    # the writer is the last step: only with every read done, and something of the project's own to write from
+    writable = urgent or pages.own_facts(await store.project(doc["_id"]) or doc)
+    if not spends or reading and not put_off and not writable or reading and not urgent and not rewrite and keeps_text(doc, now):
         steps["text"] = kept_steps.get("text") or {}
-    elif reading:
+        if spends and not writable:
+            notes.append("no text written: no fact of its own yet")
+    elif reading and not put_off:
         ask = _ask(llm, tier, "text")
         before = _deferred(ask)
         web_now = (web or {}).get("web_facts") or doc.get("web_facts")
@@ -1083,6 +1131,7 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime, reread: bool =
             steps["text"] = _step(bool(text), now, refused_reasons=refused)
             ran.add("text")
             if text is None:
+                turned_down = True
                 notes.extend(refused)
                 notes.append("kept the code-written paragraph")
     else:
@@ -1104,6 +1153,8 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime, reread: bool =
         fields["read_at"] = now
     if "web" in ran:
         fields["web_read_as"] = pages.family_name(doc)
+    if turned_down:
+        fields["text_refused_at"] = now
     if text:
         fields.update(page_text=text, page_text_version=TEXT_VERSION, page_sections=draft["sections"], page_summary=draft["summary"])
         if text != doc.get("page_text") or draft["summary"] != doc.get("page_summary"):
@@ -1113,6 +1164,8 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime, reread: bool =
         fields.update(page_text=None, page_sections=None, page_summary=None)
         notes.append("old text dropped: it does not name the project")
     await store.set_project(doc["_id"], **fields)
+    if rewrite and text:
+        await count_rewrite(store, now)
     if facts:
         await store.db.get_collection(REQUESTS).delete_one({"_id": regno})
     return {"regno": regno, "text": bool(text), "gathered": bool(gathered), "notes": notes, "score": enrichment["score"],
@@ -1198,7 +1251,10 @@ async def step(store: Store, llm, now: datetime, last_regular: Optional[datetime
         return None
     reread = True
     is_urgent = bool(urgent) and (doc.get("regno") or doc["_id"]) in await _urgent(store)
-    if not is_urgent and (_priority(doc, now) or (0,))[0] == BACKFILL:   # the group of the key before the area and launch order
+    rewrite = not is_urgent and rewrite_due(doc, now) and await rewrites_left(store, now) > 0
+    if rewrite:                                                 # the writer alone when what the sites say is recent
+        reread = not sources_fresh(doc, now) or bool(outdated(doc))
+    elif not is_urgent and (_priority(doc, now) or (0,))[0] == BACKFILL:   # the group of the key before the area and launch order
         reread = not sources_fresh(doc, now) or bool(outdated(doc))
         if reread and last_regular is not None and now - _aware(last_regular) < BACKFILL_EVERY:
             return None
@@ -1206,7 +1262,7 @@ async def step(store: Store, llm, now: datetime, last_regular: Optional[datetime
             log.info("enrich: rewrite for %s waits: no model has room", doc.get("_id"))
             return None
     try:
-        out = await asyncio.wait_for(enrich_one(store, doc, llm, now, reread=reread, urgent=is_urgent), ROUND_SECONDS)
+        out = await asyncio.wait_for(enrich_one(store, doc, llm, now, reread=reread, urgent=is_urgent, rewrite=rewrite), ROUND_SECONDS)
     except asyncio.CancelledError:
         raise
     except Exception as e:   # noted on the record and the next project goes on; the request does not keep the loop busy
@@ -1222,7 +1278,7 @@ async def _urgent(store: Store) -> set:
 def reading_key(d: dict, now: datetime) -> Optional[tuple]:
     """Sort key (lower first) for a project whose reading was put off, or None when it has none waiting: premium projects
     first (hot, then Google's), then our areas outward from Kharadi, oldest wait first."""
-    if not d.get("reading_due") or parked(d, now) or pages.completion_passed(d, now.date()) and not pricing.on_top(d, now):
+    if not d.get("reading_due") or not worth_model(d) or parked(d, now) or pages.completion_passed(d, now.date()) and not pricing.on_top(d, now):
         return None
     failed = d.get("read_failed_at")
     if isinstance(failed, datetime) and now - _aware(failed) < MIN_GAP:

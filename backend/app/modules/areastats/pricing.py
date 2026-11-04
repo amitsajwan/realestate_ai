@@ -90,7 +90,7 @@ def new_or_hot(d: dict, now: datetime) -> bool:
 def selling(d: dict, now: datetime) -> bool:
     """A primary record of a project still being sold: priced once per group, never when sold out, nor when completed unless it is
     on a top list (homes left to buy)."""
-    return (bool(d.get("page_slug")) and not d.get("cluster_primary") and pages.indexable(d)
+    return (bool(d.get("page_slug")) and not d.get("cluster_primary") and pages.indexable(d) and pages.homes(d)
             and (not pages.completion_passed(d, now.date()) or on_top(d, now)) and not pages.sold_out(d))
 
 
