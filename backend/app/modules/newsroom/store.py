@@ -186,6 +186,10 @@ class Store:
     async def projects_in(self, areas: List[str], limit: int = 500) -> List[dict]:
         return await self.projects.find({"locality": {"$in": list(areas)}}).to_list(limit)
 
+    async def projects_at(self, place: str, limit: int = 1000) -> List[dict]:
+        """The records of one Pune place (`pune_place`), for places outside our areas."""
+        return await self.projects.find({"pune_place": place}).to_list(limit)
+
     async def all_projects(self, limit: int = 20000) -> List[dict]:
         """Every register record (a few thousand at most: our areas only), for the area stats and the relabel pass."""
         return await self.projects.find({}).to_list(limit)

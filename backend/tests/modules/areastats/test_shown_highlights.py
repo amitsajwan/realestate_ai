@@ -55,3 +55,41 @@ def test_a_saved_picture_from_another_site_is_not_shown():
     bad = {"path": "a.webp", "source": "builder", "site": "builder.com", "image_url": "https://holidays.com/agra.jpg"}
     good = {"path": "b.webp", "source": "builder", "site": "builder.com", "image_url": "https://builder.com/pool.jpg"}
     assert [p["url"] for p in profile.public({"highlights": [], "photos": [bad, good], "plans": []})["photos"]] == ["/uploads/b.webp"]
+
+
+def _result(link, position=1, title="Rose Court Pune"):
+    return {"link": link, "title": title, "snippet": "", "position": position}
+
+
+def test_sites_that_never_give_anything_are_not_tried():
+    got = webfacts.pick_sources([_result("https://www.housing.com/rose", 1), _result("https://99acres.com/rose", 2), _result("https://housiey.com/rose", 3)], "Rose Court", "rose")
+    assert [x["site"] for x in got] == ["housiey.com"]
+
+
+async def test_a_project_missing_its_builders_site_gets_one_search_for_it():
+    from datetime import datetime, timezone
+    from app.modules.newsroom.store import Store
+    from ..fakes import FakeDb
+    store, now, asked = Store(FakeDb()), datetime(2026, 11, 5, tzinfo=timezone.utc), []
+
+    async def search(q):
+        asked.append(q)
+        return [_result("https://roselandmarks.com/rose-court"), _result("https://portal.com/rose")]
+    doc = {"_id": "P1", "regno": "P1", "promoter": "Rose Landmarks LLP"}
+    got = await webfacts.builder_results(store, doc, "Rose Court", search, now, [_result("https://portal.com/rose")])
+    assert [r["link"] for r in got] == ["https://roselandmarks.com/rose-court"] and "Rose Landmarks LLP" in asked[0]
+    again = await webfacts.builder_results(store, doc, "Rose Court", search, now, [_result("https://portal.com/rose")])
+    assert again == got and len(asked) == 1
+
+
+async def test_no_search_when_the_builders_site_is_already_found_or_the_builder_unknown():
+    from datetime import datetime, timezone
+    from app.modules.newsroom.store import Store
+    from ..fakes import FakeDb
+    store, now = Store(FakeDb()), datetime(2026, 11, 5, tzinfo=timezone.utc)
+
+    async def search(q):
+        raise AssertionError("no search")
+    doc = {"_id": "P1", "regno": "P1", "promoter": "Rose Landmarks LLP"}
+    assert await webfacts.builder_results(store, doc, "Rose Court", search, now, [_result("https://roselandmarks.com/")]) == []
+    assert await webfacts.builder_results(store, {"_id": "P2"}, "Rose Court", search, now, []) == []

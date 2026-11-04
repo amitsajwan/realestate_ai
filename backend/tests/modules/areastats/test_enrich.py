@@ -1006,3 +1006,9 @@ async def test_a_label_on_other_pages_goes_back_then_goes():
     draft, why = await enrich.write_points(Model(), ROSE, SHEET, others=others)
     assert len(Model.asked) == 2 and "Taller than most" in Model.asked[1]
     assert why == [] and [x["heading"] for x in draft["sections"]] == ["Only 4% booked", "Ask on the certificate"]
+
+
+def test_a_place_outside_our_areas_is_compared_under_its_own_name():
+    doc = {**ROSE, "pune_place": "tathawade", "pune_place_name": "Tathawade", "completion_now": "2031-01-01", "building_totals": {"towers": 1, "max_floors": 30}}
+    lines = enrich.area_context(doc, [_building(i, floors=10 + i) for i in range(9)])
+    assert any("being built in Tathawade" in x and "9 of 9" in x for x in lines)

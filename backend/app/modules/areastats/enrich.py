@@ -123,7 +123,9 @@ PART_OF_PROJECT = re.compile(r"\b(?:phase|part|tower|wing|building|bldg|block)\b
 # profile 3: pictures listed in the page data (sites that draw them by script, godrejproperties.com); room renders are photos
 # web 2, profile 4, prices 2: pages found through the MahaRERA number and the builder's whole name (2026-11-03, owner: "rera number
 # from maha rera, then map with online data"); of 103 projects on the east Pune Top lists only 10 had text, highlights, prices and photos
-VERSIONS = {"web": 2, "profile": 4, "prices": 2}
+# web 3, profile 5, prices 3: the builder's site looked for on its own, sites that never give anything left out, and an address
+# landing on another site read as nothing (2026-11-04)
+VERSIONS = {"web": 3, "profile": 5, "prices": 3}
 # fail and move on (owner 2026-10-20: "note it and continue with others, find a solution offline later"): each reading step
 # has STEP_SECONDS, the whole round ROUND_SECONDS; a project is not taken again within MIN_GAP (urgent requests aside), and
 # after MAX_FAILS failed rounds in a row it is parked for PARK_DAYS with its reason in the owner's list (status "parked")
@@ -436,16 +438,17 @@ def area_context(doc: dict, others: Optional[List[dict]]) -> List[str]:
     """How the project sits among the others still being built in its area, as fact lines, from the register alone. No portal
     prints this and no other page of ours can say the same, so it is what makes a page its own. From pages.COMPARE_MIN projects."""
     area = BY_KEY.get(doc.get("locality") or "")
+    where = area.name if area else doc.get("pune_place_name")
     rest = [o for o in others or [] if o.get("_id") != doc.get("_id") and pages.homes(o) and not o.get("cluster_primary")
             and not pages.completion_passed(o)]
-    if not area or len(rest) < pages.COMPARE_MIN:
+    if not where or len(rest) < pages.COMPARE_MIN:
         return []
     lines = []
 
     def beside(what: str, mine: Optional[int], theirs: List[Optional[int]]) -> None:
         known = [n for n in theirs if n]
         if mine and len(known) >= pages.COMPARE_MIN:
-            lines.append(f"Compared with other projects still being built in {area.name}: {what} {sum(1 for n in known if n < mine)} of {len(known)}")
+            lines.append(f"Compared with other projects still being built in {where}: {what} {sum(1 for n in known if n < mine)} of {len(known)}")
 
     beside("its tallest building is higher than that of", _int((doc.get("building_totals") or {}).get("max_floors")),
            [_int((o.get("building_totals") or {}).get("max_floors")) for o in rest])
@@ -453,7 +456,7 @@ def area_context(doc: dict, others: Optional[List[dict]]) -> List[str]:
         beside("this registration has more homes than", _int(doc.get("units_total")), [_int(o.get("units_total")) for o in rest])
     same = sum(1 for o in rest if doc.get("promoter") and o.get("promoter") == doc["promoter"])
     if same:
-        lines.append(f"The same filing company has {same} other project{'s' if same > 1 else ''} still being built in {area.name}")
+        lines.append(f"The same filing company has {same} other project{'s' if same > 1 else ''} still being built in {where}")
     return lines
 
 
@@ -1345,7 +1348,8 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime, reread: bool =
         ask = _ask(llm, tier, "text")
         before = _deferred(ask)
         web_now = (web or {}).get("web_facts") or doc.get("web_facts")
-        area_docs = await store.projects_in([doc["locality"]]) if doc.get("locality") else []
+        area_docs = (await store.projects_in([doc["locality"]]) if doc.get("locality")
+                     else await store.projects_at(doc["pune_place"]) if doc.get("pune_place") else [])
         latest = await store.project(doc["_id"]) or doc
         sheet = fact_sheet(latest, gathered, web_now, (prof or {}).get("profile") or latest.get("profile"), pinned, area_docs,
                            await store.shared_projects(), now)

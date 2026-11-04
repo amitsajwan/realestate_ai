@@ -33,6 +33,9 @@ log = logging.getLogger(__name__)
 
 MAX_SOURCES = 4                       # pages read per project
 MAX_TRIES = 8                         # pages tried (portals often refuse a reader): the next result is tried instead
+# never tried (measured 2026-11-04 on 277 projects): housing.com, 99acres.com and ghar.tv refused all 407 reads, each one a try
+# lost; nobroker.in gave 7 usable pages of 117 and propertypistol.com none of 30, each read paid for
+SKIP_SITES = ("housing.com", "99acres.com", "ghar.tv", "nobroker.in", "propertypistol.com")
 MAX_BYTES = 2_000_000
 PAGE_CHARS = 9000                     # what one model call reads from a page
 TIMEOUT = 15
@@ -231,7 +234,7 @@ def pick_sources(results: List[dict], name: str, word, limit: int = MAX_SOURCES)
     for want_official in (True, False):
         for r in organic:
             s, is_official = websearch.site(r["link"]), official(r["link"], word)
-            if s in seen or is_official != want_official or len(out) >= limit:
+            if s in seen or is_official != want_official or len(out) >= limit or s.endswith(SKIP_SITES):
                 continue
             if not is_official and (not websearch.marketer(r["link"]) or not (
                     r.get("by_regno") or websearch.mentions(name, r.get("title", "") + " " + r.get("snippet", "")))):
@@ -432,7 +435,34 @@ async def results_for(store, doc: dict, name: str, search: Optional[websearch.Se
     """The Google results for this project: those for its MahaRERA number first, then the stored ones (newest search first)
     from searches made under the name buyers use (a search under MahaRERA's legal name, "Kharadi New Project - Tower 1", finds
     other pages); one new search when there are none."""
-    return await regno_results(store, doc, search, now) + await named_results(store, doc, name, search, now)
+    found = await regno_results(store, doc, search, now) + await named_results(store, doc, name, search, now)
+    return await builder_results(store, doc, name, search, now, found) + found
+
+
+async def builder_results(store, doc: dict, name: str, search: Optional[websearch.Search], now: datetime, found: List[dict]) -> List[dict]:
+    """The builder's own pages when a project's results do not reach them: Google's page one for a project is portals, and only 69
+    of 277 projects read their builder's site (2026-11-04), the one source a fact needs alone. One search, kept REGNO_SEARCH_DAYS,
+    and only the builder's own domain is taken from it."""
+    words, company = builder_words(doc), doc.get("promoter") or ""
+    if not company or any(official(r.get("link") or "", words) for r in found):
+        return []
+    coll, key = store.db.get_collection(websearch.RESULTS), f"builder:{doc.get('regno') or doc['_id']}"
+    kept = await coll.find_one({"_id": key})
+    at = (kept or {}).get("at")
+    if kept and isinstance(at, datetime) and now - (at if at.tzinfo else at.replace(tzinfo=timezone.utc)) < timedelta(days=REGNO_SEARCH_DAYS) or search is None:
+        results = (kept or {}).get("results") or []
+    else:
+        try:
+            results = (await search(f"{name} {company} official website Pune"))[:websearch.KEEP_RESULTS]
+        except Exception:
+            log.exception("webfacts: builder search failed: %s", key)
+            return []
+        body = {"kind": "builder", "area": doc.get("locality"), "regno": doc.get("regno") or doc["_id"], "at": now, "results": results}
+        if kept:
+            await coll.update_one({"_id": key}, {"$set": body})
+        else:
+            await coll.insert_one({"_id": key, **body})
+    return [r for r in results if official(r.get("link") or "", words)]
 
 
 async def named_results(store, doc: dict, name: str, search: Optional[websearch.Search], now: datetime) -> List[dict]:
