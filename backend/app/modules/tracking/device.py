@@ -16,6 +16,10 @@ def is_headless(user_agent: Optional[str]) -> bool:
     return any(m in ua for m in HEADLESS)
 
 
+def is_linux_desktop(user_agent: Optional[str]) -> bool:
+    return _device((user_agent or "").lower()) == "Linux computer"
+
+
 def _device(ua: str) -> Optional[str]:
     if "iphone" in ua:
         return "iPhone"

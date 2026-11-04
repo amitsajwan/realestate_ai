@@ -94,6 +94,9 @@ privacy page's promise. What each event keeps instead:
   is sent anywhere). Shown as "Pune approx.": phones are often routed through Mumbai. Credit "IP Geolocation by DB-IP" sits
   under the list, as the CC BY licence asks. The `geoip` loop refreshes the files monthly (GEOIP_REFRESH, on in production).
 - **robot**: a visit from a cloud network (Google, Amazon, Microsoft, Hetzner...) is a robot and left out of the Live panel.
+- **robot, on a home network** (2026-11-04): a Linux desktop outside India whose referrer is Google. From 2026-11-02 these were
+  72 of 249 visitors (Virginia, Maryland, Turkey; one view, no action, no lead) and the 12 days before had 2, on networks
+  `is_data_centre` cannot name. Robots are also left out of the sources table (`origins`) and the weekly report.
   Cloudflare/Akamai/Fastly are not on the list: iCloud Private Relay and WARP carry people through them.
 - **staff**: a browser signed in to Studio sends `staff: true`; that visitor is "You" for the whole day, listed last and never
   counted. Older visits from your devices stay counted until they visit again signed in.

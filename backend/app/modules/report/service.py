@@ -40,6 +40,8 @@ class ReportService:
         views: Dict[str, int] = {}
         visitors = set()
         for e in events:
+            if e.get("robot"):
+                continue
             if e.get("anon_id"):
                 visitors.add(e["anon_id"])
             if e.get("type") == "listing_view" and e.get("listing_id"):

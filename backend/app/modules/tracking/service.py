@@ -109,7 +109,7 @@ class TrackingService:
             return False
         contact = await self.contacts.find_one({"agent_id": agent_id, "anon_ids": e.anon_id})
         points = await self._record(agent_id, e, e.type, contact["_id"] if contact else None, origin.app_of(user_agent),
-                                    visitor.fields(user_agent, ip, e.staff, self.geo))
+                                    visitor.fields(user_agent, ip, e.staff, self.geo, e.referrer))
         if contact:
             await self.contacts.update_one(
                 {"_id": contact["_id"]},
@@ -291,7 +291,7 @@ class TrackingService:
             return origin.source_key(source, referrer, utm) if (tracked or source) else "unknown"
 
         first: dict = {}  # anon_id -> its first event in the window
-        async for ev in self.events.find({"agent_id": agent_id, "ts": {"$gte": since}, "type": {"$in": ["page_view", "listing_view"]}},
+        async for ev in self.events.find({"agent_id": agent_id, "ts": {"$gte": since}, "type": {"$in": ["page_view", "listing_view"]}, "robot": {"$ne": True}},
                                          {"anon_id": 1, "source": 1, "referrer": 1, "landing": 1, "utm": 1, "ts": 1}).sort("ts", 1).limit(50000):
             first.setdefault(ev["anon_id"], ev)
         for ev in first.values():

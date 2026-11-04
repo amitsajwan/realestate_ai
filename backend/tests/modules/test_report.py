@@ -72,3 +72,11 @@ async def test_chat_and_facebook_activity_are_counted_and_the_share_text_has_no_
     assert r["numbers"]["facebook_interest"] == 1 and r["numbers"]["chats"] == 1 and r["numbers"]["chat_leads"] == 1
     import re
     assert not re.search(r"\d{10}", r["share_text"]) and "/agent/rahul" in r["share_text"]
+
+
+async def test_a_robots_views_are_not_counted_in_the_weekly_report():
+    svc, db = make()
+    db.get_collection("listings").docs.append(listing("L1"))
+    db.get_collection("events").docs += [view("A1", "L1", "a", AGO(days=1)), {**view("A1", "L1", "bot", AGO(days=1)), "robot": True}]
+    n = (await svc.weekly("A1"))["numbers"]
+    assert n["visitors"] == 1 and n["listing_views"] == 1

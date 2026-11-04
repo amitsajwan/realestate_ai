@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import pytest
 from pydantic import ValidationError
 
-from app.modules.tracking import device
+from app.modules.tracking import device, visitor
 from app.modules.tracking.live import build_live, visits_of
 from app.modules.tracking.schemas import PingIn
 from app.modules.tracking.service import TrackingService
@@ -269,3 +269,28 @@ async def test_stories_list_the_newest_visit_first():
     await svc.track_event(view("/", "viewN0000002", anon="anon-later-00"), BROWSER)
     stories = (await build_live(svc, "A1"))["today"]["stories"]
     assert [s["who"]["label"] for s in stories] == ["Visitor 2", "Visitor 1"]
+
+
+LINUX_CHROME = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"
+VIRGINIA = Place(city="Virginia Beach", region="Virginia", country="US", network="Cox Communications", robot=False)
+GOOGLE = "https://www.google.com/"
+
+
+def test_a_linux_desktop_abroad_sent_by_google_is_a_robot_on_a_home_network():
+    assert visitor.fields(LINUX_CHROME, "1.2.3.4", False, lambda ip: VIRGINIA, GOOGLE)["robot"] is True
+
+
+def test_a_real_visitor_near_that_pattern_stays_a_visitor():
+    assert "robot" not in visitor.fields(LINUX_CHROME, "1.2.3.4", False, lambda ip: PUNE_JIO, GOOGLE)    # in India
+    assert "robot" not in visitor.fields(BROWSER, "1.2.3.4", False, lambda ip: VIRGINIA, GOOGLE)         # another device abroad
+    assert "robot" not in visitor.fields(LINUX_CHROME, "1.2.3.4", False, lambda ip: VIRGINIA, None)      # came by a link
+    assert "robot" not in visitor.fields(LINUX_CHROME, "1.2.3.4", False, lambda ip: None, GOOGLE)        # place unknown
+
+
+async def test_where_people_came_from_leaves_out_robots():
+    svc, db, _ = await make()
+    await svc.track_event(ev("page_view", listing=None, anon="anon-real-0001", path="/", landing="/"), BROWSER)
+    await svc.track_event(ev("page_view", listing=None, anon="anon-fake-0001", path="/", landing="/"), BROWSER)
+    await db.get_collection("events").update_one({"anon_id": "anon-fake-0001"}, {"$set": {"robot": True}})
+    agent_id = (await db.get_collection("events").find_one({"anon_id": "anon-real-0001"}))["agent_id"]
+    assert sum(r["visitors"] for r in (await svc.origins(agent_id))["rows"]) == 1

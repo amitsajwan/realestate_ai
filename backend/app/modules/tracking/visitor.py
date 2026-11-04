@@ -4,7 +4,7 @@ from typing import Callable, Dict, Optional
 
 from app.platform.geoip import GeoIP, Place
 
-from . import config, device
+from . import config, device, origin
 
 Lookup = Callable[[Optional[str]], Optional[Place]]
 _geo: Optional[GeoIP] = None
@@ -30,12 +30,20 @@ def area_of(place: Optional[Place]) -> Optional[str]:
     return ", ".join(parts)
 
 
-def fields(user_agent: Optional[str], ip: Optional[str], staff: bool, lookup: Lookup) -> Dict[str, object]:
+def fake_google_visit(user_agent: Optional[str], referrer: Optional[str], place: Optional[Place]) -> bool:
+    """A Linux desktop abroad that says Google sent it: home networks in the US and Turkey used as proxies, so `Place.robot` cannot
+    tell. From 2026-11-02 they were 72 of 249 visitors, one view each, no action, no lead (docs/plan/site-live-presence.md); the
+    12 days before had 2. A Linux desktop in India stays a visitor."""
+    abroad = bool(place and place.country and place.country != "IN")
+    return abroad and device.is_linux_desktop(user_agent) and origin.referrer_source(referrer) == "google"
+
+
+def fields(user_agent: Optional[str], ip: Optional[str], staff: bool, lookup: Lookup, referrer: Optional[str] = None) -> Dict[str, object]:
     """The visitor fields stored on an event; empty values are left out so old and new events read the same."""
     place = lookup(ip)
     out = {"device": device.label(user_agent), "area": area_of(place), "network": place.network if place else None}
     out = {k: v for k, v in out.items() if v}
-    if place and place.robot:
+    if place and place.robot or fake_google_visit(user_agent, referrer, place):
         out["robot"] = True
     if staff:
         out["staff"] = True
