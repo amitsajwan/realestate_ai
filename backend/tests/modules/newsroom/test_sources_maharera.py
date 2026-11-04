@@ -88,3 +88,16 @@ async def test_fetch_never_raises():
         raise TimeoutError
 
     assert await MahaReraSource().fetch(flaky) == []
+
+
+def test_firms_named_without_a_builder_word_are_kept_and_people_are_not():
+    from app.modules.newsroom.sources import maharera as m
+
+    def kept(name):
+        return bool(m._ORG.search(name))
+
+    for firm in ("N K COMPANY", "M/s. Sudhir Mandke and Company", "GOEL EISHA CAPITAL", "Sancheti Space", "Silver Property",
+                 "Venkatesh Tower", "NAIKNAVAREDEVELPERSPVTLTD"):
+        assert kept(firm), firm
+    for person in ("Ganesh Dashrath Dale", "SACHIN SURESH GAWADE", "Pathare Family", "NITIN DWARKADAS NYATI"):
+        assert not kept(person), person

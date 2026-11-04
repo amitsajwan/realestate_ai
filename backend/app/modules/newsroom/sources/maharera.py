@@ -49,10 +49,12 @@ _LOCATION = re.compile(r'fa-location-dot"></em>(.*?)</a>', re.S)
 _DETAIL = re.compile(r'href="(?:https?://[^"/]*)?/public/project/view/(\d+)"')
 # organisation markers: individuals may be promoters and are personal data, so only companies and societies are named
 # (2026-11-03: 18 of 23 blank promoters on the east Pune Top lists were firms: Nivasa Buildcon, NG Rathi Promoters, Vilas Javdekar
-# Eco Homes, Yashodha Reality; a blank promoter also hid the builder's own site from enrichment)
+# Eco Homes, Yashodha Reality; a blank promoter also hid the builder's own site from enrichment; 2026-11-04, a sample of blank cards
+# in our areas: N K Company, M/s. Sudhir Mandke and Company, Goel Eisha Capital, Sancheti Space, Silver Property, Venkatesh Tower)
 _ORG = re.compile(r"\b(ltd|limited|llp|aop|pvt|private|builders?|buildcon|buildtech|developers?|developments?|developement|"
-                  r"constructions?|realty|reality|realt\w+|infra\w*|landmarks?|shelters?|homes|estates?|spaces|lifespaces?|ventures?|"
-                  r"promoters?|properties|housing|society|associates|enterprises|group|corporation|trust|co-?op\w*)\b", re.I)
+                  r"constructions?|realty|reality|realt\w+|infra\w*|landmarks?|shelters?|homes|estates?|spaces?|lifespaces?|ventures?|"
+                  r"promoters?|propert(?:y|ies)|housing|society|associates|enterprises|group|corporation|company|capital|towers?|m/s|"
+                  r"\w*pvtltd|trust|co-?op\w*)\b", re.I)
 
 
 def _field(label: str, card: str) -> str:

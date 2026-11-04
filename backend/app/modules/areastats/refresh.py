@@ -100,6 +100,27 @@ async def sweep(store: Store, get, now: datetime, pages: int = SWEEP_PAGES) -> d
     return out
 
 
+async def fill_promoters(store: Store, get, pause: float = PAUSE, dry_run: bool = False) -> dict:
+    """Blank promoters in our areas, read again from each project's card (scripts/fill_promoters.py). Writes only a blank promoter:
+    the card parser leaves an individual blank, so a person is never named. {read, filled, no_card, names: [(regno, promoter)]}"""
+    blank = [d for d in await store.all_projects() if d.get("locality") and not str(d.get("promoter") or "").strip()]
+    out = {"read": 0, "filled": 0, "no_card": 0, "names": []}
+    for d in blank:
+        if out["read"]:
+            await asyncio.sleep(pause)
+        out["read"] += 1
+        cards = await search.search_by_name(get, d.get("name") or "")
+        card = next((c for c in cards or [] if c.regno == d["_id"]), None)
+        if card is None:
+            out["no_card"] += 1
+        elif card.promoter:
+            out["filled"] += 1
+            out["names"].append((d["_id"], card.promoter))
+            if not dry_run:
+                await store.set_project(d["_id"], promoter=card.promoter)
+    return out
+
+
 async def relabel(store: Store, docs: Optional[List[dict]] = None) -> int:
     """Give each record the area the current rules say (None when it is no longer ours); returns how many changed."""
     changed = 0
