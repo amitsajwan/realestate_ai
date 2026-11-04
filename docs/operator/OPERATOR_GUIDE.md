@@ -758,3 +758,15 @@ Background reading in the repo: `docs/PILOT_RUNBOOK.md`, `docs/META_SETUP.md`, `
 | `studio/components/app/`, `studio/lib/app/` | Studio components (Admin, Agents, listing flow, brand editor) and its API client and rules |
 | `shared/` | Plain TypeScript both apps use: brand, site types, localities, Studio's strings, the login token |
 | `docs/` | Guides (agent, partner, operator), setup notes, runbook, handoff notes, brand assets |
+
+## Crawler swarm: API times out, backend at 100% CPU
+
+On 2026-11-04 about 25 minutes of timeouts, 500s and false 404s came from Alibaba Cloud machines walking the project pages: one backend
+process, about 3 s a cold page, and no rate limit. Caddy keeps no access log, so count clients on the VM:
+
+```bash
+sudo nsenter -t $(sudo docker inspect -f '{{.State.Pid}}' gcp-caddy-1) -n ss -Htn state established '( sport = :443 )'
+```
+
+GCP firewall rule `block-alibaba-crawler` denies tcp 80 and 443 from 47.79.0.0/16 and 47.82.0.0/16. Add a range there for a new swarm;
+`gcloud compute firewall-rules delete block-alibaba-crawler` undoes it. Never block Google (`192.178.*`, `66.249.*`).
