@@ -15,7 +15,7 @@ import { jsonLdString, organizationJsonLd, pageMetadata } from '@/lib/marketing/
 import { socialLinks } from '@/lib/marketing/social'
 import { BRAND_NAME, BRAND_NAME_DEVANAGARI } from '@/lib/brand'
 import { getFacetQuiet, getFacets } from '@/lib/site/facets'
-import { getBuilders, getSpotlight } from '@/lib/site/hubs'
+import { getBuilders, getListedSlugs, getSpotlight, linkListed } from '@/lib/site/hubs'
 import { getRegisterPlaces, placePath } from '@/lib/site/register'
 import { WORK } from '@/lib/site/homeplan'
 
@@ -72,7 +72,9 @@ function SectionHead({ id, title, text, href, link }: { id: string; title: strin
 
 export default async function BuyerHome() {
   const cfg = getMarketingConfig()
-  const [city, places, facets, hot, builders] = await Promise.all([getCityStats(), getRegisterPlaces(), getFacets(), getSpotlight(), getBuilders()])
+  const [city, places, facets, spot, builders, listed] = await Promise.all([getCityStats(), getRegisterPlaces(), getFacets(), getSpotlight(), getBuilders(), getListedSlugs()])
+  // an agent-listed project's card opens its listed page, never its register page that 301s there (as the banner does)
+  const hot = linkListed(spot, listed)
   const placeOf = (l: { key: string; name: string }) => places.find((p) => p.key === l.key || p.name.toLowerCase() === l.name.toLowerCase())
   // a list's own label says what it is, not where ("New launch projects"): side by side here, each chip has to name its area
   const where = (f: { place: string; place_slug: string }) => places.find((p) => p.key === f.place)?.name
@@ -144,7 +146,8 @@ export default async function BuyerHome() {
 
       {hot.length > 0 && (
         <section aria-labelledby="hot-title" className={wrap + ' pt-10 sm:pt-14'} data-testid="home-hot">
-          <SectionHead id="hot-title" title="Hot right now" />
+          {/* "Hot" and "Top" are different rankings, so each says what it is (owner 2026-11-04, "getting confused which is correct") */}
+          <SectionHead id="hot-title" title="Hot right now" text="Picked by our team, or drawing the most bookings, searches and news right now. Each card says why." />
           {/* swiped on a phone, a grid on a laptop; it never moves by itself (ProjectRail) */}
           {/* on a phone the card in the middle is in focus (globals.css .focus-row): snapped to the centre, with the row padded so
               the first and last cards can reach it */}
@@ -215,7 +218,8 @@ export default async function BuyerHome() {
                   <li key={l.slug} className="group relative flex items-center gap-4 border-b border-slate-200 py-4">
                     <div className="min-w-0 flex-1">
                       {/* the whole row opens the area page (a tap beside the title did nothing: owner 2026-10-26); its name is the
-                          page's own ("Flats and residential projects in Kharadi"), "new projects" being the new-launches list's search */}
+                          page's own ("Flats and residential projects in Kharadi"), "new projects" being the new-launches list's search.
+                          The guide link under it says "area guide", the header's word for those pages, so the two never read alike */}
                       <Link href={live ? placePath(place.slug) : `/localities/${l.slug}`}
                         className="font-semibold text-slate-900 no-underline underline-offset-4 after:absolute after:inset-0 after:content-[''] group-hover:text-[#0f2340] group-hover:underline">
                         {live ? `Projects in ${l.name}` : l.name}
@@ -227,7 +231,7 @@ export default async function BuyerHome() {
                           {place.current != null ? `${place.current} being built or just finished` : `${place.projects} projects on MahaRERA`}</span>}
                         {count && <span aria-hidden className="text-slate-300">·</span>}
                         <Link href={`/localities/${l.slug}`} className="relative z-10 inline-flex min-h-[32px] items-center text-slate-600 underline decoration-slate-300 underline-offset-2 hover:text-[#0f2340]">
-                          Living in {l.name}
+                          {l.name} area guide
                         </Link>
                       </p>
                     </div>
@@ -244,7 +248,8 @@ export default async function BuyerHome() {
       {(launches.length > 0 || ready.length > 0 || tops.length > 0) && (
         <section aria-labelledby="lists-title" className={'border-y border-slate-200 bg-slate-50 ' + section}>
           <div className={wrap}>
-            <SectionHead id="lists-title" title="Top projects, new launches and ready homes" />
+            <SectionHead id="lists-title" title="Top projects, new launches and ready homes"
+              text="Each area's lists, ranked on MahaRERA facts. Top: most homes booked, with homes still open. New launches: registered in the last 12 months." />
             <div className="mt-6 space-y-6">
               {tops.length > 0 && (
                 <div>

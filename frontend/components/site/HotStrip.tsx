@@ -1,6 +1,6 @@
 import React from 'react'
 import Link from 'next/link'
-import { getListedSlugs, getSpotlight, type SpotlightProject } from '@/lib/site/hubs'
+import { getListedSlugs, getSpotlight, linkListed, type SpotlightProject } from '@/lib/site/hubs'
 import HotStripStepper from './HotStripStepper'
 
 /** The hot projects banner under the header of every public page (backend areastats/spotlight.py; picked in Studio > Admin).
@@ -64,14 +64,13 @@ export function HotStripView({ items, areaName }: { items: SpotlightProject[]; a
 }
 
 /** Fetches the banner for the page's area (slug) and leaves out the page's own project. A project an agent lists is linked at its
- *  shared page, which its register page 301s to (app/projects/[slug]): a link should never go through a redirect.
- *  Never throws: an empty strip is fine. */
+ *  shared page (linkListed). Never throws: an empty strip is fine. */
 export default async function HotStrip({ area, exclude }: { area?: string | null; exclude?: string | null }) {
   const spot = await getSpotlight(area)   // no retries: on an outage it is empty at once and the page does not wait
   if (!spot.length) return null
   const listed = await getListedSlugs()
   const seen = new Set<string>()
-  const items = spot.map((p) => ({ ...p, slug: (p.regnos ?? []).map((r) => listed.get(r)).find(Boolean) ?? p.slug }))
+  const items = linkListed(spot, listed)
     .filter((p) => p.slug !== exclude && !seen.has(p.slug) && seen.add(p.slug))
   const areaName = area ? items.find((p) => p.area_slug === area)?.area ?? null : null
   return <HotStripView items={items} areaName={areaName} />

@@ -53,7 +53,7 @@ export default async function FilterPage({ filter, areaSlug }: { filter: AnyFilt
           { name: 'Home', path: '/' }, { name: 'Area guides', path: '/localities' }, { name: `${area.name}, Pune`, path: `/localities/${area.slug}` }, { name: title, path },
         ])) }} />
         <nav aria-label="Breadcrumb" className="text-sm">
-          <Link href={`/localities/${area.slug}`} className="inline-flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2">{area.name} buyer guide</Link>
+          <Link href={`/localities/${area.slug}`} className="inline-flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2">{area.name} area guide</Link>
         </nav>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">{title}</h1>
         <p className="mt-4 max-w-3xl text-lg leading-relaxed text-slate-800">

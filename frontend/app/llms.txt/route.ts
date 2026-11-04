@@ -51,7 +51,7 @@ export async function GET(): Promise<Response> {
     '',
     ...(projects.length ? ['## Projects: MahaRERA number, possession date, homes booked, price', ...projects, ''] : []),
     '## Area guides',
-    ...LOCALITIES.map((l) => `- [${l.name}, Pune: buyer guide](${site}/localities/${l.slug})`),
+    ...LOCALITIES.map((l) => `- [Living in ${l.name}, Pune: area guide](${site}/localities/${l.slug})`),
     '',
     '## Data',
     `- [Pune MahaRERA tracker](${site}/pune-maharera-tracker): projects registered, completion dates moved and homes booked across Pune`,

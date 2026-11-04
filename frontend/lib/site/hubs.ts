@@ -135,6 +135,12 @@ export async function getListedSlugs(): Promise<Map<string, string>> {
   return new Map([...(await getListed())].map(([regno, c]) => [regno, c.slug]))
 }
 
+/** A project an agent lists is linked at its shared page, which its register page 301s to (app/projects/[slug]): a link should
+ *  never go through a redirect. The banner and the home page's hot cards both swap the slug here. */
+export function linkListed<T extends { slug: string; regnos?: string[] }>(items: T[], listed: Map<string, string>): T[] {
+  return items.map((p) => ({ ...p, slug: (p.regnos ?? []).map((r) => listed.get(r)).find(Boolean) ?? p.slug }))
+}
+
 /** The same, with the listing's lowest price: an area map's card quotes the agent's own "from" price for a listed project, as its
  *  page and the banner do (the register's lowest asked price can differ: Camelot ₹2.77 Cr vs the listing's ₹2.24 Cr). */
 export interface ListedProject { slug: string; price_min: number | null }

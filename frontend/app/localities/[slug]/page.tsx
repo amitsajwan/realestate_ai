@@ -63,7 +63,7 @@ export function generateStaticParams() {
  *  cut at a word. */
 function areaDescription(summary: string): string {
   const first = summary.split('. ')[0].replace(/\.$/, '')
-  const full = `${first}. Projects, MahaRERA records and what to check before you buy.`
+  const full = `${first}. Who it suits, getting around and what to check before you buy.`
   if (full.length <= 160) return full
   if (first.length <= 159) return first + '.'
   const cut = first.slice(0, 158)
@@ -84,7 +84,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return { ...meta, robots: { index: false, follow: true } }
   }
   const meta = pageMetadata(getMarketingConfig(), {
-    title: `${l.name}, Pune: projects, MahaRERA records and buyer guide`,
+    // the guide answers "living in X" and "X review"; "projects in X" belongs to /projects/area/x (docs/plan/seo-system.md
+    // section 4 owner map). The old title said "projects" too, so the two pages competed for that search (owner 2026-11-04)
+    title: `Living in ${l.name}, Pune: area guide for home buyers`,
     description: areaDescription(l.summary),
     path: `/localities/${l.slug}`,
   })
@@ -98,6 +100,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 const enquireHref = (l: { key: string }) => `/enquire?src=${localitySource(l)}`
 
 const fallbackEnquireHref = (slug: string) => `/enquire?src=${localitySourceFromSlug(slug)}`
+
+/** Project cards on a guide: a few, since the area's projects page lists them all (and ranks them) */
+const GUIDE_PROJECTS = 6
 
 // the guides in East Pune (app/core/pune_places.py zone), where the home plan has projects to pick from
 const EAST_GUIDES = new Set(['kharadi', 'upper-kharadi', 'wagholi', 'lohegaon', 'keshav-nagar'])
@@ -161,7 +166,7 @@ export default async function LocalityPage({ params }: Props) {
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(breadcrumbJsonLd(getMarketingConfig().siteUrl, [
           { name: 'Home', path: '/' }, { name: 'Area guides', path: '/localities' }, { name: `${l.name}, Pune`, path: `/localities/${l.slug}` },
         ])) }} />
-        <p className="text-sm"><Link href="/localities" className="text-[#0f2340] underline underline-offset-2">All localities</Link></p>
+        <p className="text-sm"><Link href="/localities" className="text-[#0f2340] underline underline-offset-2">All area guides</Link></p>
         <h1 className="mt-3 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">{l.name}, Pune</h1>
         <p className="mt-1 font-semibold text-amber-700">{l.tagline}</p>
         {l.updated && l.updatedLabel && <p className="mt-2 text-sm text-slate-600">Last updated: <time dateTime={l.updated}>{l.updatedLabel}</time></p>}
@@ -196,11 +201,13 @@ export default async function LocalityPage({ params }: Props) {
 
         {projects.length > 0 && (
           <section className="mt-9" style={AVASETU_SITE_VARS} aria-labelledby="projects-title">
-            <h2 id="projects-title" className="text-xl font-semibold text-slate-900">New projects in {l.name}</h2>
+            {/* a taste of the area's projects; the full list and its rankings live on the projects page, linked first below */}
+            <h2 id="projects-title" className="text-xl font-semibold text-slate-900">Projects in {l.name}</h2>
             <p className="mt-1 text-sm text-slate-600">With the completion date filed on MahaRERA and how many homes are booked.</p>
             <ul className="mt-4 grid list-none gap-4 p-0 sm:grid-cols-2">
-              {projects.map((p) => <li key={p.slug}><ProjectCard p={p} href={`/projects/${p.slug}`} /></li>)}
+              {projects.slice(0, GUIDE_PROJECTS).map((p) => <li key={p.slug}><ProjectCard p={p} href={`/projects/${p.slug}`} /></li>)}
             </ul>
+            <p className="mt-4"><Link href={l.fallback ? '/projects' : `/projects/area/${l.slug}`} className="font-semibold text-[#0f2340] underline underline-offset-2">{l.fallback ? 'All projects' : `See every project in ${l.name}`}</Link></p>
             {!l.fallback && lists.length > 0 && (
               <ul className="mt-4 flex list-none flex-wrap gap-2 p-0">
                 {lists.map((f) => (
@@ -208,7 +215,6 @@ export default async function LocalityPage({ params }: Props) {
                 ))}
               </ul>
             )}
-            <p className="mt-3"><Link href={l.fallback ? '/projects' : `/projects/area/${l.slug}`} className="font-semibold text-[#0f2340] underline underline-offset-2">{l.fallback ? 'All projects' : `All projects and flats in ${l.name}`}</Link></p>
           </section>
         )}
         {!showsMap(map) && <ActiveProjects title={`Most active projects in ${l.name}`} items={active} />}
