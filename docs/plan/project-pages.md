@@ -338,6 +338,8 @@ empty. Builders' own pages loaded fine and were refused on the wording of the na
   next day unless a service did not answer. `VERSIONS` went up, so every project is read again, hot and Top-list ones first and
   without waiting out `REST_DAYS`.
 - `builder_pages` stays for what the rules cannot reach; 32 Top-list projects were set by hand on 2026-11-03.
+- A picture almost all in one or two colours is not taken as a photo (`profile.flat`): logos, icons, blank tiles, route maps.
+- Owner 2026-11-03: correct data first. No price, floor plan or image is fine, since a buyer can ask.
 - **Blank promoters** (2026-11-04): 256 records in our areas had none. A sample of 40 cards read 21 firms, 18 people or a family, 1 with no
   card, so the firm list took Company, Capital, Space, Property, Tower, M/s and a run-together PVTLTD, and `scripts/fill_promoters.py`
   read the cards once. A person stays blank (personal data), so some records never get a name.

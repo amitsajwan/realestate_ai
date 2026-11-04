@@ -28,6 +28,7 @@ import logging
 import os
 import re
 import shutil
+from collections import Counter
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Dict, List, Optional
@@ -74,6 +75,7 @@ NOT_SAID = re.compile(r"₹|\brs\.?\s*\d|\blakh|\bcrore|\bprice|\bpossession|\bm
 NUM = re.compile(r"\d[\d,]*(?:\.\d+)?")
 PLAN = re.compile(r"floor[-_ ]?plan|unit[-_ ]?plan|typical[-_ ]?floor|\b[1-5](?:\.5)?[-_ ]?bhk\b|master[-_ ]?plan|site[-_ ]?plan|"
                   r"layout|cluster[-_ ]?plan|carpet", re.I)
+FLAT_SHARE = 0.75                     # of a picture in its two commonest colours: more is a graphic, not a photo
 JUNK = re.compile(r"project[-_]?map|compare[-_]?modal|recommendation|"   # a portal's own page furniture (squareyards /assets/images)
                   r"logo|icon|favicon|sprite|avatar|placeholder|loader|whatsapp|qr[-_]?code|award|certificate|team|director|"
                   r"chairman|testimonial|client|partner[-_]?logo|google[-_]?map|staticmap|badge|arrow|button|flag|blank|pixel|"
@@ -290,6 +292,13 @@ def _dhash(im: Image.Image) -> int:
     return bits
 
 
+def flat(im: Image.Image) -> bool:
+    """Almost all of it one or two colours: a logo, an icon, a blank tile, a route map or a plan on white, not a photo. Measured on
+    368 stored builder photos (2026-11-04): all 18 at 0.73 or more were such, among them nearby hotels' logos on Leela's page."""
+    counts = Counter((r // 32, g // 32, b // 32) for r, g, b in im.resize((64, 64)).getdata())
+    return sum(n for _, n in counts.most_common(2)) / 4096 >= FLAT_SHARE
+
+
 def picture(body: bytes, kind: str) -> Optional[tuple]:
     """(RGB image at most KEEP_SIDE, hash) when it is big enough and of a picture's shape, else None."""
     try:
@@ -302,7 +311,7 @@ def picture(body: bytes, kind: str) -> Optional[tuple]:
     if kind == "plan":
         if min(w, h) < MIN_PLAN_SIDE:
             return None
-    elif w < MIN_PHOTO_W or h < MIN_PHOTO_H or not 1.0 <= w / h <= 2.6:   # landscape photos and renders; banners strips out
+    elif w < MIN_PHOTO_W or h < MIN_PHOTO_H or not 1.0 <= w / h <= 2.6 or flat(im):   # landscape photos and renders; banners strips out
         return None
     im.thumbnail((KEEP_SIDE, KEEP_SIDE))
     return im, _dhash(im)

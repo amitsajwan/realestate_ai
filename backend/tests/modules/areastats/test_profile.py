@@ -46,6 +46,23 @@ def _jpeg(pattern: str, size: tuple) -> bytes:
     return out.getvalue()
 
 
+def _logo() -> bytes:
+    im = Image.new("RGB", (1200, 800), "white")
+    im.paste((10, 40, 90), (300, 250, 900, 550))
+    out = io.BytesIO()
+    im.save(out, "JPEG", quality=90)
+    return out.getvalue()
+
+
+def test_a_logo_or_a_blank_tile_is_no_photo_but_a_render_is():
+    assert profile.picture(_logo(), "photo") is None
+    assert profile.picture(_jpeg("tower", (1600, 900)), "photo") is not None
+
+
+def test_a_plan_on_white_is_still_taken_as_a_plan():
+    assert profile.picture(_logo(), "plan") is not None
+
+
 async def test_the_builders_site_showing_one_render_small_and_large_saves_only_the_large_one(tmp_path):
     base = "https://www.godrejproperties.com/pune/residential/godrej-ivara"
     files = {f"{base}/pool-small.jpg": _jpeg("pool", (1000, 563)), f"{base}/tower.jpg": _jpeg("tower", (1600, 900)),
