@@ -943,3 +943,13 @@ async def test_one_point_is_too_few_and_goes_back_once():
             return {"points": [_point("Very few homes sold", "Only 1 of 24 homes are booked.", "booked")]}
     draft, why = await enrich.write_points(Model(), ROSE, SHEET)
     assert draft is None and Model.calls == 2 and "only 1 points kept" in why[0]
+
+
+def test_a_point_saying_the_date_moved_goes_when_only_the_extension_changed_it_and_the_others_stay(monkeypatch):
+    doc = {**ROSE, "completion_now": "2030-04-30", "completion_at_registration": "2029-12-31"}
+    monkeypatch.setattr(enrich.pages, "extension_months", lambda d: 4)
+    monkeypatch.setattr(enrich.pages, "months_later", lambda d: 0)
+    sheet = SHEET + [{"key": "filed", "text": "Completion date filed with MahaRERA: 30 Apr 2030"}]
+    kept, why = enrich.points_of({"points": [_point("Date pushed back", "The completion date was moved to 30 Apr 2030.", "filed"),
+                                             _point("Very few homes sold", "Only 1 of 24 homes are booked.", "booked")]}, sheet, doc, None)
+    assert [x["heading"] for x in kept] == ["Very few homes sold"] and "says the date moved" in why[0]

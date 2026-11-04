@@ -958,7 +958,9 @@ POINTS_SYSTEM = ("You help home buyers in Pune. From the FACTS about one housing
                  "true of any project. Each point has a label of 2 to 5 plain words that says the finding itself (\"Very few homes "
                  "sold\", not \"Bookings\"), and text of one or two short sentences. Use only the facts given, each number exactly as "
                  "given, and name in `facts` the keys of the lines you used. Plain English, your own words; do not copy a fact's line. "
-                 "Say what a middle figure means simply: \"similar projects are at about 53%\". Keep each date with its label. A line "
+                 "Say what a middle figure means simply: \"similar projects are at about 53%\". Keep each date with its label. When a line "
+                 "says MahaRERA's order is the only change to the date, say MahaRERA's order added the months, and never that the date "
+                 "moved or was extended or pushed back. A line "
                  "that starts with a question to ask may be used as a point, in your own words; put no other question. No praise, no "
                  "sales words, no advice to buy or not to buy. Never use: furthermore, moreover, additionally, notably, overall, nestled, "
                  "boasts, vibrant, seamless, ideal, convenient, proximity, ensures, caters to, designed to, making it, serves as, stands "
@@ -984,6 +986,7 @@ def points_of(out: Any, sheet: List[dict], doc: dict, web: Optional[dict], outsi
         said = label + ". " + text
         known = _numbers(" ".join(by_key[k] for k in used) + " " + names)
         problem = ("no fact named" if not used else "empty" if not label or not text
+                   else "says the date moved" if pages.extension_months(doc) and pages.months_later(doc) == 0 and says_moved(said)
                    else f"a number its facts do not say ({', '.join(sorted(_numbers(_without_names(doc, said)) - known)[:3])})" if _numbers(_without_names(doc, said)) - known
                    else "sales words" if BANNED.search(said) else "stock words" if STOCK.search(said) or AI_WORDS.search(said)
                    else "a question its facts do not raise" if ASKS.search(said) and not any(k.startswith("ask") for k in used)
@@ -1018,8 +1021,6 @@ async def write_points(llm, doc: dict, sheet: List[dict], web: Optional[dict] = 
         points, dropped = points_of(out, sheet, doc, web, outside)
         body = "\n\n".join(f"{x['heading']}: {x['text']}" for x in points)
         problems = [] if len(points) >= MIN_POINTS else [f"only {len(points)} points kept"] + dropped
-        if pages.extension_months(doc) and pages.months_later(doc) == 0 and says_moved(body):
-            problems.append("says the date moved, but the only change is MahaRERA's 2026 extension")
         twin = alike(doc, body, others or [])
         if twin:
             problems.append(f"reads like the page of {twin}")
@@ -1340,7 +1341,8 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime, reread: bool =
     if turned_down:
         fields["text_refused_at"] = now
     if text:
-        fields.update(page_text=text, page_text_version=TEXT_VERSION, page_sections=draft["sections"], page_summary=draft["summary"])
+        fields.update(page_text=text, page_text_version=TEXT_VERSION, page_sections=draft["sections"],
+                      page_summary=draft["summary"] or doc.get("page_summary"))   # a page keeps its search line when no new one passes
         if text != doc.get("page_text") or draft["summary"] != doc.get("page_summary"):
             fields["page_text_at"] = now   # the page's date moves only when what a reader sees changed
     elif "text" in ran and doc.get("page_text") and not websearch_mentions(pages.names(doc)[0], doc["page_text"]):
