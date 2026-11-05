@@ -227,15 +227,33 @@ def content_counts(docs: List[dict]) -> dict:
             "full": sum(all(r.values()) for r in rows), "median_text": sizes[len(sizes) // 2] if sizes else 0}
 
 
-def page_updated(doc: dict) -> Optional[str]:
-    """Our own last change to the page (its text written, or the details read), full ISO datetime; never MahaRERA's dates. The
-    sitemap's lastmod. Not `enriched_at`: a round that finds the same facts changes nothing a reader sees (2026-10-27)."""
-    stamps = [doc.get("page_text_at")]
-    if doc.get("details_ok", True):   # a failed details read changed nothing on the page
-        stamps.append(doc.get("details_checked_at"))
+def _latest(stamps: list) -> Optional[str]:
     # Full datetime (not just date) so IndexNow sees the actual change time within the day
     dts = [v if v.tzinfo else v.replace(tzinfo=timezone.utc) for v in stamps if isinstance(v, datetime)]
     return max(dts).isoformat() if dts else None
+
+
+def page_updated(doc: dict) -> Optional[str]:
+    """Our own last change to the page (its text written, or the details read found new facts), full ISO datetime; never
+    MahaRERA's dates. The sitemap's lastmod. Not `enriched_at`: a round that finds the same facts changes nothing a reader sees
+    (2026-10-27). Not `details_checked_at` either once `details_changed_at` is kept: every re-read moved it, so 59 of 64 Kharadi
+    pages said "changed today" on 2026-11-05 with nothing changed, and Google stops trusting a lastmod that always moves. A
+    record read before `details_changed_at` existed keeps the old rule until its next read sets it."""
+    stamps = [doc.get("page_text_at")]
+    if isinstance(doc.get("details_changed_at"), datetime):
+        stamps.append(doc["details_changed_at"])
+    elif doc.get("details_ok", True):   # a failed details read changed nothing on the page
+        stamps.append(doc.get("details_checked_at"))
+    return _latest(stamps)
+
+
+def last_checked(doc: dict) -> Optional[str]:
+    """When we last looked at the page's facts (the text written, or a good details read), changed or not: what the freshness
+    count (seo.freshness) measures, as the loops being alive is the question there, not whether the facts moved."""
+    stamps = [doc.get("page_text_at")]
+    if doc.get("details_ok", True):
+        stamps.append(doc.get("details_checked_at"))
+    return _latest(stamps)
 
 
 # ---- the name buyers use -------------------------------------------------------------------------------------------------
