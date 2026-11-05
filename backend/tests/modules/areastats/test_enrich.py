@@ -1012,3 +1012,11 @@ def test_a_place_outside_our_areas_is_compared_under_its_own_name():
     doc = {**ROSE, "pune_place": "tathawade", "pune_place_name": "Tathawade", "completion_now": "2031-01-01", "building_totals": {"towers": 1, "max_floors": 30}}
     lines = enrich.area_context(doc, [_building(i, floors=10 + i) for i in range(9)])
     assert any("being built in Tathawade" in x and "9 of 9" in x for x in lines)
+
+
+async def test_a_refused_draft_leaves_points_that_do_not_repeat_the_name(gatherer):
+    db, store = await ready(("P1", "Rohan Abhilasha 4", "wagholi", {**FULL, "promoter": "Rohan Builders", "page_text": "Few homes left: Most are booked.",
+                                                                     "page_text_version": enrich.TEXT_VERSION, "page_sections": [{"heading": "Few homes left", "text": "Most are booked."}]}))
+    await enrich.enrich_one(store, await store.project("P1"), FakeLLM("A luxury project."), NOW)
+    doc = await store.project("P1")
+    assert doc["page_text"] == "Few homes left: Most are booked." and doc["page_sections"]

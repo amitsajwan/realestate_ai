@@ -1392,7 +1392,8 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime, reread: bool =
                       page_summary=draft["summary"] or doc.get("page_summary"))   # a page keeps its search line when no new one passes
         if text != doc.get("page_text") or draft["summary"] != doc.get("page_summary"):
             fields["page_text_at"] = now   # the page's date moves only when what a reader sees changed
-    elif "text" in ran and doc.get("page_text") and not websearch_mentions(pages.names(doc)[0], doc["page_text"]):
+    elif ("text" in ran and doc.get("page_text") and int(doc.get("page_text_version") or 1) < 6
+          and not websearch_mentions(pages.names(doc)[0], doc["page_text"])):   # points need not repeat the name the page opens with
         # a kept text that does not name the project (a model's misspelling) gives way to the code-written paragraph
         fields.update(page_text=None, page_sections=None, page_summary=None)
         notes.append("old text dropped: it does not name the project")
