@@ -296,6 +296,7 @@ async def count_rewrite(store: Store, now: datetime) -> None:
 
 # fact-sheet lines about the project's surroundings, not the project: they move whenever another project of the area does
 AROUND_KEYS = ("area", "ask", "builder_record")
+FORECAST = re.compile(r"\b(?:will|likely|expected to|should (?:meet|finish|deliver)|on track|suggests? (?:they|it)|strong|solid|impressive|excellent)\b", re.I)
 VISITED = re.compile(r"\b(?:visited|site visit|we saw|on the ground|in person|our team)\b", re.I)   # no one went: never say or suggest it
 
 
@@ -872,17 +873,25 @@ MAX_READ = 380                        # characters
 READ_SYSTEM = ("You help home buyers in Pune. From the FACTS about one housing project, write 2 or 3 short plain sentences saying what "
                "they mean taken together: is it selling well or slowly against similar projects, is the builder's date record good "
                "or poor, is anything worrying. Say it straight, as a friend who read the record would, and say the bad as plainly as "
-               "the good. Use only these facts, each number exactly as given. Never say or suggest that anyone visited the site, "
-               "and no advice to buy or not to buy; you may say what to ask the builder when a fact is worrying. Never use: "
+               "the good. Use only these facts, each number exactly as given. Never say or suggest that anyone visited the site. "
+               "Never predict: say what the record shows, not what will happen, and never that a date will be met. No praise words "
+               "such as strong or solid: give the count and let it speak. No advice to buy or not to buy; you may say what to ask "
+               "the builder when a fact is worrying. Never use: "
                "furthermore, moreover, additionally, notably, overall, best, largest, tallest, average, ideal, convenient, or a dash "
                "in place of a comma. Keep each date with its label. "
                'Answer as JSON: {"read": "...", "facts": ["key"]}')
 
 
+def plain_middle(text: str) -> str:
+    """The sheet's "the middle of 13 Kharadi projects registered within a year of it is 86%" as a reader says it: a model copies the
+    words it is given, and `OVERCLAIM` then refuses them (11 of the first 12 reads, 2026-11-05)."""
+    return re.sub(r"the middle of (\d+) (.+?) projects registered within a year of it is (\d+%)", r"\1 similar \2 projects are at about \3", text)
+
+
 def read_lines(doc: dict, sheet: List[dict]) -> List[dict]:
     """The facts Avasetu's read may use: the sheet's own on bookings, dates and the builder, and what only our dated readings show,
     which is how fast homes are going and how often the date moved. MahaRERA shows neither."""
-    lines = [f for f in sheet if f.get("key") in READ_KEYS]
+    lines = [dict(f, text=plain_middle(f["text"])) for f in sheet if f.get("key") in READ_KEYS]
     seen = pagefacts.booked_readings(doc)
     if len(seen) >= 2 and seen[-1]["booked"] >= seen[0]["booked"]:
         gained = seen[-1]["booked"] - seen[0]["booked"]
@@ -913,7 +922,7 @@ async def buyer_read(store: Store, doc: dict, llm, now: datetime) -> Optional[di
     used = [k for k in (out or {}).get("facts") or [] if k in by_key] if isinstance((out or {}).get("facts"), list) else []
     known = _numbers(" ".join(by_key[k] for k in used) + " " + pages.names(doc)[0])
     bad = (not used or not 60 <= len(text) <= MAX_READ or _numbers(_without_names(doc, text)) - known or BANNED.search(text) or OVERCLAIM.search(text)
-           or AI_WORDS.search(text) or STOCK.search(text) or VISITED.search(text) or pages.extension_months(doc) and pages.months_later(doc) == 0 and says_moved(text))
+           or AI_WORDS.search(text) or STOCK.search(text) or VISITED.search(text) or FORECAST.search(text) or pages.extension_months(doc) and pages.months_later(doc) == 0 and says_moved(text))
     if bad:
         log.info("enrich: read for %s refused", doc.get("_id"))
         if hasattr(llm, "forget"):

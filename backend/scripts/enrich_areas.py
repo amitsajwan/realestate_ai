@@ -32,7 +32,8 @@ async def reads_only(parallel: int, limit: int) -> None:
     await init_database()
     wire()
     store, gate, done = Store(get_database()), asyncio.Semaphore(parallel), {"written": 0, "none": 0}
-    docs = [d for d in await store.all_projects() if pages.searchable(d) and enrich.worth_model(d) and not d.get("page_read")][:limit]
+    docs = [d for d in await store.all_projects() if pages.searchable(d) and enrich.worth_model(d) and not d.get("page_read")
+            and sum(1 for f in enrich.read_lines(d, (d.get("fact_sheet") or {}).get("facts") or []) if f["key"] in enrich.READ_SIGNALS) >= enrich.READ_MIN_SIGNALS][:limit]
     print(f"{len(docs)} projects to do", flush=True)
 
     async def one(doc: dict) -> None:

@@ -991,3 +991,13 @@ async def test_a_read_suggesting_a_visit_or_a_number_not_in_its_facts_is_not_kep
                  "About 77 more homes were booked in those months, which is quick for a project of this kind here."):
         assert await enrich.buyer_read(store, {**READ_DOC, "_id": "P1"}, Reads(text), NOW) is None
     assert "page_read" not in await store.project("P1")
+
+
+def test_the_read_is_given_the_middle_in_plain_words():
+    assert enrich.plain_middle("88% booked here; the middle of 13 Kharadi projects registered within a year of it is 86%") == "88% booked here; 13 similar Kharadi projects are at about 86%"
+
+
+async def test_a_read_that_predicts_is_not_kept():
+    db, store = await ready(("P1", "Rose Court", "kharadi", {**FULL}))
+    text = "Half the homes are gone and 40 more homes were booked lately, so the builder will likely meet its date this time."
+    assert await enrich.buyer_read(store, {**READ_DOC, "_id": "P1"}, Reads(text), NOW) is None
