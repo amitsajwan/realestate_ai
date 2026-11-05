@@ -167,7 +167,7 @@ async def test_highlights_are_read_from_pages_naming_the_whole_project_and_not_f
         return None
     asked = []
 
-    async def highlights(llm, src, name, text):
+    async def highlights(llm, src, name, text, regno=""):
         asked.append((src["url"], name))
         return [], "0 highlights"
     monkeypatch.setattr(profile.webfacts, "results_for", stored)

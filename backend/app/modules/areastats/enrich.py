@@ -1053,7 +1053,7 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime, reread: bool =
                 gathered = await _deps["view"](store.db, regno)
             except Exception:
                 log.exception("enrich: kept facts read failed for %s", regno)
-    fetch = webfacts.memo(webfacts.fetch_page)   # the web facts and the profile read the same pages: each once
+    fetch = webfacts.memo(webfacts.read_page)   # the web facts and the profile read the same pages: each once
     web, prof, put_off = {}, {}, []
     ran = set()
 

@@ -323,7 +323,7 @@ async def refresh(store: Store, now: datetime, per_day: int = PER_DAY, searches:
     last = _aware(mark.get("at"))
     if not force and last and now - last < EVERY:
         return None
-    page, fetch = page or webfacts.fetch_page, fetch or profile.fetch_bytes
+    page, fetch = page or webfacts.read_page, fetch or profile.fetch_bytes
     search = search if search is not None else websearch.provider()
     every = await store.all_projects()
     by: Dict[str, List[dict]] = {}

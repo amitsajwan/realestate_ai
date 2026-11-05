@@ -103,18 +103,29 @@ Builder pages often link the brochure PDF directly even behind a form. Follow th
 `propertyfacts/brochure_parse.py`. Floor-plan images go to a vision model under the same rule: it quotes what it sees, and code
 checks the number against the quote.
 
-### R8. What the reader drops today (code, small; checked on the Rathi page of Godrej Ivara, 2026-11-05)
+### R8. What the reader dropped (BUILT 2026-11-05; checked on the Rathi page of Godrej Ivara)
 
-- `webfacts.relevant` skips any line over 600 characters. On that page a 3,005-character block held "span 14 acres and rise
-  in 11 towers". Split long lines into sentences instead.
-- Table rows ("Land Area | 14 Acres") are read as label and value, not as two loose lines.
-- Comparison blocks that name another project ("Godrej Elaris ... Land Area 12 Acres, Total Units 1,030") leave the text the model
-  reads: today a misread there passes both quote checks, and only the two-site rule stops it.
-- `MARKETER_WORDS` misses "for general informational purposes only".
-- `webfacts.fetch_page` honours robots.txt and spaces its reads per host, with the newsroom reader's `RobotsCache` and
-  `polite_get`.
-- Two sites that agree with near the same sentence count as one: channel partners copy the builder's brochure, so two copies
-  are one source.
+All in `areastats/webfacts.py`, and the highlights reader (`profile.relevant`, `profile.agree`) takes the same lines and rule.
+Tests: `tests/modules/areastats/test_webfacts_reading.py`.
+- Long blocks: `relevant` skipped any line over 600 characters, and on that page a 3,005-character block held "span 14 acres and
+  rise in 11 towers". `fact_lines` now cuts such a block into its sentences ("Inc. of Taxes" is not a sentence's end).
+- Labels: a short label line and the short value under it ("Land Area", "14 Acres"; a table row's cells; a fact strip's boxes)
+  are read as one line. The quote stays on the page, since only spaces join them.
+- Other projects: after a line printing another MahaRERA number, or a card heading ("Godrej Elaris Mundhwa, Pune": three or more
+  words besides the place), lines are left out until one names the project or prints its number. On that page the comparison
+  table and the carousel (Elaris, Aqua Vista, Kumar Prajwal: 12, 7 and 0.38 acres; 1,030, 1,532 and 47 homes) no longer reach
+  the model, and every Ivara fact still does.
+- robots.txt: the readers' default is `read_page`, which reads only what a site's robots.txt allows AvasetuBot (RFC 9309: no
+  file or another 4xx allows all, a server error or no answer allows none, read again after an hour), with 2 seconds between
+  two reads of one site, also across the areas the batch runs at once. A builder whose robots.txt shuts out every bot is no
+  longer read; that is theirs to decide. `fetch_page` stays the plain read under it.
+- Copies: two sites agreeing count as two sources only in their own words: a quote of 40 characters or more inside the other
+  site's quote is one source (`copied`, `sources_in`). Short quotes ("Land Area 14 Acres") still count apart.
+- Not done: widening `MARKETER_WORDS` to "for general informational purposes only". It only matters for pictures on a domain with
+  the builder's name, and builders' own disclaimers use the same words, so it would cost real builder sites their pictures.
+
+The first round after this asks the model again for every page (the lines it is given changed, so the kept answers do not
+match): one pass of the budget.
 
 ### Not doing
 

@@ -30,7 +30,7 @@ async def collect(store, doc: dict, now: datetime, fetch: Optional[webfacts.Fetc
                   image: Optional[profile.FetchBytes] = None, search: Optional[websearch.Search] = None,
                   uploads: Path = Path("uploads")) -> dict:
     """{"plan_sources": {...}} for one project record (a group's primary)."""
-    fetch = fetch or webfacts.fetch_page
+    fetch = fetch or webfacts.read_page
     image = image or profile.fetch_bytes
     name = pages.names(doc)[0]
     regno = str(doc.get("regno") or doc["_id"])
