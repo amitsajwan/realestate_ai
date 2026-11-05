@@ -20,12 +20,12 @@ import { breadcrumbJsonLd, jsonLdString } from '@/lib/marketing/seo'
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
 import { getCatalog, getCatalogProject, getPropertyFacts } from '@/lib/site/api'
 import { getFacets } from '@/lib/site/facets'
-import RegisterProjectPage from '@/components/site/RegisterProjectPage'
+import RegisterProjectPage, { ASK_NOTE } from '@/components/site/RegisterProjectPage'
 import { pageMetadata } from '@/lib/marketing/seo'
 import { getRegisterProject, getRegisterProjectByRegno, longDay, offerPrice } from '@/lib/site/register'
 import { registerDescription, registerTitle } from '@/lib/site/projectSeo'
 import type { Offer } from '@/lib/site/register'
-import { bhkRange, mainAgent, priceRange, projectWhatsAppMessage } from '@/lib/site/projects'
+import { bhkRange, mainAgent, priceRange, projectLead, projectWhatsAppMessage } from '@/lib/site/projects'
 import { catalogProjectMetadata, projectJsonLd } from '@/lib/site/seo'
 import { showDirectContact, whatsappLink } from '@/lib/site/links'
 import { agentPath } from '@/lib/site/slug'
@@ -120,10 +120,11 @@ export default async function SharedProjectPage({ params }: Props) {
   if (p.slug !== slug) permanentRedirect(`/projects/${p.slug}`) // an agent's own slug for the same project
   const cfg = getMarketingConfig()
   const main = mainAgent(p)
+  const lead = projectLead(p)
   const url = cfg.siteUrl + '/projects/' + p.slug
   const msg = projectWhatsAppMessage(p, url)
-  const wa = showDirectContact() ? whatsappLink(main.phone, msg) : null
-  const askNote = `An enquiry here goes to ${main.name}.`
+  const wa = showDirectContact() ? whatsappLink(lead.phone, msg) : null
+  const askNote = lead.slug === main.slug ? `An enquiry here goes to ${main.name}.` : ASK_NOTE
   const area = localityByName(p.locality)
   const others = (await getCatalog()).filter((x) => x.slug !== p.slug)
   const similar = [...others.filter((x) => x.locality === p.locality), ...others.filter((x) => x.locality !== p.locality)].slice(0, 3)
@@ -174,12 +175,12 @@ export default async function SharedProjectPage({ params }: Props) {
             {PROJECT_CTA.full}
           </a>
           <div className="mt-3 max-w-sm">
-            <ContactButtons agentSlug={main.slug} phone={main.phone ?? undefined} waMessage={msg} size="md" />
+            <ContactButtons agentSlug={lead.slug} phone={lead.phone ?? undefined} waMessage={msg} size="md" />
           </div>
         </header>
 
         <ProjectProfile profile={profile} name={p.name}
-          lead={{ agentSlug: main.slug, agentName: BRAND_NAME, agentPhone: main.phone, topic: `${p.name} (${p.rera_no})`, waMessage: msg }} />
+          lead={{ agentSlug: lead.slug, agentName: BRAND_NAME, agentPhone: lead.phone, topic: `${p.name} (${p.rera_no})`, waMessage: msg }} />
 
         {register?.points?.length ? <ProjectPoints p={register} updated={updated} /> : null}
         <HomeSizes sizes={register?.home_sizes} name={p.name} />
@@ -226,7 +227,7 @@ export default async function SharedProjectPage({ params }: Props) {
           </section>
         )}
 
-        <EnquiryForm agentSlug={main.slug} agentName={BRAND_NAME} agentPhone={main.phone ?? undefined} topic={`${p.name} (${p.rera_no})`} waMessage={msg} id="enquire"
+        <EnquiryForm agentSlug={lead.slug} agentName={BRAND_NAME} agentPhone={lead.phone ?? undefined} topic={`${p.name} (${p.rera_no})`} waMessage={msg} id="enquire"
           title={PROJECT_CTA.formTitle(p.name)} submitLabel={PROJECT_CTA.full} />
       </div>
       <ComingSoonDock items={comingSoon} bottomBar />

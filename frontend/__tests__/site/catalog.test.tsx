@@ -40,7 +40,7 @@ import SharedProjectPage, { generateMetadata } from '@/app/projects/[slug]/page'
 import TwoBhk from '@/app/2-bhk/[area]/page'
 import { BANDS, filterProjects, livePages, matches, MIN_PROJECTS } from '@/lib/site/filters'
 import { getLocality } from '@/lib/marketing/localities'
-import { byLocality, mainAgent } from '@/lib/site/projects'
+import { byLocality, mainAgent, projectLead } from '@/lib/site/projects'
 import { projectMetadata } from '@/lib/site/seo'
 import sitemap, { sitemapGroups } from '@/lib/site/sitemap'
 
@@ -113,14 +113,15 @@ describe('shared project pages', () => {
     expect(byLocality(ALL).map(([l, items]) => [l, items.length])).toEqual([['Upper Kharadi', 1], ['Wagholi', 4]])
   })
 
-  it('shows the project with every agent, sends enquiries to the agent whose facts it shows, and links its area', async () => {
+  it('shows the project with every agent, sends enquiries to the house account, and links its area', async () => {
     expect(mainAgent(GOYAL).slug).toBe('house-deal')
+    expect(projectLead(GOYAL)).toEqual({ slug: 'avasetu', phone: null })
     render(await SharedProjectPage({ params: Promise.resolve({ slug: 'goyal-my-home-kharadi' }) }))
     expect(screen.getByRole('heading', { level: 1, name: 'goyal my home kharadi' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Agents for this project' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: "goyal my home kharadi on Zeta Homes's page" })).toHaveAttribute('href', '/agent/zeta/projects/my-home-upper-kharadi')
-    // the ask box after the facts says it too (9052d168); the agents section is where it names who gets the enquiry
-    expect(within(screen.getByRole('region', { name: 'Agents for this project' })).getByText(/An enquiry here goes to House Deal/)).toBeInTheDocument()
+    // the ask box after the facts says it too (9052d168); the agents section is where it says who gets back to the buyer
+    expect(within(screen.getByRole('region', { name: 'Agents for this project' })).getByText(/The Avasetu team calls or WhatsApps you back/)).toBeInTheDocument()
     expect(screen.getAllByRole('link', { name: /Buyer guide to Upper Kharadi/ })[0]).toHaveAttribute('href', '/localities/upper-kharadi')
   })
 
@@ -134,8 +135,9 @@ describe('shared project pages', () => {
     const ask = screen.getByTestId('ask-prompt')
     expect(ask.compareDocumentPosition(screen.getByRole('heading', { name: /Questions buyers ask/ })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(within(ask).getByRole('link', { name: 'Get price sheet & floor plans' })).toHaveAttribute('href', '#enquire')
-    expect(within(ask).getByText(/An enquiry here goes to House Deal/)).toBeInTheDocument()
-    expect(within(ask).getByText('WhatsApp').closest('a')?.getAttribute('href')).toMatch(/^https:\/\/wa\.me\/919876543210\?text=/)
+    expect(within(ask).getByText(/The Avasetu team calls or WhatsApps you back/)).toBeInTheDocument()
+    // the partner agent's number stays off the page, even with direct contact on (owner 2026-10-31)
+    expect(within(ask).queryByText('WhatsApp')).toBeNull()
     expect(within(screen.getByTestId('sticky-join')).getByText('Get price & plans')).toHaveAttribute('href', '#enquire')
   })
 

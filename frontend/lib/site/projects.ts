@@ -1,5 +1,6 @@
 import { extensionMonths, monthsLater } from './check'
 import { formatPrice } from './format'
+import { HOUSE_AGENT_SLUG, isHouseAgent } from '@/lib/brand'
 import type { CatalogProject, FactSource, PublicProject } from './types'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -109,7 +110,14 @@ export function byLocality(items: CatalogProject[]): Array<[string, CatalogProje
   return [...groups]
 }
 
-/** The agent whose record the facts come from (their prices and dates are the ones quoted); enquiries go to them. */
+/** The agent whose record the facts come from (their prices and dates are the ones quoted). */
 export function mainAgent(p: CatalogProject): CatalogProject['agents'][number] {
   return p.agents.find((a) => a.project_slug === p.slug) ?? p.agents[0]
+}
+
+/** Who an enquiry on the page goes to: the house account, as on every project page. A partner agent is named on the page but
+ *  their number stays off it (owner 2026-10-31). */
+export function projectLead(p: CatalogProject): { slug: string; phone: string | null } {
+  const main = mainAgent(p)
+  return isHouseAgent(main.slug) ? { slug: main.slug, phone: main.phone ?? null } : { slug: HOUSE_AGENT_SLUG, phone: null }
 }

@@ -35,6 +35,9 @@ const nextConfig = {
       { source: '/projects/upcoming/esbee-upper-kharadi', destination: '/projects/upcoming/esbee-wagholi', permanent: true },
       // the team's own Camelot listing was taken down for House Deal's (2026-11-05); published Facebook posts link to it
       { source: '/agent/avasetu/listings/0ffea2cbc2ca48c7b7daff7bcf7694a9', destination: '/projects/lodha-camelot', permanent: true },
+      // the team's Godrej Ivara listing and Camelot project record moved to House Deal (2026-11-05); old post links keep working
+      { source: '/agent/avasetu/listings/71bc2234826d476b91d18d4c27b23064', destination: '/projects/godrej-ivara-pune', permanent: true },
+      { source: '/agent/avasetu/projects/lodha-camelot', destination: '/projects/lodha-camelot', permanent: true },
       // the agents' home moved from / to /agents (2026-10-22); /agent with no name is the address people guess for it
       { source: '/agent', destination: '/agents', permanent: true },
       // the old email/password app (its 'Forgot password' link was a 404): sign-in is the login code at /join, the app is /studio

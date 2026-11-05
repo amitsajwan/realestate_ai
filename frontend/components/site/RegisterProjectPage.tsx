@@ -118,7 +118,7 @@ function OfferBox({ o, numbers, stage }: { o: Offer; numbers: PropertyFactsView[
 
 const HOUSE_AGENT = process.env.NEXT_PUBLIC_DEFAULT_AGENT_SLUG || 'avasetu'
 // enquiries here go to the house account (HOUSE_AGENT), so the team is who gets back to the buyer
-const ASK_NOTE = 'The Avasetu team calls or WhatsApps you back; we never share your number without your OK.'
+export const ASK_NOTE = 'The Avasetu team calls or WhatsApps you back; we never share your number without your OK.'
 
 function Row({ label, value, note }: { label: string; value: React.ReactNode; note?: React.ReactNode }) {
   return (
