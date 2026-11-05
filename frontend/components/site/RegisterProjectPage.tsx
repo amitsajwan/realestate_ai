@@ -424,16 +424,9 @@ function Checks({ p }: { p: RegisterProject }) {
     else rows.push({ label, kind: c.ok ? (fromRera ? 'rera' : 'checked') : 'unchecked',
       note: (c.ok ? c.note : 'We are still checking this') + (c.at ? ` (${longDay(c.at)})` : '') })
   }
-  const ok = rows.filter((r) => r.kind !== 'unchecked').length
   return (
-    <div aria-labelledby="checks-title" role="group" className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5" data-testid="checks">
-      <div className="flex items-baseline justify-between gap-2">
-        <h3 id="checks-title" className="text-lg font-semibold text-slate-900">How we checked this page</h3>
-        <span className="text-sm font-semibold text-slate-700">{ok} of {rows.length}</span>
-      </div>
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100" aria-hidden>
-        <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.round((100 * ok) / rows.length)}%` }} />
-      </div>
+    <details className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5" data-testid="checks">
+      <summary className="min-h-[44px] cursor-pointer py-2 font-semibold text-slate-900">Sources</summary>
       <ul className="mt-3 list-none space-y-3 p-0">
         {rows.map((r) => (
           <li key={r.label}>
@@ -449,7 +442,7 @@ function Checks({ p }: { p: RegisterProject }) {
         <strong>From MahaRERA</strong>: the regulator&apos;s own record. <strong>Gathered and checked</strong>: found in other public
         sources and checked by us against MahaRERA and the map. <strong>Not checked yet</strong>: still waiting, or could not be confirmed.
       </p>
-    </div>
+    </details>
   )
 }
 
@@ -703,7 +696,6 @@ function RecordSection({ p, shown, facts, linkless = false }: { p: RegisterProje
   const registeredOn = d?.registered_on ?? facts?.maharera?.registered_on
   return (
     <section aria-labelledby="facts-title" data-testid="record">
-      <p className="text-sm font-semibold uppercase tracking-wide text-emerald-800">Checked by us</p>
       <SectionHead id="facts-title" title={`${shown} RERA details`} kind="rera" tag={p.details_read_at ? `From MahaRERA, read ${longDay(p.details_read_at)}` : 'From MahaRERA'} />
       <div className="mt-3 space-y-8">
         <Possession p={p} shown={shown} />
@@ -730,7 +722,6 @@ function RecordSection({ p, shown, facts, linkless = false }: { p: RegisterProje
             <p className="mt-2"><a href={p.maharera_url} target="_blank" rel="noopener noreferrer" className={LINK}>Open the MahaRERA record<span className="sr-only"> (opens in a new tab)</span></a></p>
           )}
         </div>
-        <Checks p={p} />
         <Cautions p={p} />
         <TowerByTower p={p} />
         {rest.length > 0 && (
@@ -979,6 +970,8 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
           )}
 
           <FaqBox faq={faq} />
+
+          <Checks p={p} />
         </div>
 
         <aside className="min-w-0 space-y-6 lg:sticky lg:top-20 lg:self-start">

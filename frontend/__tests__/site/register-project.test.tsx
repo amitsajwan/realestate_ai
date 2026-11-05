@@ -404,8 +404,7 @@ describe('project page v2: each fact once, in the order a buyer asks', () => {
     render(<RegisterProjectPage p={EDEN} siteUrl="https://avasetu.in" facts={facts} />)
     const record = screen.getByTestId('record')
     expect(within(record).getByRole('heading', { level: 2 })).toHaveTextContent('Park Eden RERA details')
-    expect(record).toHaveTextContent('Checked by us')
-    for (const id of ['possession', 'checks', 'cautions', 'tower-by-tower', 'web-facts']) expect(record).toContainElement(screen.getByTestId(id))
+    for (const id of ['possession', 'cautions', 'tower-by-tower', 'web-facts']) expect(record).toContainElement(screen.getByTestId(id))
     expect(within(record).getByText('2 in this registration')).toBeInTheDocument()
     expect(record).toHaveTextContent("5 in the whole project (builder's site)")
     expect(within(screen.getByTestId('web-facts')).queryByText('Towers')).toBeNull()   // said once, beside MahaRERA's count
