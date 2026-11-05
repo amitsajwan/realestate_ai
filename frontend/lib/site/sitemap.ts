@@ -81,7 +81,7 @@ export async function buildSitemap(): Promise<Grouped> {
     if (!latest.has(e.agent_slug) || (e.updated_at && (!prev || e.updated_at > prev))) latest.set(e.agent_slug, e.updated_at)
   }
   const core = (entry: SitemapEntry) => ({ group: 'core', entry })
-  return [
+  const all: Grouped = [
     core(at('/', 1)),
     core(at('/localities', 0.8)),
     core(at('/pune-maharera-tracker', 0.8)),
@@ -124,6 +124,37 @@ export async function buildSitemap(): Promise<Grouped> {
     core(at('/privacy', 0.2)),
     core(at('/terms', 0.2)),
   ]
+  return datedHubs(all)
+}
+
+const HUB = /^\/projects\/area\/[^/]+$/
+const time = (d: SitemapEntry['lastModified']): number => (d ? new Date(d).getTime() : NaN)
+
+/** A page that lists others changes when one of them does: it is dated by the newest of them, never by the clock. Before
+ *  2026-11-05 these had no lastmod at all (12 of core.xml's 35 pages and every area page). /projects/area/<place> by its
+ *  area sitemap's other pages, /projects by every project and area page, /localities, /news, /insights and /builders by their own items.
+ *  Pages that list nothing that is dated (home, about, privacy) stay undated: no date is better than a wrong one. */
+export function datedHubs(all: Grouped): Grouped {
+  const newest = (keep: (g: Grouped[number]) => boolean): Date | undefined => {
+    const t = Math.max(...all.filter(keep).map((g) => time(g.entry.lastModified)).filter((n) => !isNaN(n)))
+    return isFinite(t) ? new Date(t) : undefined
+  }
+  const path = (g: Grouped[number]) => new URL(g.entry.url).pathname
+  const under = (prefix: string) => (g: Grouped[number]) => path(g).startsWith(prefix)
+  const lists: Record<string, (g: Grouped[number]) => boolean> = {
+    '/projects': (g) => g.group.startsWith('area-') || g.group === 'projects',
+    '/localities': under('/localities/'),
+    '/news': under('/news/'),
+    '/insights': under('/insights/'),
+    '/builders': (g) => g.group === 'builders',
+  }
+  return all.map((g) => {
+    if (g.entry.lastModified) return g
+    const p = path(g)
+    const keep = HUB.test(p) ? (o: Grouped[number]) => o.group === g.group && o !== g : lists[p]
+    const d = keep && newest(keep)
+    return d ? { group: g.group, entry: { ...g.entry, lastModified: d } } : g
+  })
 }
 
 /** Every page, in one list (what the sitemap files hold between them). */

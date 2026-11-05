@@ -205,7 +205,7 @@ async def details(store: Store, fetch: project_api.Fetch, now: datetime, limit: 
             await store.add_date_move(d["_id"], move)
             out["moved"] = out.get("moved", 0) + 1
         await store.set_project(d["_id"], **fields, details_checked_at=now, details_ok=True, details_error=None,
-                                **_booked(d, fields, now))
+                                **_booked(d, fields, now), **readings.details_changed(d, fields, now))
     return out
 
 

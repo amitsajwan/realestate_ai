@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from app.modules.agentprojects.maharera import MahaReraError
-from app.modules.areastats import refresh
+from app.modules.areastats import pages, refresh
 from app.modules.areastats.service import area_stats
 from app.modules.newsroom.store import Store
 
@@ -141,6 +141,40 @@ async def test_details_fill_completion_and_homes_never_read_first():
     assert p2["details_ok"] and p2["details_checked_at"] == NOW and p2["name"] == "PR2"  # the register's name is kept
     assert "completion_now" not in await store.project("PR3")
     assert await refresh.details(store, fetch, NOW + timedelta(hours=3)) == {"read": 0, "failed": 0}  # nothing due
+
+
+async def test_a_re_read_that_finds_the_same_facts_leaves_the_sitemap_date_alone():
+    store = await seeded(("PR2", "wagholi", 12, {}))
+    sold = {"n": 70}
+
+    async def fetch(mid):
+        return general("PR2", sold=sold["n"])
+
+    await refresh.details(store, fetch, NOW)
+    first = await store.project("PR2")
+    assert first["details_changed_at"] == NOW and pages.page_updated(first) == NOW.isoformat()
+    later = NOW + timedelta(days=31)
+    await refresh.details(store, fetch, later)                       # due again, same facts
+    same = await store.project("PR2")
+    assert same["details_checked_at"] == later and pages.page_updated(same) == NOW.isoformat()
+    assert pages.last_checked(same) == later.isoformat()             # the freshness count still sees the read
+    sold["n"] = 75
+    await refresh.details(store, fetch, later + timedelta(days=31))  # homes booked moved: the page changed
+    assert pages.page_updated(await store.project("PR2")) == (later + timedelta(days=31)).isoformat()
+
+
+async def test_a_record_read_before_the_change_date_existed_settles_on_its_last_read():
+    before = NOW - timedelta(days=40)
+    store = await seeded(("PR2", "wagholi", 12, {"details_checked_at": before, "details_ok": True, "project_type":
+                          "Residential / Group Housing", "registered_on": "2026-09-01", "completion_at_registration":
+                          "2029-06-30", "completion_now": "2029-12-31", "units_total": 120, "units_booked": 70}))
+
+    async def fetch(mid):
+        return general("PR2")
+
+    await refresh.details(store, fetch, NOW)
+    doc = await store.project("PR2")
+    assert doc["details_checked_at"] == NOW and pages.page_updated(doc) == before.isoformat()
 
 
 async def test_details_limit_and_failures_retry_next_day():
