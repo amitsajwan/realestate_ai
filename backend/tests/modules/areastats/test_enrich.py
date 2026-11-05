@@ -5,7 +5,6 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from app.modules.areastats import enrich, pages
-from app.modules.newsroom.store import Store
 
 from ..fakes import FakeDb
 from .test_pages import FULL, seeded
@@ -929,3 +928,8 @@ def test_a_size_from_one_site_says_so_and_brings_no_page_into_search():
     assert not enrich.pages.own_facts(doc)
     assert "on one property site" in next(f for f in enrich.fact_sheet(doc, None, None, None, False) if f["key"] == "size_2BHK")["text"]
     assert enrich.pages.own_facts({**doc, "home_sizes": [{**doc["home_sizes"][0], "one_site": False}]})
+
+
+def test_the_sheet_names_the_brand_beside_the_filing_company():
+    doc = {**ROSE, "name": "Lodha Camelot", "promoter": "Lodha Developers Limited"}
+    assert "brand Lodha" in next(f for f in enrich.fact_sheet(doc, None, None, None, False) if f["key"] == "brand")["text"]

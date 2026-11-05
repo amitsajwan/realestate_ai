@@ -574,7 +574,12 @@ def alike(doc: dict, text: str, others: List[dict]) -> Optional[str]:
 
 async def sources_text(db, doc: dict) -> str:
     """The fact sheet the page was written from, for reading the finished page against it (seo.review)."""
-    return "\n".join(f["text"] for f in (doc.get("fact_sheet") or {}).get("facts") or [])
+    sheet = (doc.get("fact_sheet") or {}).get("facts")
+    if not sheet:   # a page last written before the sheet was kept
+        view = _deps.get("view")
+        sheet = fact_sheet(doc, await view(db, doc["_id"]) if view else None, doc.get("web_facts"), doc.get("profile"),
+                           (doc.get("geo") or {}).get("located_from") == "google")
+    return "\n".join(f["text"] for f in sheet)
 
 
 
@@ -641,6 +646,9 @@ def fact_sheet(doc: dict, gathered: Optional[dict], web: Optional[dict], prof: O
     def add(key: str, text: str, source: str = read, url: Optional[str] = None, quote: Optional[str] = None) -> None:
         out.append({"key": key, "text": text, "source": source, "url": url or (doc.get("source_url") if source == read else None), "quote": quote})
 
+    b = brands.of(doc)
+    if b and doc.get("promoter"):
+        add("brand", f"Sold under the brand {b.name}; the company filed with MahaRERA is {doc['promoter']}")
     filed, first = _day(doc.get("completion_now")), _day(doc.get("completion_at_registration"))
     if filed:
         add("filed", f"Completion date filed with MahaRERA: {pages._long(filed)}")
