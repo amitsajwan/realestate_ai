@@ -23,6 +23,34 @@ def worth_a_buyer(d: dict, now: datetime) -> float:
             + (50 if brands.of(d) else 0) + min(int(d.get("units_total") or 0) / 10, 40))
 
 
+async def facts_only(limit: int) -> None:
+    """The code's steps for pages in search that a batch took past them: `main` leaves MahaRERA to the loop, and the loop never
+    reaches a place outside our areas, so 336 pages had no place check and no nearby places (2026-11-05). One at a time, because
+    MahaRERA is read here, and no model. Safe to run again: a page with the step done is skipped."""
+    from app.core.database import get_database, init_database
+    from app.modules.areastats import enrich, pages
+    from app.modules.newsroom.store import Store
+    from app.wiring import wire
+    await init_database()
+    wire()
+    store = Store(get_database())
+    docs = [d for d in await store.all_projects() if pages.searchable(d) and not d.get("cluster_primary")
+            and not ((d.get("enrichment") or {}).get("steps") or {}).get("places")]
+    docs.sort(key=lambda d: -worth_a_buyer(d, datetime.now(timezone.utc)))
+    print(f"{len(docs)} projects to do", flush=True)
+    done = {"read": 0, "failed": 0}
+    for doc in docs[:limit]:
+        try:
+            await asyncio.wait_for(enrich.enrich_one(store, doc, None, datetime.now(timezone.utc), reread=False), enrich.ROUND_SECONDS)
+            await store.set_project(doc["_id"], reading_due=False)   # nothing was put off: this round wanted no model
+            done["read"] += 1
+            print(doc.get("page_slug"), "read", flush=True)
+        except Exception as e:
+            done["failed"] += 1
+            print(doc.get("page_slug"), "failed", type(e).__name__, flush=True)
+    print("finished", done, flush=True)
+
+
 async def main(areas, places, parallel: int, limit: int, again: bool = False, pune: bool = False, possession_from: str = "", preview: bool = False) -> None:
     from app.core.database import get_database, init_database
     from app.modules.areastats import budget, enrich, pages
@@ -74,10 +102,14 @@ if __name__ == "__main__":
     parser.add_argument("--areas", nargs="*", default=[])
     parser.add_argument("--places", nargs="*", default=[], help="pune_place keys, for places outside our areas")
     parser.add_argument("--parallel", type=int, default=8)
+    parser.add_argument("--facts", action="store_true", help="only the code's steps, one at a time, for pages in search that lack them")
     parser.add_argument("--pune", action="store_true", help="all of Pune, what buyers look for first (worth_a_buyer)")
     parser.add_argument("--possession-from", default="", help="filed completion date from this day, 2028-01-01")
     parser.add_argument("--preview", action="store_true", help="list the projects and stop")
     parser.add_argument("--again", action="store_true", help="every page that has points, for a new step that needs no site read again: sizes")
     parser.add_argument("--limit", type=int, default=1000)
     args = parser.parse_args()
-    asyncio.run(main(set(args.areas), set(args.places), args.parallel, args.limit, args.again, args.pune, args.possession_from, args.preview))
+    if args.facts:
+        asyncio.run(facts_only(args.limit))
+    else:
+        asyncio.run(main(set(args.areas), set(args.places), args.parallel, args.limit, args.again, args.pune, args.possession_from, args.preview))

@@ -946,3 +946,10 @@ def test_a_project_finishing_before_2027_is_not_priced():
     doc = {"page_slug": "x", "promoter": "Rose LLP", "project_type": "Residential", "completion_now": "2026-12-31", "units_total": 100, "units_booked": 10}
     assert not enrich.pricing.selling(doc, NOW)
     assert enrich.pricing.selling({**doc, "completion_now": "2027-06-30"}, NOW)
+
+
+def test_a_record_with_no_pincode_is_measured_from_its_areas():
+    assert enrich.area_pincode({"locality": "upper_kharadi"}) == "411014"
+    assert enrich.area_pincode({"locality": "lohegaon"}) == "411047"
+    assert enrich.area_pincode({"locality": "hinjawadi"}) == "411057"
+    assert enrich.area_pincode({"pune_place": "moshi"}) is None

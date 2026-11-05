@@ -513,6 +513,8 @@ measure (Search Console, Serper, URL Inspection) → choose (near page one, Magi
 
 | 2026-11-05 | this | Serper ran out mid-batch (balance -20): every search answered 400 and 100 of the top 150 Pune projects looked as if no site mentioned them. New key set; Admin → Health now shows the searches left (`websearch.credits`, `health.search_row`: WARN under 500, BAD at none), and the batch re-reads any page with no fact of its own. 133 of the 150 written on the rerun, about 370 credits |
 
+| 2026-11-05 | this | Owner saw "no pincode centre to check against" on Godrej Ivara, which MahaRERA filed with no pincode: the place check now measures from the area's pincode (`enrich.area_pincode`), and a check not passed tells a buyer "We are still checking this", not our internal note. Batches (`facts=False`) had left 336 pages in search with no place check and so no nearby places, and the loop never reaches places outside our areas: `enrich_areas.py --facts` runs the code's steps, one at a time, no model |
+
 ## 12. Detail and history
 
 Design and reasoning behind the pieces above (read for the why; this page holds the current state):

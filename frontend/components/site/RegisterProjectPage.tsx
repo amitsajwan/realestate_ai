@@ -420,9 +420,9 @@ function Checks({ p }: { p: RegisterProject }) {
     const c = byKey[key]
     const label = CHECK_NAMES[key]
     const fromRera = key === 'maharera_general' || key === 'buildings'
-    if (!c) rows.push({ label, kind: 'unchecked', note: 'Waiting for its turn; this page fills in by itself' })
+    if (!c) rows.push({ label, kind: 'unchecked', note: 'We are still checking this' })
     else rows.push({ label, kind: c.ok ? (fromRera ? 'rera' : 'checked') : 'unchecked',
-      note: (c.ok ? '' : 'Not confirmed: ') + c.note + (c.at ? ` (${longDay(c.at)})` : '') })
+      note: (c.ok ? c.note : 'We are still checking this') + (c.at ? ` (${longDay(c.at)})` : '') })
   }
   const ok = rows.filter((r) => r.kind !== 'unchecked').length
   return (

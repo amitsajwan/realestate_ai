@@ -69,6 +69,7 @@ from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple
 from app.core.areas import BY_KEY
 from app.modules.agentprojects import maharera as project_api
 from app.modules.newsroom import register
+from app.modules.newsroom.policy import AREA_PINCODES, SHARED_PINCODES, UPPER_KHARADI_PINCODES
 from app.modules.newsroom.store import Store
 from app.platform import trace
 
@@ -930,6 +931,16 @@ async def check_buildings(regno: str, mid: Optional[int], now: datetime) -> tupl
     return _step(True, now, count=len(rows), checked="projectId and regno match" if rows else "no buildings (plotted?)"), fields
 
 
+def area_pincode(doc: dict) -> Optional[str]:
+    """A pincode of the project's area, for a record MahaRERA filed without one (Godrej Ivara): the place check needs a centre to
+    measure from, and the area's is good enough for a check NEAR_KM wide."""
+    locality = doc.get("locality")
+    if locality == "upper_kharadi":
+        return UPPER_KHARADI_PINCODES[0]
+    return next((pin for pin, area in AREA_PINCODES.items() if area == locality), None) or next(
+        (pin for pin, areas in SHARED_PINCODES.items() if locality in areas), None)
+
+
 async def check_places(store: Store, doc: dict, sheet: Optional[dict], located_from: str, now: datetime) -> tuple:
     """(step, register fields): where the gathered sheet put the project, checked against the pincode's centre."""
     lat, lon = sheet_value(sheet, "lat"), sheet_value(sheet, "lon")
@@ -938,7 +949,7 @@ async def check_places(store: Store, doc: dict, sheet: Optional[dict], located_f
     if not isinstance(lat, (int, float)) or not isinstance(lon, (int, float)):
         return _step(False, now, located_from=located_from or None, checked="no position found"), {}
     fields = {"geo": {"lat": float(lat), "lon": float(lon), "located_from": located_from}}
-    pin, centre = doc.get("pincode"), None
+    pin, centre = doc.get("pincode") or area_pincode(doc), None
     if pin and _deps["pincode_centre"] is not None:
         try:
             centre = await _deps["pincode_centre"](store.db, pin)
