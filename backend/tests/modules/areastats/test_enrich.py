@@ -457,7 +457,8 @@ async def test_a_question_put_off_half_way_keeps_that_steps_last_result():
     from app.modules.areastats import budget
     db, store = await ready(("P1", "Rohan Abhilasha 4", "wagholi", {**FULL, "promoter": "Rohan Builders"}))
     kept_text = {"ok": True, "at": NOW - timedelta(days=9), "refused_reasons": []}
-    await store.set_project("P1", enrichment={"steps": {"text": kept_text}}, page_text=GOOD)
+    # its own facts changed since GOOD was written (a key that is not this sheet's), so the writer is asked (enrich.settled)
+    await store.set_project("P1", enrichment={"steps": {"text": kept_text}}, page_text=GOOD, page_facts_key="older facts")
     reader = await budget.Reader(db, NOW, free=None, gemini=None, lite=None).start()
     reader.can_read = lambda tier: True        # room at the start of the round, none by the time the text is asked
     out = await enrich.enrich_one(store, await store.project("P1"), reader, NOW)

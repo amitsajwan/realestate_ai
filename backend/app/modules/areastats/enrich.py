@@ -40,9 +40,11 @@ west side), and in each area new launches and hot projects first (owner 2026-10-
 The flow (owner 2026-11-04: "it should be final step", "stop wasting ai", "first target already enriched page"): code's facts
 first; then the model reads the sites, only for a page a buyer can land on (`worth_model`: never a tower, which redirects to its
 group, nor offices and shops, which are never in search); the writer last, only with every read done and a fact of the project's
-own on the record (`pages.own_facts`). Each day the first REWRITES_PER_DAY rounds go to pages already in search that an older
-writer wrote (`rewrite_due`), most seen by Google first: the daily cap, not one wait for all, is what keeps the site from
-rewriting itself at once.
+own on the record (`pages.own_facts`). A page in search keeps its model-written text while the fact sheet's lines about the
+project itself stand (`settled`, `own_facts_key`; the area's lines and the questions to ask move with other projects and do
+not count), and no page in search goes to a newer writer for that alone (REWRITES_PER_DAY 0, owner 2026-11-05,
+docs/plan/search-recovery.md R1). After each round the page's place in or out of search is stored (`pages.search_state`) and
+held SEARCH_HOLD_DAYS.
 Facts often, the model by budget (owner 2026-10-25; docs/plan/enrich-lanes.md). Steps 0, 1, the place check and the pictures
 need no model and run every EVERY_MINUTES (5); MahaRERA's general record is not read again while the register's own read
 (areastats.refresh) is under DETAILS_FRESH_DAYS old, the buildings while under BUILDINGS_FRESH_DAYS. The model steps (2, 2b, 2c's
@@ -54,6 +56,7 @@ READ_EVERY_MINUTES when the budget has room, from the facts the facts round kept
 Nothing runs until PROJECT_ENRICH_ENABLED is on. A campaign calls `enrich_now(db, regno)`; the loop takes it within a minute.
 """
 import asyncio
+import hashlib
 import logging
 import math
 import os
@@ -135,7 +138,9 @@ MIN_GAP = timedelta(hours=6)
 REST_DAYS = 14
 AI_FROM = "2027-01-01"                # a filed completion date before this gets no model (owner 2026-11-05: "possession 2027 and afterward,
                                       # this is not priority to spend on old projects"; 65 of 432 pages in search, 17 of 195 clicks)
-REWRITES_PER_DAY = 20                 # pages in search given to a newer writer each day: 240 pages in 12 days
+# pages in search given to a newer writer each day: none from 2026-11-05 (docs/plan/search-recovery.md R1: a newer writer is
+# not a reason to change a page Google shows; its own facts changing is, `settled`). Was 20.
+REWRITES_PER_DAY = 0
 REWRITES = "enrich_rewrites"          # mark: {day, done}
 MAX_FAILS = 3
 PARK_DAYS = 14
@@ -286,6 +291,24 @@ async def rewrites_left(store: Store, now: datetime) -> int:
 
 async def count_rewrite(store: Store, now: datetime) -> None:
     await store.set_mark(REWRITES, day=budget.day_of(now), done=REWRITES_PER_DAY - await rewrites_left(store, now) + 1)
+
+
+# fact-sheet lines about the project's surroundings, not the project: they move whenever another project of the area does
+AROUND_KEYS = ("area", "ask", "builder_record")
+
+
+def own_facts_key(sheet: List[dict]) -> str:
+    """A fingerprint of the sheet's lines about the project itself (`AROUND_KEYS` left out): what decides a rewrite."""
+    lines = sorted(f"{f['key']}={f['text']}" for f in sheet if not str(f.get("key") or "").startswith(AROUND_KEYS))
+    return hashlib.sha1("\n".join(lines).encode()).hexdigest()
+
+
+def settled(d: dict, own: str, now: datetime) -> bool:
+    """A page in search with text keeps it while its own facts stand (owner 2026-11-05, R1). A page written before the key was
+    kept (`page_facts_key` missing) keeps its text too, and the key is stored, so the next change of its facts rewrites it.
+    Points written by code when a draft was refused (`page_text_by` "code") are a stopgap and give way to the model's."""
+    return (bool(d.get("page_text")) and d.get("page_text_by") != "code" and pages.searchable(d, now)
+            and d.get("page_facts_key") in (None, own))
 
 
 def text_resting(d: dict, now: datetime) -> bool:
@@ -1092,7 +1115,7 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime, reread: bool =
         else:
             steps["profile"] = kept_steps.get("profile") or {}
     pinned = ((placed or {}).get("geo") or doc.get("geo") or {}).get("located_from") == "google"
-    draft, text, turned_down = None, None, False
+    draft, text, turned_down, own_key, by = None, None, False, None, None
     # sizes come from the pages just read, by code, before the writer decides whether it has anything to say
     web_now = (web or {}).get("web_facts") or doc.get("web_facts")
     outside = await outside_pages(web_now, fetch) if spends else []
@@ -1113,14 +1136,24 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime, reread: bool =
         latest = await store.project(doc["_id"]) or doc
         sheet = fact_sheet(latest, gathered, web_now, (prof or {}).get("profile") or latest.get("profile"), pinned, area_docs,
                            await store.shared_projects(), now)
-        await store.set_project(doc["_id"], fact_sheet={"at": now, "facts": sheet})
-        draft, refused = await write_points(ask, latest, sheet, web_now, area_docs, outside)
-        if _deferred(ask) > before:
+        own_key = own_facts_key(sheet)
+        keep = settled(latest, own_key, now)
+        if keep:   # the stored sheet stays the one the text was written from
+            notes.append("text kept: in search and its own facts have not changed")
+            if not latest.get("page_facts_key"):
+                await store.set_project(doc["_id"], page_facts_key=own_key)
+        else:
+            await store.set_project(doc["_id"], fact_sheet={"at": now, "facts": sheet})
+            draft, refused = await write_points(ask, latest, sheet, web_now, area_docs, outside)
+        if keep:
+            steps["text"] = kept_steps.get("text") or {}
+        elif _deferred(ask) > before:
             put_off.append("text")
             steps["text"] = kept_steps.get("text") or {}
         else:
+            by = "model"
             if draft is None and not latest.get("page_text"):
-                draft = code_points(latest, sheet)
+                draft, by = code_points(latest, sheet), "code"
             text = (draft or {}).get("text")
             steps["text"] = _step(bool(text), now, refused_reasons=refused)
             ran.add("text")
@@ -1150,7 +1183,8 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime, reread: bool =
     if turned_down:
         fields["text_refused_at"] = now
     if text:
-        fields.update(page_text=text, page_text_version=TEXT_VERSION, page_sections=draft["sections"],
+        fields.update(page_text=text, page_text_version=TEXT_VERSION, page_sections=draft["sections"], page_facts_key=own_key,
+                      page_text_by=by,
                       page_summary=draft["summary"] or doc.get("page_summary"))   # a page keeps its search line when no new one passes
         if text != doc.get("page_text") or draft["summary"] != doc.get("page_summary"):
             fields["page_text_at"] = now   # the page's date moves only when what a reader sees changed
@@ -1160,6 +1194,10 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime, reread: bool =
         fields.update(page_text=None, page_sections=None, page_summary=None)
         notes.append("old text dropped: it does not name the project")
     await store.set_project(doc["_id"], **fields)
+    after = await store.project(doc["_id"])
+    state = pages.search_state(after, now) if after else None
+    if state:
+        await store.set_project(doc["_id"], search_state=state)
     if rewrite and text:
         await count_rewrite(store, now)
     if facts:

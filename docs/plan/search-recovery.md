@@ -35,7 +35,7 @@ Better reading of other sites does not fix any of the three. It comes after.
 
 The algorithm's job moves from "read what others say and rewrite it" to "work out what nobody shows, and read the web to check it".
 
-### R1. Stop the churn (owner's call; code is small)
+### R1. Stop the churn (BUILT 2026-11-05 except the template hold; tests `tests/modules/areastats/test_search_hold.py`)
 
 - A page in search is rewritten only when one of its facts changes (homes booked, the filed date, a price, a building): the
   fact sheet's facts, not the text, decide. A newer writer version is not a reason. Today `rewrite_due` takes 20 pages a day
@@ -43,7 +43,23 @@ The algorithm's job moves from "read what others say and rewrite it" to "work ou
 - A page stays in or out of search for at least 30 days once decided, unless it breaks (an error page, a wrong project). Today
   a page goes back in as soon as enrichment fills it (`THIN_RETRY_DAYS`).
 - The page template and titles stay as they are until the site is back. Widen the 2026-11-17 hold from titles to templates.
-- Sitemap size moves in steps the owner decides, not with each night run.
+  (Not code: a rule for whoever changes the pages.)
+- Sitemap size moves in steps the owner decides, not with each night run. (The hold below slows it; the steps are the owner's.)
+
+Built:
+- `enrich.REWRITES_PER_DAY` is 0: no page in search goes to a newer writer for that alone.
+- `enrich.settled`: a page in search with model-written text keeps it while `own_facts_key` of its fact sheet stands, the
+  fingerprint of the sheet's lines about the project itself. The area's lines (`area*`), the questions to ask (`ask*`) and the
+  builder's record move with other projects and do not count. A page written before the key keeps its text and gets the key,
+  so its next change of facts rewrites it. Points code wrote when a draft was refused (`page_text_by` "code") still give way.
+  The stored `fact_sheet` stays the one the kept text was written from.
+- `pages.searchable` holds a decision `SEARCH_HOLD_DAYS` (30): once a page has been in search it stays in, and once it then
+  leaves it stays out, for 30 days from that decision (`search_state` {in, at}, stored by each enrichment round). A page never
+  in search has no hold and goes in once ready, so new pages are not held back. A page held in still leaves at once when it
+  is finished, offices or shops, not listable, or has no written text (`pages.must_leave`). The sitemap and the page's noindex
+  read the same `searchable`, so both hold.
+- Cost: a page that left search because a round emptied it by mistake (the 14 pages of the 2026-11-05 night run) waits out
+  the 30 days once refilled.
 
 ### R2. Fewer pages, each the best on the web for its project (owner's call)
 

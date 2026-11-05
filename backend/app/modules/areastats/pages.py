@@ -195,7 +195,42 @@ def has_own_content(doc: dict) -> bool:
     return bool(doc.get("page_text")) or own_facts(doc)
 
 
-def searchable(doc: dict) -> bool:
+SEARCH_HOLD_DAYS = 30   # a page that has been in search keeps its place in or out this long (docs/plan/search-recovery.md R1)
+
+
+def searchable(doc: dict, now: Optional[datetime] = None) -> bool:
+    """`ready_for_search`, held steady: a page that went into search stays in, and one that then left stays out, for
+    SEARCH_HOLD_DAYS from that decision (`search_state` on the record, kept by areastats.enrich). Between 2026-10-26 and 11-05
+    the sitemap went from about 13,000 project pages to 243 to 343 and pages went in and out as rounds filled or emptied them;
+    a site that keeps changing its mind reads as one not yet settled (search-recovery.md). A page never in search has no
+    hold: it goes in once ready. A page held in still leaves at once when it breaks (`must_leave`)."""
+    ready = ready_for_search(doc)
+    held = doc.get("search_state") or {}
+    at = held.get("at")
+    if not isinstance(held.get("in"), bool) or not isinstance(at, datetime) or held["in"] == ready:
+        return ready
+    if held["in"] and must_leave(doc):
+        return False
+    at = at if at.tzinfo else at.replace(tzinfo=timezone.utc)
+    return held["in"] if (now or datetime.now(timezone.utc)) - at < timedelta(days=SEARCH_HOLD_DAYS) else ready
+
+
+def must_leave(doc: dict) -> bool:
+    """What takes a page out of search whatever its hold: finished, offices or shops, not listable, or no written text."""
+    return is_old(doc) or not homes(doc) or not indexable(doc) or not doc.get("page_text")
+
+
+def search_state(doc: dict, now: datetime) -> Optional[dict]:
+    """The `search_state` to store after a round, or None when it stands: {in, at} when the decision changed. A page never in
+    search and not ready gets none, so it has no hold to wait out."""
+    held = doc.get("search_state") or {}
+    decided = searchable(doc, now)
+    if held.get("in") == decided or (not decided and not isinstance(held.get("in"), bool)):
+        return None
+    return {"in": decided, "at": now}
+
+
+def ready_for_search(doc: dict) -> bool:
     """Asks Google to index the page: a listable page (`indexable`) with written sections AND a fact of its own (`own_facts`).
     11,700 register-only pages in search on a weeks-old domain sank the whole site on 2026-10-26 (seo-system.md section 11).
     Owner 2026-10-31 ("only have online which have proper text"): either one alone was not enough, since 271 of 537 pages in
