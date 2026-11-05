@@ -224,6 +224,10 @@ What keeps the lead (section 8a). About 1–2 hours a week, no money.
 
 ## 8. To build (TARGET, in order)
 
+Proposed 2026-11-05, waiting for the owner: [search-recovery.md](search-recovery.md), getting back into Google after the
+2026-10-26 site-wide drop (stop the churn, fewer and better pages, MahaRERA's history and progress reports first, reading what
+the web-facts reader drops today).
+
 1. ~~Prices area by area~~ BUILT 2026-10-21 (`areastats/pricing.py`, the prices round above). Watch "Prices by area" on
    Insights → Pages; if a first area stays under 3 priced projects per size after a week, the gap is sites that state no price
    ("none found"), not turns.

@@ -1,0 +1,128 @@
+# Getting back into Google: steadier, fewer, more our own (2026-11-05, PROPOSED)
+
+Owner, 2026-11-05: "Our pages are no where in google search. Are we missing something. Our algo how can we make it best. How
+to read what we currently can't." Nothing here is built. Each step waits for the owner's call. Background: docs/plan/seo-system.md
+(section 11 is the record of the drop), docs/plan/project-pages.md, docs/plan/enrich-lanes.md.
+
+## Why we are nowhere
+
+The pages are not broken. The change log says so, and in the logged checks every part of the site passed:
+- From 2026-10-27, searches where we stood at positions 3 to 6 showed nothing of ours in the top 20, yet the same search with
+  "avasetu" added put our page first. The pages are indexed and ranked nowhere.
+- The site goes off and on as one: 3,098 impressions (10-26), 116, 84, about 4,000 (10-29 to 10-31), 273 (11-01). On 11-01 every
+  page fell within one hour. No noindex of ours can do that, so it is Google's side.
+- Search Console shows no manual action and no security issue. Robots.txt, status codes, titles and canonicals all checked
+  out when the site was read as Googlebot.
+
+The cause logged at the time: a domain a few weeks old put about 13,000 URLs in its sitemaps, about 500 of them enriched. That
+reads as scaled content, and the filter judges the site, not one page. Three things keep feeding it.
+
+1. **Churn.** Since then the sitemap went from about 13,000 to 243 to 343 project pages, pages go in and out of noindex as
+   enrichment fills them, texts are rewritten every day (20 pages in search a day, plus night runs of 300 and more), and the
+   page template, titles and opening block change every few days. To a classifier that is a site run by a machine and not yet
+   settled. The title hold until 2026-11-17 (`seo/actions.HOLD_UNTIL`) is right; it covers titles only.
+2. **Little Google does not already have.** A project page is MahaRERA's record (public, and on many sites), facts read from the
+   sites that already rank for the project (marketers and portals), and 3 to 5 points a model writes from those. However well
+   checked, the web facts are those sites' content in our words, and Google ranks the source. What exists nowhere else is small
+   on the page: booking pace over time, completion dates moved, the builder's date record, the project beside its area.
+3. **No trust from outside the site.** Almost no links to us, brand searches too rare for Search Console to name (Google answered
+   "avasetu" with "Seva Setu" on 10-27), and an About page with no people named yet. A new domain with no one behind it and
+   hundreds of like pages is what these filters are built to catch.
+
+Better reading of other sites does not fix any of the three. It comes after.
+
+## What changes
+
+The algorithm's job moves from "read what others say and rewrite it" to "work out what nobody shows, and read the web to check it".
+
+### R1. Stop the churn (owner's call; code is small)
+
+- A page in search is rewritten only when one of its facts changes (homes booked, the filed date, a price, a building): the
+  fact sheet's facts, not the text, decide. A newer writer version is not a reason. Today `rewrite_due` takes 20 pages a day
+  for that alone (`enrich.REWRITES_PER_DAY`), and `REST_DAYS` only spaces it out.
+- A page stays in or out of search for at least 30 days once decided, unless it breaks (an error page, a wrong project). Today
+  a page goes back in as soon as enrichment fills it (`THIN_RETRY_DAYS`).
+- The page template and titles stay as they are until the site is back. Widen the 2026-11-17 hold from titles to templates.
+- Sitemap size moves in steps the owner decides, not with each night run.
+
+### R2. Fewer pages, each the best on the web for its project (owner's call)
+
+Pick 30 to 50 projects in Kharadi, Upper Kharadi and Wagholi: the Top lists' leaders and the projects buyers search for by name.
+Each one gets:
+- our own photos from a site visit, dated, which no other site has;
+- prices from a call to the sales office, with the date and the size they are for;
+- what is good and what is worth worrying about, said plainly by a named person who checked it;
+- the MahaRERA history below (R3).
+
+Every other project page stays out of search (noindex, out of the sitemap) until it reaches that level. The area lists keep
+showing every project as they do today. Fifty strong pages that hold still lift the site faster than 343 thin ones that move.
+
+### R3. Lead with what only we have (code)
+
+- Booking pace as a dated chart from `booked_history`, filed completion dates from `completion_history`, price readings from
+  `prices.history`. MahaRERA and the portals show only today's figure; our history grows every month we keep reading.
+- MahaRERA's construction progress (R5 below): "Tower A: 60% to 72% this quarter" is the line no portal prints.
+- Web facts become checks on MahaRERA, not content: "marketer sites say 2,792 homes; the registrations filed so far add up to
+  1,400" tells a buyer something; "2,792 homes" in our words does not.
+- "Updated <date>" on every page, moving only when a fact moved (as `page_text_at` already does for the text).
+
+### R4. Trust from outside the site (owner; not code)
+
+- Google Business Profile for Avasetu.
+- The About page names the people behind the site (deferred on 2026-11-04: "no names yet").
+- Monthly data stories pitched to Pune press and blogs ("Kharadi bookings, November 2026", from the MahaRERA tracker), each
+  linking to its area's page.
+- Links from House Deal and partner agents' sites to the projects they sell.
+- Posts that send people to search "Avasetu", so brand searches become a figure Search Console can name.
+
+## Reading what we cannot read today (code, after R1)
+
+Best value first.
+
+### R5. MahaRERA's own documents
+
+We read the general record and the wing table (`agentprojects/maharera.py`), not the files filed with them: the quarterly
+progress reports (construction % per building, signed by the architect, the engineer and the CA), the commencement certificate
+and the sanctioned plans. They are the builder's word under law, they are dated, and almost no site reads them. Read the document
+list on the project's MahaRERA page, download each new PDF once, extract its text (scanned ones through OCR), and keep the
+progress per building and quarter on the record. The same rule as everything else: a figure counts only with the line it came
+from, and code reads every number.
+
+### R6. Builder sites built in the browser
+
+Only 69 of 277 projects read their builder's site (2026-11-04), and that is the one source a fact needs alone. Many builder sites
+send almost no text in their HTML. In this order, cheapest first:
+1. structured data already in the HTML: JSON-LD (the Rathi page of Godrej Ivara has a `FAQPage` with towers, homes and floors),
+   `__NEXT_DATA__` and other embedded state, `og:` and meta tags;
+2. the JSON address the page itself calls, often a plain GET;
+3. headless Chromium, only for the builder's own domain, only when 1 and 2 found nothing, about once a month per project.
+
+### R7. Brochures and floor plans
+
+Builder pages often link the brochure PDF directly even behind a form. Follow those links on the builder's own pages and reuse
+`propertyfacts/brochure_parse.py`. Floor-plan images go to a vision model under the same rule: it quotes what it sees, and code
+checks the number against the quote.
+
+### R8. What the reader drops today (code, small; checked on the Rathi page of Godrej Ivara, 2026-11-05)
+
+- `webfacts.relevant` skips any line over 600 characters. On that page a 3,005-character block held "span 14 acres and rise
+  in 11 towers". Split long lines into sentences instead.
+- Table rows ("Land Area | 14 Acres") are read as label and value, not as two loose lines.
+- Comparison blocks that name another project ("Godrej Elaris ... Land Area 12 Acres, Total Units 1,030") leave the text the model
+  reads: today a misread there passes both quote checks, and only the two-site rule stops it.
+- `MARKETER_WORDS` misses "for general informational purposes only".
+- `webfacts.fetch_page` honours robots.txt and spaces its reads per host, with the newsroom reader's `RobotsCache` and
+  `polite_get`.
+- Two sites that agree with near the same sentence count as one: channel partners copy the builder's brochure, so two copies
+  are one source.
+
+### Not doing
+
+- Working round portals that refuse our reader (99acres, Housing): they refuse on purpose, and their content is not ours to take.
+- Taking facts from Google's snippets: a snippet only says which page to read.
+
+## Order
+
+R1 first (it costs nothing and every other step needs a settled site), R8 alongside it (small, with tests), then R3 and R5, then
+R6 and R7. R2 and R4 run in parallel and are the owner's. Judge it in Search Console 28 days after R1 is live: impressions on the
+R2 pages and brand searches, not the whole site's total.
