@@ -33,6 +33,8 @@ const nextConfig = {
       { source: '/agent/sharad/:path*', destination: '/agent/house-deal/:path*', permanent: true },
       // the owner places Esbee's upcoming project in Wagholi (2026-11-02); shared links to the old address keep working
       { source: '/projects/upcoming/esbee-upper-kharadi', destination: '/projects/upcoming/esbee-wagholi', permanent: true },
+      // the team's own Camelot listing was taken down for House Deal's (2026-11-05); published Facebook posts link to it
+      { source: '/agent/avasetu/listings/0ffea2cbc2ca48c7b7daff7bcf7694a9', destination: '/projects/lodha-camelot', permanent: true },
       // the agents' home moved from / to /agents (2026-10-22); /agent with no name is the address people guess for it
       { source: '/agent', destination: '/agents', permanent: true },
       // the old email/password app (its 'Forgot password' link was a 404): sign-in is the login code at /join, the app is /studio
