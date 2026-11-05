@@ -94,6 +94,8 @@ async def overview(user: User = Depends(owner_only), svc: AdminService = Depends
                                meta=await svc.meta_status(), cal_run=cal_run, news_run=news_run, controls=ctl,
                                ai=await health.ai_status(ai_ping), dm=load_dm())
     rows += await _seo_rows(svc)
+    from app.modules.areastats.websearch import credits, provider
+    rows.append(health.search_row(provider() is not None, await credits()))
     return {
         "generated_at": datetime.utcnow().isoformat() + "Z",
         "counts": await svc.counts(),

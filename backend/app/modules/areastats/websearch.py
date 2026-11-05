@@ -91,6 +91,22 @@ def serper(key: str, transport: Optional[httpx.AsyncBaseTransport] = None) -> Se
     return search
 
 
+async def credits(transport: Optional[httpx.AsyncBaseTransport] = None) -> Optional[int]:
+    """Searches left on the Serper account; None without a key or when it does not answer. A spent account answers every search
+    400, which the enrichment reads as a project no site mentions (2026-11-05: 100 of the top 150 Pune projects)."""
+    key = (os.environ.get("SERPER_API_KEY") or "").strip()
+    if not key:
+        return None
+    try:
+        async with httpx.AsyncClient(timeout=8, transport=transport) as c:
+            r = await c.get("https://google.serper.dev/account", headers={"X-API-KEY": key})
+            r.raise_for_status()
+            return int(r.json().get("balance"))
+    except Exception as e:
+        log.info("websearch: account not read (%s)", type(e).__name__)
+        return None
+
+
 def provider() -> Optional[Search]:
     key = (os.environ.get("SERPER_API_KEY") or "").strip()
     return serper(key) if key else None

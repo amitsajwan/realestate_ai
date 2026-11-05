@@ -135,6 +135,22 @@ def loop_row(key: str, label: str, beat: Optional[dict], interval_s: Optional[fl
     return {**_row(key, label, OK, "Running"), "last_run_at": _iso(ok_at)}
 
 
+SEARCH_LOW = 500                      # searches left: about a batch of 150 projects
+
+
+def search_row(on: bool, left: Optional[int]) -> Dict:
+    """Serper credits. When they run out nothing fails loudly: projects just look as if no site mentions them."""
+    if not on:
+        return _row("google_search", "Google search (Serper)", WARN, "No key: builder sites, prices and rank checks stop", "Add SERPER_API_KEY with deploy/gcp/keys.ps1")
+    if left is None:
+        return _row("google_search", "Google search (Serper)", WARN, "Could not read the credits left")
+    if left <= 0:
+        return _row("google_search", "Google search (Serper)", BAD, f"Out of credits ({left}): no project can find its sites", "Top up at serper.dev")
+    if left < SEARCH_LOW:
+        return _row("google_search", "Google search (Serper)", WARN, f"{left} searches left", "Top up at serper.dev")
+    return _row("google_search", "Google search (Serper)", OK, f"{left} searches left")
+
+
 def freshness_row(mark: Optional[dict], window_days: int) -> Dict:
     """How many of our areas' live project pages were re-read lately (seo.freshness): the dated answers that get us cited."""
     m = mark or {}

@@ -93,3 +93,18 @@ async def test_no_search_when_the_builders_site_is_already_found_or_the_builder_
     doc = {"_id": "P1", "regno": "P1", "promoter": "Rose Landmarks LLP"}
     assert await webfacts.builder_results(store, doc, "Rose Court", search, now, [_result("https://roselandmarks.com/")]) == []
     assert await webfacts.builder_results(store, {"_id": "P2"}, "Rose Court", search, now, []) == []
+
+
+def test_health_warns_before_search_credits_run_out():
+    from app.modules.admin import health
+    assert health.search_row(True, 2000)["status"] == health.OK
+    assert health.search_row(True, 100)["status"] == health.WARN
+    assert health.search_row(True, -20)["status"] == health.BAD
+    assert health.search_row(False, None)["status"] == health.WARN
+
+
+async def test_credits_are_read_from_the_account(monkeypatch):
+    from app.modules.areastats import websearch
+    monkeypatch.setenv("SERPER_API_KEY", "k")
+    assert await websearch.credits(httpx.MockTransport(lambda r: httpx.Response(200, json={"balance": 2130}))) == 2130
+    assert await websearch.credits(httpx.MockTransport(lambda r: httpx.Response(403, json={}))) is None

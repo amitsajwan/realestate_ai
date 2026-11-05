@@ -55,7 +55,8 @@ async def main(areas, places, parallel: int, limit: int, again: bool = False, pu
             started = datetime.now(timezone.utc)
             try:
                 llm = await budget.reader(store.db, started)
-                reread = not enrich.sources_fresh(doc, started) or bool(enrich.outdated(doc))
+                # a page with no fact of its own is read again however lately: a round without search credits found nothing (2026-11-05)
+                reread = not enrich.sources_fresh(doc, started) or bool(enrich.outdated(doc)) or not pages.own_facts(doc)
                 out = await asyncio.wait_for(enrich.enrich_one(store, doc, llm, started, reread=reread, facts=False, rewrite=True), enrich.ROUND_SECONDS)
                 done["written" if out["text"] else "not"] += 1
                 print(doc.get("page_slug"), "written" if out["text"] else "no text", "|", "; ".join(out["notes"])[:160], flush=True)
