@@ -32,6 +32,7 @@ import { agentPath } from '@/lib/site/slug'
 import { PROJECT_CTA } from '@/lib/site/strings'
 import { catalogFaq, getWebFacts } from '@/lib/site/webfacts'
 import { catalogAnswer, projectUpdated } from '@/lib/site/projectFacts'
+import ProjectPoints, { HomeSizes } from '@/components/site/ProjectPoints'
 import { getProfile } from '@/lib/site/profile'
 import ProjectProfile from '@/components/site/ProjectProfile'
 import type { CatalogProject } from '@/lib/site/types'
@@ -179,6 +180,9 @@ export default async function SharedProjectPage({ params }: Props) {
 
         <ProjectProfile profile={profile} name={p.name}
           lead={{ agentSlug: main.slug, agentName: BRAND_NAME, agentPhone: main.phone, topic: `${p.name} (${p.rera_no})`, waMessage: msg }} />
+
+        {register?.points?.length ? <ProjectPoints p={register} updated={updated} /> : null}
+        <HomeSizes sizes={register?.home_sizes} name={p.name} />
 
         <ProjectDetails p={p} agentName={main.name} />
 

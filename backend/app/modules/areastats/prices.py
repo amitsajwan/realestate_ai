@@ -32,7 +32,7 @@ line states it, and `per_sqft`, that price over that size); `price_from` the low
 import logging
 import re
 from datetime import datetime, timedelta, timezone
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 from . import pages, priceidea, webfacts, websearch
 
@@ -181,6 +181,42 @@ def rate_ok(row: dict, quote: str) -> bool:
     lo, hi = RATE_PER_SQFT
     pairs = [(row["from_inr"], min(sizes))] + ([(row["to_inr"], max(sizes))] if row.get("to_inr") else [])
     return all(lo <= price / sqft <= hi for price, sqft in pairs)
+
+
+# what a home of this many bedrooms can measure, in sq ft: a line outside it is a tower's or a whole floor's area, or a misread
+SIZE_RANGE = {1: (250, 1000), 2: (400, 1700), 3: (600, 3000), 4: (900, 7000), 5: (1200, 10000)}
+SIZE_BHK = re.compile(r"(\d(?:\.5)?)\s*-?\s*bhk", re.I)
+MAX_SIZE_TYPES = 4                    # a page sizing more kinds of home than this is about several projects
+
+
+def area_kind(text: str) -> str:
+    """Sites mix kinds of area, and saleable area runs 30-40% over carpet (owner 2026-11-03): a size never goes without its kind."""
+    if re.search(r"carpet|rera area", text, re.I):
+        return "carpet area"
+    if re.search(r"saleable|sellable|built[- ]?up|super", text, re.I):
+        return "saleable area"
+    return "area kind not stated"
+
+
+def sizes_on(text: str) -> Dict[str, dict]:
+    """{"2 BHK": {low, high, kind, quote}} a page states, by code and no model: size tables hold no price, so the price lines
+    alone found sizes for 5 of 40 projects where 32 had them on pages already read (2026-11-05). A line names one kind of home;
+    its area may be on the next line, as table cells are. A page sizing many kinds of home is a list and gives nothing."""
+    lines = [x.strip() for x in (text or "").split("\n") if x.strip()]
+    found: Dict[str, dict] = {}
+    for line, after in zip(lines, lines[1:] + [""]):
+        types = set(SIZE_BHK.findall(line))
+        if len(types) != 1:
+            continue
+        said = line if areas_in(line) else f"{line} {after}" if not SIZE_BHK.search(after) else line
+        kind_of_home = types.pop()
+        low_ok, high_ok = SIZE_RANGE.get(int(float(kind_of_home)), (0, 0))
+        areas = [a for a in areas_in(said) if low_ok <= a <= high_ok]
+        if areas and len(said) <= 200:
+            key, was = f"{kind_of_home} BHK", found.get(f"{kind_of_home} BHK")
+            low, high = (min(areas + [was["low"]]), max(areas + [was["high"]])) if was else (min(areas), max(areas))
+            found[key] = {"low": low, "high": high, "kind": was["kind"] if was and was["kind"] != "area kind not stated" else area_kind(said), "quote": said}
+    return {} if len(found) > MAX_SIZE_TYPES else found
 
 
 def sqft_of(row: dict, quote: str) -> Optional[int]:

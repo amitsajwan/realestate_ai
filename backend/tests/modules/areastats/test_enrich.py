@@ -1020,3 +1020,50 @@ async def test_a_refused_draft_leaves_points_that_do_not_repeat_the_name(gathere
     await enrich.enrich_one(store, await store.project("P1"), FakeLLM("A luxury project."), NOW)
     doc = await store.project("P1")
     assert doc["page_text"] == "Few homes left: Most are booked." and doc["page_sections"]
+
+
+TABLE = "Configuration\n2 BHK\n725 - 780 sq ft Carpet Area\n3 BHK\n1,050 sq ft Carpet Area\nClub house"
+
+
+def test_a_size_table_is_read_without_a_price_and_without_a_model():
+    from app.modules.areastats import prices
+    found = prices.sizes_on(TABLE)
+    assert (found["2 BHK"]["low"], found["2 BHK"]["high"], found["2 BHK"]["kind"]) == (725, 780, "carpet area")
+    assert found["3 BHK"]["low"] == 1050
+
+
+def test_a_page_sizing_many_kinds_of_home_is_a_list_and_gives_nothing():
+    from app.modules.areastats import prices
+    many = "\n".join(f"{n} BHK 1,500 sq ft" for n in ("2", "2.5", "3", "3.5", "4"))
+    assert prices.sizes_on(many) == {}
+
+
+def test_a_size_no_home_could_be_is_left_out():
+    from app.modules.areastats import prices
+    assert prices.sizes_on("2 BHK towers on 5,000 sq ft of retail") == {}
+
+
+WEB = {"read": [{"site": "builder.com", "official": True, "url": "https://builder.com/p", "why": "2 facts"},
+                {"site": "a.com", "url": "https://a.com/p", "why": "1 facts"}, {"site": "b.com", "url": "https://b.com/p", "why": "0 facts"},
+                {"site": "x.com", "url": "https://x.com/p", "why": "page does not name the project"}]}
+
+
+def test_the_builders_site_alone_publishes_a_size():
+    rows = enrich.home_sizes([("builder.com", "2 BHK 725 sq ft carpet")], WEB)
+    assert rows[0]["bhk"] == "2 BHK" and rows[0]["official"] and rows[0]["low"] == 725
+
+
+def test_two_sites_must_agree_and_one_alone_says_nothing():
+    assert enrich.home_sizes([("a.com", "2 BHK 725 sq ft")], WEB) == []
+    assert [r["sites"] for r in enrich.home_sizes([("a.com", "2 BHK 725 sq ft"), ("b.com", "2 BHK 740 sq ft")], WEB)] == [["a.com", "b.com"]]
+    assert enrich.home_sizes([("a.com", "2 BHK 725 sq ft"), ("b.com", "2 BHK 1100 sq ft")], WEB) == []
+
+
+def test_a_page_not_about_the_project_counts_for_nothing():
+    assert enrich.home_sizes([("a.com", "2 BHK 725 sq ft"), ("x.com", "2 BHK 725 sq ft")], WEB) == []
+
+
+def test_a_size_goes_on_the_fact_sheet_with_its_kind():
+    doc = {**ROSE, "home_sizes": [{"bhk": "2 BHK", "low": 725, "high": 780, "kind": "carpet area", "sites": ["builder.com"], "url": "u", "quote": "q"}]}
+    sheet = {f["key"]: f for f in enrich.fact_sheet(doc, None, None, None, False)}
+    assert sheet["size_2BHK"]["text"] == "2 BHK size: 725 to 780 sq ft, carpet area"

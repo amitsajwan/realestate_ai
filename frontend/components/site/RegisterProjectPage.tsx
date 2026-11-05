@@ -28,6 +28,7 @@ import { formatPrice, groupIndian } from '@/lib/site/format'
 import { agentPath } from '@/lib/site/slug'
 import { OWN_CASH_NOTE, ownCash } from '@/lib/site/upfront'
 import { projectUpdated, registerAnswer } from '@/lib/site/projectFacts'
+import ProjectPoints, { HomeSizes } from '@/components/site/ProjectPoints'
 
 /** The agent's offer on the fact sheet, when it says anything (a price or a size): what campaign posts quote. */
 function liveOffer(facts: PropertyFactsView | null): Offer | null {
@@ -904,17 +905,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
 
       {/* the one answer, written by code from the facts below: what AI search quotes (the model's old summary is not shown) */}
       {points.length > 0 ? (
-        <section className="mt-6 max-w-4xl" aria-labelledby="points-title" data-testid="project-points">
-          <h2 id="points-title" className="text-sm font-medium text-slate-600">
-            {p.details_read_at ? `As of ${longDay(p.details_read_at)}, from MahaRERA ${p.regno} and the sources on this page` : `From MahaRERA ${p.regno} and the sources on this page`}
-          </h2>
-          <ul className="mt-2 list-none space-y-2 p-0">
-            {points.map((x) => (
-              <li key={x.label} className="text-lg leading-relaxed text-slate-900"><strong className="font-semibold">{x.label}:</strong> {x.text}</li>
-            ))}
-          </ul>
-          {updated && <p className="mt-2 text-sm text-slate-600" data-testid="updated">Updated {longDay(updated)}</p>}
-        </section>
+        <div className="mt-6"><ProjectPoints p={p} updated={updated} /></div>
       ) : answer && (
         <div className="mt-6 max-w-4xl">
           <p className="text-lg font-medium leading-relaxed text-slate-900" data-testid="project-answer">{answer}</p>
@@ -933,6 +924,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
       <div className="mt-8 grid gap-8 lg:grid-cols-3">
         <div className="min-w-0 space-y-10 lg:col-span-2">
           {!closed && <PricesSection p={p} shown={shown} offer={liveOffer(facts)} priced={!!price} numbers={facts?.numbers} stage={stage} />}
+          <HomeSizes sizes={p.home_sizes} name={shown} />
           {!closed && <ProjectProfile profile={p.profile} name={shown} part="plans" plans3d={p.plans_3d?.items ?? []} lead={{ agentSlug: leadSlug, agentName: leadName,
             topic: enquiryTopic, waMessage: `Hi, I want to know about ${p.name} (MahaRERA ${p.regno}): ${url}` }} />}
           <LocationSection p={p} shown={shown} nearby={nearby} sources={facts?.nearby_sources ?? []} />

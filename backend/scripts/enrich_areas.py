@@ -13,7 +13,7 @@ from datetime import datetime, timedelta, timezone
 log = logging.getLogger("enrich_areas")
 
 
-async def main(areas, places, parallel: int, limit: int) -> None:
+async def main(areas, places, parallel: int, limit: int, again: bool = False) -> None:
     from app.core.database import get_database, init_database
     from app.modules.areastats import budget, enrich, pages
     from app.modules.newsroom.store import Store
@@ -25,7 +25,7 @@ async def main(areas, places, parallel: int, limit: int) -> None:
     def wanted(d: dict) -> bool:
         no = d.get("text_refused_at")
         return ((d.get("locality") in areas or d.get("pune_place") in places) and enrich.worth_model(d) and d.get("page_slug") and pages.indexable(d) and not pages.is_old(d)
-                and (int(d.get("page_text_version") or 1) < enrich.TEXT_VERSION or bool(enrich.outdated(d)))
+                and (again or int(d.get("page_text_version") or 1) < enrich.TEXT_VERSION or bool(enrich.outdated(d)))
                 and not (isinstance(no, datetime) and now - enrich._aware(no) < timedelta(days=1)))
 
     # what is in search first; then what buyers are at: homes selling lately, Google's impressions, the newest
@@ -57,6 +57,7 @@ if __name__ == "__main__":
     parser.add_argument("--areas", nargs="*", default=[])
     parser.add_argument("--places", nargs="*", default=[], help="pune_place keys, for places outside our areas")
     parser.add_argument("--parallel", type=int, default=8)
+    parser.add_argument("--again", action="store_true", help="every page, for a new step that needs no site read again: sizes")
     parser.add_argument("--limit", type=int, default=1000)
     args = parser.parse_args()
-    asyncio.run(main(set(args.areas), set(args.places), args.parallel, args.limit))
+    asyncio.run(main(set(args.areas), set(args.places), args.parallel, args.limit, args.again))

@@ -114,7 +114,7 @@ MIN_POINTS = 2                        # fewer say nothing a buyer cannot see at 
 MAX_POINTS = 5
 MAX_POINT = 240                       # characters
 LABEL_REPEATS = 2                     # a point's label on this many other pages of the area is a template, not a finding
-OVERCLAIM = re.compile(r"\b(?:largest|biggest|tallest|highest|smallest|lowest|strongest|best|reliable|trusted)\b|\baverage\b(?! of about| about)|middle figure|the middle of", re.I)
+OVERCLAIM = re.compile(r"\b(?:largest|biggest|tallest|highest|smallest|lowest|strongest|best|reliable|trusted)\b|\baverage\b(?! of about| about)|middle (?:figure|booking|rate)|the middle of", re.I)
 PART_OF_PROJECT = re.compile(r"\b(?:phase|part|tower|wing|building|bldg|block)\b", re.I)
 # Each reading step has a version (owner 2026-10-20: "enrichment can happen again: we improve it, get more info, a better model").
 # Raise a step's number when the step gets better (a new rule, a new source, a better model): every project that step read with
@@ -905,6 +905,28 @@ def size_kind(quote: str) -> str:
     return "area kind not stated"
 
 
+def home_sizes(outside: List[Tuple[str, str]], web: Optional[dict]) -> List[dict]:
+    """Each kind of home's size from the pages read for this project: [{bhk, low, high, kind, official, sites, url, quote}]. Published
+    as a price is: the builder's site, or two sites within webfacts.TOLERANCE of each other. Only pages the reading took as about
+    this project count."""
+    read = {r.get("site"): r for r in (web or {}).get("read") or [] if r.get("official") or re.match(r"\d+ facts", str(r.get("why") or ""))}
+    by_kind: Dict[str, List[dict]] = {}
+    for site, text in outside:
+        if site in read:
+            for bhk, s in prices.sizes_on(text).items():
+                by_kind.setdefault(bhk, []).append({**s, "site": site, "official": bool(read[site].get("official")), "url": read[site].get("url")})
+    out = []
+    for bhk, seen in sorted(by_kind.items()):
+        mine = [s for s in seen if s["official"]]
+        agreed = [s for s in seen if any(o is not s and abs(o["low"] - s["low"]) <= webfacts.TOLERANCE * s["low"] for o in seen)]
+        use = mine or agreed
+        if use:
+            s = use[0]
+            out.append({"bhk": bhk, "low": s["low"], "high": s["high"], "kind": s["kind"], "official": bool(mine),
+                        "sites": [x["site"] for x in use], "url": s["url"], "quote": s["quote"]})
+    return out
+
+
 def homes_per_acre(doc: dict, land: Optional[dict], scoped: dict) -> Optional[int]:
     """Homes per acre, only when the homes and the land surely cover the same ground: land is mostly given for the whole marketed
     project and homes for one registration, so a phase, a tower, a group of registrations or a scoped count says nothing."""
@@ -968,6 +990,10 @@ def fact_sheet(doc: dict, gathered: Optional[dict], web: Optional[dict], prof: O
     for i, (h, line) in enumerate(zip(profile.shown_highlights(prof, doc), profile.lines(prof, doc))):
         src = (h.get("sources") or [{}])[0]
         add(f"highlight{i}", line, ", ".join(s["site"] for s in h.get("sources") or []), src.get("url"), src.get("quote"))
+    sized = {x["bhk"] for x in doc.get("home_sizes") or []}
+    for x in doc.get("home_sizes") or []:
+        span = f"{x['low']} to {x['high']} sq ft" if x["high"] != x["low"] else f"{x['low']} sq ft"
+        add(f"size_{x['bhk'].replace(' ', '')}", f"{x['bhk']} size: {span}, {x['kind']}", ", ".join(x["sites"]), x.get("url"), x.get("quote"))
     for r in (doc.get("prices") or {}).get("rows") or []:
         if isinstance(r, dict) and isinstance(r.get("from_inr"), int) and r.get("bhk"):
             src = (r.get("sources") or [{}])[0]
@@ -975,7 +1001,7 @@ def fact_sheet(doc: dict, gathered: Optional[dict], web: Optional[dict], prof: O
             add(f"price_{str(r['bhk']).replace(' ', '')}", f"{r['bhk']} from {_money(r['from_inr'])}", where, src.get("url"), src.get("quote"))
             quote = str(src.get("quote") or "")
             sqft = prices.sqft_of(r, quote)
-            if sqft:
+            if sqft and r["bhk"] not in sized:
                 add(f"size_{str(r['bhk']).replace(' ', '')}", f"{r['bhk']} size from {sqft} sq ft, {size_kind(quote)}", where, src.get("url"), quote)
     if pinned:
         for i, x in enumerate(((gathered or {}).get("nearby") or [])[:10]):
@@ -996,7 +1022,7 @@ POINTS_SYSTEM = ("You help home buyers in Pune. From the FACTS about one housing
                  "part of a bigger project. No superlatives such as largest or tallest; say the count. Never say average; say \"similar "
                  "projects are at about 83%\". Use only the facts given, each number exactly as "
                  "given, and name in `facts` the keys of the lines you used. Plain English, your own words; do not copy a fact's line. "
-                 "Say what a middle figure means simply: \"similar projects are at about 53%\". Keep each date with its label. When a line "
+                 "Write whole sentences, not notes. Say what a middle figure means simply: \"similar projects are at about 53%\". Keep each date with its label. When a line "
                  "says MahaRERA's order is the only change to the date, say MahaRERA's order added the months, and never that the date "
                  "moved or was extended or pushed back. A line "
                  "that starts with a question to ask may be used as a point, in your own words; put no other question. No praise, no "
@@ -1338,6 +1364,12 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime, reread: bool =
             steps["profile"] = kept_steps.get("profile") or {}
     pinned = ((placed or {}).get("geo") or doc.get("geo") or {}).get("located_from") == "google"
     draft, text, turned_down = None, None, False
+    # sizes come from the pages just read, by code, before the writer decides whether it has anything to say
+    web_now = (web or {}).get("web_facts") or doc.get("web_facts")
+    outside = await outside_pages(web_now, fetch) if spends else []
+    sizes = home_sizes(outside, web_now)
+    if sizes:
+        await store.set_project(doc["_id"], home_sizes=sizes)
     # the writer is the last step: only with every read done, and something of the project's own to write from
     writable = urgent or pages.own_facts(await store.project(doc["_id"]) or doc)
     if not spends or reading and not put_off and not writable or reading and not urgent and not rewrite and keeps_text(doc, now):
@@ -1347,14 +1379,13 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime, reread: bool =
     elif reading and not put_off:
         ask = _ask(llm, tier, "text")
         before = _deferred(ask)
-        web_now = (web or {}).get("web_facts") or doc.get("web_facts")
         area_docs = (await store.projects_in([doc["locality"]]) if doc.get("locality")
                      else await store.projects_at(doc["pune_place"]) if doc.get("pune_place") else [])
         latest = await store.project(doc["_id"]) or doc
         sheet = fact_sheet(latest, gathered, web_now, (prof or {}).get("profile") or latest.get("profile"), pinned, area_docs,
                            await store.shared_projects(), now)
         await store.set_project(doc["_id"], fact_sheet={"at": now, "facts": sheet})
-        draft, refused = await write_points(ask, latest, sheet, web_now, area_docs, await outside_pages(web_now, fetch))
+        draft, refused = await write_points(ask, latest, sheet, web_now, area_docs, outside)
         if _deferred(ask) > before:
             put_off.append("text")
             steps["text"] = kept_steps.get("text") or {}
