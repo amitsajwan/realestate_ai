@@ -933,3 +933,15 @@ def test_a_size_from_one_site_says_so_and_brings_no_page_into_search():
 def test_the_sheet_names_the_brand_beside_the_filing_company():
     doc = {**ROSE, "name": "Lodha Camelot", "promoter": "Lodha Developers Limited"}
     assert "brand Lodha" in next(f for f in enrich.fact_sheet(doc, None, None, None, False) if f["key"] == "brand")["text"]
+
+
+def test_a_project_finishing_before_2027_gets_no_model():
+    assert not enrich.worth_model({"completion_now": "2026-12-31"})
+    assert enrich.worth_model({"completion_now": "2027-01-01"})
+    assert enrich.worth_model({})   # a date not read yet is no reason to skip it
+
+
+def test_a_project_finishing_before_2027_is_not_priced():
+    doc = {"page_slug": "x", "promoter": "Rose LLP", "project_type": "Residential", "completion_now": "2026-12-31", "units_total": 100, "units_booked": 10}
+    assert not enrich.pricing.selling(doc, NOW)
+    assert enrich.pricing.selling({**doc, "completion_now": "2027-06-30"}, NOW)

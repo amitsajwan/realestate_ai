@@ -13,7 +13,17 @@ from datetime import datetime, timedelta, timezone
 log = logging.getLogger("enrich_areas")
 
 
-async def main(areas, places, parallel: int, limit: int, again: bool = False) -> None:
+def worth_a_buyer(d: dict, now: datetime) -> float:
+    """How much a project is what Pune's buyers look for (owner 2026-11-05: "best projects in pune first, that are getting searched,
+    possession not near, new launches"): searched for on Google, hot, newly registered, a known brand, a real size."""
+    from app.modules.areastats import brands, pages
+    registered = pages._day(d.get("registered_on")) or ""
+    new = registered >= (now - timedelta(days=365)).date().isoformat()
+    return (min(int(d.get("gsc_impressions") or 0), 200) + 2 * int(d.get("hot_score") or 0) + (60 if new else 0)
+            + (50 if brands.of(d) else 0) + min(int(d.get("units_total") or 0) / 10, 40))
+
+
+async def main(areas, places, parallel: int, limit: int, again: bool = False, pune: bool = False, possession_from: str = "", preview: bool = False) -> None:
     from app.core.database import get_database, init_database
     from app.modules.areastats import budget, enrich, pages
     from app.modules.newsroom.store import Store
@@ -24,14 +34,19 @@ async def main(areas, places, parallel: int, limit: int, again: bool = False) ->
 
     def wanted(d: dict) -> bool:
         no = d.get("text_refused_at")
-        return ((d.get("locality") in areas or d.get("pune_place") in places) and enrich.worth_model(d) and d.get("page_slug") and pages.indexable(d) and not pages.is_old(d)
+        return ((pune or d.get("locality") in areas or d.get("pune_place") in places) and enrich.worth_model(d)
+                and str(d.get("completion_now") or "") >= possession_from and not pages.sold_out(d) and d.get("page_slug") and pages.indexable(d) and not pages.is_old(d)
                 and (int(d.get("page_text_version") or 1) >= 6 if again
                      else int(d.get("page_text_version") or 1) < enrich.TEXT_VERSION or bool(enrich.outdated(d)))
                 and not (isinstance(no, datetime) and now - enrich._aware(no) < timedelta(days=1)))
 
     # what is in search first; then what buyers are at: homes selling lately, Google's impressions, the newest
     docs = sorted((d for d in await store.all_projects() if wanted(d)),
-                  key=lambda d: (not pages.searchable(d), -int(d.get("hot_score") or 0), -int(d.get("gsc_impressions") or 0), -pages.recency(d)))[:limit]
+                  key=lambda d: -worth_a_buyer(d, now) if pune else (not pages.searchable(d), -int(d.get("hot_score") or 0), -int(d.get("gsc_impressions") or 0), -pages.recency(d)))[:limit]
+    if preview:
+        for d in docs:
+            print(round(worth_a_buyer(d, now)), d.get("pune_place") or d.get("locality"), str(d.get("completion_now"))[:7], d.get("units_total"), d.get("gsc_impressions") or 0, d.get("page_slug"))
+        return
     print(f"{len(docs)} projects to do", flush=True)
     gate, done = asyncio.Semaphore(parallel), {"written": 0, "not": 0, "failed": 0}
 
@@ -58,7 +73,10 @@ if __name__ == "__main__":
     parser.add_argument("--areas", nargs="*", default=[])
     parser.add_argument("--places", nargs="*", default=[], help="pune_place keys, for places outside our areas")
     parser.add_argument("--parallel", type=int, default=8)
+    parser.add_argument("--pune", action="store_true", help="all of Pune, what buyers look for first (worth_a_buyer)")
+    parser.add_argument("--possession-from", default="", help="filed completion date from this day, 2028-01-01")
+    parser.add_argument("--preview", action="store_true", help="list the projects and stop")
     parser.add_argument("--again", action="store_true", help="every page that has points, for a new step that needs no site read again: sizes")
     parser.add_argument("--limit", type=int, default=1000)
     args = parser.parse_args()
-    asyncio.run(main(set(args.areas), set(args.places), args.parallel, args.limit, args.again))
+    asyncio.run(main(set(args.areas), set(args.places), args.parallel, args.limit, args.again, args.pune, args.possession_from, args.preview))

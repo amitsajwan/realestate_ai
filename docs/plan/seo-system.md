@@ -503,6 +503,8 @@ measure (Search Console, Serper, URL Inspection) → choose (near page one, Magi
 | 2026-11-05 | this | Owner: show a size only one site gives, labelled. `enrich.home_sizes` keeps it with `one_site`, the page says "(one property site)", and it does not count as a fact of the project's own, so it brings no page into search. Two sites that disagree still give nothing |
 | 2026-11-05 | this | The written-sections writer is deleted (`write_text`, `SYSTEM`, `facts_text`, `check_text`, `repeats`, `refused`, `trimmed`, `SECTIONS` and the rest), with 27 tests that only tested it; the page check reads pages against the stored fact sheet (`enrich.sources_text`). Deleting it showed the sheet had lost the brand beside the filing company, now back as the `brand` fact |
 
+| 2026-11-05 | this | Owner: "possession 2027 and afterward, this is not priority to spend on old projects". Filed completion before 2027-01-01: no model reads, writing or prices (`enrich.AI_FROM`, `pricing.AI_FROM`); 65 of 432 pages in search, 17 of 195 clicks. Their pages stay as they are and in search; their code-only facts rounds go on. A campaign's request still goes through |
+
 ## 12. Detail and history
 
 Design and reasoning behind the pieces above (read for the why; this page holds the current state):

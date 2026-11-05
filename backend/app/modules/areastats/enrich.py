@@ -133,6 +133,8 @@ MIN_GAP = timedelta(hours=6)
 # a page in Google keeps its text this long before a newer writer or reader version takes it again: 87 of 503 searchable
 # pages were rewritten in one day (2026-10-27), and a site rewriting itself that fast reads as machine-made
 REST_DAYS = 14
+AI_FROM = "2027-01-01"                # a filed completion date before this gets no model (owner 2026-11-05: "possession 2027 and afterward,
+                                      # this is not priority to spend on old projects"; 65 of 432 pages in search, 17 of 195 clicks)
 REWRITES_PER_DAY = 20                 # pages in search given to a newer writer each day: 240 pages in 12 days
 REWRITES = "enrich_rewrites"          # mark: {day, done}
 MAX_FAILS = 3
@@ -261,9 +263,10 @@ def complete(d: dict) -> bool:
 
 
 def worth_model(d: dict) -> bool:
-    """A page a buyer can land on and search can show. 45 of 140 rounds on 2026-11-04 paid for towers (they redirect to their
-    group, so their text is read by nobody) or offices and shops (never in search); their facts rounds need no model."""
-    return not d.get("cluster_primary") and pages.homes(d)
+    """A page a buyer can land on and search can show, of a project still some way off. 45 of 140 rounds on 2026-11-04 paid for
+    towers (they redirect to their group, so their text is read by nobody) or offices and shops (never in search). Projects
+    finishing before AI_FROM keep their page as it is; their facts rounds need no model."""
+    return not d.get("cluster_primary") and pages.homes(d) and (_day(d.get("completion_now")) or AI_FROM) >= AI_FROM
 
 
 def rewrite_due(d: dict, now: datetime) -> bool:

@@ -44,8 +44,8 @@ def test_when_a_project_is_due():
     assert pricing.priority(doc(1, "kharadi", prices=priced(3)), NOW) is None                      # read by the page rewrite lately
     assert pricing.priority(doc(1, "kharadi", units_booked=100), NOW) is None                     # sold out
     assert pricing.priority(doc(1, "kharadi", completion_now="2026-09-30", units_booked=95), NOW) is None   # completed, 5 left
-    # completed with homes left: on the Top list buyers see, so priced
-    assert pricing.priority(doc(1, "kharadi", completion_now="2026-09-30"), NOW) is not None
+    # finishing before 2027: no model, even with homes left (owner 2026-11-05)
+    assert pricing.priority(doc(1, "kharadi", completion_now="2026-09-30"), NOW) is None
     assert pricing.priority(doc(1, "kharadi", cluster_primary="P9"), NOW) is None                 # a tower, priced on its primary
 
 

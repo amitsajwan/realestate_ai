@@ -40,6 +40,7 @@ ORDER = tuple(k for k in NEAR_KHARADI if k in {a.key for a in AREAS}) + tuple(a.
 # read once more, before their turn, so they have the single-site readings (`prices.seen`) the price idea needs (owner
 # 2026-10-31: "lets do upper kharadi and wagholi projects now"); other places get them at their next read
 IDEA_FIRST = ("upper_kharadi", "wagholi")
+AI_FROM = "2027-01-01"                # prices are read by a model: as enrich.AI_FROM (enrich imports this module)
 EVERY_MINUTES = 15                    # ~96 projects a day, up to 4 model calls each (only pages with price lines are sent)
 REFRESH_DAYS = 30                     # read again well before prices.KEEP_DAYS
 RETRY_DAYS = 1
@@ -91,6 +92,7 @@ def selling(d: dict, now: datetime) -> bool:
     """A primary record of a project still being sold: priced once per group, never when sold out, nor when completed unless it is
     on a top list (homes left to buy)."""
     return (bool(d.get("page_slug")) and not d.get("cluster_primary") and pages.indexable(d) and pages.homes(d)
+            and str(d.get("completion_now") or "9999") >= AI_FROM
             and (not pages.completion_passed(d, now.date()) or on_top(d, now)) and not pages.sold_out(d))
 
 
