@@ -7,10 +7,12 @@ For one project (a tower group is read once, on its primary record):
    first (`official`: its domain is the builder's word, alone or with "group", "developers", ...; a microsite such as
    "lodhacamelot.in" is not), then other sites whose result names the project, in Google's order: up to MAX_SOURCES pages that
    answer, out of MAX_TRIES.
-2. each page is read once (plain GET, size and time capped) and cut to the lines that can hold a fact (`relevant`).
+2. each page is read once (`read_page`: only what its robots.txt allows, SITE_GAP_S between reads of one site; a plain GET, size
+   and time capped) and cut to the lines that can hold a fact (`relevant`, over `fact_lines`: long blocks cut into sentences,
+   labels joined to their values, other projects' cards left out).
 3. ONE model call per page answers a fixed list of facts (KEYS), each with the sentence it came from.
 4. checks: the sentence must be on the page (`on_page`) and the value must be in that sentence. A fact is published when the
-   builder's site says it, or when two sites agree (`agree`; numbers within 5%). Sites that disagree publish nothing and the
+   builder's site says it, or when two sites agree (`agree`; numbers within 5%; a site copying the other's sentence is one source). Sites that disagree publish nothing and the
    disagreement is kept for the owner. Text facts (architect, partners) need the builder's site. MahaRERA's record always wins:
    nothing here touches its dates, bookings or registration numbers, and possession dates are not read at all.
 Stored on the register record as `web_facts` = {at, facts: [{key, label, value, text, official, sources: [{site, url, quote}]}],
@@ -20,12 +22,15 @@ import asyncio
 import html
 import logging
 import re
+import time
 from datetime import datetime, timedelta, timezone
-from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple
+from typing import Any, Awaitable, Callable, Dict, Iterator, List, Optional, Tuple
+from urllib.parse import urlsplit
+from urllib.robotparser import RobotFileParser
 
 import httpx
 
-from app.core.areas import BY_KEY
+from app.core.areas import AREAS, BY_KEY
 
 from . import brands, pages, websearch
 
@@ -40,6 +45,12 @@ MAX_BYTES = 2_000_000
 PAGE_CHARS = 9000                     # what one model call reads from a page
 TIMEOUT = 15
 UA = "Mozilla/5.0 (compatible; AvasetuBot/1.0; +https://avasetu.in)"
+BOT = "AvasetuBot"                    # the name a site's robots.txt rules us by
+ROBOTS_TTL_S = 3600                   # a site's robots.txt is read again after this
+SITE_GAP_S = 2.0                      # two reads of one site are at least this far apart (the areas run in parallel)
+LONG_LINE = 600                       # a line longer than this is cut into its sentences
+LABEL_CHARS = 40                      # a label ("Land Area") and the value under it ("14 Acres") are each at most this long
+COPY_CHARS = 40                       # a shared sentence this long or longer is one site copying another
 # key -> (label, kind): "int" and "num" are compared within TOLERANCE, "text" needs the builder's own site
 KEYS: Dict[str, tuple] = {
     "towers": ("Towers", "int"),
@@ -110,6 +121,58 @@ async def fetch_page(url: str, transport: Optional[httpx.AsyncBaseTransport] = N
     return None
 
 
+_robots: Dict[str, Tuple[float, Optional[RobotFileParser]]] = {}   # site -> (when read, its rules; None: every page allowed)
+_last_read: Dict[str, float] = {}
+_site_locks: Dict[str, asyncio.Lock] = {}
+
+
+async def robots_allow(url: str, transport: Optional[httpx.AsyncBaseTransport] = None) -> bool:
+    """The site's robots.txt lets AvasetuBot read `url`, under RFC 9309: no file or any other 4xx answer allows every page; a
+    server error or no answer at all allows none, until the file is read again (ROBOTS_TTL_S). The newsroom's reader honours
+    robots.txt; the project pages' reader did not until 2026-11-05 (docs/plan/search-recovery.md R8)."""
+    parts = urlsplit(url)
+    if parts.scheme not in ("http", "https") or not parts.hostname:
+        return False
+    key = f"{parts.scheme}://{parts.netloc}"
+    hit = _robots.get(key)
+    if hit is None or time.monotonic() - hit[0] > ROBOTS_TTL_S:
+        rules: Optional[RobotFileParser] = RobotFileParser()
+        try:
+            async with httpx.AsyncClient(timeout=TIMEOUT, follow_redirects=True, transport=transport,
+                                         headers={"User-Agent": UA}) as c:
+                r = await c.get(key + "/robots.txt")
+            if 400 <= r.status_code < 500:
+                rules = None
+            elif r.status_code != 200:
+                raise httpx.HTTPStatusError("robots.txt", request=r.request, response=r)
+            else:
+                rules.parse(r.text.splitlines())
+        except Exception as e:
+            log.info("webfacts: robots.txt of %s not read (%s): no page of it is read", key, type(e).__name__)
+            rules = RobotFileParser()
+            rules.parse(["User-agent: *", "Disallow: /"])
+        hit = (time.monotonic(), rules)
+        _robots[key] = hit
+    return hit[1] is None or hit[1].can_fetch(BOT, url)
+
+
+async def read_page(url: str, transport: Optional[httpx.AsyncBaseTransport] = None) -> Optional[str]:
+    """fetch_page, politely: only what the site's robots.txt allows, and SITE_GAP_S between two reads of one site, also across
+    the areas the batch runs at once. The readers' default; fetch_page stays the plain read under it."""
+    if not await robots_allow(url, transport):
+        log.info("webfacts: robots.txt does not allow %s", url)
+        return None
+    site = websearch.site(url)
+    async with _site_locks.setdefault(site, asyncio.Lock()):
+        wait = _last_read.get(site, -SITE_GAP_S) + SITE_GAP_S - time.monotonic()
+        if wait > 0:
+            await asyncio.sleep(wait)
+        try:
+            return await fetch_page(url, transport)
+        finally:
+            _last_read[site] = time.monotonic()
+
+
 def memo(fetch: Fetch) -> Fetch:
     """`fetch` that reads each address once (one enrichment round reads the same pages for web facts and the profile)."""
     got: Dict[str, Optional[str]] = {}
@@ -130,12 +193,65 @@ def page_text(raw: str) -> str:
     return "\n".join(ln for ln in lines if ln)
 
 
-def relevant(text: str, name: str, limit: int = PAGE_CHARS) -> str:
-    """The lines that can hold a fact in KEYS (or name the project), in page order, up to `limit` characters."""
+SENTENCE_END = re.compile(r"(?<=[.!?])\s+(?=[A-Z0-9₹\"'(])")      # "Inc. of Taxes" is not a sentence's end
+CARD = re.compile(r"^(.{3,60}?),\s*pune\s*$", re.I)                 # "Godrej Elaris Mundhwa, Pune": a project card's heading
+PLACE_WORDS = {w for a in AREAS for x in (a.name.lower(), *a.aliases) for w in re.findall(r"[a-z]+", x)} | {
+    "road", "phase", "east", "west", "north", "south", "near", "new", "pune"}
+CARD_WORDS = 3                        # words a card heading keeps once place words are taken out
+
+
+def _has_digit(s: str) -> bool:
+    return re.search(r"\d", s) is not None
+
+
+def other_card(line: str, name: str) -> bool:
+    """The line heads another project's card: "<project> <place>, Pune", not naming this project, with CARD_WORDS or more words
+    besides the place ("Mundhwa, Pune" and "Upper Kharadi Road, Pune" are only places)."""
+    m = CARD.match(line.strip())
+    if not m or websearch.mentions(name, line):
+        return False
+    return len([w for w in re.findall(r"[a-z]+", m.group(1).lower()) if w not in PLACE_WORDS]) >= CARD_WORDS
+
+
+def fact_lines(text: str, name: str = "", regno: str = "") -> Iterator[str]:
+    """The page's lines as the readers take them, in page order. Checked on a marketer's page of Godrej Ivara (2026-11-05):
+    - a block over LONG_LINE is cut into its sentences, not dropped: a 3,005-character paragraph held "span 14 acres and rise in
+      11 towers";
+    - a short label is joined to the short value under it ("Land Area" then "14 Acres", the cells of a table row, the boxes of a
+      fact strip), so the model sees what the number is;
+    - another project's card is left out: after a line printing a MahaRERA number that is not `regno`, or a card heading
+      (`other_card`), lines are skipped until one names the project or prints its number. A comparison table and a carousel
+      ("Godrej Elaris Mundhwa, Pune ... 12 Acres Land Area, 1,030 Units") otherwise reached the model, and a misreading there
+      passes the quote checks.
+    Every line is the page's own words with only spaces between them, so a quote from it is still on the page (`on_page`)."""
+    parts: List[str] = []
+    for ln in (text or "").split("\n"):
+        parts += [x for x in SENTENCE_END.split(ln) if x] if len(ln) > LONG_LINE else [ln]
+    own = (regno or "").upper()
+    skipping, i = False, 0
+    while i < len(parts):
+        ln = parts[i]
+        nxt = parts[i + 1] if i + 1 < len(parts) else ""
+        if len(ln) <= LABEL_CHARS and not _has_digit(ln) and nxt and len(nxt) <= LABEL_CHARS and _has_digit(nxt):
+            ln, i = f"{ln} {nxt}", i + 1
+        i += 1
+        found = set(REGNO.findall(ln.upper())) if own else set()
+        ours = (own and own in found) or websearch.mentions(name, ln)
+        if (found and not ours) or other_card(ln, name):
+            skipping = True
+            continue
+        if skipping and not ours:
+            continue
+        skipping = False
+        yield ln
+
+
+def relevant(text: str, name: str, limit: int = PAGE_CHARS, regno: str = "") -> str:
+    """The lines that can hold a fact in KEYS (or name the project), in page order, up to `limit` characters (`fact_lines`)."""
     first = (name or "").split()[:1]
     out, size = [], 0
-    for ln in text.split("\n"):
-        if len(ln) < 8 or len(ln) > 600:
+    for ln in fact_lines(text, name, regno):
+        if len(ln) < 8 or len(ln) > LONG_LINE:
             continue
         if HINTS.search(ln) or (first and first[0].lower() in ln.lower() and re.search(r"\d", ln)):
             if size + len(ln) > limit:
@@ -302,7 +418,7 @@ async def read_source(llm, src: dict, name: str, fetch: Fetch, doc: Optional[dic
     ok, why = about_whole_project(doc, name, text, src) if doc else about_project({}, name, text, src)
     if not ok:
         return [], why
-    part = relevant(text, name)
+    part = relevant(text, name, regno=str((doc or {}).get("regno") or (doc or {}).get("_id") or ""))
     if not part:
         return [], "no lines with facts"
     try:
@@ -332,6 +448,24 @@ async def read_source(llm, src: dict, name: str, fetch: Fetch, doc: Optional[dic
     return readings, f"{len(readings)} facts" + (f", {refused} refused (not on the page)" if refused else "")
 
 
+def copied(one: str, other: str) -> bool:
+    """Two quotes are one source: one site's sentence is in the other's, COPY_CHARS or longer. Channel partners copy the builder's
+    brochure word for word, so two of them agreeing is one source counted twice. Short quotes ("Total Units 2792") prove nothing
+    either way and count apart."""
+    a, b = (re.sub(r"[^a-z0-9]+", " ", _norm(q)).strip() for q in (one, other))
+    short, long_ = sorted((a, b), key=len)
+    return len(short) >= COPY_CHARS and short in long_
+
+
+def sources_in(readings: List[dict]) -> int:
+    """How many sites stand behind these readings, a site whose quote copies one already counted not counting again."""
+    kept: List[dict] = []
+    for r in readings:
+        if all(r["site"] != k["site"] and not copied(r["quote"], k["quote"]) for k in kept):
+            kept.append(r)
+    return len(kept)
+
+
 def _same(kind: str, a: Any, b: Any) -> bool:
     if kind == "text":
         return _norm(str(a)) == _norm(str(b))
@@ -339,8 +473,8 @@ def _same(kind: str, a: Any, b: Any) -> bool:
 
 
 def agree(readings: List[dict]) -> tuple:
-    """(facts, disagree): a key is published from the builder's site, or when two different sites agree; sites that disagree
-    publish nothing for that key."""
+    """(facts, disagree): a key is published from the builder's site, or when two different sites agree in their own words
+    (`sources_in`); sites that disagree publish nothing for that key."""
     facts, disagree = [], []
     for key, (label, kind) in KEYS.items():
         rs = [r for r in readings if r["key"] == key]
@@ -361,9 +495,9 @@ def agree(readings: List[dict]) -> tuple:
         for r in rs:
             g = next((g for g in groups if _same(kind, g[0]["value"], r["value"])), None)
             g.append(r) if g is not None else groups.append([r])
-        sized = sorted(groups, key=lambda g: -len({x["site"] for x in g}))
+        sized = sorted(groups, key=lambda g: -sources_in(g))
         best = sized[0]
-        if len({x["site"] for x in best}) >= 2 and (len(sized) == 1 or len({x["site"] for x in sized[1]}) < len({x["site"] for x in best})):
+        if sources_in(best) >= 2 and (len(sized) == 1 or sources_in(sized[1]) < sources_in(best)):
             facts.append(_fact(key, label, kind, best[0]["value"], False, best))
         elif len(groups) > 1:
             disagree.append({"key": key, "readings": _brief(rs)})
@@ -507,7 +641,7 @@ async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[Fetch] = 
     for src in sources:
         if sum(1 for r in read if r["why"] != "page not read") >= MAX_SOURCES:
             break
-        got, why = await read_source(llm, src, name, fetch or fetch_page, doc)
+        got, why = await read_source(llm, src, name, fetch or read_page, doc)
         readings += got
         read.append({"site": src["site"], "url": src["url"], "official": src["official"], "ok": bool(got), "why": why})
     facts, disagree = agree(readings)

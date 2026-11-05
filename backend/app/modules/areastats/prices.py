@@ -312,7 +312,7 @@ async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[webfacts.
     sources = webfacts.sources_for(doc, results, name, limit=webfacts.MAX_TRIES)
     if not sources:
         return {"ok": False, "at": now, "checked": "no web results name the project"}, {}
-    fetch = fetch or webfacts.fetch_page
+    fetch = fetch or webfacts.read_page
     readings, read = [], []
     for src in sources:
         if sum(1 for r in read if r["why"] != "page not read") >= MAX_PAGES:

@@ -110,12 +110,13 @@ HINTS = re.compile(r"\b(bhk|sq\.?\s*ft|carpet|amenit\w*|club\s*house|clubhouse|p
                    r"play|deck|lounge|spa)\b", re.I)
 
 
-def relevant(text: str, name: str, limit: int = webfacts.PAGE_CHARS) -> str:
-    """The lines that can hold a highlight, in page order, up to `limit` characters."""
+def relevant(text: str, name: str, limit: int = webfacts.PAGE_CHARS, regno: str = "") -> str:
+    """The lines that can hold a highlight, in page order, up to `limit` characters (`webfacts.fact_lines`: long blocks cut into
+    sentences, labels joined to their values, other projects' cards left out)."""
     first = (name or "").split()[:1]
     out, size = [], 0
-    for ln in text.split("\n"):
-        if len(ln) < 8 or len(ln) > 600:
+    for ln in webfacts.fact_lines(text, name, regno):
+        if len(ln) < 8 or len(ln) > webfacts.LONG_LINE:
             continue
         if HINTS.search(ln) or (first and first[0].lower() in ln.lower()):
             if size + len(ln) > limit:
@@ -136,9 +137,9 @@ def bullet_ok(text: str, quote: str, page: str) -> bool:
     return all(n.replace(",", "") in have for n in NUM.findall(text))
 
 
-async def read_highlights(llm, src: dict, name: str, text: str) -> tuple:
+async def read_highlights(llm, src: dict, name: str, text: str, regno: str = "") -> tuple:
     """(readings, why): [{topic, text, quote, site, url, official}] that passed the checks."""
-    part = relevant(text, name)
+    part = relevant(text, name, regno=regno)
     if not part:
         return [], "no lines with highlights"
     try:
@@ -164,18 +165,18 @@ VAGUE = re.compile(r"not (?:specified|mentioned|available|disclosed|stated|known
 
 
 def agree(readings: List[dict]) -> List[dict]:
-    """One bullet per topic: the builder's site's, else one two sites both state (the first site's wording)."""
+    """One bullet per topic: the builder's site's, else one two sites both state (the first site's wording), the second in its own
+    words: a site copying the first's sentence is the same source (`webfacts.copied`)."""
     out = []
     readings = [r for r in readings if not VAGUE.search(r["text"])]
     for topic in TOPICS:
         rs = [r for r in readings if r["topic"] == topic]
         own = [r for r in rs if r["official"]]
-        sites = list(dict.fromkeys(r["site"] for r in rs))
+        second = next((r for r in rs[1:] if rs and r["site"] != rs[0]["site"] and not webfacts.copied(r["quote"], rs[0]["quote"])), None)
         if own:
             pick, backing = own[0], [own[0]]
-        elif len(sites) >= 2:
-            pick = rs[0]
-            backing = [pick] + [next(r for r in rs if r["site"] == s) for s in sites[1:2]]
+        elif second is not None:
+            pick, backing = rs[0], [rs[0], second]
         else:
             continue
         out.append({"topic": topic, "text": pick["text"], "official": bool(own),
@@ -568,7 +569,7 @@ async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[webfacts.
     readings, read, raw_of = [], [], {}
     photos, plans, why = [], [], "no web results name the project"
     if sources:
-        fetch = fetch or webfacts.fetch_page
+        fetch = fetch or webfacts.read_page
         for src in sources:
             if sum(1 for r in read if r["why"] != "page not read") >= MAX_PAGES:
                 break
@@ -585,7 +586,7 @@ async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[webfacts.
             if llm is None:
                 read.append({"site": src["site"], "url": src["url"], "official": src["official"], "ok": False, "why": "no model"})
                 continue
-            got, why_ = await read_highlights(llm, src, name, text)
+            got, why_ = await read_highlights(llm, src, name, text, str(regno))
             readings += got
             read.append({"site": src["site"], "url": src["url"], "official": src["official"], "ok": bool(got), "why": why_})
         try:

@@ -242,10 +242,13 @@ FACTS = {"facts": [{"key": "towers", "value": 5, "quote": TOWERS}]}
 
 
 def test_web_facts_are_read_from_pages_naming_the_whole_project(monkeypatch):
-    page = f"<html><body>Pristine O2 World in Wagholi, Pune. RERA registered.\n{TOWERS}</body></html>"
-    urls = {"https://a.example/p": page, "https://b.example/p": page}
+    # two sites, each in its own words: one site copying the other's sentence is one source (webfacts.sources_in)
+    other = "Five towers (5 in all) rise at Pristine O2 World in Wagholi."
+    page = "<html><body>Pristine O2 World in Wagholi, Pune. RERA registered.\n{}</body></html>"
+    urls = {"https://a.example/p": page.format(TOWERS), "https://b.example/p": page.format(other)}
     results = [_result("https://a.example/p", "Pristine O2 World, Wagholi"), _result("https://b.example/p", "Pristine O2 World Pune")]
-    st, fields = _web(monkeypatch, _project("Pristine O2 World Part 3"), urls, results, _Llm(FACTS))
+    llm = _Llm({"facts": FACTS["facts"] + [{"key": "towers", "value": 5, "quote": other}]})
+    st, fields = _web(monkeypatch, _project("Pristine O2 World Part 3"), urls, results, llm)
     assert st["ok"] and [f["key"] for f in fields["web_facts"]["facts"]] == ["towers"]
     assert fields["web_facts"]["name"] == "Pristine O2 World"
 
