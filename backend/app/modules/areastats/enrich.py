@@ -869,9 +869,9 @@ async def write_points(llm, doc: dict, sheet: List[dict], web: Optional[dict] = 
 READ_SIGNALS = ("read_pace", "read_moves", "area_booked", "builder_record")
 READ_KEYS = READ_SIGNALS + ("booked", "filed")
 READ_MIN_SIGNALS = 2                  # one signal is a fact the page already shows, not a reading of it
-MAX_READ = 380                        # characters
+MAX_READ = 480                        # characters
 READ_SYSTEM = ("You help home buyers in Pune. From the FACTS about one housing project, write 2 or 3 short plain sentences saying what "
-               "they mean taken together: is it selling well or slowly against similar projects, is the builder's date record good "
+               "they mean taken together, under 350 characters: is it selling well or slowly against similar projects, is the builder's date record good "
                "or poor, is anything worrying. Say it straight, as a friend who read the record would, and say the bad as plainly as "
                "the good. Use only these facts, each number exactly as given. Never say or suggest that anyone visited the site. "
                "Never predict: say what the record shows, not what will happen, and never that a date will be met. No praise words "
@@ -880,6 +880,11 @@ READ_SYSTEM = ("You help home buyers in Pune. From the FACTS about one housing p
                "furthermore, moreover, additionally, notably, overall, best, largest, tallest, average, ideal, convenient, or a dash "
                "in place of a comma. Keep each date with its label. "
                'Answer as JSON: {"read": "...", "facts": ["key"]}')
+
+
+def this_project(text: str) -> str:
+    """The sentences not about the builder's other projects: "8 of its 59 projects moved their dates" is no word on this one's."""
+    return " ".join(x for x in re.split(r"(?<=[.!?])\s+", text) if not re.search(r"\bprojects\b", x, re.I))
 
 
 def plain_middle(text: str) -> str:
@@ -922,7 +927,8 @@ async def buyer_read(store: Store, doc: dict, llm, now: datetime) -> Optional[di
     used = [k for k in (out or {}).get("facts") or [] if k in by_key] if isinstance((out or {}).get("facts"), list) else []
     known = _numbers(" ".join(by_key[k] for k in used) + " " + pages.names(doc)[0])
     bad = (not used or not 60 <= len(text) <= MAX_READ or _numbers(_without_names(doc, text)) - known or BANNED.search(text) or OVERCLAIM.search(text)
-           or AI_WORDS.search(text) or STOCK.search(text) or VISITED.search(text) or FORECAST.search(text) or pages.extension_months(doc) and pages.months_later(doc) == 0 and says_moved(text))
+           or AI_WORDS.search(text) or STOCK.search(text) or VISITED.search(text) or FORECAST.search(text)
+           or pages.extension_months(doc) and pages.months_later(doc) == 0 and says_moved(this_project(text)))
     if bad:
         log.info("enrich: read for %s refused", doc.get("_id"))
         if hasattr(llm, "forget"):

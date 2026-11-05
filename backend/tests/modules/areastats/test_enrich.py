@@ -1001,3 +1001,10 @@ async def test_a_read_that_predicts_is_not_kept():
     db, store = await ready(("P1", "Rose Court", "kharadi", {**FULL}))
     text = "Half the homes are gone and 40 more homes were booked lately, so the builder will likely meet its date this time."
     assert await enrich.buyer_read(store, {**READ_DOC, "_id": "P1"}, Reads(text), NOW) is None
+
+
+def test_the_builders_other_projects_are_no_word_on_this_ones_date():
+    text = "Half the homes are booked. Across Pune, 8 of its 59 projects moved their dates by 3 months."
+    assert enrich.this_project(text) == "Half the homes are booked."
+    assert not enrich.says_moved(enrich.this_project(text))
+    assert enrich.says_moved(enrich.this_project("The completion date was moved to 2031."))
