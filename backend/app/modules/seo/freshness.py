@@ -3,8 +3,9 @@
 We are cited because each page opens with a dated answer from its own record; when the register read or the enrichment stops
 answering, pages keep old text and old dates and nothing fails loudly. So once a day we count the live project pages in our
 areas (indexable, a group's primary, filed completion date still to come: finished projects are not re-read on purpose) whose
-`pages.page_updated` is within WINDOW. The details read comes back every 30 days (areastats.refresh DETAILS_MAX_AGE_DAYS), so
-a healthy page is never older than that; WINDOW leaves a few days for the queue. Kept on the `seo_freshness` mark: {at, pages,
+last look (`pages.last_checked`: a good read, facts changed or not; not the sitemap's `page_updated`) is within WINDOW. The
+details read comes back every 30 days (areastats.refresh DETAILS_MAX_AGE_DAYS), so a healthy page is never older than that;
+WINDOW leaves a few days for the queue. Kept on the `seo_freshness` mark: {at, pages,
 fresh, by_area: {area: {pages, fresh}}, oldest: [{slug, updated}]}; Admin → Health reads it (admin/health.freshness_row).
 Reads only.
 """
@@ -41,7 +42,7 @@ def share(docs: List[dict], now: datetime) -> dict:
     for d in docs:
         if not counted(d, now.date()):
             continue
-        updated = pages.page_updated(d)
+        updated = pages.last_checked(d)
         fresh = bool(updated) and datetime.fromisoformat(updated) >= since
         a = by_area.setdefault(d["locality"], {"pages": 0, "fresh": 0})
         a["pages"] += 1

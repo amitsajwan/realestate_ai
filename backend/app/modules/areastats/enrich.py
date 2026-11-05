@@ -1041,7 +1041,7 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime, reread: bool =
                 move = readings.date_move(doc, general, now)
                 if move:
                     await store.add_date_move(doc["_id"], move)
-                general = {**general, **readings.booked(doc, general, now)}
+                general = {**general, **readings.booked(doc, general, now), **readings.details_changed(doc, general, now)}
                 await store.set_project(doc["_id"], **general)
                 doc = {**doc, **general}
         if not urgent and buildings_fresh(doc, now):

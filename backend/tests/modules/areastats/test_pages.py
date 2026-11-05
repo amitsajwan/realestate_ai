@@ -220,6 +220,14 @@ def test_a_page_is_dated_by_its_last_change():
     assert pages.page_updated({}) is None
 
 
+def test_a_page_is_dated_by_when_its_facts_changed_not_by_every_read():
+    checked, changed = datetime(2026, 11, 5, tzinfo=timezone.utc), datetime(2026, 10, 3, tzinfo=timezone.utc)
+    doc = {"details_checked_at": checked, "details_changed_at": changed, "details_ok": True}
+    assert pages.page_updated(doc) == changed.isoformat()
+    assert pages.last_checked(doc) == checked.isoformat()
+    assert pages.page_updated({**doc, "details_ok": False}) == changed.isoformat()   # a failed read since keeps the date
+
+
 async def test_a_place_counts_its_current_projects_apart_from_every_registration():
     db, store = await seeded(("P1", "New One", "wagholi", {**FULL, "pune_place": "wagholi"}),
                              ("P2", "Old One", "wagholi", {**FULL, "pune_place": "wagholi", "completion_now": "2019-03-31"}))
