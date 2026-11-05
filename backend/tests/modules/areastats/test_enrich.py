@@ -1053,8 +1053,9 @@ def test_the_builders_site_alone_publishes_a_size():
     assert rows[0]["bhk"] == "2 BHK" and rows[0]["official"] and rows[0]["low"] == 725
 
 
-def test_two_sites_must_agree_and_one_alone_says_nothing():
-    assert enrich.home_sizes([("a.com", "2 BHK 725 sq ft")], WEB) == []
+def test_two_sites_must_agree_and_one_alone_is_said_to_be_one():
+    one = enrich.home_sizes([("a.com", "2 BHK 725 sq ft")], WEB)
+    assert one[0]["one_site"] and one[0]["low"] == 725
     assert [r["sites"] for r in enrich.home_sizes([("a.com", "2 BHK 725 sq ft"), ("b.com", "2 BHK 740 sq ft")], WEB)] == [["a.com", "b.com"]]
     assert enrich.home_sizes([("a.com", "2 BHK 725 sq ft"), ("b.com", "2 BHK 1100 sq ft")], WEB) == []
 
@@ -1088,3 +1089,10 @@ async def test_a_page_with_facts_keeps_a_text_when_every_draft_fails(gatherer):
     await enrich.enrich_one(store, await store.project("P1"), FakeLLM("A luxury project."), NOW)
     doc = await store.project("P1")
     assert doc["page_text"] and doc["page_text_version"] == enrich.TEXT_VERSION and len(doc["page_sections"]) >= 2
+
+
+def test_a_size_from_one_site_says_so_and_brings_no_page_into_search():
+    doc = {**ROSE, "home_sizes": [{"bhk": "2 BHK", "low": 725, "high": 725, "kind": "carpet area", "one_site": True, "sites": ["a.com"]}]}
+    assert not enrich.pages.own_facts(doc)
+    assert "on one property site" in next(f for f in enrich.fact_sheet(doc, None, None, None, False) if f["key"] == "size_2BHK")["text"]
+    assert enrich.pages.own_facts({**doc, "home_sizes": [{**doc["home_sizes"][0], "one_site": False}]})

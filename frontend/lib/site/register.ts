@@ -80,7 +80,7 @@ export interface RegisterProject {
   /** what stands out, the model's points from the stored fact sheet (backend areastats/enrich.py write_points) */
   points?: { label: string; text: string }[]
   /** each kind of home's size, as sites state it, with its kind of area (backend areastats/enrich.py home_sizes) */
-  home_sizes?: { bhk: string; low: number; high: number; kind: string; official?: boolean; sites?: string[] }[]
+  home_sizes?: { bhk: string; low: number; high: number; kind: string; official?: boolean; one_site?: boolean; sites?: string[] }[]
   /** every MahaRERA registration of the project (towers, phases) when this page stands for several (R0) */
   towers?: RegisterTower[]
   /** the nearest neighbourhood guide (R5) */

@@ -907,9 +907,9 @@ def size_kind(quote: str) -> str:
 
 
 def home_sizes(outside: List[Tuple[str, str]], web: Optional[dict]) -> List[dict]:
-    """Each kind of home's size from the pages read for this project: [{bhk, low, high, kind, official, sites, url, quote}]. Published
-    as a price is: the builder's site, or two sites within webfacts.TOLERANCE of each other. Only pages the reading took as about
-    this project count."""
+    """Each kind of home's size from the pages read for this project: [{bhk, low, high, kind, official, one_site, sites, url, quote}].
+    The builder's site or two sites within webfacts.TOLERANCE of each other; else one site, said to be one (owner 2026-11-05), which
+    two sites disagreeing never is. Only pages the reading took as about this project count."""
     read = {r.get("site"): r for r in (web or {}).get("read") or [] if r.get("official") or re.match(r"\d+ facts", str(r.get("why") or ""))}
     by_kind: Dict[str, List[dict]] = {}
     for site, text in outside:
@@ -920,10 +920,11 @@ def home_sizes(outside: List[Tuple[str, str]], web: Optional[dict]) -> List[dict
     for bhk, seen in sorted(by_kind.items()):
         mine = [s for s in seen if s["official"]]
         agreed = [s for s in seen if any(o is not s and abs(o["low"] - s["low"]) <= webfacts.TOLERANCE * s["low"] for o in seen)]
-        use = mine or agreed
+        use = mine or agreed or (seen if len(seen) == 1 else [])
         if use:
             s = use[0]
             out.append({"bhk": bhk, "low": s["low"], "high": s["high"], "kind": s["kind"], "official": bool(mine),
+                        "one_site": not mine and not agreed,
                         "sites": [x["site"] for x in use], "url": s["url"], "quote": s["quote"]})
     return out
 
@@ -994,7 +995,8 @@ def fact_sheet(doc: dict, gathered: Optional[dict], web: Optional[dict], prof: O
     sized = {x["bhk"] for x in doc.get("home_sizes") or []}
     for x in doc.get("home_sizes") or []:
         span = f"{x['low']} to {x['high']} sq ft" if x["high"] != x["low"] else f"{x['low']} sq ft"
-        add(f"size_{x['bhk'].replace(' ', '')}", f"{x['bhk']} size: {span}, {x['kind']}", ", ".join(x["sites"]), x.get("url"), x.get("quote"))
+        add(f"size_{x['bhk'].replace(' ', '')}", f"{x['bhk']} size: {span}, {x['kind']}" + (", on one property site" if x.get("one_site") else ""),
+            ", ".join(x["sites"]), x.get("url"), x.get("quote"))
     for r in (doc.get("prices") or {}).get("rows") or []:
         if isinstance(r, dict) and isinstance(r.get("from_inr"), int) and r.get("bhk"):
             src = (r.get("sources") or [{}])[0]

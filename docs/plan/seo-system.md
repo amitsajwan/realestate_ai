@@ -500,6 +500,8 @@ measure (Search Console, Serper, URL Inspection) → choose (near page one, Magi
 | 2026-11-05 | this | Owner: "did we get at least what was available online". No: in 40 sampled projects sizes were on the fact sheet for 5 and on pages already read for 32, since only price lines were looked at. `prices.sizes_on` reads size tables by code; `enrich.home_sizes` publishes as prices do, the builder's site or two sites within 5%, and only from pages taken as about the project; a size counts as a fact of the project's own and has its own section. Lodha Camelot and other agent-listed pages (`ProjectDetails`) now open with the register's points. New projects reach the register the day MahaRERA lists them (checked 2026-11-05: registered 11-04, first seen 11-04) |
 | 2026-11-05 | this | 10 of the 14 pages were refused again on rerun: `OVERCLAIM` caught "highest building" and "on average". Narrowed. `enrich.code_points` writes plain points from the fact sheet when no model answer passes and the page has no text, so a page with facts never leaves search over a failed draft (CLAUDE.md rule 7: a deterministic fallback) |
 
+| 2026-11-05 | this | Owner: show a size only one site gives, labelled. `enrich.home_sizes` keeps it with `one_site`, the page says "(one property site)", and it does not count as a fact of the project's own, so it brings no page into search. Two sites that disagree still give nothing |
+
 ## 12. Detail and history
 
 Design and reasoning behind the pieces above (read for the why; this page holds the current state):

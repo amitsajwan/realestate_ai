@@ -29,11 +29,11 @@ export function HomeSizes({ sizes, name }: { sizes?: RegisterProject['home_sizes
       <ul className="mt-3 list-none space-y-1 p-0">
         {sizes.map((x) => (
           <li key={x.bhk} className="text-slate-800">
-            <strong className="font-semibold">{x.bhk}:</strong> {x.low === x.high ? `${x.low.toLocaleString('en-IN')} sq ft` : `${x.low.toLocaleString('en-IN')} to ${x.high.toLocaleString('en-IN')} sq ft`}, {x.kind}
+            <strong className="font-semibold">{x.bhk}:</strong> {x.low === x.high ? `${x.low.toLocaleString('en-IN')} sq ft` : `${x.low.toLocaleString('en-IN')} to ${x.high.toLocaleString('en-IN')} sq ft`}, {x.kind}{x.one_site && <span className="text-xs text-slate-500"> (one property site)</span>}
           </li>
         ))}
       </ul>
-      <p className="mt-2 text-xs text-slate-600">As stated on the builder&apos;s site or by two property sites. Confirm the carpet area with the builder before you book.</p>
+      <p className="mt-2 text-xs text-slate-600">From the builder&apos;s site and property sites. Confirm the carpet area with the builder before you book.</p>
     </section>
   )
 }

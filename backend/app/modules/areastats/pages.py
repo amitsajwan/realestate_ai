@@ -187,7 +187,7 @@ def own_facts(doc: dict) -> bool:
     profile = doc.get("profile") or {}
     pictures = shown_pictures(profile.get("photos"), drawn=False) or shown_pictures(profile.get("plans"))
     return bool((doc.get("prices") or {}).get("rows") or (doc.get("web_facts") or {}).get("facts")
-                or profile.get("highlights") or pictures or doc.get("home_sizes"))
+                or profile.get("highlights") or pictures or any(not x.get("one_site") for x in doc.get("home_sizes") or []))
 
 
 def has_own_content(doc: dict) -> bool:
@@ -683,7 +683,7 @@ def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None) ->
         # the writer's sections under the paragraph: {heading, text}, checked with it (enrich.SECTIONS)
         "sections": (doc.get("page_sections") or []) if doc.get("page_text") and int(doc.get("page_text_version") or 1) < 6 else [],
         # each kind of home's size, as sites state it, with its kind of area (enrich.home_sizes)
-        "home_sizes": [{k: x.get(k) for k in ("bhk", "low", "high", "kind", "official", "sites")} for x in doc.get("home_sizes") or []],
+        "home_sizes": [{k: x.get(k) for k in ("bhk", "low", "high", "kind", "official", "one_site", "sites")} for x in doc.get("home_sizes") or []],
         # the points at the top of the page from the writer's version 6 on (enrich.write_points): {heading, text, facts}
         "points": [{"label": x.get("heading"), "text": x.get("text")} for x in doc.get("page_sections") or []]
                   if doc.get("page_text") and int(doc.get("page_text_version") or 1) >= 6 else [],
