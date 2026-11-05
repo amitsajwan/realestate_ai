@@ -1061,7 +1061,7 @@ def test_two_sites_must_agree_and_one_alone_is_said_to_be_one():
 
 
 def test_a_page_not_about_the_project_counts_for_nothing():
-    assert enrich.home_sizes([("a.com", "2 BHK 725 sq ft"), ("x.com", "2 BHK 725 sq ft")], WEB) == []
+    assert [r["sites"] for r in enrich.home_sizes([("a.com", "2 BHK 725 sq ft"), ("x.com", "2 BHK 725 sq ft")], WEB)] == [["a.com"]]
 
 
 def test_a_size_goes_on_the_fact_sheet_with_its_kind():
