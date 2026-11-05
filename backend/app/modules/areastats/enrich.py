@@ -114,7 +114,8 @@ MIN_POINTS = 2                        # fewer say nothing a buyer cannot see at 
 MAX_POINTS = 5
 MAX_POINT = 240                       # characters
 LABEL_REPEATS = 2                     # a point's label on this many other pages of the area is a template, not a finding
-OVERCLAIM = re.compile(r"\b(?:largest|biggest|tallest|highest|smallest|lowest|strongest|best|reliable|trusted)\b|\baverage\b(?! of about| about)|middle (?:figure|booking|rate)|the middle of", re.I)
+OVERCLAIM = re.compile(r"\b(?:the\s+)?(?:largest|biggest|tallest|smallest|strongest|best|reliable|trusted)\b|\bthe (?:highest|lowest)\b(?! building| floor)|"
+                       r"\b(?:the|an?) average\b|\d+% average|middle (?:figure|booking|rate)|the middle of", re.I)
 PART_OF_PROJECT = re.compile(r"\b(?:phase|part|tower|wing|building|bldg|block)\b", re.I)
 # Each reading step has a version (owner 2026-10-20: "enrichment can happen again: we improve it, get more info, a better model").
 # Raise a step's number when the step gets better (a new rule, a new source, a better model): every project that step read with
@@ -1034,6 +1035,32 @@ POINTS_SYSTEM = ("You help home buyers in Pune. From the FACTS about one housing
                  'Answer as JSON: {"points": [{"label": "...", "text": "...", "facts": ["key"]}], "search_summary": "..."}')
 
 
+def code_points(doc: dict, sheet: List[dict]) -> Optional[dict]:
+    """Points written by code from the sheet, for a page with facts whose model answer did not pass and which has no text: a page
+    must not leave search because a draft failed (2026-11-05: 14 pages did). Plain, and a newer round replaces them."""
+    by_key = {f["key"]: f["text"] for f in sheet}
+    points: List[dict] = []
+
+    def point(label: str, text: str, key: str) -> None:
+        points.append({"heading": label, "text": text + ".", "facts": [key]})
+
+    m = re.match(r"Homes booked: (\d+) of (\d+) \((\d+)%\)", by_key.get("booked", ""))
+    if m:
+        point(f"{m.group(3)}% of homes booked", f"MahaRERA shows {m.group(1)} of {m.group(2)} homes booked", "booked")
+    if "buildings" in by_key:
+        point(by_key["buildings"].split(":", 1)[1].strip().capitalize() + " floors" if "floors" not in by_key["buildings"] else by_key["buildings"].split(":", 1)[1].strip().capitalize(), by_key["buildings"], "buildings")
+    for key in by_key:
+        if len(points) < MAX_POINTS - 1 and key.startswith(("price_", "size_", "web_", "highlight", "area")):
+            line = by_key[key].split(" (from ")[0]
+            point(line.split(":")[0][:60], line, key)
+    if "filed" in by_key:
+        point(by_key["filed"].split(": ", 1)[1] + " filed completion", by_key["filed"], "filed")
+    if len(points) < MIN_POINTS:
+        return None
+    points = points[:MAX_POINTS]
+    return {"text": "\n\n".join(f"{x['heading']}: {x['text']}" for x in points), "sections": points, "summary": None}
+
+
 def points_of(out: Any, sheet: List[dict], doc: dict, web: Optional[dict], outside: Optional[List[Tuple[str, str]]] = None) -> Tuple[List[dict], List[str]]:
     """(points kept as {heading, text, facts}, why the others went). A point goes when it names no fact we hold, says a number its
     facts do not, or carries stock words, a question its facts do not raise or another site's words. The sheet's lines are ours
@@ -1390,6 +1417,8 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime, reread: bool =
             put_off.append("text")
             steps["text"] = kept_steps.get("text") or {}
         else:
+            if draft is None and not latest.get("page_text"):
+                draft = code_points(latest, sheet)
             text = (draft or {}).get("text")
             steps["text"] = _step(bool(text), now, refused_reasons=refused)
             ran.add("text")

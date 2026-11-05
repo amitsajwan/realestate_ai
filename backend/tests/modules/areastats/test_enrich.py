@@ -157,7 +157,7 @@ async def test_a_refused_draft_keeps_the_code_paragraph_and_the_page_shows_accep
     await enrich.step(store, FakeLLM("A luxury project with the best views in Pune, homes from Rs 55 lakh, book now."), NOW, None,
                       timedelta(minutes=30))
     doc = await store.project("P1")
-    assert "page_text" not in doc and doc["enriched_at"] == NOW and "kept the code-written paragraph" in doc["enrich_notes"]
+    assert "luxury" not in doc["page_text"] and doc["enriched_at"] == NOW
     page = await pages.project_page(db, doc["page_slug"])
     assert page["paragraph"].startswith("Rohan Abhilasha 4 is a project by Rohan Builders")
 
@@ -1067,3 +1067,24 @@ def test_a_size_goes_on_the_fact_sheet_with_its_kind():
     doc = {**ROSE, "home_sizes": [{"bhk": "2 BHK", "low": 725, "high": 780, "kind": "carpet area", "sites": ["builder.com"], "url": "u", "quote": "q"}]}
     sheet = {f["key"]: f for f in enrich.fact_sheet(doc, None, None, None, False)}
     assert sheet["size_2BHK"]["text"] == "2 BHK size: 725 to 780 sq ft, carpet area"
+
+
+def test_a_building_word_is_not_an_overclaim():
+    kept, _ = enrich.points_of({"points": [_point("One tall block", "Its highest building has 4 floors, on average about 1 home.", "buildings", "booked")]}, SHEET, ROSE, None)
+    assert [x["heading"] for x in kept] == ["One tall block"]
+
+
+def test_code_writes_points_when_a_page_with_facts_has_no_text():
+    out = enrich.code_points(ROSE, SHEET + [{"key": "filed", "text": "Completion date filed with MahaRERA: 30 Apr 2030"}])
+    assert [x["heading"] for x in out["sections"]][0] == "4% of homes booked" and "1 of 24" in out["text"] and "30 Apr 2030" in out["text"]
+
+
+def test_code_writes_nothing_from_too_little():
+    assert enrich.code_points(ROSE, [{"key": "homes", "text": "Homes in this registration: 9"}]) is None
+
+
+async def test_a_page_with_facts_keeps_a_text_when_every_draft_fails(gatherer):
+    db, store = await ready(("P1", "Rohan Abhilasha 4", "wagholi", {**FULL, "promoter": "Rohan Builders", "building_totals": {"towers": 2, "max_floors": 9}}))
+    await enrich.enrich_one(store, await store.project("P1"), FakeLLM("A luxury project."), NOW)
+    doc = await store.project("P1")
+    assert doc["page_text"] and doc["page_text_version"] == enrich.TEXT_VERSION and len(doc["page_sections"]) >= 2
