@@ -67,7 +67,8 @@ Pick 30 to 50 projects in Kharadi, Upper Kharadi and Wagholi: the Top lists' lea
 Each one gets:
 - our own photos from a site visit, dated, which no other site has;
 - prices from a call to the sales office, with the date and the size they are for;
-- what is good and what is worth worrying about, said plainly by a named person who checked it;
+- what is good and what is worth worrying about, said plainly and signed "Avasetu team" (owner, 2026-11-06: no personal name), with
+  the date and what was checked, so a review never reads as a visit or a call that did not happen;
 - the MahaRERA history below (R3).
 
 Every other project page stays out of search (noindex, out of the sitemap) until it reaches that level. The area lists keep
@@ -85,7 +86,8 @@ showing every project as they do today. Fifty strong pages that hold still lift 
 ### R4. Trust from outside the site (owner; not code)
 
 - Google Business Profile for Avasetu.
-- The About page names the people behind the site (deferred on 2026-11-04: "no names yet").
+- The About page says who stands behind the site as the Avasetu team (owner, 2026-11-06: no personal names, on the About page or on
+  reviews).
 - Monthly data stories pitched to Pune press and blogs ("Kharadi bookings, November 2026", from the MahaRERA tracker), each
   linking to its area's page.
 - Links from House Deal and partner agents' sites to the projects they sell.
