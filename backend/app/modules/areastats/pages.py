@@ -737,6 +737,8 @@ def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None) ->
         "sections": (doc.get("page_sections") or []) if doc.get("page_text") and int(doc.get("page_text_version") or 1) < 6 else [],
         # each kind of home's size, as sites state it, with its kind of area (enrich.home_sizes)
         "home_sizes": [{k: x.get(k) for k in ("bhk", "low", "high", "kind", "official", "one_site", "sites")} for x in doc.get("home_sizes") or []],
+        # the facts taken together (enrich.buyer_read): shown with its date and that it comes from MahaRERA's data
+        "read": {k: (doc.get("page_read") or {}).get(k) for k in ("text", "on")} if (doc.get("page_read") or {}).get("text") else None,
         # the points at the top of the page from the writer's version 6 on (enrich.write_points): {heading, text, facts}
         "points": [{"label": x.get("heading"), "text": x.get("text")} for x in doc.get("page_sections") or []]
                   if doc.get("page_text") and int(doc.get("page_text_version") or 1) >= 6 else [],

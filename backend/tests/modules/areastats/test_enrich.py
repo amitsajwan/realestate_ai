@@ -953,3 +953,41 @@ def test_a_record_with_no_pincode_is_measured_from_its_areas():
     assert enrich.area_pincode({"locality": "lohegaon"}) == "411047"
     assert enrich.area_pincode({"locality": "hinjawadi"}) == "411057"
     assert enrich.area_pincode({"pune_place": "moshi"}) is None
+
+
+READ_DOC = {**ROSE, "booked_history": [{"at": datetime(2026, 8, 1, tzinfo=timezone.utc), "booked": 10}, {"at": datetime(2026, 11, 1, tzinfo=timezone.utc), "booked": 50}],
+            "fact_sheet": {"facts": [{"key": "booked", "text": "Homes booked: 50 of 100 (50%)"},
+                                     {"key": "area_booked", "text": "50% booked here; the middle of 20 Kharadi projects is 30%"}]}}
+
+
+class Reads:
+    def __init__(self, text, facts=("read_pace", "booked")):
+        self.text, self.facts, self.calls = text, list(facts), 0
+
+    async def json(self, system, user):
+        self.calls += 1
+        assert "[read_pace] 40 more homes booked" in user
+        return {"read": self.text, "facts": self.facts}
+
+
+async def test_the_read_is_kept_from_the_facts_and_written_once():
+    db, store = await ready(("P1", "Rose Court", "kharadi", {**FULL}))
+    llm = Reads("Half the homes are gone, and 40 more homes were booked in about three months, which is quick for this project.")
+    assert (await enrich.buyer_read(store, {**READ_DOC, "_id": "P1"}, llm, NOW))["facts"] == ["read_pace", "booked"]
+    doc = await store.project("P1")
+    assert doc["page_read"]["text"].startswith("Half the homes")
+    assert await enrich.buyer_read(store, {**READ_DOC, "_id": "P1", "page_read": doc["page_read"]}, llm, NOW) is None and llm.calls == 1
+
+
+async def test_too_little_to_read_asks_no_model():
+    db, store = await ready(("P1", "Rose Court", "kharadi", {**FULL}))
+    llm = Reads("x")
+    assert await enrich.buyer_read(store, {**ROSE, "_id": "P1", "fact_sheet": {"facts": READ_DOC["fact_sheet"]["facts"][:1]}}, llm, NOW) is None and llm.calls == 0
+
+
+async def test_a_read_suggesting_a_visit_or_a_number_not_in_its_facts_is_not_kept():
+    db, store = await ready(("P1", "Rose Court", "kharadi", {**FULL}))
+    for text in ("Our team visited the site and 40 more homes were booked, which looks quick for this project overall.",
+                 "About 77 more homes were booked in those months, which is quick for a project of this kind here."):
+        assert await enrich.buyer_read(store, {**READ_DOC, "_id": "P1"}, Reads(text), NOW) is None
+    assert "page_read" not in await store.project("P1")

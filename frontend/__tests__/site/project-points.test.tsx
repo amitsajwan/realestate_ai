@@ -19,3 +19,11 @@ describe('the points and the sizes', () => {
     expect(screen.getByText(/1,050 sq ft, area kind not stated/)).toBeTruthy()
   })
 })
+
+describe("Avasetu's read", () => {
+  it('says it comes from MahaRERA data and when', () => {
+    render(<ProjectPoints p={{ regno: 'P1', details_read_at: null, read: { text: 'Half the homes are gone.', on: '2026-11-03' }, points: [{ label: 'One', text: 'Two.' }] }} />)
+    expect(screen.getByTestId('avasetu-read').textContent).toContain('from MahaRERA data, 3 Nov 2026')
+    expect(screen.getByText('Half the homes are gone.')).toBeTruthy()
+  })
+})

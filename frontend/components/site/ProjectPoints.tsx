@@ -2,11 +2,17 @@ import { longDay } from '@/lib/site/register'
 import type { RegisterProject } from '@/lib/site/register'
 
 /** What stands out, the points picked from the stored fact sheet, under one dated line. Both kinds of project page open with it. */
-export default function ProjectPoints({ p, updated }: { p: Pick<RegisterProject, 'points' | 'regno' | 'details_read_at'>; updated?: string | null }) {
+export default function ProjectPoints({ p, updated }: { p: Pick<RegisterProject, 'points' | 'regno' | 'details_read_at' | 'read'>; updated?: string | null }) {
   const points = (p.points ?? []).filter((x) => x.label && x.text)
   if (!points.length) return null
   return (
     <section className="max-w-4xl" aria-labelledby="points-title" data-testid="project-points">
+      {p.read?.text && (
+        <div className="mb-4 rounded-2xl bg-slate-50 p-4" data-testid="avasetu-read">
+          <p className="text-sm font-semibold text-slate-900">Avasetu&apos;s read <span className="font-normal text-slate-600">(from MahaRERA data{p.read.on ? `, ${longDay(p.read.on)}` : ''})</span></p>
+          <p className="mt-1 text-lg leading-relaxed text-slate-900">{p.read.text}</p>
+        </div>
+      )}
       <h2 id="points-title" className="text-sm font-medium text-slate-600">
         {p.details_read_at ? `As of ${longDay(p.details_read_at)}, from MahaRERA ${p.regno} and the sources on this page` : `From MahaRERA ${p.regno} and the sources on this page`}
       </h2>

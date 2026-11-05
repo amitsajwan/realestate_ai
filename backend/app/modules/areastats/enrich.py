@@ -73,7 +73,7 @@ from app.modules.newsroom.policy import AREA_PINCODES, SHARED_PINCODES, UPPER_KH
 from app.modules.newsroom.store import Store
 from app.platform import trace
 
-from . import brands, budget, hot, pages, prices, pricing, profile, readings, searchconsole, webfacts
+from . import brands, budget, hot, pagefacts, pages, prices, pricing, profile, readings, searchconsole, webfacts
 from .websearch import mentions as websearch_mentions
 from .service import _day
 
@@ -296,6 +296,7 @@ async def count_rewrite(store: Store, now: datetime) -> None:
 
 # fact-sheet lines about the project's surroundings, not the project: they move whenever another project of the area does
 AROUND_KEYS = ("area", "ask", "builder_record")
+VISITED = re.compile(r"\b(?:visited|site visit|we saw|on the ground|in person|our team)\b", re.I)   # no one went: never say or suggest it
 
 
 def own_facts_key(sheet: List[dict]) -> str:
@@ -862,6 +863,67 @@ async def write_points(llm, doc: dict, sheet: List[dict], web: Optional[dict] = 
     return None, problems
 
 
+# ---- Avasetu's read: the facts taken together (owner 2026-11-05: a line that reads as someone looked, with no site visits) ---------
+
+READ_SIGNALS = ("read_pace", "read_moves", "area_booked", "builder_record")
+READ_KEYS = READ_SIGNALS + ("booked", "filed")
+READ_MIN_SIGNALS = 2                  # one signal is a fact the page already shows, not a reading of it
+MAX_READ = 380                        # characters
+READ_SYSTEM = ("You help home buyers in Pune. From the FACTS about one housing project, write 2 or 3 short plain sentences saying what "
+               "they mean taken together: is it selling well or slowly against similar projects, is the builder's date record good "
+               "or poor, is anything worrying. Say it straight, as a friend who read the record would, and say the bad as plainly as "
+               "the good. Use only these facts, each number exactly as given. Never say or suggest that anyone visited the site, "
+               "and no advice to buy or not to buy; you may say what to ask the builder when a fact is worrying. Never use: "
+               "furthermore, moreover, additionally, notably, overall, best, largest, tallest, average, ideal, convenient, or a dash "
+               "in place of a comma. Keep each date with its label. "
+               'Answer as JSON: {"read": "...", "facts": ["key"]}')
+
+
+def read_lines(doc: dict, sheet: List[dict]) -> List[dict]:
+    """The facts Avasetu's read may use: the sheet's own on bookings, dates and the builder, and what only our dated readings show,
+    which is how fast homes are going and how often the date moved. MahaRERA shows neither."""
+    lines = [f for f in sheet if f.get("key") in READ_KEYS]
+    seen = pagefacts.booked_readings(doc)
+    if len(seen) >= 2 and seen[-1]["booked"] >= seen[0]["booked"]:
+        gained = seen[-1]["booked"] - seen[0]["booked"]
+        lines.append({"key": "read_pace", "text": f"{gained} more homes booked between {pages._long(seen[0]['on'])} and {pages._long(seen[-1]['on'])}"})
+    moved = [m for m in pages.completion_moves(doc) if not m.get("blanket")]
+    if moved:
+        lines.append({"key": "read_moves", "text": f"The builder has moved the filed completion date {len(moved)} time{'s' if len(moved) > 1 else ''} since we began reading it"})
+    return lines
+
+
+async def buyer_read(store: Store, doc: dict, llm, now: datetime) -> Optional[dict]:
+    """Writes `page_read` {text, facts, on, key} from the stored sheet when there is enough to read and it has changed; None when not.
+    No fallback: with no good answer the page shows no read. Its own text, so the page's points and date stay as they are."""
+    lines = read_lines(doc, (doc.get("fact_sheet") or {}).get("facts") or [])
+    if llm is None or sum(1 for f in lines if f["key"] in READ_SIGNALS) < READ_MIN_SIGNALS:
+        return None
+    key = own_facts_key(lines)
+    if (doc.get("page_read") or {}).get("key") == key:
+        return None
+    user = "FACTS:\n" + "\n".join(f"[{f['key']}] {f['text']}" for f in lines)
+    try:
+        out = await llm.json(READ_SYSTEM, user)
+    except Exception:
+        log.exception("enrich: read failed for %s", doc.get("_id"))
+        return None
+    text = " ".join(str((out or {}).get("read") or "").split())
+    by_key = {f["key"]: f["text"] for f in lines}
+    used = [k for k in (out or {}).get("facts") or [] if k in by_key] if isinstance((out or {}).get("facts"), list) else []
+    known = _numbers(" ".join(by_key[k] for k in used) + " " + pages.names(doc)[0])
+    bad = (not used or not 60 <= len(text) <= MAX_READ or _numbers(_without_names(doc, text)) - known or BANNED.search(text) or OVERCLAIM.search(text)
+           or AI_WORDS.search(text) or STOCK.search(text) or VISITED.search(text) or pages.extension_months(doc) and pages.months_later(doc) == 0 and says_moved(text))
+    if bad:
+        log.info("enrich: read for %s refused", doc.get("_id"))
+        if hasattr(llm, "forget"):
+            await llm.forget(READ_SYSTEM, user)
+        return None
+    read = {"text": text, "facts": used, "on": _day(doc.get("details_checked_at")) or now.date().isoformat(), "key": key}
+    await store.set_project(doc["_id"], page_read=read)
+    return read
+
+
 def sheet_value(sheet: Optional[dict], key: str) -> Any:
     """A usable fact's value from a kept property-facts document (facts are stored as a list of {key, value, usable})."""
     for f in (sheet or {}).get("facts") or []:
@@ -1211,6 +1273,8 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime, reread: bool =
         await store.set_project(doc["_id"], search_state=state)
     if rewrite and text:
         await count_rewrite(store, now)
+    if reading and spends and not put_off and after:
+        await buyer_read(store, after, _ask(llm, tier, "text"), now)
     if facts:
         await store.db.get_collection(REQUESTS).delete_one({"_id": regno})
     return {"regno": regno, "text": bool(text), "gathered": bool(gathered), "notes": notes, "score": enrichment["score"],

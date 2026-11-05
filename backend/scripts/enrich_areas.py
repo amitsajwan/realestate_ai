@@ -23,6 +23,28 @@ def worth_a_buyer(d: dict, now: datetime) -> float:
             + (50 if brands.of(d) else 0) + min(int(d.get("units_total") or 0) / 10, 40))
 
 
+async def reads_only(parallel: int, limit: int) -> None:
+    """Avasetu's read for pages in search that have none; pages with too little to read are passed over."""
+    from app.core.database import get_database, init_database
+    from app.modules.areastats import budget, enrich, pages
+    from app.modules.newsroom.store import Store
+    from app.wiring import wire
+    await init_database()
+    wire()
+    store, gate, done = Store(get_database()), asyncio.Semaphore(parallel), {"written": 0, "none": 0}
+    docs = [d for d in await store.all_projects() if pages.searchable(d) and enrich.worth_model(d) and not d.get("page_read")][:limit]
+    print(f"{len(docs)} projects to do", flush=True)
+
+    async def one(doc: dict) -> None:
+        async with gate:
+            now = datetime.now(timezone.utc)
+            llm = await budget.reader(store.db, now)
+            read = await enrich.buyer_read(store, doc, enrich._ask(llm, enrich.tier_of(doc), "text"), now)
+            done["written" if read else "none"] += 1
+    await asyncio.gather(*(one(d) for d in docs))
+    print("finished", done, flush=True)
+
+
 async def facts_only(limit: int) -> None:
     """The code's steps for pages in search that a batch took past them: `main` leaves MahaRERA to the loop, and the loop never
     reaches a place outside our areas, so 336 pages had no place check and no nearby places (2026-11-05). One at a time, because
@@ -102,6 +124,7 @@ if __name__ == "__main__":
     parser.add_argument("--areas", nargs="*", default=[])
     parser.add_argument("--places", nargs="*", default=[], help="pune_place keys, for places outside our areas")
     parser.add_argument("--parallel", type=int, default=8)
+    parser.add_argument("--read", action="store_true", help="Avasetu's read for pages in search that have none")
     parser.add_argument("--facts", action="store_true", help="only the code's steps, one at a time, for pages in search that lack them")
     parser.add_argument("--pune", action="store_true", help="all of Pune, what buyers look for first (worth_a_buyer)")
     parser.add_argument("--possession-from", default="", help="filed completion date from this day, 2028-01-01")
@@ -109,7 +132,9 @@ if __name__ == "__main__":
     parser.add_argument("--again", action="store_true", help="every page that has points, for a new step that needs no site read again: sizes")
     parser.add_argument("--limit", type=int, default=1000)
     args = parser.parse_args()
-    if args.facts:
+    if args.read:
+        asyncio.run(reads_only(args.parallel, args.limit))
+    elif args.facts:
         asyncio.run(facts_only(args.limit))
     else:
         asyncio.run(main(set(args.areas), set(args.places), args.parallel, args.limit, args.again, args.pune, args.possession_from, args.preview))
