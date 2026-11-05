@@ -32,8 +32,7 @@ class FakeLLM:
             keys = re.findall(r"^\[(.+?)\]", user, re.M)
             said = POINTS if self.text == GOOD else re.split(r"(?<=[.])\s+", self.text.replace("\n\n", " "))
             return {"points": [{"label": LABELS[i], "text": t, "facts": keys} for i, t in enumerate(said)], "search_summary": summary}
-        return {"sections": [{"heading": h, "text": t} for h, t in zip(enrich.SECTIONS, self.text.split("\n\n"))],
-                "search_summary": summary}
+        return {"points": [], "search_summary": summary}
 
 
 # what the page does not already show: no dates, no bookings, no prices (TEXT_VERSION 4); stored as page_text, joined
@@ -130,13 +129,6 @@ async def test_among_pages_google_shows_those_just_off_page_one_go_first():
     assert order == ["B", "A", "C"]   # C is near page one but seen too rarely to count
 
 
-def test_the_checker_refuses_invented_numbers_sales_words_and_links():
-    facts = enrich.facts_text({**FULL, "_id": "P1", "name": "Rohan Abhilasha 4", "locality": "wagholi", "regno": "P1"}, GATHERED)
-    assert enrich.check_text(GOOD, facts) == []
-    assert any("numbers not in the facts" in p for p in enrich.check_text(GOOD + " Prices start at 55 lakh.", facts))
-    assert "sales words" in enrich.check_text(GOOD.replace("housing project", "luxury project"), facts)
-    assert "links or phone numbers" in enrich.check_text(GOOD + " Call 9876543210.", facts)
-    assert "too short" in enrich.check_text("Nice.", facts)
 
 
 async def test_one_project_per_interval_and_urgent_ones_at_once(gatherer):
@@ -190,12 +182,6 @@ def test_off_unless_switched_on(monkeypatch):
     assert enrich.load().enabled and enrich.load().every == timedelta(minutes=30)
 
 
-def test_facts_label_both_dates_and_leave_distances_to_the_page():
-    doc = {**FULL, "_id": "P1", "name": "Ivy", "locality": "wagholi", "regno": "P1"}
-    g = {"nearby": [{"label": "Hospital", "name": "HOSPITAL 9", "km": 0.5}, {"label": "Hospital", "name": "Care Hospital", "km": 0.6}]}
-    facts = enrich.facts_text(doc, g)
-    assert "Completion date filed when the project was registered: 31 Dec 2028 (this is a completion date, not the registration date)" in facts
-    assert "Care Hospital" not in facts and "km" not in facts   # the page lists them beside the map
 
 
 BUILDINGS = {"status": "1", "responseObject": [
@@ -311,51 +297,16 @@ IVARA = {"_id": "PR1260002502426", "regno": "PR1260002502426", "name": "Godrej I
          "completion_now": "2032-12-16", "units_total": 2792, "units_booked": 489}
 
 
-class DraftLLM:
-    """Answers with the given section texts ("The project", then "Location"); records what it was asked and forgotten."""
-    def __init__(self, *texts, summary="Godrej Ivara, Upper Kharadi: homes by Manjari Housing, completion 16 Dec 2032", answer=None):
-        self.texts, self.summary, self.answer, self.asked, self.forgot = texts, summary, answer, [], []
-
-    async def json(self, system, user):
-        self.asked.append(user)
-        if self.answer is not None:
-            return self.answer
-        return {"sections": [{"heading": h, "text": t} for h, t in zip(enrich.SECTIONS, self.texts)],
-                "search_summary": self.summary}
-
-    async def forget(self, system, user):
-        self.forgot.append(user)
 
 
 IVARA_PROJECT = ("Godrej Ivara is a housing project by Manjari Housing Projects LLP, sold under the Godrej Properties brand, in "
                  "Upper Kharadi, Pune.")
 
 
-async def test_a_draft_calling_maharera_s_blanket_extension_a_move_is_refused():
-    for moved in ("The builder has moved the completion date later.", "The completion date was pushed back by the builder.",
-                  "Its completion date shows an increase over the first one.", "The developer extended the completion date."):
-        llm = DraftLLM(IVARA_PROJECT + " " + moved)
-        draft, refused = await enrich.write_text(llm, IVARA, None)
-        assert draft is None, moved
-        assert any("2026 extension" in r for r in refused), moved
-        assert llm.forgot == llm.asked                           # a budgeted client asks again next round
-    draft, refused = await enrich.write_text(DraftLLM(IVARA_PROJECT + " The builder has not moved its completion date."), IVARA, None)
-    assert refused == [] and draft["text"] == IVARA_PROJECT + " The builder has not moved its completion date."
 
 
-async def test_a_draft_whose_first_sentence_repeats_the_name_is_refused():
-    garbled = ("Godrej Ivara Godrej Properties Godrej Ivara, developed by Manjari Housing Projects LLP, is a housing project in "
-               "Upper Kharadi, Pune. It is registered with MahaRERA.")
-    draft, refused = await enrich.write_text(DraftLLM(garbled), IVARA, None)
-    assert draft is None
-    assert "the first sentence names Godrej Ivara twice" in refused
 
 
-def test_the_writer_is_told_the_blanket_extension_is_the_whole_difference():
-    facts = enrich.facts_text(IVARA, None)
-    assert "the builder did not move it" in facts
-    builder_moved = {**IVARA, "completion_now": "2033-06-16"}
-    assert "the builder did not move it" not in enrich.facts_text(builder_moved, None)
 
 
 # ---- Park Eden Phase I, 2026-10-25 (docs/plan/project-page-v2.md, "What was wrong") -------------------------------------------
@@ -379,50 +330,8 @@ EDEN_LOCATION = ("The project is in Kharadi, on the eastern side of Pune. Lexico
 EDEN_SUMMARY = "Park Eden Phase I, Kharadi: homes in two buildings by Eden Realty LLP, completion filed for 28 Feb 2031"
 
 
-def test_the_writer_is_told_what_the_page_shows_and_which_counts_are_the_whole_projects():
-    facts = enrich.facts_text(EDEN, EDEN_NEAR, EDEN_WEB, None, pinned=True)
-    assert ("Towers: 5 for the whole project, from the builder's site (parkeden.in); this registration has 2 with MahaRERA"
-            in facts)
-    assert "Land: 7.5 acres (from parkeden.in)" in facts           # not a count of this registration: as it is
-    shown = "\n".join(enrich.on_page(EDEN))
-    assert "Completion date filed with MahaRERA: 28 Feb 2031 (at registration 31 Oct 2030); it changed only by MahaRERA's order" in shown
-    assert "Homes: 249 in this registration, 27 booked" in shown and "3 BHK from Rs 19,900,000" in shown
-    assert "BHK types: 3 BHK, 4 BHK" in shown
-    # fewer or as many towers on the web as MahaRERA registers: nothing to scope
-    assert enrich.whole_project_counts({**EDEN, "building_totals": {"towers": 5}}, EDEN_WEB) == []
 
 
-async def test_park_eden_drafts_that_repeat_the_page_or_misscope_a_count_are_refused():
-    async def write(*texts):
-        llm = DraftLLM(*texts, summary=EDEN_SUMMARY)
-        draft, refused = await enrich.write_text(llm, EDEN, EDEN_NEAR, EDEN_WEB, None, pinned=True)
-        assert ("ALREADY ON THE PAGE (do not repeat):" in llm.asked[0] and "27 booked" in llm.asked[0])
-        assert llm.forgot == ([] if draft else llm.asked)
-        return draft, refused
-
-    draft, refused = await write(EDEN_PROJECT + " 27 of the 249 homes are booked.", EDEN_LOCATION)
-    assert "249" not in draft["text"] and EDEN_LOCATION in draft["text"] and refused == []   # that one sentence is taken out
-    draft, refused = await write(EDEN_PROJECT + " Of its homes, 222 are still available.", EDEN_LOCATION)
-    assert "222" not in draft["text"] and refused == []   # not in the facts: taken out too
-    draft, refused = await write(EDEN_PROJECT + " Its completion date is 28 Feb 2031, an increase from 31 Oct 2030.", EDEN_LOCATION)
-    assert draft is None
-    assert {"repeats the completion date (28 Feb 2031)", "repeats the completion date (31 Oct 2030)",
-            "says the date moved, but the only change is MahaRERA's 2026 extension"} <= set(refused)
-    misscoped = EDEN_PROJECT.replace("This registration covers two buildings of up to 22 floors; the whole project has five "
-                                     "towers on 7.5 acres, according to the builder's site.",
-                                     "It has five towers of up to 22 floors on 7.5 acres.")
-    draft, refused = await write(misscoped, EDEN_LOCATION)
-    assert draft is None and "gives the whole project's towers (5) as this registration's (2)" in refused
-    draft, refused = await write(EDEN_PROJECT + " Homes start at Rs 1.99 Cr.", EDEN_LOCATION)
-    assert "1.99" not in draft["text"] and refused == []   # not in the facts: taken out too
-    draft, refused = await write(EDEN_PROJECT, "No specific nearby places are mentioned in the provided facts.")
-    assert draft is None and 'the "Location" section is empty or says nothing' in refused
-
-    draft, refused = await write(EDEN_PROJECT, EDEN_LOCATION)
-    assert refused == []
-    assert draft == {"text": EDEN_PROJECT + "\n\n" + EDEN_LOCATION, "summary": EDEN_SUMMARY,
-                     "sections": [{"heading": "The project", "text": EDEN_PROJECT},
-                                  {"heading": "Location", "text": EDEN_LOCATION}]}
 
 
 async def test_an_accepted_draft_is_stored_as_sections_with_the_search_line():
@@ -435,14 +344,6 @@ async def test_an_accepted_draft_is_stored_as_sections_with_the_search_line():
     assert any(f["key"] == "web_towers" for f in doc["fact_sheet"]["facts"])
 
 
-def test_an_answer_in_an_older_writers_shape_is_no_draft_and_does_not_crash():
-    for old in ({"text": GOOD}, {"summary": GOOD, "sections": [], "search_summary": "x"}, None, "text", {"sections": "x"},
-                {"sections": [None, {"heading": 3}, {"heading": "The homes and the building", "text": GOOD}]}):
-        assert enrich.draft_of(old)["sections"] == [] and enrich.draft_of(old)["text"] == ""
-    facts = enrich.facts_text(EDEN, None)
-    assert 'no "The project" section' in enrich.refused(EDEN, None, enrich.draft_of({"summary": GOOD}), facts)
-    # headings as the model may case them are the page's headings
-    assert enrich.draft_of({"sections": [{"heading": "the project", "text": EDEN_PROJECT}]})["sections"][0]["heading"] == "The project"
 
 
 def test_pages_written_by_an_older_writer_are_rewritten_after_everything_else():
@@ -607,11 +508,6 @@ BODY = ("Rose Court stands on a corner plot and keeps its two buildings apart, s
         "between them and not into a neighbour's window, which is uncommon for a project of this size in the area.")
 
 
-def test_a_draft_copying_ten_words_of_its_sources_is_refused():
-    facts = f"Highlight, {' '.join(BODY.split()[5:20])}"
-    assert enrich.lifted(ROSE, BODY, facts) is not None
-    problems = enrich.refused(ROSE, None, {"sections": [{"heading": "The project", "text": BODY}], "text": BODY, "summary": None}, facts)
-    assert any("copies its sources" in p for p in problems)
 
 
 def test_nine_words_from_the_sources_are_a_shared_phrase_not_copying():
@@ -646,8 +542,6 @@ def test_code_works_out_homes_per_building_and_height():
     assert enrich.worked_out({}) == []
 
 
-def test_the_writer_is_given_what_code_worked_out():
-    assert "about 40 homes per building" in enrich.facts_text({**ROSE, "units_total": 120, "building_totals": {"towers": 3, "max_floors": 22}}, None)
 
 
 def _in_search(**kw):
@@ -671,10 +565,6 @@ def test_a_page_out_of_search_does_not_rest():
     assert not enrich.keeps_text(_in_search(page_text_version=enrich.TEXT_VERSION - 1, prices={}), NOW)
 
 
-def test_a_stock_line_every_page_would_carry_is_refused():
-    line = BODY + " Ask the builder for the specific possession date mentioned in the sale agreement."
-    problems = enrich.refused(ROSE, None, {"sections": [{"heading": "The project", "text": line}], "text": line, "summary": None}, "Rose Court")
-    assert any("stock line" in p for p in problems)
 
 
 class Answers:
@@ -687,25 +577,10 @@ class Answers:
         return {"sections": [{"heading": "The project", "text": self.texts.pop(0)}], "search_summary": ""}
 
 
-async def test_a_refused_draft_goes_back_once_with_the_reasons():
-    doc = {**ROSE, "completion_now": "2031-01-01"}
-    llm = Answers(BODY + " It is due on 1 Jan 2031.", BODY)
-    draft, why = await enrich.write_text(llm, doc, None)
-    assert draft["text"] == BODY and why == []
-    assert len(llm.asked) == 2 and "completion date" in llm.asked[1] and "refused" in llm.asked[1]
 
 
-async def test_a_draft_refused_twice_keeps_the_old_text_and_says_why():
-    late = BODY + " It is due on 1 Jan 2031."
-    llm = Answers(late, late, BODY)
-    draft, why = await enrich.write_text(llm, {**ROSE, "completion_now": "2031-01-01"}, None)
-    assert draft is None and any("completion date" in p for p in why) and len(llm.asked) == 2
 
 
-async def test_the_writer_is_held_to_the_other_pages_of_its_area():
-    twin = {"_id": "P2", "name": "Lily Park", "regno": "P2", "page_text": BODY.replace("Rose Court", "Lily Park")}
-    draft, why = await enrich.write_text(Answers(BODY, BODY), ROSE, None, others=[twin])
-    assert draft is None and any("Lily Park" in p for p in why)
 
 
 def _building(i, floors=10, homes=100, **kw):
@@ -732,16 +607,8 @@ def test_only_the_record_decides_what_is_worth_asking():
     assert any("occupancy certificate" in x for x in enrich.worth_asking({**ROSE, "completion_now": "2021-01-01"}, None))
 
 
-def test_a_draft_speaking_of_a_brand_the_project_has_not_got_is_refused():
-    line = BODY + " Ask how the brand relates to the filing company."
-    problems = enrich.refused({**ROSE, "promoter": "Rose LLP"}, None, {"sections": [{"heading": "The project", "text": line}], "text": line, "summary": None}, "Rose Court")
-    assert any("brand" in p for p in problems)
 
 
-async def test_a_draft_copying_a_live_outside_page_is_refused_and_names_the_site():
-    words = " ".join(BODY.split()[3:18])
-    draft, why = await enrich.write_text(Answers(BODY, BODY), ROSE, None, outside=[("99acres.com", f"Overview {words} more text")])
-    assert draft is None and any("copies 99acres.com" in p for p in why)
 
 
 async def test_outside_pages_are_read_live_and_a_page_that_fails_is_left_out():
@@ -753,32 +620,14 @@ async def test_outside_pages_are_read_live_and_a_page_that_fails_is_left_out():
     assert await enrich.outside_pages(web, fetch) == [("a.com", "Some page text")]
 
 
-def test_the_words_that_give_ai_text_away_are_refused():
-    for line in ("Rose Court boasts two towers.", "Furthermore, the site is large.", "It sits in close proximity to Eon IT Park.",
-                 "This makes it a home, making it ideal for families."):
-        assert any("reads as AI text" in p for p in enrich.sounds_generated(line))
 
 
-def test_plain_writing_of_uneven_length_passes_as_ours():
-    assert enrich.sounds_generated("Two towers. At 30 floors they stand taller than most of what is going up in Kharadi this year, "
-                                   "and only three projects nearby have more homes. Eon IT Park is 2 km away. Few schools are close.") == []
 
 
-def test_sentences_all_one_length_read_as_generated():
-    same = "One two three four five six seven eight. Red blue green gold pink grey teal lime. Oak elm ash fir yew bay fig pine. Cat dog cow pig hen fox owl bat. Sun sky sea air ice mud dew fog."
-    assert "every sentence is the same length" in enrich.sounds_generated(same)
 
 
-def test_sentences_all_opening_alike_read_as_generated():
-    text = "The site is big and open. The towers go up to thirty floors over the road beside it. The school is close. Two towers."
-    assert any('start with "the"' in p for p in enrich.sounds_generated(text))
 
 
-def test_a_question_the_record_does_not_raise_is_refused():
-    line = BODY + " You might want to ask the builder about the floor plans."
-    draft = {"sections": [{"heading": "The project", "text": line}], "text": line, "summary": None}
-    assert any("question" in p for p in enrich.refused({**ROSE, "completion_now": "2031-01-01"}, None, draft, "Rose Court"))
-    assert not any("question" in p for p in enrich.refused({**ROSE, "completion_now": "2021-01-01"}, None, draft, "Rose Court"))
 
 
 # ---- the flow: facts first, the writer last, pages in search first (owner 2026-11-04) -----------------------------------------
@@ -852,32 +701,16 @@ def test_the_stock_openings_of_the_first_pages_are_refused():
         assert enrich.STOCK.search(line), line
 
 
-def _trim(text, doc=None, facts="Rose Court"):
-    d = {"sections": [{"heading": "The project", "text": text}], "text": text, "summary": None}
-    return enrich.trimmed(doc or {**ROSE, "completion_now": "2031-01-01"}, None, d, facts)["text"]
 
 
-def test_one_bad_sentence_goes_and_the_rest_of_the_draft_stays():
-    assert _trim("Rose Court sits on a corner. Ask the builder about the floors. Its gardens face east.") == "Rose Court sits on a corner. Its gardens face east."
-    assert _trim("Rose Court sits on a corner. It boasts a pool. The gardens are 99 metres long.") == "Rose Court sits on a corner."
 
 
-def test_the_homes_total_is_taken_out_of_the_text():
-    assert _trim("Rose Court sits on a corner. It has 120 homes.", {**ROSE, "units_total": 120}, "Rose Court 120") == "Rose Court sits on a corner."
 
 
-def test_a_question_the_record_raises_stays():
-    assert "Ask" in _trim("Rose Court sits on a corner. Ask about the certificate.", {**ROSE, "completion_now": "2021-01-01"})
 
 
-def test_consists_of_becomes_plain():
-    assert _trim("Rose Court consists of two buildings.") == "Rose Court has two buildings."
 
 
-async def test_a_draft_with_one_bad_sentence_is_kept_without_a_second_call():
-    llm = Answers(BODY + " Ask the builder about the floors.")
-    draft, why = await enrich.write_text(llm, {**ROSE, "completion_now": "2031-01-01"}, None)
-    assert draft["text"] == BODY and why == [] and len(llm.asked) == 1
 
 
 # ---- the fact sheet and the points (owner 2026-11-04) ----------------------------------------------------------------------------
