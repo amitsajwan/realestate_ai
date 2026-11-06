@@ -155,7 +155,7 @@ export const LANDING = {
       },
       {
         q: 'Do you post on my own Facebook and Instagram?',
-        a: 'Yes, after you approve each post. They also go on Avasetu\'s pages, marked "Listed by" you.',
+        a: 'Posts go on Avasetu\'s Facebook and Instagram with your name, after you approve each one. You also get each post, your link and a WhatsApp message to share yourself.',
       },
       {
         q: 'Who sees my buyer leads?',

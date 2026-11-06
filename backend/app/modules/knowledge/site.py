@@ -85,10 +85,10 @@ ENTRIES: List[Entry] = [
           "The first month is free, no card, for the first 20 Pune agents. After that there is a small monthly fee, and you see the price first, then decide.",
           "agent", "Start at /trial."),
     Entry("agent_start", ("how do i start", "how to start", "how to join", "sign up", "signup", "sign-up code", "trial code"),
-          "Tap Claim your free trial and leave your number. Your sign-up code comes on WhatsApp, usually the same day; sign in and add your "
-          "first property. You can add a project by its MahaRERA number and we fill in the rest.", "agent", "Start at /trial."),
+          "Tap Claim your free trial and send TRIAL on WhatsApp. Your sign-up code comes back at once; sign in and add your first property. "
+          "Most Pune projects are already here: pick yours and add your prices.", "agent", "Start at /trial. The step-by-step guide is at /for-agents/guide."),
     Entry("agent_posts", ("post on my", "my facebook", "my instagram", "reels", "posts for me", "social media", "marketing"),
-          "We make posts and reels for each property. They go on your own Facebook and Instagram after you approve each post.", "agent",
+          "We make posts and reels for each property. They go on Avasetu's Facebook and Instagram with your name, after you approve each post.", "agent",
           "Start at /trial."),
     Entry("agent_leads", ("who sees my leads", "my leads", "lead card", "buyer details"),
           "Only you see your buyer leads. Buyers agree to be contacted, and we never sell or share their details. Call or WhatsApp a buyer "

@@ -47,3 +47,5 @@ class AIDraft(BaseModel):
     rera_candidates: list[dict[str, Any]] = Field(default_factory=list)
     # the register record matched by registration number: {regno, name, locality, taluka, pincode, promoter, completion_*}
     maharera: Optional[dict[str, Any]] = None
+    # a draft started from a project's page: {slug, name, homes, photos, mine, others} (areastats.pagestart, app/wiring.py)
+    page: Optional[dict[str, Any]] = None

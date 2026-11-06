@@ -155,6 +155,28 @@ export interface AIDraft {
   rera_candidates?: ReraCandidate[]
   /** Our MahaRERA register's record for the draft's registration number: shown as one read-only card. */
   maharera?: MahaReraFacts | null
+  /** A draft started from a project's page. */
+  page?: ProjectPage | null
+}
+
+/** What a project's page holds for an agent listing it (backend areastats.pagestart, app/wiring.py). */
+export interface ProjectPage {
+  slug: string
+  name: string
+  photos: { url: string; alt?: string }[]
+  /** this agent's own live listing of the project */
+  mine?: string | null
+  /** how many other agents list it */
+  others?: number
+}
+
+/** One hit from GET /public/register/search. */
+export interface ProjectHit {
+  regno: string
+  slug: string
+  marketed_name: string
+  place_name?: string | null
+  promoter?: string | null
 }
 
 /** What the register knows about a project (backend ai_listing.register.register_fields). */
@@ -621,6 +643,8 @@ export interface AppApi {
   /** Each line of a pasted AI answer, marked by where its numbers are found. */
   askAiCheck(id: string, text: string): Promise<AskAiAnswer>
   aiDraft(req: AIDraftRequest): Promise<AIDraft>
+  aiDraftProject(regno: string): Promise<AIDraft>
+  searchProjects(q: string): Promise<ProjectHit[]>
   suggestAbout(req: AboutSuggestRequest): Promise<AboutSuggestion>
   uploadImages(files: File[]): Promise<UploadedFile[]>
   listLeads(stage?: Stage): Promise<Lead[]>

@@ -23,6 +23,7 @@ import { getFacets } from '@/lib/site/facets'
 import RegisterProjectPage, { ASK_NOTE } from '@/components/site/RegisterProjectPage'
 import { pageMetadata } from '@/lib/marketing/seo'
 import { getRegisterProject, getRegisterProjectByRegno, longDay, offerPrice } from '@/lib/site/register'
+import ListThisProject from '@/components/site/ListThisProject'
 import { registerDescription, registerTitle } from '@/lib/site/projectSeo'
 import type { Offer } from '@/lib/site/register'
 import { bhkRange, mainAgent, priceRange, projectLead, projectWhatsAppMessage } from '@/lib/site/projects'
@@ -159,6 +160,7 @@ export default async function SharedProjectPage({ params }: Props) {
           <p className="text-sm font-bold uppercase tracking-wide text-[var(--site-accent-text)]">{p.locality}, Pune</p>
           <h1 className="mt-1 text-3xl font-extrabold leading-tight text-slate-900">{p.name}</h1>
           {logo && <div className="mt-3"><BuilderLogoMark logo={logo} name={p.builder} /></div>}
+          <ListThisProject regno={p.rera_no} />
           <p className="mt-1 text-slate-600">by {p.builder}{p.rera?.promoter ? ` (promoter on MahaRERA: ${p.rera.promoter})` : ''}</p>
           <p className="mt-3 text-2xl font-extrabold text-[var(--site-primary)]">{priceRange(p)} <span className="text-base font-semibold text-slate-700">· {bhkRange(p.bhk_options)}</span></p>
           {p.positioning && <p className="mt-2 max-w-2xl text-lg text-slate-800">{p.positioning}</p>}

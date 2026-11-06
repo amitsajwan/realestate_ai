@@ -66,6 +66,9 @@ export default function LandingPage() {
               {H.signInLead}{' '}
               <a href={PATHS.signIn} aria-label={`${H.signInLead} ${H.signIn}`} className="font-semibold text-white underline underline-offset-4">{H.signIn}</a>
             </p>
+            <p className="mt-1.5 text-sm text-slate-300">
+              <Link href="/for-agents/guide" className="font-semibold text-white underline underline-offset-4">Read the guide for agents and channel partners</Link>
+            </p>
           </div>
           <LeadCardMock />
         </div>

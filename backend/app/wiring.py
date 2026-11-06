@@ -102,7 +102,7 @@ def wire() -> None:
     # the AI listing draft matches its project in our MahaRERA register (the newsroom's projects, moving to inventory)
     from app.modules.ai_listing import router as ai_listing_routes
     from app.modules.newsroom.store import Store as NewsroomStore
-    ai_listing_routes.configure(register=NewsroomStore)
+    ai_listing_routes.configure(register=NewsroomStore, project_start=_project_start)
     # an enquiry on a project page is about the project's area (buyers' lead record reads inventory's project pages)
     from app.modules.tracking import service as tracking_service
     # ...and a new website form lead is told to its agent at once: the Studio badge and, where they turned it on, their phone
@@ -207,6 +207,18 @@ async def _project_registration(db, listing):
     from app.modules.propertyfacts.advert import for_listing
 
     return await for_listing(db, listing)
+
+
+async def _project_start(db, regno, agent_id):
+    """What a project's page holds for an agent listing it, and whether it is already listed: theirs to open, or by others."""
+    from app.modules.areastats import pagestart
+    from app.modules.listings import projectlive
+    page = await pagestart.listing_start(db, regno)
+    if page is None:
+        return None
+    live = await projectlive.live_for_project(db, regno)
+    return {**page, "mine": next((x["_id"] for x in live if x.get("agent_id") == agent_id), None),
+            "others": sum(1 for x in live if x.get("agent_id") != agent_id)}
 
 
 async def _gather_project(db, regno, name, locality, city="Pune", now=None):

@@ -1,4 +1,5 @@
 import React from 'react'
+import ListThisProject from '@/components/site/ListThisProject'
 import Link from 'next/link'
 import AskPrompt from '@/components/site/AskPrompt'
 import EnquiryForm from '@/components/site/EnquiryForm'
@@ -262,6 +263,7 @@ function Hero({ p, price, photo, linkless = false, closed = false }: { p: Regist
         {p.sold_out && <span className="rounded-full bg-rose-400/20 px-3 py-1 text-xs font-semibold text-rose-100">Sold out on MahaRERA</span>}
       </div>
       <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">{heading}{area && !shown.toLowerCase().includes(area.toLowerCase()) ? `, ${area}` : ''}</h1>
+      <ListThisProject regno={p.regno} />
       {legal && <p className="mt-2 text-sm text-slate-300" data-testid="legal-name">Filed on MahaRERA as {p.name}</p>}
       {aka.length > 0 && <p className="mt-1 text-sm text-slate-300" data-testid="aka">Also known as: {aka.join(', ')}</p>}
       {p.group && (

@@ -4,6 +4,11 @@ import { isSampleListing } from './format'
 import { enquiryName } from './theme'
 import type { PublicListing } from './types'
 
+/** Priced home types, then photos: which of several agents' listings a project shows, as on its page (backend listings.projectlive). */
+function richness(l: PublicListing): number {
+  return (l.configurations ?? []).filter((c) => c.price_inr).length * 100 + (l.media ?? []).length
+}
+
 /** The live listings of every agent in the sitemap, by MahaRERA number: on this list an agent-listed project shows their sheet. */
 export async function agentOffers(): Promise<Map<string, AgentOffer>> {
   const entries = (await getSitemapEntries()).listings
@@ -14,7 +19,8 @@ export async function agentOffers(): Promise<Map<string, AgentOffer>> {
     if (!agent) continue
     for (const l of items) {
       const regno = (l.rera_no || '').trim().toUpperCase()
-      if (regno && !out.has(regno) && !isSampleListing(l.title)) out.set(regno, { agentName: enquiryName(agent), listing: l })
+      const have = out.get(regno)
+      if (regno && !isSampleListing(l.title) && (!have || richness(l) > richness(have.listing))) out.set(regno, { agentName: enquiryName(agent), listing: l })
     }
   }
   return out

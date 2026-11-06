@@ -27,8 +27,8 @@ describe('/for-agents brochure', () => {
     const steps = Array.from(container.querySelectorAll('#how ol > li > p:first-child')).map((p) => (p.textContent || '').replace(/^\d/, '').trim())
     expect(steps).toEqual(['Create', 'Attract', 'Qualify', 'Close'])
     const text = container.textContent || ''
-    for (const must of [/hindi voice/i, /tap-to-show-interest/i, /BHK, budget, timing/i, /RERA agent number/i, /your own instagram and facebook page/i, /weekly results/i,
-      /1 month free/i, /tell you the price before anything changes/i, /own WhatsApp number/i, /posts go out in your name/i,
+    for (const must of [/hindi voice/i, /tap-to-show-interest/i, /BHK, budget, timing/i, /RERA agent number/i, /instagram and facebook with your name/i, /weekly results/i,
+      /1 month free/i, /tell you the price before anything changes/i, /own WhatsApp number/i, /your name, photo and maharera number on your page and posts/i,
       /nothing is sent to a buyer without you/i, /labelled as samples/i, /no invented AI percentages/i, /consent .* recorded/i]) {
       expect(text).toMatch(must)
     }

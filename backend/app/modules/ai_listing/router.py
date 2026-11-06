@@ -10,6 +10,7 @@ from app.models.user import User
 
 from .llm import LLMClient, Transcriber, TranscriptionError, default_listing_llm, default_transcriber
 from .about import suggest_about
+from .register import RERA
 from .schemas import AIDraft
 from .service import AIListingService, AudioInput, TranscriberUnavailable
 
@@ -39,11 +40,12 @@ def get_transcriber() -> Optional[Transcriber]:
 
 
 # Our MahaRERA register over a database (the newsroom Store, above inventory today), passed in by app/wiring.py
-_register: dict = {"over": None}
+_register: dict = {"over": None, "start": None}
 
 
-def configure(register: Callable[[Any], Any]) -> None:
-    _register["over"] = register
+def configure(register: Callable[[Any], Any], project_start: Optional[Callable[..., Any]] = None) -> None:
+    """`project_start(db, regno, agent_id)`: what a project's page holds for this agent (pages sit above inventory)."""
+    _register["over"], _register["start"] = register, project_start
 
 
 def get_register():
@@ -97,6 +99,20 @@ async def ai_draft(
         raise HTTPException(status_code=503, detail=str(e) + " You can still send the details as text.")
     except TranscriptionError:
         raise HTTPException(status_code=502, detail="Voice could not be turned into text right now. Please type the details instead.")
+
+
+@router.post("/ai/draft/project/{regno}", response_model=AIDraft)
+async def ai_draft_from_project(regno: str, user: User = Depends(current_active_user), llm: Optional[LLMClient] = Depends(get_llm),
+                                register=Depends(get_register)):
+    """A listing started from a project we already have a page for: the agent adds only what is theirs (docs/plan/listing-flow.md)."""
+    from app.core.database import get_database
+    number = regno.strip().upper()
+    if not RERA.fullmatch(number) or register is None or _register["start"] is None:
+        raise HTTPException(status_code=404, detail="We could not find this project.")
+    page = await _register["start"](get_database(), number, str(user.id))
+    if page is None:
+        raise HTTPException(status_code=404, detail="We could not find this project.")
+    return await AIListingService(llm=llm).draft_from_project(number, register, page)
 
 
 class AboutSuggestRequest(BaseModel):

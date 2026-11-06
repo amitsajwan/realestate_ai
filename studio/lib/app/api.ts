@@ -5,6 +5,7 @@ import type {
   AskAiAnswer,
   AskAiPrompt,
   AIDraft,
+  ProjectHit,
   AIDraftRequest,
   AboutSuggestRequest,
   AboutSuggestion,
@@ -193,6 +194,10 @@ export function createApiClient(opts: ClientOptions): AppApi {
       form.append('image_count', String(req.image_count))
       return request<AIDraft>('/listings/ai/draft', { method: 'POST', form })
     },
+
+    aiDraftProject: (regno: string) => request<AIDraft>(`/listings/ai/draft/project/${encodeURIComponent(regno)}`, { method: 'POST' }),
+
+    searchProjects: (q: string) => request<ProjectHit[]>(`/public/register/search?q=${encodeURIComponent(q.slice(0, 80))}&limit=8`),
 
     suggestAbout: (req: AboutSuggestRequest) =>
       request<AboutSuggestion>('/listings/ai/about-suggest', { method: 'POST', json: req }),

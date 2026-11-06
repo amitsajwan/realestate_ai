@@ -62,6 +62,9 @@ def _group_picks(group: dict) -> list:
              "taluka": ""} for r in group["registrations"]]
 
 
+PAGE_PRICES = "These prices are what is published online. Change them to the prices you are selling at today."
+
+
 class AIListingService:
     def __init__(self, llm: Optional[LLMClient] = None, transcriber: Optional[Transcriber] = None):
         self.llm, self.transcriber = llm, transcriber
@@ -86,7 +89,8 @@ class AIListingService:
         return await self.from_text(combined, image_count, city_hint, transcript, warnings, register=register)
 
     async def from_text(self, text: str, image_count: int = 0, city_hint: Optional[str] = None,
-                        transcript: Optional[str] = None, warnings: Optional[list[str]] = None, register: Any = None) -> AIDraft:
+                        transcript: Optional[str] = None, warnings: Optional[list[str]] = None, register: Any = None,
+                        seed: Optional[dict] = None) -> AIDraft:
         city_hint = (city_hint or "").strip()[:60] or None
         det, _ = extract(text, city_hint)
         llm_ex = Extraction()
@@ -141,6 +145,13 @@ class AIListingService:
             elif group and not facts.get("rera_no"):
                 rera_candidates = _group_picks(group)  # the marketed name alone: pick the tower, never guessed
 
+        for k, v in (seed or {}).items():
+            if k == "project_name" and v:   # the name the page and buyers use, not MahaRERA's working name in capitals
+                facts[k] = v
+            elif v is not None and not facts.get(k):
+                # only a price is the agent's to check: low, so the check screen asks them to look at it
+                facts[k], conf[k], sources[k] = v, 0.6 if k == "price_inr" else 0.9, "page"
+
         draft: dict = dict(facts)
         title = copy.make_title(facts)
         en = copy.make_description_en(facts)
@@ -164,3 +175,15 @@ class AIListingService:
                        transcript=transcript, warnings=(warnings or []) + build_warnings(facts, conf),
                        sources={k: v for k, v in sources.items() if k in draft}, rera_candidates=rera_candidates,
                        maharera=maharera)
+
+    async def draft_from_project(self, regno: str, register: Any, page: dict) -> AIDraft:
+        """A listing started from the project's page: MahaRERA's facts as for any number, plus the sizes and prices the page publishes."""
+        rows = page.get("homes") or []
+        seed = {"project_name": page.get("name"), "property_type": page.get("property_type")}
+        if rows:
+            seed.update(configurations=rows, bhk=rows[0]["bhk"], price_inr=min(r["price_inr"] for r in rows))
+        d = await self.from_text(f"MahaRERA {regno}", 0, None, None, [], register=register, seed=seed)
+        d.page = page
+        if rows:
+            d.warnings.append(PAGE_PRICES)
+        return d

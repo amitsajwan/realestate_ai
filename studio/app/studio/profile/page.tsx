@@ -28,6 +28,7 @@ export default function ProfilePage() {
       {siteUrl && <SiteCard siteUrl={siteUrl} />}
       <BrandEditor loadBranding={load} saveBranding={save} uploadImage={upload} />
       <PhoneAppCard place="profile" />
+      <a href="/for-agents/guide" data-testid="agent-guide" className="flex min-h-[48px] items-center justify-center rounded-xl border border-gray-300 bg-white font-semibold text-gray-900 no-underline">Guide: how everything works</a>
       <button type="button" onClick={() => void signOut()} className="min-h-[48px] w-full rounded-xl border border-gray-300 bg-white text-sm font-semibold text-gray-700">
         {t('logout')}
       </button>

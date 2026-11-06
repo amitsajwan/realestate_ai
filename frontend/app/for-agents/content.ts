@@ -38,7 +38,7 @@ export const FOR_AGENTS = {
     heading: 'What you get',
     items: [
       { title: 'Your own branded page', body: 'Your logo, your colours, your business name and your RERA agent number, with your homes and an enquiry form.' },
-      { title: 'Your listings, posted for you', body: `Posts and reels on your own Instagram and Facebook Page, and on ${BRAND_NAME}'s, after you approve each one.` },
+      { title: 'Your listings, posted for you', body: `Posts and reels on ${BRAND_NAME}'s Instagram and Facebook with your name, after you approve each one, and a link and WhatsApp message to share yourself.` },
       { title: 'Leads in your inbox', body: 'Every buyer who taps interest or writes in arrives as a lead card in your studio, on your phone.' },
       { title: 'Weekly results', body: 'Each week: how many people viewed your homes, how many enquired, and what to do next.' },
     ],
@@ -51,10 +51,10 @@ export const FOR_AGENTS = {
   coming: {
     heading: 'Set up with you',
     items: [
-      'Your own WhatsApp number connected, so buyer messages reach you directly.',
-      'Your own Facebook Page and Instagram connected, so posts go out in your name.',
+      'Your own WhatsApp number on your page, so buyer messages reach you directly.',
+      'Your name, photo and MahaRERA number on your page and posts.',
     ],
-    note: 'We do the setup with you when you join: it takes one short call.',
+    note: 'You can do it all yourself in a few minutes, and the guide at avasetu.in/for-agents/guide shows every step.',
   },
   trust: {
     heading: 'How we keep it honest',

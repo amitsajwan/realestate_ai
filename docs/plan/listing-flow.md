@@ -31,6 +31,32 @@ Three reviews (UX, sales/agent operations, data/compliance) read the flow and th
 | 10 | A number not in our register: say so, read MahaRERA live, keep the listing a draft until the number is confirmed. A new project with no number is not published (RERA Act). | TARGET |
 | 11 | Lead feedback on WhatsApp after each post ("your post went live, 3 people asked"), leads per listing on Home. | TARGET |
 
+## Start from the project's page (2026-11-06, LIVE)
+
+Owner: "when we add a listing we may already have a page in Avasetu; how can an agent get going quickly? We deal mostly with new under
+construction projects, resale is fine for later." On 2026-11-06 we held 12,894 project pages and every one of the 53 listings with a number
+had one, yet a listing started from a blank text box. This takes decision 8 (two doors) and decision 9's sizes further.
+
+- **First screen: "Which project are you selling?"** Searches name, area or MahaRERA number (`GET /public/register/search`, the site's own
+  search). The other door: "Resale or rent flat, or a project not listed here", the old description screen, unchanged.
+- **Picking one goes straight to the check** (`POST /listings/ai/draft/project/{regno}`): MahaRERA's facts as for any number, plus the page's
+  sizes at their lowest published price and its pictures (`areastats/pagestart.py`, reached through `wiring._project_start`, since pages
+  sit above inventory). Prices are marked for the agent to check and carry a warning: they are what is published online, not the agent's.
+- **Photos** are the page's own, ticked; only pictures the page may show, so never one copied from another site. Nothing deletes a
+  listing's files, so sharing them is safe.
+- **"List this project"** on a project page, for a signed-in agent only: a plain link to `/studio/listings/new?project=<regno>`.
+- **Publishing reaches the page at once.** `propertyfacts.router.with_sheet` used to need gathered facts, so a listing waited for a
+  marketing run. It now builds the offer from the live listing when none was gathered.
+- **Two agents, one project:** the page shows the most complete listing (priced sizes, then photos, then newest; `listings/projectlive.py`,
+  and `lib/site/offers.ts` on the lists), not the last edited. Page enquiries go on through the existing lead rules, and no agent's number
+  is shown. An agent listing a project they already list is sent to their listing; if others list it, they are told what decides.
+
+The guide for agents and channel partners, `/for-agents/guide`, tells this flow, what they get and whose lead is whose, with screenshots of these
+screens (`frontend/public/guide/`). It must stay true: change it in the same commit as anything it describes.
+
+Limits: on 2026-11-06 only 241 of 871 pages in our five main East Pune areas had photos and 184 had prices, so on most pages the agent still
+adds those. Carpet areas are not pre-filled: the page's sizes may be saleable area. A brochure or video is added from the listing afterwards.
+
 ## Not taken
 
 - Sales asked for Post = market in one tap with auto-scheduling. Kept as one deliberate tap: the owner decided on 2026-10-14

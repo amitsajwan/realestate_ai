@@ -28,6 +28,7 @@ from app.core.auth_backend import current_active_user
 from app.core.database import get_database
 from app.models.user import User
 from app.modules.agentprojects.service import indexable
+from app.modules.listings import projectlive
 from app.platform.media import display_url, upload_path
 
 from . import brochure, jobs
@@ -43,7 +44,6 @@ def get_db():
     return get_database()
 
 
-LIVE_STATES = ("live", "under_offer")
 
 
 def listing_photos(media: list) -> list:
@@ -72,22 +72,35 @@ def listing_videos(videos: list, website: Optional[str]) -> list:
     return out
 
 
-async def with_sheet(db, out: Optional[dict], listing_id: Optional[str] = None) -> Optional[dict]:
+def _own_offer(listing: dict) -> Optional[dict]:
+    """A live listing's offer before any facts were gathered for it: publishing puts the agent on the project's page at once, where it
+    used to wait for a marketing run (2026-11-06). None when it has neither a price nor a size."""
+    offer = {k: listing[k] for k in ("transaction", "property_type", "price_inr", "carpet_sqft", "bhk") if listing.get(k) is not None}
+    if not (offer.get("price_inr") or offer.get("carpet_sqft")):
+        return None
+    at = listing.get("updated_at")
+    return {**offer, "source": "the agent's listing", "read_at": at.date().isoformat() if hasattr(at, "date") else None}
+
+
+async def with_sheet(db, out: Optional[dict], listing_id: Optional[str] = None, regno: str = "") -> Optional[dict]:
     """The page's offer with the live listing's price sheet and payment plan (homes.rows, homes.payment_plan): a project
     listed with seven home types showed only its first flat ("2 BHK, 730 sq ft, ₹1.2 Cr"; Godrej Ivara, 2026-10-20).
     `listing_id`: that listing's own sheet and photos (its page shows the full project page, 2026-10-30), when it is live and of
-    this project; else the project's latest live listing."""
-    regno = ((out or {}).get("maharera") or {}).get("rera_no") or ""
-    if not out or not out.get("offer") or not regno:
+    this project; else the project's most complete live listing (listings.projectlive). `regno`: the project asked for, when no facts
+    were gathered for it yet."""
+    regno = ((out or {}).get("maharera") or {}).get("rera_no") or regno
+    if not regno:
         return out
     from . import homes
-    fields = {"configurations": 1, "payment_plan": 1, "bhk": 1, "price_inr": 1, "carpet_sqft": 1,
-              "property_type": 1, "listing_scope": 1, "agent_id": 1, "media": 1, "videos": 1}
-    live = {"rera_no": regno, "status": {"$in": list(LIVE_STATES)}}
-    listing = await db.listings.find_one({**live, "_id": listing_id}, fields) if listing_id else None
-    listing = listing or await db.listings.find_one(live, fields, sort=[("updated_at", -1)])
+    live = await projectlive.live_for_project(db, regno)
+    listing = next((x for x in live if x["_id"] == listing_id), None) or projectlive.best(live)
     if not listing:
         return out
+    if not (out or {}).get("offer"):
+        own = _own_offer(listing)
+        if own is None:
+            return out
+        out = {**(out or {}), "offer": own}
     table = homes.rows(listing) if listing.get("configurations") else []
     offer = dict(out["offer"])
     # who sells it and their pictures: the project page names the agent and shows the listing's photos first (owner 2026-10-30,
@@ -111,7 +124,8 @@ async def with_sheet(db, out: Optional[dict], listing_id: Optional[str] = None) 
 @public_router.get("/property-facts")
 async def public_property_facts(response: Response, rera: Optional[str] = None, project: Optional[str] = None,
                                 locality: Optional[str] = None, listing: Optional[str] = None, db=Depends(get_db)) -> dict:
-    out = await with_sheet(db, view(await FactsStore(db).find(rera or "", project or "", locality or "")), (listing or "")[:64] or None)
+    out = await with_sheet(db, view(await FactsStore(db).find(rera or "", project or "", locality or "")), (listing or "")[:64] or None,
+                           (rera or "").strip().upper())
     if out is None:
         raise HTTPException(status_code=404, detail="No facts kept for this property")
     response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
@@ -122,7 +136,8 @@ async def public_property_facts(response: Response, rera: Optional[str] = None, 
 async def public_property_facts_by_regno(regno: str, response: Response, db=Depends(get_db)) -> dict:
     """The usable facts we keep for a MahaRERA project, for its own page (/projects/<slug>): every fact a campaign post may
     use, each block with its source (docs/plan/project-pages.md). 404 when no campaign gathered facts for it."""
-    out = await with_sheet(db, view(await FactsStore(db).find(regno.strip().upper())))
+    number = regno.strip().upper()
+    out = await with_sheet(db, view(await FactsStore(db).find(number)), regno=number)
     if out is None:
         raise HTTPException(status_code=404, detail="No facts kept for this project")
     response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"

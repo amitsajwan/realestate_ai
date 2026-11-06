@@ -506,6 +506,25 @@ export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
       save()
       return view(l)
     },
+    async searchProjects(q: string) {
+      return /godrej|ivara/i.test(q) ? [{ regno: 'PR1260002502426', slug: 'godrej-ivara-pune', marketed_name: 'Godrej Ivara', place_name: 'Upper Kharadi', promoter: 'Godrej Properties' }] : []
+    },
+    async aiDraftProject(regno: string) {
+      const d = await this.aiDraft({ text: `MahaRERA ${regno}`, image_count: 0 })
+      const homes = [{ bhk: 2, price_inr: 12900000 }, { bhk: 3, price_inr: 16300000 }, { bhk: 4, price_inr: 31900000 }]
+      return {
+        ...d,
+        draft: { ...d.draft, title: 'Godrej Ivara, Upper Kharadi: 2 BHK and up from ₹1.29 Cr', project_name: 'Godrej Ivara', locality: 'Upper Kharadi', city: 'Pune',
+          transaction: 'sale' as const, property_type: 'apartment' as const, listing_scope: 'layout' as const, rera_no: regno, bhk: 2, price_inr: 12900000, configurations: homes },
+        warnings: ['These prices are what is published online. Change them to the prices you are selling at today.'],
+        missing: [],
+        confidence: { price_inr: 0.6 },
+        sources: { price_inr: 'agent' as const },
+        maharera: { regno, name: 'GODREJ IVARA', locality: 'Upper Kharadi', locality_verified: true, promoter: 'Godrej Properties Limited', completion_at_registration: '2031-12-31', towers: 6, max_floors: 32, units_total: 2400 },
+        page: { slug: 'godrej-ivara-pune', name: 'Godrej Ivara', mine: null, others: 0,
+          photos: [{ url: '/uploads/fx-1.jpg', alt: 'Tower' }, { url: '/uploads/fx-2.jpg', alt: 'Lobby' }, { url: '/uploads/fx-3.jpg', alt: 'Garden' }] },
+      }
+    },
     async aiDraft(req: AIDraftRequest) {
       await new Promise((r) => setTimeout(r, 600))
       if (!req.text?.trim() && !req.audio && req.image_count < 1) throw fixtureError(400, 'Send text, audio or photos')
