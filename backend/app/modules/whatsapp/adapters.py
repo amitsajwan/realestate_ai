@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import Optional
 
 from app.core import brand
-from app.modules.chat import engine
+from app.modules.chat import carry, engine, phrases
 from app.modules.knowledge.grounding import Ref, facts_for
 from app.modules.knowledge.reply import detect_language as _detect
 from app.modules.tracking import requirement as rq
@@ -40,6 +40,42 @@ async def chat_turn(data: dict, text: str, llm, grounding, finder=None, history=
         from app.modules.chat import agent as chat_agent
         return await chat_agent.turn(data, text, llm, grounding, finder=finder, history=history or [], channel="message")
     return await engine.turn(data, text, llm, grounding, finder=finder)
+
+
+def asked_language(text: str) -> Optional[str]:
+    """'Marathi', 'हिंदी में': they chose a language, which our follow-up message invites."""
+    return phrases.asked_language(text)
+
+
+def language_ok(lang: str) -> str:
+    return phrases.say("lang_ok", lang)
+
+
+def chat_ref_in(text: str) -> Optional[str]:
+    return carry.ref_in(text)
+
+
+def without_chat_ref(text: str) -> str:
+    return carry.without_ref(text)
+
+
+async def carry_from_website(db, conv: dict, ref: Optional[str] = None) -> Optional[str]:
+    """What the website knows about this buyer joins the chat, once (chat/carry.py): the website chat they came from, else the lead with
+    their number. Returns the language they used there, when they used one. Never a reason to drop a message."""
+    data = conv["data"]
+    if data.get("carried") and not ref:
+        return None
+    try:
+        found = await carry.session_by_ref(db, ref) if ref else None
+        found = found or await carry.from_lead(db, data.get("phone") or "")
+        carry.apply(data, found)
+        if found and found.get("project") and not conv.get("context"):
+            conv["context"] = await project_for(db, found["project"])
+        return (found or {}).get("lang")
+    except Exception as e:
+        log.info("whatsapp could not read the website chat: %s", type(e).__name__)
+        data["carried"] = True
+        return None
 
 
 def site_url() -> str:
@@ -80,7 +116,7 @@ async def homes_finder(db, agent_id: Optional[str]):
             tx = req.pop("transaction", "sale")
             top = matching.top_matches(req, docs, tx, limit=10)
             cards = [card(by_id[m["listing_id"]], slug) for m in top if m["match_pct"] >= CARD_MIN_PCT and m["listing_id"] in by_id][:3]
-            return cards or await project_cards(db, {**req, "transaction": tx})   # no listing fits: our project pages there
+            return cards or await project_cards(db, {**req, "transaction": tx}, now)   # no listing fits: our project pages there
         except Exception as e:
             log.info("homes finder failed: %s", type(e).__name__)
             return []
@@ -97,6 +133,8 @@ def card_lines(cards: list) -> str:
             bits.append(f"{int(c['carpet_sqft']):,} sq ft")
         if c.get("price_text"):
             bits.append(c["price_text"])
+        if c.get("fact"):
+            bits.append(c["fact"])
         label = " (sample)" if c.get("sample") else ""
         out.append(f"• {', '.join(bits)}{label}: {site}{c.get('url') or ''}")
     return "\n".join(out)

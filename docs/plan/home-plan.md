@@ -92,6 +92,9 @@ Code writes every sentence from the facts ("1.1 km from EON IT Park, Kharadi in 
 MahaRERA: Jun 2029, never moved", "60 of 100 homes booked on MahaRERA (60%)"). No model is asked, so there is nothing to
 guard and nothing to fall back from. The page says when it read the facts and that distances are straight-line.
 
+The chat knows the plan (2026-11-06, [chat-reach.md](chat-reach.md)): it reads a plan's answers from this browser's page views, so it never
+asks them again, offers today's prices for it, and offers the plan once to a buyer who has none, on the website and on WhatsApp.
+
 ## 3. What we measure
 
 Plan views are page views of `/home-plan/result` on the house account (Studio's visits). The leads are ordinary Studio leads whose message starts "East Pune home plan" or "Home plan (outside East Pune)".

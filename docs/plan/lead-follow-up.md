@@ -40,6 +40,9 @@ come in, leads of the last 24 h only), 3 (one Studio alert per 2 h+ wait, kind l
 leads live; no owner WhatsApp/email yet: that needs a paid alert template) and 11 (timeline points in the score). Loop:
 inbox/followups.py, role conversations.
 
+LIVE 2026-11-06: **the follow-ups offer Marathi as well as Hindi.** `enquiry_followup_v2` and `project_enquiry_v2` say "Hindi ya Marathi
+mein baat karna ho to bataiye"; until Meta approves them the send fails and the v1 templates go ([chat-reach.md](chat-reach.md)).
+
 LIVE 2026-10-30: **a project page enquiry is answered as one.** Subhash Girase asked for a site visit on the 96 Arrcade, Kharadi page
 (from ChatGPT) and the follow-up asked him which part of Pune he wanted. Now an enquiry on `/projects/<slug>` gets UTILITY template
 `project_enquiry_v1` ("Thank you for asking about 96 Arrcade, Kharadi ... You asked for a site visit. Our team will call you

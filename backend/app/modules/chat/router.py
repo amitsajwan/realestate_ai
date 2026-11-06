@@ -32,11 +32,9 @@ class ChatContext(BaseModel):
     topic: Optional[str] = Field(None, max_length=120, pattern=r"^[a-z0-9][a-z0-9-]*$")
 
 
-class MessageIn(BaseModel):
+class VisitIn(BaseModel):
     session_id: str = Field(..., min_length=12, max_length=64)
     agent_slug: str = Field(..., min_length=2, max_length=60)
-    message: str = Field(..., min_length=1, max_length=500)
-    source: Optional[str] = Field(None, max_length=40)
     context: Optional[ChatContext] = None
     # the site's tracking: the visitor's browser id and pages, so a chat lead knows where they came from
     anon_id: Optional[str] = Field(None, min_length=8, max_length=64)
@@ -53,6 +51,15 @@ class MessageIn(BaseModel):
         return {"anon_id": self.anon_id, "path": self.path, "landing": self.landing, "referrer": self.referrer}
 
 
+class MessageIn(VisitIn):
+    message: str = Field(..., min_length=1, max_length=500)
+    source: Optional[str] = Field(None, max_length=40)
+
+
+class NudgeIn(VisitIn):
+    seconds: int = Field(..., ge=0, le=86400)   # how long this visit has had the site in view
+
+
 class HomeCard(BaseModel):
     """A matching home from the agent's live listings. Samples carry sample=True and no price."""
     id: str
@@ -64,6 +71,20 @@ class HomeCard(BaseModel):
     sample: bool = False
     url: str
     image_url: Optional[str] = None
+    fact: Optional[str] = None   # one sourced fact on a project card
+    source: Optional[str] = None
+    hot: bool = False
+
+
+class ChatLink(BaseModel):
+    label: str
+    url: str
+
+
+class NudgeOut(BaseModel):
+    text: str
+    quick_replies: List[str] = []
+    link: Optional[ChatLink] = None
 
 
 class MessageOut(BaseModel):
@@ -75,6 +96,8 @@ class MessageOut(BaseModel):
     follow_up: Optional[str] = None
     # set only when the platform WhatsApp number is configured and 'Continue on WhatsApp' is offered
     whatsapp_url: Optional[str] = None
+    # a page to open beside the quick replies: the home plan
+    link: Optional[ChatLink] = None
 
 
 def get_service() -> ChatService:
@@ -89,6 +112,17 @@ async def chat_message(body: MessageIn, svc: ChatService = Depends(get_service))
                                body.visit())
     except ChatError as e:
         raise HTTPException(status_code=e.status_code, detail=str(e))
+
+
+@router.post("/nudge", response_model=Optional[NudgeOut])
+async def chat_nudge(body: NudgeIn, svc: ChatService = Depends(get_service)):
+    """The widget asks this after a while on the site: one line to show beside the chat button, or null."""
+    try:
+        n = await svc.nudge(body.session_id, body.agent_slug, body.context.model_dump(exclude_none=True) if body.context else None,
+                            body.visit(), body.seconds)
+    except ChatError as e:
+        raise HTTPException(status_code=e.status_code, detail=str(e))
+    return {"text": n["text"], "quick_replies": n["quick"], "link": n["link"]} if n else None
 
 
 @router.get("/conversations")

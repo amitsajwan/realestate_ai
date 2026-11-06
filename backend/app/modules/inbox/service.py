@@ -37,21 +37,27 @@ MAX_COMMENTS = 300
 COMMENT_CHANNEL = {"facebook": "facebook_comment", "instagram": "instagram_comment"}
 COMMENT_TROUBLE = ("capped", "failed")   # the bot could not answer: a person should
 TEMPLATE_GAP = timedelta(hours=24)
-FOLLOWUP_TEMPLATE = "enquiry_followup_v1"   # approved UTILITY template on our WABA; the body below must match Meta's copy
-FOLLOWUP_BODY = ("Namaste {} ji, this is Avasetu. You asked about a {} in Pune ({}). Thank you!\n\n"
-                 "To shortlist the right homes, could you tell us:\n"
-                 "1. Which part of Pune you'd like to live in, or where you or your family work?\n"
-                 "2. Ready to move, or under construction is fine?\n"
-                 "3. Is it for your family to live in, or an investment?\n\n"
-                 "Hindi mein baat karna ho to bataiye.")
+FOLLOWUP_OLD = "enquiry_followup_v1"       # approved UTILITY template on our WABA; each body below must match Meta's copy
+FOLLOWUP_OLD_BODY = ("Namaste {} ji, this is Avasetu. You asked about a {} in Pune ({}). Thank you!\n\n"
+                     "To shortlist the right homes, could you tell us:\n"
+                     "1. Which part of Pune you'd like to live in, or where you or your family work?\n"
+                     "2. Ready to move, or under construction is fine?\n"
+                     "3. Is it for your family to live in, or an investment?\n\n"
+                     "Hindi mein baat karna ho to bataiye.")
+# owner, 2026-11-06: "why we say can we talk in Hindi, why not Marathi also". A template's words are fixed by Meta, so the new wording is a new
+# template: v2 goes first, and until Meta approves it the send fails and v1 goes instead, so no lead waits.
+FOLLOWUP_TEMPLATE = "enquiry_followup_v2"
+FOLLOWUP_BODY = FOLLOWUP_OLD_BODY.replace("Hindi mein baat", "Hindi ya Marathi mein baat")
 # An enquiry on a project page already says where and what (2026-10-30: Subhash Girase asked for a site visit at 96 Arrcade,
 # Kharadi, and the template above asked him which part of Pune he wanted). It gets this one; until Meta approves it the send fails
 # and FOLLOWUP_TEMPLATE goes instead, so no lead waits.
-PROJECT_TEMPLATE = "project_enquiry_v1"   # UTILITY, submitted 2026-10-30; the body below must match Meta's copy
-PROJECT_BODY = ("Namaste {} ji, this is Avasetu. Thank you for asking about {} on our website.\n\n"
-                "You asked for {}. Our team will call you shortly about it.\n\n"
-                "If you have a question before that, reply here. Hindi mein baat karna ho to bataiye.\n\n"
-                "Avasetu team")
+PROJECT_OLD = "project_enquiry_v1"   # UTILITY, submitted 2026-10-30; each body below must match Meta's copy
+PROJECT_OLD_BODY = ("Namaste {} ji, this is Avasetu. Thank you for asking about {} on our website.\n\n"
+                    "You asked for {}. Our team will call you shortly about it.\n\n"
+                    "If you have a question before that, reply here. Hindi mein baat karna ho to bataiye.\n\n"
+                    "Avasetu team")
+PROJECT_TEMPLATE = "project_enquiry_v2"
+PROJECT_BODY = PROJECT_OLD_BODY.replace("Hindi mein baat", "Hindi ya Marathi mein baat")
 PROJECT_WANT = {"A site visit": "a site visit", "Floor plans": "the floor plans"}
 
 
@@ -320,14 +326,13 @@ class InboxService:
             await self.c("whatsapp_conversations").insert_one(conv)
         project = await self.project_of(lead)
         rec = None
-        if project:
-            params = project_params(lead, project)
-            text = PROJECT_BODY.format(*params)
-            rec = await self.whatsapp.send_template(conv, PROJECT_TEMPLATE, "en", params, text, now)
-        if rec is None or rec["status"] == "failed":
-            params = followup_params(lead, project)
-            text = FOLLOWUP_BODY.format(*params)
-            rec = await self.whatsapp.send_template(conv, FOLLOWUP_TEMPLATE, "en", params, text, now)
+        tries = [(PROJECT_TEMPLATE, PROJECT_BODY, project_params(lead, project)), (PROJECT_OLD, PROJECT_OLD_BODY, project_params(lead, project))] if project else []
+        tries += [(FOLLOWUP_TEMPLATE, FOLLOWUP_BODY, followup_params(lead, project)), (FOLLOWUP_OLD, FOLLOWUP_OLD_BODY, followup_params(lead, project))]
+        for name, body, params in tries:
+            text = body.format(*params)
+            rec = await self.whatsapp.send_template(conv, name, "en", params, text, now)
+            if rec["status"] != "failed":
+                break
         await self.c("whatsapp_messages").update_one({"_id": rec["_id"]}, {"$set": {"sent_by": by}})
         if rec["status"] not in ("sent", "dry_run"):
             raise InboxError(f"Not sent: {rec.get('error') or rec['status']}", 502)

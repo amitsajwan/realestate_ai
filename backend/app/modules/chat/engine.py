@@ -33,13 +33,13 @@ from app.platform.text import normalize_indian_mobile
 from app.modules.tracking import requirement as rq
 
 from . import phrases
-from .phrases import WHATSAPP, ack_word, list_what, quick as qr, quick_for as qr_for, say
+from .phrases import WHATSAPP, ack_word, asked_language, list_what, quick as qr, quick_for as qr_for, say
 
 WHATSAPP_LABEL = WHATSAPP
 
 CONSENT = say("consent")
 ORDER = ["tx", "locality", "bhk", "budget", "timeline", "name", "phone"]
-SOFT = ("page", "history")   # where a detail came from when the buyer did not say it: a stated one replaces it
+SOFT = ("page", "history", "web")   # where a detail came from when the buyer did not say it: a stated one replaces it
 MAX_ASKS = 2            # any one question
 MAX_PHONE_ASKS = 2      # the number, per conversation
 SNOOZE_TURNS = 5        # after 'Not now'
@@ -58,6 +58,9 @@ ABOUT = re.compile(r"^\W*(tell me (more )?about (it|this|this home|the home)|det
 HOMES = re.compile(r"\b(similar|show (me )?(some |the |more )?(homes|options|flats|houses|listings|properties|matches)|any (homes|flats|houses|listings)|"
                    r"(home|flat|house|more) options|what (homes|flats) do you have|(which|what|any) projects|projects (are )?(available|there|in)|ghar dikhao|aise aur ghar|asech ghar|ghare dakhva|flat dikhao)\b|"
                    r"घर दिखाइए|ऐसे और घर|असेच घर|घरे दाखवा", re.I)
+# they want us to name projects: the area's hot ones go up at once (chat/projects.py)
+HOT = re.compile(r"\b(hot|popular|trending|good|best|top|acche|achhe|changle)\s+(\w+\s+)?(projects?|homes?|flats?|options?)\b|\bsuggest|\brecommend|"
+                 r"हॉट|अच्छे प्रोजेक्ट|चांगले प्रोजेक्ट", re.I)
 SIMILAR = re.compile(r"\b(similar|aise aur|asech)\b|ऐसे और|असेच", re.I)
 WHATSAPP_RX = re.compile(r"^\W*continue on whatsapp\W*$", re.I)
 # 'not sure', 'you tell', 'how much will I get?' in answer to the budget question: we tell them what homes cost instead of asking again
@@ -116,6 +119,7 @@ class Turn:
     cards: List[dict] = field(default_factory=list)
     notify_needs_you: bool = False    # the first time this chat needs a person: the caller alerts the agent
     follow_up: str = ""               # with cards: the next question, shown after the cards (the reply is what comes before them)
+    link: Optional[dict] = None       # {label, url}: a page to open, for the home plan (chat/plan.py)
 
 
 Finder = Callable[[dict, Optional[str]], Awaitable[List[dict]]]
@@ -320,6 +324,8 @@ def summary(d: dict) -> str:
     text = ", ".join(bits) + "."
     if d.get("visit_wanted"):
         text += " Wants a site visit."
+    if d.get("ask_for") == "plan":
+        text += " Wants today's prices for their home plan."
     if d.get("sheets_for"):
         text += f" Wants price sheets for {' and '.join(d['sheets_for'][:2])}" + (", to compare them." if d.get("ask_for") == "compare" else ".")
     if d["questions"]:
@@ -477,6 +483,10 @@ def read_projects(d: dict, limit: int = 2) -> List[str]:
 def _seen_greeting(d: dict, lang: str) -> Optional[tuple]:
     """A general page (home, news, /enquire...) after reading projects or areas earlier in this visit: offer what they were looking at,
     or carry on from the area they read. None when they read nothing we know."""
+    done = d.get("plan")
+    if done and done.get("east"):
+        d["asked"] = None
+        return say("seen_plan", lang, want=done["want"]), [qr("plan_prices", lang)]
     names = read_projects(d)
     d["asked"] = None   # the next question, when there is one, is set by _prompt below
     if len(names) >= 2:
@@ -598,7 +608,8 @@ async def _show_homes(d: dict, finder: Optional[Finder], force: bool) -> tuple:
     if all(c.get("kind") == "project" and not c.get("priced") for c in cards):
         d.pop("price_hint", None)
         d["want_phone_now"] = True   # the price comes from the agent: the number is the next useful step
-        return say("cards_projects", lang, area=d.get("locality") or "this area"), cards, True
+        key = "cards_hot" if any(c.get("hot") for c in cards) else "cards_projects"
+        return say(key, lang, area=d.get("locality") or "this area"), cards, True
     samples = [c for c in cards if c.get("sample")]
     hint = d.pop("price_hint", None)
     price_line = _price_line(d, cards, lang) if hint else ""
@@ -626,6 +637,15 @@ async def turn(d: dict, text: str, llm, grounding=None, finder: Optional[Finder]
     lang = _lang(d)
     if ABUSE.search(text):
         return Turn(say("abuse", lang), needs_human=True)
+    chosen = asked_language(text) if d.get("localise") else None
+    if chosen:
+        d["lang"] = chosen
+        if d["turn_no"] > 2 or d.get("questions"):
+            return Turn(say("lang_ok", chosen))
+        asks = dict(d.get("asks") or {})     # the greeting again, in their language: not a second time of asking
+        reply, q = _greeting(d, whatsapp)
+        d["asks"] = asks
+        return Turn(reply, q)
     if first and GREETING.match(text):
         reply, q = _greeting(d, whatsapp)
         return Turn(reply, q)
@@ -649,7 +669,7 @@ async def turn(d: dict, text: str, llm, grounding=None, finder: Optional[Finder]
     if not price_hint and grounding is None and not filled(d, "budget") and PRICE_Q.search(text) and (d["locality"] or d["bhk"]):
         d["price_hint"] = price_hint = True   # 'how much for a 3 BHK in Kharadi?': show what we have and what it costs
     skipped = d.pop("skipped", None)
-    force_homes = bool(HOMES.search(text)) or price_hint
+    force_homes = bool(HOMES.search(text)) or bool(HOT.search(text)) or price_hint
     # 'too costly': a salesperson asks for the budget that works instead of losing the buyer (unless they just gave a new one)
     objection = bool(OBJECTION.search(text)) and (d["budget_min"], d["budget_max"]) == budget_before
     visit = "visit" in topics_in(text)

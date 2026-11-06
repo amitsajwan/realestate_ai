@@ -176,7 +176,7 @@ class WhatsAppService(ChatBrain):
             return await self._finish(conv, mid, None, "ignored", now, text, mtype)
 
         detected = adapters.detect_language(text) if text else "en"
-        lang = L.sticky(conv.get("language"), detected, text)
+        lang = adapters.asked_language(text) or L.sticky(conv.get("language"), detected, text)
         conv["language"] = lang
 
         # STOP / START first: respected even before anything else

@@ -1,7 +1,8 @@
 import React from 'react'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import ChatWidget, { ChatHomeCard } from '@/components/site/ChatWidget'
 import { cardFacts, parseChatReply } from '@/lib/site/chatApi'
+import { askNow, isMuted, nudgeAllowed, parseNudge } from '@/lib/site/chatNudge'
 
 const mockTrackEvent = jest.fn()
 jest.mock('@/lib/site/tracking', () => ({
@@ -105,5 +106,99 @@ describe('ChatWidget bubble', () => {
     unmount()
     render(<ChatWidget agentSlug="rahul" bottomBar={false} />)
     expect(screen.getByTestId('chat-widget').className).toContain('bottom-[calc(1rem+env(safe-area-inset-bottom,0px))]')
+  })
+})
+
+describe('the note beside the chat button', () => {
+  const NOTE = { text: 'Comparing A and B?', quick_replies: ['Compare them'], link: { label: 'Try the home plan', url: '/home-plan' } }
+
+  /** The widget's clock, run up to the first moment it asks the server. */
+  async function until(asked: jest.Mock) {
+    for (let i = 0; i < 6 && !asked.mock.calls.length; i++) await act(async () => { jest.advanceTimersByTime(5000) })
+  }
+
+  beforeEach(() => {
+    window.sessionStorage.clear()
+    jest.useFakeTimers()
+    window.history.pushState({}, '', '/projects/lodha-camelot')
+  })
+  afterEach(() => { jest.useRealTimers() })
+
+  function server(note: object | null) {
+    const asked = jest.fn((url: string) => reply(url.endsWith('/nudge') ? note as object : { reply: 'Sure', quick_replies: [] }))
+    global.fetch = asked as unknown as typeof fetch
+    return asked
+  }
+
+  it('asks after a while in view, shows beside the button and never opens the chat', async () => {
+    const asked = server(NOTE)
+    render(<ChatWidget agentSlug="avasetu" />)
+    await until(asked)
+    await act(async () => { await Promise.resolve() })
+    expect(screen.getByTestId('chat-nudge')).toHaveTextContent('Comparing A and B?')
+    expect(screen.queryByRole('log')).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Try the home plan' })).toHaveAttribute('href', '/home-plan')
+  })
+
+  it('becomes the first message of the chat when they tap it, and their tap is sent', async () => {
+    const asked = server(NOTE)
+    render(<ChatWidget agentSlug="avasetu" />)
+    await until(asked)
+    await act(async () => { await Promise.resolve() })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Compare them' })) })
+    expect(within(screen.getByRole('log')).getByText('Comparing A and B?')).toBeInTheDocument()
+    expect(within(screen.getByRole('log')).getByText('Compare them')).toBeInTheDocument()
+    expect(asked.mock.calls.some((c) => String(c[0]).endsWith('/chat/message'))).toBe(true)
+  })
+
+  it('stays away for a week once dismissed', async () => {
+    const asked = server(NOTE)
+    render(<ChatWidget agentSlug="avasetu" />)
+    await until(asked)
+    await act(async () => { await Promise.resolve() })
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss message' }))
+    expect(screen.queryByTestId('chat-nudge')).not.toBeInTheDocument()
+    expect(isMuted(Date.now())).toBe(true)
+    expect(isMuted(Date.now() + 8 * 24 * 60 * 60 * 1000)).toBe(false)
+  })
+
+  it('never interrupts a form, a sign-in or an agent page; a finished plan is fine', () => {
+    expect(nudgeAllowed('/projects/lodha-camelot')).toBe(true)
+    expect(nudgeAllowed('/home-plan/result')).toBe(true)
+    for (const p of ['/home-plan', '/enquire', '/login', '/agents', '/agent/rahul', '/for-agents/guide']) expect(nudgeAllowed(p)).toBe(false)
+  })
+
+  it('keeps asking each minute for a while, for a plan made late in a long visit', () => {
+    expect([25, 30, 90, 120, 180, 185, 240, 1200, 1260].filter(askNow)).toEqual([30, 90, 120, 180, 240, 1200])
+  })
+
+  it('reads a note defensively', () => {
+    expect(parseNudge(null)).toBeNull()
+    expect(parseNudge({ text: '' })).toBeNull()
+    expect(parseNudge({ text: 'x', link: { label: 'y', url: 'javascript:alert(1)' } })).toEqual({ text: 'x', quick_replies: [], link: null })
+  })
+})
+
+describe('the chat header', () => {
+  it('offers Hindi and Marathi at any time', async () => {
+    const asked = jest.fn(() => reply({ reply: 'नमस्कार', quick_replies: [] }))
+    global.fetch = asked as unknown as typeof fetch
+    render(<ChatWidget agentSlug="avasetu" />)
+    await act(async () => { fireEvent.click(screen.getByTestId('chat-open')) })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'मराठी' })) })
+    const calls = asked.mock.calls as unknown[][]
+    expect(JSON.parse(String((calls[calls.length - 1][1] as RequestInit).body)).message).toBe('मराठी')
+  })
+})
+
+describe('project cards and the plan link', () => {
+  it('shows the fact and a Hot mark', () => {
+    render(<ul><ChatHomeCard card={{ ...REAL, hot: true, fact: '12 homes booked lately' }} /></ul>)
+    expect(screen.getByRole('link')).toHaveTextContent('Hot')
+    expect(screen.getByRole('link')).toHaveTextContent('12 homes booked lately')
+  })
+  it('keeps a safe link and drops another', () => {
+    expect(parseChatReply({ reply: 'x', link: { label: 'Try', url: '/home-plan?bhk=2' } }).link).toEqual({ label: 'Try', url: '/home-plan?bhk=2' })
+    expect(parseChatReply({ reply: 'x', link: { label: 'Try', url: 'javascript:alert(1)' } }).link).toBeUndefined()
   })
 })

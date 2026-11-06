@@ -9,7 +9,7 @@ import logging
 import re
 from typing import Dict, List, Optional
 
-from app.core import pune_places
+from app.core import areas, pune_places
 from app.modules.areastats import hubs as project_hubs, pages as project_pages
 from app.modules.tracking import requirement as rq
 
@@ -18,9 +18,23 @@ log = logging.getLogger(__name__)
 MAX_READ = 10          # pages kept per visit (the latest)
 MAX_CACHE = 40         # resolved paths kept on the session, so each message looks up only new pages
 SLUG = re.compile(r"^[a-z][a-z-]{1,39}$")
+SLUG_RX = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+){0,15}$")
 PROJECT = re.compile(r"^[a-z0-9][a-z0-9-]{1,119}$")
 LISTS = ("top", "new-launches", "ready-to-move")
 LIST_LABEL = {"top": "top list", "new-launches": "new launches", "ready-to-move": "ready to move", "all": "projects"}
+
+
+def place_name(slug) -> Optional[str]:
+    """A Pune place's name from a page's slug ('upper-kharadi' -> 'Upper Kharadi'): one of our areas, else a place of the register's
+    list. None for a place we do not know, so a greeting never names a place from the URL alone."""
+    s = str(slug or "").strip().lower()
+    if not SLUG_RX.match(s):
+        return None
+    a = areas.get(s)
+    if a:
+        return a.name
+    p = pune_places.BY_SLUG.get(s)
+    return p.name if p else None
 
 
 def _bhk(seg: str) -> Optional[int]:

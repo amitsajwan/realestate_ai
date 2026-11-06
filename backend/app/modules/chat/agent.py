@@ -40,7 +40,7 @@ from app.modules.knowledge import site, vectors
 from app.modules.knowledge.reply import LANG_NAME, _facts_block, _nums, valid_text
 from app.modules.tracking import requirement as rq
 
-from . import engine, phrases
+from . import engine, phrases, plan as home_plan
 from .phrases import say
 
 log = logging.getLogger(__name__)
@@ -95,7 +95,8 @@ REPLY = f"""You are the {brand.NAME} assistant in the chat {{site}}. You talk li
 warm, short, honest, helpful before anything else, never pushy. You work for {{team}}: your aim is to understand what the buyer needs, show
 them fitting homes, and when the moment is right get their number so {{team}} can help. PAGE says where the visitor is: what they ask is
 about that page's subject unless they name another. EARLIER IN THIS VISIT THEY READ names the other pages they read in this visit: you may
-refer to them ("the two projects you looked at"), but say nothing about them that KNOWLEDGE or HOMES does not contain.
+refer to them ("the two projects you looked at"), but say nothing about them that KNOWLEDGE or HOMES does not contain. In a WhatsApp chat they are
+what the buyer read on our website: never ask again for anything in BUYER.
 
 How to reply:
 1. First respond to what they just said. Answer a question from KNOWLEDGE or HOMES. If they do not know their budget or ask what homes cost,
@@ -112,6 +113,8 @@ How to reply:
 3. HOMES are shown as cards right under your message: point to them ("the home below", "these two"), do not list every detail again.
    A home marked SAMPLE is an illustration, never for sale. A card marked PROJECT is one of our project pages in their area: never say it
    fits or matches their BHK or budget; say these are projects there and {{team}} can tell the sizes and current prices. Do not repeat a price or detail you already said in CONVERSATION unless asked.
+   A card marked HOT is among the projects buyers look at most in that area right now: you may say that, and give the fact on its line. It says nothing
+   about quality, so never call it good or a safe buy. When they ask for good projects, these are what you offer, and {{team}} helps them choose.
 4. Put the next step in "question": exactly the one thing NEXT asks for, in your own natural words, or "" when NEXT is none. "reply"
    itself contains no question. Never ask anything else, never ask again for something in BUYER or something they skipped.
 5. Write in {{lang}}. 1 to 3 short sentences in "reply" (under 300 characters), "question" one short sentence. No links, phone numbers,
@@ -164,6 +167,7 @@ def _rules_only(d: dict, text: str) -> bool:
     """Turns the rules handle better than a model: the first hello, abuse, anything about the phone number, 'Continue on WhatsApp',
     and 'I'm an agent' on a page for buyers (one line to /agents)."""
     return bool((not d.get("greeted") and engine.GREETING.match(text)) or ABUSE.search(text) or engine.PHONE_RX.search(text)
+                or (d.get("localise") and phrases.asked_language(text))
                 or d.get("pending_phone") or engine.WHATSAPP_RX.match(text)
                 or (d.get("asked") == "phone" and (engine.YES.match(text) or engine.NO.match(text)))
                 or (d.get("audience") == "buyer" and site.says_agent(text)))
@@ -182,7 +186,12 @@ def _history_ask(d: dict, text: str) -> Optional[str]:
     two offered). Records which projects, for the team (engine.summary), and returns the ask: "sheet" or "compare"."""
     if d.get("audience") != "buyer" or not d.get("history"):
         return None
+    if d.get("plan") and phrases.is_quick(text, "plan_prices"):
+        return "plan"
     names = engine.read_projects(d, limit=10)
+    page = d.get("page") or {}
+    if page.get("kind") == "project" and page.get("name"):   # the note beside the chat button compares the page they are on too
+        names = [page["name"]] + [n for n in names if n != page["name"]]
     if len(names) >= 2 and phrases.is_quick(text, "compare"):
         d["sheets_for"] = names[:2]
         return "compare"
@@ -197,6 +206,8 @@ def _visit_text(d: dict) -> str:
     """EARLIER: the pages they read before this one in this visit (checked pages only), for the model to refer to; never facts."""
     here, page_name = d.get("page_path"), (d.get("page") or {}).get("name")
     items = [i for i in d.get("history") or [] if i.get("path") != here and not (i.get("kind") == "project" and i.get("name") == page_name)]
+    if d.get("carried_read") and not items:   # a WhatsApp chat: what they read on the website (chat/carry.py)
+        return ", ".join(d["carried_read"])
     if d.get("audience") != "buyer" or not items:
         return "nothing else"
     return ", ".join(f"{i['label']} ({i['area']})" if i.get("kind") == "project" and i.get("area") else i["label"] for i in items[-6:])
@@ -303,6 +314,8 @@ def _buyer_text(d: dict) -> str:
         bits.append("has shared their number (the agent will contact them)")
     if d.get("visit_wanted"):
         bits.append("wants a site visit")
+    if d.get("carried_questions"):
+        bits.append("asked on our website: " + " | ".join(d["carried_questions"]))
     skipped = [f for f in engine.ORDER if f in d.get("declined", []) or (engine._exhausted(d, f) and not engine.filled(d, f))]
     if skipped:
         bits.append("did not give (do not ask again): " + ", ".join(skipped))
@@ -399,8 +412,13 @@ def _homes_text(cards: List[dict], searched: bool, d: dict) -> str:
             facts.append(f"{int(c['carpet_sqft']):,} sq ft carpet")
         if c.get("kind") == "project":   # chat/projects.py: one of our project pages, not one of the agent's listings
             facts.append(f"a project page on our site ({c.get('locality')})")
-            facts.append(f"from {c['price_text']} for this size (the agent's price sheet)" if c.get("price_text") else
+            price = c.get("price_text") or ""
+            facts.append(f"{price if price.startswith('from') else 'from ' + price} ({c.get('price_note') or 'for this size, the agent price sheet'})" if price else
                          f"PROJECT, sizes and prices NOT known to us, not checked against their BHK or budget: {_voice(d)['team']} tells them")
+            if c.get("hot"):
+                facts.append("HOT")
+            if c.get("fact"):
+                facts.append(f"{c['fact']} ({c.get('source') or 'MahaRERA'})")
             lines.append(f"{i}. " + ", ".join(facts))
             continue
         facts.append("SAMPLE, an illustration, not for sale" if c.get("sample") else (f"price {c['price_text']}" if c.get("price_text") else "price on request"))
@@ -473,9 +491,21 @@ async def _turn(d: dict, text: str, llm, grounding, finder, whatsapp: bool, hist
         d["want_phone_now"] = True
 
     same = d.get("shown_sig") == engine._sig(d) and d.get("shown_brief")
+    page_kind = (d.get("page") or {}).get("kind")
+    hot_ask = bool(engine.HOT.search(text))
+    # the first time we know their area we name its projects, without waiting for the size and budget (a project's own page keeps to that project)
+    hot_now = engine.filled(d, "locality") and d.get("hot_for") != d["locality"] and page_kind not in ("project", "listing") \
+        and intent not in ("visit", "human") and not d.get("handed_off")
     force = (intent == "homes" or bool(engine.HOMES.search(text))) or (intent == "suggest" and not same) or \
         (_ready(d) and d.get("shown_sig") != engine._sig(d))
-    _, cards, shown = await engine._show_homes(d, finder, force)
+    _, cards, shown = await engine._show_homes(d, finder, force or hot_ask or hot_now)
+    if hot_ask or hot_now:
+        d["hot_for"] = d.get("locality")
+    if page_kind == "project":   # 'hot projects here' on a project's page: the others
+        cards = [c for c in cards if c.get("title") != (d.get("page") or {}).get("name")]
+    if not cards and hot_now and not force:   # we offered, they did not ask: no 'nothing matches' for an area we hold no cards for
+        shown = False
+        d.pop("want_phone_now", None)
     if cards:
         d["shown_brief"] = _homes_text(cards, True, d)
     if intent in ("question", "suggest"):
@@ -542,6 +572,11 @@ async def _turn(d: dict, text: str, llm, grounding, finder, whatsapp: bool, hist
         d["asked"] = None
     if whatsapp and (shown or needs_human) and engine.WHATSAPP not in quick:
         quick = quick + [engine.WHATSAPP]
+    link = None
+    if home_plan.can_offer(d, channel) and (cards or intent == "suggest" or hot_ask):   # once: a buyer unsure which one, or shown several
+        d["plan_offered"] = True
+        reply = f"{reply} {say('try_plan', lang)}"
+        link = home_plan.link(d, lang)
     if cards and question:
-        return engine.Turn(reply, quick, None, needs_human, cards, notify, question)
-    return engine.Turn(" ".join(x for x in (reply, question) if x), quick, None, needs_human, cards, notify)
+        return engine.Turn(reply, quick, None, needs_human, cards, notify, question, link)
+    return engine.Turn(" ".join(x for x in (reply, question) if x), quick, None, needs_human, cards, notify, link=link)

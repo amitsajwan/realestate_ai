@@ -6,7 +6,8 @@ word for word, so a WhatsApp buyer (who gets English from the engine) is still t
 
 `say(key, lang, **kw)` never mixes: a key missing in a language falls back to the whole English sentence, never half of one.
 """
-from typing import Dict
+import re
+from typing import Dict, Optional
 
 from app.core import brand
 
@@ -85,6 +86,56 @@ P: Dict[str, Dict[str, str]] = {
         "hi": "आप {a} और {b} देख रहे थे। उनकी प्राइस शीट और फ्लोर प्लान चाहिए, या दोनों की तुलना में मदद?",
         "mr": "तुम्ही {a} आणि {b} पाहत होता. त्यांच्या प्राइस शीट आणि फ्लोर प्लॅन हवे आहेत, की दोघांची तुलना करायला मदत?",
         "mr_latn": "Tumhi {a} ani {b} pahat hota. Tyanchya price sheet ani floor plan have aahet, ki doghanchi tulna karayla madat?",
+    },
+    "seen_plan": {   # chat/plan.py: a finished home plan; {want} is its size and budget
+        "en": "Your home plan: {want}. Want today's prices for these picks from our team?",
+        "hinglish": "Aapka home plan: {want}. In projects ke aaj ke prices hamari team se chahiye?",
+        "hi": "आपका होम प्लान: {want}। इन प्रोजेक्ट की आज की कीमत हमारी टीम से चाहिए?",
+        "mr": "तुमचा होम प्लॅन: {want}. या प्रोजेक्टच्या आजच्या किमती आमच्या टीमकडून हव्या आहेत का?",
+        "mr_latn": "Tumcha home plan: {want}. Ya projectchya aajchya kimati aamchya team kadun havya aahet ka?",
+    },
+    "try_plan": {   # the one line that offers the plan; the link sits beside it
+        "en": "Not sure which one fits your family? Our home plan takes six quick answers and gives you a short list, with the facts behind each pick.",
+        "hinglish": "Samajh nahi aa raha kaunsa aapke parivaar ke liye sahi hai? Hamara home plan chhe aasan sawaalon se chhoti list deta hai, har project ke facts ke saath.",
+        "hi": "समझ नहीं आ रहा कौन-सा आपके परिवार के लिए सही है? हमारा होम प्लान छह आसान सवालों से छोटी सूची देता है, हर प्रोजेक्ट के तथ्यों के साथ।",
+        "mr": "तुमच्या कुटुंबासाठी कोणता योग्य आहे हे कळत नाही? आमचा होम प्लॅन सहा सोप्या प्रश्नांतून छोटी यादी देतो, प्रत्येक प्रोजेक्टच्या तथ्यांसह.",
+        "mr_latn": "Tumchya kutumbasathi konta yogya aahe he kalat nahi? Aamcha home plan saha sopya prashnantun chhoti yadi deto, pratyek projectchya tathyansah.",
+    },
+    # ---- the note beside the chat button (chat/nudge.py)
+    "nudge_compare": {
+        "en": "Comparing {a} and {b}? I can get you both price sheets, side by side.",
+        "hinglish": "{a} aur {b} compare kar rahe hain? Main dono ki price sheets saath mein dilwa sakta hoon.",
+        "hi": "{a} और {b} की तुलना कर रहे हैं? मैं दोनों की प्राइस शीट साथ में दिलवा सकता हूँ।",
+        "mr": "{a} आणि {b} ची तुलना करत आहात? मी दोघांच्या प्राइस शीट एकत्र मिळवून देऊ शकतो.",
+        "mr_latn": "{a} ani {b} chi tulna karat aahat? Mi doghanchya price sheet ekatra milvun deu shakto.",
+    },
+    "nudge_hot": {
+        "en": "Looking around {area}? I can show you the projects buyers are looking at most there right now.",
+        "hinglish": "{area} dekh rahe hain? Main wahan ke woh projects dikha sakta hoon jo buyers abhi sabse zyada dekh rahe hain.",
+        "hi": "{area} देख रहे हैं? मैं वहाँ के वे प्रोजेक्ट दिखा सकता हूँ जो खरीदार अभी सबसे ज़्यादा देख रहे हैं।",
+        "mr": "{area} पाहत आहात? खरेदीदार सध्या तिथले सर्वात जास्त पाहत असलेले प्रोजेक्ट मी दाखवू शकतो.",
+        "mr_latn": "{area} pahat aahat? Kharedidar sadhya tithle sarvat jast pahat aslele project mi dakhavu shakto.",
+    },
+    "lang_ok": {   # they chose a language in the middle of a chat
+        "en": "Sure, let us continue in English.",
+        "hinglish": "Zaroor, ab Hindi mein baat karte hain.",
+        "hi": "ज़रूर, अब हिंदी में बात करते हैं।",
+        "mr": "नक्की, आता मराठीत बोलूया.",
+        "mr_latn": "Nakki, aata Marathit boluya.",
+    },
+    "cards_hot": {   # chat/projects.py: the area's hot projects, none of them priced for this buyer
+        "en": "These are the projects buyers are looking at most in {area} right now. Our team can tell you today's prices.",
+        "hinglish": "{area} mein abhi buyers sabse zyada yeh projects dekh rahe hain. Hamari team aapko aaj ke prices bata sakti hai.",
+        "hi": "{area} में खरीदार अभी सबसे ज़्यादा ये प्रोजेक्ट देख रहे हैं। हमारी टीम आपको आज की कीमत बता सकती है।",
+        "mr": "{area} मध्ये खरेदीदार सध्या सर्वात जास्त हे प्रोजेक्ट पाहत आहेत. आमची टीम तुम्हाला आजच्या किमती सांगू शकते.",
+        "mr_latn": "{area} madhye kharedidar sadhya sarvat jast he project pahat aahet. Aamchi team tumhala aajchya kimati sangu shakte.",
+    },
+    "handoff_web_plan": {
+        "en": "Share your mobile number and the {team} team will WhatsApp you today's prices for your plan.",
+        "hinglish": "Apna mobile number share karein, {team} team aapke plan ke aaj ke prices WhatsApp karegi.",
+        "hi": "अपना मोबाइल नंबर दें, {team} टीम आपके प्लान की आज की कीमत WhatsApp करेगी।",
+        "mr": "तुमचा मोबाइल नंबर द्या, {team} टीम तुमच्या प्लॅनच्या आजच्या किमती WhatsApp करेल.",
+        "mr_latn": "Tumcha mobile number dya, {team} team tumchya plan chya aajchya kimati WhatsApp karel.",
     },
     "seen_area": {   # a general page after reading an area's pages or lists: {what} is from LIST_WHAT
         "en": "Still looking at {what} in {area}?",
@@ -389,6 +440,11 @@ QUICK = {
     "visit": {"en": "Site visit", "hinglish": "Site visit", "hi": "साइट विज़िट", "mr": "साइट व्हिजिट", "mr_latn": "Site visit"},
     # after the projects they read earlier in this visit: compare the two (chat/agent.py _history_ask)
     "compare": {"en": "Compare them", "hinglish": "Compare karo", "hi": "तुलना कीजिए", "mr": "तुलना करा", "mr_latn": "Tulna kara"},
+    # chat/plan.py: today's prices for the plan they made; the link to the plan's questions
+    "plan_prices": {"en": "Today's prices for my plan", "hinglish": "Mere plan ke aaj ke prices", "hi": "मेरे प्लान की आज की कीमत",
+                    "mr": "माझ्या प्लॅनच्या आजच्या किमती", "mr_latn": "Majhya plan chya aajchya kimati"},
+    "try_plan": {"en": "Try the home plan", "hinglish": "Home plan try karein", "hi": "होम प्लान आज़माएँ", "mr": "होम प्लॅन वापरून पहा",
+                 "mr_latn": "Home plan vaprun paha"},
     # an agent page's asks: English only, since each is a keyword of its answer in knowledge/site.py
     "agent_trial": {"en": "Free trial"},
     "agent_price": {"en": "Pricing"},
@@ -404,6 +460,9 @@ def is_quick(text: str, key: str) -> bool:
 QUICK_FOR = {
     "sheet_for": {"en": "{project} price sheet", "hinglish": "{project} price sheet", "hi": "{project} प्राइस शीट",
                   "mr": "{project} प्राइस शीट", "mr_latn": "{project} price sheet"},
+    # the note beside the chat button (chat/nudge.py): the name here is the area's
+    "hot_in": {"en": "Hot projects in {project}", "hinglish": "{project} ke hot projects", "hi": "{project} के हॉट प्रोजेक्ट",
+               "mr": "{project} मधील हॉट प्रोजेक्ट", "mr_latn": "{project} madhil hot project"},
 }
 
 
@@ -415,6 +474,21 @@ def is_quick_for(text: str, key: str, project: str) -> bool:
     """The visitor tapped (or typed) this project's quick reply, in any language."""
     t = " ".join((text or "").split()).strip(" .!?").lower()
     return any(t == v.format(project=project).lower().strip(" .!?") for v in QUICK_FOR[key].values())
+
+
+# "Hindi", "मराठीत बोला", "marathi madhe": a buyer choosing a language. The website chat's header offers them; our WhatsApp follow-up
+# invites the same ("Hindi ya Marathi mein baat karna ho to bataiye")
+_SAY = r"(?:\s+(?:me|mein|main|mai|madhe|madhye|please|pls|bolo|bola|bolu|baat|karo|karein|kijiye|में|मध्ये|बोलिए|बोला|बोलो|बात|करें|कीजिए))*"
+LANG_ASK = (("hi", re.compile(rf"^\W*(?:hindi|हिंदी|हिन्दी){_SAY}\W*$", re.I)), ("mr", re.compile(rf"^\W*(?:marathi|marathit|मराठी|मराठीत){_SAY}\W*$", re.I)),
+            ("en", re.compile(rf"^\W*(?:english|इंग्लिश|इंग्रजी){_SAY}\W*$", re.I)))
+ROMAN = {"hi": "hinglish", "mr": "mr_latn"}
+
+
+def asked_language(text: str) -> Optional[str]:
+    """The language they chose, in the script they chose it in; None when the message does not choose one."""
+    t = (text or "").strip()
+    lang = next((k for k, rx in LANG_ASK if rx.match(t)), None)
+    return ROMAN.get(lang, lang) if t.isascii() else lang
 
 
 WHATSAPP = "Continue on WhatsApp"

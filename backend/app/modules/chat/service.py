@@ -7,7 +7,7 @@ import urllib.parse
 from datetime import datetime, timedelta
 from typing import Callable, List, Optional
 
-from app.core import areas, brand, pune_places
+from app.core import brand
 from app.modules.areastats import hubs as project_hubs, pages as project_pages
 from app.modules.knowledge.grounding import Grounding, Ref, facts_for
 from app.modules.listings.freshness import is_hidden
@@ -18,8 +18,9 @@ from app.modules.tracking import requirement as rq
 from app.modules.tracking.schemas import InquiryIn
 from app.modules.tracking.service import TrackingError
 
-from . import agent as chat_agent, engine, visit as visit_pages
+from . import agent as chat_agent, carry, engine, nudge as chat_nudge, plan as home_plan, visit as visit_pages
 from .projects import project_cards
+from .visit import place_name
 
 log = logging.getLogger(__name__)
 SESSION_RX = re.compile(r"^[A-Za-z0-9_-]{12,64}$")
@@ -36,19 +37,6 @@ MAX_LISTINGS_SCANNED = 200
 PAGE_KINDS = ("home", "project", "list", "area", "builder", "guide", "news", "listing", "agents", "other")
 LISTS = ("all", "top", "new-launches", "ready-to-move")
 SLUG_RX = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+){0,15}$")
-
-
-def place_name(slug) -> Optional[str]:
-    """A Pune place's name from a page's slug ('upper-kharadi' -> 'Upper Kharadi'): one of our areas, else a place of the register's
-    list. None for a place we do not know, so a greeting never names a place from the URL alone."""
-    s = str(slug or "").strip().lower()
-    if not SLUG_RX.match(s):
-        return None
-    a = areas.get(s)
-    if a:
-        return a.name
-    p = pune_places.BY_SLUG.get(s)
-    return p.name if p else None
 
 
 def page_locality(context: Optional[dict]) -> Optional[str]:
@@ -200,7 +188,11 @@ class ChatService:
             cache = {k: v for k, v in data.get("visit_cache") or []}
             items = await visit_pages.pages_read(self.db, paths, cache, place_name)
             data["visit_cache"] = [[k, v] for k, v in cache.items()]   # a list, since a path is no safe Mongo key
-            return items
+            # a finished home plan: its answers stay with the chat, and the lead shows it with the pages they read
+            done = home_plan.read(await visits.plan_this_visit(self.db, agent_id, anon_id, now))
+            if done:
+                data["plan"] = done
+            return items + ([data["plan"]] if data.get("plan") else [])
         except Exception as e:   # what they read is a help, never a reason to fail a chat message
             log.info("chat visit history failed: %s", e)
             return []
@@ -224,12 +216,12 @@ class ChatService:
             tx = req.pop("transaction", "sale")
             top = matching.top_matches(req, docs, tx, limit=10)
             cards = [card(by_id[m["listing_id"]], slug) for m in top if m["match_pct"] >= CARD_MIN_PCT and m["listing_id"] in by_id][:3]
-            return cards or await project_cards(self.db, {**req, "transaction": tx})   # no listing fits: our project pages there
+            return cards or await project_cards(self.db, {**req, "transaction": tx}, now)   # no listing fits: our project pages there
         return find
 
-    async def whatsapp_url(self, data: dict, page: Optional[dict]) -> Optional[str]:
+    async def whatsapp_url(self, data: dict, page: Optional[dict], ref: Optional[str] = None) -> Optional[str]:
         """wa.me link to the platform number with a prefilled message naming the home (its interest code when one exists, which the WhatsApp
-        module routes on) or the requirement. Never the buyer's phone number."""
+        module routes on) or the requirement, and `ref`, which takes this chat across with them (chat/carry.py). Never the buyer's phone number."""
         number = platform_whatsapp_number()
         if not number:
             return None
@@ -243,11 +235,67 @@ class ChatService:
             want = ", ".join(x for x in (rq.bhk_text(data.get("bhk")), data.get("locality") if data.get("locality") != "Other" else None,
                                         engine._budget_text(data)) if x)
             msg = f"Hi {brand.NAME}, I am looking for a home" + (f": {want}" if want else "") + "."
+        if ref:
+            msg = f"{msg} (chat {ref})"
         return f"https://wa.me/{number}?text={urllib.parse.quote(msg, safe='')}"
 
     async def _contact_id(self, agent_id: str, phone: str) -> Optional[str]:
         doc = await self.db.get_collection("contacts").find_one({"agent_id": agent_id, "phone": phone})
         return doc["_id"] if doc else None
+
+    async def _read_visit(self, data: dict, profile: dict, context: Optional[dict], visit: dict, grounding, now: datetime) -> dict:
+        """The page they are on and what they read, on the session's data; the same for a message and for the note beside the button."""
+        page = await self.page_for(context, grounding, visit.get("path"), data.get("page"))
+        data["page"], data["audience"] = page, page["audience"]
+        data["page_path"] = str(visit.get("path") or "").split("?")[0][:200] or None
+        if page and page.get("kind") == "project":   # the project's area stands for theirs until they name another, so it is not asked
+            data["project"] = page["name"]
+            if page.get("locality") and (not data.get("locality") or data.get("locality_src") == "history"):
+                data["locality"], data["locality_src"] = page["locality"], "page"
+        if page.get("kind") in ("area", "list"):   # a note answered with no greeting first still knows the area the page is about
+            engine._prefill(data, "locality", page.get("locality"))
+        # what they read earlier in this visit: a buyer's only (the agents' pages keep their own greeting), from our own record of this
+        # browser's views, each page checked against our records
+        data["history"] = await self.visit_history(profile.get("agent_id"), visit.get("anon_id"), data, now) if page["audience"] == "buyer" else []
+        if data["history"]:
+            data["read"] = data["history"]     # it outlives the visit: what goes with them to WhatsApp (chat/carry.py)
+        engine.prefill_history(data)
+        home_plan.prefill(data)
+        return page
+
+    async def _save(self, s: dict) -> None:
+        if await self.sessions.find_one({"_id": s["_id"]}):
+            await self.sessions.update_one({"_id": s["_id"]}, {"$set": {k: v for k, v in s.items() if k != "_id"}})
+        else:
+            await self.sessions.insert_one(s)
+
+    def _new_session(self, session_id: str, agent_slug: str, now: datetime, tag: Optional[str], visit: dict) -> dict:
+        return {"_id": session_id, "agent_slug": agent_slug, "created_at": now, "data": engine.new_data(localise=True), "messages": [], "hits": [],
+                "origin": {"source": tag, "landing": visit.get("landing"), "referrer": visit.get("referrer")}}
+
+    async def nudge(self, session_id: str, agent_slug: str, context: Optional[dict], visit: dict, seconds: int) -> Optional[dict]:
+        """The note beside the chat button (chat/nudge.py), or None. It waits on the session and joins the conversation only if they answer
+        it (message), so a note nobody tapped is never a chat in Studio."""
+        if not SESSION_RX.match(session_id or ""):
+            raise ChatError("Invalid session")
+        profile = await self.profiles.find_one({"slug": agent_slug, "is_public": True})
+        if not profile:
+            raise ChatError("Unknown site", 404)
+        now = self.now()
+        s = await self.sessions.find_one({"_id": session_id}) or self._new_session(session_id, agent_slug, now, None, visit)
+        data = s["data"]
+        if data.get("nudged_at") and now - data["nudged_at"] < chat_nudge.GAP:
+            return None
+        if s.get("messages") and s.get("updated_at") and now - s["updated_at"] < chat_nudge.CHAT_QUIET:
+            return None
+        await self._read_visit(data, profile, context, visit, await self.grounding_for(context), now)
+        n = chat_nudge.pick(data, seconds)
+        if n is None:
+            return None
+        data["nudge"], data["nudge_key"], data["nudged_at"] = n["text"], n["key"], now   # nudge_key stays: which notes led to a chat
+        s["updated_at"] = s.get("updated_at") or now
+        await self._save(s)
+        return n
 
     async def message(self, session_id: str, agent_slug: str, text: str, source: Optional[str] = None, context: Optional[dict] = None,
                       visit: Optional[dict] = None) -> dict:
@@ -263,9 +311,10 @@ class ChatService:
         if not profile:
             raise ChatError("Unknown site", 404)
         now = self.now()
-        s = await self.sessions.find_one({"_id": session_id}) or {
-            "_id": session_id, "agent_slug": agent_slug, "created_at": now, "data": engine.new_data(localise=True), "messages": [], "hits": [],
-            "origin": {"source": tag, "landing": visit.get("landing"), "referrer": visit.get("referrer")}}
+        s = await self.sessions.find_one({"_id": session_id}) or self._new_session(session_id, agent_slug, now, tag, visit)
+        waiting = s["data"].pop("nudge", None)
+        if waiting:   # they answered the note: it is the first thing said in the chat
+            s["messages"] = (s.get("messages") or []) + [{"role": "bot", "text": waiting, "ts": now}]
         if visit.get("path"):
             s["page_path"] = visit["path"]  # the page of the latest message
         s["hits"] = [h for h in s.get("hits", []) if h > now - timedelta(hours=1)]
@@ -276,17 +325,7 @@ class ChatService:
 
         grounding = await self.grounding_for(context)
         data = s["data"]
-        page = await self.page_for(context, grounding, visit.get("path"), data.get("page"))
-        data["page"], data["audience"] = page, page["audience"]
-        data["page_path"] = str(visit.get("path") or "").split("?")[0][:200] or None
-        if page and page.get("kind") == "project":   # the project's area stands for theirs until they name another, so it is not asked
-            data["project"] = page["name"]
-            if page.get("locality") and (not data.get("locality") or data.get("locality_src") == "history"):
-                data["locality"], data["locality_src"] = page["locality"], "page"
-        # what they read earlier in this visit: a buyer's only (the agents' pages keep their own greeting), from our own record of this
-        # browser's views, each page checked against our records
-        data["history"] = await self.visit_history(profile.get("agent_id"), visit.get("anon_id"), data, now) if page["audience"] == "buyer" else []
-        engine.prefill_history(data)
+        page = await self._read_visit(data, profile, context, visit, grounding, now)
         homes_agent, homes_slug = await self.homes_agent(profile, page)
         wa_number = platform_whatsapp_number()
         had_name = bool(data.get("name"))
@@ -329,14 +368,14 @@ class ChatService:
         s["messages"] = (s.get("messages", []) + [
             {"role": "user", "text": text, "ts": now}, {"role": "bot", "text": " ".join(x for x in (t.reply, t.follow_up) if x), "ts": now, **({"cards": [c["id"] for c in t.cards]} if t.cards else {})}])[-MAX_MESSAGES_KEPT:]
         s.update(updated_at=now, needs_human=bool(data.get("needs_human")), lead_created=bool(s.get("lead_created") or lead_created))
-        if await self.sessions.find_one({"_id": session_id}):
-            await self.sessions.update_one({"_id": session_id}, {"$set": {k: v for k, v in s.items() if k != "_id"}})
-        else:
-            await self.sessions.insert_one(s)
-        wa = await self.whatsapp_url(data, page) if wa_number and engine.WHATSAPP_LABEL in t.quick else None
+        offers_wa = wa_number and engine.WHATSAPP_LABEL in t.quick
+        if offers_wa and not s.get("wa_ref"):
+            s["wa_ref"] = carry.new_ref()
+        await self._save(s)
+        wa = await self.whatsapp_url(data, page, s.get("wa_ref")) if offers_wa else None
         quick = [q for q in t.quick if q != engine.WHATSAPP_LABEL or wa]
         return {"reply": t.reply, "quick_replies": quick, "lead_created": lead_created, "cards": t.cards, "follow_up": t.follow_up or None,
-                "whatsapp_url": wa}
+                "whatsapp_url": wa, "link": t.link}
 
     async def _notify(self, agent_id: Optional[str], kind: str, summary: str, ref: dict, now: datetime) -> None:
         if not agent_id:

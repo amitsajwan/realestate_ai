@@ -148,6 +148,16 @@ class ChatBrain:
         an agent gets our service for agents, a question about a post, guide or project gets that post's own answer sheet (as a comment
         would), and only someone looking for a home goes through the buyer conversation."""
         data = conv["data"]
+        ref = adapters.chat_ref_in(text)   # 'Continue on WhatsApp' from the website chat: that chat comes with them
+        if ref:
+            text = adapters.without_chat_ref(text)
+            before = await adapters.carry_from_website(self.db, conv, ref)
+            if before and lang == "en":
+                conv["language"] = lang = before
+        chosen = adapters.asked_language(text)   # 'Marathi', as our follow-up invites: every reply from here on is in it
+        if chosen:
+            conv["language"] = chosen
+            return adapters.language_ok(chosen)
         checked = await check_flow.turn(self.db, conv, text, lang)   # "check my project's status" (docs/plan/project-check.md)
         if checked is not None:
             return checked
@@ -310,6 +320,9 @@ class ChatBrain:
 
     async def _buyer_answer(self, conv: dict, text: str, lang: str) -> str:
         data = conv["data"]
+        before = await adapters.carry_from_website(self.db, conv)   # the lead with this number: what they told us and read on the website
+        if before and lang == "en" and not conv.get("messages"):
+            conv["language"] = lang = before
         data["localise"], data["lang"] = True, lang   # the model writes in their language, not English to be translated
         ctx = conv.get("context") or {}
         gone = ""
@@ -338,6 +351,8 @@ class ChatBrain:
         if line and data.get("finder_sent") != line:
             data["finder_sent"] = line
             reply = f"{reply}\n\n{line}"
+        if t.link and adapters.site_url():   # the home plan: no buttons here, so its link goes in the message
+            reply = f"{reply}\n\n{t.link['label']}: {adapters.site_url()}{t.link['url']}"
         opts = L.options_line([q for q in t.quick if q and "whatsapp" not in q.lower()], lang)
         return f"{reply}\n{opts}" if opts else reply
 

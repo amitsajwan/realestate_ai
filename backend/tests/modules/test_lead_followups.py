@@ -123,7 +123,8 @@ async def test_a_project_page_enquiry_gets_the_project_and_what_they_asked_for_n
     wa = Templates()
     assert await followups.auto_followups(db, await project_inbox(db, wa), "A", NOW) == 1
     [(name, params, text)] = wa.names
-    assert name == "project_enquiry_v1" and params == ["Subhash", "96 Arrcade, Kharadi", "a site visit"]
+    assert name == "project_enquiry_v2" and params == ["Subhash", "96 Arrcade, Kharadi", "a site visit"]
+    assert "Hindi ya Marathi mein baat karna ho to bataiye." in text
     assert "part of Pune" not in text
     conv = await db.get_collection("whatsapp_conversations").find_one({"_id": "P:919730369091"})
     assert conv["messages"][-1]["text"] == text
@@ -131,14 +132,15 @@ async def test_a_project_page_enquiry_gets_the_project_and_what_they_asked_for_n
 
 async def test_until_meta_approves_the_project_template_the_old_one_goes_with_the_area():
     db = await setup(subhash())
-    wa = Templates(refuse=("project_enquiry_v1",))
+    wa = Templates(refuse=("project_enquiry_v2", "project_enquiry_v1", "enquiry_followup_v2"))
     assert await followups.auto_followups(db, await project_inbox(db, wa), "A", NOW) == 1
-    assert [n for n, _, _ in wa.names] == ["project_enquiry_v1", "enquiry_followup_v1"]
-    assert wa.names[1][1] == ["Subhash", "2 BHK home", "Kharadi"]
+    assert [n for n, _, _ in wa.names] == ["project_enquiry_v2", "project_enquiry_v1", "enquiry_followup_v2", "enquiry_followup_v1"]
+    assert "Hindi mein baat" in wa.names[3][2]
+    assert wa.names[3][1] == ["Subhash", "2 BHK home", "Kharadi"]
 
 
 async def test_an_enquiry_off_a_project_page_keeps_the_general_follow_up():
     db = await setup(lead("rahul", message="Call me", first_touch={"enquiry_page": "/agent/avasetu"}))
     wa = Templates()
     assert await followups.auto_followups(db, await project_inbox(db, wa), "A", NOW) == 1
-    assert [(n, p) for n, p, _ in wa.names] == [("enquiry_followup_v1", ["Rahul", "home", "your enquiry on our website"])]
+    assert [(n, p) for n, p, _ in wa.names] == [("enquiry_followup_v2", ["Rahul", "home", "your enquiry on our website"])]

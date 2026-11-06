@@ -13,7 +13,13 @@ export interface ChatCard {
   sample: boolean
   url: string
   image_url?: string | null
+  /** a project card: one sourced fact, and whether buyers are looking at it most in its area */
+  fact?: string | null
+  hot?: boolean
 }
+
+/** A page to open from the chat: the home plan. */
+export interface ChatLink { label: string; url: string }
 
 export interface ChatReply {
   reply: string
@@ -24,6 +30,7 @@ export interface ChatReply {
   follow_up: string | null
   /** set only when the platform WhatsApp number is configured */
   whatsapp_url: string | null
+  link?: ChatLink
 }
 
 export const WHATSAPP_QUICK = 'Continue on WhatsApp'
@@ -58,6 +65,8 @@ export function parseChatReply(data: unknown): ChatReply {
           sample: Boolean(c?.sample),
           url: safeUrl(c?.url) ?? '',
           image_url: safeUrl(c?.image_url),
+          fact: str(c?.fact),
+          hot: Boolean(c?.hot),
         }))
         .filter((c) => c.id && c.url)
         .slice(0, 3)
@@ -65,6 +74,8 @@ export function parseChatReply(data: unknown): ChatReply {
   const wa = safeUrl(d.whatsapp_url)
   const whatsapp = wa && wa.startsWith('https://wa.me/') ? wa : null
   const quick = Array.isArray(d.quick_replies) ? (d.quick_replies as unknown[]).filter((q): q is string => typeof q === 'string') : []
+  const l = d.link as Record<string, unknown> | null | undefined
+  const linkUrl = safeUrl(l?.url)
   return {
     reply: str(d.reply) ?? '',
     // 'Continue on WhatsApp' only with a real link to open
@@ -73,6 +84,7 @@ export function parseChatReply(data: unknown): ChatReply {
     cards,
     follow_up: str(d.follow_up),
     whatsapp_url: whatsapp,
+    ...(linkUrl && str(l?.label) ? { link: { label: String(l?.label), url: linkUrl } } : {}),
   }
 }
 

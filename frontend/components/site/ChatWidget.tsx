@@ -3,11 +3,14 @@ import React, { useEffect, useRef, useState } from 'react'
 import { API_BASE_URL } from '@/lib/config/api'
 import { getAnonId, readAttribution, readVisitPages, trackEvent } from '@/lib/site/tracking'
 import { chatContextFromPath, type ChatContext } from '@/lib/site/chatContext'
-import { cardFacts, parseChatReply, WHATSAPP_QUICK, type ChatCard } from '@/lib/site/chatApi'
+import { cardFacts, parseChatReply, WHATSAPP_QUICK, type ChatCard, type ChatLink } from '@/lib/site/chatApi'
+import { addSeconds, askNow, isMuted, mute, nudgeAllowed, parseNudge, TICK_SECONDS, type Nudge } from '@/lib/site/chatNudge'
 import { BRAND_NAME } from '@/lib/brand'
 
 interface Msg { role: 'bot' | 'you'; text: string; cards?: ChatCard[] }
 const SID_KEY = 'pp_chat_sid'
+/** Any time, in the chat's header: tapping one sends the word, and the server carries on in that language. */
+const LANGUAGES = ['हिंदी', 'मराठी', 'English']
 const LOG_KEY = 'pp_chat_log'
 /** Dispatched on window with { message, context? } to open the bubble and ask that question; `context` (a card's project on a
  *  list page) replaces the one read from the page path for the rest of the visit to this page. */
@@ -43,7 +46,9 @@ export function ChatHomeCard({ card }: { card: ChatCard }) {
         <span className="flex min-w-0 flex-1 flex-col justify-center py-1.5 pr-3">
           <span className="truncate text-[14px] font-semibold leading-tight text-slate-900">{card.title}</span>
           {facts && <span className="mt-0.5 truncate text-[13px] text-slate-600">{facts}</span>}
-          <span className="mt-1">
+          {card.fact && <span className="mt-0.5 line-clamp-2 text-[12px] leading-snug text-slate-600">{card.fact}</span>}
+          <span className="mt-1 flex flex-wrap items-center gap-2">
+            {card.hot && <span className="rounded-full bg-[#102340] px-2 py-0.5 text-[11px] font-bold text-[#f0b440]">Hot</span>}
             {card.sample ? (
               <span className="inline-block rounded-full bg-amber-300 px-2 py-0.5 text-[12px] font-bold text-slate-900">Sample</span>
             ) : card.price_text ? (
@@ -74,6 +79,8 @@ export default function ChatWidget({ agentSlug, bottomBar = true }: { agentSlug:
   const [msgs, setMsgs] = useState<Msg[]>([])
   const [quick, setQuick] = useState<string[]>([])
   const [waUrl, setWaUrl] = useState<string | null>(null)
+  const [link, setLink] = useState<ChatLink | null>(null)
+  const [nudge, setNudge] = useState<Nudge | null>(null)
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
   const end = useRef<HTMLDivElement>(null)
@@ -120,6 +127,7 @@ export default function ChatWidget({ agentSlug, bottomBar = true }: { agentSlug:
       setMsgs((x) => [...x, ...bot])
       setQuick(data.quick_replies)
       setWaUrl(data.whatsapp_url)
+      setLink(data.link ?? null)
     } catch {
       setMsgs((x) => [...x, { role: 'bot', text: 'Sorry, I could not reach the team just now. Please try again in a moment.' }])
     } finally {
@@ -141,6 +149,39 @@ export default function ChatWidget({ agentSlug, bottomBar = true }: { agentSlug:
     return () => window.removeEventListener(OPEN_CHAT_EVENT, onAsk)
   })
 
+  // the visit in view, counted here; what to say, if anything, comes from the server, from what they read (chat/nudge.py)
+  useEffect(() => {
+    if (open || nudge) return
+    const timer = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return
+      const seconds = addSeconds(TICK_SECONDS)
+      const path = window.location.pathname
+      const typing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName ?? '')
+      if (!askNow(seconds) || typing || !nudgeAllowed(path) || isMuted(Date.now())) return
+      void fetch(`${API_BASE_URL}/api/v1/chat/nudge`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionId(), agent_slug: agentSlug, seconds, context: chatContextFromPath(path), anon_id: getAnonId(), ...readVisitPages() }),
+      }).then((r) => (r.ok ? r.json() : null)).then((d) => setNudge(parseNudge(d))).catch(() => { /* a note is a help, never a reason to complain */ })
+    }, TICK_SECONDS * 1000)
+    return () => window.clearInterval(timer)
+  }, [agentSlug, open, nudge])
+
+  /** They answered the note: it becomes the chat's first message, then their tap (if any) is sent like any quick reply. */
+  function openNudge(n: Nudge, tapped?: string) {
+    setNudge(null)
+    setOpen(true)
+    started.current = true
+    setMsgs((x) => [...x, { role: 'bot', text: n.text }])
+    setQuick(n.quick_replies)
+    setLink(n.link)
+    if (tapped) void send(tapped)
+  }
+
+  function dismissNudge() {
+    setNudge(null)
+    mute(Date.now())
+  }
+
   function toggle() {
     const next = !open
     setOpen(next)
@@ -155,6 +196,12 @@ export default function ChatWidget({ agentSlug, bottomBar = true }: { agentSlug:
             <div>
               <p className="font-semibold">{BRAND_NAME}</p>
               <p className="text-xs text-[var(--site-accent,#f0b440)]">Ask us anything about homes in Pune</p>
+              <div role="group" aria-label="Choose a language" className="mt-1 flex gap-1">
+                {LANGUAGES.map((l) => (
+                  <button key={l} type="button" onClick={() => send(l)} disabled={busy}
+                    className="min-h-[28px] rounded-full border border-white/40 px-2 text-xs text-white hover:bg-white/10">{l}</button>
+                ))}
+              </div>
             </div>
             <button type="button" onClick={toggle} aria-label="Close chat" className="flex h-11 w-11 items-center justify-center text-2xl text-white">×</button>
           </header>
@@ -172,8 +219,12 @@ export default function ChatWidget({ agentSlug, bottomBar = true }: { agentSlug:
             {busy && <p className="text-sm text-slate-500" aria-label="typing">…</p>}
             <div ref={end} />
           </div>
-          {quick.length > 0 && (
+          {(quick.length > 0 || link) && (
             <div className="flex gap-2 overflow-x-auto border-t border-slate-100 bg-white px-3 py-2 [scrollbar-width:none]" role="group" aria-label="Quick replies">
+              {link && (
+                <a href={link.url} data-testid="chat-link"
+                  className="inline-flex min-h-[40px] shrink-0 items-center whitespace-nowrap rounded-full bg-[#f0b440] px-3 text-sm font-bold text-[#18202c] no-underline">{link.label}</a>
+              )}
               {quick.map((q) => q === WHATSAPP_QUICK ? (
                 waUrl && (
                   <a key={q} href={waUrl} target="_blank" rel="noopener noreferrer"
@@ -190,6 +241,25 @@ export default function ChatWidget({ agentSlug, bottomBar = true }: { agentSlug:
             <button type="submit" disabled={busy || !text.trim()} className="min-h-[44px] rounded-full bg-[#f0b440] px-4 font-bold text-[#18202c] disabled:opacity-50">Send</button>
           </form>
         </section>
+      )}
+      {!open && nudge && (
+        <aside aria-label={`Message from ${BRAND_NAME}`} data-testid="chat-nudge"
+          className="relative mb-2 ml-auto w-[min(84vw,300px)] rounded-2xl border border-slate-200 bg-white p-3 pr-9 shadow-xl">
+          <button type="button" onClick={dismissNudge} aria-label="Dismiss message"
+            className="absolute right-0 top-0 flex h-10 w-10 items-center justify-center text-xl text-slate-500">×</button>
+          <button type="button" onClick={() => openNudge(nudge)} className="block text-left text-[14px] leading-snug text-slate-900">{nudge.text}</button>
+          {(nudge.quick_replies.length > 0 || nudge.link) && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {nudge.quick_replies.map((q) => (
+                <button key={q} type="button" onClick={() => openNudge(nudge, q)}
+                  className="min-h-[36px] rounded-full bg-[#102340] px-3 text-[13px] font-semibold text-white">{q}</button>
+              ))}
+              {nudge.link && (
+                <a href={nudge.link.url} className="inline-flex min-h-[36px] items-center rounded-full border border-[#102340] px-3 text-[13px] font-semibold text-[#102340] no-underline">{nudge.link.label}</a>
+              )}
+            </div>
+          )}
+        </aside>
       )}
       {!open && (
         <button type="button" onClick={toggle} aria-label="Chat with us" data-testid="chat-open"
