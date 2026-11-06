@@ -116,7 +116,7 @@ def split_projects(docs: List[dict]) -> dict:
     """Registrations that look like one project still on separate pages (clusters.split_candidates): homes being built only,
     as a finished project gets no SEO (pages.ready_for_search). For the owner to confirm as a group, never merged by code."""
     rows = clusters.split_candidates([d for d in docs if pages.homes(d) and not pages.is_old(d)])
-    return {"total": len(rows), "items": rows[:SPLIT_SHOWN]}
+    return {"total": len(rows), "items": [{k: v for k, v in r.items() if k != "docs"} for r in rows[:SPLIT_SHOWN]]}
 
 
 def _board(m: dict) -> dict:
