@@ -243,3 +243,26 @@ def test_a_hidden_bullet_leaves_the_page_and_the_writers_facts_but_not_the_recor
     stored = {"at": datetime(2026, 11, 2, tzinfo=timezone.utc), "highlights": [highlight("11 towers, each with 43 floors", "x", "y")]}
     assert profile.public(stored, doc=FILED)["highlights"] == [] and profile.lines(stored, FILED) == []
     assert len(stored["highlights"]) == 1
+
+
+RIVERDALE = {"locality": "wagholi", "pune_place_name": "Wagholi", "building_totals": {"towers": 3},
+             "buildings": [{"name": "A1", "floors": 28}, {"name": "A2", "floors": 28}, {"name": "A3", "floors": 28}]}
+
+
+def test_a_line_that_sits_the_project_in_another_area_is_not_shown_even_from_the_builder():
+    assert profile.contradicts("Located in the greenest pocket of Kharadi", RIVERDALE, official=True)
+    assert profile.contradicts("Nestled in the heart of Kharadi", RIVERDALE)
+
+
+def test_a_line_naming_another_area_as_a_neighbour_or_beside_our_own_place_stays():
+    assert not profile.contradicts("Located near Kharadi IT parks", RIVERDALE)
+    assert not profile.contradicts("Located in Wagholi, close to Kharadi", RIVERDALE)
+    assert not profile.contradicts("10 minutes from Kharadi", RIVERDALE)
+    assert not profile.contradicts("Located in Kharadi", {"locality": "upper_kharadi", "pune_place_name": "Upper Kharadi"})
+    assert not profile.contradicts("Located in Kharadi", None)
+
+
+def test_floors_each_taller_than_any_filed_tower_are_not_shown_but_the_builder_may_count_its_own():
+    assert profile.contradicts("There are 6 towers with 30 floors each", RIVERDALE)
+    assert not profile.contradicts("There are 6 towers with 28 floors each", RIVERDALE)
+    assert not profile.contradicts("There are 6 towers with 30 floors each", RIVERDALE, official=True)

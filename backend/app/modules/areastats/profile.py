@@ -37,7 +37,7 @@ from urllib.parse import urljoin, urlparse
 import httpx
 from PIL import Image
 
-from app.core.areas import BY_KEY
+from app.core.areas import AREAS, BY_KEY
 
 from . import pages, webfacts, websearch
 
@@ -660,6 +660,8 @@ _COUNT = r"(\d[\d,]*)"
 _TOWERS = re.compile(_COUNT + r"\s+(?:[a-z-]+\s+)?(?:towers?|buildings?|wings?)\b", re.I)
 _FLOORS_EACH = re.compile(r"\b(?:each|all)\b[^.;]*?" + _COUNT + r"\s+(?:[a-z-]+\s+)?(?:floors?|stor(?:eys?|ies))\b|"
                           + _COUNT + r"\s+(?:[a-z-]+\s+)?(?:floors?|stor(?:eys?|ies))\s+(?:each|all)\b", re.I)
+_SITTING_IN = re.compile(r"\b(?:located|nestled|situated|set|sits?)\b(?:(?!\b(?:near|close|next|from|off|beside|opposite|towards?|by)\b)[^.;])*?"
+                         r"\b(?:in|at)\b(?:(?!\b(?:near|close|next|from|off|beside|opposite|towards?|by)\b)[^.;])*", re.I)
 BACKED_SHARE = 0.5   # of the bullet's words the second site's sentence must hold, as well as every number
 
 
@@ -681,17 +683,35 @@ def backed(text: str, quote: str) -> bool:
     return len(terms & _terms(quote)) / len(terms) >= BACKED_SHARE
 
 
+def elsewhere(text: str, doc: Optional[dict]) -> bool:
+    """A bullet that sits the project in another of our areas. Builders sell a nearby name: Kohinoor Riverdale's own site says "the
+    greenest pocket of Kharadi" of a Wagholi project. "Near Kharadi" and a line that also names the project's own place stay."""
+    said = _SITTING_IN.search(text or "")
+    area = BY_KEY.get((doc or {}).get("locality") or "")
+    own = [x.lower() for x in (area.name if area else "", *(area.aliases if area else ()), str((doc or {}).get("pune_place_name") or "")) if x]
+    if not said or not own or any(x in text.lower() for x in own):
+        return False
+    return any(re.search(rf"\b{re.escape(x.lower())}\b", said.group(0), re.I) and not any(x.lower() in o for o in own)
+               for a in AREAS for x in (a.name, *a.aliases))
+
+
 def contradicts(text: str, doc: Optional[dict], official: bool = False) -> bool:
     """A bullet MahaRERA's buildings prove wrong: fewer towers than this one registration files (more may be the whole project's), or
-    one floor count for each tower where the filed towers differ (Godrej Ivara: "each with 43 floors", filed 37 to 43). Not that second
-    one on the builder's own site: it counts habitable floors where MahaRERA files sanctioned ones (Neco Park Central: "18 habitable")."""
+    one floor count for each tower where the filed towers differ (Godrej Ivara: "each with 43 floors", filed 37 to 43), or taller than
+    any filed tower (Kohinoor Riverdale: "6 towers with 30 floors each", filed 28). Not those two on the builder's own site: it counts
+    habitable floors where MahaRERA files sanctioned ones (Neco Park Central: "18 habitable"). Or a bullet in another area (`elsewhere`)."""
+    if elsewhere(text, doc):
+        return True
     built = (doc or {}).get("buildings") or []
     plain = _digits(text)
     filed = ((doc or {}).get("building_totals") or {}).get("towers")
     if filed and any(int(n.replace(",", "")) < filed for n in _TOWERS.findall(plain)):
         return True
     floors = {b["floors"] for b in built if isinstance(b.get("floors"), int) and b["floors"] > 0}
-    return not official and len(floors) > 1 and _FLOORS_EACH.search(plain) is not None
+    each = _FLOORS_EACH.search(plain)
+    if official or not each or not floors:
+        return False
+    return len(floors) > 1 or int((each.group(1) or each.group(2)).replace(",", "")) > max(floors)
 
 
 def shown_highlights(profile: Optional[dict], doc: Optional[dict] = None) -> List[dict]:

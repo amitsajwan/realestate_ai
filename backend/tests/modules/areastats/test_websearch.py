@@ -152,3 +152,13 @@ async def test_the_numbers_of_projects_split_over_pages_are_searched_and_kept_un
     kept = await store.db.get_collection(websearch.RESULTS).find_one({"_id": "P52100000001"})
     assert kept["kind"] == "regno" and kept["results"][0]["link"] == "https://x.in"
     assert samegroup.split_candidates(projects)[0]["name"] == "River Bend"
+
+
+async def test_sponsored_results_among_the_organic_ones_are_ads_and_take_no_place():
+    def handler(req):
+        return httpx.Response(200, json={"organic": [{"title": "A", "link": "https://a.in", "position": 1},
+                                                     {"title": "Ad", "link": "https://www.google.com/goto?url=CAES", "position": 2},
+                                                     {"title": "B", "link": "https://b.in", "position": 3}]})
+    out = await websearch.serper("k", transport=httpx.MockTransport(handler))("flats in Kharadi Pune")
+    assert [(x["link"], x["position"], x["type"]) for x in out] == [("https://a.in", 1, "organic"), ("https://b.in", 2, "organic"),
+                                                                    ("https://www.google.com/goto?url=CAES", 0, "ad")]

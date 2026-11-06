@@ -80,6 +80,11 @@ Search = Callable[[str], Awaitable[List[dict]]]
 PHRASE_TYPES = ("related", "question")
 
 
+def sponsored(link: str) -> bool:
+    """Google's click-through address for an ad; the site behind it is hidden in the url."""
+    return link.startswith(("https://www.google.com/goto", "https://google.com/goto"))
+
+
 def serper(key: str, transport: Optional[httpx.AsyncBaseTransport] = None) -> Search:
     """Google results for India in English through Serper.dev (POST google.serper.dev/search, X-API-KEY header)."""
     async def search(q: str) -> List[dict]:
@@ -88,11 +93,14 @@ def serper(key: str, transport: Optional[httpx.AsyncBaseTransport] = None) -> Se
                              headers={"X-API-KEY": key})
             r.raise_for_status()
             body = r.json()
+        # sponsored results can arrive among the organic ones (2026-10-30, 10-31, 11-06), which made google.com a rival and pushed
+        # every result under them down two places
+        organic = [i for i in body.get("organic") or [] if not sponsored(str(i.get("link") or ""))]
+        ads = [i for i in body.get("organic") or [] if sponsored(str(i.get("link") or ""))] + list(body.get("ads") or [])
         out = [{"title": str(i.get("title") or ""), "link": str(i.get("link") or ""), "snippet": str(i.get("snippet") or ""),
-                "position": int(i.get("position") or n + 1), "ad": False, "type": "organic"}
-               for n, i in enumerate(body.get("organic") or [])]
+                "position": n + 1, "ad": False, "type": "organic"} for n, i in enumerate(organic)]
         out += [{"title": str(i.get("title") or ""), "link": str(i.get("link") or ""), "snippet": str(i.get("snippet") or ""),
-                 "position": 0, "ad": True, "type": "ad"} for i in body.get("ads") or []]
+                 "position": 0, "ad": True, "type": "ad"} for i in ads]
         # what else people search: free with the same search (areastats.demand keeps them)
         out += [{"title": str(i.get("query") or ""), "link": "", "snippet": "", "position": 0, "ad": False, "type": "related"}
                 for i in body.get("relatedSearches") or [] if i.get("query")]

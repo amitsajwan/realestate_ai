@@ -45,6 +45,9 @@ GENERIC = {"price", "prices", "rate", "rates", "cost", "rera", "maharera", "poss
            "carpet", "area", "sq", "ft", "sqft", "amenities", "construction", "update", "updates", "ready", "move", "resale", "rent",
            "pune"}
 KEEP_UPPER = {"bhk", "rera", "pmrda", "pmc", "pcmc", "mhada", "it"}
+# the number after one of these belongs to the name: "yash residency phase 2" lost its 2 to GENERIC and titled the page "Yash Residency Phase"
+NUMBERED = {"phase", "ph", "wing", "tower", "building", "sector"}
+ROMAN = {"i": "1", "ii": "2", "iii": "3", "iv": "4"}
 
 
 def _aware(d) -> Optional[datetime]:
@@ -63,16 +66,27 @@ def own_words(doc: dict) -> set:
     area = BY_KEY.get(doc.get("locality") or "")
     texts = aliases(doc) + [area.name if area else "", *(area.aliases if area else ()), doc.get("pune_place_name") or "",
                             doc.get("promoter") or ""]
-    return set(re.findall(r"[a-z0-9']+", " ".join(texts).lower()))
+    words = set(re.findall(r"[a-z0-9']+", " ".join(texts).lower()))
+    return words | {ROMAN[w] for w in words if w in ROMAN}    # people search "phase 2" for a project MahaRERA calls Phase II
+
+
+def name_words(phrase: str) -> List[str]:
+    """The search's words that name the project: GENERIC ones dropped, a number kept when it follows a phase, wing or tower."""
+    raw = re.findall(r"[a-z0-9']+", (phrase or "").lower())
+    def names_it(i: int) -> bool:
+        if raw[i] not in GENERIC:
+            return True
+        return raw[i].isdigit() and i > 0 and raw[i - 1] in NUMBERED and raw[i + 1:i + 2] != ["bhk"]
+    return [w for i, w in enumerate(raw) if names_it(i)]
 
 
 def readable(phrase: str, doc: dict) -> Optional[str]:
     """The target as a name for the title: generic words dropped, each word capitalised; None when the project's name is not in
     it any more (a target like "rera pune" never becomes a title), it carries a word the record does not call the project by,
-    or it is too long."""
-    words = [w for w in re.findall(r"[a-z0-9']+", (phrase or "").lower()) if w not in GENERIC]
+    or it is too long. A name ending on a bare "Phase" is a name cut short, not a name."""
+    words = name_words(phrase)
     text = " ".join(w.upper() if w in KEEP_UPPER else w.capitalize() for w in words)
-    if not text or len(text) > MAX_NAME or not any(mentions(a, text) for a in aliases(doc)):
+    if not text or words[-1] == "phase" or len(text) > MAX_NAME or not any(mentions(a, text) for a in aliases(doc)):
         return None
     if set(words) - own_words(doc):
         return None
