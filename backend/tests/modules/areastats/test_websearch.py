@@ -122,3 +122,33 @@ async def test_the_google_signal_feeds_the_hot_score():
     await hot.refresh(store, NOW)
     top = await hot.top(store)
     assert top[0]["regno"] == "P1" and top[0]["why"][0]["signal"] == "google" and "magicbricks.com" in top[0]["marketed_by"]
+
+
+async def test_the_numbers_of_projects_split_over_pages_are_searched_and_kept_under_the_number():
+    # owner 2026-11-06: search the leftover split projects' MahaRERA numbers, so a page printing two can merge them
+    from app.modules.areastats import samegroup
+    from app.modules.newsroom.store import Store
+    from ..fakes import FakeDb
+
+    def tower(regno, name, homes, **kw):
+        return {"_id": regno, "regno": regno, "name": name, "promoter": "", "pincode": "412207", "locality": "wagholi",
+                "completion_now": "2030-04-30", "units_total": homes, **kw}
+
+    store = Store(FakeDb())
+    projects = [tower("P52100000001", "River Bend Tower 1", 300), tower("P52100000002", "River Bend Tower 2", 200),
+                tower("P52100000003", "Old Court Wing A", 50, completion_now="2020-01-31"),   # finished: not worth a search
+                tower("P52100000004", "Old Court Wing B", 50, completion_now="2020-01-31"),
+                tower("P52100000005", "Hill Crest Tower 1", 90), tower("P52100000006", "Hill Crest Tower 2", 80),
+                tower("P52100000007", "Hill Crest Tower 3", 70)]
+    await store.db.get_collection(websearch.RESULTS).insert_one({"_id": "P52100000002", "kind": "regno", "at": NOW - timedelta(days=3),
+                                                                 "results": []})   # searched lately: not again
+    out = await websearch.split_checks(store, projects, NOW, set())
+    assert [b["regno"] for b in out] == ["P52100000001", "P52100000005", "P52100000006", "P52100000007"]
+    assert len(out) == websearch.SPLIT_PER_DAY and out[0] == {"q": '"P52100000001"', "id": "P52100000001", "kind": "regno",
+                                                               "area": "wagholi", "regno": "P52100000001"}
+    asked = []
+    await websearch.run_searches(store, projects, NOW, google({'"P52100000001"': [r("River Bend", "https://x.in", 1)]}, asked))
+    assert '"P52100000001"' in asked
+    kept = await store.db.get_collection(websearch.RESULTS).find_one({"_id": "P52100000001"})
+    assert kept["kind"] == "regno" and kept["results"][0]["link"] == "https://x.in"
+    assert samegroup.split_candidates(projects)[0]["name"] == "River Bend"

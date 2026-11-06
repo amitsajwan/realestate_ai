@@ -33,7 +33,7 @@ from app.core.areas import AREAS, BY_KEY
 from app.modules.newsroom.register import regnos_in
 from app.modules.newsroom.store import Store
 
-from . import hot
+from . import hot, samegroup
 
 log = logging.getLogger(__name__)
 
@@ -50,6 +50,10 @@ PROJECT_PER_DAY = 8
 TARGET_PER_DAY = 6                   # rank checks: the target search of a page the page doctor changed 14 or 28 days ago
 PANEL_PER_DAY = 5                    # the scoreboard's panel: every page's target search once in PANEL_DAYS
 PANEL_DAYS = 14
+# the MahaRERA numbers of projects still split over several pages (samegroup.split_candidates), searched so a page printing two of
+# them can prove they are one project; kept as webfacts keeps a number's search (_id the number, kind "regno")
+SPLIT_PER_DAY = 4
+SPLIT_REFRESH_DAYS = 30
 ACTIONS = "seo_actions"              # the page doctor's log (app/modules/seo/doctor.py)
 KEEP_DAYS = 7
 TOP = 10
@@ -181,6 +185,35 @@ async def panel_checks(store: Store, now: datetime, taken: set) -> List[dict]:
     return out
 
 
+def _building(d: dict, today: str) -> bool:
+    """Homes still being built: no shops' (PC) registration, filed completion date not passed. A finished project gets no SEO
+    (pages.ready_for_search), so its towers are not worth a search; pages cannot be imported here (it imports this module)."""
+    regno = str(d.get("regno") or d["_id"]).upper()
+    return not regno.startswith("PC") and str(d.get("completion_now") or "")[:10] >= today
+
+
+async def split_checks(store: Store, projects: List[dict], now: datetime, taken: set) -> List[dict]:
+    """Up to SPLIT_PER_DAY searches for the MahaRERA numbers of projects still split over several pages, our areas first, the
+    most homes first (samegroup.split_candidates' order), each number not searched in SPLIT_REFRESH_DAYS. The merge step
+    (clusters.web_links) reads the results: a page printing two of the numbers puts them on one page. Owner 2026-11-06."""
+    coll, out = store.db.get_collection(RESULTS), []
+    today = now.date().isoformat()
+    for c in samegroup.split_candidates([d for d in projects if _building(d, today)]):
+        for m in c["members"]:
+            if len(out) >= SPLIT_PER_DAY:
+                return out
+            regno = str(m["regno"])
+            q = f'"{regno}"'
+            if q in taken:
+                continue
+            old = await coll.find_one({"_id": regno})
+            if old and isinstance(old.get("at"), datetime) and now - _aware(old["at"]) < timedelta(days=SPLIT_REFRESH_DAYS):
+                continue
+            taken.add(q)
+            out.append({"q": q, "id": regno, "kind": "regno", "area": c["docs"][0].get("locality"), "regno": regno})
+    return out
+
+
 async def run_searches(store: Store, projects: List[dict], now: datetime, search: Search) -> dict:
     """Today's searches: the next AREA_PER_DAY area searches in turn, then the hottest projects not searched lately."""
     coll = store.db.get_collection(RESULTS)
@@ -199,6 +232,7 @@ async def run_searches(store: Store, projects: List[dict], now: datetime, search
             continue
         batch.append({"q": q, "kind": "project", "area": d.get("locality"), "regno": d.get("regno") or d["_id"]})
     batch += await target_checks(store, now, {b["q"] for b in batch})
+    batch += await split_checks(store, projects, now, {b["q"] for b in batch})
     done, failed, handled = 0, 0, 0
     for b in batch:
         try:
@@ -216,10 +250,11 @@ async def run_searches(store: Store, projects: List[dict], now: datetime, search
             log.exception("websearch: search failed: %s", b["q"])
             continue
         doc = {"kind": b["kind"], "area": b.get("area"), "regno": b.get("regno"), "at": now, "results": results[:KEEP_RESULTS]}
-        if await coll.find_one({"_id": b["q"]}):
-            await coll.update_one({"_id": b["q"]}, {"$set": doc})
+        key = b.get("id") or b["q"]   # a number's search is kept under the number, as webfacts.regno_results keeps it
+        if await coll.find_one({"_id": key}):
+            await coll.update_one({"_id": key}, {"$set": doc})
         else:
-            await coll.insert_one({"_id": b["q"], **doc})
+            await coll.insert_one({"_id": key, **doc})
         done += 1
         handled += 1
     areas_done = sum(1 for b in batch[:handled] if b["kind"] == "area")
