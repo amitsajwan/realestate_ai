@@ -265,9 +265,12 @@ def _handoff(d: dict, channel: str, answer: str = "", cards: Optional[List[dict]
         d["needs_you_sent"] = True
     quick: List[str] = []
     d["asked"] = None
-    if first and channel == WEB and not _has_number(d) and "phone" not in d["declined"] and not d.get("pending_phone"):
+    no_number = channel == WEB and not _has_number(d)
+    ask_for = d.get("ask_for")
+    # a new ask (a price sheet, a visit, 'Compare them') can only be answered through their number, even in a chat handed off before
+    # (2026-11-06: a returning visitor tapped the note's button and was told the team would get back, with no number to reach them)
+    if (first or ask_for) and no_number and "phone" not in d["declined"] and not d.get("pending_phone"):
         # the model's reply already names the project, so the line does not say it again
-        ask_for = d.get("ask_for")
         line = say(f"handoff_web_{ask_for}", lang, team=brand.NAME) if ask_for else say("handoff_web", lang, team=brand.NAME)
         if not d.get("consent_shown"):
             d["consent_shown"] = True
@@ -276,6 +279,8 @@ def _handoff(d: dict, channel: str, answer: str = "", cards: Optional[List[dict]
         quick = [engine.qr("not_now", lang)]
     elif first:
         line = say("handoff", lang, team=brand.NAME)
+    elif no_number:   # never 'the team will get back': with no number it cannot
+        line = say("handed_no_number", lang, team=brand.NAME)
     elif channel == WEB or not d.get("handoff_acked"):
         line, d["handoff_acked"] = say("handed_ack", lang, team=brand.NAME), True
     else:

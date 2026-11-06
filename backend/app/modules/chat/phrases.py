@@ -241,6 +241,13 @@ P: Dict[str, Dict[str, str]] = {
         "mr": "तुमचा मोबाइल नंबर द्या, {team} टीम तुम्हाला कॉल करून साइट व्हिजिट ठरवेल.",
         "mr_latn": "Tumcha mobile number dya, {team} team tumhala call karun site visit tharavel.",
     },
+    "handed_no_number": {   # a website chat handed to the team, with no number to reach them on
+        "en": "The {team} team can only reach you on your mobile number. Share it here whenever you are ready.",
+        "hinglish": "{team} team aapse sirf aapke mobile number par hi sampark kar sakti hai. Jab theek lage, yahan share karein.",
+        "hi": "{team} टीम आपसे सिर्फ़ आपके मोबाइल नंबर पर ही संपर्क कर सकती है। जब ठीक लगे, यहाँ दें।",
+        "mr": "{team} टीम तुमच्याशी फक्त तुमच्या मोबाइल नंबरवरच संपर्क करू शकते. जेव्हा योग्य वाटेल तेव्हा इथे द्या.",
+        "mr_latn": "{team} team tumchyashi fakt tumchya mobile number varach samparka karu shakte. Jevha yogya vatel tevha ithe dya.",
+    },
     "handed_ack": {
         "en": "The {team} team has your message and will get back to you.",
         "hinglish": "{team} team ko aapka message mil gaya hai, woh aapse sampark karenge.",

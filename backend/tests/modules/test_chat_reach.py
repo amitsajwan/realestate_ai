@@ -306,3 +306,47 @@ async def test_choosing_a_language_in_the_middle_of_a_chat_just_says_so():
     await say(s, "tell me about stamp duty please")
     await say(s, "and registration charges here")
     assert (await say(s, "हिंदी"))["reply"] == phrases.say("lang_ok", "hi")
+
+# ---- a chat handed off earlier, with no number --------------------------------------------------------------------------------
+async def handed_off(s, db):
+    """A returning visitor: the bot handed this chat to the team long ago and never got a number."""
+    data = {**engine.new_data(localise=True), "greeted": True, "handed_off": True, "needs_human": True, "needs_you_sent": True, "consent_shown": True, "phone_asks": 3,
+            "phone_snooze_until": 16, "turn_no": 14}
+    await s.sessions.insert_one({"_id": SID, "agent_slug": "avasetu", "data": data, "messages": [], "hits": [], "created_at": NOW - timedelta(days=29), "updated_at": NOW - timedelta(days=8)})
+    read(db, ("/projects/godrej-ivara-kharadi", 6), ("/projects/lodha-camelot", 1))
+
+
+async def test_compare_from_a_chat_handed_off_before_asks_for_the_number_instead_of_promising_a_call():
+    s, db = await service(IVARA, CAMELOT, llm=Scripted(), agent=True)
+    await handed_off(s, db)
+    assert (await note(s, 90))["key"] == "compare"
+    r = await say(s, "Compare them")
+    assert "will get back" not in r["reply"] and "Share your mobile number" in r["reply"] and "both price sheets" in r["reply"]
+    assert (await session(s))["data"]["asked"] == "phone"
+
+
+async def test_the_number_given_after_that_makes_the_lead():
+    s, db = await service(IVARA, CAMELOT, llm=Scripted(), agent=True)
+    await handed_off(s, db)
+    await note(s, 90)
+    await say(s, "Compare them")
+    r = await say(s, "9876543210")
+    assert "9876543210" not in r["reply"]
+    d = (await session(s))["data"]
+    assert d.get("phone") or d.get("pending_phone")
+
+
+async def test_a_handed_off_chat_with_no_number_is_never_told_the_team_will_get_back():
+    s, _ = await service(llm=Scripted(intent="human"), agent=True)
+    await s.sessions.insert_one({"_id": SID, "agent_slug": "avasetu", "created_at": NOW, "hits": [], "messages": [],
+                                 "data": {**engine.new_data(localise=True), "greeted": True, "handed_off": True, "needs_you_sent": True, "phone_asks": 3, "declined": ["phone"]}})
+    r = await say(s, "please call me about this")
+    assert r["reply"].endswith(phrases.say("handed_no_number", team="Avasetu"))
+    assert "will get back" not in r["reply"]
+
+
+async def test_with_a_number_on_file_the_team_will_get_back_stands():
+    s, _ = await service(llm=Scripted(intent="human"), agent=True)
+    await s.sessions.insert_one({"_id": SID, "agent_slug": "avasetu", "created_at": NOW, "hits": [], "messages": [],
+                                 "data": {**engine.new_data(localise=True), "greeted": True, "handed_off": True, "needs_you_sent": True, "phone": "+919876543210", "lead_done": True}})
+    assert "will get back" in (await say(s, "please call me about this"))["reply"]
