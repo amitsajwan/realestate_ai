@@ -278,6 +278,9 @@ function PageChecks({ c }: { c: PageCheck }) {
     <div className={card}>
       <p className="font-semibold text-gray-900">Page check</p>
       <p className="text-xs text-gray-600">Up to 20 pages a day read live and compared with their sources. 7 days: {c.week} read, {c.week_flagged} with something to look at. Last run {c.at ? timeAgo(c.at) : 'not yet'}: {c.model} of {c.read} read by the model too.</p>
+      <p className="text-xs text-gray-500">It only reports: nothing here changes a page or takes it out of search. &quot;Thin&quot; is stricter than the rule for search
+        (under 60 words and at most one kind of own fact; search needs written text and one), so a thin page stays in until enrichment fills it or you fix it.
+        A wrong number or another project&apos;s detail is worth fixing by hand.</p>
       {c.items.length === 0 ? <p className="mt-1 text-sm text-gray-600">Nothing to look at.</p> : (
         <ul className="mt-1 space-y-2 p-0">
           {(all ? c.items : c.items.slice(0, 10)).map((i) => (

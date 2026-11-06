@@ -49,7 +49,12 @@ export async function buildSitemap(): Promise<Grouped> {
   // the small lists first: started beside the register's 8.5 MB read, their 4-second timers ran out before they were even sent
   // (2026-10-31: no request reached the backend while the large reads did), and the sitemap lost them
   const [newsRead, buildersRead, topicsRead, trackersRead] = await Promise.all([fetchNews(50), getBuilders(), fetchTopics(), fetchTrackers()])
-  const [agents, projects, register, places, facets] = await Promise.all([getSitemapEntries(), getCatalog(), getRegisterProjects(undefined, true), getRegisterPlaces(), getFacets()])
+  const [agents, projects, register, placesRead, facets] = await Promise.all([getSitemapEntries(), getCatalog(), getRegisterProjects(undefined, true), getRegisterPlaces(), getFacets()])
+  // Without the places every project page falls into projects.xml and the area pages drop out, while the lists still make
+  // area sitemaps, so the build looked good: the coverage check of 2026-11-05 counted Kharadi as its 5 lists and every project
+  // page under "projects" (612). The last places read stands in; with none, the build is not good (`sitemapGroups`).
+  const places = lastGood('places', placesRead)
+  if (!places.length) holder.__avasetuSitemapNoPlaces = true
   const news = { items: lastGood('news', newsRead.items) }
   const [builders, topics, trackers] = [lastGood('builders', buildersRead), lastGood('topics', topicsRead), lastGood('trackers', trackersRead)]
   const placeSlug = new Map(places.map((p) => [p.key, p.slug]))
@@ -166,20 +171,22 @@ const FRESH_MS = 10 * 60 * 1000   // the index and its sitemaps are read togethe
 const THIN_MS = 60 * 1000         // a list without any area sitemap means the API did not answer: try again soon
 type Groups = Map<string, SitemapEntry[]>
 type Cached = { at: number; ttl: number; groups: Promise<Groups> }
-const holder = globalThis as unknown as { __avasetuSitemap?: Cached; __avasetuSitemapGood?: Groups; __avasetuSitemapLists?: Record<string, unknown[]>; __avasetuSitemapShort?: boolean }
+const holder = globalThis as unknown as { __avasetuSitemap?: Cached; __avasetuSitemapGood?: Groups; __avasetuSitemapLists?: Record<string, unknown[]>; __avasetuSitemapShort?: boolean; __avasetuSitemapNoPlaces?: boolean }
 
 /** The pages per sitemap, shared by /sitemap.xml and /sitemaps/<name>.xml (one build per 10 minutes per server). A build that
- *  comes back without area sitemaps (the API was slow or restarting) never replaces the last good one: Google keeps seeing
- *  every page, and the build is tried again a minute later. */
+ *  comes back without area sitemaps, or without the Pune places that sort project pages into them (the API was slow or
+ *  restarting), never replaces the last good one: Google keeps seeing every page in its area, and the build is tried again a
+ *  minute later. */
 export function sitemapGroups(now = Date.now()): Promise<Groups> {
   const c = holder.__avasetuSitemap
   if (c && now - c.at < c.ttl) return c.groups
   const next: Cached = { at: now, ttl: FRESH_MS, groups: Promise.resolve(new Map()) }
   holder.__avasetuSitemapShort = false
+  holder.__avasetuSitemapNoPlaces = false
   next.groups = buildSitemap().then((all) => {
     const m: Groups = new Map()
     for (const { group, entry } of all) m.set(group, [...(m.get(group) ?? []), entry])
-    if ([...m.keys()].some((k) => k.startsWith('area-'))) {
+    if ([...m.keys()].some((k) => k.startsWith('area-')) && !holder.__avasetuSitemapNoPlaces) {
       if (holder.__avasetuSitemapShort) next.ttl = THIN_MS   // a list came back empty with none kept: try again soon
       holder.__avasetuSitemapGood = m
       return m

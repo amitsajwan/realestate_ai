@@ -26,6 +26,9 @@ jest.mock('@/lib/site/register', () => ({ getRegisterProject: async () => null, 
   regnoKey: (r?: string | null) => (r || '').trim().toUpperCase() }))
 // topic guides (lib/site/topics): none unless a test sets them
 const mockTopics = jest.fn(async (): Promise<unknown[]> => [])
+// the area lists grown from searches (lib/site/facets): none unless a test sets them
+const mockFacets = jest.fn(async (): Promise<unknown[]> => [])
+jest.mock('@/lib/site/facets', () => ({ ...jest.requireActual('@/lib/site/facets'), getFacets: () => mockFacets() }))
 jest.mock('@/lib/site/topics', () => ({ ...jest.requireActual('@/lib/site/topics'), fetchTopics: () => mockTopics() }))
 const mockRedirect = jest.fn((url: string) => { throw new Error('REDIRECT ' + url) })
 const mockNotFound = jest.fn(() => { throw new Error('NOT_FOUND') })
@@ -201,6 +204,32 @@ describe('shared project pages', () => {
     mockPlaces.mockResolvedValue([])
     delete g.__avasetuSitemap
     expect(mockTopics).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps project pages in their area sitemap when the places read fails, even though the area lists still make area sitemaps', async () => {
+    // 2026-11-05: places came back empty, every project page went to projects.xml and Kharadi's sitemap held only its 5 lists
+    const g = globalThis as { __avasetuSitemap?: unknown; __avasetuSitemapLists?: unknown; __avasetuSitemapGood?: unknown }
+    const reset = () => { delete g.__avasetuSitemap; delete g.__avasetuSitemapLists; delete g.__avasetuSitemapGood }
+    mockFacets.mockResolvedValue([{ indexable: true, place_slug: 'kharadi', path: '/projects/area/kharadi/new-launches', page_updated: null }])
+    const page = { slug: 'nyati-kharadi', regno: 'PR9', name: 'N', area: 'kharadi', place: 'kharadi', completion_now: null, listed_or_updated: null, indexable: true }
+    mockRegister.mockResolvedValue([page])
+    const inKharadi = (m: Map<string, { url: string }[]>) => (m.get('area-kharadi') ?? []).some((e) => e.url.endsWith('/projects/nyati-kharadi'))
+    try {
+      reset()
+      mockPlaces.mockResolvedValue([{ key: 'kharadi', slug: 'kharadi', name: 'Kharadi', indexable: 1 }])
+      expect(inKharadi(await sitemapGroups(0))).toBe(true)
+      mockPlaces.mockResolvedValue([])
+      expect(inKharadi(await sitemapGroups(11 * 60_000))).toBe(true)        // the last places read stands in
+      delete g.__avasetuSitemapLists                                        // a restart: none kept, the last good build is served
+      const served = await sitemapGroups(22 * 60_000)
+      expect(inKharadi(served)).toBe(true)
+      expect((served.get('projects') ?? []).some((e) => e.url.endsWith('/projects/nyati-kharadi'))).toBe(false)
+    } finally {
+      mockFacets.mockResolvedValue([])
+      mockRegister.mockResolvedValue([])
+      mockPlaces.mockResolvedValue([])
+      reset()
+    }
   })
 
   it('leaves pages made in bulk out of the sitemap: localities without a guide and our social posts', async () => {
