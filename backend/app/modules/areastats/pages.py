@@ -18,7 +18,7 @@ from app.core import brand
 from app.core.areas import BY_KEY
 from app.modules.newsroom.store import Store
 
-from . import clusters, pagefacts, plans3d, priceidea
+from . import brands, clusters, pagefacts, plans3d, priceidea
 from .service import _count, _day
 from .text import ascii_text, builder_slug, promoter_key, words
 
@@ -352,6 +352,40 @@ def names(doc: dict) -> tuple:
             seen.add(v.lower())
             aliases.append(v)
     return marketed, aliases
+
+
+# the company words after a brand's name: buyers search "Godrej Ivara", not "Godrej Properties Ivara"
+_BRAND_TAIL = re.compile(r"\s+(?:properties|developments|developers|group|realty|realtors|lifespaces|spaces|schemes|estates|housing|"
+                         r"landmarks|engineers|corp|builders)$", re.I)
+
+
+def brand_word(b: "brands.Brand") -> str:
+    """What buyers put before a project's name for the brand: "Godrej Properties" -> "Godrej", "Shapoorji Pallonji (Joyville)" ->
+    "Shapoorji Pallonji"."""
+    short = re.sub(r"\s*\([^)]*\)", "", b.name).strip()
+    while (cut := _BRAND_TAIL.sub("", short)) != short:
+        short = cut
+    return short
+
+
+def branded_name(doc: dict) -> Optional[str]:
+    """The project's name with its builder's brand in front, as buyers search it, when the name lacks the brand: Kolte Patil's
+    "Life Republic" filed by Kolte Patil I-Ven Townships is searched as "Kolte Patil Life Republic". On 2026-11-06 a portal
+    ranked "Sonigara The Unicorn" over our "The Unicorn Building C Wing C1 & C2" (docs/plan/rival-housiey-ravet.md L4). Only a
+    brand the record joins by its promoter (brands.of): a promoter is often a company formed for one plot ("Manjari Housing
+    Projects LLP"), whose words no buyer types. None when the owner set the name by hand, when the brand is unknown, or when any
+    of the brand's words is already in the name ("Rohan Abhilasha", "Ganga Florentina", "Joyville Hinjawadi")."""
+    if (doc.get("marketed_name_override") or "").strip():
+        return None
+    b = brands.of(doc)
+    if not b:
+        return None
+    name = names(doc)[0]
+    have = set(re.findall(r"[a-z0-9]+", name.lower()))
+    word = brand_word(b)
+    if b.search.search(" ".join(re.findall(r"[a-z0-9]+", name.lower()))) or have & set(re.findall(r"[a-z0-9]+", word.lower())):
+        return None
+    return f"{word} {name}"
 
 
 # what MahaRERA adds to one registration of a project: "Part 3", "Phase-9", "Tower C and Tower D", a trailing "Project". A bare
@@ -727,6 +761,8 @@ def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None) ->
         "marketed_name": names(doc)[0], "aliases": names(doc)[1], "page_updated": page_updated(doc),
         # how people search for the page (seo.targets, rank-loop R1): leads the title and H1; the legal name stays in the body
         "search_name": doc.get("search_name") or None,
+        # the name with the builder's brand in front when the name lacks it (L4): after search_name, before the marketed name
+        "branded_name": branded_name(doc),
         # "People also ask" questions answered from our facts (seo.questions, R4), each with its source and its topic:
         # the topic is what lets the page drop its own question on a topic a real one already covers
         "faq": [{k: f.get(k) for k in ("q", "a", "source", "topic")} for f in doc.get("seo_faq") or []],
@@ -745,7 +781,7 @@ def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None) ->
         "same_promoter": same_promoter(doc, docs) if docs is not None else [],
         "enriched_at": doc["enriched_at"].date().isoformat() if isinstance(doc.get("enriched_at"), datetime) else None,
         # links into other pages say how people search for them (rank-loop R5): search_name, else the marketed name
-        "same_area": [{"name": s.get("search_name") or names(s)[0], "slug": s["page_slug"], "completion_now": _day(s.get("completion_now"))}
+        "same_area": [{"name": s.get("search_name") or branded_name(s) or names(s)[0], "slug": s["page_slug"], "completion_now": _day(s.get("completion_now"))}
                       for s in same_area],
         "source": "MahaRERA public records",
     }
@@ -761,7 +797,7 @@ def same_promoter(doc: dict, docs: List[dict]) -> List[dict]:
         return []
     mine = [d for d in docs if d["_id"] != doc["_id"] and _served(d) and promoter_key(d.get("promoter")) == key]
     mine.sort(key=lambda d: (is_old(d), d.get("name", "")))
-    return [{"name": d.get("name", ""), "marketed_name": names(d)[0], "search_name": d.get("search_name") or None, "slug": d["page_slug"],
+    return [{"name": d.get("name", ""), "marketed_name": names(d)[0], "search_name": d.get("search_name") or None, "branded_name": branded_name(d), "slug": d["page_slug"],
              "completion_now": _day(d.get("completion_now"))} for d in mine[:SAME_PROMOTER]]
 
 
@@ -1010,6 +1046,7 @@ async def listing(db, area: Optional[str] = None, only_indexable: bool = True, l
 
     return [{**finder(d), "slug": d["page_slug"], "regno": d.get("regno") or d["_id"], "name": d.get("name", ""), "marketed_name": names(d)[0],
              "search_name": d.get("search_name") or None,
+             "branded_name": branded_name(d),
              "area": d.get("locality"), "units_total": _count(d.get("units_total")), "units_booked": booked(d),
              "place": d.get("pune_place"), "place_name": d.get("pune_place_name"),
              "promoter": d.get("promoter") or None, "completion_now": _day(d.get("completion_now")),

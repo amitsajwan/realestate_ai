@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { builderLine, cardFacts } from '@/lib/site/facets'
 import type { FacetRow } from '@/lib/site/facets'
 import { formatPrice, readableName } from '@/lib/site/format'
-import { monthYear } from '@/lib/site/register'
+import { monthYear, sizePriceLine } from '@/lib/site/register'
 import OpenChatButton from './OpenChatButton'
 import CardPicture from './CardPicture'
 
@@ -34,6 +34,9 @@ function justOpened(r: FacetRow): boolean {
 export function cardPrice(r: FacetRow): string | null {
   // a size list's own price first: the cheapest of any size put a 1 BHK price on the 2 BHK row (96 Arrcade, 2026-10-26)
   if (r.price_from != null) return `${formatPrice(r.price_from)}${r.price_to ? ` to ${formatPrice(r.price_to)}` : ''}`
+  // every size's starting price when there are two or more: buyers compare by size (rival-housiey-ravet.md L5)
+  const sizes = sizePriceLine(r.sizes)
+  if (sizes) return sizes
   if (r.price) return `${r.price.bhk} BHK ${formatPrice(r.price.from_inr)}${r.price.to_inr ? ` to ${formatPrice(r.price.to_inr)}` : ''}`
   return null
 }

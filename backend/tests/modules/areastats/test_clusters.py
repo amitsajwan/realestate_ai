@@ -37,6 +37,14 @@ def test_base_name_strips_phase_label_with_number_or_roman():
     assert base_name("Majestique Towers East phase 1") == "majestique towers east"
 
 
+def test_base_name_strips_a_letter_and_number_tower_id():
+    # Sonigara The Unicorn, Ravet: three registrations that never met (docs/plan/rival-housiey-ravet.md L3)
+    assert base_name("The Unicorn Building C Wing C1 & C2") == "the unicorn"
+    assert base_name("The Unicorn Building A Wing A1 & A2") == "the unicorn"
+    assert base_name("Skyline Tower T-3") == "skyline"
+    assert base_name("Kohinoor B2B") == "kohinoor b2b"   # a letter-number word with no label stays part of the name
+
+
 def test_base_name_strips_trailing_roman_numeral():
     assert base_name("Majestique Marbella II") == "majestique marbella"
     assert base_name("Majestique Marbella I") == "majestique marbella"

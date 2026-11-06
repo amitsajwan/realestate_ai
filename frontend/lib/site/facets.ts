@@ -49,6 +49,8 @@ export interface FacetRow {
   /** For the card: where the project is, its cheapest published price and one picture with where it came from. */
   stage?: 'new-launch' | 'under-construction' | 'possession-soon' | 'ready'
   price?: { bhk: number; from_inr: number; to_inr: number | null } | null
+  /** every size's published starting price, smallest size first (backend seo/facets.size_prices) */
+  sizes?: { bhk: number; from_inr: number }[]
   photo?: { url: string; alt: string; source: string } | null
   /** up to five pictures for the card's slideshow, and the stand-ins for a card with none (backend areamap.card_pictures) */
   photos?: { url: string; alt: string; source: string }[]

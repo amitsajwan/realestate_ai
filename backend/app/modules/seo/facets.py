@@ -369,6 +369,12 @@ def lowest_price(d: dict, now: datetime) -> Optional[dict]:
     return {"bhk": b, "from_inr": lo, "to_inr": sp.get("to_inr")}
 
 
+def size_prices(d: dict, now: datetime) -> List[dict]:
+    """Every size's published starting price, smallest size first: [{bhk, from_inr}]. Buyers compare price by size, and a
+    portal's card shows one per size where ours showed only the cheapest (docs/plan/rival-housiey-ravet.md L5)."""
+    return [{"bhk": b, "from_inr": sp["from_inr"]} for b in BHKS if (sp := size_price(d, b, now))]
+
+
 def size_price(d: dict, bhk: int, now: datetime) -> Optional[dict]:
     """The project's published price for homes of that size ("2 BHK" and "2.5 BHK"), lowest first, or None:
     {from_inr, to_inr, official, sites}. Only prices areastats.prices publishes (builder's site, or two sites agreeing)."""
@@ -493,7 +499,7 @@ def _row(d: dict, why: str, n: int, now: datetime) -> dict:
             "units_total": total, "units_booked": booked(d), "units_open": _open(d), "reason": why, "source": "MahaRERA",
             # for the card: where it is, the cheapest published price and one picture (with where it came from); `photos` and
             # the stand-ins for a card with none (areastats.areamap.card_pictures)
-            "stage": stage(d, now), "price": lowest_price(d, now), "photo": _photo([d]), **card_pictures(d)}
+            "stage": stage(d, now), "price": lowest_price(d, now), "sizes": size_prices(d, now), "photo": _photo([d]), **card_pictures(d)}
 
 
 def _price_row(row: dict, d: dict, bhk: int, now: datetime) -> dict:

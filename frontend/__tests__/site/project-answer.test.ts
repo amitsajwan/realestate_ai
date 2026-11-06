@@ -1,6 +1,6 @@
 // The dated opening of a project page, from the page's own facts (lib/site/projectFacts)
 import { catalogAnswer, projectAnswer, projectUpdated, registerAnswer } from '@/lib/site/projectFacts'
-import { askedPrices, completionChange, headingName, monthsApart, projectFaq } from '@/lib/site/register'
+import { askedPrices, completionChange, headingName, monthsApart, projectFaq, sizePriceLine } from '@/lib/site/register'
 import type { RegisterProject } from '@/lib/site/register'
 import type { CatalogProject } from '@/lib/site/types'
 
@@ -120,6 +120,21 @@ describe('filed dates and names', () => {
     expect(headingName({ name: 'Kolte Patil Life Republic Ph-2', marketed_name: 'Life Republic' })).toBe('Life Republic Phase 2')
     expect(headingName({ name: 'Park Eden Phase I', marketed_name: 'Park Eden Phase 1' })).toBe('Park Eden Phase 1')
     expect(headingName({ name: 'Gera World of Joy M', marketed_name: 'Gera World of Joy' })).toBe('Gera World of Joy')
+  })
+
+  it("puts the builder's brand before the name when the name lacks it, after a searched name", () => {
+    const p = { name: 'Kolte Patil Life Republic Ph-2', marketed_name: 'Life Republic', branded_name: 'Kolte Patil Life Republic' }
+    expect(headingName(p)).toBe('Kolte Patil Life Republic Phase 2')
+    expect(headingName({ ...p, search_name: 'Life Republic Hinjawadi' })).toBe('Life Republic Hinjawadi Phase 2')
+    expect(headingName({ ...p, branded_name: null })).toBe('Life Republic Phase 2')
+  })
+
+  it('lists each size with its lowest starting price, sizes only, smallest first', () => {
+    const rows = [{ bhk: '3 BHK', from_inr: 9_500_000 }, { bhk: '2 BHK', from_inr: 7_000_000 }, { bhk: '2 BHK', from_inr: 6_800_000 },
+      { bhk: 'All homes', from_inr: 5_000_000 }, { bhk: '2.5 BHK', from_inr: 8_100_000 }, { bhk: '4 BHK', from_inr: 16_000_000 }]
+    expect(sizePriceLine(rows)).toBe('2 BHK ₹68 L · 2.5 BHK ₹81 L · 3 BHK ₹95 L')
+    expect(sizePriceLine([{ bhk: '2 BHK', from_inr: 6_800_000 }])).toBe('')
+    expect(sizePriceLine(null)).toBe('')
   })
 
   it('the FAQ says the extension the same way', () => {
