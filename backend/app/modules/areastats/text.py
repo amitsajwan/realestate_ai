@@ -105,6 +105,11 @@ def _cased(tokens: list) -> list:
     return [t if t.isdigit() or ROMAN.match(t) and len(t) <= 4 or not re.search(r"[AEIOUY]", t) else t.capitalize() for t in tokens]
 
 
+def cased(tokens: list) -> list:
+    """`_cased` for other modules: a name's words as people write them when it was filed or printed in capitals."""
+    return _cased(tokens)
+
+
 def _tokens(name: str) -> list:
     return re.findall(r"[A-Za-z0-9]+", unicodedata.normalize("NFKD", name or "").encode("ascii", "ignore").decode())
 

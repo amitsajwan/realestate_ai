@@ -22,6 +22,9 @@ from typing import Dict, List, Optional, Tuple
 
 from app.core.areas import BY_KEY
 
+from . import samegroup
+from .websearch import RESULTS
+
 from .text import BRACKETS, LABEL_WORDS, WORDS, ascii_text, base_name, group_name, promoter_key, squash
 
 def cluster_key(doc: dict) -> Optional[str]:
@@ -66,7 +69,8 @@ async def confirmed_groups(db) -> Dict[str, List[str]]:
 # ---------------------------------------------------------------------------
 
 
-def compute_clusters(docs: List[dict], confirmed: Dict[str, List[str]]) -> Dict[str, List[str]]:
+def compute_clusters(docs: List[dict], confirmed: Dict[str, List[str]],
+                     linked: Optional[List[List[str]]] = None) -> Dict[str, List[str]]:
     """Return {cluster_id: [regno, ...]} for docs, confirmed groups winning over name-based ones.
 
     Rules:
@@ -109,6 +113,15 @@ def compute_clusters(docs: List[dict], confirmed: Dict[str, List[str]]) -> Dict[
     for ck, members in name_clusters.items():
         if len(members) >= 2:
             clusters[ck] = members
+
+    # ---- groups the web proves (samegroup): joined with any name cluster they touch; a confirmed group is left as it is ----
+    for link in linked or []:
+        regs = {r for r in link if r in by_id and r not in assigned}
+        if len(regs) < 2:
+            continue
+        for ck in [ck for ck, ms in clusters.items() if not ck.startswith("group:") and regs & set(ms)]:
+            regs |= set(clusters.pop(ck))
+        clusters[f"web:{min(regs)}"] = sorted(regs)
 
     return clusters
 
@@ -154,7 +167,7 @@ def _stem(name: str) -> str:
     return squash(" ".join(out))
 
 
-def split_candidates(docs: List[dict]) -> List[dict]:
+def split_candidates(docs: List[dict], include_merged: bool = False) -> List[dict]:
     """Registrations that look like one project and have no shared page: the same name before its tower or phase label, in the
     same pincode (or place, when MahaRERA filed none), with at most one promoter between them. The name rule merges only with a
     promoter (cluster_key) and only when base_name reads the tower label, so these stay split: on 2026-11-06 Sonigara The
@@ -173,7 +186,7 @@ def split_candidates(docs: List[dict]) -> List[dict]:
     for (_, where), members in groups.items():
         if len(members) < 2 or len({promoter_key(m.get("promoter")) for m in members} - {""}) > 1:
             continue
-        if len({m.get("cluster_id") for m in members}) == 1 and members[0].get("cluster_id"):
+        if not include_merged and len({m.get("cluster_id") for m in members}) == 1 and members[0].get("cluster_id"):
             continue   # already one page
         members.sort(key=lambda m: str(m.get("regno") or m["_id"]))
         out.append({
@@ -184,9 +197,34 @@ def split_candidates(docs: List[dict]) -> List[dict]:
             "homes": sum(int(m.get("units_total") or 0) for m in members),
             "members": [{"regno": m.get("regno") or m["_id"], "name": m.get("name") or "", "slug": m.get("page_slug") or "",
                          "promoter": m.get("promoter") or ""} for m in members],
+            "docs": members,
         })
     out.sort(key=lambda r: (not r["ours"], -r["homes"], r["name"]))
     return out
+
+
+async def web_links(db, docs: List[dict]) -> Tuple[List[List[str]], Dict[str, str]]:
+    """The groups the web proves among the split candidates (samegroup.groups), and the name the web gives each (by member
+    number). Reads the stored Google results for the members' MahaRERA numbers; makes no search."""
+    cands = split_candidates(docs, include_merged=True)
+    regnos = [m["regno"] for c in cands for m in c["members"]]
+    if not regnos:
+        return [], {}
+    results: Dict[str, List[dict]] = {}
+    for r in await db.get_collection(RESULTS).find({"_id": {"$in": regnos}}).to_list(None):
+        results[r["_id"]] = r.get("results") or []
+    links: List[List[str]] = []
+    names: Dict[str, str] = {}
+    for c in cands:
+        for g in samegroup.groups(c["docs"], results):
+            links.append(g)
+            mine = [d for d in c["docs"] if str(d.get("regno") or d["_id"]) in g]
+            places = {p for d in mine for p in (d.get("pune_place_name"), (BY_KEY.get(d.get("locality") or "") or None)
+                                                 and BY_KEY[d["locality"]].name) if p}
+            name = samegroup.web_name(mine, results, c["name"], places)
+            if name:
+                names.update({r: name for r in g})
+    return links, names
 
 
 # ---------------------------------------------------------------------------
@@ -205,7 +243,7 @@ async def cluster_report(db) -> List[dict]:
     all_docs = await store.all_projects()
 
     conf = await confirmed_groups(db)
-    clusters = compute_clusters(all_docs, conf)
+    clusters = compute_clusters(all_docs, conf, (await web_links(db, all_docs))[0])
 
     by_id = {d.get("regno") or d["_id"]: d for d in all_docs}
 
@@ -252,7 +290,8 @@ async def assign_clusters(store, docs: List[dict]) -> int:
     cluster_id is None for records not in any cluster.
     """
     conf = await confirmed_groups(store.db)
-    clusters = compute_clusters(docs, conf)
+    links, web_names = await web_links(store.db, docs)
+    clusters = compute_clusters(docs, conf, links)
 
     by_id = {d.get("regno") or d["_id"]: d for d in docs}
 
@@ -265,7 +304,9 @@ async def assign_clusters(store, docs: List[dict]) -> int:
         for regno in members:
             assignment[regno] = (cid, primary)
         if len(members) >= 2:
-            shared[primary] = group_name([by_id[m].get("name") or "" for m in sorted(members, key=lambda r: r != primary)])
+            # a group the web proved takes the name two sites give it ("Sonigara The Unicorn"), else the name its towers share
+            shared[primary] = (cid.startswith("web:") and next((web_names[m] for m in members if m in web_names), None)) or \
+                group_name([by_id[m].get("name") or "" for m in sorted(members, key=lambda r: r != primary)])
 
     n = 0
     for doc in docs:
