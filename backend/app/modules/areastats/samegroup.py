@@ -160,12 +160,12 @@ def split_candidates(docs: List[dict], include_merged: bool = False) -> List[dic
     Unicorn in Ravet was three pages, none with the name buyers search, while a portal ranked its one page for the area
     (docs/plan/rival-housiey-ravet.md). Nothing is merged here: the owner confirms a group (agentprojects.groups), as a wrong
     merge 301s a project's page away. Two promoters never make a candidate (the rule's own safety line), nor a record the
-    owner split by hand (`cluster_skip`). Our areas first, then the most homes."""
+    owner split by hand (`cluster_skip`) or said is not one project with the others (`split_apart`, seo.splits). Our areas first, then the most homes."""
     groups: Dict[Tuple[str, str], List[dict]] = {}
     for d in docs:
         stem = _stem(d.get("name") or "")
         where = str(d.get("pincode") or "").strip() or d.get("pune_place") or d.get("locality") or ""
-        if len(stem) < SPLIT_MIN_CHARS or not where or d.get("cluster_skip"):
+        if len(stem) < SPLIT_MIN_CHARS or not where or d.get("cluster_skip") or d.get("split_apart"):
             continue
         groups.setdefault((stem, where), []).append(d)
     out = []

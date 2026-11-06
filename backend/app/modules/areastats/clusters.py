@@ -65,6 +65,18 @@ async def confirmed_groups(db) -> Dict[str, List[str]]:
     return out
 
 
+def owner_groups(docs: List[dict], taken: Dict[str, List[str]]) -> Dict[str, List[str]]:
+    """The groups the owner confirmed in Studio (SEO, To do: `owner_group` on each record, seo.splits), as confirmed groups. A
+    registration already in a project record's group stays there."""
+    held = {r for regnos in taken.values() for r in regnos}
+    out: Dict[str, List[str]] = {}
+    for d in docs:
+        regno = d.get("regno") or d["_id"]
+        if d.get("owner_group") and regno not in held:
+            out.setdefault(f"group:owner:{d['owner_group']}", []).append(regno)
+    return out
+
+
 # ---------------------------------------------------------------------------
 # Core clustering
 # ---------------------------------------------------------------------------
@@ -194,6 +206,7 @@ async def cluster_report(db) -> List[dict]:
     all_docs = await store.all_projects()
 
     conf = await confirmed_groups(db)
+    conf.update(owner_groups(all_docs, conf))
     clusters = compute_clusters(all_docs, conf, (await web_links(db, all_docs))[0])
 
     by_id = {d.get("regno") or d["_id"]: d for d in all_docs}
@@ -241,6 +254,7 @@ async def assign_clusters(store, docs: List[dict]) -> int:
     cluster_id is None for records not in any cluster.
     """
     conf = await confirmed_groups(store.db)
+    conf.update(owner_groups(docs, conf))
     links, web_names = await web_links(store.db, docs)
     clusters = compute_clusters(docs, conf, links)
 

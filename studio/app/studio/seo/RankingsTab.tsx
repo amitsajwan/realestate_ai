@@ -5,7 +5,7 @@ import { ErrorBox, Spinner } from '@/components/app/ui'
 import { timeAgo } from '@/lib/app/format'
 import { errorMessage } from '@/lib/app/client'
 import { getRankings, revertPage } from '@/lib/app/insights'
-import type { AiVisits, BoardLeader, BoardRow, PageCheck, PageContent, ProjectIndex, RankAction, RankTarget, Scoreboard, SplitProject, WeekNumbers } from '@/lib/app/insights'
+import type { AiVisits, BoardLeader, BoardRow, PageCheck, PageContent, ProjectIndex, RankAction, RankTarget, Scoreboard, WeekNumbers } from '@/lib/app/insights'
 import { useAsync } from '@/lib/app/useAsync'
 import { getNotifications, markNotificationRead } from '@/lib/app/whatsapp'
 
@@ -82,9 +82,11 @@ function Board({ b }: { b: Scoreboard }) {
   const diff = prev ? b.above_mb - prev.above_mb : null
   return (
     <div className={card}>
-      <p className="font-semibold text-gray-900">Above MagicBricks</p>
+      <p className="font-semibold text-gray-900">Us against other sites on Google</p>
       <p className="text-xs text-gray-600">Google searches we ran in the last 28 days{b.at ? `, counted ${timeAgo(b.at)}` : ''} (weekly).</p>
-      <p className="mt-1 text-lg font-semibold text-gray-900">{b.above_mb} of {b.searches}
+      {b.leaders?.length ? <Leaders rows={b.leaders} areas={b.area_leaders ?? {}} /> : <p className="mt-2 text-sm text-gray-600">The next weekly count names every site above us.</p>}
+      <p className="mt-3 text-sm font-semibold text-gray-900">Against MagicBricks</p>
+      <p className="text-lg font-semibold text-gray-900">Above them in {b.above_mb} of {b.searches}
         {diff != null && <span className={`ml-1 text-xs ${diff >= 0 ? 'text-green-700' : 'text-red-700'}`}>{diff >= 0 ? '+' : ''}{diff}</span>}
       </p>
       <p className="text-xs text-gray-600">We show in {b.ours}; MagicBricks shows in {b.magicbricks}, and we are above them in {b.above_mb_when_shown} of those.</p>
@@ -92,7 +94,6 @@ function Board({ b }: { b: Scoreboard }) {
         <p className="mt-2 text-sm font-semibold text-gray-900">Win next (MagicBricks just above us)</p>
         <ul className="space-y-1 p-0">{b.next.slice(0, 10).map((r) => <BoardLine key={r.query} r={r} />)}</ul>
       </>)}
-      {!!b.leaders?.length && <Leaders rows={b.leaders} areas={b.area_leaders ?? {}} />}
     </div>
   )
 }
@@ -122,29 +123,6 @@ function Leaders({ rows, areas }: { rows: BoardLeader[]; areas: Record<string, B
           ))}
         </ul>
       )}
-    </div>
-  )
-}
-
-/** Registrations that look like one project still on separate pages, none with the whole project's name. The owner confirms a
- * group; code never merges them, as a wrong merge moves a project's page away. */
-function SplitProjects({ total, items }: { total: number; items: SplitProject[] }) {
-  return (
-    <div className={card} data-testid="split-projects">
-      <p className="font-semibold text-gray-900">Possibly one project, on separate pages ({total})</p>
-      <p className="text-xs text-gray-600">Same name before the tower or phase, same pincode. Confirm the ones that are one project as a group.</p>
-      <ul className="mt-1 space-y-2 p-0">
-        {items.slice(0, 15).map((r) => (
-          <li key={`${r.name}-${r.where}`} className="text-xs text-gray-700">
-            <span className="font-medium text-gray-900">{r.name}</span> · {r.where} · {r.homes.toLocaleString('en-IN')} homes · {r.why}
-            <ul className="p-0 pl-3">
-              {r.members.map((m) => (
-                <li key={m.regno}>{m.slug ? <LinkOut href={`${SITE}/projects/${m.slug}`}>{m.name}</LinkOut> : m.name} <span className="text-gray-500">{m.regno}</span></li>
-              ))}
-            </ul>
-          </li>
-        ))}
-      </ul>
     </div>
   )
 }
@@ -201,23 +179,6 @@ function ByArea({ rows, at }: { rows: AreaRow[]; at: string | null }) {
         ))}
       </ul>
       {shown.length > 10 && <button type="button" className={`${btn} mt-2`} onClick={() => setAll(!all)}>{all ? 'Show 10' : `Show all ${shown.length}`}</button>}
-    </div>
-  )
-}
-
-/** Search Console allows "Request indexing" only by hand: the pages most worth the owner's ~10 a day (seo/note.py). */
-function AskGoogle({ pages }: { pages: { url: string; state: string | null; why: string }[] }) {
-  const [all, setAll] = useState(false)
-  return (
-    <div className={card}>
-      <p className="font-semibold text-gray-900">Ask Google to index: the next {pages.length} pages</p>
-      <p className="text-xs text-gray-600">10 a day: Search Console → URL inspection → paste the address → Request indexing. List and guide pages first, they link many pages.</p>
-      <ul className="mt-1 space-y-1 p-0">
-        {(all ? pages : pages.slice(0, 10)).map((p) => (
-          <li key={p.url} className="break-words text-xs text-gray-700"><LinkOut href={p.url}>{p.url.replace(SITE, '')}</LinkOut> · {p.why}</li>
-        ))}
-      </ul>
-      {pages.length > 10 && <button type="button" className={`${btn} mt-2`} onClick={() => setAll(!all)}>{all ? 'Show 10' : `Show all ${pages.length}`}</button>}
     </div>
   )
 }
@@ -319,13 +280,9 @@ export default function RankingsTab() {
 
       {d.scoreboard?.at && <Board b={d.scoreboard} />}
 
-      {!!d.split?.total && <SplitProjects total={d.split.total} items={d.split.items} />}
-
       {(!!d.coverage?.projects?.inspected || !!d.coverage?.content?.pages) && <ProjectPages index={d.coverage.projects} content={d.coverage.content} at={d.coverage.at} />}
 
       {!!d.coverage?.by_sitemap.length && <ByArea rows={d.coverage.by_sitemap} at={d.coverage.at} />}
-
-      {!!d.request_indexing?.length && <AskGoogle pages={d.request_indexing} />}
 
       {d.page_check && <PageChecks c={d.page_check} />}
 
@@ -385,18 +342,6 @@ export default function RankingsTab() {
       <p className="px-1 pt-2 text-sm font-semibold text-gray-900">Latest fixes</p>
       {d.actions.length === 0 ? <Empty>No fixes yet.</Empty> : (
         <ul className="space-y-2 p-0">{d.actions.map((a, i) => <ActionRow key={`${a.path}-${a.fix}-${i}`} a={a} onDone={q.reload} />)}</ul>
-      )}
-
-      <p className="px-1 pt-2 text-sm font-semibold text-gray-900">Our pages competing for one search ({d.conflicts.total})</p>
-      {d.conflicts.items.length === 0 ? <Empty>None found.</Empty> : (
-        <ul className="space-y-2 p-0">
-          {d.conflicts.items.map((c) => (
-            <li key={c.phrase} className={card}>
-              <p className="font-semibold text-gray-900">&quot;{c.phrase}&quot; · {c.impressions} impressions · {pos(c.position)}</p>
-              <p className="break-words text-xs text-gray-700">{c.pages.join(' · ')}</p>
-            </li>
-          ))}
-        </ul>
       )}
 
       <p className="px-1 pt-2 text-sm font-semibold text-gray-900">Searches with no page in the top 20 ({d.gaps.total})</p>

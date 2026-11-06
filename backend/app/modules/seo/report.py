@@ -25,12 +25,11 @@ from app.modules.areastats.demand import our_host, rank_of
 from app.modules.areastats.websearch import RESULTS, site
 from app.modules.newsroom.store import Store
 
-from . import aivisits, coverage, doctor, gaps, note, review, scoreboard, targets
+from . import aivisits, coverage, doctor, gaps, note, review, scoreboard, splits, targets
 from .actions import ACTIONS, gain
 
 TARGETS_SHOWN = 60
 ACTIONS_SHOWN = 40
-SPLIT_SHOWN = 25
 
 
 def _aware(d) -> Optional[datetime]:
@@ -93,6 +92,8 @@ async def rankings(store: Store, now: datetime) -> dict:
                for a in acts[:ACTIONS_SHOWN]]
     conflicts = await store.get_mark(targets.CONFLICTS)
     gapmark = await store.get_mark(gaps.MARK)
+    numbers = await store.db.get_collection(RESULTS).find({"kind": "regno"}).to_list(None)
+    told = splits.view(await store.shared_projects(), {r["_id"]: r.get("results") or [] for r in numbers}, conflicts.get("items") or [])
     return {
         "week": week(tmark.get("history") or [], now),
         "targets_at": _iso(tmark.get("at")),
@@ -100,10 +101,10 @@ async def rankings(store: Store, now: datetime) -> dict:
                    "results": await doctor.results(store)},
         "actions": actions,
         "targets": rows,
-        "conflicts": {"at": _iso(conflicts.get("at")), "total": conflicts.get("total") or 0, "items": conflicts.get("items") or []},
+        "conflicts": {"at": _iso(conflicts.get("at")), "total": conflicts.get("total") or 0, "items": told["competing"]},
         "gaps": {"at": _iso(gapmark.get("at")), "total": gapmark.get("total") or 0, "items": gapmark.get("items") or []},
         "scoreboard": _board(await store.get_mark(scoreboard.MARK)),
-        "split": split_projects(await store.shared_projects()),
+        "split": told["split"],
         "request_indexing": await note.request_list(store),
         "coverage": {"at": _iso((cov := await store.get_mark(coverage.MARK)).get("at")), "by_sitemap": cov.get("by_sitemap") or [],
                      "projects": cov.get("projects"), "content": pages.content_counts(await store.shared_projects())},

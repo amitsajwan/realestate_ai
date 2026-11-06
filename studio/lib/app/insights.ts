@@ -127,7 +127,6 @@ export interface RankTarget {
   above: string[]
 }
 
-export interface RankConflict { phrase: string; impressions: number; position: number | null; pages: string[] }
 
 /** source: 'search_console' (Search Console impressions) or 'searched' (our own Google search, where we are absent or below 20). */
 export interface RankGap { phrase: string; impressions: number; position: number | null; rising: boolean; page: string | null; shown_pages: string[]; action: string; source?: 'search_console' | 'searched'; area?: string | null }
@@ -141,8 +140,25 @@ export interface BoardLeader { site: string; searches: number; above_us: number;
 
 export interface Scoreboard extends BoardWeek { next: BoardRow[]; won: BoardRow[]; history: BoardWeek[]; leaders?: BoardLeader[]; area_leaders?: Record<string, BoardLeader[]> }
 
-/** Registrations that look like one project but have separate pages (backend areastats/clusters.split_candidates). */
-export interface SplitProject { name: string; where: string; ours: boolean; why: 'no promoter' | 'tower label'; homes: number; members: { regno: string; name: string; slug: string; promoter: string }[] }
+/** One project on several pages (backend seo/splits.py). state: the web proved it (it merges by itself), a number still waits its
+ * daily search, or everything was searched and only the owner can say. `searches`: searches that showed these pages together. */
+export interface SplitProject {
+  name: string
+  where: string
+  ours: boolean
+  why: string
+  homes: number
+  state: 'proved' | 'waiting' | 'no_proof'
+  hint: string | null
+  impressions: number
+  searches: { phrase: string; impressions: number; position: number | null }[]
+  members: { regno: string; name: string; slug: string; impressions: number; in_search: boolean }[]
+}
+export interface SplitDecided { decision: 'same' | 'apart'; name: string; regnos: string[] }
+export interface SplitView { total: number; proved: number; waiting: number; no_proof: number; items: SplitProject[]; decided: SplitDecided[] }
+/** A search showing several of our pages that needs no decision, and why (seo/splits.explain). */
+export type CompetingKind = 'project_and_list' | 'lists' | 'different'
+export interface CompetingSearch { phrase: string; impressions: number; position: number | null; kind: CompetingKind; pages: { path: string; kind: string; label: string }[] }
 
 export interface Rankings {
   week: { now: WeekNumbers | null; week_ago: WeekNumbers | null }
@@ -150,10 +166,10 @@ export interface Rankings {
   doctor: { at: string | null; treated: { path: string; fix: string; reason: string }[]; menu: string[]; results: FixResult[] }
   actions: RankAction[]
   targets: RankTarget[]
-  conflicts: { at: string | null; total: number; items: RankConflict[] }
+  conflicts: { at: string | null; total: number; items: CompetingSearch[] }
   gaps: { at: string | null; total: number; items: RankGap[] }
   scoreboard?: Scoreboard
-  split?: { total: number; items: SplitProject[] }
+  split?: SplitView
   request_indexing?: { url: string; state: string | null; why: string }[]
   coverage?: { at: string | null; by_sitemap: { sitemap: string; listed: number; inspected: number; indexed: number }[]; projects?: ProjectIndex | null; content?: PageContent }
   ai?: AiVisits
@@ -183,6 +199,7 @@ export interface AiVisits {
 
 export const getRankings = () => call<Rankings>('rankings')
 export const revertPage = (path: string) => call<{ reverted: number }>('rankings/revert', { path })
+export const decideSplit = (regnos: string[], decision: 'same' | 'apart' | 'undo') => call<{ decision: string }>('rankings/split', { regnos, decision })
 
 // ---- Pages that grow from searches (docs/plan/area-intent-pages.md 11.7; backend app/modules/seo/grow.py) ------------------------
 export type GrownStatus = 'candidate' | 'live' | 'held' | 'never'

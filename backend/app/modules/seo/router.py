@@ -116,3 +116,35 @@ async def internal_visit(v: VisitIn, db=Depends(get_db)) -> Response:
     from . import aivisits
     await aivisits.record(db, v.ua, v.referer, v.path, v.utm_source)
     return Response(status_code=204)
+
+
+# ---- the owner's word on projects split over pages (Studio → SEO → To do; seo/splits.py) -------------------------------------
+from app.core import brand  # noqa: E402
+from app.core.auth_backend import current_active_user  # noqa: E402
+from app.models.user import User  # noqa: E402
+from app.modules.newsroom.config import load as newsroom_config  # noqa: E402
+from app.modules.newsroom.store import Store  # noqa: E402
+
+from . import splits  # noqa: E402
+
+owner_router = APIRouter()
+
+
+async def owner_only(user: User = Depends(current_active_user)) -> User:
+    if getattr(user, "is_superuser", False) or str(user.id) in newsroom_config().owner_ids:
+        return user
+    raise HTTPException(403, f"Only the {brand.NAME} owner can use this")
+
+
+class SplitDecision(BaseModel):
+    regnos: List[str]
+    decision: str
+
+
+@owner_router.post("/insights/rankings/split")
+async def decide_split(body: SplitDecision, user: User = Depends(owner_only), db=Depends(get_db)) -> dict:
+    """"same" puts the registrations on one page, "apart" keeps them on their own and off the list, "undo" takes either back."""
+    try:
+        return await splits.decide(Store(db), body.regnos, body.decision)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

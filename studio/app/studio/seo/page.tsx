@@ -11,9 +11,10 @@ import type { FoundItem, FoundState, HotItem, Loop } from '@/lib/app/insights'
 import { useAsync } from '@/lib/app/useAsync'
 import PagesTab from './PagesTab'
 import RankingsTab from './RankingsTab'
+import TodoTab from './TodoTab'
 
-const TABS = ['hot', 'rankings', 'pages', 'found', 'system']
-const TAB_LABEL: Record<string, string> = { hot: 'Hot projects', rankings: 'Rankings', pages: 'Pages', found: 'Found on Google', system: 'System' }
+const TABS = ['todo', 'rankings', 'hot', 'pages', 'found', 'system']
+const TAB_LABEL: Record<string, string> = { todo: 'To do', hot: 'Hot projects', rankings: 'Rankings', pages: 'Pages', found: 'Found on Google', system: 'System' }
 const SIGNAL: Record<string, string> = { launch: 'New', bookings: 'Bookings', news: 'News', search: 'Search Console', google: 'Google', youtube: 'YouTube' }
 const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '')
 const card = 'list-none rounded-2xl bg-white p-3'
@@ -180,14 +181,14 @@ function SystemTab() {
 
 /** Studio → SEO: how we stand in Google and what we collect about projects and the system, for the owner (O1, O2, O6). */
 export default function SeoPage() {
-  const [tab, setTab] = useUrlTab('tab', 'hot', TABS)
+  const [tab, setTab] = useUrlTab('tab', 'todo', TABS)
   return (
     <div className="space-y-3 pb-24">
       <PageTitle action={<Link href="/studio/newsroom/projects" className="inline-flex min-h-[44px] items-center text-sm font-semibold text-[#0f2340] underline">Project pages</Link>}>
         SEO
       </PageTitle>
       <TabBar label="SEO" value={tab} onChange={setTab} tabs={TABS.map((k) => ({ key: k, label: TAB_LABEL[k] }))} />
-      {tab === 'hot' ? <HotTab /> : tab === 'rankings' ? <RankingsTab /> : tab === 'pages' ? <PagesTab /> : tab === 'found' ? <FoundTab /> : <SystemTab />}
+      {tab === 'todo' ? <TodoTab /> : tab === 'hot' ? <HotTab /> : tab === 'rankings' ? <RankingsTab /> : tab === 'pages' ? <PagesTab /> : tab === 'found' ? <FoundTab /> : <SystemTab />}
     </div>
   )
 }
