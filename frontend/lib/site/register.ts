@@ -71,6 +71,8 @@ export interface RegisterProject {
   sold_out?: boolean
   /** how people search for the project (backend seo/targets.py, docs/plan/rank-loop.md R1): leads the title and H1 */
   search_name?: string | null
+  /** the name with the builder's brand in front when MahaRERA's lacks it ("Kolte Patil Life Republic"; backend pages.branded_name) */
+  branded_name?: string | null
   /** Google's "People also ask" questions about it, answered from our facts (backend seo/questions.py, R4) */
   faq?: { q: string; a: string; source: string; topic?: string }[]
   /** a search description from the facts: the page doctor's (R3) when it wrote one, else the page writer's one-line summary */
@@ -427,9 +429,26 @@ export function monthYear(iso: string | null | undefined): string {
   return m ? `${MONTHS[Number(m[2]) - 1]} ${m[1]}` : ''
 }
 
-/** The name buyers know the project by: how they search for it (search_name), else the marketed name, else MahaRERA's. */
-export function displayName(p: { name: string; marketed_name?: string | null; search_name?: string | null }): string {
-  return (p.search_name || '').trim() || (p.marketed_name || '').trim() || p.name
+/** "2 BHK ₹68 L · 3 BHK ₹95 L": each size's starting price, smallest first, at most `most` sizes; "" with fewer than two sizes
+ *  (one size reads better as "2 BHK ₹68 L to ..." or "from ..."). Rows that are not a BHK size ("All homes", "Shop") are left out;
+ *  "2.5 BHK" counts as its own size. Buyers compare by size, and a portal's card showed one price per size where ours showed the
+ *  cheapest only (docs/plan/rival-housiey-ravet.md L5). */
+export function sizePriceLine(rows: { bhk: string | number; from_inr: number }[] | null | undefined, most = 3): string {
+  const best = new Map<number, number>()
+  for (const r of rows ?? []) {
+    const m = /^\s*(\d+(?:\.\d+)?)(?:\s*BHK)?\s*$/i.exec(String(r.bhk))
+    if (!m || !(r.from_inr > 0)) continue
+    const n = Number(m[1])
+    if (!best.has(n) || r.from_inr < best.get(n)!) best.set(n, r.from_inr)
+  }
+  if (best.size < 2) return ''
+  return [...best.entries()].sort((a, b) => a[0] - b[0]).slice(0, most).map(([n, inr]) => `${n} BHK ${formatPrice(inr)}`).join(' · ')
+}
+
+/** The name buyers know the project by: how they search for it (search_name), else with its builder's brand in front when the
+ *  name lacks it (branded_name, docs/plan/rival-housiey-ravet.md L4), else the marketed name, else MahaRERA's. */
+export function displayName(p: { name: string; marketed_name?: string | null; search_name?: string | null; branded_name?: string | null }): string {
+  return (p.search_name || '').trim() || (p.branded_name || '').trim() || (p.marketed_name || '').trim() || p.name
 }
 
 /** Other names worth showing ("Also known as"): aliases and the legal name, minus the ones already displayed. */
@@ -529,7 +548,7 @@ export function completionChange(p: Pick<RegisterProject, 'completion_now' | 'co
 
 /** The page heading's name: the one buyers know, with the phase when MahaRERA's name carries one and that name does not ("Park
  *  Eden" filed as "PARK EDEN PHASE I" is "Park Eden Phase I"), so two phases' pages do not read as one project. */
-export function headingName(p: { name: string; marketed_name?: string | null; search_name?: string | null }): string {
+export function headingName(p: { name: string; marketed_name?: string | null; search_name?: string | null; branded_name?: string | null }): string {
   const shown = displayName(p)
   const m = /\b(?:phase|ph\.?)[\s-]*([ivx]+|\d+[a-z]?)\b/i.exec(p.name)
   if (!m || /\b(?:phase|ph\.?)(?:\b|\s|\d)/i.test(shown)) return shown

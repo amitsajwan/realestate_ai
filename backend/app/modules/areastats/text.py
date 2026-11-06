@@ -19,7 +19,9 @@ LEGAL = re.compile(r"\b(m s|private|pvt|limited|ltd|llp|the|and|co|company|corpo
 # IMPORTANT: require at least one whitespace OR a dash between the label word and the identifier;
 # this prevents "towers" in a project name from being consumed as "tower" + "s" identifier.
 # The separator may mix spaces and dashes ("WING – N", "PHASE -5"), and one label may name several ("WING- G & H").
-_ID = r"(?:[0-9]+[a-z]?|[ivxlcdm]+|[a-z])"
+# A letter and a number name one tower too ("WING C1 & C2", "TOWER T-3"): unread, "The Unicorn Building C Wing C1 & C2" kept
+# "wing c1 c2" in its base name and never met its sibling towers (docs/plan/rival-housiey-ravet.md L3, 2026-11-06).
+_ID = r"(?:[a-z]-?[0-9]+[a-z]?|[0-9]+[a-z]?|[ivxlcdm]+|[a-z])"
 TOWER_LABEL = re.compile(
     r"\b(towers?|wings?|buildings?|phases?)[\s\-–]+" + _ID + r"(?:\s*[&,/]\s*" + _ID + r")*\b",
     re.IGNORECASE,

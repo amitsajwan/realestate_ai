@@ -22,7 +22,7 @@ import { placeAnswer, placeFaq, placeStats, placeUpdated } from '@/lib/site/plac
 import { livePages } from '@/lib/site/filters'
 import { fitDescription, fitTitle, formatPrice } from '@/lib/site/format'
 import { getActive, getAreaMap, getListed } from '@/lib/site/hubs'
-import { displayName, getRegisterPlaces, longDay, getRegisterProjects, placePath, projectSummary, STAGE_LABEL, STAGE_NOTE, STAGES } from '@/lib/site/register'
+import { displayName, getRegisterPlaces, longDay, getRegisterProjects, placePath, projectSummary, sizePriceLine, STAGE_LABEL, STAGE_NOTE, STAGES } from '@/lib/site/register'
 import type { RegisterListItem, RegisterPlace } from '@/lib/site/register'
 import { UsualBands } from '@/components/site/PriceIdea'
 
@@ -122,7 +122,7 @@ function Row({ r }: { r: RegisterListItem }) {
     <li className="break-inside-avoid py-1.5">
       <Link href={`/projects/${r.slug}`} className="font-medium text-[#0f2340] underline underline-offset-2">{displayName(r)}</Link>
       {' '}<CheckBadge checked={r.checked} total={r.checks_total} compact />
-      <span className="block text-sm text-slate-600">{projectSummary(r)}{r.price_from ? ` · from ${formatPrice(r.price_from)}` : ''}</span>
+      <span className="block text-sm text-slate-600">{projectSummary(r)}{sizePriceLine(r.homes) ? ` · ${sizePriceLine(r.homes)}` : r.price_from ? ` · from ${formatPrice(r.price_from)}` : ''}</span>
     </li>
   )
 }

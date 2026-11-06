@@ -141,3 +141,10 @@ def test_phases_of_one_project_are_one_row_with_the_cheapest_price():
     phase = lambda i, n, lo: {**_doc(i, [("2 BHK", lo, None)]), "name": f"Pristine O2 World Part {n}", "promoter": "Logipark"}
     listed = facets.members(Facet("lohegaon", "all", bhk=2), [phase(11, 1, 8_200_000), phase(12, 2, 8_000_000), _doc(3, [("2 BHK", 9_100_000, None)])], NOW)
     assert [d["_id"] for d, _ in listed] == ["P12", "P3"]
+
+
+def test_a_card_carries_every_size_published_price_smallest_first():
+    # buyers compare by size: a card shows one price per size, not only the cheapest (docs/plan/rival-housiey-ravet.md L5)
+    assert facets.size_prices(DOCS[0], NOW) == [{"bhk": 2, "from_inr": 7_800_000}, {"bhk": 3, "from_inr": 11_000_000}]
+    assert facets.size_prices(DOCS[1], NOW) == [{"bhk": 2, "from_inr": 6_900_000}]   # 2.5 BHK counts with the 2 BHK homes
+    assert facets.size_prices(DOCS[5], NOW) == []                                     # a price too old to show

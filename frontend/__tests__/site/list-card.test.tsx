@@ -17,6 +17,14 @@ describe('a project card', () => {
     expect(cardPrice(row({ price: { bhk: 1, from_inr: 3_499_000, to_inr: null } } as Partial<FacetRow>))).toMatch(/^1 BHK/)
   })
 
+  it('shows every size with its starting price when a project has two or more sizes', () => {
+    const sizes = [{ bhk: 2, from_inr: 6_800_000 }, { bhk: 3, from_inr: 9_500_000 }]
+    expect(cardPrice(row({ price: { bhk: 2, from_inr: 6_800_000, to_inr: 7_190_000 }, sizes } as Partial<FacetRow>))).toBe('2 BHK ₹68 L · 3 BHK ₹95 L')
+    // a size list keeps its own size's price; one size keeps its range
+    expect(cardPrice(row({ price_from: 9_500_000, price_to: null, sizes } as Partial<FacetRow>))).toBe('₹95 L')
+    expect(cardPrice(row({ price: { bhk: 2, from_inr: 6_800_000, to_inr: 7_190_000 }, sizes: sizes.slice(0, 1) } as Partial<FacetRow>))).toMatch(/^2 BHK .* to /)
+  })
+
   it("says a brochure render is an artist's impression and does not repeat the homes-open line", () => {
     render(<ul><RankedCard r={row({ photo: { url: '/uploads/a.webp', alt: 'Tower', source: 'brochure' } } as Partial<FacetRow>)} /></ul>)
     expect(screen.getByText("Artist's impression")).toBeInTheDocument()

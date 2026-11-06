@@ -17,7 +17,7 @@ from app.modules.newsroom.store import Store
 from . import hot
 from .enrich import km_between
 from . import brands as brand_list
-from .pages import (MOVED_MIN, _long, _served, booked, builder_key, builder_logo, can_host, cluster_stamps, cluster_updated, completion_moves,
+from .pages import (MOVED_MIN, _long, _served, booked, branded_name, builder_key, builder_logo, can_host, cluster_stamps, cluster_updated, completion_moves,
                     delivery, indexable, is_old, months_later, names, searchable)
 from .text import builder_slug
 from .service import _count, _day
@@ -36,8 +36,9 @@ def _aware(d) -> Optional[datetime]:
 
 
 def link_name(d: dict) -> str:
-    """The anchor text for a link into a project page: how people search for it, else its marketed name."""
-    return d.get("search_name") or names(d)[0]
+    """The anchor text for a link into a project page: how people search for it, else with its builder's brand in front when the
+    name lacks it (pages.branded_name), else its marketed name. The same name the page's title and heading lead with."""
+    return d.get("search_name") or branded_name(d) or names(d)[0]
 
 
 def fact_line(d: dict, now: datetime) -> dict:
