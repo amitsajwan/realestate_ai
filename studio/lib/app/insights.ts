@@ -139,7 +139,13 @@ export interface BoardRow { query: string; kind: string | null; at: string | nul
 
 export interface BoardWeek { at: string | null; searches: number; ours: number; magicbricks: number; above_mb: number; above_mb_when_shown: number }
 
-export interface Scoreboard extends BoardWeek { next: BoardRow[]; won: BoardRow[]; history: BoardWeek[] }
+/** A site in the same Google results (backend seo/scoreboard.leaders): how often it showed above us, or showed when we did not. */
+export interface BoardLeader { site: string; searches: number; above_us: number; top3: number }
+
+export interface Scoreboard extends BoardWeek { next: BoardRow[]; won: BoardRow[]; history: BoardWeek[]; leaders?: BoardLeader[]; area_leaders?: Record<string, BoardLeader[]> }
+
+/** Registrations that look like one project but have separate pages (backend areastats/clusters.split_candidates). */
+export interface SplitProject { name: string; where: string; ours: boolean; why: 'no promoter' | 'tower label'; homes: number; members: { regno: string; name: string; slug: string; promoter: string }[] }
 
 export interface Rankings {
   week: { now: WeekNumbers | null; week_ago: WeekNumbers | null }
@@ -150,6 +156,7 @@ export interface Rankings {
   conflicts: { at: string | null; total: number; items: RankConflict[] }
   gaps: { at: string | null; total: number; items: RankGap[] }
   scoreboard?: Scoreboard
+  split?: { total: number; items: SplitProject[] }
   request_indexing?: { url: string; state: string | null; why: string }[]
   coverage?: { at: string | null; by_sitemap: { sitemap: string; listed: number; inspected: number; indexed: number }[]; projects?: ProjectIndex | null; content?: PageContent }
   ai?: AiVisits

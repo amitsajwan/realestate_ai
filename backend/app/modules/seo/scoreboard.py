@@ -10,6 +10,11 @@ The same results say whether a portal has started to show what only we show (doc
 ("244 of 416 units booked") and moved completion dates ("possession delayed"), read from each portal result's title and
 snippet like rival.shows (the kind of fact, never their text). `format` on the mark: per portal the results showing each,
 and up to FORMAT_EXAMPLES of them; the weekly note says so once a portal reaches FORMAT_ALERT.
+
+MagicBricks is the rival we chose; it is not always the one above us. On 2026-11-06 Housiey held Ravet's searches with a thinner
+page than ours (docs/plan/rival-housiey-ravet.md) and the board never named it. So `leaders` counts every other site in the same
+results: how often it sat above us (or showed when we did not), overall and per area, so the rival to study is read from Google
+in any area we add, not picked by hand.
 """
 import re
 from datetime import datetime, timedelta, timezone
@@ -34,6 +39,8 @@ OUR_FORMAT = {
 }
 FORMAT_ALERT = 3     # portal results in the window showing one of them: they may be taking our format
 FORMAT_EXAMPLES = 5
+LEADERS_SHOWN = 10
+AREA_LEADERS = 3
 
 
 def _aware(d) -> Optional[datetime]:
@@ -75,6 +82,47 @@ def portal_format(docs: List[dict]) -> dict:
     return out
 
 
+def leaders(docs: List[dict], host: str) -> List[dict]:
+    """Every other site in the searches' organic results, most often above us first: {site, searches (it showed), above_us
+    (it showed above us, or we did not show), top3}. One count per search per site, however many of its pages showed."""
+    tally: dict = {}
+    for d in docs:
+        results = d.get("results") or []
+        ours = rank_of(results, host)
+        seen = set()
+        for r in results:
+            if r.get("type", "organic") != "organic" or r.get("ad") or int(r.get("position") or 0) <= 0:
+                continue
+            s = site(r.get("link", ""))
+            if not s or s == host or s.endswith("." + host) or s in seen:
+                continue
+            seen.add(s)
+            pos = int(r["position"])
+            t = tally.setdefault(s, {"site": s, "searches": 0, "above_us": 0, "top3": 0})
+            t["searches"] += 1
+            t["top3"] += pos <= 3
+            t["above_us"] += ours is None or pos < ours
+    return sorted(tally.values(), key=lambda t: (-t["above_us"], -t["top3"], t["site"]))
+
+
+def area_leaders(docs: List[dict], host: str) -> dict:
+    """{area: the AREA_LEADERS sites most often above us} for the searches tied to an area: who to study there."""
+    by_area: dict = {}
+    for d in docs:
+        if d.get("area"):
+            by_area.setdefault(d["area"], []).append(d)
+    return {a: leaders(ds, host)[:AREA_LEADERS] for a, ds in sorted(by_area.items())}
+
+
+def leader_line(board: dict) -> str:
+    """The weekly note's line on who sits above us, when the board has counted it."""
+    top = [t for t in board.get("leaders") or [] if t.get("above_us")][:3]
+    if not top or not board.get("searches"):
+        return ""
+    names = ", ".join(f"{t['site']} {t['above_us']}" for t in top)
+    return f"Above us most often, of {board['searches']} Google searches: {names}."
+
+
 def format_alert(fmt: Optional[dict]) -> List[str]:
     """The portals that reached FORMAT_ALERT results showing our kind of fact, for the weekly note."""
     names = {"magicbricks": "MagicBricks", "acres99": "99acres", "housing": "Housing.com"}
@@ -105,6 +153,7 @@ async def run_once(store: Store, now: datetime, force: bool = False) -> Optional
         return None
     s = score([row(d, host) for d in docs])
     fmt = portal_format(docs)
+    s["leaders"], s["area_leaders"] = leaders(docs, host)[:LEADERS_SHOWN], area_leaders(docs, host)
     line = {k: s[k] for k in ("searches", "ours", "magicbricks", "above_mb", "above_mb_when_shown")}
     line["portal_format"] = sum(v["booked"] + v["date_moved"] for v in fmt.values())
     history = ((mark.get("history") or []) + [{"at": now, **line}])[-HISTORY:]

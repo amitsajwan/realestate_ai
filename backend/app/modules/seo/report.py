@@ -20,7 +20,7 @@ Owner only (marketer sites are never public).
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
-from app.modules.areastats import pages
+from app.modules.areastats import clusters, pages
 from app.modules.areastats.demand import our_host, rank_of
 from app.modules.areastats.websearch import RESULTS, site
 from app.modules.newsroom.store import Store
@@ -30,6 +30,7 @@ from .actions import ACTIONS, gain
 
 TARGETS_SHOWN = 60
 ACTIONS_SHOWN = 40
+SPLIT_SHOWN = 25
 
 
 def _aware(d) -> Optional[datetime]:
@@ -102,6 +103,7 @@ async def rankings(store: Store, now: datetime) -> dict:
         "conflicts": {"at": _iso(conflicts.get("at")), "total": conflicts.get("total") or 0, "items": conflicts.get("items") or []},
         "gaps": {"at": _iso(gapmark.get("at")), "total": gapmark.get("total") or 0, "items": gapmark.get("items") or []},
         "scoreboard": _board(await store.get_mark(scoreboard.MARK)),
+        "split": split_projects(await store.shared_projects()),
         "request_indexing": await note.request_list(store),
         "coverage": {"at": _iso((cov := await store.get_mark(coverage.MARK)).get("at")), "by_sitemap": cov.get("by_sitemap") or [],
                      "projects": cov.get("projects"), "content": pages.content_counts(await store.shared_projects())},
@@ -110,10 +112,18 @@ async def rankings(store: Store, now: datetime) -> dict:
     }
 
 
+def split_projects(docs: List[dict]) -> dict:
+    """Registrations that look like one project still on separate pages (clusters.split_candidates): homes being built only,
+    as a finished project gets no SEO (pages.ready_for_search). For the owner to confirm as a group, never merged by code."""
+    rows = clusters.split_candidates([d for d in docs if pages.homes(d) and not pages.is_old(d)])
+    return {"total": len(rows), "items": rows[:SPLIT_SHOWN]}
+
+
 def _board(m: dict) -> dict:
     clean = lambda r: {k: (_iso(v) if k == "at" else v) for k, v in r.items()}   # noqa: E731
     return {"at": _iso(m.get("at")), **{k: m.get(k) or 0 for k in ("searches", "ours", "magicbricks", "above_mb", "above_mb_when_shown")},
             "next": [clean(r) for r in m.get("next") or []], "won": [clean(r) for r in m.get("won") or []],
+            "leaders": m.get("leaders") or [], "area_leaders": m.get("area_leaders") or {},
             "history": [clean(h) for h in m.get("history") or []]}
 
 

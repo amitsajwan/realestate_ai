@@ -220,3 +220,43 @@ async def test_assign_all_also_runs_clusters():
     r1 = await store.project("R1")
     r2 = await store.project("R2")
     assert r1.get("cluster_id") is not None and r1["cluster_id"] == r2.get("cluster_id")
+
+
+# ---------------------------------------------------------------------------
+# split_candidates: one project the name rule leaves on separate pages (docs/plan/rival-housiey-ravet.md)
+# ---------------------------------------------------------------------------
+
+from app.modules.areastats.clusters import split_candidates  # noqa: E402
+
+
+def _reg(regno, name, promoter="", pincode="412101", **kw):
+    return {"_id": regno, "regno": regno, "name": name, "promoter": promoter, "pincode": pincode, "page_slug": regno.lower(), **kw}
+
+
+def test_towers_without_a_promoter_are_proposed_as_one_project():
+    docs = [_reg("P52100052724", "The Unicorn Building C Wing C1 & C2", units_total=260),
+            _reg("PR1262022600338", "The Unicorn Building A Wing A1 & A2", units_total=14),
+            _reg("PM1260002601012", "The Unicorn Building D", units_total=64)]
+    [row] = split_candidates(docs)
+    assert row["name"] == "The Unicorn" and row["why"] == "no promoter" and row["homes"] == 338
+    assert [m["regno"] for m in row["members"]] == ["P52100052724", "PM1260002601012", "PR1262022600338"]
+
+
+def test_a_tower_label_the_name_rule_does_not_read_is_proposed_even_with_one_promoter():
+    docs = [_reg("A1", "Sky Garden Wing C1 & C2", "Sky Builders LLP"), _reg("A2", "Sky Garden Wing D", "SKY BUILDERS")]
+    assert [r["why"] for r in split_candidates(docs)] == ["tower label"]
+
+
+def test_two_promoters_a_short_name_another_pincode_or_a_hand_split_are_never_proposed():
+    assert split_candidates([_reg("B1", "Green Park Tower 1", "Alpha Homes"), _reg("B2", "Green Park Tower 2", "Beta Realty")]) == []
+    assert split_candidates([_reg("C1", "Sai Wing A"), _reg("C2", "Sai Wing B")]) == []
+    assert split_candidates([_reg("D1", "Blue Ridge Tower 1"), _reg("D2", "Blue Ridge Tower 2", pincode="411057")]) == []
+    assert split_candidates([_reg("E1", "Palm Grove Tower 1"), _reg("E2", "Palm Grove Tower 2", cluster_skip=True)]) == []
+
+
+def test_registrations_already_on_one_page_are_left_out_and_our_areas_come_first():
+    merged = [_reg("F1", "Lake View Tower 1", cluster_id="k"), _reg("F2", "Lake View Tower 2", cluster_id="k")]
+    assert split_candidates(merged) == []
+    far = [_reg("G1", "Hill Crest Tower 1", units_total=900), _reg("G2", "Hill Crest Tower 2")]
+    near = [_reg("H1", "River Bend Tower 1", pincode="412207", locality="wagholi", units_total=10), _reg("H2", "River Bend Tower 2", pincode="412207")]
+    assert [r["name"] for r in split_candidates(far + near)] == ["River Bend", "Hill Crest"]

@@ -1,4 +1,21 @@
-# Housiey in Ravet: what they rank with and how we beat them (2026-11-06, PROPOSED)
+# Housiey in Ravet: what it taught us about the system (2026-11-06)
+
+**Owner, 2026-11-06:** "It's not about Ravet, but learnings. First priority remains the same." East Pune stays first. Ravet was
+the test: a place we have not worked yet shows what the system does on its own in any area, today's or the next one. The
+lessons are in the next section; the Ravet read they come from follows it.
+
+## What the system learns (for every area)
+
+| # | Lesson | Change | State |
+|---|---|---|---|
+| L1 | The rival above us is not always MagicBricks: in Ravet it was Housiey, and the weekly board never named it. | The scoreboard counts **every site above us** in the searches we already run, overall and per area (`seo/scoreboard.leaders`, `area_leaders`); Rankings shows "Above us most often" with each area's top three; the weekly note names the top three. No new searches, no cost. | BUILT 2026-11-06 |
+| L2 | One project spread over several registrations stays several pages when MahaRERA files no promoter, or when the tower label is one `base_name` cannot read ("Wing C1 & C2"). None of the pages carries the name buyers search. | `clusters.split_candidates` lists registrations with the same name before the tower label, in the same pincode, at most one promoter; Rankings shows them ("Possibly one project, on separate pages"), our areas first. Nothing merges by itself: the owner confirms a group (`agentprojects.groups`), as a wrong merge 301s a page away. | BUILT 2026-11-06 |
+| L3 | `base_name` keeps "wing c1 c2" ("The Unicorn Building C Wing C1 & C2" → "the unicorn wing c1 c2"), so even with a promoter such towers never merge. | Read letter+number tower ids ("C1", "A2") in `text.TOWER_LABEL`. It moves pages (new merges, 301s), so after the hold, with `clusters --report` read before and after. | TARGET, after 2026-11-17 |
+| L4 | Buyers search the marketed name with the builder's brand ("Sonigara The Unicorn"); MahaRERA's name lacks it. | When the builder's own site names the project, that name (brand + project) is the page's search name; `marketed_name_override` stays the hand fix. Titles are on hold. | TARGET, after 2026-11-17 |
+| L5 | Buyers compare price by flat size; a rival shows one price per size and carpet area on every card, we show "from" or nothing. | The cards show each size's price we read (with its kind of area), never "all inclusive" unless the source says so. Template: after the hold. | TARGET, after 2026-11-17 |
+| L6 | A rival's thin area page ranks because its project pages rank. Our area page ranks alone where its project pages are noindex. | Nothing new to build: the order the writer fills pages already follows the owner's areas (`enrich.priority`), and a page enters search by `ready_for_search`. Watch the share of an area's Top-list projects in search when we open a new area. | rule |
+| L7 | The rival's project page wins on documents and court cases; it does not show homes booked or how the filed date moved. | Already planned: search-recovery R3 (our history first) and R5 (MahaRERA's documents and litigation). | TARGET (R3, R5) |
+
 
 The owner said Housiey is always at the top of Google for Ravet. We read their Ravet page
 (`housiey.com/in/pune/ravet`), one of their Ravet project pages (`/projects/sonigara-the-unicorn`) and our own pages for the
