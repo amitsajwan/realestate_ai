@@ -17,6 +17,7 @@ const LISTINGS_TAB: Tab = { href: '/studio/listings', label: 'listings', icon: '
 const RESULTS_TAB: Tab = { href: '/studio/results', label: 'results', icon: 'M3 3v18h18M7 16v-4M12 16V8M17 16v-7' }
 const INBOX_TAB: Tab = { href: '/studio/inbox', label: 'inbox', icon: 'M22 12h-6l-2 3h-4l-2-3H2M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z' }
 const NEWSROOM_TAB: Tab = { href: '/studio/newsroom', label: 'newsroom', icon: 'M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h11a2 2 0 012 2v3h3v9a2 2 0 01-2 2zM7 8h7M7 12h7M7 16h4' }
+const SEO_TAB: Tab = { href: '/studio/seo', label: 'seo', icon: 'M11 19a8 8 0 100-16 8 8 0 000 16zM21 21l-4.3-4.3M8 13l2-2 2 2 3-3' }
 const CONTENT_TAB: Tab = { href: '/studio/content', label: 'content', icon: 'M4 5h16v14H4zM4 15l4-4 4 4 3-3 5 5M9 9h.01' }
 const LEADS_TAB: Tab = { href: '/studio/leads', label: 'leads', icon: 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 014-4h2a4 4 0 014 4v2zM12 7a3 3 0 11-6 0 3 3 0 016 0z' }
 /** Owner only (the server answers 403 to anyone else, so these are simply not shown). */
@@ -37,7 +38,7 @@ const AGENT_MORE: Tab[] = [RESULTS_TAB, CONTENT_TAB, RADAR_TAB, PROFILE_TAB]
  * a bottom sheet with the rest.
  */
 const OWNER_BAR: Tab[] = [HOME_TAB, INBOX_TAB, CONTENT_TAB, NEWSROOM_TAB]
-const OWNER_MORE: Tab[] = [LEADS_TAB, LISTINGS_TAB, RESULTS_TAB, RADAR_TAB, AGENTS_TAB, ADMIN_TAB, PROFILE_TAB]
+const OWNER_MORE: Tab[] = [SEO_TAB, LEADS_TAB, LISTINGS_TAB, RESULTS_TAB, RADAR_TAB, AGENTS_TAB, ADMIN_TAB, PROFILE_TAB]
 
 export function FixtureBanner() {
   const [on, setOn] = useState(false)

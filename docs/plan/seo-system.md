@@ -35,15 +35,15 @@ the place. Measuring it every week is section 8a, step 2.
 
 | What | Where |
 |---|---|
-| Weekly numbers, MagicBricks scoreboard, Indexed by area, Ask Google to index, doctor results, fixes (with Undo), targets, conflicts, gaps | Studio → Newsroom → Insights → **Rankings** (`/studio/newsroom/insights?tab=rankings`) |
-| Area list pages that grew from searches (hold / never) | Insights → **Pages** |
-| Hot projects, refresh a page now | Insights → **Hot** |
-| What Google shows for our areas | Insights → **Found on Google** |
-| Loop health, Serper credits and searches per day (rank checks + prices round) | Insights → **System** |
+| Weekly numbers, MagicBricks scoreboard, Indexed by area, Ask Google to index, doctor results, fixes (with Undo), targets, conflicts, gaps | Studio → SEO → **Rankings** (`/studio/seo?tab=rankings`) |
+| Area list pages that grew from searches (hold / never) | Studio → SEO → **Pages** |
+| Hot projects, refresh a page now | Studio → SEO → **Hot** |
+| What Google shows for our areas | Studio → SEO → **Found on Google** |
+| Loop health, Serper credits and searches per day (rank checks + prices round) | Studio → SEO → **System** |
 | Weekly SEO note | Studio **Home** → "To do" (once a week; opening Rankings clears it) |
 | Google's own view | Search Console, property `sc-domain:avasetu.in` (owner's Google account) |
 | Weekly site audit | GitHub → Actions → "SEO audit (live site)" |
-| AI search: assistants that read us, pages they use, visits from AI answers | Insights → **Rankings** → "AI search"; one line in the weekly note |
+| AI search: assistants that read us, pages they use, visits from AI answers | Studio → SEO → **Rankings** → "AI search"; one line in the weekly note |
 | Loops stopped, pages going old | Studio → Admin → **Health**: "SEO loop", "Project page refresh", "Project pages up to date" |
 | Raw loop log | VM: `docker compose logs newsroom \| grep pipeline=seo` (one line per step per round) |
 

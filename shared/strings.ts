@@ -57,6 +57,7 @@ const en = {
   results: 'Results',
   inbox: 'Inbox',
   newsroom: 'Newsroom',
+  seo: 'SEO',
   content: 'Content',
   agents: 'Agents',
   admin: 'Admin',

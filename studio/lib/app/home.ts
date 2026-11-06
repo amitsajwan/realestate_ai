@@ -115,7 +115,7 @@ export function todoRows(c: TodoCounts, actions: RecommendedAction[] = []): Todo
     { key: 'posts', href: '/studio/content', n: c.posts, text: plural(c.posts, 'post waiting for your OK', 'posts waiting for your OK') },
     { key: 'invites', href: '/studio/admin', n: c.invites, text: plural(c.invites, 'request to join', 'requests to join') },
     { key: 'trials', href: '/studio/agents?tab=signedup', n: c.trials, text: plural(c.trials, 'agent took the free trial', 'agents took the free trial') },
-    { key: 'seo', href: '/studio/newsroom/insights?tab=rankings', n: Math.min(c.seo, 1), text: 'SEO week to read, with pages to ask Google for' },
+    { key: 'seo', href: '/studio/seo?tab=rankings', n: Math.min(c.seo, 1), text: 'SEO week to read, with pages to ask Google for' },
   ]
   return rows.filter((r) => r.n > 0)
 }

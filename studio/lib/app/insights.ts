@@ -1,4 +1,4 @@
-/** Owner Insights: GET/POST /api/v1/newsroom/insights/* (backend/app/modules/areastats/owner.py; docs/plan/insights-and-seo.md O1 O2 O6). */
+/** Owner SEO screen (/studio/seo): GET/POST /api/v1/newsroom/insights/* (backend/app/modules/areastats/owner.py; docs/plan/insights-and-seo.md O1 O2 O6). */
 import { API_BASE_URL } from '@shared/config/api'
 import { ApiError, parseErrorBody } from './api'
 import { getToken } from './session'

@@ -165,6 +165,6 @@ async def run_once(store: Store, now: datetime, force: bool = False) -> Optional
     text = " ".join(parts)
     for owner in owners:
         for part in parts:
-            await notify(store.db, owner, KIND, part, {"href": "/studio/newsroom/insights?tab=rankings"}, now=now)
+            await notify(store.db, owner, KIND, part, {"href": "/studio/seo?tab=rankings"}, now=now)
     await store.set_mark(MARK, at=now, text=text)
     return {"owners": len(owners), "waiting": waiting}
