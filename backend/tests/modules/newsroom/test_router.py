@@ -36,7 +36,7 @@ async def seed(store, n=1):
 
 
 def test_every_route_is_owner_only():
-    assert len(nr.router.routes) == 21   # 13 + the rank loop's rankings and revert (docs/plan/rank-loop.md R9) + area list pages and their status + the 4 tracker desk routes
+    assert len(nr.router.routes) == 19   # 11 + the rank loop's rankings and revert (docs/plan/rank-loop.md R9) + area list pages and their status + the 4 tracker desk routes
     for route in nr.router.routes:
         assert any(d.call is nr.owner_only for d in route.dependant.dependencies), route.path
 
