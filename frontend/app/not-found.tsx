@@ -15,7 +15,7 @@ const NEXT = [
 export default function NotFound() {
   return (
     <MarketingShell>
-      <div className="mx-auto max-w-3xl px-4 py-12 sm:py-16">
+      <div className="mx-auto max-w-3xl px-4 py-12 sm:py-16" data-page-not-found>
         <p className="text-sm font-semibold uppercase tracking-wide text-[#a87a1c]">Page not found</p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">This page has moved or no longer exists</h1>
         <p className="mt-4 text-lg leading-relaxed text-slate-700">

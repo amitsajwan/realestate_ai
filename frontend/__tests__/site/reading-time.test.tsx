@@ -37,6 +37,11 @@ function setVisibility(v: DocumentVisibilityState) {
   document.dispatchEvent(new Event('visibilitychange'))
 }
 
+test('a 404 page is not a view: a guessed address does not show as a visitor', () => {
+  render(<><div data-page-not-found /><TrackingBeacon agentSlug="avasetu" /></>)
+  expect(sent('event')).toEqual([])
+})
+
 test('pings the seconds the page was visible every 30 s and once more when it is left', () => {
   const stop = startReading('avasetu', 'view00000001')
   jest.advanceTimersByTime(PING_EVERY_MS)

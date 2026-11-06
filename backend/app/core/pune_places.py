@@ -218,6 +218,18 @@ VERIFIED: Dict[str, str] = {
     "P52100023050": "vadgaon_sheri",     # Bramhacorp Business Park T9-A2
     "P52100032719": "vadgaon_sheri",     # The Collection Premium: builder "New Kalyani Nagar"
     "P52100022277": "vadgaon_sheri",     # The Collection - Residential W8
+    # Keshav Nagar shares 411036 with Mundhwa, whose default took all of it, so Keshav Nagar had no project and no list page (found
+    # 2026-11-06). These are the projects Google's own place for the project calls Keshav Nagar; their "-mundhwa" addresses stay,
+    # since Google puts Keshav Nagar in Mundhwa. A hand placement also stops the daily position check filing them under Kharadi,
+    # whose boundary reaches here.
+    "P52100079608": "keshav_nagar",      # ARV Richvue: Google "Keshav Nagar, Pune 411036"
+    "PR1260002502092": "keshav_nagar",   # Sun Garnet: Google "Godrej Infinity Rd, Keshav Nagar, Mundhwa"
+    "P52100078010": "keshav_nagar",      # Gulmohar Esteban: Google "Sno. 36, Keshavnagar"
+    "PR1260002500988": "keshav_nagar",   # Esbee Azura: Google locality Keshav Nagar
+    "PM1260002500389": "keshav_nagar",   # Godrej Aqua Vista: Google locality Keshav Nagar
+    "P52100078943": "keshav_nagar",      # Purva Atmosphere Tower 3: Google locality Keshav Nagar; a group's towers move together
+    "P52100078951": "keshav_nagar",      # Purva Atmosphere Tower 2
+    "P52100079121": "keshav_nagar",      # Purva Atmosphere Tower 1
 }
 
 BY_KEY: Dict[str, Place] = {p.key: p for p in PLACES}

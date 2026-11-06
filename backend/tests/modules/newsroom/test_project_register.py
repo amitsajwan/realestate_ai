@@ -315,6 +315,13 @@ def test_412207_projects_sold_as_upper_kharadi_are_placed_there_and_the_rest_sta
     assert register.locality_of("PRIME ANGAN", "412207", "P52100025067") == ("wagholi", "pincode")
 
 
+def test_keshav_nagar_projects_placed_by_hand_are_not_lost_to_mundhwas_default_on_their_shared_pincode():
+    # Google's place says Keshav Nagar; 411036 alone gave every one of them to Mundhwa, so the area had no list page (2026-11-06)
+    assert register.locality_of("ARV Richvue", "411036", "P52100079608") == ("keshav_nagar", "checked by hand")
+    assert register.place_fields("ARV Richvue", "411036", "P52100079608")["pune_place"] == "keshav_nagar"
+    assert register.place_fields("Some Other Project", "411036", "P52100000001")["pune_place"] == "mundhwa"
+
+
 def test_a_project_placed_by_hand_outside_our_areas_leaves_them_whatever_its_pincode_says():
     # 96 Arrcade carries Kharadi's 411014 on MahaRERA; its address, Google and every listing put it in Charholi (2026-11-01)
     assert register.locality_of("96 Arrcade", "411014", "P52100078739") is None

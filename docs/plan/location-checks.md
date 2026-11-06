@@ -104,6 +104,7 @@ pages readdressed (the 19 placed by hand above, about 20 moved by their Google p
 | L6 | Studio: "Place in doubt" list with the readings side by side, and a one-tap "it is in X" that writes the hand placement to the database (not code) | Studio, `areastats` | TARGET |
 | L7 | Old records never enriched again | the daily `placecheck.refresh` covers every record with stored results | LIVE 2026-11-01 |
 | L8 | An agent's listing or the builder's site naming another place counts double | `placecheck.readings` | TARGET |
+| L9 | Keshav Nagar: 411036 defaults to Mundhwa and only 21 of its 250 projects have a Google pin, so 6 projects (8 records) Google calls Keshav Nagar are placed by hand. The rest wait for a pin; a pin's own locality as a rule for this pincode | `pune_places.VERIFIED` | Hand placement 2026-11-06; rule TARGET |
 
 ## 2026-11-02: the check decides by itself
 

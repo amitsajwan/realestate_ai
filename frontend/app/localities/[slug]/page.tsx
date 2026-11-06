@@ -1,7 +1,7 @@
 import React from 'react'
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import { notFound } from 'next/navigation'
+import { notFound, permanentRedirect } from 'next/navigation'
 import AgentStrip from '@/components/marketing/AgentStrip'
 import MarketingShell from '@/components/marketing/MarketingShell'
 import HomePlanBox from '@/components/site/homeplan/HomePlanBox'
@@ -25,6 +25,7 @@ import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
 import { getCatalog, getLocalityListings } from '@/lib/site/api'
 import { getFacets, siblings, withoutMovedSizePages } from '@/lib/site/facets'
 import { livePages } from '@/lib/site/filters'
+import { getRegisterPlaces, placePath } from '@/lib/site/register'
 import { fetchTopics, topicPath } from '@/lib/site/topics'
 
 type Props = { params: Promise<{ slug: string }> }
@@ -152,7 +153,11 @@ export default async function LocalityPage({ params }: Props) {
   // the area's own lists (new launches, 2 BHK flats ...) and the agents' pages that still answer here
   const lists = [...siblings(facets, l.key).map((f) => ({ path: f.path, title: f.label, count: f.count })),
     ...(l.fallback ? [] : withoutMovedSizePages(livePages(projects, [l]), facets)).map((f) => ({ path: f.path, title: f.title.replace(/, Pune$/, ''), count: f.count }))]
-  if (l.fallback && listings.length === 0 && projects.length === 0) notFound()
+  if (l.fallback && listings.length === 0 && projects.length === 0) {
+    // no guide and no agent's listing, but MahaRERA projects here (Wanowrie has 50, Magarpatta 16): the place's list is the page
+    if ((await getRegisterPlaces()).some((p) => p.slug === slug)) permanentRedirect(placePath(slug))
+    notFound()
+  }
   const sameTier = localitiesByTier(l.tier).filter((o) => o.slug !== l.slug)
   const guides = l.guides.map((s) => getInsight(s)).filter((g): g is NonNullable<typeof g> => !!g)
   const faqLd = {

@@ -12,10 +12,13 @@ jest.mock('@/lib/site/api', () => ({
   serverApiBase: () => 'http://api',
 }))
 // the area's lists (seo facets) come from their own endpoint, retried on failure: none here
+const mockPlaces = jest.fn()
+jest.mock('@/lib/site/register', () => ({ ...jest.requireActual('@/lib/site/register'), getRegisterPlaces: () => mockPlaces() }))
 jest.mock('@/lib/site/facets', () => ({ ...jest.requireActual('@/lib/site/facets'), getFacets: async () => [] }))
 jest.mock('@/components/marketing/MarketingShell', () => ({ __esModule: true, default: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }))
 jest.mock('next/navigation', () => ({
   notFound: () => { throw new Error('NOT_FOUND') },
+  permanentRedirect: (to: string) => { throw new Error(`REDIRECT ${to}`) },
   usePathname: () => '/',
   useRouter: () => ({ push: jest.fn() }),
 }))
@@ -44,6 +47,8 @@ function respond(status: number, body: unknown) {
 
 beforeEach(() => {
   mockFetch.mockReset()
+  mockPlaces.mockReset()
+  mockPlaces.mockResolvedValue([])
   mockCatalog.mockReset()
   mockListings.mockReset()
   mockCatalog.mockResolvedValue([])
@@ -151,6 +156,11 @@ describe('area pages', () => {
 
   it('404s a non-curated locality when there is no public data', async () => {
     await expect(LocalityPage({ params: Promise.resolve({ slug: 'no-public-data' }) })).rejects.toThrow('NOT_FOUND')
+  })
+
+  it('sends a place with no guide or listing but MahaRERA projects to its project list', async () => {
+    mockPlaces.mockResolvedValue([{ key: 'wanowrie', slug: 'wanowrie', name: 'Wanowrie' }])
+    await expect(LocalityPage({ params: Promise.resolve({ slug: 'wanowrie' }) })).rejects.toThrow('REDIRECT /projects/area/wanowrie')
   })
 
   it('groups the index into affordable homes and the IT corridor', () => {
