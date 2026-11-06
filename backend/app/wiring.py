@@ -81,6 +81,11 @@ def wire() -> None:
     from app.modules.areastats import upcoming
     upcoming.configure(tell=_tell_upcoming_registered)
     project_enrich.add_daily("coming-soon registered", upcoming.refresh)
+    # how long each new launch took to be read, in search and indexed (areastats.launches); the index check sits above it
+    from app.modules.areastats import launches
+    from app.modules.seo import coverage as seo_coverage
+    launches.configure(indexed=seo_coverage.indexed_paths)
+    project_enrich.add_daily("launch clock", launches.refresh)
     # hot projects (areastats.hot): outside signals beyond MahaRERA, news and Search Console; YouTube is on with YOUTUBE_API_KEY
     from app.modules.areastats import hot as hot_projects
     hot_projects.add_signal("youtube", hot_projects.youtube_signal())

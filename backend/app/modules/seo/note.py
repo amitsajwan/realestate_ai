@@ -19,6 +19,7 @@ from urllib.parse import urlparse
 
 from app.core.areas import BY_KEY, BY_SLUG
 from app.core.brand import NAME_DEVANAGARI
+from app.modules.areastats import launches
 from app.modules.areastats.demand import DEMAND
 from app.modules.areastats.pages import searchable
 from app.modules.insights.collector import owner_ids
@@ -119,10 +120,10 @@ def brand_line(b: dict) -> str:
     return f"Searches for Avasetu by name, 28 days: {b['impressions']:,} impressions{change}, {b['clicks']:,} clicks."
 
 
-def notes(week_text: str, ai_text: str, brand_text: str, portal_text: str, review_text: str = "") -> List[str]:
+def notes(week_text: str, ai_text: str, brand_text: str, portal_text: str, review_text: str = "", launch_text: str = "") -> List[str]:
     """The week as Studio notifications, each within the notification's length (notifications.service MAX_SUMMARY): the numbers;
-    AI search and searches by name; the portal watch when it fired and the sites above us most often; the page check. One long text was cut off at the AI line before."""
-    return [t for t in (week_text, f"{ai_text} {brand_text}".strip(), portal_text, review_text) if t]
+    AI search and searches by name; the portal watch when it fired and the sites above us most often; the page check; new launches. One long text was cut off at the AI line before."""
+    return [t for t in (week_text, f"{ai_text} {brand_text}".strip(), portal_text, review_text, launch_text) if t]
 
 
 def portal_line(board: dict) -> str:
@@ -161,7 +162,8 @@ async def run_once(store: Store, now: datetime, force: bool = False) -> Optional
     board = await store.get_mark(scoreboard.MARK)
     parts = notes(summary(week, ago, cov, board, waiting), aivisits.week_line(await aivisits.summary(store.db, now, days=7), leads),
                   brand_line(await branded(store, now)), " ".join(t for t in (portal_line(board), scoreboard.leader_line(board)) if t),
-                  review.week_line(await review.summary(store, now)))
+                  review.week_line(await review.summary(store, now)),
+                  launches.week_line(launches.summary(await store.all_projects(), now)))
     text = " ".join(parts)
     for owner in owners:
         for part in parts:

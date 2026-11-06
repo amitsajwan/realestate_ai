@@ -18,7 +18,8 @@ import logging
 import re
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
+from urllib.parse import urlparse
 
 import httpx
 
@@ -64,6 +65,12 @@ async def save(db, url: str, result: dict, now: datetime) -> None:
         await coll.update_one({"_id": url}, {"$set": fields})
     else:
         await coll.insert_one({"_id": url, **fields})
+
+
+async def indexed_paths(db) -> Set[str]:
+    """The paths the last checks found indexed (areastats.launches times new launches by them)."""
+    docs = await db.get_collection(COLLECTION).find({"verdict": "PASS"}, {"_id": 1}).to_list(None)
+    return {urlparse(d["_id"]).path.rstrip("/") for d in docs}
 
 
 def by_sitemap(where: Dict[str, str], docs: List[dict]) -> List[dict]:

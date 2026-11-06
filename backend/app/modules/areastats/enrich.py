@@ -73,7 +73,7 @@ from app.modules.newsroom.policy import AREA_PINCODES, SHARED_PINCODES, UPPER_KH
 from app.modules.newsroom.store import Store
 from app.platform import trace
 
-from . import brands, budget, hot, pagefacts, pages, prices, pricing, profile, readings, searchconsole, webfacts
+from . import brands, budget, hot, launches, pagefacts, pages, prices, pricing, profile, readings, searchconsole, webfacts
 from .websearch import mentions as websearch_mentions
 from .service import _day
 
@@ -90,6 +90,7 @@ REFRESH_DAYS = 60
 RETRY_DAYS = 1                        # a round MahaRERA or the model did not answer is tried again after this
 HOT_REFRESH_DAYS = 14                 # a hot project's page is rewritten from fresh facts this often
 TOP_RETRY_DAYS = 7                    # a top-list project still missing a stage or pictures is tried again after this
+LAUNCH_RETRY_DAYS = 1                 # a new launch with too little to show is read again this soon: the sites are filling in now
 THIN_RETRY_DAYS = 7                   # a page kept out of search as thin (pages.searchable) is tried again after this, not
                                       # REFRESH_DAYS (owner 2026-10-31: "make cycle bit faster", only pages with proper text in search)
 POLL_SECONDS = 60
@@ -247,6 +248,8 @@ def priority(d: dict, urgent: set, now: datetime, shown: frozenset = frozenset()
         return (0, -1, -int(d.get("gsc_impressions") or 0))
     if pages.completion_passed(d, now.date()) and not featured(d, now, shown):
         return None                                             # completed: MahaRERA facts only, unless a campaign asks or homes are left
+    if launch_due(d, now):                                      # never read first, then the biggest
+        return (0, -2, 1 if isinstance(d.get("enriched_at"), datetime) else 0, -launches.home_count(d))
     key = _priority(d, now, shown)
     if key is None:
         return None
@@ -257,6 +260,15 @@ def priority(d: dict, urgent: set, now: datetime, shown: frozenset = frozenset()
     east_hot = int(d.get("hot_score") or 0) >= hot.HOT_MIN and pricing.area_rank(d) < len(pricing.EAST)
     hot_first = 0 if east_hot or featured(d, now, shown) else 1
     return (hot_first, 1 if pages.nearly_sold(d) else 0, pricing.area_rank(d), 0 if pricing.new_or_hot(d, now) else 1, *key)
+
+
+def launch_due(d: dict, now: datetime) -> bool:
+    """A new launch anywhere in Pune (areastats.launches) not yet in search, unread or not read in LAUNCH_RETRY_DAYS. Once in
+    search it goes back to the common order."""
+    if not launches.fresh(d, now) or not worth_model(d) or parked(d, now) or pages.searchable(d, now):
+        return False
+    done = d.get("enriched_at")
+    return not isinstance(done, datetime) or now - _aware(done) >= timedelta(days=LAUNCH_RETRY_DAYS)
 
 
 def complete(d: dict) -> bool:
@@ -414,7 +426,7 @@ async def next_project(store: Store, now: datetime) -> Optional[dict]:
     for d in await store.all_projects():
         # an asked-for project is taken even outside our areas (a campaign's project with no locality): skipped, its request
         # stayed and kept the loop running every minute
-        if not _ours(d) and (d.get("regno") or d["_id"]) not in urgent:
+        if not _ours(d) and (d.get("regno") or d["_id"]) not in urgent and not launch_due(d, now):
             continue
         key = priority(d, urgent, now, shown, rewrite)
         if key is not None:
@@ -1378,7 +1390,7 @@ async def step(store: Store, llm, now: datetime, last_regular: Optional[datetime
     rewrite = not is_urgent and rewrite_due(doc, now) and await rewrites_left(store, now) > 0
     if rewrite:                                                 # the writer alone when what the sites say is recent
         reread = not sources_fresh(doc, now) or bool(outdated(doc))
-    elif not is_urgent and (_priority(doc, now) or (0,))[0] == BACKFILL:   # the group of the key before the area and launch order
+    elif not is_urgent and not launch_due(doc, now) and (_priority(doc, now) or (0,))[0] == BACKFILL:   # the group of the key before the area and launch order
         reread = not sources_fresh(doc, now) or bool(outdated(doc))
         if reread and last_regular is not None and now - _aware(last_regular) < BACKFILL_EVERY:
             return None
@@ -1417,7 +1429,8 @@ async def read_step(store: Store, llm, now: datetime, last_read: Optional[dateti
     first, when `every` has passed and today's budget has room for it. Uses the facts the last facts round kept."""
     if llm is None or last_read is not None and now - _aware(last_read) < every:
         return None
-    ranked = sorted(((k, d) for d in await store.all_projects() if _ours(d) and (k := reading_key(d, now)) is not None),
+    ranked = sorted(((k, d) for d in await store.all_projects()
+                     if (_ours(d) or launches.fresh(d, now)) and (k := reading_key(d, now)) is not None),
                     key=lambda x: x[0])
     doc = next((d for _, d in ranked if can_read(llm, tier_of(d))), None)
     if doc is None:

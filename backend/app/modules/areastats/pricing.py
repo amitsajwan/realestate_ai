@@ -27,7 +27,7 @@ from typing import List, Optional
 from app.core.areas import AREAS
 from app.modules.newsroom.store import Store
 
-from . import budget, hot, pages, prices, websearch
+from . import budget, hot, launches, pages, prices, websearch
 
 log = logging.getLogger(__name__)
 
@@ -98,9 +98,11 @@ def selling(d: dict, now: datetime) -> bool:
 
 def tier_of(d: dict, now: Optional[datetime] = None) -> str:
     """How much a project's model reading may spend (areastats.budget.route): premium when people look at it (hot, shown by
-    Google, on an east Pune top list) or it is in the FIRST areas, where a price matters most; plain otherwise."""
+    Google, on an east Pune top list), it is in the FIRST areas, where a price matters most, or it is a new launch, no use
+    read a week late (areastats.launches); plain otherwise."""
+    at = now or datetime.now(timezone.utc)
     if (int(d.get("hot_score") or 0) >= hot.HOT_MIN or int(d.get("gsc_impressions") or 0) > 0 or area_rank(d) < len(FIRST)
-            or on_top(d, now or datetime.now(timezone.utc))):
+            or on_top(d, at) or launches.fresh(d, at)):
         return budget.PREMIUM
     return budget.PLAIN
 
