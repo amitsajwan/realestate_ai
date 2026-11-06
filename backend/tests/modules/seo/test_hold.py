@@ -34,3 +34,17 @@ async def test_the_days_numbers_and_competing_pages_go_on_during_the_hold(monkey
     assert (await store.get_mark(targets.CONFLICTS))["total"] == 1
     await targets.run_once(store, NOW + timedelta(days=1))
     assert len((await store.get_mark(targets.MARK))["history"]) == 2
+
+
+async def test_page_one_also_counts_the_pages_in_search_today(monkeypatch):
+    """Google keeps showing pages we took out of search until it reads them again, so "page one" alone overstates what we hold."""
+    monkeypatch.setattr(searchconsole, "key", lambda: {"client_email": "x"})
+    db = FakeDb()
+    ready = {"locality": "kharadi", "completion_now": "2029-06-30", "promoter": "Kolte Patil", "page_text": "Written.",
+             "prices": {"rows": [{"size": "2 BHK"}]}, "gsc_read_at": NOW, "gsc_position": 4.0, "gsc_impressions": 30}
+    await db.get_collection("projects").insert_one({"_id": "P1", "page_slug": "a", **ready})
+    await db.get_collection("projects").insert_one({"_id": "P2", "page_slug": "b", **ready, "page_text": ""})   # thin: out of search
+    store = Store(db)
+    await targets.run_once(store, NOW)
+    snap = (await store.get_mark(targets.MARK))["history"][-1]
+    assert (snap["page_one"], snap["page_one_listed"]) == (2, 1)

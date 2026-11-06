@@ -21,7 +21,7 @@ from typing import Dict, List, Optional
 
 from app.core.areas import BY_KEY
 from app.modules.areastats import hot, searchconsole
-from app.modules.areastats.pages import _served, can_host, names
+from app.modules.areastats.pages import _served, can_host, names, searchable
 from app.modules.areastats.websearch import mentions
 from app.modules.newsroom.store import Store
 
@@ -151,6 +151,9 @@ async def run_once(store: Store, now: datetime, force: bool = False) -> Optional
     snap = {"at": now, "clicks": sum(int(d.get("gsc_clicks") or 0) for d in pages),
             "impressions": sum(int(d.get("gsc_impressions") or 0) for d in pages),
             "page_one": sum(1 for d in pages if d.get("gsc_position") is not None and float(d["gsc_position"]) <= 10),
+            # of those, the pages in search today: Google still shows pages taken out since 2026-10-26 until it reads them again
+            "page_one_listed": sum(1 for d in pages if d.get("gsc_position") is not None and float(d["gsc_position"]) <= 10
+                                   and searchable(d, now)),
             "near_page_one": sum(1 for d in pages if searchconsole.near_page_one(d.get("gsc_position"), d.get("gsc_impressions"))),
             "targeted": targeted}
     history = ((await store.get_mark(MARK)).get("history") or [])[-(HISTORY - 1):] + [snap]

@@ -82,7 +82,7 @@ export interface ProjectIndex { listed: number; inspected: number; indexed: numb
 /** What the project pages in search hold (pages.content_counts). `full`: prices, web facts, highlights, photos and plans. */
 export interface PageContent { pages: number; prices: number; facts: number; highlights: number; photos: number; plans: number; full: number; median_text: number }
 
-export interface WeekNumbers { at: string; clicks: number; impressions: number; page_one: number; near_page_one: number; targeted: number }
+export interface WeekNumbers { at: string; clicks: number; impressions: number; page_one: number; near_page_one: number; targeted: number; page_one_listed?: number }
 
 export interface FixResult {
   fix: string
@@ -131,14 +131,17 @@ export interface RankTarget {
 /** source: 'search_console' (Search Console impressions) or 'searched' (our own Google search, where we are absent or below 20). */
 export interface RankGap { phrase: string; impressions: number; position: number | null; rising: boolean; page: string | null; shown_pages: string[]; action: string; source?: 'search_console' | 'searched'; area?: string | null }
 
-export interface BoardRow { query: string; kind: string | null; at: string | null; ours: number | null; magicbricks: number | null; acres99: number | null; housing: number | null }
+export interface BoardRow { query: string; kind: string | null; area?: string | null; page?: string | null; at: string | null; ours: number | null; magicbricks: number | null; acres99: number | null; housing: number | null }
 
-export interface BoardWeek { at: string | null; searches: number; ours: number; magicbricks: number; above_mb: number; above_mb_when_shown: number }
+/** One kind of search on the board (backend seo/scoreboard.counts): `ahead` is both showing and us higher. */
+export interface BoardKind { searches: number; ours: number; magicbricks: number; both: number; ahead: number; only_us: number; only_mb: number }
+
+export interface BoardWeek { at: string | null; searches: number; ours: number; magicbricks: number; above_mb: number; above_mb_when_shown: number; both?: number; buyer_only?: boolean }
 
 /** A site in the same Google results (backend seo/scoreboard.leaders): how often it showed above us, or showed when we did not. */
 export interface BoardLeader { site: string; searches: number; above_us: number; top3: number }
 
-export interface Scoreboard extends BoardWeek { next: BoardRow[]; won: BoardRow[]; history: BoardWeek[]; leaders?: BoardLeader[]; area_leaders?: Record<string, BoardLeader[]> }
+export interface Scoreboard extends BoardWeek { next: BoardRow[]; won: BoardRow[]; history: BoardWeek[]; ahead_rows?: BoardRow[]; behind_rows?: BoardRow[]; by_kind?: Record<string, BoardKind>; leaders?: BoardLeader[]; area_leaders?: Record<string, BoardLeader[]> }
 
 /** One project on several pages (backend seo/splits.py). state: the web proved it (it merges by itself), a number still waits its
  * daily search, or everything was searched and only the owner can say. `searches`: searches that showed these pages together. */

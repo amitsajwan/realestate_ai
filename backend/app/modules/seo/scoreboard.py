@@ -15,10 +15,17 @@ MagicBricks is the rival we chose; it is not always the one above us. On 2026-11
 page than ours (docs/plan/rival-housiey-ravet.md) and the board never named it. So `leaders` counts every other site in the same
 results: how often it sat above us (or showed when we did not), overall and per area, so the rival to study is read from Google
 in any area we add, not picked by hand.
+
+Only searches a buyer could type count. The same collection holds our own lookups: a MahaRERA number in quotes (to read a
+project's facts or prove two towers are one) and "<builder> official website Pune". Nobody searches those, MagicBricks rarely
+shows for them, and until 2026-11-06 they made up most of the count and sat in "win next" ("PR1260002501386"). They are left
+out (OWN_LOOKUPS), and each row says which of our pages showed (`page`) and which kind of search it was (`by_kind`), so the
+owner sees which page beat MagicBricks for which search. "Ahead" is the fair count: both show, we are higher.
 """
 import re
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
+from urllib.parse import urlparse
 
 from app.modules.areastats.demand import our_host, rank_of
 from app.modules.areastats.websearch import RESULTS, site
@@ -41,6 +48,7 @@ FORMAT_ALERT = 3     # portal results in the window showing one of them: they ma
 FORMAT_EXAMPLES = 5
 LEADERS_SHOWN = 10
 AREA_LEADERS = 3
+OWN_LOOKUPS = ("regno", "builder")   # searches we run to read facts, not searches buyers type
 
 
 def _aware(d) -> Optional[datetime]:
@@ -54,9 +62,26 @@ def above(ours: Optional[int], rival: Optional[int]) -> bool:
     return ours is not None and (rival is None or ours < rival)
 
 
+def buyer_searches(docs: List[dict]) -> List[dict]:
+    """The stored searches a buyer could type: our own fact lookups (OWN_LOOKUPS) left out."""
+    return [d for d in docs if d.get("kind") not in OWN_LOOKUPS]
+
+
+def our_page(results: List[dict], host: str) -> Optional[str]:
+    """The path of our first organic result ("/projects/kharadi-x"), None when we do not show."""
+    for r in results:
+        if r.get("type", "organic") == "organic" and not r.get("ad") and int(r.get("position") or 0) > 0:
+            link = r.get("link", "")
+            s = site(link)
+            if s == host or s.endswith("." + host):
+                return urlparse(link).path or "/"
+    return None
+
+
 def row(doc: dict, host: str) -> dict:
     results = doc.get("results") or []
-    out = {"query": doc["_id"], "kind": doc.get("kind"), "regno": doc.get("regno"), "at": doc.get("at"), "ours": rank_of(results, host)}
+    out = {"query": doc["_id"], "kind": doc.get("kind"), "area": doc.get("area"), "regno": doc.get("regno"), "at": doc.get("at"),
+           "ours": rank_of(results, host), "page": our_page(results, host)}
     out.update({k: rank_of(results, site) for k, site in RIVALS.items()})
     return out
 
@@ -129,15 +154,33 @@ def format_alert(fmt: Optional[dict]) -> List[str]:
     return [names[k] for k, v in (fmt or {}).items() if k in names and v.get("booked", 0) + v.get("date_moved", 0) >= FORMAT_ALERT]
 
 
+def counts(rows: List[dict]) -> dict:
+    """{searches, ours, magicbricks, both, ahead, only_us, only_mb}: `ahead` is both showing and us higher."""
+    both = [r for r in rows if r["ours"] is not None and r["magicbricks"] is not None]
+    return {"searches": len(rows), "ours": sum(1 for r in rows if r["ours"] is not None),
+            "magicbricks": sum(1 for r in rows if r["magicbricks"] is not None), "both": len(both),
+            "ahead": sum(1 for r in both if r["ours"] < r["magicbricks"]),
+            "only_us": sum(1 for r in rows if r["ours"] is not None and r["magicbricks"] is None),
+            "only_mb": sum(1 for r in rows if r["ours"] is None and r["magicbricks"] is not None)}
+
+
 def score(rows: List[dict]) -> dict:
     mb_shown = [r for r in rows if r["magicbricks"] is not None]
     nxt = [r for r in mb_shown if r["ours"] is not None and 0 < r["ours"] - r["magicbricks"] <= CLOSE]
     nxt += [r for r in mb_shown if r["ours"] is None and r["magicbricks"] <= CLOSE]   # they are top, we are not on the page
     won = [r for r in rows if above(r["ours"], r["magicbricks"])]
+    both = [r for r in mb_shown if r["ours"] is not None]
+    kinds: dict = {}
+    for r in rows:
+        kinds.setdefault(r.get("kind") or "other", []).append(r)
     return {"searches": len(rows), "ours": sum(1 for r in rows if r["ours"] is not None), "magicbricks": len(mb_shown),
             "above_mb": len(won), "above_mb_when_shown": sum(1 for r in mb_shown if above(r["ours"], r["magicbricks"])),
+            "both": len(both), "by_kind": {k: counts(rs) for k, rs in sorted(kinds.items())},
             "next": sorted(nxt, key=lambda r: (r["ours"] is None, (r["ours"] or 99) - r["magicbricks"]))[:SHOWN],
-            "won": sorted(won, key=lambda r: r["ours"])[:SHOWN]}
+            "won": sorted(won, key=lambda r: r["ours"])[:SHOWN],
+            # head to head: both on the page; the wins most clearly ahead first, the losses closest to winning first
+            "ahead_rows": sorted((r for r in both if r["ours"] < r["magicbricks"]), key=lambda r: (r["ours"] - r["magicbricks"], r["ours"]))[:SHOWN],
+            "behind_rows": sorted((r for r in both if r["ours"] > r["magicbricks"]), key=lambda r: (r["ours"] - r["magicbricks"], r["ours"]))[:SHOWN]}
 
 
 async def run_once(store: Store, now: datetime, force: bool = False) -> Optional[dict]:
@@ -148,13 +191,15 @@ async def run_once(store: Store, now: datetime, force: bool = False) -> Optional
         return None
     since = now - timedelta(days=WINDOW_DAYS)
     host = our_host()
-    docs = [d for d in await store.db.get_collection(RESULTS).find({}).to_list(None) if (_aware(d.get("at")) or since) >= since]
+    docs = buyer_searches([d for d in await store.db.get_collection(RESULTS).find({}).to_list(None)
+                           if (_aware(d.get("at")) or since) >= since])
     if not docs:
         return None
     s = score([row(d, host) for d in docs])
     fmt = portal_format(docs)
     s["leaders"], s["area_leaders"] = leaders(docs, host)[:LEADERS_SHOWN], area_leaders(docs, host)
-    line = {k: s[k] for k in ("searches", "ours", "magicbricks", "above_mb", "above_mb_when_shown")}
+    line = {k: s[k] for k in ("searches", "ours", "magicbricks", "above_mb", "above_mb_when_shown", "both")}
+    line["buyer_only"] = True   # weeks before 2026-11-06 counted our own lookups too: not comparable with this one
     line["portal_format"] = sum(v["booked"] + v["date_moved"] for v in fmt.values())
     history = ((mark.get("history") or []) + [{"at": now, **line}])[-HISTORY:]
     await store.set_mark(MARK, at=now, history=history, format=fmt, **s)

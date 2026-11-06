@@ -149,3 +149,9 @@ async def test_the_weekly_note_counts_only_pages_in_the_sitemap_now(monkeypatch)
     assert (await note.run_once(store, NOW))["waiting"] == 200
     sent = await store.db.get_collection("notifications").find({"agent_id": "OWNER"}).to_list(None)
     assert "indexed 144 of 345 checked" in sent[0]["summary"] and "200 pages to ask Google for" in sent[0]["summary"]
+
+
+def test_the_weekly_note_counts_magicbricks_head_to_head_once_the_board_does():
+    board = {"searches": 300, "above_mb": 70, "above_mb_when_shown": 30, "both": 60}
+    assert "above MagicBricks 30 of 60 head to head." in note.summary({"clicks": 1}, None, {}, board, 0)
+    assert "above MagicBricks 23 of 261." in note.summary({"clicks": 1}, None, {}, {"searches": 261, "above_mb": 23}, 0)

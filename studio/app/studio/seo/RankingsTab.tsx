@@ -13,8 +13,14 @@ import { getNotifications, markNotificationRead } from '@/lib/app/whatsapp'
 const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://avasetu.in'
 const FIX_LABEL: Record<string, string> = { title: 'Title from search', faq: 'Buyer questions', links: 'Link slot', refresh: 'Refresh facts',
   description: 'Search description', rival: 'Facts MagicBricks shows' }
-const WEEK_ROWS: [keyof WeekNumbers, string][] = [['clicks', 'Clicks (28 days)'], ['impressions', 'Impressions (28 days)'],
-  ['page_one', 'Pages on page one'], ['near_page_one', 'Pages near page one'], ['targeted', 'Pages with a target search']]
+// each number with what it counts, so the owner reads it the way the code counts it (owner 2026-11-06: "still not clear, what and why")
+const WEEK_ROWS: [keyof WeekNumbers, string, string][] = [
+  ['clicks', 'Clicks (28 days)', 'People who clicked one of our project pages in Google.'],
+  ['impressions', 'Impressions (28 days)', 'Times a project page of ours was shown in Google results, clicked or not.'],
+  ['page_one', 'Project pages on page one', 'Pages whose average Google place is 1-10, over every search they showed for, even one seen once.'],
+  ['near_page_one', 'Pages near page one', 'Average place 8-20 and shown 20+ times: the pages a better page most often lifts. The doctor works these first.'],
+  ['targeted', 'Pages with a target search', 'Pages given the one search they should win (the most-seen search in Search Console). Grows only as pages get seen.'],
+]
 const card = 'list-none rounded-2xl bg-white p-3'
 const btn = 'min-h-[44px] rounded-xl border border-gray-300 px-3 text-sm font-semibold text-[#0f2340] active:bg-gray-100 disabled:text-gray-400'
 const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '')
@@ -70,30 +76,89 @@ function ActionRow({ a, onDone }: { a: RankAction; onDone: () => void }) {
 
 const place = (p: number | null) => (p == null ? 'not top 10' : `#${p}`)
 
+// the kinds of search the board counts (backend areastats.websearch); our own number and builder lookups are not counted
+const KIND_LABEL: Record<string, [string, string]> = {
+  area: ['Area searches', 'What buyers type for an area, e.g. "flats in Kharadi Pune". The searches that matter most.'],
+  project: ['Project-name searches', 'A project name plus area, e.g. "Casa Saptak Lohegaon Pune". Easy to win: the name is on our page.'],
+  target: ["Pages' own searches", "The search each page gets most in Search Console, checked on Google."],
+  other: ['Other searches', ''],
+}
+const KIND_ORDER = ['area', 'target', 'project', 'other']
+
 function BoardLine({ r }: { r: BoardRow }) {
   return (
-    <li className="text-xs text-gray-700">&quot;{r.query}&quot;: us {place(r.ours)}, MagicBricks {place(r.magicbricks)}, 99acres {place(r.acres99)}, Housing {place(r.housing)}</li>
+    <li className="break-words text-xs text-gray-700">
+      &quot;{r.query}&quot;: us {place(r.ours)}, MagicBricks {place(r.magicbricks)}, 99acres {place(r.acres99)}, Housing {place(r.housing)}
+      {r.page && <> · <LinkOut href={SITE + r.page}>{r.page}</LinkOut></>}
+    </li>
   )
 }
 
-/** docs/plan/index-everything.md I6: our Google place against the big portals, from the searches we already run. */
+function RowList({ title, hint, rows }: { title: string; hint: string; rows?: BoardRow[] }) {
+  const [all, setAll] = useState(false)
+  if (!rows?.length) return null
+  return (
+    <div className="mt-3">
+      <p className="text-sm font-semibold text-gray-900">{title}</p>
+      <p className="text-xs text-gray-600">{hint}</p>
+      <ul className="mt-1 space-y-1 p-0">{(all ? rows : rows.slice(0, 5)).map((r) => <BoardLine key={r.query} r={r} />)}</ul>
+      {rows.length > 5 && <button type="button" className={`${btn} mt-1`} onClick={() => setAll(!all)}>{all ? 'Show 5' : `Show all ${rows.length}`}</button>}
+    </div>
+  )
+}
+
+/** docs/plan/index-everything.md I6: our Google place against the big portals, from the searches we already run. Head to head
+ * (both on the page) is the fair count; a search MagicBricks has no page for is a win that says little. */
 function Board({ b }: { b: Scoreboard }) {
   const prev = b.history.length > 1 ? b.history[b.history.length - 2] : null
-  const diff = prev ? b.above_mb - prev.above_mb : null
+  const comparable = prev && !!prev.buyer_only === !!b.buyer_only   // weeks before 2026-11-06 counted our own lookups too
+  const diff = comparable ? b.above_mb_when_shown - prev.above_mb_when_shown : null
+  const kinds = KIND_ORDER.filter((k) => b.by_kind?.[k]?.searches)
   return (
-    <div className={card}>
+    <div className={card} data-testid="board">
       <p className="font-semibold text-gray-900">Us against other sites on Google</p>
-      <p className="text-xs text-gray-600">Google searches we ran in the last 28 days{b.at ? `, counted ${timeAgo(b.at)}` : ''} (weekly).</p>
-      {b.leaders?.length ? <Leaders rows={b.leaders} areas={b.area_leaders ?? {}} /> : <p className="mt-2 text-sm text-gray-600">The next weekly count names every site above us.</p>}
-      <p className="mt-3 text-sm font-semibold text-gray-900">Against MagicBricks</p>
-      <p className="text-lg font-semibold text-gray-900">Above them in {b.above_mb} of {b.searches}
-        {diff != null && <span className={`ml-1 text-xs ${diff >= 0 ? 'text-green-700' : 'text-red-700'}`}>{diff >= 0 ? '+' : ''}{diff}</span>}
+      <p className="text-xs text-gray-600">
+        Buyer searches we ran on Google in the last 28 days{b.at ? `, counted ${timeAgo(b.at)}` : ''} (weekly). A sample of the
+        searches we care about, not all of Google. Our own MahaRERA-number and builder-website lookups are not counted.
       </p>
-      <p className="text-xs text-gray-600">We show in {b.ours}; MagicBricks shows in {b.magicbricks}, and we are above them in {b.above_mb_when_shown} of those.</p>
-      {b.next.length > 0 && (<>
-        <p className="mt-2 text-sm font-semibold text-gray-900">Win next (MagicBricks just above us)</p>
-        <ul className="space-y-1 p-0">{b.next.slice(0, 10).map((r) => <BoardLine key={r.query} r={r} />)}</ul>
-      </>)}
+      {b.leaders?.length ? <Leaders rows={b.leaders} areas={b.area_leaders ?? {}} /> : <p className="mt-2 text-sm text-gray-600">The next weekly count names every site above us.</p>}
+
+      <p className="mt-3 text-sm font-semibold text-gray-900">Against MagicBricks, head to head</p>
+      {b.both != null ? (
+        <p className="text-lg font-semibold text-gray-900" data-testid="head-to-head">Above them in {b.above_mb_when_shown} of {b.both}
+          {diff != null && <span className={`ml-1 text-xs ${diff >= 0 ? 'text-green-700' : 'text-red-700'}`}>{diff >= 0 ? '+' : ''}{diff}</span>}
+        </p>
+      ) : (
+        <p className="text-lg font-semibold text-gray-900">Above them in {b.above_mb_when_shown} of the searches both show for</p>
+      )}
+      <p className="text-xs text-gray-600">
+        Of {b.searches} searches, both sites showed in {b.both ?? '?'}: that is the fair fight. We showed in {b.ours} in all and
+        MagicBricks in {b.magicbricks}; {b.above_mb - b.above_mb_when_shown} more showed us and not MagicBricks (mostly project
+        names they have no page for).
+      </p>
+
+      {kinds.length > 0 && (
+        <div className="mt-2 overflow-x-auto">
+          <table className="w-full text-left text-xs text-gray-700" data-testid="board-kinds">
+            <thead className="text-gray-600"><tr><th className="py-1">Kind of search</th><th>Searches</th><th>We show</th><th>MB shows</th><th>Both</th><th>We are higher</th></tr></thead>
+            <tbody>
+              {kinds.map((k) => {
+                const r = b.by_kind![k]
+                return (
+                  <tr key={k} className="border-t border-gray-100 align-top">
+                    <td className="py-1 pr-2"><span className="font-medium">{(KIND_LABEL[k] ?? [k])[0]}</span><br /><span className="text-gray-500">{(KIND_LABEL[k] ?? ['', ''])[1]}</span></td>
+                    <td>{r.searches}</td><td>{r.ours}</td><td>{r.magicbricks}</td><td>{r.both}</td><td>{r.ahead} of {r.both}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <RowList title="Where we beat MagicBricks" hint="Both on the page, ours higher. The link is the page of ours Google showed." rows={b.ahead_rows} />
+      <RowList title="Where MagicBricks beats us" hint="Both on the page, theirs higher, closest first. Our page needs facts they do not show." rows={b.behind_rows} />
+      <RowList title="Win next (MagicBricks just above us)" hint="They are at most 3 places above us, or in their top 3 while we are not on the page. The page doctor takes these first." rows={b.next} />
     </div>
   )
 }
@@ -112,7 +177,7 @@ function Leaders({ rows, areas }: { rows: BoardLeader[]; areas: Record<string, B
       <ul className="space-y-1 p-0">
         {rows.slice(0, 8).map((t) => (
           <li key={t.site} className="flex justify-between gap-2 text-xs text-gray-700">
-            <span>{t.site}</span><span className="tabular-nums">{t.above_us} of {t.searches} · top 3 in {t.top3}</span>
+            <span>{t.site}</span><span className="tabular-nums">above us in {t.above_us} of the {t.searches} it showed in · top 3 in {t.top3}</span>
           </li>
         ))}
       </ul>
@@ -128,6 +193,19 @@ function Leaders({ rows, areas }: { rows: BoardLeader[]; areas: Record<string, B
 }
 
 type AreaRow = { sitemap: string; listed: number; inspected: number; indexed: number }
+
+// Search Console's reasons a page is not in Google, in plain words with what to do (owner 2026-11-06: "what and why").
+// Matched on a lowercase part of Google's own wording, which uses curly quotes around 'noindex'.
+const WHY_NOT_INDEXED: [string, string][] = [
+  ['discovered', 'Google knows the address but has not read the page yet. Normal for a young site: it comes with time, better pages and Request indexing.'],
+  ['noindex', "Google's last read found the page closed to search, from before it qualified (it is in the sitemap now, so it is open). Clears when Google reads it again. If the Monday site audit finds noindex on a sitemap page, that is a real fault."],
+  ['unknown', 'Google has not come across the address yet. The sitemap brings it; Request indexing is faster.'],
+  ['crawled', 'Google read the page and chose not to keep it: too thin, or too like another page. These are the ones to improve.'],
+  ['redirect', 'The address now forwards to another page (towers merged into one project). Nothing to do.'],
+  ['server error', 'Our server failed when Google came. Open the page: if it loads now, Google will retry.'],
+  ['soft 404', 'Google thinks the page is empty or missing. Check it shows the project.'],
+]
+const whyNot = (state: string) => WHY_NOT_INDEXED.find(([k]) => state.toLowerCase().includes(k))?.[1]
 const sitemapLabel = (s: string) => (s.startsWith('area-') ? s.slice(5).split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ') : s[0].toUpperCase() + s.slice(1))
 
 /** Indexed share per child sitemap (seo/coverage.py), least indexed first: the area to send Request-indexing turns to. */
@@ -137,6 +215,7 @@ function ProjectPages({ index, content, at }: { index?: ProjectIndex | null; con
   return (
     <div className={card} data-testid="project-pages">
       <p className="font-semibold text-gray-900">Project pages in Google</p>
+      <p className="text-xs text-gray-600">Project pages in our sitemap (the ones we ask Google to show), checked one by one with Google about once a week.</p>
       {!!index?.inspected && (
         <>
           <p className="text-sm text-gray-800">{index.indexed} of {index.inspected} checked are indexed ({Math.round((100 * index.indexed) / index.inspected)}%) · {index.listed} listed</p>
@@ -144,7 +223,10 @@ function ProjectPages({ index, content, at }: { index?: ProjectIndex | null; con
           {reasons.length > 0 && (
             <ul className="mt-1 space-y-1 p-0">
               {reasons.map(([state, n]) => (
-                <li key={state} className="flex justify-between gap-2 text-xs text-gray-700"><span>{state}</span><span className="tabular-nums">{n}</span></li>
+                <li key={state} className="text-xs text-gray-700">
+                  <div className="flex justify-between gap-2"><span className="font-medium">{state}</span><span className="tabular-nums">{n}</span></div>
+                  {whyNot(state) && <p className="text-gray-500">{whyNot(state)}</p>}
+                </li>
               ))}
             </ul>
           )}
@@ -157,6 +239,7 @@ function ProjectPages({ index, content, at }: { index?: ProjectIndex | null; con
             Prices {content.prices} · web facts {content.facts} · highlights {content.highlights} · photos {content.photos} · plans {content.plans}
           </p>
           <p className="text-xs text-gray-700">All five: {content.full} · written text, median {content.median_text} characters</p>
+          <p className="text-xs text-gray-500">Prices: a price list we read. Web facts: facts checked on other sites. Highlights, photos and plans: the builder&apos;s or the brochure&apos;s. A page with all five answers a buyer best; photos and plans are the gap.</p>
         </>
       )}
     </div>
@@ -169,7 +252,8 @@ function ByArea({ rows, at }: { rows: AreaRow[]; at: string | null }) {
   return (
     <div className={card}>
       <p className="font-semibold text-gray-900">Indexed by area</p>
-      <p className="text-xs text-gray-600">Pages Google has indexed, of those we checked, per sitemap{at ? `, ${timeAgo(at)}` : ''}. Least indexed first.</p>
+      <p className="text-xs text-gray-600">Pages Google has indexed, of those we checked, per sitemap{at ? `, ${timeAgo(at)}` : ''}. Least indexed first.
+        An area&apos;s row holds its project pages and its list pages; Core is the home page, guides and other site pages. A row of 1 or 2 pages says little.</p>
       <ul className="mt-1 space-y-1 p-0">
         {(all ? shown : shown.slice(0, 10)).map((r) => (
           <li key={r.sitemap} className="flex justify-between gap-2 text-xs text-gray-700">
@@ -262,7 +346,7 @@ export default function RankingsTab() {
         <p className="font-semibold text-gray-900">This week</p>
         {!now ? <p className="text-sm text-gray-600">No numbers yet: they start the day after Search Console is read.</p> : (
           <dl className="mt-1 grid grid-cols-2 gap-2 sm:grid-cols-5">
-            {WEEK_ROWS.map(([k, label]) => {
+            {WEEK_ROWS.map(([k, label, hint]) => {
               const v = Number(now[k])
               const diff = ago ? v - Number(ago[k]) : null
               return (
@@ -271,6 +355,10 @@ export default function RankingsTab() {
                   <dd className="text-lg font-semibold text-gray-900">{v.toLocaleString('en-IN')}
                     {diff != null && <span className={`ml-1 text-xs ${diff >= 0 ? 'text-green-700' : 'text-red-700'}`}>{diff >= 0 ? '+' : ''}{diff}</span>}
                   </dd>
+                  {k === 'page_one' && now.page_one_listed != null && (
+                    <dd className="text-xs font-medium text-gray-800" data-testid="page-one-listed">{now.page_one_listed.toLocaleString('en-IN')} of them are in search now{now.page_one_listed < v ? '; the rest are pages we took out, which Google shows until it reads them again' : ''}</dd>
+                  )}
+                  <dd className="text-xs text-gray-500">{hint}</dd>
                 </div>
               )
             })}

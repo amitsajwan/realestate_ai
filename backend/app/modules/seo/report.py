@@ -122,8 +122,10 @@ def split_projects(docs: List[dict]) -> dict:
 
 def _board(m: dict) -> dict:
     clean = lambda r: {k: (_iso(v) if k == "at" else v) for k, v in r.items()}   # noqa: E731
-    return {"at": _iso(m.get("at")), **{k: m.get(k) or 0 for k in ("searches", "ours", "magicbricks", "above_mb", "above_mb_when_shown")},
+    return {"at": _iso(m.get("at")), **{k: m.get(k) or 0 for k in ("searches", "ours", "magicbricks", "above_mb", "above_mb_when_shown", "both")},
             "next": [clean(r) for r in m.get("next") or []], "won": [clean(r) for r in m.get("won") or []],
+            "ahead_rows": [clean(r) for r in m.get("ahead_rows") or []], "behind_rows": [clean(r) for r in m.get("behind_rows") or []],
+            "by_kind": m.get("by_kind") or {},
             "leaders": m.get("leaders") or [], "area_leaders": m.get("area_leaders") or {},
             "history": [clean(h) for h in m.get("history") or []]}
 
