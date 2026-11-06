@@ -3,10 +3,10 @@ import React, { useState } from 'react'
 import Link from 'next/link'
 import { LinkOut, StatusPill, TabBar, useUrlTab } from '@/components/app/list'
 import type { PillTone } from '@/components/app/list'
-import { ErrorBox, PageTitle, Spinner, inputCls } from '@/components/app/ui'
+import { ErrorBox, PageTitle, Spinner } from '@/components/app/ui'
 import { timeAgo } from '@/lib/app/format'
 import { errorMessage } from '@/lib/app/client'
-import { getFound, getHot, getSystem, ignoreFound, refreshPage, searchAs } from '@/lib/app/insights'
+import { getFound, getHot, getSystem, refreshPage } from '@/lib/app/insights'
 import type { FoundItem, FoundState, HotItem, Loop } from '@/lib/app/insights'
 import { useAsync } from '@/lib/app/useAsync'
 import PagesTab from './PagesTab'
@@ -81,20 +81,12 @@ function HotTab() {
 
 // ---- O2 found on Google --------------------------------------------------------------------------------------------------
 const STATE: Record<FoundState, { label: string; tone: PillTone }> = {
-  stuck: { label: 'Needs a name', tone: 'action' }, searching: { label: 'Searching', tone: 'info' },
-  found: { label: 'Found, adding', tone: 'ok' }, added: { label: 'Added', tone: 'done' }, ignored: { label: 'Ignored', tone: 'muted' },
+  searching: { label: 'Searching', tone: 'info' }, found: { label: 'Found, adding', tone: 'ok' },
+  added: { label: 'Added', tone: 'done' }, missing: { label: 'Not on MahaRERA', tone: 'muted' },
 }
-const ORDER: FoundState[] = ['stuck', 'searching', 'found', 'added', 'ignored']
+const ORDER: FoundState[] = ['searching', 'found', 'added', 'missing']
 
-function FoundRow({ item, onDone }: { item: FoundItem; onDone: () => void }) {
-  const [name, setName] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [err, setErr] = useState<string | null>(null)
-  const act = async (fn: () => Promise<unknown>) => {
-    setBusy(true); setErr(null)
-    try { await fn(); onDone() } catch (e) { setErr(errorMessage(e)) } finally { setBusy(false) }
-  }
-  const open = item.state === 'stuck' || item.state === 'searching'
+function FoundRow({ item }: { item: FoundItem }) {
   return (
     <li className={card}>
       <div className="flex items-start justify-between gap-2">
@@ -113,15 +105,6 @@ function FoundRow({ item, onDone }: { item: FoundItem; onDone: () => void }) {
         ))}
       </ul>
       {item.tried_names.length > 0 && <p className="mt-2 text-xs text-gray-600"><span className="font-semibold">Searched MahaRERA for:</span> {item.tried_names.join(', ')}</p>}
-      {open && (
-        <form className="mt-2 flex flex-wrap gap-2" onSubmit={(e) => { e.preventDefault(); act(() => searchAs(item.regno, name)) }}>
-          <input className={`${inputCls} min-w-0 flex-1`} value={name} onChange={(e) => setName(e.target.value)}
-            placeholder="Name it is registered under" aria-label={`MahaRERA name for ${item.regno}`} />
-          <button type="submit" className={btn} disabled={busy || name.trim().length < 5}>Search</button>
-          <button type="button" className={btn} disabled={busy} onClick={() => act(() => ignoreFound(item.regno))}>Ignore</button>
-        </form>
-      )}
-      {err && <p className="mt-1 text-sm text-red-700">{err}</p>}
     </li>
   )
 }
@@ -134,11 +117,12 @@ function FoundTab() {
   return (
     <>
       <p className="text-xs text-gray-600">
-        MahaRERA numbers printed on pages Google shows that our register does not have yet. One is looked up on MahaRERA by name every step and
-        added only when the number matches exactly. When every name has been tried, give the name the builder registered.
+        MahaRERA numbers printed on pages Google shows that our register does not have yet. Each is looked up by name, then by a Google search
+        of the number, and added only when the number matches exactly. Misprints, other districts and numbers from 2019 or earlier are dropped.
+        Nothing here needs you.
       </p>
       {!items.length ? <Empty>Nothing found yet.</Empty> :
-        <ul className="space-y-2 p-0">{items.map((i) => <FoundRow key={i.regno} item={i} onDone={q.reload} />)}</ul>}
+        <ul className="space-y-2 p-0">{items.map((i) => <FoundRow key={i.regno} item={i} />)}</ul>}
     </>
   )
 }

@@ -67,6 +67,13 @@ NOT_MARKETERS = ("avasetu.in", "maharashtra.gov.in", "reradetails.in", "reunionh
                  "practo.com", "justdial.com", "manipalhospitals.com", "zomato.com", "swiggy.com", "google.com", "indiamart.com",
                  "sulekha.com")
 
+# the numbers worth looking up. Older Pune numbers are P52100 + a running serial, newer ones two letters + 126 + ten digits; anything
+# else is a misprint on a web page or another district (MahaRERA is searched in Pune only). A serial under OLD_SERIAL was registered
+# in 2019 or earlier, and 7% of the 4,405 we hold still have a future completion date (read 2026-11-06), so it is not worth finding.
+_OLD_FORMAT = re.compile(r"P52100(\d{6})")
+_NEW_FORMAT = re.compile(r"P[A-Z]126\d{10}")
+OLD_SERIAL = 20000
+
 # query -> [{"title", "link", "snippet", "position", "ad": bool, "type"}]: type "organic" or "ad" (results), "related" (Google's
 # related searches: the title is the search) or "question" ("People also ask": the title is the question)
 Search = Callable[[str], Awaitable[List[dict]]]
@@ -114,6 +121,12 @@ async def credits(transport: Optional[httpx.AsyncBaseTransport] = None) -> Optio
 def provider() -> Optional[Search]:
     key = (os.environ.get("SERPER_API_KEY") or "").strip()
     return serper(key) if key else None
+
+
+def worth_finding(regno: str) -> bool:
+    """A well-formed Pune number recent enough to be selling. No person checks this list, so what fails here is dropped."""
+    old = _OLD_FORMAT.fullmatch(regno or "")
+    return int(old.group(1)) >= OLD_SERIAL if old else bool(_NEW_FORMAT.fullmatch(regno or ""))
 
 
 def site(link: str) -> str:
@@ -269,7 +282,7 @@ async def discover(store: Store, docs: List[dict], now: datetime) -> int:
     for doc in docs:
         for r in doc.get("results") or []:
             for regno in regnos_in(f"{r.get('title', '')} {r.get('snippet', '')}"):
-                if regno in known:
+                if regno in known or not worth_finding(regno):
                     continue
                 seen = {"query": doc["_id"], "title": r.get("title", "")[:160], "link": r.get("link", ""), "at": now}
                 old = await coll.find_one({"_id": regno})

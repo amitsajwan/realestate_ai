@@ -3,7 +3,7 @@ import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from app.modules.areastats import discover, pages, refresh, watch
+from app.modules.areastats import discover, owner, pages, refresh, watch, websearch
 from app.modules.areastats.websearch import DISCOVERED
 from app.modules.newsroom.store import Store
 
@@ -23,9 +23,17 @@ TITLE = "Lodha Camelot Kharadi Pune | Price & Floor Plans"
 def site(pages_by_name: dict, asked: list):
     async def get(url):
         name = re.search(r"project_name=([^&]*)&", url).group(1).replace("%20", " ")
+        page = int(re.search(r"[?&]page=(\d+)", url).group(1))
         asked.append(name)
-        return pages_by_name.get(name, NONE_PAGE)
+        return pages_by_name.get(name, NONE_PAGE) if page == 1 else NONE_PAGE
     return get
+
+
+def google(results: list, asked: list):
+    async def ask(q):
+        asked.append(q)
+        return results
+    return ask
 
 
 async def seen(store, regno="PR1260002501386", title=TITLE, at=NOW):
@@ -63,17 +71,85 @@ async def test_a_same_named_project_with_another_number_is_never_taken():
     store, asked = Store(FakeDb()), []
     await seen(store, regno="PR1260002501413")                 # Camelot's second tower: not on this results page
     out = await discover.resolve(store, site({"Lodha Camelot": CAMELOT_PAGE}, asked), NOW)
-    assert out["found"] is None and asked == ["Lodha Camelot", "Camelot"]
+    assert out["found"] is None and list(dict.fromkeys(asked)) == ["Lodha Camelot", "Camelot"]    # a full page: its next page too
     doc = await store.db.get_collection(DISCOVERED).find_one({"_id": "PR1260002501413"})
     assert doc["status"] == "open" and doc["tried_names"] == ["Lodha Camelot", "Camelot"]
     assert await discover.watch_items(store.db) == []
-    # every name tried: a person sees it; a new title with a new name puts it back in line the next day
+    # every name tried: the report lists it; a new title with a new name puts it back in line the next day
     assert [p["regno"] for p in await discover.pending(store)] == ["PR1260002501413"]
     await store.db.get_collection(DISCOVERED).update_one({"_id": "PR1260002501413"}, {"$set": {"seen": [
         {"title": TITLE}, {"title": "Camelot Kharadi Tower B by Lodha | Official"}]}})
     assert await discover.resolve(store, site({}, asked), NOW + timedelta(hours=2)) == {"tried": None}   # tried today already
     out = await discover.resolve(store, site({}, asked), NOW + timedelta(days=1))
     assert out["tried"] == "PR1260002501413" and asked[-3:] == ["Camelot Tower B", "Tower B", "Camelot Tower"]
+
+
+def test_names_from_a_page_address():
+    assert discover.names_from_link("https://x.in/pulse/rera/maharashtra/pune/ganga-arcadia-c-building-P52100000412")[0] == "Ganga Arcadia C Building"
+    assert discover.names_from_link("https://x.in/pristine-allure-part2-kharadi-pune-rera-project.html")[0] == "Pristine Allure Part2"
+    assert discover.names_from_link("https://x.in/ganga-arcadia-kharadi-pid-10967")[0] == "Ganga Arcadia"
+    assert discover.names_from_link("https://x.in/projects/10967") == discover.names_from_link("https://x.in") == []
+
+
+async def test_when_names_run_out_the_number_is_searched_on_google_once_and_its_pages_give_the_name():
+    store, asked, searched = Store(FakeDb()), [], []
+    regno = "PR1260002501386"
+    await seen(store, regno=regno, title="Kharadi Pune")              # no name in the title
+    ask = google([{"title": f"RERA {regno}", "link": f"https://x.in/rera/lodha-camelot-{regno}", "snippet": ""},
+                  {"title": "Some other page", "link": "https://y.in/a-project", "snippet": "no number here"}], searched)
+    out = await discover.resolve(store, site({"Lodha Camelot": CAMELOT_PAGE}, asked), NOW, ask)
+    assert out["found"] == "LODHA CAMELOT" and searched == [f'"{regno}"'] and asked[0] == "Lodha Camelot"
+    doc = await store.db.get_collection(DISCOVERED).find_one({"_id": regno})
+    assert doc["seen"][-1]["link"].endswith(regno) and len(doc["seen"]) == 2      # only the page printing the number
+
+
+async def test_a_number_google_cannot_name_is_not_searched_again():
+    store, searched = Store(FakeDb()), []
+    await seen(store, title="Kharadi Pune")
+    out = await discover.resolve(store, site({}, []), NOW, google([], searched))
+    assert out["found"] is None
+    assert await discover.resolve(store, site({}, []), NOW + timedelta(days=2), google([], searched)) == {"tried": None}
+    assert len(searched) == 1
+
+
+async def test_a_failed_google_search_is_asked_again_the_next_day():
+    store, searched = Store(FakeDb()), []
+    await seen(store, title="Kharadi Pune")
+
+    async def down(q):
+        raise RuntimeError("no credit")
+    assert (await discover.resolve(store, site({}, []), NOW, down))["found"] is None
+    assert await discover.resolve(store, site({}, []), NOW + timedelta(hours=2), down) == {"tried": None}
+    await discover.resolve(store, site({}, []), NOW + timedelta(days=1), google([], searched))
+    assert len(searched) == 1
+
+
+async def test_a_project_on_a_later_results_page_is_found():
+    store, asked = Store(FakeDb()), []
+    await seen(store, title="Camelot Kharadi")
+    head, card = LAST.split('<div class="row shadow', 2)[:2]
+    first = head + ('<div class="row shadow' + card) * 10
+
+    async def get(url):
+        asked.append(url)
+        return CAMELOT_PAGE if "page=2&" in url else first
+    out = await discover.resolve(store, get, NOW)
+    assert out["found"] == "LODHA CAMELOT" and len(asked) == 2
+
+
+async def test_old_misprinted_and_other_district_numbers_are_dropped_unsearched():
+    store, asked, searched = Store(FakeDb()), [], []
+    coll = store.db.get_collection(DISCOVERED)
+    for regno in ("P52100000412", "PS2100080481", "P521000295451", "PR1330002600931"):
+        await seen(store, regno=regno, title="Ganga Arcadia Kharadi")
+    assert await discover.resolve(store, site({}, asked), NOW, google([], searched)) == {"tried": None}
+    assert asked == searched == [] and await coll.find({}).to_list(10) == []
+
+
+def test_which_numbers_are_worth_finding():
+    assert websearch.worth_finding("P52100025978") and websearch.worth_finding("PR1260002501386")
+    assert websearch.worth_finding("PR1261012400049")
+    assert not websearch.worth_finding("P52100019999") and not websearch.worth_finding("P5210002510")
 
 
 async def test_a_site_that_does_not_answer_leaves_the_name_untried():
@@ -105,3 +181,11 @@ async def test_the_refresh_step_runs_discovery_before_the_watch_list():
     out = await refresh.step(store, get, fetch, NOW, pages=1, limit=1)
     assert out["discover"]["found"] == "LODHA CAMELOT" and out["watch"]["watched"] == 1
     assert (await store.project("PR1260002501386"))["page_slug"] == "lodha-camelot-upper-kharadi"
+
+
+async def test_the_screen_hides_dropped_numbers_and_shows_what_nothing_could_find():
+    store = Store(FakeDb())
+    await seen(store, regno="P52100000412", title="Ganga Arcadia Kharadi")
+    await seen(store, regno="P52100028813", title="Kharadi Pune")
+    await discover.resolve(store, site({}, []), NOW, google([], []))
+    assert [(i["regno"], i["state"]) for i in (await owner.found(store))["items"]] == [("P52100028813", "missing")]

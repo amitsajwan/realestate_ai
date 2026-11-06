@@ -21,7 +21,7 @@ export interface HotItem {
 
 export interface HotList { scored_at: string | null; projects: number | null; hot: number | null; hot_min: number; items: HotItem[] }
 
-export type FoundState = 'searching' | 'stuck' | 'found' | 'added' | 'ignored'
+export type FoundState = 'searching' | 'missing' | 'found' | 'added'
 
 export interface FoundItem {
   regno: string
@@ -30,7 +30,6 @@ export interface FoundItem {
   first_seen: string | null
   last_seen: string | null
   tried_names: string[]
-  owner_names: string[]
   seen: Array<{ title: string; link: string; query: string }>
 }
 
@@ -74,8 +73,6 @@ async function call<T>(path: string, body?: unknown): Promise<T> {
 export const getHot = () => call<HotList>('hot')
 export const refreshPage = (regno: string) => call<{ queued: boolean }>(`hot/${encodeURIComponent(regno)}/refresh`, {})
 export const getFound = () => call<FoundList>('found')
-export const searchAs = (regno: string, name: string) => call<{ queued: boolean }>(`found/${encodeURIComponent(regno)}/search-as`, { name })
-export const ignoreFound = (regno: string) => call<{ ignored: boolean }>(`found/${encodeURIComponent(regno)}/ignore`, {})
 export const getSystem = () => call<SystemView>('system')
 
 // ---- Rankings (docs/plan/rank-loop.md R9; backend app/modules/seo/report.py) -------------------------------------------------

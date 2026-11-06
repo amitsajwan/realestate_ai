@@ -57,7 +57,7 @@ One owner-only screen with tabs, read-only from stored data. Studio already has 
 | # | Tab | Shows | Action |
 |---|---|---|---|
 | O1 | **Hot projects** (BUILT: `areastats/owner.hot`, `GET /newsroom/insights/hot`) | score, reasons, marketers, promoter (to add), last page refresh (`enriched_at`), next due (`HOT_REFRESH_DAYS` = 14) | Refresh page now (sets the enrichment urgent request) |
-| O2 | **Found on Google** (BUILT: `owner.found`) | `discovered_projects`: number, where it was seen, searching / needs a name / found / added / ignored | Search MahaRERA under a name the owner gives (`discover.search_as`) / Ignore (`discover.ignore`) |
+| O2 | **Found on Google** (BUILT: `owner.found`) | `discovered_projects`: number, where it was seen, searching / found / added / not on MahaRERA | none: `discover.resolve` tries names from titles and page addresses, then a Google search of the number, and adds only on an exact number match; misprints, other districts and 2019-or-older numbers are dropped (`websearch.worth_finding`) |
 | O3 | **Search demand** | phrases, our rank, rising phrases (what `demand_report.py` prints) | "Make a page" for a phrase with no page (S5) |
 | O4 | **Pages and Google** | indexed or not and why (coverage), impressions, near page one, last IndexNow send | Refresh page |
 | O5 | **Neighbourhoods** | found, published, refused with the reason (`write_notes`) | Hide / write again |

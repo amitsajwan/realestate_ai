@@ -104,11 +104,12 @@ async def read_pincode_page(get: Fetcher, pincode: str, page: int, district: int
     return (parse_total(body), parse_projects(body)) if body else (None, [])
 
 
-async def search_by_name(get: Fetcher, name: str, district: int = PUNE_DISTRICT) -> Optional[List[MahaReraProject]]:
-    """The cards MahaRERA's search gives for a project name in the district ([] when none); None when the site did not answer.
+async def search_by_name(get: Fetcher, name: str, district: int = PUNE_DISTRICT, page: int = 1) -> Optional[List[MahaReraProject]]:
+    """One page of the cards MahaRERA's search gives for a project name in the district ([] when none); None when the site did not
+    answer. Pages hold PAGE_SIZE cards, oldest registration first.
     The site searches by name only (its registration-number filter is ignored, verified 2026-10-06); a real answer always
     carries its result count, its failures do not. Spaces must be %20 ("gulmohar+city" finds nothing)."""
-    url = BY_NAME.format(district=district, page=1, name=quote((name or "").strip(), safe=""))
+    url = BY_NAME.format(district=district, page=page, name=quote((name or "").strip(), safe=""))
     body = await _ask(get, url, lambda b: parse_total(b) is not None)
     return parse_projects(body) if body is not None else None
 

@@ -48,20 +48,21 @@ async def hot(store: Store, now: datetime, limit: int = HOT_LIMIT) -> dict:
 def _state(d: dict, known: set) -> str:
     if d["_id"] in known:
         return "added"                      # the register has it now, with its page
-    if d.get("status") in ("found", discover.IGNORED):
-        return d["status"]                  # found on MahaRERA, waiting for the register; or ignored by the owner
-    if d.get("tried_names") and not discover.candidates(d):
-        return "stuck"                      # every name was tried: needs the name the builder registered
+    if d.get("status") == "found":
+        return "found"                      # found on MahaRERA, waiting for the register
+    if d.get("google_at") and not discover.candidates(d):
+        return "missing"                    # every name was tried, the number too: a new result puts it back in line
     return "searching"
 
 
 async def found(store: Store, limit: int = 200) -> dict:
     """O2: every discovered number with its state, most recently seen first."""
     known = {d.get("regno") or d["_id"] for d in await store.all_projects()}
-    docs = await store.db.get_collection(websearch.DISCOVERED).find({}).to_list(2000)
+    docs = [d for d in await store.db.get_collection(websearch.DISCOVERED).find({}).to_list(2000)
+            if d["_id"] in known or websearch.worth_finding(d["_id"])]
     docs.sort(key=lambda d: _aware(d.get("last_seen")) or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
     items = [{"regno": d["_id"], "state": _state(d, known), "name": d.get("name"), "first_seen": _iso(d.get("first_seen")),
-              "last_seen": _iso(d.get("last_seen")), "tried_names": d.get("tried_names") or [], "owner_names": d.get("owner_names") or [],
+              "last_seen": _iso(d.get("last_seen")), "tried_names": d.get("tried_names") or [],
               "seen": [{"title": s.get("title", ""), "link": s.get("link", ""), "query": s.get("query", "")} for s in (d.get("seen") or [])[-3:]]}
              for d in docs[:limit]]
     counts: dict = {}

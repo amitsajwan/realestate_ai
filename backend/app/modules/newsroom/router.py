@@ -301,19 +301,6 @@ async def insights_found(user: User = Depends(owner_only), store: Store = Depend
     return await owner.found(store)
 
 
-class SearchAsBody(BaseModel):
-    name: str
-
-
-@router.post("/insights/found/{regno}/search-as")
-async def insights_search_as(regno: str, body: SearchAsBody, user: User = Depends(owner_only), store: Store = Depends(get_store)) -> dict:
-    """Search MahaRERA for this number under the owner's name for it (the builder registered another name)."""
-    from app.modules.areastats import discover
-    if not await discover.search_as(store, regno, body.name):
-        raise HTTPException(422, f"Give a name of at least {discover.MIN_NAME} letters for a number we have seen")
-    return {"regno": regno, "queued": True}
-
-
 class RevertBody(BaseModel):
     path: str
 
@@ -353,12 +340,3 @@ async def insights_page_status(body: PageStatusBody, user: User = Depends(owner_
     if not await grow.set_status(store, body.key, body.status):
         raise HTTPException(422, "Unknown page, or status is not one of live, held, never")
     return {"key": body.key, "status": body.status}
-
-
-@router.post("/insights/found/{regno}/ignore")
-async def insights_ignore(regno: str, user: User = Depends(owner_only), store: Store = Depends(get_store)) -> dict:
-    from app.modules.areastats import discover
-    if not await discover.ignore(store, regno, datetime.now(timezone.utc)):
-        raise HTTPException(404, "Number not found")
-    return {"regno": regno, "ignored": True}
-
