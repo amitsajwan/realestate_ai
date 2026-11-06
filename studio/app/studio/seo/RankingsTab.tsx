@@ -5,7 +5,7 @@ import { ErrorBox, Spinner } from '@/components/app/ui'
 import { timeAgo } from '@/lib/app/format'
 import { errorMessage } from '@/lib/app/client'
 import { getRankings, revertPage } from '@/lib/app/insights'
-import type { AiVisits, BoardLeader, BoardRow, PageCheck, PageContent, ProjectIndex, RankAction, RankTarget, Scoreboard, WeekNumbers } from '@/lib/app/insights'
+import type { AiVisits, BoardLeader, BoardRow, BoardStanding, PageCheck, PageContent, ProjectIndex, RankAction, RankTarget, Scoreboard, WeekNumbers } from '@/lib/app/insights'
 import { useAsync } from '@/lib/app/useAsync'
 import { getNotifications, markNotificationRead } from '@/lib/app/whatsapp'
 
@@ -121,7 +121,7 @@ function Board({ b }: { b: Scoreboard }) {
         Buyer searches we ran on Google in the last 28 days{b.at ? `, counted ${timeAgo(b.at)}` : ''} (weekly). A sample of the
         searches we care about, not all of Google. Our own MahaRERA-number and builder-website lookups are not counted.
       </p>
-      {b.leaders?.length ? <Leaders rows={b.leaders} areas={b.area_leaders ?? {}} /> : <p className="mt-2 text-sm text-gray-600">The next weekly count names every site above us.</p>}
+      {b.leaders?.length ? <Leaders rows={b.leaders} areas={b.area_leaders ?? {}} us={b.us} areaUs={b.area_us ?? {}} /> : <p className="mt-2 text-sm text-gray-600">The next weekly count names every site above us.</p>}
 
       <p className="mt-3 text-sm font-semibold text-gray-900">Against MagicBricks, head to head</p>
       {b.both != null ? (
@@ -168,10 +168,17 @@ const areaLabel = (k: string) => k.split('_').map((w) => w[0].toUpperCase() + w.
 
 /** Who actually sits above us, read from the same results: the rival to study in each area is Google's pick, not ours
  * (docs/plan/rival-housiey-ravet.md: Housiey led Ravet and the MagicBricks board never named it). */
-function Leaders({ rows, areas }: { rows: BoardLeader[]; areas: Record<string, BoardLeader[]> }) {
+function Leaders({ rows, areas, us, areaUs }: { rows: BoardLeader[]; areas: Record<string, BoardLeader[]>; us?: BoardStanding | null; areaUs: Record<string, BoardStanding> }) {
   const byArea = Object.entries(areas).filter(([, ts]) => ts.some((t) => t.above_us))
   return (
     <div data-testid="board-leaders">
+      {us && (
+        <div className="mt-2" data-testid="board-us">
+          <p className="text-sm font-semibold text-gray-900">Where we stand</p>
+          <p className="text-lg font-semibold text-gray-900">We show in {us.shows} of {us.searches} searches</p>
+          <p className="text-xs text-gray-600">Top 3 in {us.top3}, first in {us.first}. No. {us.place} of the {us.sites} sites seen, by searches shown in.</p>
+        </div>
+      )}
       <p className="mt-2 text-sm font-semibold text-gray-900">Above us most often</p>
       <p className="text-xs text-gray-600">Searches where the site showed above us, or showed and we did not.</p>
       <ul className="space-y-1 p-0">
@@ -184,7 +191,7 @@ function Leaders({ rows, areas }: { rows: BoardLeader[]; areas: Record<string, B
       {byArea.length > 0 && (
         <ul className="mt-1 space-y-1 p-0">
           {byArea.map(([a, ts]) => (
-            <li key={a} className="text-xs text-gray-700"><span className="font-medium">{areaLabel(a)}:</span> {ts.filter((t) => t.above_us).map(leaderText).join(', ')}</li>
+            <li key={a} className="text-xs text-gray-700"><span className="font-medium">{areaLabel(a)}:</span> {areaUs[a] && `us ${areaUs[a].shows} of ${areaUs[a].searches}, top 3 in ${areaUs[a].top3}; `}{ts.filter((t) => t.above_us).map(leaderText).join(', ')}</li>
           ))}
         </ul>
       )}

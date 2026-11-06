@@ -31,7 +31,10 @@ const data = {
     ahead_rows: [row('flats in kharadi pune', 2, 6, '/projects/area/kharadi')],
     behind_rows: [row('2 bhk flats in wagholi pune', 7, 1, '/projects/area/wagholi/2-bhk')],
     next: [], won: [], history: [{ at: '2026-10-30', searches: 2213, ours: 574, magicbricks: 1091, above_mb: 355, above_mb_when_shown: 108 }],
-    leaders: [],
+    leaders: [{ site: 'housing.com', searches: 732, above_us: 650, top3: 449 }],
+    area_leaders: { hinjawadi: [{ site: '99acres.com', searches: 12, above_us: 11, top3: 8 }] },
+    us: { site: 'avasetu.in', searches: 1157, shows: 225, top3: 61, first: 17, place: 13, sites: 1011 },
+    area_us: { hinjawadi: { site: 'avasetu.in', searches: 17, shows: 0, top3: 0, first: 0, place: 40, sites: 90 } },
   },
   coverage: { at: null, by_sitemap: [], projects: { listed: 612, inspected: 612, indexed: 364,
     missing_by_state: { 'Discovered - currently not indexed': 129, 'Excluded by ‘noindex’ tag': 73 } } },
@@ -52,6 +55,14 @@ it('counts MagicBricks head to head and names our page for each search', async (
   expect(screen.getByRole('link', { name: /\/projects\/area\/kharadi/ })).toBeInTheDocument()
   expect(screen.getByText('Where MagicBricks beats us')).toBeInTheDocument()
   expect(within(screen.getByTestId('board-kinds')).getByText('Area searches')).toBeInTheDocument()
+})
+
+it('says where we stand before naming the sites above us, overall and per area', async () => {
+  render(<RankingsTab />)
+  const us = await screen.findByTestId('board-us')
+  expect(us).toHaveTextContent('We show in 225 of 1157 searches')
+  expect(us).toHaveTextContent('Top 3 in 61, first in 17. No. 13 of the 1011 sites seen')
+  expect(screen.getByText(/us 0 of 17, top 3 in 0; 99acres.com 11/)).toBeInTheDocument()
 })
 
 it("explains Google's reasons a project page is not indexed", async () => {

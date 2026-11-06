@@ -141,7 +141,9 @@ export interface BoardWeek { at: string | null; searches: number; ours: number; 
 /** A site in the same Google results (backend seo/scoreboard.leaders): how often it showed above us, or showed when we did not. */
 export interface BoardLeader { site: string; searches: number; above_us: number; top3: number }
 
-export interface Scoreboard extends BoardWeek { next: BoardRow[]; won: BoardRow[]; history: BoardWeek[]; ahead_rows?: BoardRow[]; behind_rows?: BoardRow[]; by_kind?: Record<string, BoardKind>; leaders?: BoardLeader[]; area_leaders?: Record<string, BoardLeader[]> }
+/** Our own line in the same results (backend seo/scoreboard.standing): `place` is among every site seen, by searches shown in. */
+export interface BoardStanding { site: string; searches: number; shows: number; top3: number; first: number; place: number; sites: number }
+export interface Scoreboard extends BoardWeek { next: BoardRow[]; won: BoardRow[]; history: BoardWeek[]; ahead_rows?: BoardRow[]; behind_rows?: BoardRow[]; by_kind?: Record<string, BoardKind>; leaders?: BoardLeader[]; area_leaders?: Record<string, BoardLeader[]>; us?: BoardStanding | null; area_us?: Record<string, BoardStanding> }
 
 /** One project on several pages (backend seo/splits.py). state: the web proved it (it merges by itself), a number still waits its
  * daily search, or everything was searched and only the owner can say. `searches`: searches that showed these pages together. */

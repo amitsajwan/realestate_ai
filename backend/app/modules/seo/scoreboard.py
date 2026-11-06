@@ -14,7 +14,8 @@ and up to FORMAT_EXAMPLES of them; the weekly note says so once a portal reaches
 MagicBricks is the rival we chose; it is not always the one above us. On 2026-11-06 Housiey held Ravet's searches with a thinner
 page than ours (docs/plan/rival-housiey-ravet.md) and the board never named it. So `leaders` counts every other site in the same
 results: how often it sat above us (or showed when we did not), overall and per area, so the rival to study is read from Google
-in any area we add, not picked by hand.
+in any area we add, not picked by hand. `standing` is our own line beside them, overall and per area: without it the board named
+everyone but us, and the owner had to ask where we were (2026-11-06).
 
 Only searches a buyer could type count. The same collection holds our own lookups: a MahaRERA number in quotes (to read a
 project's facts or prove two towers are one) and "<builder> official website Pune". Nobody searches those, MagicBricks rarely
@@ -139,13 +140,33 @@ def area_leaders(docs: List[dict], host: str) -> dict:
     return {a: leaders(ds, host)[:AREA_LEADERS] for a, ds in sorted(by_area.items())}
 
 
+def standing(docs: List[dict], host: str) -> dict:
+    """Our own line for these searches: {site, searches, shows, top3, first, place, sites}. `place` is 1 + the sites that showed in
+    more searches than we did, out of every site seen, so a level site does not push us down."""
+    ranks = [r for r in (rank_of(d.get("results") or [], host) for d in docs) if r is not None]
+    others = leaders(docs, host)
+    return {"site": host, "searches": len(docs), "shows": len(ranks), "top3": sum(r <= 3 for r in ranks), "first": sum(r == 1 for r in ranks),
+            "place": 1 + sum(t["searches"] > len(ranks) for t in others), "sites": len(others) + 1}
+
+
+def area_standing(docs: List[dict], host: str) -> dict:
+    """{area: our line} for the searches tied to an area, including areas where we never show."""
+    by_area: dict = {}
+    for d in docs:
+        if d.get("area"):
+            by_area.setdefault(d["area"], []).append(d)
+    return {a: standing(ds, host) for a, ds in sorted(by_area.items())}
+
+
 def leader_line(board: dict) -> str:
-    """The weekly note's line on who sits above us, when the board has counted it."""
+    """The weekly note's line on where we stand and who sits above us, when the board has counted it."""
     top = [t for t in board.get("leaders") or [] if t.get("above_us")][:3]
     if not top or not board.get("searches"):
         return ""
     names = ", ".join(f"{t['site']} {t['above_us']}" for t in top)
-    return f"Above us most often, of {board['searches']} Google searches: {names}."
+    us = board.get("us")
+    ours = f"We show in {us['shows']} of {us['searches']} Google searches, top 3 in {us['top3']}. " if us else ""
+    return f"{ours}Above us most often, of {board['searches']} Google searches: {names}."
 
 
 def format_alert(fmt: Optional[dict]) -> List[str]:
@@ -198,6 +219,7 @@ async def run_once(store: Store, now: datetime, force: bool = False) -> Optional
     s = score([row(d, host) for d in docs])
     fmt = portal_format(docs)
     s["leaders"], s["area_leaders"] = leaders(docs, host)[:LEADERS_SHOWN], area_leaders(docs, host)
+    s["us"], s["area_us"] = standing(docs, host), area_standing(docs, host)
     line = {k: s[k] for k in ("searches", "ours", "magicbricks", "above_mb", "above_mb_when_shown", "both")}
     line["buyer_only"] = True   # weeks before 2026-11-06 counted our own lookups too: not comparable with this one
     line["portal_format"] = sum(v["booked"] + v["date_moved"] for v in fmt.values())

@@ -127,6 +127,7 @@ def _board(m: dict) -> dict:
             "ahead_rows": [clean(r) for r in m.get("ahead_rows") or []], "behind_rows": [clean(r) for r in m.get("behind_rows") or []],
             "by_kind": m.get("by_kind") or {},
             "leaders": m.get("leaders") or [], "area_leaders": m.get("area_leaders") or {},
+            "us": m.get("us"), "area_us": m.get("area_us") or {},
             "history": [clean(h) for h in m.get("history") or []]}
 
 
