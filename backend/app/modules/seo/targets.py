@@ -96,9 +96,7 @@ async def run_once(store: Store, now: datetime, force: bool = False) -> Optional
     last = _aware((await store.get_mark(MARK)).get("at"))
     if not force and last is not None and now - last < EVERY:
         return None
-    if on_hold(now):   # titles stay as they are while the hold lasts
-        await store.set_mark(MARK, at=now, held=True)
-        return {"held": True}
+    held = on_hold(now)   # titles stay as they are while the hold lasts; the readings below do not (they froze from 2026-10-26)
     by_path: Dict[str, List[dict]] = {}
     conflicts = []
     for d in await store.db.get_collection(DEMAND).find({}).to_list(20000):
@@ -113,7 +111,7 @@ async def run_once(store: Store, now: datetime, force: bool = False) -> Optional
     hosted = {d["_id"] for d in docs if can_host(d)}
     slug_cluster = {d["page_slug"]: d.get("cluster_id") for d in docs if d.get("page_slug")}
     targeted = changed = 0
-    for doc in docs:
+    for doc in () if held else docs:
         if not _served(doc) or doc.get("cluster_primary") in hosted:
             continue
         if doc.get("search_name") and readable(doc["search_name"], doc) is None:
@@ -137,6 +135,8 @@ async def run_once(store: Store, now: datetime, force: bool = False) -> Optional
         await store.set_project(doc["_id"], search_name=name, search_name_at=now)
         await stamp(store, doc["_id"], now, "title")   # the page's one fix for this window, whoever applies the next one
         changed += 1
+    if held:
+        targeted = sum(1 for d in docs if _served(d) and d.get("seo_target"))
     # R2: two of our pages for one search; one project's towers are merged already (same cluster)
     report = []
     for c in sorted(conflicts, key=lambda c: -c["impressions"]):
@@ -154,5 +154,7 @@ async def run_once(store: Store, now: datetime, force: bool = False) -> Optional
             "near_page_one": sum(1 for d in pages if searchconsole.near_page_one(d.get("gsc_position"), d.get("gsc_impressions"))),
             "targeted": targeted}
     history = ((await store.get_mark(MARK)).get("history") or [])[-(HISTORY - 1):] + [snap]
-    await store.set_mark(MARK, at=now, targeted=targeted, changed=changed, history=history)
+    await store.set_mark(MARK, at=now, targeted=targeted, changed=changed, history=history, held=held)
+    if held:
+        return {"held": True}
     return {"targeted": targeted, "titles_changed": changed, "conflicts": len(report)}
