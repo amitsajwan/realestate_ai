@@ -20,12 +20,13 @@ the group keeps the name its registrations share. A model is not needed for eith
 """
 import re
 import unicodedata
-from typing import Dict, Iterable, List, Optional, Set
+from typing import Dict, Iterable, List, Optional, Set, Tuple
 
+from app.core.areas import BY_KEY
 from app.modules.newsroom.register import regnos_in
 
 from .pagefacts import km_between
-from .text import cased, words
+from .text import BRACKETS, LABEL_WORDS, WORDS, ascii_text, cased, group_name, promoter_key, squash, words
 
 MAX_REGNOS = 8          # as webfacts.MAX_REGNOS: more numbers on one page is a list of projects
 FAR_KM = 1.5            # two pins measured on the projects this far apart are two places
@@ -135,3 +136,54 @@ def web_name(members: List[dict], results: Dict[str, List[dict]], shared: str, p
         return None
     best = max(agreed, key=lambda k: (len(sites[k]), len(k.split()), k))
     return " ".join(cased(spelt[best].split()))
+
+
+
+SPLIT_MIN_CHARS = 6   # a shorter name ("Sai", "Om") is shared by unrelated buildings in one pincode
+
+
+def _stem(name: str) -> str:
+    """The words before the first tower or phase label: "The Unicorn Building C Wing C1 & C2" -> "theunicorn". Looser than
+    base_name, which keeps "wing c1 c2" because "C1" is not one of the identifiers it strips."""
+    out: List[str] = []
+    for w in WORDS.findall(ascii_text(BRACKETS.sub(" ", name or "").lower())):
+        if w in LABEL_WORDS:
+            break
+        out.append(w)
+    return squash(" ".join(out))
+
+
+def split_candidates(docs: List[dict], include_merged: bool = False) -> List[dict]:
+    """Registrations that look like one project and have no shared page: the same name before its tower or phase label, in the
+    same pincode (or place, when MahaRERA filed none), with at most one promoter between them. The name rule merges only with a
+    promoter (cluster_key) and only when base_name reads the tower label, so these stay split: on 2026-11-06 Sonigara The
+    Unicorn in Ravet was three pages, none with the name buyers search, while a portal ranked its one page for the area
+    (docs/plan/rival-housiey-ravet.md). Nothing is merged here: the owner confirms a group (agentprojects.groups), as a wrong
+    merge 301s a project's page away. Two promoters never make a candidate (the rule's own safety line), nor a record the
+    owner split by hand (`cluster_skip`). Our areas first, then the most homes."""
+    groups: Dict[Tuple[str, str], List[dict]] = {}
+    for d in docs:
+        stem = _stem(d.get("name") or "")
+        where = str(d.get("pincode") or "").strip() or d.get("pune_place") or d.get("locality") or ""
+        if len(stem) < SPLIT_MIN_CHARS or not where or d.get("cluster_skip"):
+            continue
+        groups.setdefault((stem, where), []).append(d)
+    out = []
+    for (_, where), members in groups.items():
+        if len(members) < 2 or len({promoter_key(m.get("promoter")) for m in members} - {""}) > 1:
+            continue
+        if not include_merged and len({m.get("cluster_id") for m in members}) == 1 and members[0].get("cluster_id"):
+            continue   # already one page
+        members.sort(key=lambda m: str(m.get("regno") or m["_id"]))
+        out.append({
+            "name": group_name([m.get("name") or "" for m in members]),
+            "where": where,
+            "ours": any(m.get("locality") in BY_KEY for m in members),
+            "why": "no promoter" if any(not promoter_key(m.get("promoter")) for m in members) else "tower label",
+            "homes": sum(int(m.get("units_total") or 0) for m in members),
+            "members": [{"regno": m.get("regno") or m["_id"], "name": m.get("name") or "", "slug": m.get("page_slug") or "",
+                         "promoter": m.get("promoter") or ""} for m in members],
+            "docs": members,
+        })
+    out.sort(key=lambda r: (not r["ours"], -r["homes"], r["name"]))
+    return out
