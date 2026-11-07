@@ -31,6 +31,8 @@ export const PROJECT_CTA = {
   visitChoice: 'Site visit',
   /** under the published prices: they are the sites', the offer of the day is the builder's */
   offer: 'Ask for the current offer',
+  /** the same place on a page nobody stands behind yet: no offer to ask for */
+  question: 'Send your question',
 }
 
 /** Who the buyer is told will contact them. Enquiries to the house account are followed up by the team, and messages to leads are

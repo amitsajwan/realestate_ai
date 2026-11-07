@@ -26,7 +26,7 @@ function Points({ items }: { items: Profile['highlights'] }) {
             {h.text}.{' '}
             {h.official
               ? <span className="text-xs text-slate-500">(<SourceKind sources={h.sources.slice(0, 1)} official />)</span>
-              : h.sources.length === 1 && <span className="text-xs text-slate-500">(one property site)</span>}
+              : h.sources.length === 1 && <span className="text-xs text-slate-500">(not yet confirmed)</span>}
           </span>
         </li>
       ))}
@@ -63,8 +63,7 @@ export default function ProjectProfile({ profile, name, part, lead, skip, omit =
             </>
           )}
           <p className="mt-2 text-xs text-slate-600">
-            From the builder&apos;s site and property sites{profile.read_at ? `, read on ${formatDay(profile.read_at)}` : ''}. Property sites can be wrong: confirm with the builder before you book.
-            Dates and bookings come only from MahaRERA.
+            {profile.read_at ? `Last checked ${formatDay(profile.read_at)}. ` : ''}Dates and bookings come only from MahaRERA.
           </p>
         </section>
       )}

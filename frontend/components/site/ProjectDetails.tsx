@@ -95,7 +95,7 @@ export default function ProjectDetails({ p, agentName }: { p: PublicProject; age
             </tbody>
           </table>
         </div>
-        <p className="mt-2 text-xs text-slate-600">{quoted}. Builders change prices often: confirm the price, the floor and any extra charges (parking, GST, stamp duty) before you book.</p>
+        <p className="mt-2 text-xs text-slate-600">{quoted}. Builders change prices often: ask {name} for today&apos;s price, the floor and any extra charges (parking, GST, stamp duty).</p>
         <p className="mt-1 text-xs text-slate-600">* {OWN_CASH_NOTE}</p>
       </section>
 

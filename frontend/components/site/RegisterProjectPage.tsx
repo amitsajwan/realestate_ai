@@ -30,6 +30,7 @@ import { agentPath } from '@/lib/site/slug'
 import { OWN_CASH_NOTE, ownCash } from '@/lib/site/upfront'
 import { projectUpdated, registerAnswer } from '@/lib/site/projectFacts'
 import ProjectPoints, { HomeSizes } from '@/components/site/ProjectPoints'
+import { backing, priceHelp, sizeHelp, type Backing, type PriceHelpText } from '@/lib/site/sellerHelp'
 
 /** The agent's offer on the fact sheet, when it says anything (a price or a size): what campaign posts quote. */
 function liveOffer(facts: PropertyFactsView | null): Offer | null {
@@ -112,7 +113,7 @@ function OfferBox({ o, numbers, stage }: { o: Offer; numbers: PropertyFactsView[
         <CostBreakdown price={o.price_inr} stage={stage} sqft={sheet ? priced?.carpet_sqft : o.carpet_sqft}
           what={`${priced ? `the ${priced.label}` : 'this home'} at ${formatPrice(o.price_inr)}`} />
       ) : null}
-      <p className="mt-2 text-xs text-slate-600">From {o.source || "the agent's listing"}{o.read_at ? `, ${longDay(o.read_at)}` : ''}. Prices change: confirm before you book.</p>
+      <p className="mt-2 text-xs text-slate-600">From {o.source || "the agent's listing"}{o.read_at ? `, ${longDay(o.read_at)}` : ''}.</p>
     </div>
   )
 }
@@ -298,11 +299,29 @@ function Hero({ p, price, photo, linkless = false, closed = false }: { p: Regist
   )
 }
 
+/** The way from a published price to the buyer's own: one panel in the hero's colours, so the section ends on what we do for them
+ *  and not on a footnote. What it promises comes from what stands behind the page (lib/site/sellerHelp). */
+function PriceHelp({ help }: { help: PriceHelpText | null }) {
+  if (!help) return null
+  return (
+    <div className="rounded-2xl bg-[var(--site-primary,#0f2340)] p-4 text-white sm:flex sm:items-center sm:justify-between sm:gap-4 sm:p-5" data-testid="price-help">
+      <div className="min-w-0">
+        <p className="font-bold">{help.title}</p>
+        <p className="mt-1 text-sm text-slate-200">{help.body}</p>
+      </div>
+      <a href="#enquire" className="mt-3 inline-flex min-h-[48px] shrink-0 items-center rounded-full bg-amber-400 px-6 font-bold text-slate-900 no-underline sm:mt-0" data-testid="ask-offer">
+        {help.action}
+      </a>
+    </div>
+  )
+}
+
 /** Prices and sizes ("<name> price"): the agent's offer first when there is one (the page's one price), else the published asked
- *  prices per home size, then the rounded price idea (sizes one site prices, the area's usual bands); the area's ₹ per sq ft
- *  beside them, then the ask for the day's offer. */
-function PricesSection({ p, shown, offer, priced, numbers, stage }: {
+ *  prices per home size, then the rough price guide (sizes one site prices, the area's usual bands); the area's ₹ per sq ft
+ *  beside them, then what the buyer gets by asking. */
+function PricesSection({ p, shown, offer, priced, numbers, stage, help }: {
   p: RegisterProject; shown: string; offer: Offer | null; priced: boolean; numbers: PropertyFactsView['numbers']; stage: Stage
+  help: PriceHelpText | null
 }) {
   const rows = !priced && (p.prices?.rows ?? []).length > 0
   const rate = p.area_rate && p.area_rate.per_sqft > 0 ? p.area_rate : null
@@ -315,17 +334,15 @@ function PricesSection({ p, shown, offer, priced, numbers, stage }: {
       <div className="mt-3 space-y-4">
         {offer && <OfferBox o={offer} numbers={numbers} stage={stage} />}
         {!priced && <PriceBox prices={p.prices} stage={stage} />}
-        {!offer && !rows && !idea?.rows.length && <p className="text-slate-800">No price for {shown} is published yet: ask and we send you the builder&apos;s price sheet.</p>}
+        {!offer && !rows && !idea?.rows.length && <p className="text-slate-800">No price for {shown} is published yet.</p>}
         {idea && <PriceIdea idea={idea} shown={shown} />}
         {rate && (
           <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-800" data-testid="area-rate">
             <span className="font-semibold">{rate.place} average {perSqft(rate.per_sqft)}</span> across {rate.projects} projects
-            <span className="block text-xs text-slate-600">The middle of the asking prices with a size that sites publish for other projects in {rate.place}.</span>
+            <span className="block text-xs text-slate-600">The middle asking price per sq ft of other projects in {rate.place}.</span>
           </p>
         )}
-        <a href="#enquire" className="inline-flex min-h-[48px] items-center rounded-full bg-[#0f2340] px-6 font-bold text-white no-underline" data-testid="ask-offer">
-          {PROJECT_CTA.offer}
-        </a>
+        <PriceHelp help={help} />
       </div>
     </section>
   )
@@ -412,8 +429,21 @@ const CHECK_KEYS = ['maharera_general', 'buildings', 'places', 'text'] as const
 const CHECK_NAMES: Record<string, string> = { maharera_general: 'Dates and homes booked', buildings: 'Buildings and wings',
   places: 'Location and nearby', text: 'Description' }
 
+/** Where the price, size and highlight facts were read: said once here, so the blocks above read as ours and not as notes on other
+ *  sites. It stays in the page's text for search and for anyone who wants to check. */
+function readSources(p: RegisterProject, offer: Offer | null): { label: string; kind: Source; note: string }[] {
+  const rows: { label: string; kind: Source; note: string }[] = []
+  const when = (at?: string | null) => (at ? ` (${longDay(at)})` : '')
+  if (offer) rows.push({ label: 'Price', kind: 'checked', note: `The agent's price sheet${when(offer.read_at)}` })
+  else if (p.prices?.rows.length) rows.push({ label: 'Prices', kind: 'checked', note: `The builder's site, or two property sites that agree${when(p.prices.read_at)}` })
+  if (!offer && p.price_idea?.rows.length) rows.push({ label: 'Rough price guide', kind: 'checked', note: `An asking price seen on one site, rounded and checked against the area${when(p.price_idea.read_at)}` })
+  if (p.home_sizes?.length) rows.push({ label: 'Home sizes', kind: 'checked', note: "The builder's site and property sites. A size marked not yet confirmed comes from one site." })
+  if (p.profile?.highlights.length) rows.push({ label: 'Project facts and amenities', kind: 'checked', note: `The builder's site and property sites, which can be wrong: where they differ from MahaRERA, MahaRERA counts${when(p.profile.read_at)}` })
+  return rows
+}
+
 /** Every check behind the page: what came from MahaRERA, what we gathered elsewhere and checked, and what is still waiting. */
-function Checks({ p }: { p: RegisterProject }) {
+function Checks({ p, offer }: { p: RegisterProject; offer: Offer | null }) {
   const byKey = Object.fromEntries((p.checks ?? []).map((c) => [c.key, c])) as Record<string, EnrichCheck | undefined>
   const rows: { label: string; kind: Source; note: string }[] = [
     { label: 'Registration, promoter, pincode', kind: 'rera', note: p.listed_or_updated ? `MahaRERA listing, updated ${longDay(p.listed_or_updated)}` : 'MahaRERA listing' },
@@ -426,6 +456,7 @@ function Checks({ p }: { p: RegisterProject }) {
     else rows.push({ label, kind: c.ok ? (fromRera ? 'rera' : 'checked') : 'unchecked',
       note: (c.ok ? c.note : 'We are still checking this') + (c.at ? ` (${longDay(c.at)})` : '') })
   }
+  rows.push(...readSources(p, offer))
   return (
     <details className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5" data-testid="checks">
       <summary className="min-h-[44px] cursor-pointer py-2 font-semibold text-slate-900">Sources</summary>
@@ -643,14 +674,10 @@ function Videos({ videos, name, agent }: { videos: { url: string; label: string 
   )
 }
 
-/** Where a web fact was read: the builder's own site (linked) or how many property sites agree (never named). */
-function WebSources({ f }: { f: WebFact }) {
-  return <SourceKind sources={f.sources} official={f.official} />
-}
 
 /** "whole project (builder's site)": a count the sites give for the whole marketed project, said beside MahaRERA's count for this
  *  registration so five towers and two buildings do not read as a contradiction. */
-const wholeProject = (f: WebFact) => `whole project (${f.official ? "builder's site" : 'property sites'})`
+const wholeProject = (f: WebFact) => (f.official ? "whole project (builder's site)" : 'whole project')
 
 /** "<name> possession date": the completion date filed with MahaRERA and how it changed since registration. MahaRERA's 2026
  *  blanket extension is the regulator's, so when it is the only change the date is never said to have moved. */
@@ -728,19 +755,19 @@ function RecordSection({ p, shown, facts, linkless = false }: { p: RegisterProje
         <TowerByTower p={p} />
         {rest.length > 0 && (
           <div role="group" aria-labelledby="web-facts-title" data-testid="web-facts">
-            <SectionHead id="web-facts-title" title="What the builder and property sites say" kind="checked" level={3} />
+            <SectionHead id="web-facts-title" title={`More about ${shown}`} kind="checked" level={3} />
             <dl className="mt-3 grid gap-3 sm:grid-cols-2">
               {rest.map((f) => (
                 <div key={f.key} className="rounded-2xl border border-slate-200 bg-white p-4">
                   <dt className="text-sm text-slate-600">{f.label}{f.scope === 'project' ? `, ${wholeProject(f)}` : ''}</dt>
                   <dd className="mt-1 text-lg font-bold text-slate-900">{f.text}</dd>
-                  <dd className="mt-1 text-xs text-slate-600">From <WebSources f={f} /></dd>
+                  {f.official && <dd className="mt-1 text-xs text-slate-600">From <SourceKind sources={f.sources.slice(0, 1)} official /></dd>}
                 </div>
               ))}
             </dl>
             <p className="mt-2 text-xs text-slate-600">
-              Shown only when the builder&apos;s own site says it or two sites agree{p.web_facts?.read_at ? `; read on ${longDay(p.web_facts.read_at)}` : ''}.
-              Where these differ from MahaRERA, MahaRERA&apos;s record is the one that counts.
+              {p.web_facts?.read_at ? `Last checked ${longDay(p.web_facts.read_at)}. ` : ''}Each is on the builder&apos;s own site or on two sites
+              that agree. Where these differ from MahaRERA, MahaRERA&apos;s record is the one that counts.
             </p>
           </div>
         )}
@@ -824,6 +851,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
   // form, ask box or phone bar, and the projects still being built nearby come straight after the answer; an agent's listing of
   // one (a resale flat) keeps its form
   const closed = !!p.finished && !seller && !offer
+  const backs: Backing = backing(p, { closed, offer: !!liveOffer(facts)?.price_inr, seller: !!seller })
   const others = !seller && (p.same_area.length > 0 || closed) && (p.area || placeName) ? (
             <section aria-labelledby="same-title" data-testid="compare">
               <h2 id="same-title" className={H2}>{closed ? `Still being built in ${p.area?.name ?? placeName}` : `Other projects in ${p.area?.name ?? placeName}`}</h2>
@@ -916,8 +944,8 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
 
       <div className="mt-8 grid gap-8 lg:grid-cols-3">
         <div className="min-w-0 space-y-10 lg:col-span-2">
-          {!closed && <PricesSection p={p} shown={shown} offer={liveOffer(facts)} priced={!!price} numbers={facts?.numbers} stage={stage} />}
-          <HomeSizes sizes={p.home_sizes} name={shown} />
+          {!closed && <PricesSection p={p} shown={shown} offer={liveOffer(facts)} priced={!!price} numbers={facts?.numbers} stage={stage} help={priceHelp(backs, leadName)} />}
+          <HomeSizes sizes={p.home_sizes} name={shown} help={sizeHelp(backs, leadName)} />
           {!closed && <ProjectProfile profile={p.profile} name={shown} part="plans" plans3d={p.plans_3d?.items ?? []} lead={{ agentSlug: leadSlug, agentName: leadName,
             topic: enquiryTopic, waMessage: `Hi, I want to know about ${p.name} (MahaRERA ${p.regno}): ${url}` }} />}
           <LocationSection p={p} shown={shown} nearby={nearby} sources={facts?.nearby_sources ?? []} />
@@ -973,7 +1001,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
 
           <FaqBox faq={faq} />
 
-          <Checks p={p} />
+          <Checks p={p} offer={liveOffer(facts)} />
         </div>
 
         <aside className="min-w-0 space-y-6 lg:sticky lg:top-20 lg:self-start">

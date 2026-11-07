@@ -198,10 +198,10 @@ function ownFaq(p: RegisterProject, nearby: { label?: string | null; name?: stri
   const shown = displayName(p)
   const asked = askedPrices(p)
   out.push({ topic: 'price', q: `What is the price of ${shown}?`,
-    a: price ? `A local agent quotes ${price} for ${shown}. Prices change often: confirm the price and what it includes before you book.`
-      : asked ? `${asked.rows.map((r) => r.text).join('; ')}, as listed on ${asked.sites}${asked.on ? ` on ${longDay(asked.on)}` : ''}. `
+    a: price ? `A local agent quotes ${price} for ${shown}. Prices change often: ask for today's price and what it includes.`
+      : asked ? `${asked.rows.map((r) => r.text).join('; ')}${askedSource(asked)}. `
         + 'Builders change prices often and add parking and other charges: ask for the current price sheet before you book.'
-      : `No agent has quoted a price for ${shown} yet. Ask through the enquiry form on this page and a local agent will send you the current price.` })
+      : `No price for ${shown} is published yet. Ask through the enquiry form on this page for the current price.` })
   const d = p.details
   const where = p.area ? `${p.area.name}, Pune` : [p.place, p.taluka, 'Pune district'].filter(Boolean).join(', ')
   const change = completionChange(p)
@@ -480,14 +480,21 @@ export function priceRowLabel(bhk: string): string {
   return /^all homes$/i.test(bhk.trim()) ? 'Homes' : bhk
 }
 
-/** The asked prices we publish (backend areastats/prices.py) in words: per home size, the lowest price, the sites. Null when none.
+/** Where an asked price stands, in the words the page's answer and FAQ quote: the builder's site by name, otherwise only the date.
+ *  Portals are not named in the answer AI search quotes (owner 2026-10-30: other sites are never named); the Sources panel has
+ *  the kind of source, so the date is what stays beside the figure. */
+export function askedSource(a: { official: boolean; on: string | null }): string {
+  const on = a.on ? ` on ${longDay(a.on)}` : ''
+  return a.official ? `, as listed on the builder's site${on}` : on ? `, checked${on}` : ''
+}
+
+/** The asked prices we publish (backend areastats/prices.py) in words: per home size, the lowest price, whether the builder's site gives it. Null when none.
  *  `bhks` names only the rows that are a BHK size ("3, 4 BHK"); an "All homes" or "Plot" row is not one, so `bhks` is "" when no
  *  row is (a page once read "All homes BHK from ₹1.99 Cr"). A row's `text` reads "2 BHK: ₹69 L to ₹80 L", or "Homes from ₹1.99 Cr". */
-export function askedPrices(p: Pick<RegisterProject, 'prices'>): { rows: { bhk: string; range: string; text: string }[]; from: string; bhks: string; sites: string; on: string | null } | null {
+export function askedPrices(p: Pick<RegisterProject, 'prices'>): { rows: { bhk: string; range: string; text: string }[]; from: string; bhks: string; official: boolean; on: string | null } | null {
   const rows = (p.prices?.rows ?? []).filter((r) => r.from_inr > 0)
   if (!rows.length) return null
   const lowest = Math.min(...rows.map((r) => r.from_inr))
-  const sites = Array.from(new Set(rows.flatMap((r) => r.sources.map((s) => s.site)))).slice(0, 3)
   const sized = Array.from(new Set(rows.map((r) => BHK_ROW.exec(r.bhk.trim())?.[1]).filter(Boolean)))
   return {
     rows: rows.map((r) => {
@@ -496,7 +503,7 @@ export function askedPrices(p: Pick<RegisterProject, 'prices'>): { rows: { bhk: 
     }),
     from: formatPrice(lowest),
     bhks: sized.length ? sized.join(', ') + ' BHK' : '',
-    sites: sites.join(' and '),
+    official: rows.some((r) => r.sources.some((s) => s.url)),
     on: p.prices?.read_at ?? null,
   }
 }

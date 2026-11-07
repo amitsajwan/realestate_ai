@@ -31,8 +31,9 @@ export function UsualBands({ place, rows, testId = 'usual-bands' }: { place: str
   )
 }
 
-/** "Price idea" on a project page (owner 2026-10-31): the sizes no exact price can be published for (one site only), as rounded
- *  bands checked against the area, then the area's usual bands. Never in the hero price, the compare list or the JSON-LD offers. */
+/** The rough price guide on a project page (owner 2026-10-31, "price idea"): the sizes no exact price can be published for (one
+ *  site only), as rounded bands checked against the area, then the area's usual bands. Never in the hero price, the compare list
+ *  or the JSON-LD offers. Who gets the exact price is the panel under it; where the band came from is in the Sources panel. */
 export default function PriceIdea({ idea, shown }: { idea: Idea | null | undefined; shown: string }) {
   if (!idea || (!idea.rows.length && !idea.area.length)) return null
   const read = idea.read_at ? formatDay(idea.read_at) : ''
@@ -40,7 +41,7 @@ export default function PriceIdea({ idea, shown }: { idea: Idea | null | undefin
     <div className="space-y-3" data-testid="price-idea">
       {idea.rows.length > 0 && (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-4">
-          <p className="text-sm font-semibold text-slate-700">Price idea for {shown}</p>
+          <p className="text-sm font-semibold text-slate-700">Rough price guide for {shown}</p>
           <ul className="mt-2 list-none space-y-1 p-0">
             {idea.rows.map((r) => (
               <li key={r.bhk} className="text-slate-900" data-testid="price-idea-row">
@@ -49,8 +50,8 @@ export default function PriceIdea({ idea, shown }: { idea: Idea | null | undefin
             ))}
           </ul>
           <p className="mt-2 text-xs text-slate-600">
-            A rough range we worked out from asking prices seen online{read ? ` on ${read}` : ''}, rounded on purpose and checked against
-            the area. It is not a quote: ask and we get you the builder&apos;s current price sheet.
+            Our own rounded guide, checked against the area{read ? ` on ${read}` : ''}. It is not a quote: the exact price is on the
+            builder&apos;s price sheet.
           </p>
         </div>
       )}

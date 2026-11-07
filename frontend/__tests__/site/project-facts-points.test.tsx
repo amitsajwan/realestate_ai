@@ -20,7 +20,7 @@ describe('the project facts and amenities', () => {
   it('says the source only for the builder or a single site', () => {
     render(<ProjectProfile profile={profile as never} name="Rose Court" part="highlights" />)
     expect(screen.queryByText(/2 property sites/)).toBeNull()
-    expect(screen.getByText('(one property site)')).toBeTruthy()
+    expect(screen.getByText('(not yet confirmed)')).toBeTruthy()
     expect(screen.getByText(/the builder.s site\s*\)?/i, { selector: 'a' })).toBeTruthy()
   })
 })

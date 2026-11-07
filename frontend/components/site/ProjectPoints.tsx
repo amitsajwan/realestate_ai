@@ -26,8 +26,9 @@ export default function ProjectPoints({ p, updated }: { p: Pick<RegisterProject,
   )
 }
 
-/** Each kind of home's size as sites state it. The kind of area always goes with it: carpet and saleable differ by 30-40%. */
-export function HomeSizes({ sizes, name }: { sizes?: RegisterProject['home_sizes']; name: string }) {
+/** Each kind of home's size as sites state it. The kind of area always goes with it: carpet and saleable differ by 30-40%. A size
+ *  only one site gives stays marked, without sending the reader to that site. `help` is who confirms a size (lib/site/sellerHelp). */
+export function HomeSizes({ sizes, name, help }: { sizes?: RegisterProject['home_sizes']; name: string; help?: string | null }) {
   if (!sizes?.length) return null
   return (
     <section aria-labelledby="sizes-title" data-testid="home-sizes">
@@ -35,11 +36,14 @@ export function HomeSizes({ sizes, name }: { sizes?: RegisterProject['home_sizes
       <ul className="mt-3 list-none space-y-1 p-0">
         {sizes.map((x) => (
           <li key={x.bhk} className="text-slate-800">
-            <strong className="font-semibold">{x.bhk}:</strong> {x.low === x.high ? `${x.low.toLocaleString('en-IN')} sq ft` : `${x.low.toLocaleString('en-IN')} to ${x.high.toLocaleString('en-IN')} sq ft`}, {x.kind}{x.one_site && <span className="text-xs text-slate-500"> (one property site)</span>}
+            <strong className="font-semibold">{x.bhk}:</strong> {x.low === x.high ? `${x.low.toLocaleString('en-IN')} sq ft` : `${x.low.toLocaleString('en-IN')} to ${x.high.toLocaleString('en-IN')} sq ft`}, {x.kind}{x.one_site && <span className="text-xs text-slate-500"> (not yet confirmed)</span>}
           </li>
         ))}
       </ul>
-      <p className="mt-2 text-xs text-slate-600">From the builder&apos;s site and property sites. Confirm the carpet area with the builder before you book.</p>
+      <p className="mt-2 text-sm text-slate-600" data-testid="sizes-note">
+        The final carpet area depends on the tower and floor, and your agreement for sale states it.
+        {help && <> <a href="#enquire" className="font-semibold text-[#0f2340] underline underline-offset-2">{help}</a></>}
+      </p>
     </section>
   )
 }

@@ -68,7 +68,8 @@ export default function AboutPage() {
               the number of homes and how many are booked. Booked counts are the builders&apos; own, filed with MahaRERA each quarter. We read
               the register again and again, and every page shows the date we last read it.</li>
             <li><b>Prices</b> come from the builder&apos;s own site, from two property sites that agree, or from a local agent who quotes it.
-              Each price names where it came from and when it was read. Where we have no price, we say so; we never estimate one.</li>
+              Each shows when it was read, and the project page&apos;s Sources panel says where it came from. Where only one site gives a
+              price, we show a rounded rough guide marked as one, never as a price. Where we have no price, we say so.</li>
             <li><b>Towers and phases</b> of one project are one page and count once in every list.</li>
             <li><b>Places nearby</b> are measured from the project&apos;s own pin on the map, never from a brochure.</li>
             <li><b>Projects not yet registered</b> are never shown as for sale. A builder&apos;s announced project gets a page marked

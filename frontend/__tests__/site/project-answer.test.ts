@@ -16,7 +16,7 @@ describe('project page opening', () => {
     const prices = { read_at: '2026-10-20', rows: [{ bhk: '2 BHK', from_inr: 6900000, to_inr: null, official: false, sources: [{ site: '99acres', url: null }, { site: 'Housing', url: null }] }] }
     expect(registerAnswer({ ...P, prices })).toBe('As of 3 Oct 2026, Rohan Abhilasha 4 by Rohan Builders in Wagholi, Pune is registered with MahaRERA as '
       + 'P52100080076. The completion date filed with MahaRERA is 30 Oct 2029, moved from 31 Dec 2028 at registration. '
-      + 'MahaRERA shows 244 of 416 homes booked. 2 BHK from ₹69 L, as listed on 99acres and Housing on 20 Oct 2026.')
+      + 'MahaRERA shows 244 of 416 homes booked. 2 BHK from ₹69 L, checked on 20 Oct 2026.')
   })
 
   it('says when MahaRERA\'s own order is in a move, so it does not read as a delay, and an agent\'s sheet is the one price', () => {
@@ -85,7 +85,7 @@ describe('an "All homes" price row', () => {
     expect(asked.bhks).toBe('')
     expect(asked.rows[0].text).toBe('Homes from ₹1.99 Cr')
     const a = registerAnswer({ ...P, prices: allHomes })
-    expect(a).toContain('Homes from ₹1.99 Cr, as listed on parkeden.example on 20 Oct 2026.')
+    expect(a).toContain("Homes from ₹1.99 Cr, as listed on the builder's site on 20 Oct 2026.")
     expect(a).not.toMatch(/BHK/)
     expect(projectFaq({ ...P, prices: allHomes })[0].a).toMatch(/^Homes from ₹1.99 Cr, as listed/)
   })

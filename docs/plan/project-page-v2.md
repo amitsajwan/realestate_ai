@@ -81,3 +81,12 @@ the model budget (areastats.budget), premium projects first.
   JSON-LD ApartmentComplex with `offers` (an Offer or AggregateOffer per price row, floor size in FTK), BreadcrumbList,
   FAQPage, WebPage. The page doctor's description is used unless the page quotes a price and the doctor's text has none.
 - Not checked yet: Google's Rich Results Test on a live page, the hub coordinates on a map, a live model run on Park Eden.
+
+## Seller voice (2026-11-07)
+The page used to read as research about a project: a note under each block said which sites it came from and told the buyer to
+confirm with the builder, which sent a lead away from us. Each fact keeps its caution; who does the checking changes.
+- What a page may promise comes from `lib/site/sellerHelp.ts`: `sheet` (an agent's price), `covered` (an agent's page, or House
+  Deal's six areas), `ask` (elsewhere: the team says what it can find out), `closed` (finished, no enquiries, no promise).
+- Say "the Avasetu team gets you", never "we sell": Avasetu's own MahaRERA agent registration is not on record here.
+- Sources are said once, in the Sources panel. A row names the builder's site when it is the source, else only the date.
+- The price section ends on one panel in the hero's colours, not on a footnote.

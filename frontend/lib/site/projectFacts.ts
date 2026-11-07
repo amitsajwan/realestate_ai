@@ -5,7 +5,7 @@
  */
 import { formatPrice } from './format'
 import { bhkRange as offerBhks } from './projects'
-import { askedPrices, displayName, extensionSentence, isExtensionOnly, longDay, monthsApart, unitWord } from './register'
+import { askedPrices, askedSource, displayName, extensionSentence, isExtensionOnly, longDay, monthsApart, unitWord } from './register'
 import type { RegisterProject } from './register'
 import type { CatalogProject } from './types'
 
@@ -91,7 +91,7 @@ export function bookedSince(p: Pick<RegisterProject, 'booked_readings'>): { rose
 export function registerAnswer(p: RegisterProject, offer?: { from: string; bhks: string } | null): string {
   const asked = askedPrices(p)
   const price = offer ? `${offer.bhks ? `${offer.bhks} ` : ''}from ${offer.from} on a local agent's price sheet`
-    : asked ? `${asked.bhks || 'homes'} from ${asked.from}, as listed on ${asked.sites}${asked.on ? ` on ${longDay(asked.on)}` : ''}` : null
+    : asked ? `${asked.bhks || 'homes'} from ${asked.from}${askedSource(asked)}` : null
   return projectAnswer({
     name: displayName(p), builder: p.builder?.name || p.promoter,
     where: p.area ? `${p.area.name}, Pune` : [p.pune_place?.name ?? p.place, 'Pune district'].filter(Boolean).join(', '),
