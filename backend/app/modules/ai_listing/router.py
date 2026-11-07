@@ -7,10 +7,12 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.auth_backend import current_active_user
 from app.models.user import User
+from app.modules.listings.router import get_service as get_listings
+from app.modules.listings.service import ListingError, ListingService
 
 from .llm import LLMClient, Transcriber, TranscriptionError, default_listing_llm, default_transcriber
 from .about import suggest_about
-from .register import RERA
+from .register import RERA, listing_mismatches
 from .schemas import AIDraft
 from .service import AIListingService, AudioInput, TranscriberUnavailable
 
@@ -71,6 +73,19 @@ async def _read_audio(f: UploadFile, language: Optional[str]) -> AudioInput:
         raise HTTPException(status_code=400, detail="Audio file is empty.")
     return AudioInput(bytes(data), f.filename or "audio" + (ext or ".webm"), ctype or "application/octet-stream",
                       (language or "").strip()[:8] or None)
+
+
+@router.get("/{listing_id}/maharera-check")
+async def maharera_check(listing_id: str, user: User = Depends(current_active_user), register: Any = Depends(get_register),
+                         svc: ListingService = Depends(get_listings)):
+    """Where this listing disagrees with the MahaRERA record of its own number (Studio's Overview asks the agent to settle it)."""
+    try:
+        listing = (await svc.get_mine(str(user.id), listing_id)).model_dump()
+    except ListingError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
+    regno = (listing.get("rera_no") or "").strip().upper()
+    record = await register.project(regno) if regno and register is not None else None
+    return {"items": listing_mismatches(listing, record) if record else []}
 
 
 @router.post("/ai/draft", response_model=AIDraft)

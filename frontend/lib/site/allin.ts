@@ -7,6 +7,7 @@
  *  - Stamp duty: 7% inside PMC and PCMC limits (5% duty, 1% local body tax, 1% metro cess), 6% when a woman buys. Charged on the
  *    agreement value or the ready reckoner value, whichever is higher, so 7% of the price is the least it can be.
  *  - Registration: 1%, at most ₹30,000.
+ *  - A shop or office pays neither home rate, so its GST is left for the builder to state.
  *  What the builder adds (parking, club house, maintenance deposit, legal and society charges) differs by project and is never
  *  guessed: only the builder's cost sheet has it. */
 
@@ -39,14 +40,20 @@ export interface AllIn {
 
 const rupees = (n: number) => Math.round(n)
 
+/** A listing's property type that is a shop or office: home loan sums and the home GST rates do not apply to it. */
+export const isCommercial = (type: string | null | undefined) => /office|shop|commercial/i.test(type || '')
+
 /** `sqft`: the home's size when known. It may be the saleable area (sites mix them), which is never smaller than the carpet
  *  area, so a size within the limit always means the carpet is within it too; a larger one leaves the question open. */
-export function allInCost(price: number, stage: Stage, sqft?: number | null): AllIn {
+export function allInCost(price: number, stage: Stage, sqft?: number | null, commercial = false): AllIn {
   const lines: CostLine[] = [{ key: 'price', label: 'Price (agreement value)', amount: rupees(price), note: 'As quoted, before taxes.' }]
 
   const cheap = price <= AFFORDABLE_MAX_PRICE
   const small = sqft != null && sqft > 0 && sqft <= AFFORDABLE_MAX_SQFT
-  if (stage === 'completion_passed') {
+  if (commercial) {
+    lines.push({ key: 'gst', label: 'GST', amount: null,
+      note: 'Shops and offices do not get the home rates of 1% or 5%: ask the builder for the GST on this unit.' })
+  } else if (stage === 'completion_passed') {
     lines.push({ key: 'gst', label: 'GST', amount: null,
       note: `None if the builder has the occupancy certificate (OC). Without it, ${cheap ? '1% or 5%' : '5%'} as for a home being built.` })
   } else if (cheap && small) {
@@ -62,7 +69,7 @@ export function allInCost(price: number, stage: Stage, sqft?: number | null): Al
   lines.push({ key: 'registration', label: 'Registration (1%, at most ₹30,000)', amount: rupees(Math.min(REGISTRATION * price, REGISTRATION_CAP)), note: '' })
 
   const total = lines.reduce((sum, l) => sum + (l.amount ?? 0), 0)
-  return { lines, total, gstLeftOut: stage === 'completion_passed' }
+  return { lines, total, gstLeftOut: commercial || stage === 'completion_passed' }
 }
 
 export const BUILDER_CHARGES_NOTE = 'Not included: parking, club house, maintenance deposit, legal and society charges. They differ by '

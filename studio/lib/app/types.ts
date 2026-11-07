@@ -437,6 +437,13 @@ export interface AskAiLine extends Checked { text: string; source: string; keep:
 export type PictureType = 'building render' | 'amenity' | 'interior' | 'view' | 'master plan' | 'floor plan' | 'location map' | 'price card'
 export interface PictureSlot { type: PictureType; shows: string; where: string; text: string; why: string; url?: string | null }
 /** A pasted AI answer read in parts (listings/askai.py read_answer). */
+/** A listing fact that differs from the MahaRERA record of its number (ai_listing.register.listing_mismatches). */
+export interface MahareraMismatch {
+  field: 'project_name' | 'locality' | 'possession'
+  yours: string
+  maharera: string
+}
+
 export interface AskAiAnswer {
   lines: AskAiLine[]
   headline: (Checked & { text: string }) | null
@@ -642,6 +649,8 @@ export interface AppApi {
   askAiPrompts(id: string, lang?: DraftLanguage): Promise<AskAiPrompt[]>
   /** Each line of a pasted AI answer, marked by where its numbers are found. */
   askAiCheck(id: string, text: string): Promise<AskAiAnswer>
+  /** Where this listing disagrees with the MahaRERA record of its number. */
+  mahareraCheck(id: string): Promise<MahareraMismatch[]>
   aiDraft(req: AIDraftRequest): Promise<AIDraft>
   aiDraftProject(regno: string): Promise<AIDraft>
   searchProjects(q: string): Promise<ProjectHit[]>

@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.core.auth_backend import current_active_user
+from app.modules.ai_listing import register as reg
 from app.modules.ai_listing import router as r
 from app.modules.ai_listing.extractor import extract
 from app.modules.ai_listing.service import AIListingService
@@ -119,3 +120,34 @@ def test_the_route_reads_our_register_as_wired(monkeypatch):
         raise RuntimeError("not connected")
     monkeypatch.setattr(database, "get_database", down)
     assert r.get_register() is None
+
+
+UBC = {"_id": "PC1260002501550", "regno": "PC1260002501550", "name": "UBC", "pune_place_name": "Mohammadwadi", "pincode": "411060",
+       "taluka": "Haveli", "completion_at_registration": "2027-12-31"}
+
+
+def _named(name):
+    words = "office in Undri, RERA PC1260002501550, 55 lakh"
+    return asyncio.run(AIListingService(FakeLLM({"project_name": name})).from_text(words, register=FakeRegister([UBC]))).draft["project_name"]
+
+
+def test_a_name_that_only_describes_the_building_gives_way_to_the_record_of_the_number():
+    assert _named("Commercial Complex") == "UBC"
+    assert _named("Bathiya Plaza") == "Bathiya Plaza"
+
+
+def test_a_marketed_name_stays_over_the_record():
+    assert not reg.generic_name("Lodha Camelot Tower") and not reg.generic_name("") and not reg.generic_name(None)
+    assert reg.listing_mismatches({"project_name": "Lodha Camelot"}, UBC) == []
+
+
+def test_a_listing_is_told_where_it_differs_from_the_record_of_its_number():
+    got = reg.listing_mismatches({"project_name": "Commercial Complex", "locality": "Undri", "possession": "2027-01"}, {**UBC, "completion_at_registration": "2029-12-31"})
+    assert got == [{"field": "project_name", "yours": "Commercial Complex", "maharera": "UBC"},
+                   {"field": "locality", "yours": "Undri", "maharera": "Mohammadwadi"},
+                   {"field": "possession", "yours": "2027-01", "maharera": "2029-12"}]
+
+
+def test_a_nearby_area_name_or_a_later_or_unmonthed_possession_is_not_a_mismatch():
+    assert reg.listing_mismatches({"locality": "Upper Mohammadwadi", "possession": "2028-06"}, UBC) == []
+    assert reg.listing_mismatches({"possession": "under_construction"}, UBC) == []

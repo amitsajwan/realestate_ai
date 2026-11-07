@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react'
 import React from 'react'
 import PriceBox from '@/components/site/PriceBox'
 import RegisterProjectPage from '@/components/site/RegisterProjectPage'
-import { allInCost } from '@/lib/site/allin'
+import { allInCost, isCommercial } from '@/lib/site/allin'
 import type { RegisterProject } from '@/lib/site/register'
 
 jest.mock('@/components/site/EnquiryForm', () => ({ __esModule: true, default: () => <div /> }))
@@ -121,4 +121,13 @@ describe('the register project page', () => {
     render(<RegisterProjectPage p={{ ...P, prices: null }} siteUrl="https://avasetu.in" facts={rent} />)
     expect(within(screen.getByTestId('offer')).queryByTestId('all-in')).toBeNull()
   })
+})
+
+it('a shop or office pays neither home rate: its GST is asked of the builder and stays out of the total', () => {
+  const c = allInCost(5_500_000, 'building', 445, true)
+  expect(c.lines.find((l) => l.key === 'gst')?.amount).toBeNull()
+  expect(c.gstLeftOut).toBe(true)
+  expect(c.total).toBe(5_500_000 + 385_000 + 30_000)
+  expect(isCommercial('office')).toBe(true)
+  expect(isCommercial('apartment')).toBe(false)
 })

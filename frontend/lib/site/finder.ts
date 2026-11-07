@@ -281,7 +281,7 @@ export function bhkOf(label: string | number | null | undefined): number | null 
 /** "2, 3 & 4 BHK": an item's home types in order ("Plots" when it has no BHK). */
 export function bhkRange(item: FinderItem): string {
   const bs = Array.from(new Set(item.homes.map((h) => h.bhk).filter((b): b is number => b != null))).sort((a, b) => a - b)
-  if (!bs.length) return item.type === 'plot' ? 'Plots' : 'Homes'
+  if (!bs.length) return item.type === 'plot' ? 'Plots' : item.type === 'commercial' ? 'Shops & offices' : 'Homes'
   return bs.length === 1 ? `${bs[0]} BHK` : `${bs.slice(0, -1).join(', ')} & ${bs[bs.length - 1]} BHK`
 }
 

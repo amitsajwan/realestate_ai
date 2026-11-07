@@ -3,6 +3,7 @@ display, each block with its source. Pure: takes the stored `property_facts` doc
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from .calc import COMMERCIAL
 from .surroundings import label
 
 NEARBY_MAX = 5
@@ -69,7 +70,8 @@ def view(doc: Optional[dict]) -> Optional[dict]:
 
     numbers: Dict[str, Any] = {}
     for k in ("price_per_sqft", "plot_guntha", "plot_sqm", "emi"):
-        if _val(f, k) is not None:
+        # facts read before calc knew shops and offices still hold an EMI
+        if _val(f, k) is not None and not (k == "emi" and offer.get("property_type") in COMMERCIAL):
             numbers[k] = _val(f, k)
     if numbers:
         out["numbers"] = numbers

@@ -18,7 +18,7 @@ import CostBreakdown from '@/components/site/CostBreakdown'
 import PriceBox from '@/components/site/PriceBox'
 import PriceIdea from '@/components/site/PriceIdea'
 import ProjectHistory from '@/components/site/ProjectHistory'
-import type { Stage } from '@/lib/site/allin'
+import { isCommercial, type Stage } from '@/lib/site/allin'
 import { areaName, askedPrices, bhkRange, completionChange, displayName, extensionSentence, headingName, longDay, monthYear, offerPrice,
   otherNames, projectFaq, placePath, STAGE_LABEL, STAGE_NOTE, unitWord } from '@/lib/site/register'
 import type { EnrichCheck, Faq, Offer } from '@/lib/site/register'
@@ -53,6 +53,7 @@ function OfferBox({ o, numbers, stage }: { o: Offer; numbers: PropertyFactsView[
     : [o.bhk ? `${o.bhk} BHK` : null, o.property_type, o.plot_sqft ? `plot ${o.plot_sqft.toLocaleString('en-IN')} sq ft` : null,
       o.carpet_sqft ? `${o.carpet_sqft.toLocaleString('en-IN')} sq ft carpet` : null].filter(Boolean).join(' · ')
   const n = numbers || {}
+  const shop = isCommercial(o.property_type)
   return (
     <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4" data-testid="offer">
       <h3 className="text-lg font-bold text-slate-900">On offer</h3>
@@ -95,13 +96,13 @@ function OfferBox({ o, numbers, stage }: { o: Offer; numbers: PropertyFactsView[
       ) : null}
       {!sheet && n.price_per_sqft ? <p className="mt-1 text-sm text-slate-800" data-testid="offer-rate">{perSqft(n.price_per_sqft)}</p> : null}
       {n.plot_guntha ? <p className="mt-1 text-sm text-slate-800">Plot of {n.plot_guntha} guntha{n.plot_sqm ? ` (about ${n.plot_sqm} sq.m)` : ''}</p> : null}
-      {o.price_inr && o.transaction !== 'rent' ? (
+      {o.price_inr && o.transaction !== 'rent' && !shop ? (
         <p className="mt-2 text-sm text-slate-800" data-testid="own-cash">
           With a home loan, your own cash{priced ? ` for the ${priced.label}` : ''}: about <strong>{formatPrice(ownCash(o.price_inr))}</strong>
           <span className="mt-1 block text-xs text-slate-600">{OWN_CASH_NOTE}</span>
         </p>
       ) : null}
-      {n.emi ? (
+      {n.emi && !shop ? (
         <p className="mt-2 text-sm text-slate-800" data-testid="emi">
           EMI, as an example: about <strong>{formatPrice(n.emi.emi)} a month</strong>
           <span className="mt-1 block text-xs text-slate-600">
@@ -110,8 +111,8 @@ function OfferBox({ o, numbers, stage }: { o: Offer; numbers: PropertyFactsView[
         </p>
       ) : null}
       {o.price_inr && o.transaction !== 'rent' && !/plot/i.test(o.property_type || '') ? (
-        <CostBreakdown price={o.price_inr} stage={stage} sqft={sheet ? priced?.carpet_sqft : o.carpet_sqft}
-          what={`${priced ? `the ${priced.label}` : 'this home'} at ${formatPrice(o.price_inr)}`} />
+        <CostBreakdown price={o.price_inr} stage={stage} sqft={sheet ? priced?.carpet_sqft : o.carpet_sqft} commercial={shop}
+          what={`${priced ? `the ${priced.label}` : shop ? 'this unit' : 'this home'} at ${formatPrice(o.price_inr)}`} />
       ) : null}
       <p className="mt-2 text-xs text-slate-600">From {o.source || "the agent's listing"}{o.read_at ? `, ${longDay(o.read_at)}` : ''}.</p>
     </div>

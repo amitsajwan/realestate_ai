@@ -4,12 +4,12 @@ import { formatPrice } from '@/lib/site/format'
 
 /** The all-in cost of one price, folded under it: price, GST, stamp duty, registration, then what only the builder's cost sheet
  *  has (lib/site/allin.ts). `what` names the home ("the 2 BHK") so a page with several prices says which one this is. */
-export default function CostBreakdown({ price, stage, sqft, what }: { price: number; stage: Stage; sqft?: number | null; what: string }) {
-  const c = allInCost(price, stage, sqft)
+export default function CostBreakdown({ price, stage, sqft, what, commercial }: { price: number; stage: Stage; sqft?: number | null; what: string; commercial?: boolean }) {
+  const c = allInCost(price, stage, sqft, commercial)
   return (
     <details className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm" data-testid="all-in">
       <summary className="min-h-[44px] cursor-pointer py-2 font-semibold text-slate-900">
-        All-in cost of {what}: about {formatPrice(c.total)}{c.gstLeftOut ? ' + GST if any' : ''}
+        All-in cost of {what}: about {formatPrice(c.total)}{c.gstLeftOut ? (commercial ? ' + GST' : ' + GST if any') : ''}
       </summary>
       <table className="mt-1 w-full text-left">
         <tbody>

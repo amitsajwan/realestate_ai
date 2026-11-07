@@ -25,6 +25,10 @@ def guntha(sqft: float) -> float:
     return round(sqft / SQFT_PER_GUNTHA, 2)
 
 
+# a home loan's share and rate say nothing about a loan on a shop or office
+COMMERCIAL = ("office", "shop", "commercial")
+
+
 def readings(values: Dict[str, Any], now=None) -> List[Reading]:
     """Calculated readings from usable values: price_inr, carpet_sqft or plot_sqft."""
     out: List[Reading] = []
@@ -39,7 +43,7 @@ def readings(values: Dict[str, Any], now=None) -> List[Reading]:
     if values.get("plot_sqft") and not whole:
         out.append(Reading("plot_guntha", guntha(values["plot_sqft"]), "calc", "", now))
         out.append(Reading("plot_sqm", round(values["plot_sqft"] / SQFT_PER_SQM), "calc", "", now))
-    if price and values.get("transaction", "sale") != "rent":
+    if price and values.get("transaction", "sale") != "rent" and values.get("property_type") not in COMMERCIAL:
         loan = price * EMI_LOAN_SHARE
         out.append(Reading("emi", {"emi": emi(loan, EMI_RATE, EMI_YEARS), "loan": round(loan), "rate": EMI_RATE,
                                    "years": EMI_YEARS}, "calc", "", now))

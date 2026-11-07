@@ -5,6 +5,7 @@ import React, { useEffect, useState } from 'react'
 import { AskAiPanel } from '@/components/app/AskAiPanel'
 import { FreshnessSection } from '@/components/app/FreshnessPrompt'
 import { ListingFacts } from '@/components/app/ListingFacts'
+import { MahareraCheck } from '@/components/app/MahareraCheck'
 import { cleanInput } from '@/components/app/NewListingFlow'
 import { PhotoPicker } from '@/components/app/PhotoPicker'
 import { ListingPhotos } from '@/components/app/quality/ListingPhotos'
@@ -220,6 +221,7 @@ export default function ListingDetailPage() {
       {tab === 'overview' && (
         <>
           <FreshnessSection listings={[listing]} onUpdated={(l) => setData(l)} />
+          {listing.rera_no && <MahareraCheck id={listing.id} version={listing.updated_at} editHref={tabHref('details')} />}
 
           <section aria-label="Summary" className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
             {cover ? (

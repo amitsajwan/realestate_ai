@@ -465,6 +465,9 @@ export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
       load().listings = load().listings.filter((x) => x.id !== id)
       save()
     },
+    async mahareraCheck() {
+      return []
+    },
     async askAiPrompts(id) {
       const l = find(id)
       // the same three steps the real prompts return (backend listings/askai.py), in demo words

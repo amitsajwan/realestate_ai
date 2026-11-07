@@ -2,7 +2,8 @@
 number or project name the agent gave. A registration number only in MahaRERA's form (P + 11 digits or PR/PP/PM + 13
 digits, core/rera.py; "Gat No." is land). It fills a DRAFT the agent confirms."""
 import logging
-from typing import Any, Dict, Optional
+import re
+from typing import Any, Dict, List, Optional
 
 from app.core import pune_places, rera
 from app.core.rera import CANDIDATES, _words, core
@@ -10,6 +11,11 @@ from app.core.rera import CANDIDATES, _words, core
 log = logging.getLogger(__name__)
 
 RERA = rera.SEARCH         # service.py fullmatches a typed number against it
+# words that describe a building and name none: "Commercial Complex" went live as a project's name when the number on the same
+# listing says UBC (2026-11-07). A real marketed name has at least one word outside this list and keeps priority over MahaRERA's.
+DESCRIBES = {"the", "a", "new", "commercial", "residential", "complex", "project", "projects", "building", "buildings", "tower",
+             "towers", "shop", "shops", "office", "offices", "flat", "flats", "apartment", "apartments", "and", "for", "sale"}
+EARLY_MONTHS = 6           # a possession this far ahead of the builder's filed date is worth a second look
 
 
 def _rec(d: dict) -> Dict[str, Any]:
@@ -66,3 +72,38 @@ def same_place(locality: Optional[str], project: Optional[str]) -> bool:
         return False
     a, b = _words(locality), _words(project)
     return bool(a) and (a == b or bool(core(locality)) and core(locality) == core(project))
+
+
+def generic_name(name: Optional[str]) -> bool:
+    """True when the 'project name' only says what kind of building it is."""
+    words = _words(name or "").split()
+    return bool(words) and all(w in DESCRIBES for w in words)
+
+
+def _same_area(a: str, b: str) -> bool:
+    """One place inside the other's name ("Upper Kharadi" / "Kharadi") is a detail, not a disagreement."""
+    x, y = _words(a).replace(" ", ""), _words(b).replace(" ", "")
+    return x in y or y in x
+
+
+def _months(ym: Optional[str]) -> Optional[int]:
+    m = re.match(r"(\d{4})-(\d{2})", str(ym or ""))
+    return int(m.group(1)) * 12 + int(m.group(2)) if m else None
+
+
+def listing_mismatches(listing: dict, record: dict) -> List[Dict[str, str]]:
+    """Where a saved listing disagrees with the MahaRERA record of its own number, for the agent to settle: [{field, yours,
+    maharera}]. The listing is never changed here: the agent may know better. Only a generic name counts, since marketed names
+    differ from MahaRERA's working ones on purpose, and only a possession well before the filed date, since a later one is
+    cautious."""
+    fields = register_fields(record)
+    out: List[Dict[str, str]] = []
+    name, area = listing.get("project_name") or "", listing.get("locality") or ""
+    if generic_name(name) and fields.get("name"):
+        out.append({"field": "project_name", "yours": name, "maharera": fields["name"]})
+    if area and fields.get("locality") and not _same_area(area, fields["locality"]):
+        out.append({"field": "locality", "yours": area, "maharera": fields["locality"]})
+    yours, filed = _months(listing.get("possession")), _months(fields.get("completion_at_registration"))
+    if yours and filed and filed - yours > EARLY_MONTHS:
+        out.append({"field": "possession", "yours": listing["possession"], "maharera": fields["completion_at_registration"][:7]})
+    return out

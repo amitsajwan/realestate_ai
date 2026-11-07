@@ -3,6 +3,7 @@ import { API_BASE_URL } from '@shared/config/api'
 import { outcomePatchError } from './outcomes'
 import type {
   AskAiAnswer,
+  MahareraMismatch,
   AskAiPrompt,
   AIDraft,
   ProjectHit,
@@ -186,6 +187,8 @@ export function createApiClient(opts: ClientOptions): AppApi {
     deleteListing: (id) => request<void>(`/listings/${id}`, { method: 'DELETE' }),
     askAiPrompts: async (id, lang = 'en') => (await request<{ prompts: AskAiPrompt[] }>(`/listings/${id}/ask-ai${qs({ lang })}`)).prompts,
     askAiCheck: (id, text) => request<AskAiAnswer>(`/listings/${id}/ask-ai/check`, { method: 'POST', json: { text } }),
+
+    mahareraCheck: async (id) => (await request<{ items: MahareraMismatch[] }>(`/listings/${id}/maharera-check`)).items,
 
     aiDraft: (req: AIDraftRequest) => {
       const form = new FormData()

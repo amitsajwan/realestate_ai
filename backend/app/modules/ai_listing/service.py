@@ -118,7 +118,7 @@ class AIListingService:
                 maharera = reg.register_fields(m["record"])
                 for k, v in (("rera_no", maharera.get("regno")), ("locality", maharera.get("locality")),
                              ("project_name", maharera.get("name"))):
-                    if v and (k != "project_name" or not facts.get(k)):
+                    if v and (k != "project_name" or not facts.get(k) or reg.generic_name(facts[k])):
                         # a place from the PIN alone is our map's guess, not MahaRERA's: the agent checks it
                         sure = k != "locality" or maharera.get("locality_verified")
                         facts[k], conf[k], sources[k] = v, (0.95 if sure else 0.6), ("maharera" if sure else "map")

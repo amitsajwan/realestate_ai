@@ -1,4 +1,4 @@
-import { asked, byArea, describe as say, facets, findHomes, matchingHomes, parseQuery, toSearch, type FinderItem } from '@/lib/site/finder'
+import { asked, bhkRange, byArea, describe as say, facets, findHomes, matchingHomes, parseQuery, toSearch, type FinderItem } from '@/lib/site/finder'
 
 const item = (id: string, area: string, homes: [number | null, number | null][], extra: Partial<FinderItem> = {}): FinderItem => ({
   id, href: '/x/' + id, name: id, area, type: 'apartment', homes: homes.map(([bhk, price]) => ({ bhk, price })),
@@ -73,4 +73,9 @@ it('writes the WhatsApp message an agent sends: what was asked, the home that fi
     '2. vanaya, Kharadi: 3 BHK, ₹160 L (possession 2027-12)', '',
     'All of them with prices and MahaRERA checks: https://avasetu.in/agent/house-deal?area=kharadi&bhk=3&src=share',
   ].join('\n'))
+})
+
+it('a shop or office with no BHK says so instead of Homes; a flat with none still says Homes', () => {
+  expect(bhkRange(item('ubc', 'Mohammadwadi', [[null, 5_500_000]], { type: 'commercial' }))).toBe('Shops & offices')
+  expect(bhkRange(item('flat', 'Kharadi', [[null, 5_500_000]]))).toBe('Homes')
 })
