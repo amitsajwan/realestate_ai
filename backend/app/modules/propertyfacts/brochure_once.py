@@ -48,10 +48,11 @@ NUMBER_SIDE = 3000          # a page's long side when its MahaRERA number is rea
 TABLE_SIDE = 2600
 FACT_SIDE = 1600
 FACT_PAGES = 6
-NUMBER_PAGES = 2
+NUMBER_PAGES = 3
 SQM_SQFT, SQM_TOLERANCE = 10.7639, 0.015
 FACT_KINDS = ("legal", "cover", "amenities", "specs", "text", "master_plan", "location_map")
 NO_TRY = re.compile(r"HTTP (401|402|403|429)\b")
+NOT_A_NAME = re.compile(r"area statement|floor plan|brochure|disclaimer", re.I)
 
 Ask = Callable[[List[bytes], str], Awaitable[Any]]
 
@@ -139,7 +140,7 @@ def page_jpeg(pdf: bytes, n: int, long_side: int, box: Optional[Sequence[float]]
 
 
 def _box(answer: Any) -> Optional[List[float]]:
-    box = answer.get("box") if isinstance(answer, dict) else None
+    box = (answer.get("box") or answer.get("box_2d")) if isinstance(answer, dict) else None   # Gemini uses both names
     if not isinstance(box, list) or len(box) != 4 or not all(isinstance(v, (int, float)) for v in box):
         return None
     return box if box[0] < box[2] and box[1] < box[3] else None
@@ -216,6 +217,8 @@ def best_of_each(facts: List[bp.Candidate]) -> List[bp.Candidate]:
     for c in facts:
         if c.key == "address" and len(str(c.value).split()) < 3:
             continue
+        if c.key == "project_name" and NOT_A_NAME.search(str(c.value)):
+            continue
         if c.key in ("project_name", "promoter", "address", "possession", "land_area"):
             held = single.get(c.key)
             if held is None or len(str(c.value)) > len(str(held.value)):
@@ -266,8 +269,9 @@ async def read_file(data: bytes, folder: Path, ask: Ask) -> Dict[str, Any]:
     numbers = [c.value for c in rules if c.key == "rera_no"]
     source = "text" if numbers else ""
     if not numbers:
-        order = [n for n in triage.read_order(labels, read.pages) if labels.get(n, {}).get("kind") in ("legal", "cover", "text")]
-        for n in order[:NUMBER_PAGES]:
+        pages = triage.read_order(labels, read.pages)
+        order = [n for kinds in (("legal",), ("cover", "text"), ("floor_plan", "master_plan")) for n in pages if labels.get(n, {}).get("kind") in kinds]
+        for n in order[:NUMBER_PAGES]:   # a one-sheet brochure prints it on the plan
             number = await read_number(data, n, ask)
             if number:
                 numbers, source = [number], "vision"

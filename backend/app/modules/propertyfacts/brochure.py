@@ -619,8 +619,9 @@ class Brochures:
         return doc
 
     async def adopt(self, listing: dict, sha: str, filename: str, reading: dict, data: bytes) -> dict:
-        """The kit of a stored one-time reading (brochure_once): no model here. A number on the brochure that is not the listing's
-        own and not one of its group's is held, whatever MahaRERA says of it: it may be another project's plans."""
+        """The kit of a stored one-time reading (brochure_once): no model here. Only a number read off the brochure proves whose
+        it is: the listing's own number stands in for nothing, or a wrong PDF's plans would reach this project's page. A number
+        that is not the listing's and not one of its group's is held too, whatever MahaRERA says of it."""
         listing_id = listing["_id"]
         same = await self.col.find_one({"listing_id": listing_id, "sha256": sha, "status": "done"})
         if same:
@@ -634,8 +635,7 @@ class Brochures:
                  for i, f in enumerate(reading.get("facts") or [])]
         name = next((f["value"] for f in facts if f["key"] == "project_name"), "") or (listing.get("project_name") or "")
         clients = self.clients_factory() if self.clients_factory else None
-        rera = numbers[0] if numbers else bp.rera_no(str(listing.get("rera_no") or ""))
-        reg = await check_registration(clients, rera, name, now, numbers[1:])
+        reg = await check_registration(clients, numbers[0] if numbers else "", name, now, numbers[1:])
         own = bp.rera_no(str(listing.get("rera_no") or ""))
         if reg.get("status") == "verified" and own and reg.get("rera_no") != own and not reg.get("group"):
             reg = {**reg, "status": "unverified",

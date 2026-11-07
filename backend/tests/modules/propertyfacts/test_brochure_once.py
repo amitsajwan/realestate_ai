@@ -194,3 +194,24 @@ def test_a_key_with_one_answer_keeps_the_fullest_and_a_slogan_is_no_address():
 def test_grouped_specifications_read_as_plain_text():
     [spec] = once.page_facts({"specifications": [{"category": "WINDOWS", "details": ["3 Track Sliding Window."]}]}, 21)
     assert spec.value == ["WINDOWS: 3 Track Sliding Window."]
+
+
+async def test_a_brochure_with_no_number_read_stays_off_the_page_even_on_a_registered_listing(tmp_path):
+    db, kits, reads = await prepare(tmp_path, Reader())
+    listing = await db.get_collection("listings").find_one({"_id": "l1"})
+    kit = await kits.adopt(listing, "sha", "b.pdf", reading(()), b"%PDF")
+    assert kit["registration"]["status"] == "unknown" and not kit["registration"]["rera_no"]
+
+
+async def test_gemini_may_name_the_box_either_way(monkeypatch):
+    monkeypatch.setattr(once, "page_jpeg", lambda *a: b"x")
+    said = iter([{"box_2d": [165, 859, 179, 961]}, {"number": "PC1260002501550"}, {"number": "PC1260002501550"}])
+
+    async def ask(images, prompt):
+        return next(said)
+    assert await once.read_number(b"", 1, ask) == "PC1260002501550"
+
+
+def test_a_table_heading_is_not_a_project_name():
+    facts = once.best_of_each([bp.Candidate("project_name", "Area Statement", 1, "x")])
+    assert facts == []
