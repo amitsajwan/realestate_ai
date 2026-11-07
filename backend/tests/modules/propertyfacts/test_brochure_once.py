@@ -183,3 +183,14 @@ async def test_the_read_stops_at_the_limit_before_the_next_call():
 def test_a_page_gives_only_facts_the_kit_knows():
     facts = once.page_facts({"builder": "Kanifnath Realtors", "amenities": ["Gym", "Pool"], "towers": 2}, 3)
     assert {f.key for f in facts} == {"promoter", "amenities", "towers"} and all(f.key in bp.LABELS for f in facts)
+
+
+def test_a_key_with_one_answer_keeps_the_fullest_and_a_slogan_is_no_address():
+    facts = once.best_of_each([bp.Candidate("promoter", "KP", 1, "KP"), bp.Candidate("promoter", "Kanifnath Realtors", 7, "x"),
+                               bp.Candidate("address", "@NIBM ANNEXE", 1, "x"), bp.Candidate("amenities", ["Gym"], 8, "x")])
+    assert [(f.key, f.value) for f in facts] == [("promoter", "Kanifnath Realtors"), ("amenities", ["Gym"])]
+
+
+def test_grouped_specifications_read_as_plain_text():
+    [spec] = once.page_facts({"specifications": [{"category": "WINDOWS", "details": ["3 Track Sliding Window."]}]}, 21)
+    assert spec.value == ["WINDOWS: 3 Track Sliding Window."]

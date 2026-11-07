@@ -19,3 +19,7 @@ async def test_a_reading_wrapped_in_a_list_is_the_reading(monkeypatch):
         return [{"text": json.dumps([{"unit_plan": True}])}]
     monkeypatch.setattr(gemini, "_post", post)
     assert await gemini.read([b"\xff\xd8x"], "read") == {"unit_plan": True}
+
+
+def test_a_one_page_brochures_label_arrives_unwrapped_and_is_kept():
+    assert brochure_triage.clean({"page": 1, "kind": "floor_plan"}, [1])[1]["kind"] == "floor_plan"

@@ -199,6 +199,32 @@ def joined(heading: dict) -> bool:
     return "+" in str(heading.get("unit_label") or "") or not str(heading.get("carpet_area") or "").strip()
 
 
+def _item(x: Any) -> str:
+    """A list item as text: the model sometimes groups them ({"category": "WINDOWS", "details": ["3 Track Sliding Window."]})."""
+    if isinstance(x, dict):
+        return ": ".join(p for p in (_item(v) for v in x.values()) if p)
+    if isinstance(x, list):
+        return ", ".join(p for p in (_item(v) for v in x) if p)
+    return " ".join(str(x if x is not None else "").split())
+
+
+def best_of_each(facts: List[bp.Candidate]) -> List[bp.Candidate]:
+    """One value for a key that has one answer: the fullest of what the pages say ("KP" on the cover, "Kanifnath Realtors" in the
+    small print). An address must read like one ("@NIBM ANNEXE" is a slogan). Carpet areas, one per home type, stay."""
+    single: Dict[str, bp.Candidate] = {}
+    out: List[bp.Candidate] = []
+    for c in facts:
+        if c.key == "address" and len(str(c.value).split()) < 3:
+            continue
+        if c.key in ("project_name", "promoter", "address", "possession", "land_area"):
+            held = single.get(c.key)
+            if held is None or len(str(c.value)) > len(str(held.value)):
+                single[c.key] = c
+        else:
+            out.append(c)
+    return list(single.values()) + out
+
+
 def page_facts(answer: Any, page: int) -> List[bp.Candidate]:
     if not isinstance(answer, dict):
         return []
@@ -213,7 +239,7 @@ def page_facts(answer: Any, page: int) -> List[bp.Candidate]:
         if v not in (None, ""):
             out.append(bp.Candidate(key, str(v)[:40], page, str(v)[:200], by="vision"))
     for key in ("configurations", "amenities", "specifications"):
-        items = [" ".join(str(x).split())[:bp.ITEM_MAX] for x in answer.get(key) or [] if str(x).strip()]
+        items = [t[:bp.ITEM_MAX] for t in (_item(x) for x in answer.get(key) or []) if t]
         if items:
             out.append(bp.Candidate(key, items[:bp.LIST_MAX], page, ", ".join(items)[:200], by="vision"))
     return out
@@ -276,7 +302,7 @@ async def read_file(data: bytes, folder: Path, ask: Ask) -> Dict[str, Any]:
             claims += [str(x)[:120] for x in answer.get("location_claims") or []]
     if source == "vision":
         found.append(bp.Candidate("rera_no", numbers[0], next(iter(labels)), f"Read twice: {numbers[0]}", by="vision"))
-    facts = bp.merge(found, [])
+    facts = best_of_each(bp.merge(found, []))
     return {"version": VERSION, "pages": read.pages, "image_only_pages": list(read.image_only), "labels": {str(k): v for k, v in labels.items()},
             "images": images, "numbers": numbers, "number_source": source, "area_rows": rows, "headings": headings,
             "location_claims": list(dict.fromkeys(claims))[:40],

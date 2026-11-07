@@ -129,6 +129,8 @@ def clean(data: Any, allowed: Iterable[int]) -> Dict[int, Dict[str, Any]]:
     """The model's labels for pages on the sheet, in the contract's shape; anything else is dropped."""
     allowed = set(allowed)
     items = data.get("pages") if isinstance(data, dict) else data   # Gemini sends the bare list (KP Supernova lost all 25 labels)
+    if isinstance(data, dict) and "page" in data:   # and a one-page brochure's list, unwrapped by platform.gemini, is one label
+        items = [data]
     out: Dict[int, Dict[str, Any]] = {}
     for it in items if isinstance(items, list) else []:
         if not isinstance(it, dict):
