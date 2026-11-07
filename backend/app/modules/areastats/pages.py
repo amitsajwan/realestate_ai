@@ -233,6 +233,24 @@ def search_state(doc: dict, now: datetime) -> Optional[dict]:
     return {"in": decided, "at": now}
 
 
+FULL_KINDS = 3   # of what a page can hold of its own (`own_kinds`), a page new to search needs this many; offices and shops one less
+
+
+def own_kinds(doc: dict) -> int:
+    """How many kinds of fact the page shows of its own: prices, checked web facts, the builder's highlights, real pictures or plans."""
+    profile = doc.get("profile") or {}
+    return sum((homes(doc) and bool((doc.get("prices") or {}).get("rows")), bool((doc.get("web_facts") or {}).get("facts")),
+                bool(profile.get("highlights")),
+                bool(shown_pictures(profile.get("photos"), drawn=False) or shown_pictures(profile.get("plans")))))
+
+
+def fully_enriched(doc: dict) -> bool:
+    """What a page outside our areas needs to go into search for the first time (owner 2026-11-08, of the rest of Pune: "add all,
+    but index only what is full enriched"): text the model wrote from checked facts, and most kinds of fact a page can hold. A flat
+    price cannot count on offices or shops."""
+    return doc.get("page_text_by") == "model" and own_kinds(doc) >= (FULL_KINDS if homes(doc) else FULL_KINDS - 1)
+
+
 _HOME_WORDS = re.compile(r"\b(?:homes?|flats?|apartments?|bhk|residential|residents?)\b", re.I)
 
 
@@ -256,10 +274,16 @@ def ready_for_search(doc: dict) -> bool:
     stays out, even one Google already shows (owner 2026-11-01: "for completed projects we dont need to have SEO"; no new-home
     buyer is looking for it, and enrichment skips it). Offices and shops left on 2026-11-03 (24 of 174 project pages in search in
     Kharadi, Upper Kharadi and Wagholi, shown with flat prices) and came back 2026-11-08 (owner: "commercial we can get them on"):
-    their pages now say units and show no flat prices, and they pass the same rule, with text that does not call them homes."""
+    their pages now say units and show no flat prices, and they pass the same rule, with text that does not call them homes.
+    From 2026-11-08, as all of Pune starts being read, a page outside our areas new to search must also be `fully_enriched`; one
+    already in search keeps the rule it came in by, so the 658 pages then in search did not leave (a site that changes its mind
+    reads as unsettled)."""
     if is_old(doc) or reads_as_homes(doc):
         return False
-    return indexable(doc) and bool(doc.get("page_text")) and own_facts(doc)
+    if not (indexable(doc) and doc.get("page_text") and own_facts(doc)):
+        return False
+    outside = doc.get("pune_place") and doc.get("locality") not in BY_KEY and not doc.get("watched_by")
+    return not outside or (doc.get("search_state") or {}).get("in") is True or fully_enriched(doc)
 
 
 def content_counts(docs: List[dict]) -> dict:

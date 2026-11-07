@@ -73,7 +73,7 @@ from app.modules.newsroom.policy import AREA_PINCODES, SHARED_PINCODES, UPPER_KH
 from app.modules.newsroom.store import Store
 from app.platform import trace
 
-from . import brands, budget, hot, launches, pagefacts, pages, prices, pricing, profile, readings, searchconsole, webfacts
+from . import brands, budget, hot, launches, pagefacts, pages, prices, pricing, profile, readings, searchconsole, webfacts, websearch
 from .websearch import mentions as websearch_mentions
 from .service import _day
 
@@ -142,6 +142,10 @@ AI_FROM = "2027-01-01"                # a filed completion date before this gets
                                       # this is not priority to spend on old projects"; 65 of 432 pages in search, 17 of 195 clicks)
 # pages in search given to a newer writer each day: none from 2026-11-05 (docs/plan/search-recovery.md R1: a newer writer is
 # not a reason to change a page Google shows; its own facts changing is, `settled`). Was 20.
+WIDER_PER_DAY = 60                    # pages outside our areas read a day (owner 2026-11-08), a limit set by Serper: a read takes ~3
+WIDER_KEEP_CREDITS = 500              # Serper searches kept back: a spent account reads as "no site mentions this project"
+WIDER = "enrich_wider"                # mark: {day, done, credits}
+BIG_PROJECT = 100                     # homes, for the wider read's order
 REWRITES_PER_DAY = 0
 REWRITES = "enrich_rewrites"          # mark: {day, done}
 MAX_FAILS = 3
@@ -203,13 +207,15 @@ class Config:
     enabled: bool = False
     every: timedelta = timedelta(minutes=EVERY_MINUTES)
     read_every: timedelta = timedelta(minutes=READ_EVERY_MINUTES)
+    wider_per_day: int = WIDER_PER_DAY
 
 
 def load() -> Config:
     on = (os.environ.get("PROJECT_ENRICH_ENABLED") or "").strip().lower() in ("1", "true", "yes", "on")
     mins = int(os.environ.get("PROJECT_ENRICH_EVERY_MINUTES") or EVERY_MINUTES)
     read = int(os.environ.get("PROJECT_READ_EVERY_MINUTES") or READ_EVERY_MINUTES)
-    return Config(enabled=on, every=timedelta(minutes=max(1, mins)), read_every=timedelta(minutes=max(1, read)))
+    return Config(enabled=on, every=timedelta(minutes=max(1, mins)), read_every=timedelta(minutes=max(1, read)),
+                  wider_per_day=int(os.environ.get("PROJECT_WIDER_PER_DAY") or WIDER_PER_DAY))
 
 
 def _aware(d: datetime) -> datetime:
@@ -218,6 +224,38 @@ def _aware(d: datetime) -> datetime:
 
 def _ours(d: dict) -> bool:
     return bool(d.get("page_slug")) and (d.get("locality") in BY_KEY or bool(d.get("watched_by")))
+
+
+def wider(d: dict, now: datetime) -> bool:
+    """A page outside our areas worth its first read (owner 2026-11-08): filed for 2027 or later, never read, and listable."""
+    return (not _ours(d) and bool(d.get("page_slug")) and not d.get("enriched_at") and bool(_day(d.get("completion_now")))
+            and worth_model(d) and pages.indexable(d) and not pages.is_old(d) and not parked(d, now))
+
+
+def wider_key(d: dict) -> tuple:
+    """After everything in our areas: big projects before small, homes before offices and shops, the newest registered first."""
+    kind = (0 if launches.home_count(d) >= BIG_PROJECT else 1) if pages.homes(d) else 2
+    day = pages._day(d.get("registered_on")) or ""
+    return (5, kind, -int(day.replace("-", "") or 0), d.get("_id") or "")
+
+
+async def wider_left(store: Store, now: datetime) -> int:
+    """First reads of pages outside our areas left today. Serper's balance is read once a day; at WIDER_KEEP_CREDITS they stop, so
+    the daily rank checks and our own areas keep their searches. An unknown balance stops them too: a spent account looks the same."""
+    mark, day = await store.get_mark(WIDER), budget.day_of(now)
+    if mark.get("day") == day:
+        return 0 if mark.get("stopped") else load().wider_per_day - int(mark.get("done") or 0)
+    left = await websearch.credits()
+    stopped = left is None or left <= WIDER_KEEP_CREDITS
+    await store.set_mark(WIDER, day=day, done=0, credits=left, stopped=stopped)
+    if stopped:
+        log.warning("enrich: wider reads stopped, Serper balance %s", left)
+    return 0 if stopped else load().wider_per_day
+
+
+async def count_wider(store: Store, now: datetime) -> None:
+    mark = await store.get_mark(WIDER)
+    await store.set_mark(WIDER, day=budget.day_of(now), done=int(mark.get("done") or 0) + 1, credits=mark.get("credits"), stopped=False)
 
 
 # "no LLM key" is not among them: a round without a model puts its reading off (reading_due) instead of failing
@@ -280,6 +318,13 @@ def complete(d: dict) -> bool:
     if not e or any(not ((e.get("steps") or {}).get(k) or {}).get("ok") for k in STEPS):
         return False
     return bool(d.get("cluster_primary") or pages.shown_pictures((d.get("profile") or {}).get("photos"), drawn=False))
+
+
+def kept_line(d: dict) -> Optional[str]:
+    """The search line a page keeps when no new one passes, unless it calls offices homes: AP4 Tech Park's "offers residential
+    units" outlived its rewrite and held the page out of search."""
+    line = d.get("page_summary")
+    return None if not pages.homes(d) and pages.says_homes(line) else line
 
 
 def worth_model(d: dict) -> bool:
@@ -424,11 +469,14 @@ async def next_project(store: Store, now: datetime) -> Optional[dict]:
     urgent = {r["_id"] for r in await store.db.get_collection(REQUESTS).find({}).to_list(200)}
     shown = frozenset(await _deps["shown"](store.db)) if _deps["shown"] else frozenset()
     rewrite = await rewrites_left(store, now) > 0
+    room = await wider_left(store, now) > 0
     ranked = []
     for d in await store.all_projects():
         # an asked-for project is taken even outside our areas (a campaign's project with no locality): skipped, its request
         # stayed and kept the loop running every minute
         if not _ours(d) and (d.get("regno") or d["_id"]) not in urgent and not launch_due(d, now):
+            if room and wider(d, now):
+                ranked.append((wider_key(d), d))
             continue
         key = priority(d, urgent, now, shown, rewrite)
         if key is not None:
@@ -1299,8 +1347,7 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime, reread: bool =
         fields["text_refused_at"] = now
     if text:
         fields.update(page_text=text, page_text_version=TEXT_VERSION, page_sections=draft["sections"], page_facts_key=own_key,
-                      page_text_by=by,
-                      page_summary=draft["summary"] or doc.get("page_summary"))   # a page keeps its search line when no new one passes
+                      page_text_by=by, page_summary=draft["summary"] or kept_line(doc))
         if text != doc.get("page_text") or draft["summary"] != doc.get("page_summary"):
             fields["page_text_at"] = now   # the page's date moves only when what a reader sees changed
     elif ("text" in ran and doc.get("page_text") and int(doc.get("page_text_version") or 1) < 6
@@ -1402,6 +1449,8 @@ async def step(store: Store, llm, now: datetime, last_regular: Optional[datetime
         return None
     reread = True
     is_urgent = bool(urgent) and (doc.get("regno") or doc["_id"]) in await _urgent(store)
+    if not is_urgent and wider(doc, now) and not launch_due(doc, now):
+        await count_wider(store, now)
     rewrite = not is_urgent and rewrite_due(doc, now) and await rewrites_left(store, now) > 0
     if rewrite:                                                 # the writer alone when what the sites say is recent
         reread = not sources_fresh(doc, now) or bool(outdated(doc))

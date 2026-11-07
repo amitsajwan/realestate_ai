@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from app.modules.areastats import enrich, pages
+from app.modules.newsroom.store import Store
 
 from ..fakes import FakeDb
 from .test_pages import FULL, seeded
@@ -1047,3 +1048,61 @@ def test_the_builders_other_projects_are_no_word_on_this_ones_date():
     assert enrich.this_project(text) == "Half the homes are booked."
     assert not enrich.says_moved(enrich.this_project(text))
     assert enrich.says_moved(enrich.this_project("The completion date was moved to 2031."))
+
+
+# ---- the rest of Pune (owner 2026-11-08) ---------------------------------------------------------------------------------------
+
+WIDE = {"_id": "W", "regno": "W", "page_slug": "w", "pune_place": "moshi", "completion_now": "2029-06-30", "promoter": "P",
+        "registered_on": "2026-08-01", "units_total": 200}
+
+
+def test_a_page_outside_our_areas_is_read_once_if_it_is_filed_for_2027_or_later():
+    assert enrich.wider(WIDE, NOW)
+    assert not enrich.wider({**WIDE, "completion_now": "2026-12-31"}, NOW)
+    assert not enrich.wider({**WIDE, "enriched_at": NOW}, NOW)
+    assert not enrich.wider({**WIDE, "cluster_primary": "P9"}, NOW)
+    assert not enrich.wider({**WIDE, "locality": "kharadi"}, NOW)
+
+
+def test_big_projects_go_before_small_homes_before_offices_and_the_newest_first():
+    older = {**WIDE, "_id": "A", "registered_on": "2024-01-01"}
+    small = {**WIDE, "_id": "B", "units_total": 20}
+    offices = {**WIDE, "_id": "C", "project_type": "Commercial"}
+    order = sorted([small, offices, older, WIDE], key=enrich.wider_key)
+    assert [d["_id"] for d in order] == ["W", "A", "B", "C"]
+
+
+def test_everything_in_our_areas_goes_before_the_rest_of_pune():
+    ours = enrich.priority({"_id": "H", "regno": "H", "locality": "kharadi", "page_slug": "h", "project_type": "Commercial"}, set(), NOW)
+    assert ours < enrich.wider_key(WIDE)
+
+
+async def test_the_daily_limit_and_the_serper_floor_stop_the_wider_reads(monkeypatch):
+    store = Store(FakeDb())
+
+    async def credits(*a):
+        return 2000
+    monkeypatch.setattr(enrich.websearch, "credits", credits)
+    assert await enrich.wider_left(store, NOW) == enrich.WIDER_PER_DAY
+    await enrich.count_wider(store, NOW)
+    assert await enrich.wider_left(store, NOW) == enrich.WIDER_PER_DAY - 1
+
+    async def low(*a):
+        return enrich.WIDER_KEEP_CREDITS
+    monkeypatch.setattr(enrich.websearch, "credits", low)
+    assert await enrich.wider_left(store, NOW + timedelta(days=1)) == 0
+    assert await enrich.wider_left(store, NOW + timedelta(days=1, hours=1)) == 0
+
+
+async def test_an_unknown_serper_balance_stops_them_too(monkeypatch):
+    async def unknown(*a):
+        return None
+    monkeypatch.setattr(enrich.websearch, "credits", unknown)
+    assert await enrich.wider_left(Store(FakeDb()), NOW) == 0
+
+
+def test_a_search_line_calling_offices_homes_does_not_outlive_a_rewrite():
+    line = "AP4 Tech Park in Wagholi offers residential units."
+    assert enrich.kept_line({"project_type": "Commercial", "page_summary": line}) is None
+    assert enrich.kept_line({"project_type": "Residential", "page_summary": line}) == line
+    assert enrich.kept_line({"project_type": "Commercial", "page_summary": "Gateway: 29 commercial units."}) == "Gateway: 29 commercial units."

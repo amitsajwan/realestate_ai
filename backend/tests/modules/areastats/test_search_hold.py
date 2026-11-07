@@ -77,3 +77,29 @@ async def test_a_page_in_search_is_not_rewritten_while_its_facts_stand():
 
 def test_no_page_in_search_is_given_to_a_newer_writer():
     assert enrich.REWRITES_PER_DAY == 0
+
+
+FACTS = {"page_text": "Written.", "page_text_by": "model", "prices": {"rows": [{"bhk": "2 BHK", "from_inr": 5000000}]},
+         "web_facts": {"facts": [{"key": "land_acres"}]}, "profile": {"highlights": [{"text": "Clubhouse"}]}}
+OUTSIDE = {"completion_now": "2029-06-30", "promoter": "Kolte Patil", "pune_place": "moshi"}
+
+
+def test_a_page_outside_our_areas_goes_in_only_fully_enriched():
+    assert pages.searchable({**OUTSIDE, **FACTS}, NOW)
+    assert not pages.searchable({**OUTSIDE, **FACTS, "profile": {}}, NOW)                         # two kinds of fact
+    assert not pages.searchable({**OUTSIDE, **FACTS, "page_text_by": "code"}, NOW)                # no model text
+
+
+def test_a_page_outside_our_areas_already_in_search_stays_by_the_rule_it_came_in_by():
+    held = {"in": True, "at": NOW - timedelta(days=90)}
+    assert pages.searchable({**OUTSIDE, **FACTS, "profile": {}, "search_state": held}, NOW)
+
+
+def test_a_page_in_our_areas_needs_no_more_than_before():
+    assert pages.searchable({**OUTSIDE, **FACTS, "profile": {}, "page_text_by": "code", "locality": "kharadi"}, NOW)
+
+
+def test_offices_outside_our_areas_need_one_kind_less_and_a_flat_price_counts_for_nothing():
+    offices = {**OUTSIDE, **FACTS, "project_type": "Commercial"}
+    assert pages.searchable(offices, NOW)
+    assert not pages.searchable({**offices, "web_facts": {}}, NOW)
