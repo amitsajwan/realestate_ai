@@ -76,3 +76,23 @@ async def test_wiring_gives_the_loop_an_alert_that_reaches_the_owners_notificati
     await render_job._alert(db, "2 marketing runs waiting")
     [note] = await db.get_collection("notifications").find({"agent_id": "owner"}).to_list(5)
     assert note["kind"] == "marketing_stuck" and note["summary"] == "2 marketing runs waiting"
+
+
+async def test_a_queued_brochure_read_starts_the_renderer_and_one_waiting_for_credit_does_not():
+    db = FakeDb()
+    await db.get_collection("brochure_jobs").insert_one({"_id": "a", "status": "queued", "not_before": NAIVE + timedelta(hours=6)})
+    assert "brochure_reads" not in await render_job.queued(db, NOW)
+    await db.get_collection("brochure_jobs").insert_one({"_id": "b", "status": "queued", "not_before": NAIVE - timedelta(minutes=1)})
+    assert (await render_job.queued(db, NOW))["brochure_reads"] == 1
+
+
+async def test_drain_takes_the_brochure_queue_too(monkeypatch):
+    runs, reels, reads = Queue([]), Queue([]), Queue(["b1"])
+    monkeypatch.setattr(listing_reel, "default_jobs", lambda: reels)
+
+    async def no_prerender(store, now):
+        return 0
+    monkeypatch.setattr(calendar_runner, "prerender_reels", no_prerender)
+    monkeypatch.setattr(render_job, "IDLE_WAIT_S", 0)
+    assert await render_job.drain(FakeDb(), lambda: runs, lambda: reads) == 1
+    assert reads.cleaned and not reads.items

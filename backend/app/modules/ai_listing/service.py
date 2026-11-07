@@ -1,6 +1,6 @@
 """Orchestrates transcription, deterministic + LLM extraction, merge, copy generation -> AIDraft.
 
-From the agent's words only: a builder's brochure is stored with the listing but never read (owner, 2026-10-14: PDF reading
+From the agent's words only: a builder's brochure is stored with the listing and never read here (propertyfacts.brochure_once reads it once, later) (owner, 2026-10-14: PDF reading
 is heavy). A MahaRERA number or project name they give is matched in our register (register.py), and each field says where
 it came from (`sources`)."""
 import asyncio

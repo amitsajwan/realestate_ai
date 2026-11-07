@@ -16,13 +16,15 @@ def wire() -> None:
     from app.modules.marketing.facts import Facts
     from app.modules.newsroom import quality as news_quality
     from app.modules.photoquality import router as quality_routes
+    from app.modules.propertyfacts.brochure_once import sweep as brochure_sweep
     from app.modules.reels import render_job
     from app.modules.showcase import samples
     from app.modules.social import service as social_service
     from app.modules.waitlist import router as waitlist_routes
 
     social_service.configure(link_line=link_line)  # the pack's link line, in marketing's words
-    render_job.configure(alert=_tell_owner_of_stuck_runs)  # a stuck marketing queue shows no error anywhere else
+    # a stuck marketing queue shows no error anywhere else; a brochure attached to a listing queues its one read
+    render_job.configure(alert=_tell_owner_of_stuck_runs, sweep=brochure_sweep)
     # the quality route: the operator may review any agent's listing cards; calendar and news items are found by their owners
     quality_routes.configure(is_operator=is_operator,
                              resolvers={"calendar": calendar_quality.review_target, "news": news_quality.review_target})

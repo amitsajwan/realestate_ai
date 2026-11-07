@@ -47,20 +47,25 @@ async def queued(db, now: Optional[datetime] = None) -> Dict[str, int]:
         "voice_overs": await runs.count_documents({"voices_queued": True}),
         "boost_pairs": await runs.count_documents({"boost_queued": True}),
         "walkthrough_reels": await db.get_collection("reel_jobs").count_documents({"status": "queued"}),
+        "brochure_reads": await db.get_collection("brochure_jobs").count_documents(
+            {"status": "queued", "not_before": {"$lt": (now or _utcnow()).replace(tzinfo=None)}}),
         "calendar_reels": len(await Store(db).reels_to_render(now or datetime.now(timezone.utc), CALENDAR_LEAD)),
     }
     return {k: v for k, v in out.items() if v}
 
 
-async def drain(db, make_runs: Callable[[], Any]) -> int:
+async def drain(db, make_runs: Callable[[], Any], make_reads: Optional[Callable[[], Any]] = None) -> int:
     """The Cloud Run Job's whole life: clean up stale items once, then work through the three queues until they stay empty
     for IDLE_CHECKS rounds. Returns how many items it took. `make_runs`: the marketing-run queue (propertyfacts.jobs
-    default_runs, passed in by app.worker: the app layer's queue is not imported from here)."""
+    default_runs, passed in by app.worker: the app layer's queue is not imported from here); `make_reads`: the one-time brochure
+    reads (propertyfacts.brochure_once), the same way."""
     from app.modules.calendar.runner import prerender_reels
     from app.modules.calendar.store import Store
     from app.modules.reels.listing_reel import default_jobs
     runs, reels = make_runs(), default_jobs()
-    for cleanup in (runs.fail_stale, reels.fail_stale):   # nothing else renders: an item left "making" by a cut job is stale
+    reads = make_reads() if make_reads else None
+    steps = (runs.run_once, reels.run_once) + ((reads.run_once,) if reads else ())
+    for cleanup in (runs.fail_stale, reels.fail_stale) + ((reads.fail_stale,) if reads else ()):   # nothing else renders: an item left "making" by a cut job is stale
         try:
             await cleanup()
         except Exception:
@@ -68,7 +73,7 @@ async def drain(db, make_runs: Callable[[], Any]) -> int:
     done, idle = 0, 0
     while idle < IDLE_CHECKS:
         took = False
-        for step in (runs.run_once, reels.run_once):
+        for step in steps:
             try:
                 took = bool(await step()) or took
             except Exception:
@@ -94,12 +99,13 @@ async def _token(client: httpx.AsyncClient) -> str:
 
 
 _alert: Optional[Callable[[Any, str], Any]] = None
+_sweep: Optional[Callable[[Any], Any]] = None
 
 
-def configure(alert: Callable[[Any, str], Any]) -> None:
-    """How to tell the owner (app.wiring): this module does not know who the owner is."""
-    global _alert
-    _alert = alert
+def configure(alert: Callable[[Any, str], Any], sweep: Optional[Callable[[Any], Any]] = None) -> None:
+    """How to tell the owner, and how to queue new work this module does not know of (app.wiring)."""
+    global _alert, _sweep
+    _alert, _sweep = alert, sweep
 
 
 def _utcnow() -> datetime:
@@ -146,6 +152,11 @@ async def warn_of_stuck_runs(db, alert: Callable[[Any, str], Any], told: Set[str
 async def dispatch_once(db, client: httpx.AsyncClient, alert: Optional[Callable[[Any, str], Any]] = None,
                         told: Optional[Set[str]] = None, now: Optional[datetime] = None) -> Optional[str]:
     """Start the renderer when work waits and none runs; returns the execution's name when it started one."""
+    if _sweep:
+        try:
+            await _sweep(db)
+        except Exception:   # a brochure that cannot be queued must not stop the reels
+            log.exception("render dispatch: brochure sweep failed")
     waiting = await queued(db)
     if not waiting:
         return None

@@ -38,7 +38,7 @@ def _picture(data: bytes) -> dict:
     return {"inlineData": {"mimeType": mime_of(data), "data": base64.b64encode(data).decode()}}
 
 
-async def _post(model: str, body: dict, timeout: float) -> list:
+async def _generate(model: str, body: dict, timeout: float) -> dict:
     key = os.environ.get("GEMINI_API_KEY")
     if not key:
         raise GeminiError("GEMINI_API_KEY is not set")
@@ -49,7 +49,15 @@ async def _post(model: str, body: dict, timeout: float) -> list:
         raise GeminiError(f"{model} unreachable ({type(e).__name__})")
     if r.status_code >= 400:
         raise GeminiError(f"{model} HTTP {r.status_code}: {r.text[:160]}".replace(key, "[redacted]"))
-    return ((r.json().get("candidates") or [{}])[0].get("content") or {}).get("parts") or []
+    return r.json()
+
+
+def _parts(answer: dict) -> list:
+    return ((answer.get("candidates") or [{}])[0].get("content") or {}).get("parts") or []
+
+
+async def _post(model: str, body: dict, timeout: float) -> list:
+    return _parts(await _generate(model, body, timeout))
 
 
 async def draw_from(image: bytes, prompt: str, aspect: str = "16:9", models: Sequence[str] = IMAGE_MODELS,
@@ -69,6 +77,29 @@ async def draw_from(image: bytes, prompt: str, aspect: str = "16:9", models: Seq
             if data:
                 return base64.b64decode(data)
         why = f"{model} answered without a picture"
+    raise GeminiError(why)
+
+
+async def read_counted(images: List[bytes], prompt: str, models: Sequence[str] = READ_MODELS, timeout: float = 90.0,
+                       thinking: str = "") -> tuple:
+    """(answer, {model, tokens_in, tokens_out}) for a caller that keeps its own spending limit. Gemini bills thinking as output.
+    `thinking`: "low" stops a dense page taking over a minute (brochure pilot, 2026-11-07). Raises GeminiError like `read`."""
+    config: dict = {"responseMimeType": "application/json", "temperature": 0}
+    if thinking:
+        config["thinkingConfig"] = {"thinkingLevel": thinking}
+    body = {"contents": [{"parts": [*(_picture(i) for i in images), {"text": prompt}]}], "generationConfig": config}
+    why = "no model answered"
+    for model in models:
+        try:
+            answer = await _generate(model, body, timeout)
+            out = json.loads("".join(p.get("text", "") for p in _parts(answer)))
+        except (GeminiError, ValueError) as e:
+            why = str(e)
+            continue
+        out = out[0] if isinstance(out, list) and len(out) == 1 and isinstance(out[0], dict) else out
+        used = answer.get("usageMetadata") or {}
+        return out, {"model": model, "tokens_in": int(used.get("promptTokenCount") or 0),
+                     "tokens_out": int(used.get("candidatesTokenCount") or 0) + int(used.get("thoughtsTokenCount") or 0)}
     raise GeminiError(why)
 
 

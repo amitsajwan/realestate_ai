@@ -31,7 +31,7 @@ from app.modules.agentprojects.service import indexable
 from app.modules.listings import projectlive
 from app.platform.media import display_url, upload_path
 
-from . import brochure, jobs
+from . import brochure, brochure_once, jobs
 from .public import view
 from .store import FactsStore
 
@@ -334,6 +334,17 @@ class RegistrationIn(BaseModel):
 
 def get_brochures() -> brochure.Brochures:
     return brochure.default_brochures()
+
+
+@router.get("/{listing_id}/brochure/reading")
+async def brochure_reading(listing_id: str, user: User = Depends(current_active_user),
+                           kits: brochure.Brochures = Depends(get_brochures)) -> dict:
+    """Where the one-time read of this listing's brochure has got to: {status: none, queued, reading, done, failed, dropped, note}."""
+    try:
+        await kits._listing(str(user.id), listing_id)
+    except brochure.BrochureError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
+    return await brochure_once.default_reads().status(listing_id) or {"status": "none", "note": None}
 
 
 @router.post("/{listing_id}/brochure")

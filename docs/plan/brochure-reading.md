@@ -1,7 +1,7 @@
-# Reading a brochure, once (2026-11-07, PROPOSED)
+# Reading a brochure, once (2026-11-07, BUILT)
 
 Owner, 2026-11-07: "we need brochure reading and getting floor plans etc, but a brochure understanding is one time activity."
-Nothing here is built. It reuses what exists and changes when and how often the reading happens.
+Built 2026-11-07 in `propertyfacts/brochure_once.py`, on top of the existing kit. "Where we are" below is how it stood before.
 
 ## Where we are (read from code and production, 2026-11-07)
 
@@ -102,13 +102,13 @@ the stored one and no model is called.
 3. **Agent's check screen:** reuse `useBrochure` and the kit UI, and change the Studio text that says brochures are never read.
 4. **Project page:** the kit's plans through `profile.brochure_pictures`, then Rankings shows pages that gained a plan.
 
-## Owner's calls
+## Owner's calls (2026-11-07: yes to all three)
 
-1. **Do verified floor plans show without the agent's tick?** Recommended yes: the page already does this for a verified kit,
-   an agent can drop any page, and agents rarely come back to confirm. Facts always need the tick.
-2. **Cost limit:** recommended ₹10 a brochure. The pilot's ₹3-4 fits it; a run past it stops and is marked failed. The day's cap
-   stays shared with `ENRICH_GEMINI_INR_PER_DAY`, which production sets to ₹5,000 (notes said ₹300): the owner confirms the figure.
-   Gemini credit has run out before (402, 2026-10-14 and 2026-11-01).
+1. **Verified floor plans show without the agent's tick.** The page already did this for a verified kit, and an agent can drop any
+   page. Facts always need the tick.
+2. **Cost limit:** ₹10 a brochure; a read past it stops and is marked failed. The day's cap stays shared with
+   `ENRICH_GEMINI_INR_PER_DAY` at ₹5,000. The renderer needs that setting too. Gemini credit has run out before (402, 2026-10-14
+   and 2026-11-01): a read then waits 6 hours and is not counted as a try.
 
 ## Not in this plan
 
