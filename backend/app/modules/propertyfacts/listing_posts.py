@@ -62,7 +62,7 @@ def headline(listing: dict, c: Ctx) -> str:
     if homes.several(listing):
         what = homes.bhk_range(table) or units_word(listing)
         return f"{where}: {what}" + (f" from {homes.short_price(low)} onwards" if low else "")
-    what = table[0]["label"] if table else ("Plot" if listing.get("property_type") == "plot" else "Home")
+    what = row_label(listing, table[0]) if table else ("Plot" if listing.get("property_type") == "plot" else "Home")
     return f"{what} at {where}" + (f": {homes.short_price(low)}" if low else "")
 
 
@@ -99,9 +99,9 @@ def details_caption(listing: dict, c: Ctx, contact: Sequence[str], link_line: st
     table = homes.rows(listing)
     parts = [headline(listing, c)]
     if table and (len(table) > 1 or table[0].get("carpet_sqft")):
-        lines = [f"🏠 {units_word(listing)} and prices"]
+        lines = ["🏢 Sizes and prices" if commercial(listing) else f"🏠 {units_word(listing)} and prices"]
         for r in table:
-            lines.append("• " + " · ".join(x for x in (r["label"], f"{int(r['carpet_sqft']):,} sq ft carpet" if r.get("carpet_sqft") else "",
+            lines.append("• " + " · ".join(x for x in (row_label(listing, r), f"{int(r['carpet_sqft']):,} sq ft carpet" if r.get("carpet_sqft") else "",
                                                        homes.short_price(r.get("price_inr"))) if x))
         parts.append("\n".join(lines))
     facts = []
@@ -248,10 +248,18 @@ async def judge_pictures(paths: Sequence[str], ask: Callable[[List[bytes], str],
     return judged
 
 
+def commercial(listing: dict) -> bool:
+    return listing.get("property_type") in ("office", "shop", "commercial")
+
+
+def row_label(listing: dict, row: dict) -> str:
+    """A price row's name: "Home" is the table's word for a row with no BHK, and a shop is not a home."""
+    return "Shop/office" if commercial(listing) and row.get("label") == "Home" else row["label"]
+
+
 def units_word(listing: dict) -> str:
     """What the listing sells, for a heading: shops and offices are not homes."""
-    kind = listing.get("property_type")
-    return "Plots" if kind == "plot" else "Shops and offices" if kind in ("office", "shop", "commercial") else "Homes"
+    return "Plots" if listing.get("property_type") == "plot" else "Shops and offices" if commercial(listing) else "Homes"
 
 
 def photo_like(path: str, render: bool = False) -> bool:
@@ -460,14 +468,14 @@ def details_card(listing: dict, c: Ctx, picture: Optional[str], brand_name: str,
     size = 40 if row_h >= 70 else 34
     hf, rf, pf = load_font(28, "semibold"), load_font(size, "medium"), load_font(size, "bold")
     if table:
-        d.text((cols[0], y), "HOME", font=hf, fill=SOFT)
+        d.text((cols[0], y), "UNIT" if commercial(listing) else "HOME", font=hf, fill=SOFT)
         d.text((cols[1], y), "CARPET AREA", font=hf, fill=SOFT)
         d.text((cols[2] - d.textlength("PRICE", font=hf), y), "PRICE", font=hf, fill=SOFT)
         y += 48
         for r in table:
             d.line([PAD, y, W - PAD, y], fill=LINE, width=2)
             ty = y + (row_h - sum(rf.getmetrics())) // 2
-            d.text((cols[0], ty), r["label"], font=rf, fill=WHITE)
+            d.text((cols[0], ty), row_label(listing, r), font=rf, fill=WHITE)
             if r.get("carpet_sqft"):
                 d.text((cols[1], ty), f"{int(r['carpet_sqft']):,} sq ft", font=rf, fill=WHITE)
             price = homes.short_price(r.get("price_inr")) or "Ask us"

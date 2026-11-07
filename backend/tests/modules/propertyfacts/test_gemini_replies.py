@@ -45,3 +45,19 @@ def test_shops_are_not_called_homes():
     from app.modules.propertyfacts import listing_posts
     assert listing_posts.units_word({"property_type": "office"}) == "Shops and offices"
     assert listing_posts.units_word({"property_type": "apartment"}) == "Homes"
+
+
+def test_a_project_with_a_confirmed_size_is_not_asked_one_or_many_again():
+    from app.modules.propertyfacts import understand
+    listing = {"property_type": "apartment", "listing_scope": "layout", "carpet_sqft": 810, "bhk": 2, "rera_no": "PM1260002501030"}
+    _, ask = understand.decide(listing, {}, True)
+    assert "scope_check" in [q["key"] for q in ask]
+    _, ask = understand.decide({**listing, "size_min_sqft": 810, "size_max_sqft": 810}, {}, True)
+    assert "scope_check" not in [q["key"] for q in ask]
+
+
+def test_a_price_row_of_a_shop_is_not_called_a_home():
+    from app.modules.propertyfacts import listing_posts
+    assert listing_posts.row_label({"property_type": "office"}, {"label": "Home"}) == "Shop/office"
+    assert listing_posts.row_label({"property_type": "apartment"}, {"label": "Home"}) == "Home"
+    assert listing_posts.row_label({"property_type": "office"}, {"label": "2 BHK"}) == "2 BHK"

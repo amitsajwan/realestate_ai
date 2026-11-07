@@ -161,7 +161,8 @@ def decide(listing: dict, seen: Dict[str, Any], registered: bool, units_total: O
         if carpets and not listing.get("size_min_sqft"):
             auto.update(size_min_sqft=min(carpets), size_max_sqft=max(carpets))
         single, sizes = False, []
-    if scope == "layout" and single:   # a brochure made the form say "whole project" for one 3 BHK (Camelot, 2026-10-14)
+    # a brochure made the form say "whole project" for one 3 BHK (Camelot, 2026-10-14); a confirmed size means it was answered
+    if scope == "layout" and single and not listing.get("size_min_sqft"):
         bhk = f"{listing['bhk']:g} BHK " if listing.get("bhk") else ""
         ask.append(_q("scope_check", f"This listing gives one {bhk}{word} of {listing['carpet_sqft']:,.0f} sq ft at one price, "
                       "but it is marked as a whole project. Which is it?",

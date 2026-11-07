@@ -8,6 +8,7 @@ def wire() -> None:
     from app.modules.calendar import library as calendar_library
     from app.modules.calendar import quality as calendar_quality
     from app.modules.calendar import reach as calendar_reach
+    from app.modules.calendar import runner as calendar_runner
     from app.modules.concierge.attribution import attribution_text, register_hub_item
     from app.modules.concierge.config import is_operator
     from app.modules.engage import service as engage_service
@@ -16,6 +17,7 @@ def wire() -> None:
     from app.modules.marketing.facts import Facts
     from app.modules.newsroom import quality as news_quality
     from app.modules.photoquality import router as quality_routes
+    from app.modules.propertyfacts import run_news
     from app.modules.propertyfacts.brochure_once import sweep as brochure_sweep
     from app.modules.reels import render_job
     from app.modules.showcase import samples
@@ -25,6 +27,9 @@ def wire() -> None:
     social_service.configure(link_line=link_line)  # the pack's link line, in marketing's words
     # a stuck marketing queue shows no error anywhere else; a brochure attached to a listing queues its one read
     render_job.configure(alert=_tell_owner_of_stuck_runs, sweep=brochure_sweep)
+    # who hears about an agent's posts: the owner, and the agent on WhatsApp
+    run_news.configure(owner=_owner_id, tell=_tell_agent_posted)
+    calendar_runner.configure(on_posted=run_news.posted)
     # the quality route: the operator may review any agent's listing cards; calendar and news items are found by their owners
     quality_routes.configure(is_operator=is_operator,
                              resolvers={"calendar": calendar_quality.review_target, "news": news_quality.review_target})
@@ -304,6 +309,22 @@ async def _forget_place(db, regno):
     from app.modules.propertyfacts.store import COLLECTION
 
     await db.get_collection(COLLECTION).delete_one({"_id": regno})
+
+
+def _owner_id() -> str:
+    from app.modules.engage.config import load
+
+    return load().owner_agent_id or ""
+
+
+async def _tell_agent_posted(phone: str, params: list) -> None:
+    from app.modules.propertyfacts.run_news import TEMPLATE
+    from app.modules.whatsapp import config as whatsapp_config
+    from app.modules.whatsapp.graph import WhatsAppGraph
+
+    cfg = whatsapp_config.load()
+    if cfg.enabled and not cfg.dry_run and cfg.can_send:   # outside production nothing goes to Meta
+        await WhatsAppGraph(cfg).send_template(cfg.phone_number_id, phone, TEMPLATE, "en", params)
 
 
 async def _tell_owner_of_stuck_runs(db, summary: str) -> None:

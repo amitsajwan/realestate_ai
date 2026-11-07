@@ -25,7 +25,7 @@ from app.modules.areastats import budget
 from app.modules.listings.service import ListingError
 from app.platform import gemini, trace
 
-from . import brochure_once, campaign, identity, listing_posts, points, room, understand, voiceover
+from . import brochure_once, campaign, identity, listing_posts, points, room, run_news, understand, voiceover
 from .brochure import Brochures, post_renders, usable_images
 from .facts import USABLE
 from .gather import Clients, gather
@@ -304,6 +304,15 @@ class MarketingRuns:
     async def latest(self, agent_id: str, listing_id: str) -> Optional[dict]:
         await self._listing(agent_id, listing_id)
         return await self._with_boost(await self._with_walkthrough(await self._latest({"listing_id": listing_id, "agent_id": agent_id})))
+
+    async def _ready(self, job: dict, listing: dict, posts: int, reels: int) -> None:
+        """A finished run reaches the approval calendar by itself and the people who need to know are told. Never fails the run:
+        the agent can still press Send to calendar."""
+        try:
+            await self.to_calendar(job["agent_id"], job["listing_id"])
+            await run_news.ready(self.db, job["agent_id"], listing, posts, reels, self.now())
+        except Exception:
+            log.warning("marketing: run %s finished, but its posts were not sent on", job["_id"], exc_info=True)
 
     async def to_calendar(self, agent_id: str, listing_id: str, start=None) -> dict:
         """Send the latest finished run's posts to the approval calendar as planned rows (schedule.queue). Idempotent."""
@@ -1152,6 +1161,7 @@ class MarketingRuns:
             await self._set(jid, status="done", reels=reels, error=None, finished_at=self.now())
             trace.event(log, "marketing", jid, "done", trace.OK, posts=len(posts), reels=len(reels),
                         seconds=time.monotonic() - started)
+            await self._ready(job, listing, len(posts), len(reels))
         except Exception as e:
             log.exception("marketing run %s failed in step %s", jid, step)
             trace.event(log, "marketing", jid, "done", trace.FALLBACK if step == "reels" else trace.FAILED, failed_step=step,
@@ -1275,6 +1285,7 @@ class MarketingRuns:
         await self._update_boost(job, listing, sheet, out, changes)
         await self._set(jid, status="done", step="reels", changes=changes, posts=posts, reels=reels, redone=redone,
                         inputs=self._inputs(listing), error=None, finished_at=self.now())
+        await self._ready(job, listing, len(posts), len(reels))
 
     # ---- the master boost pair (boost.py) -------------------------------------------------------------------------------
     async def _make_boost(self, job: dict, listing: dict, facts: Dict[str, Any], out: Path, own: List[str]) -> None:

@@ -105,7 +105,7 @@ it('sends the finished posts to the calendar for approval', async () => {
   fireEvent.click(await screen.findByRole('button', { name: 'Send to calendar for approval' }))
   expect(sendRunToCalendar).toHaveBeenCalledWith('L1')
   expect(await screen.findByText(/2 planned in the calendar, two a day from 7 Oct/)).toBeInTheDocument()
-  expect(await screen.findByRole('link', { name: 'Approve them in Content' })).toHaveAttribute('href', '/studio/content')
+  expect(await screen.findByText(/approves each post/)).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Send to calendar for approval' })).not.toBeInTheDocument()
 })
 

@@ -113,3 +113,13 @@ the stored one and no model is called.
 ## Not in this plan
 
 Drawing 3D plans (`plans3d`), asking builders for brochures, reading PDFs from other sites, and reading videos.
+
+## After the first real runs (2026-11-07)
+
+- A post needs 2 pictures to be a carousel. When an agent's own fall short, a verified brochure's renders fill it, labelled
+  "Artist's impression". The agent can drop any page; the owner approves every post.
+- The word count could not tell clean renders with shop signs from adverts, so a model looks at each uploaded picture once
+  (`listing_posts.judge_pictures`).
+- One reel a listing: the agent's video if there is one, else the room's best; the walkthrough only stands in if neither is made.
+- A finished run goes to the approval calendar by itself, and the agent hears when a post is out (`propertyfacts/run_news.py`,
+  WhatsApp template `agent_post_live_v1`).
