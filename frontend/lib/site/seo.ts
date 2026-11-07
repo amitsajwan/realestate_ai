@@ -40,11 +40,24 @@ export function withPreview(agent: AgentProfile, md: Metadata): Metadata {
   return md
 }
 
+const AGENT_TITLE_AREAS = 3   // a title longer than this is cut off in Google's results
+
+/** The areas the agent named on their site and their MahaRERA agent number, the two things people search an agent by. */
+function agentFacts(agent: AgentProfile): { areas: string[]; rera: string } {
+  const b = (agent.branding_data || {}) as { areas?: unknown; rera_agent_no?: unknown }
+  const areas = Array.isArray(b.areas) ? b.areas.filter((a): a is string => typeof a === 'string' && !!a.trim()) : []
+  return { areas: areas.slice(0, AGENT_TITLE_AREAS), rera: typeof b.rera_agent_no === 'string' ? b.rera_agent_no : '' }
+}
+
 export function agentMetadata(agent: AgentProfile, listings: PublicListing[], city: string): Metadata {
   const tag = agent.branding_data && agent.branding_data.tagline
+  const { areas, rera } = agentFacts(agent)
   // the business name when there is one: House Deal's login is in a person's name, and the tab read "Sharad | Real estate in Pune"
-  const title = displayName(agent) + (city ? ' | Real estate in ' + city : ' | Real estate agent')
-  const description = truncate(tag ? tag + '. ' + (agent.bio || '') : agent.bio || 'Browse properties from ' + agent.agent_name, 160)
+  const place = [areas.join(', '), city].filter(Boolean).join(', ')
+  const title = displayName(agent) + (areas.length ? ' | Real estate agent in ' + place : city ? ' | Real estate in ' + city : ' | Real estate agent')
+  const homes = listings.length ? listings.length + ' live listing' + (listings.length > 1 ? 's' : '') + '. ' : ''
+  const number = rera ? 'MahaRERA agent ' + rera + '. ' : ''
+  const description = truncate(number + homes + (tag ? tag + '. ' + (agent.bio || '') : agent.bio || 'Browse properties from ' + agent.agent_name), 160)
   const image = agent.photo || (listings.length ? firstImage(listings[0]) : undefined) || undefined
   const md = withPreview(agent, build(title, description, agentPath(agent.slug), image))
   // The team's own site ("Avasetu Homes") was Google's first answer for "avasetu pune", ahead of the home page (2026-10-29).
@@ -54,8 +67,16 @@ export function agentMetadata(agent: AgentProfile, listings: PublicListing[], ci
   return isHouseAgent(agent.slug) ? { ...md, alternates: { canonical: siteOrigin() } } : md
 }
 
+/** What someone types for this home: 'KP Supernova 2 BHK in Mohammadwadi, Pune'. The project's own name first when there is one. */
+function listingSearchName(l: PublicListing): string {
+  const shops = ['office', 'shop', 'commercial'].includes(l.property_type)
+  const what = shops ? 'shops and offices' : bhkLabel(l.bhk, l.property_type)
+  const where = [l.locality, l.city].filter(Boolean).join(', ')
+  return (l.project_name ? l.project_name + ' ' + what : l.title) + (where && !/ in /i.test(l.project_name ? what : l.title) ? ' in ' + where : '')
+}
+
 export function listingMetadata(agent: AgentProfile, l: PublicListing): Metadata {
-  const title = l.title + ' | ' + formatPrice(l.price_inr, l.transaction)
+  const title = listingSearchName(l) + ': ' + formatPrice(l.price_inr, l.transaction)
   const description = truncate(
     [bhkLabel(l.bhk, l.property_type), l.locality + ', ' + l.city].join(' in ') + '. ' + listingDescription(l),
     160
@@ -71,6 +92,8 @@ export function agentJsonLd(agent: AgentProfile, city: string): Record<string, u
     url: siteOrigin() + agentPath(agent.slug),
     image: agent.photo || undefined,
     description: agent.bio || undefined,
+    areaServed: agentFacts(agent).areas.map((a) => ({ '@type': 'Place', name: a })),
+    identifier: agentFacts(agent).rera ? { '@type': 'PropertyValue', propertyID: 'MahaRERA', value: agentFacts(agent).rera } : undefined,
     address: { '@type': 'PostalAddress', streetAddress: agent.office_address || undefined, addressLocality: city || undefined, addressCountry: 'IN' },
     knowsLanguage: agent.languages && agent.languages.length ? agent.languages : undefined,
     // the team's own site belongs to the Avasetu organisation, whose page is the home page (the Organization there)
