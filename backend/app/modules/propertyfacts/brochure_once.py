@@ -268,13 +268,14 @@ async def read_file(data: bytes, folder: Path, ask: Ask) -> Dict[str, Any]:
     rules = bp.extract(sorted(read.texts.items()))
     numbers = [c.value for c in rules if c.key == "rera_no"]
     source = "text" if numbers else ""
+    number_page = 1
     if not numbers:
         pages = triage.read_order(labels, read.pages)
         order = [n for kinds in (("legal",), ("cover", "text"), ("floor_plan", "master_plan")) for n in pages if labels.get(n, {}).get("kind") in kinds]
         for n in order[:NUMBER_PAGES]:   # a one-sheet brochure prints it on the plan
             number = await read_number(data, n, ask)
             if number:
-                numbers, source = [number], "vision"
+                numbers, source, number_page = [number], "vision", n
                 break
 
     rows: List[dict] = []
@@ -305,7 +306,7 @@ async def read_file(data: bytes, folder: Path, ask: Ask) -> Dict[str, Any]:
         if isinstance(answer, dict):
             claims += [str(x)[:120] for x in answer.get("location_claims") or []]
     if source == "vision":
-        found.append(bp.Candidate("rera_no", numbers[0], next(iter(labels)), f"Read twice: {numbers[0]}", by="vision"))
+        found.append(bp.Candidate("rera_no", numbers[0], number_page, f"Read twice: {numbers[0]}", by="vision"))
     facts = best_of_each(bp.merge(found, []))
     return {"version": VERSION, "pages": read.pages, "image_only_pages": list(read.image_only), "labels": {str(k): v for k, v in labels.items()},
             "images": images, "numbers": numbers, "number_source": source, "area_rows": rows, "headings": headings,
