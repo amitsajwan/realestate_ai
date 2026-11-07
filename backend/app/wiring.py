@@ -12,6 +12,7 @@ def wire() -> None:
     from app.modules.concierge.attribution import attribution_text, register_hub_item
     from app.modules.concierge.config import is_operator
     from app.modules.engage import service as engage_service
+    from app.modules.inbox import service as inbox_service
     from app.modules.knowledge import grounding
     from app.modules.marketing.content import link_line
     from app.modules.marketing.facts import Facts
@@ -28,8 +29,9 @@ def wire() -> None:
     # a stuck marketing queue shows no error anywhere else; a brochure attached to a listing queues its one read
     render_job.configure(alert=_tell_owner_of_stuck_runs, sweep=brochure_sweep)
     # who hears about an agent's posts: the owner, and the agent on WhatsApp
-    run_news.configure(owner=_owner_id, tell=_tell_agent_posted)
-    calendar_runner.configure(on_posted=run_news.posted)
+    run_news.configure(owner=_owner_id, tell=_tell_agent)
+    calendar_runner.configure(on_posted=run_news.posted, on_cycle=run_news.results_due)
+    inbox_service.configure(ask_post=_ask_agent_about_post)
     # the quality route: the operator may review any agent's listing cards; calendar and news items are found by their owners
     quality_routes.configure(is_operator=is_operator,
                              resolvers={"calendar": calendar_quality.review_target, "news": news_quality.review_target})
@@ -317,14 +319,19 @@ def _owner_id() -> str:
     return load().owner_agent_id or ""
 
 
-async def _tell_agent_posted(phone: str, params: list) -> None:
-    from app.modules.propertyfacts.run_news import TEMPLATE
-    from app.modules.whatsapp import config as whatsapp_config
-    from app.modules.whatsapp.graph import WhatsAppGraph
+async def _tell_agent(db, wa_id: str, name: str, template: str, params: list, text: str, about: str) -> None:
+    from datetime import datetime
 
-    cfg = whatsapp_config.load()
-    if cfg.enabled and not cfg.dry_run and cfg.can_send:   # outside production nothing goes to Meta
-        await WhatsAppGraph(cfg).send_template(cfg.phone_number_id, phone, TEMPLATE, "en", params)
+    from app.modules.whatsapp.router import build_service
+
+    await build_service(db=db).tell_agent(wa_id, name, template, params, text, about, datetime.utcnow())
+
+
+async def _ask_agent_about_post(db, wa_id: str) -> bool:
+    from app.modules.calendar.store import Store
+    from app.modules.propertyfacts import run_news
+
+    return await run_news.ask_by_hand(Store(db), wa_id)
 
 
 async def _tell_owner_of_stuck_runs(db, summary: str) -> None:

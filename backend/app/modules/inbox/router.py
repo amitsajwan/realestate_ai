@@ -147,6 +147,11 @@ async def pass_lead(lead_id: str, body: PassIn, user: User = Depends(owner_only)
     return await _run(svc.pass_lead(str(user.id), lead_id, body.agent_id, always=body.always))
 
 
+@router.post("/{tid}/ask-post")
+async def ask_post(tid: str, user: User = Depends(owner_only), svc: InboxService = Depends(get_inbox)) -> dict:
+    return await _run(svc.ask_about_post(str(user.id), tid))
+
+
 @router.post("/{tid}/reply")
 async def reply(tid: str, body: ReplyIn, user: User = Depends(current_active_user), svc: InboxService = Depends(get_inbox)) -> dict:
     return await _run(svc.reply(str(user.id), tid, body.text, "person"))

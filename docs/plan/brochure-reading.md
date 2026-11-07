@@ -123,3 +123,6 @@ Drawing 3D plans (`plans3d`), asking builders for brochures, reading PDFs from o
 - One reel a listing: the agent's video if there is one, else the room's best; the walkthrough only stands in if neither is made.
 - A finished run goes to the approval calendar by itself, and the agent hears when a post is out (`propertyfacts/run_news.py`,
   WhatsApp template `agent_post_live_v1`).
+- Every message to an agent is kept in their Inbox thread. Two days after a listing's posts go out, once a listing, the agent gets
+  the numbers with Boost, Keep and Remove buttons (template `agent_post_results_v1`). A tap only alerts the owner, says which listing,
+  and opens WhatsApp's 24 hours so a person can reply. Studio's agent thread has "Ask: boost, keep or remove?" for any time.

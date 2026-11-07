@@ -29,6 +29,14 @@ from app.modules.whatsapp.service import mask
 
 from . import handover
 
+_ask_post = None   # app.wiring: the boost, keep or remove question (propertyfacts.run_news), a domain above this one
+
+
+def configure(ask_post) -> None:
+    global _ask_post
+    _ask_post = ask_post
+
+
 HUMAN_HOLD = timedelta(hours=12)
 MAX_THREADS = 100
 MAX_MESSAGES = 200
@@ -291,6 +299,18 @@ class InboxService:
         msgs = (conv.get("messages") or []) + [{"role": "agent", "sent_by": by, "text": text, "ts": now, "status": rec["status"]}]
         await self.c("whatsapp_conversations").update_one({"_id": conv["_id"]}, {"$set": {
             "messages": msgs[-20:], "replies": conv.get("replies", []), "human_until": now + HUMAN_HOLD, "updated_at": now}})
+        return await self.thread(agent_id, tid)
+
+    async def ask_about_post(self, agent_id: str, tid: str) -> dict:
+        """The owner asks an agent, any time: boost, keep or remove their latest post, with its numbers. A template, so it goes
+        outside the 24-hour window too."""
+        kind, conv = await self._own(agent_id, tid)
+        if kind != "wa" or conv.get("role") != "agent":
+            raise InboxError("This is for a WhatsApp chat with an agent", 409)
+        if conv.get("opted_out"):
+            raise InboxError("They replied STOP. Do not message them on WhatsApp.", 409)
+        if not _ask_post or not await _ask_post(self.db, conv["wa_id"]):
+            raise InboxError("This agent has no post to ask about yet", 409)
         return await self.thread(agent_id, tid)
 
     # ---- a person starts a WhatsApp chat with a lead --------------------------------------------------------------

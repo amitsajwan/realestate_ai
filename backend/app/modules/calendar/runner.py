@@ -128,17 +128,23 @@ async def run_once(store: Store, publisher, social: SocialConfig, cfg: CalendarC
                     await _on_posted(store, doc)
                 except Exception:   # the post is out: a message that fails never touches it
                     log.warning("calendar: telling the agent about %s failed", doc.get("slug"), exc_info=True)
+    if _on_cycle:
+        try:
+            await _on_cycle(store, now)
+        except Exception:   # a message to an agent never stops the calendar
+            log.warning("calendar: the agents' results round failed", exc_info=True)
     await store.set_run(last_run_at=now, last_counts=counts, last_error=None if not counts["failed"] and not counts["retry"] else "see items")
     return counts
 
 
 _on_posted: Optional[Callable[[Store, dict], Awaitable[Any]]] = None
+_on_cycle: Optional[Callable[[Store, datetime], Awaitable[Any]]] = None
 
 
-def configure(on_posted: Callable[[Store, dict], Awaitable[Any]]) -> None:
-    """Who hears that a row went out (app.wiring: the calendar does not know about agents)."""
-    global _on_posted
-    _on_posted = on_posted
+def configure(on_posted: Callable[[Store, dict], Awaitable[Any]], on_cycle: Optional[Callable[[Store, datetime], Awaitable[Any]]] = None) -> None:
+    """Who hears that a row went out, and what runs each cycle after the posts (app.wiring: the calendar does not know about agents)."""
+    global _on_posted, _on_cycle
+    _on_posted, _on_cycle = on_posted, on_cycle
 
 
 def _images(doc: dict) -> list:
