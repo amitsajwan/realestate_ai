@@ -23,26 +23,13 @@ import { agentPath, normalizeSlug, siteOrigin } from '@/lib/site/slug'
 import { localityByName, localitySlug } from '@/lib/marketing/localities'
 import { BRAND_NAME } from '@/lib/brand'
 import DemoRibbon from '../../DemoRibbon'
-import type { CatalogProject, PublicListing } from '@/lib/site/types'
+import type { PublicListing } from '@/lib/site/types'
+import { projectForListing } from '@/lib/site/listingProject'
 import RegisterProjectPage from '@/components/site/RegisterProjectPage'
 import { getRegisterProjectByRegno, projectPageOfListing } from '@/lib/site/register'
 
 interface Props {
   params: Promise<{ slug: string; id: string }>
-}
-
-function norm(s: string | null | undefined): string {
-  return (s || '').trim().toLowerCase().replace(/\s+/g, ' ')
-}
-
-function projectForListing(listing: PublicListing, projects: CatalogProject[]): CatalogProject | null {
-  const rera = norm(listing.rera_no)
-  if (rera) {
-    const byRera = projects.find((p) => norm(p.rera_no) === rera)
-    if (byRera) return byRera
-  }
-  const name = norm(listing.project_name || listing.about?.project_name)
-  return name ? projects.find((p) => norm(p.name) === name || p.agents.some((a) => norm(a.project_slug).replace(/-/g, ' ') === name)) || null : null
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -53,7 +40,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!agent || !listing) return { title: 'Property not found', robots: { index: false } }
   const md = listingMetadata(agent, listing)
   // a listing of a project with its own page in search is that page in the agent's colours: the project page is the one to rank
-  const shown = isSampleListing(listing.title) ? null : await projectPageOfListing(listing.rera_no)
+  const regno = listing.rera_no || projectForListing(listing, await getCatalog())?.rera_no
+  const shown = isSampleListing(listing.title) ? null : await projectPageOfListing(regno)
   if (shown) md.alternates = { canonical: siteOrigin() + '/projects/' + shown }
   return md
 }
@@ -111,7 +99,7 @@ export default async function ListingPage({ params }: Props) {
           <Link href={agentPath(slug) + '#listings'} className="inline-flex min-h-[44px] items-center text-[var(--site-primary)]">&larr; All properties</Link>
         </p>
         <header>
-          <p className="text-3xl font-extrabold text-[var(--site-primary)]">{formatPrice(l.price_inr, l.transaction)}</p>
+          <p className="text-3xl font-extrabold text-[var(--site-primary)]">{l.price_inr ? formatPrice(l.price_inr, l.transaction) : 'Price on request'}</p>
           {isSampleListing(l.title) && (
             <p role="note" className="mt-2 rounded-lg bg-amber-100 px-3 py-2 text-sm font-semibold text-amber-900">
               Sample listing: an illustration of how a listing looks on {BRAND_NAME}. This home is not available. Tell us what you are looking for and we will find real options.

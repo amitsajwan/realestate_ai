@@ -145,6 +145,7 @@ async def test_sitemap_entries_list_live_projects_of_indexable_public_agents_onl
     await svc.upsert("A1", "draft-one", project(status="draft"))
     entries = await svc.sitemap_entries()
     assert [(e["agent_slug"], e["slug"]) for e in entries] == [("house-deal", "goyal-my-home")]
+    assert entries[0]["rera_no"] == "P52100078796"  # the sitemap leaves out a copy whose project has its own page
 
 
 async def _two_agents_same_project(svc, db):

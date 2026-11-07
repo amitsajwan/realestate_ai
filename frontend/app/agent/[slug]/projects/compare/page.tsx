@@ -20,7 +20,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const slug = normalizeSlug((await params).slug)
   const agent = slug ? await getAgent(slug) : null
   if (!agent) return { title: 'Agent not found', robots: { index: false } }
-  return withPreview(agent, { title: `Compare projects | ${agent.agent_name}` })
+  // a tool over the agent's own projects, with nothing of its own to rank: the projects it links to are the pages for search
+  return withPreview(agent, { title: `Compare projects | ${displayName(agent)}`, robots: { index: false, follow: true } })
 }
 
 export default async function ComparePage({ params }: Props) {

@@ -1,5 +1,6 @@
-import { agentJsonLd, agentMetadata, listingMetadata } from '@/lib/site/seo'
-import type { AgentProfile, PublicListing } from '@/lib/site/types'
+import { agentJsonLd, agentMetadata, listingJsonLd, listingMetadata, projectMetadata } from '@/lib/site/seo'
+import { siteOrigin } from '@/lib/site/slug'
+import type { AgentProfile, PublicListing, PublicProject } from '@/lib/site/types'
 
 const agent = {
   slug: 'kausar-patanwala', agent_name: 'Kausar Patanwala', bio: 'I am a RERA certified Real Estate Consultant.', languages: [],
@@ -41,4 +42,29 @@ test('search engines read the agent\'s areas and MahaRERA number', () => {
   const ld = agentJsonLd(agent, 'Pune') as { areaServed: { name: string }[]; identifier: { value: string } }
   expect(ld.areaServed.map((a) => a.name)).toEqual(['Undri', 'NIBM'])
   expect(ld.identifier.value).toBe('A011262605235')
+})
+
+test('a site with no homes stays out of search and joins with its first listing or project', () => {
+  expect(agentMetadata(agent, [], 'Pune').robots).toEqual({ index: false, follow: true })
+  expect(agentMetadata(agent, [listing({ title: 'Sample: 2 BHK' })], 'Pune').robots).toEqual({ index: false, follow: true })
+  expect(agentMetadata(agent, [listing({})], 'Pune').robots).toBeUndefined()
+  expect(agentMetadata(agent, [], 'Pune', true).robots).toBeUndefined()
+})
+
+test("the team's own site keeps naming the home page, not noindex, with no listings of its own", () => {
+  const md = agentMetadata({ ...agent, slug: 'avasetu' }, [], 'Pune')
+  expect(md.robots).toBeUndefined()
+  expect(md.alternates?.canonical).toBe(siteOrigin())
+})
+
+test('a listing with no price says none, in the title and the offer', () => {
+  const free = listing({ price_inr: null as never })
+  expect(listingMetadata(agent, free).title).toBe('KP Supernova 2 BHK in Mohammadwadi, Pune')
+  expect(listingJsonLd(agent, free).offers).toBeUndefined()
+  expect(listingJsonLd(agent, listing({})).offers).toMatchObject({ price: 8000000, seller: { name: 'Royal Estate' } })
+})
+
+test('an agent copy of a project goes by the business name, not the login', () => {
+  const p = { name: 'KP Supernova', locality: 'Mohammadwadi', slug: 'kp', rera_no: 'P1', media: [] } as unknown as PublicProject
+  expect(projectMetadata(agent, p, '₹80 L').title).toBe('KP Supernova, Mohammadwadi | Royal Estate')
 })

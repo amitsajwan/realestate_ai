@@ -2,7 +2,7 @@
  * Our own page for every MahaRERA project (docs/plan/project-pages.md): GET /api/v1/public/register/projects/{slug} and the list.
  * The facts are Avasetu's (the register); an agent's listing in the project lives on the agent's page and uses them.
  */
-import { serverApiBase } from './api'
+import { getCatalog, serverApiBase } from './api'
 import { badStatus, failed, withRetry, type Got } from './retry'
 import type { WebFacts } from './webfacts'
 import type { ProjectProfile } from './profile'
@@ -361,10 +361,14 @@ export async function getRegisterProjectByRegno(regno: string | null | undefined
 
 /** The project page an agent's listing of this MahaRERA number shows and names as its canonical page: the number's register page
  *  (a tower merged into its project resolves to the project's page) when that page is in search; null otherwise or when it
- *  cannot be read. The listing page and the sitemap both decide with this, so the sitemap never lists a page naming another. */
+ *  cannot be read. A project with a shared page answers with that page: its register address 301s there, and a canonical should
+ *  name where a page ends up (Lodha Camelot's listing named the redirect). The listing page and the sitemap both decide with
+ *  this, so the sitemap never lists a page naming another. */
 export async function projectPageOfListing(regno: string | null | undefined): Promise<string | null> {
   const r = await getRegisterProjectByRegno(regno)
-  return r?.indexable ? r.slug : null
+  if (!r?.indexable) return null
+  const regnos = new Set([r.regno, ...(r.towers ?? []).map((t) => t.regno)])   // as /projects/<slug> chooses where to redirect
+  return (await getCatalog()).find((x) => regnos.has(x.rera_no) && x.agents.length)?.slug ?? r.slug
 }
 
 /** A MahaRERA number as the register keys it. */

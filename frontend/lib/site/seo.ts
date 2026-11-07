@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { bhkLabel, fitDescription, formatPrice, truncate } from './format'
+import { bhkLabel, fitDescription, formatPrice, isSampleListing, truncate } from './format'
 import { BRAND_NAME, isHouseAgent } from '@/lib/brand'
 import { agentPath, siteOrigin } from './slug'
 import { monthsLater } from './check'
@@ -49,7 +49,7 @@ function agentFacts(agent: AgentProfile): { areas: string[]; rera: string } {
   return { areas: areas.slice(0, AGENT_TITLE_AREAS), rera: typeof b.rera_agent_no === 'string' ? b.rera_agent_no : '' }
 }
 
-export function agentMetadata(agent: AgentProfile, listings: PublicListing[], city: string): Metadata {
+export function agentMetadata(agent: AgentProfile, listings: PublicListing[], city: string, hasProjects = false): Metadata {
   const tag = agent.branding_data && agent.branding_data.tagline
   const { areas, rera } = agentFacts(agent)
   // the business name when there is one: House Deal's login is in a person's name, and the tab read "Sharad | Real estate in Pune"
@@ -64,7 +64,11 @@ export function agentMetadata(agent: AgentProfile, listings: PublicListing[], ci
   // It holds a few of our listings, their project and the enquiry form every buyer button on the site opens, so it stays and
   // keeps working (no redirect); it names the buyers' home as its canonical, so the brand's links and searches go there. Its
   // listing and project pages keep their own canonicals.
-  return isHouseAgent(agent.slug) ? { ...md, alternates: { canonical: siteOrigin() } } : md
+  if (isHouseAgent(agent.slug)) return { ...md, alternates: { canonical: siteOrigin() } }
+  // A site with no homes on it is a name and a generated bio: a thin page (seo-system section 9), and one that can rival a real
+  // page (a trial agent's site titled "Vilas Javdekar Developer" beside /builders). It joins search with its first listing,
+  // as the sitemap already lists only agents with something live.
+  return !hasProjects && !listings.some((l) => !isSampleListing(l.title)) ? { ...md, robots: md.robots ?? { index: false, follow: true } } : md
 }
 
 /** What someone types for this home: 'KP Supernova 2 BHK in Mohammadwadi, Pune'. The project's own name first when there is one. */
@@ -76,7 +80,8 @@ function listingSearchName(l: PublicListing): string {
 }
 
 export function listingMetadata(agent: AgentProfile, l: PublicListing): Metadata {
-  const title = listingSearchName(l) + ': ' + formatPrice(l.price_inr, l.transaction)
+  // a listing with no price (a launch still taking interest) read ": ₹0"
+  const title = listingSearchName(l) + (l.price_inr ? ': ' + formatPrice(l.price_inr, l.transaction) : '')
   const description = truncate(
     [bhkLabel(l.bhk, l.property_type), l.locality + ', ' + l.city].join(' in ') + '. ' + listingDescription(l),
     160
@@ -92,7 +97,7 @@ export function agentJsonLd(agent: AgentProfile, city: string): Record<string, u
     url: siteOrigin() + agentPath(agent.slug),
     image: agent.photo || undefined,
     description: agent.bio || undefined,
-    areaServed: agentFacts(agent).areas.map((a) => ({ '@type': 'Place', name: a })),
+    areaServed: agentFacts(agent).areas.length ? agentFacts(agent).areas.map((a) => ({ '@type': 'Place', name: a })) : undefined,
     identifier: agentFacts(agent).rera ? { '@type': 'PropertyValue', propertyID: 'MahaRERA', value: agentFacts(agent).rera } : undefined,
     address: { '@type': 'PostalAddress', streetAddress: agent.office_address || undefined, addressLocality: city || undefined, addressCountry: 'IN' },
     knowsLanguage: agent.languages && agent.languages.length ? agent.languages : undefined,
@@ -114,13 +119,13 @@ export function listingJsonLd(agent: AgentProfile, l: PublicListing): Record<str
     numberOfRooms: l.bhk || undefined,
     floorSize: l.carpet_sqft ? { '@type': 'QuantitativeValue', value: l.carpet_sqft, unitCode: 'FTK' } : undefined,
     address: { '@type': 'PostalAddress', streetAddress: l.project_name || undefined, addressLocality: l.locality, addressRegion: l.city, addressCountry: 'IN' },
-    offers: {
+    offers: !l.price_inr ? undefined : {
       '@type': 'Offer',
       price: l.price_inr,
       priceCurrency: 'INR',
       availability: l.status === 'live' ? 'https://schema.org/InStock' : 'https://schema.org/LimitedAvailability',
       url,
-      seller: { '@type': 'RealEstateAgent', name: agent.agent_name },
+      seller: { '@type': 'RealEstateAgent', name: displayName(agent) },
     },
   }
 }
@@ -131,7 +136,7 @@ export function jsonLdString(obj: Record<string, unknown>): string {
 }
 
 export function projectMetadata(agent: AgentProfile, p: PublicProject, priceText: string): Metadata {
-  const title = `${p.name}, ${p.locality} | ${agent.agent_name}`
+  const title = `${p.name}, ${p.locality} | ${displayName(agent)}`
   const description = truncate([priceText, p.positioning, 'MahaRERA ' + p.rera_no].filter(Boolean).join('. '), 160)
   const image = p.media.find((m) => m.kind === 'image' && !m.slide)?.url
   const md = build(title, description, agentPath(agent.slug, 'projects/' + p.slug), image)

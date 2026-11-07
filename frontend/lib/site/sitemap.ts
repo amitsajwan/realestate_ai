@@ -11,6 +11,7 @@ import { livePages } from '@/lib/site/filters'
 import { getBuilders } from '@/lib/site/hubs'
 import { getRegisterProjects, getRegisterPlaces, placePath, projectPageOfListing, regnoKey } from '@/lib/site/register'
 import { agentPath } from '@/lib/site/slug'
+import { projectForListing } from '@/lib/site/listingProject'
 import { isHouseAgent } from '@/lib/brand'
 
 const day = (d?: string | null): Date | undefined => {
@@ -77,9 +78,14 @@ export async function buildSitemap(): Promise<Grouped> {
     const row = registerByRegno.get(regnoKey(regno))
     return row ? row.indexable : !!(await projectPageOfListing(regno))
   }
-  const ownListings = (await Promise.all(agents.listings.map(async (l) => ((await listingShowsProject(l.rera_no)) ? null : l))))
+  // the number the listing page itself goes by: its own, else that of the project it matches by name
+  const ownListings = (await Promise.all(agents.listings.map(async (l) => ((await listingShowsProject(l.rera_no || projectForListing(l, projects)?.rera_no)) ? null : l))))
     .filter((l): l is (typeof agents.listings)[number] => l !== null)
   const shared = new Set(projects.flatMap((p) => p.agents.map((a) => a.slug + '/' + a.project_slug)))
+  // an agent's copy of a project names the shared page, or the project's own page in search, as canonical; only the others are listed
+  const ownProjects = (await Promise.all(agents.projects.filter((p) => !shared.has(p.agent_slug + '/' + p.slug))
+    .map(async (p) => ((await listingShowsProject(p.rera_no)) ? null : p))))
+    .filter((p): p is (typeof agents.projects)[number] => p !== null)
   const latest = new Map<string, string | null | undefined>() // agent slug -> newest change on their site
   for (const e of [...agents.listings, ...agents.projects]) {
     const prev = latest.get(e.agent_slug)
@@ -119,8 +125,7 @@ export async function buildSitemap(): Promise<Grouped> {
     // one page per builder with two or more indexable projects (docs/plan/rank-loop.md R6)
     core(at('/builders', 0.6)),
     ...builders.filter((b) => b.indexable).map((b) => ({ group: 'builders', entry: at('/builders/' + b.slug, b.brand ? 0.8 : 0.6, b.page_updated) })),
-    // an agent's copy of a project on a shared page names that page as canonical, so only the others are listed
-    ...agents.projects.filter((p) => !shared.has(p.agent_slug + '/' + p.slug)).map((p) => ({ group: 'agents', entry: at(agentPath(p.agent_slug, 'projects/' + p.slug), 0.6, p.updated_at) })),
+    ...ownProjects.map((p) => ({ group: 'agents', entry: at(agentPath(p.agent_slug, 'projects/' + p.slug), 0.6, p.updated_at) })),
     ...ownListings
       .map((l) => ({ group: 'agents', entry: at(agentPath(l.agent_slug, 'listings/' + l.id), 0.6, l.updated_at) })),
     // the agents' one page in search; the trial, invite and printable pitch pages are reached from our own links and WhatsApp,

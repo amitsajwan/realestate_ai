@@ -126,8 +126,8 @@ export function agentCity(agent: AgentProfile, listings: PublicListing[]): strin
 }
 
 export interface SitemapEntries {
-  listings: Array<{ agent_slug: string; id: string; updated_at?: string | null; locality?: string | null; rera_no?: string | null }>
-  projects: Array<{ agent_slug: string; slug: string; updated_at?: string | null }>
+  listings: Array<{ agent_slug: string; id: string; updated_at?: string | null; locality?: string | null; rera_no?: string | null; project_name?: string | null }>
+  projects: Array<{ agent_slug: string; slug: string; updated_at?: string | null; rera_no?: string | null }>
 }
 
 /** Agent pages a search engine may index (the backend leaves out the demo agent, preview sites and samples). Never throws: an

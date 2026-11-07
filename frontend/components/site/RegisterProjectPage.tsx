@@ -917,7 +917,8 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
           (seller) it would link to itself, and Avasetu's own listings need no line */}
       {!seller && offer?.agent?.name && offer.agent.slug !== HOUSE_AGENT && offer.agent.listing_id && (
         <p className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2" data-testid="listed-by">
-          <span className="text-slate-900">Listed by <strong>{offer.agent.name}</strong></span>
+          {/* the one link from a page in search to the agent's own site: without it Google had found /agent/house-deal and never read it */}
+          <span className="text-slate-900">Listed by <Link href={agentPath(offer.agent.slug)} className="font-bold underline underline-offset-2">{offer.agent.name}</Link></span>
           <Link href={agentPath(offer.agent.slug, 'listings/' + offer.agent.listing_id)}
             className="inline-flex min-h-[44px] items-center font-semibold text-[#0f2340] underline underline-offset-2">
             See it on {offer.agent.name}&apos;s page &rarr;

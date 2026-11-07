@@ -152,13 +152,13 @@ class ProjectService:
 
     async def sitemap_entries(self) -> List[dict]:
         """Live projects on public agent sites that are neither the fictional demo nor an unpublished preview,
-        as {agent_slug, slug, updated_at}."""
+        as {agent_slug, slug, updated_at, rera_no}. The number lets the sitemap leave out a copy whose project has its own page."""
         out = []
         for profile in await self.profiles.find({"is_public": True}).to_list(None):
             if not indexable(profile):
                 continue
             docs = await self.col.find({"agent_id": profile["agent_id"], "status": "live"}).sort("order", 1).to_list(MAX_PER_AGENT)
-            out += [{"agent_slug": profile["slug"], "slug": d["slug"], "updated_at": d.get("updated_at")} for d in docs]
+            out += [{"agent_slug": profile["slug"], "slug": d["slug"], "updated_at": d.get("updated_at"), "rera_no": d.get("rera_no")} for d in docs]
         return out
 
     # ---- Avasetu's shared project pages --------------------------------------------------------------------------
