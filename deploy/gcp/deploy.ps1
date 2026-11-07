@@ -102,13 +102,14 @@ if ($Build) {
 Run "gcloud compute ssh $target $common --command `"$remote`""
 
 if (-not $Build) {
-  # the Cloud Run Job that draws the reels runs the same backend image: keep it on this commit too (skipped until it exists)
+  # the Cloud Run Job that draws the reels runs the same backend image: keep it on this commit too. It must not be skipped: a
+  # renderer left behind loses its image to the registry cleanup and marketing stops with no error (2026-11-05).
   # a warning on stderr is an error in PowerShell 5.1 (2026-10-16: "filter keys were not present" failed a good deploy)
   $job = try { gcloud run jobs describe renderer --project $Project --region asia-south1 --format "value(metadata.name)" 2>$null } catch { $null }
   if ($job) {
     Step "Pointing the renderer (Cloud Run Job) at the images of $sha"
     Run "gcloud run jobs update renderer --project $Project --region asia-south1 --image asia-south1-docker.pkg.dev/$Project/avasetu/backend:$sha --quiet"
-  }
+  } else { throw "Could not read the renderer job, so it was not moved to $sha. Fix this before trusting marketing runs." }
 }
 
 Step "Checking the public health address"

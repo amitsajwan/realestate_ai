@@ -16,11 +16,13 @@ def wire() -> None:
     from app.modules.marketing.facts import Facts
     from app.modules.newsroom import quality as news_quality
     from app.modules.photoquality import router as quality_routes
+    from app.modules.reels import render_job
     from app.modules.showcase import samples
     from app.modules.social import service as social_service
     from app.modules.waitlist import router as waitlist_routes
 
     social_service.configure(link_line=link_line)  # the pack's link line, in marketing's words
+    render_job.configure(alert=_tell_owner_of_stuck_runs)  # a stuck marketing queue shows no error anywhere else
     # the quality route: the operator may review any agent's listing cards; calendar and news items are found by their owners
     quality_routes.configure(is_operator=is_operator,
                              resolvers={"calendar": calendar_quality.review_target, "news": news_quality.review_target})
@@ -300,6 +302,13 @@ async def _forget_place(db, regno):
     from app.modules.propertyfacts.store import COLLECTION
 
     await db.get_collection(COLLECTION).delete_one({"_id": regno})
+
+
+async def _tell_owner_of_stuck_runs(db, summary: str) -> None:
+    from app.modules.engage.config import load
+    from app.modules.notifications.service import notify
+
+    await notify(db, load().owner_agent_id, "marketing_stuck", summary, {"screen": "/studio"})
 
 
 async def _pincode_centre(db, pincode):

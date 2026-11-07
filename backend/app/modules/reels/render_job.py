@@ -11,7 +11,9 @@ pre-renders (calendar.runner). So the renderer is the same backend image doing t
   dispatch   the "render_dispatch" loop on the VM (worker role `dispatch`, in place of `media`): every DISPATCH_EVERY_S it asks
              `queued`; when something waits and no renderer is running, it starts the job (Cloud Run Admin API, with the VM's
              own service account). A job cut short (its 60-minute limit) leaves the rest queued and the next round starts
-             another.
+             another. An execution that never started (2026-11-05: its image had been cleaned out of the registry) gets no
+             completion time, so age decides too: past the job's limit it cannot be running, whatever it says. Runs left
+             queued past STUCK_AFTER are reported to the owner, because a stuck queue shows no error anywhere else.
 
 Rollback: MEDIA_ROLE=media in the VM's .env and `docker compose up -d media`: the VM draws again, as before.
 """
@@ -19,7 +21,7 @@ import asyncio
 import logging
 import os
 from datetime import datetime, timedelta, timezone
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional, Set
 
 import httpx
 
@@ -29,6 +31,8 @@ JOB = os.environ.get("RENDER_JOB", "projects/trader-502012/locations/asia-south1
 RUN_API = "https://run.googleapis.com/v2"
 METADATA_TOKEN = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
 DISPATCH_EVERY_S = 20.0
+MAX_RUN = timedelta(minutes=70)   # the job's own limit is 60: past this an execution with no completion time is dead
+STUCK_AFTER = timedelta(minutes=30)
 IDLE_CHECKS, IDLE_WAIT_S = 3, 20.0   # drain: a minute with nothing queued, then exit
 CALENDAR_LEAD = timedelta(hours=2)   # calendar.runner.PRERENDER_LEAD
 
@@ -89,12 +93,35 @@ async def _token(client: httpx.AsyncClient) -> str:
     return r.json()["access_token"]
 
 
-async def running(client: httpx.AsyncClient, token: str) -> bool:
-    """A renderer execution is still running (the job's latest execution has no completion time)."""
+_alert: Optional[Callable[[Any, str], Any]] = None
+
+
+def configure(alert: Callable[[Any, str], Any]) -> None:
+    """How to tell the owner (app.wiring): this module does not know who the owner is."""
+    global _alert
+    _alert = alert
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _alive(latest: Dict[str, Any], now: datetime) -> bool:
+    """The job's latest execution can still be running: it has no completion time and is younger than the job's limit."""
+    if not latest or latest.get("completionTime"):
+        return False
+    try:
+        created = datetime.strptime(str(latest.get("createTime"))[:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
+    except ValueError:
+        return True   # no readable time: never start a second renderer on a guess
+    return now - created < MAX_RUN
+
+
+async def running(client: httpx.AsyncClient, token: str, now: Optional[datetime] = None) -> bool:
+    """A renderer execution is still running."""
     r = await client.get(f"{RUN_API}/{JOB}", headers={"Authorization": f"Bearer {token}"}, timeout=20)
     r.raise_for_status()
-    latest = r.json().get("latestCreatedExecution") or {}
-    return bool(latest) and not latest.get("completionTime")
+    return _alive(r.json().get("latestCreatedExecution") or {}, now or _utcnow())
 
 
 async def start(client: httpx.AsyncClient, token: str) -> str:
@@ -103,11 +130,27 @@ async def start(client: httpx.AsyncClient, token: str) -> str:
     return str((r.json().get("metadata") or {}).get("name") or "")
 
 
-async def dispatch_once(db, client: httpx.AsyncClient) -> Optional[str]:
+async def warn_of_stuck_runs(db, alert: Callable[[Any, str], Any], told: Set[str], now: datetime) -> int:
+    """Tell the owner once per run about marketing runs queued past STUCK_AFTER. `told` lives as long as the loop, so a restart
+    repeats the alert for a run that is still stuck. -> how many runs were new."""
+    since = now.replace(tzinfo=None) - STUCK_AFTER
+    docs = await db.get_collection("marketing_runs").find({"status": "queued", "created_at": {"$lt": since}}).to_list(100)
+    new = [d for d in docs if d["_id"] not in told]
+    if new:
+        await alert(db, f"{len(new)} marketing run{'s' if len(new) != 1 else ''} waiting over {int(STUCK_AFTER.total_seconds() / 60)} "
+                        "minutes. The renderer may be stuck.")
+        told.update(d["_id"] for d in new)
+    return len(new)
+
+
+async def dispatch_once(db, client: httpx.AsyncClient, alert: Optional[Callable[[Any, str], Any]] = None,
+                        told: Optional[Set[str]] = None, now: Optional[datetime] = None) -> Optional[str]:
     """Start the renderer when work waits and none runs; returns the execution's name when it started one."""
     waiting = await queued(db)
     if not waiting:
         return None
+    if alert:   # first: the warning must not depend on the Cloud Run calls below working
+        await warn_of_stuck_runs(db, alert, told if told is not None else set(), now or _utcnow())
     token = await _token(client)
     if await running(client, token):
         return None
@@ -121,11 +164,12 @@ async def dispatch_loop(get_db: Optional[Callable[[], Any]] = None) -> None:
     from app.core.database import get_database
     from app.platform.heartbeats import heartbeat
     get_db = get_db or get_database
+    told: Set[str] = set()
     async with httpx.AsyncClient() as client:
         while True:
             try:
                 async with heartbeat("render_dispatch", get_db):
-                    await dispatch_once(get_db(), client)
+                    await dispatch_once(get_db(), client, _alert, told)
             except asyncio.CancelledError:
                 raise
             except Exception:

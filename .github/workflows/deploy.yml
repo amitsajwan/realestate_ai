@@ -137,19 +137,16 @@ jobs:
       - uses: google-github-actions/setup-gcloud@v2
         if: steps.auth.outcome == 'success'
 
+      # Not continue-on-error: on 2026-11-05 a renderer left on an old image lost it to the registry cleanup and marketing stopped
+      # with no error shown. A deploy that cannot move the renderer goes red.
       - name: Point the renderer at this commit's image
         if: steps.auth.outcome == 'success'
-        continue-on-error: true
         env:
           SHA: ${{ steps.pick.outputs.sha }}
           REGISTRY: ${{ vars.IMAGE_REGISTRY }}
         run: |
           project="$(cut -d/ -f2 <<<"$REGISTRY")"
-          if gcloud run jobs describe renderer --project "$project" --region asia-south1 --format 'value(metadata.name)' >/dev/null 2>&1; then
-            gcloud run jobs update renderer --project "$project" --region asia-south1 --image "$REGISTRY/backend:$SHA" --quiet
-          else
-            echo "::notice::No renderer job (or no permission to read it): skipped"
-          fi
+          gcloud run jobs update renderer --project "$project" --region asia-south1 --image "$REGISTRY/backend:$SHA" --quiet
 
       - name: Forget the key
         if: always()
