@@ -165,13 +165,15 @@ export function registerProjectJsonLd({ p, siteUrl, faq = [], photos = [], offer
   const area = areaName(p)
   const builder = p.builder?.name || p.promoter
   const price = offerPrice(offer)
+  // offices and shops are no apartment complex (`homes` false on the page data); Place is schema.org's plain word for a building
+  const kind = p.homes === false ? 'Place' : 'ApartmentComplex'
   const complex = clean({
-    '@context': 'https://schema.org', '@type': 'ApartmentComplex', name: shown, url,
+    '@context': 'https://schema.org', '@type': kind, name: shown, url,
     alternateName: otherNames(p),
     description: registerDescription(p, price),
     address: clean({ '@type': 'PostalAddress', addressLocality: area ? `${area}, Pune` : 'Pune', addressRegion: 'Maharashtra', postalCode: p.pincode || undefined, addressCountry: 'IN' }),
     geo: p.map ? { '@type': 'GeoCoordinates', latitude: p.map.lat, longitude: p.map.lon } : undefined,
-    numberOfAccommodationUnits: p.units_total || undefined,
+    numberOfAccommodationUnits: p.homes === false ? undefined : p.units_total || undefined,
     identifier: { '@type': 'PropertyValue', propertyID: 'MahaRERA registration', value: p.regno },
     builder: builder ? { '@type': 'Organization', name: builder } : undefined,
     // the builder's pictures we keep (profile): never illustrations or unchecked ones
@@ -179,7 +181,7 @@ export function registerProjectJsonLd({ p, siteUrl, faq = [], photos = [], offer
     offers: offers(p, shown, offer),
     sameAs: p.maharera_url || undefined,
     // one tower of a marketed project registered tower by tower: the whole project is the place this one is in
-    containedInPlace: p.group ? { '@type': 'ApartmentComplex', name: p.group.name, url: siteUrl + p.group.path } : undefined,
+    containedInPlace: p.group ? { '@type': kind, name: p.group.name, url: siteUrl + p.group.path } : undefined,
   })
   // the same levels as the visible breadcrumb: the locality guide, else the Pune place list
   const placeCrumb = p.area ? { name: p.area.name, path: `/localities/${p.area.slug}` }

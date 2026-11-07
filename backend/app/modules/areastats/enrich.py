@@ -259,7 +259,9 @@ def priority(d: dict, urgent: set, now: datetime, shown: frozenset = frozenset()
     # and hot projects first
     east_hot = int(d.get("hot_score") or 0) >= hot.HOT_MIN and pricing.area_rank(d) < len(pricing.EAST)
     hot_first = 0 if east_hot or featured(d, now, shown) else 1
-    return (hot_first, 1 if pages.nearly_sold(d) else 0, pricing.area_rank(d), 0 if pricing.new_or_hot(d, now) else 1, *key)
+    # offices and shops after the homes of their area, most seen first among themselves through `key`
+    turn = 2 if not pages.homes(d) else 0 if pricing.new_or_hot(d, now) else 1
+    return (hot_first, 1 if pages.nearly_sold(d) else 0, pricing.area_rank(d), turn, *key)
 
 
 def launch_due(d: dict, now: datetime) -> bool:
@@ -281,10 +283,10 @@ def complete(d: dict) -> bool:
 
 
 def worth_model(d: dict) -> bool:
-    """A page a buyer can land on and search can show, of a project still some way off. 45 of 140 rounds on 2026-11-04 paid for
-    towers (they redirect to their group, so their text is read by nobody) or offices and shops (never in search). Projects
-    finishing before AI_FROM keep their page as it is; their facts rounds need no model."""
-    return not d.get("cluster_primary") and pages.homes(d) and (_day(d.get("completion_now")) or AI_FROM) >= AI_FROM
+    """A page a buyer can land on and search can show, of a project still some way off, offices and shops included (2026-11-08).
+    Never a tower: it redirects to its group, so its text is read by nobody. Projects finishing before AI_FROM keep their page as
+    it is; their facts rounds need no model."""
+    return not d.get("cluster_primary") and (_day(d.get("completion_now")) or AI_FROM) >= AI_FROM
 
 
 def rewrite_due(d: dict, now: datetime) -> bool:
@@ -698,22 +700,25 @@ def fact_sheet(doc: dict, gathered: Optional[dict], web: Optional[dict], prof: O
         if pages.extension_months(doc) and pages.months_later(doc) == 0:
             add("extension", f"{pages.EXTENSION_NOTE}: that is the whole difference between the two dates; the builder did not move it")
     total, sold = _int(doc.get("units_total")), pages.booked(doc)
+    housing = pages.homes(doc)
+    unit = "Homes" if housing else "Shop and office units"
     if total:
         whole = PART_OF_PROJECT.search(str(doc.get("name") or "")) or doc.get("cluster_id")
-        add("homes", f"Homes in this registration: {total}" + (" (one part of a bigger project, not the whole project)" if whole else ""))
+        add("homes", f"{unit} in this registration: {total}" + (" (one part of a bigger project, not the whole project)" if whole else ""))
     if total and sold is not None and sold <= total:
-        add("booked", f"Homes booked: {sold} of {total} ({round(100 * sold / total)}%)")
+        add("booked", f"{unit} booked: {sold} of {total} ({round(100 * sold / total)}%)")
     t = doc.get("building_totals") or {}
     if t.get("towers"):
         add("buildings", f"Buildings in this registration: {t['towers']}" + (f", up to {t['max_floors']} floors" if t.get("max_floors") else ""))
     for i, line in enumerate(worked_out(doc)):
-        add(f"worked{i}", line.replace("Worked out: ", ""), "worked out from MahaRERA")
+        add(f"worked{i}", line.replace("Worked out: ", "").replace(" homes ", " homes " if housing else " units "), "worked out from MahaRERA")
     rest = [o for o in others or [] if o.get("_id") != doc.get("_id") and not o.get("cluster_primary")]
-    compare = pages.area_compare(doc, rest, place, (now or datetime.now(timezone.utc)).date()) if place else None
+    # an area's booked share and sizes are about homes, so offices and shops are not set beside them
+    compare = pages.area_compare(doc, rest, place, (now or datetime.now(timezone.utc)).date()) if place and housing else None
     if compare and compare.get("booked"):
         c = compare["booked"]
         add("area_booked", f"{c['pct']}% booked here; the middle of {c['projects']} {place} projects registered within a year of it is {c['area_pct']}%", "worked out from MahaRERA")
-    for i, line in enumerate(area_context(doc, others)):
+    for i, line in enumerate(area_context(doc, others) if housing else []):
         add(f"area{i}", line, "worked out from MahaRERA")
     record = pages.track_record(doc, docs) if docs else None
     if record and record.get("record_ok"):
@@ -724,18 +729,18 @@ def fact_sheet(doc: dict, gathered: Optional[dict], web: Optional[dict], prof: O
         add(f"web_{f.get('key')}", f"{f['label']}: {f['text']} for the whole project; this registration has {scoped[f['key']]}" if f.get("key") in scoped else line,
             ", ".join(s["site"] for s in f.get("sources") or []), src.get("url"), src.get("quote"))
     land = next((f for f in (web or {}).get("facts") or [] if f.get("key") == "land_acres"), None)
-    per_acre = homes_per_acre(doc, land, scoped)
+    per_acre = homes_per_acre(doc, land, scoped) if housing else None
     if per_acre:
         add("homes_per_acre", f"About {per_acre} homes per acre", "worked out from MahaRERA and the land size")
     for i, (h, line) in enumerate(zip(profile.shown_highlights(prof, doc), profile.lines(prof, doc))):
         src = (h.get("sources") or [{}])[0]
         add(f"highlight{i}", line, ", ".join(s["site"] for s in h.get("sources") or []), src.get("url"), src.get("quote"))
     sized = {x["bhk"] for x in doc.get("home_sizes") or []}
-    for x in doc.get("home_sizes") or []:
+    for x in (doc.get("home_sizes") or []) if housing else []:   # flat sizes and prices read under a shared name are not this project's
         span = f"{x['low']} to {x['high']} sq ft" if x["high"] != x["low"] else f"{x['low']} sq ft"
         add(f"size_{x['bhk'].replace(' ', '')}", f"{x['bhk']} size: {span}, {x['kind']}" + (", on one property site" if x.get("one_site") else ""),
             ", ".join(x["sites"]), x.get("url"), x.get("quote"))
-    for r in (doc.get("prices") or {}).get("rows") or []:
+    for r in ((doc.get("prices") or {}).get("rows") or []) if housing else []:
         if isinstance(r, dict) and isinstance(r.get("from_inr"), int) and r.get("bhk"):
             src = (r.get("sources") or [{}])[0]
             where = ", ".join(s["site"] for s in r.get("sources") or [])
@@ -784,9 +789,10 @@ def code_points(doc: dict, sheet: List[dict]) -> Optional[dict]:
     def point(label: str, text: str, key: str) -> None:
         points.append({"heading": label, "text": text + ".", "facts": [key]})
 
-    m = re.match(r"Homes booked: (\d+) of (\d+) \((\d+)%\)", by_key.get("booked", ""))
+    m = re.match(r"(?:Homes|Shop and office units) booked: (\d+) of (\d+) \((\d+)%\)", by_key.get("booked", ""))
     if m:
-        point(f"{m.group(3)}% of homes booked", f"MahaRERA shows {m.group(1)} of {m.group(2)} homes booked", "booked")
+        word = "homes" if pages.homes(doc) else "units"
+        point(f"{m.group(3)}% of {word} booked", f"MahaRERA shows {m.group(1)} of {m.group(2)} {word} booked", "booked")
     if "buildings" in by_key:
         point(by_key["buildings"].split(":", 1)[1].strip().capitalize() + " floors" if "floors" not in by_key["buildings"] else by_key["buildings"].split(":", 1)[1].strip().capitalize(), by_key["buildings"], "buildings")
     for key in by_key:
@@ -816,7 +822,14 @@ def points_of(out: Any, sheet: List[dict], doc: dict, web: Optional[dict], outsi
         used = [k for k in p.get("facts") or [] if k in by_key] if isinstance(p.get("facts"), list) else []
         said = label + ". " + text
         known = _numbers(" ".join(by_key[k] for k in used) + " " + names)
+        # a number on another line of the sheet is still ours: the model named the wrong line, and that cost whole pages their text
+        # ("Taller than 25 of 83 projects: a number its facts do not say (6)", the 6 floors being on the buildings line)
+        for k, line in by_key.items():
+            if used and k not in used and (_numbers(_without_names(doc, said)) - known) & _numbers(line):
+                used.append(k)
+                known |= _numbers(line)
         problem = ("no fact named" if not used else "empty" if not label or not text
+                   else "calls offices or shops homes" if not pages.homes(doc) and pages.says_homes(said)
                    else "says the date moved" if pages.extension_months(doc) and pages.months_later(doc) == 0 and says_moved(said)
                    else f"a number its facts do not say ({', '.join(sorted(_numbers(_without_names(doc, said)) - known)[:3])})" if _numbers(_without_names(doc, said)) - known
                    else "sales words" if BANNED.search(said) else "overclaims" if OVERCLAIM.search(said)
@@ -840,6 +853,8 @@ async def write_points(llm, doc: dict, sheet: List[dict], web: Optional[dict] = 
     if llm is None:
         return None, ["no LLM key"]
     user = "FACTS:\n" + "\n".join(f"[{f['key']}] {f['text']}" for f in sheet)
+    if not pages.homes(doc):
+        user += "\n\nThis project is shops or offices. Say units, shops or offices; never homes, flats, apartments, BHK or residents."
     problems: List[str] = []
     used_labels = Counter(x.get("heading", "").lower() for o in others or [] if o.get("_id") != doc.get("_id") and int(o.get("page_text_version") or 1) >= 6
                           for x in o.get("page_sections") or [])

@@ -268,11 +268,30 @@ def test_a_project_with_no_homes_is_offices_whatever_its_type_says():
     assert pages.homes({**FULL, "project_type": "Residential / Group Housing"})
 
 
-def test_offices_and_shops_are_never_in_search_however_full_the_page():
+def test_offices_and_shops_go_into_search_by_the_same_rule_as_homes():
     full = {**FULL, "page_text": "About the project.", "profile": {"photos": [{"path": "b.webp", "source": "builder"}]}}
     assert pages.searchable(full)
-    assert not pages.searchable({**full, "project_type": "Commercial"})
-    assert not pages.searchable({**full, "project_type": "Others", **OFFICES})
+    assert pages.searchable({**full, "project_type": "Commercial"})
+    assert pages.searchable({**full, "project_type": "Others", **OFFICES})
+    assert not pages.searchable({**full, "project_type": "Commercial", "page_text": ""})
+
+
+def test_offices_called_homes_stay_out_until_written_again():
+    full = {**FULL, "page_text": "About the project.", "project_type": "Commercial", "profile": {"photos": [{"path": "b.webp", "source": "builder"}]}}
+    assert not pages.searchable({**full, "page_summary": "AP4 Tech Park in Wagholi offers residential units."})
+    assert not pages.searchable({**full, "page_text": "The homes and the building: one tower."})
+    assert pages.searchable({**full, "page_summary": "Gateway, Kharadi: commercial units, 29 in all."})
+
+
+def test_a_held_page_of_offices_called_homes_leaves_at_once():
+    assert pages.must_leave({**FULL, "page_text": "Fine homes.", "project_type": "Commercial"})
+    assert not pages.must_leave({**FULL, "page_text": "Fine offices.", "project_type": "Commercial"})
+
+
+def test_a_flat_price_is_no_fact_of_its_own_on_a_page_of_offices():
+    priced = {**FULL, "prices": {"rows": [{"bhk": "2 BHK", "from_inr": 8_500_000}]}}
+    assert pages.own_facts(priced)
+    assert not pages.own_facts({**priced, "project_type": "Commercial"})
 
 
 async def test_an_offices_page_shows_no_flat_prices_and_says_it_has_no_homes():

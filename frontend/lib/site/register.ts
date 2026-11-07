@@ -221,7 +221,7 @@ function ownFaq(p: RegisterProject, nearby: { label?: string | null; name?: stri
   }
   const units = d?.units_total ?? p.units_total
   if (units) {
-    out.push({ topic: 'size', q: `How many flats are there in ${shown}?`,
+    out.push({ topic: 'size', q: `How many ${unitWord(p) === 'units' ? 'units' : 'flats'} are there in ${shown}?`,
       a: `MahaRERA lists ${units} units` + (d?.units_residential != null && d?.units_other ? ` (${d.units_residential} residential, ${d.units_other} other).` : '.') })
   }
   if (p.units_total) {

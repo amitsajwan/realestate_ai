@@ -635,10 +635,49 @@ async def test_outside_pages_are_read_live_and_a_page_that_fails_is_left_out():
 OWN = {"prices": {"rows": [{"bhk": "2 BHK", "from_inr": 5000000}]}}
 
 
-def test_towers_and_offices_are_not_worth_a_model():
+def test_towers_are_not_worth_a_model_but_offices_are():
     assert enrich.worth_model({"project_type": "Residential"})
+    assert enrich.worth_model({"project_type": "Commercial"})
     assert not enrich.worth_model({"cluster_primary": "P9"})
-    assert not enrich.worth_model({"project_type": "Commercial"})
+
+
+def test_offices_are_read_after_the_homes_of_their_area():
+    homes = enrich.priority({"_id": "H", "regno": "H", "locality": "kharadi", "project_type": "Residential"}, set(), NOW)
+    offices = enrich.priority({"_id": "O", "regno": "O", "locality": "kharadi", "project_type": "Commercial"}, set(), NOW)
+    assert homes < offices
+
+
+def test_a_number_on_another_line_of_the_sheet_is_kept_and_that_line_named():
+    sheet = [{"key": "booked", "text": "Homes booked: 1 of 24 (4%)"}, {"key": "buildings", "text": "Buildings in this registration: 1, up to 6 floors"}]
+    kept, why = enrich.points_of({"points": [_point("Taller than most", "It rises 6 floors and has 24 homes.", "booked")]}, sheet, ROSE, None)
+    assert not why and kept[0]["facts"] == ["booked", "buildings"]
+
+
+def test_a_number_on_no_line_of_the_sheet_still_goes():
+    sheet = [{"key": "booked", "text": "Homes booked: 1 of 24 (4%)"}]
+    kept, why = enrich.points_of({"points": [_point("Taller", "It rises 6 floors.", "booked")]}, sheet, ROSE, None)
+    assert not kept and "6" in why[0]
+
+
+OFFICE = {**ROSE, "project_type": "Commercial", "prices": {"rows": [{"bhk": "2 BHK", "from_inr": 8500000}]}, "units_total": 24}
+
+
+def test_a_point_may_not_call_offices_homes():
+    sheet = [{"key": "booked", "text": "Shop and office units booked: 1 of 24 (4%)"}]
+    kept, why = enrich.points_of({"points": [_point("Few sold", "Only 1 of 24 homes are booked.", "booked"),
+                                             _point("Few taken", "Only 1 of 24 units are booked.", "booked")]}, sheet, OFFICE, None)
+    assert [x["heading"] for x in kept] == ["Few taken"] and "homes" in why[0]
+
+
+def test_the_sheet_of_offices_says_units_and_holds_no_flat_price():
+    sheet = {f["key"]: f["text"] for f in enrich.fact_sheet(OFFICE, None, None, None, False)}
+    assert sheet["homes"].startswith("Shop and office units in this registration: 24")
+    assert not any(k.startswith("price_") for k in sheet)
+
+
+def test_code_written_points_say_units_for_offices():
+    sheet = [{"key": "booked", "text": "Shop and office units booked: 1 of 24 (4%)"}, {"key": "buildings", "text": "Buildings in this registration: 1, up to 6 floors"}]
+    assert "1 of 24 units booked" in enrich.code_points(OFFICE, sheet)["text"]
 
 
 def test_a_tower_goes_after_everything_and_only_for_its_facts():

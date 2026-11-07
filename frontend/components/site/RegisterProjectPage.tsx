@@ -451,7 +451,7 @@ function Checks({ p, offer }: { p: RegisterProject; offer: Offer | null }) {
   ]
   for (const key of CHECK_KEYS) {
     const c = byKey[key]
-    const label = CHECK_NAMES[key]
+    const label = key === 'maharera_general' && unitWord(p) === 'units' ? 'Dates and units booked' : CHECK_NAMES[key]
     const fromRera = key === 'maharera_general' || key === 'buildings'
     if (!c) rows.push({ label, kind: 'unchecked', note: 'We are still checking this' })
     else rows.push({ label, kind: c.ok ? (fromRera ? 'rera' : 'checked') : 'unchecked',

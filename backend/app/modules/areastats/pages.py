@@ -186,8 +186,10 @@ def own_facts(doc: dict) -> bool:
     illustration is not the project's own, and a picture copied from another site is that site's."""
     profile = doc.get("profile") or {}
     pictures = shown_pictures(profile.get("photos"), drawn=False) or shown_pictures(profile.get("plans"))
-    return bool((doc.get("prices") or {}).get("rows") or (doc.get("web_facts") or {}).get("facts")
-                or profile.get("highlights") or pictures or any(not x.get("one_site") for x in doc.get("home_sizes") or []))
+    if (doc.get("web_facts") or {}).get("facts") or profile.get("highlights") or pictures:
+        return True
+    # flat prices and sizes are not shown on a page of offices or shops, so they are no fact of its own there
+    return homes(doc) and bool((doc.get("prices") or {}).get("rows") or any(not x.get("one_site") for x in doc.get("home_sizes") or []))
 
 
 def has_own_content(doc: dict) -> bool:
@@ -216,8 +218,9 @@ def searchable(doc: dict, now: Optional[datetime] = None) -> bool:
 
 
 def must_leave(doc: dict) -> bool:
-    """What takes a page out of search whatever its hold: finished, offices or shops, not listable, or no written text."""
-    return is_old(doc) or not homes(doc) or not indexable(doc) or not doc.get("page_text")
+    """What takes a page out of search whatever its hold: finished, not listable, no written text, or offices or shops described
+    as homes."""
+    return is_old(doc) or reads_as_homes(doc) or not indexable(doc) or not doc.get("page_text")
 
 
 def search_state(doc: dict, now: datetime) -> Optional[dict]:
@@ -230,6 +233,19 @@ def search_state(doc: dict, now: datetime) -> Optional[dict]:
     return {"in": decided, "at": now}
 
 
+_HOME_WORDS = re.compile(r"\b(?:homes?|flats?|apartments?|bhk|residential|residents?)\b", re.I)
+
+
+def says_homes(text: str) -> bool:
+    return bool(_HOME_WORDS.search(text or ""))
+
+
+def reads_as_homes(doc: dict) -> bool:
+    """Offices or shops whose written text calls them homes: AP4 Tech Park's line said "offers residential units", written before
+    the writer knew the difference. Such a page stays out until the writer has done it again."""
+    return not homes(doc) and says_homes(f"{doc.get('page_text') or ''} {doc.get('page_summary') or ''}")
+
+
 def ready_for_search(doc: dict) -> bool:
     """Asks Google to index the page: a listable page (`indexable`) with written sections AND a fact of its own (`own_facts`).
     11,700 register-only pages in search on a weeks-old domain sank the whole site on 2026-10-26 (seo-system.md section 11).
@@ -238,9 +254,10 @@ def ready_for_search(doc: dict) -> bool:
     enrichment fills it (`enrich.THIN_RETRY_DAYS`). Pictures copied from other sites never count (663 on 131 pages came from
     portals and other agents, 2026-10-29). The area lists keep showing every listable project. A finished project (`is_old`)
     stays out, even one Google already shows (owner 2026-11-01: "for completed projects we dont need to have SEO"; no new-home
-    buyer is looking for it, and enrichment skips it). Offices and shops (`homes` False) stay out too (2026-11-03: 24 of 174
-    project pages in search in Kharadi, Upper Kharadi and Wagholi were offices or shops, shown with flat prices)."""
-    if is_old(doc) or not homes(doc):
+    buyer is looking for it, and enrichment skips it). Offices and shops left on 2026-11-03 (24 of 174 project pages in search in
+    Kharadi, Upper Kharadi and Wagholi, shown with flat prices) and came back 2026-11-08 (owner: "commercial we can get them on"):
+    their pages now say units and show no flat prices, and they pass the same rule, with text that does not call them homes."""
+    if is_old(doc) or reads_as_homes(doc):
         return False
     return indexable(doc) and bool(doc.get("page_text")) and own_facts(doc)
 
