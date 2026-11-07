@@ -144,13 +144,15 @@ def book(c: Ctx, listing: dict) -> List[Dict[str, str]]:
     if c.sqft and not c.layout:
         out.append(f"Carpet area {c.sqft:,} sq ft.")
     lo, hi = c.v.get("size_min_sqft"), c.v.get("size_max_sqft")
+    commercial = (listing or {}).get("property_type") in ("office", "shop", "commercial")
     if c.layout and lo and hi and hi > lo:
-        out.append(f"Homes from {lo:,} to {hi:,} sq ft.")
+        out.append(f"{'Units' if commercial else 'Homes'} from {lo:,} to {hi:,} sq ft.")
     plan = homes.payment_plan(listing)
     if plan:
         out.append(f"Payment plan: {plan} (the builder's plan).")
     if c.v.get("units_total") and c.maharera:
-        out.append(f"{int(c.v['units_total'])} {'plots' if c.plot else 'homes'} in {name}, by MahaRERA's count.")
+        out.append(f"{int(c.v['units_total'])} {'plots' if c.plot else 'shops and offices' if commercial else 'homes'} in {name}, "
+                   "by MahaRERA's total count, booked ones included.")
     if c.v.get("rera_no"):
         out.append(f"Registered on MahaRERA: {c.v['rera_no']}.")
     if c.v.get("possession_now") and possession_card_ok(c):

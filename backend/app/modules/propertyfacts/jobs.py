@@ -21,11 +21,12 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence
 
+from app.modules.areastats import budget
 from app.modules.listings.service import ListingError
-from app.platform import trace
+from app.platform import gemini, trace
 
-from . import campaign, identity, listing_posts, points, room, understand, voiceover
-from .brochure import Brochures, usable_images
+from . import brochure_once, campaign, identity, listing_posts, points, room, understand, voiceover
+from .brochure import Brochures, post_renders, usable_images
 from .facts import USABLE
 from .gather import Clients, gather
 from .store import FactsStore, facts_of
@@ -35,7 +36,8 @@ log = logging.getLogger(__name__)
 COLLECTION = "marketing_runs"
 MARKETABLE = ("live", "under_offer")
 ACTIVE = ("queued", "facts", "asking", "posts")  # asking: waiting for the agent's answers (understand.py)
-FALLBACK_REELS = 2   # ad reels when the creative room did not meet (no model, Marathi or Hindi): formats the facts support
+REELS_PER_LISTING = 1   # owner, 2026-10-17 and 2026-11-07: "we need only one reel": the agent's video if there is one, else the best
+FALLBACK_REELS = 1   # ad reels when the creative room did not meet (no model, Marathi or Hindi): formats the facts support
 POSTS = ("listing",)   # listing_posts.py: the one post a campaign makes, pictures and price sheet together (owner, 2026-10-19)
 WALKTHROUGH_NOTE = "Add 2 photos to get a walkthrough reel with voiceover"
 # The walkthrough reel's style, split by listing so the two can be compared on real results (schedule.WALKTHROUGH_EXPERIMENT
@@ -564,12 +566,13 @@ class MarketingRuns:
         The walkthrough: none for a listing with a video (its video reel covers the place); from the listing's
         photos when it has 2; else from the run's ranked pictures (`pool`: stills, brochure pages) when 2 are usable; else a
         note asking for photos. Its style (tour or stack) is fixed per listing (walkthrough_style), spoken in the posts' language."""
-        reels = await self._ad_reels(job, todo, out, project, pool, facts or {}, listing)
         video = self._video(listing)
-        if video:
-            reels.append(await self._video_reel(job, listing, video, out, project, link_line))
+        if video:   # one reel a listing: the place as the agent filmed it comes first
+            reels = [await self._video_reel(job, listing, video, out, project, link_line)]
             await self._set(job["_id"], reels=reels)
-        if self.reel_jobs is not None and not video:
+            return reels
+        reels = await self._ad_reels(job, todo[:REELS_PER_LISTING], out, project, pool, facts or {}, listing)
+        if not reels and self.reel_jobs is not None:   # no story reel could be made: the walkthrough stands in for it
             from app.modules.reels.listing_reel import MIN_PHOTOS, listing_photos
             from . import pictures
             extra: Dict[str, Any] = {}
@@ -612,7 +615,7 @@ class MarketingRuns:
                 body = "\n".join([*(p.get("lines") or []), *([p["ask"]] if p.get("ask") else [])])
                 todo.append({"angle": room.angle_id(i, p), "format": "story", "caption": "\n\n".join([body, *tail])})
         if todo:
-            return todo[:room.MAX_REELS]
+            return todo[:REELS_PER_LISTING]
         details = next((p["caption"] for p in posts if p["angle"] in POSTS), "\n\n".join(tail))
         fmts = ad_reel.pick(ad_reel.eligible(ctx), FALLBACK_REELS, await ad_reel.scores(self.db))
         return [{"angle": f"ad_{f}", "format": f, "caption": details} for f in fmts]
@@ -625,6 +628,8 @@ class MarketingRuns:
         ctx = campaign.Ctx(facts, kit=kit)
         pics = [(p, False) for p in photos]   # ranked best first; listing_posts.photo_like leaves out maps, QR codes, clipart
         pics += [(i["path"], True) for i in images if i.get("kind") == "render" and Path(str(i.get("path"))).is_file()]
+        if len(pics) < 2:   # the agent's own pictures fall short: a verified brochure's renders, always labelled
+            pics += [(p, True) for p in post_renders(kit, self.uploads_dir) if p not in {x for x, _ in pics}]
         cb = who.card_brand
         made = await asyncio.to_thread(listing_posts.make, listing, ctx, pics, out / "posts", who.contact, link_line,
                                        cb.name if cb else "", cb.logo if cb else "")
@@ -654,8 +659,13 @@ class MarketingRuns:
         formats = ["story" if p["angle"] in written else p["format"] for p in todo]
         pics = [p for p in pool if Path(p).is_file()]
         # the posts' picture gate: no clipart, map, QR code or screenshot opens a reel (Ivara's first reel opened on clipart)
-        pics = [p for p in pics if listing_posts.photo_like(p)] or pics
+        kept = [p for p in pics if listing_posts.photo_like(p)]
         kicker = (project or "").upper()[:28] or None
+        renders = post_renders(await self._kit(listing["_id"], job["agent_id"]), self.uploads_dir) if listing and len(kept) < 2 else []
+        if renders:   # the agent's own pictures fall short: the verified brochure's renders, always labelled
+            pics, kicker = kept + [r for r in renders if listing_posts.photo_like(r, True)], campaign.ARTISTS_IMPRESSION.upper()
+        else:
+            pics = kept or pics
         reels: List[dict] = []
         for i, (p, fmt) in enumerate(zip(todo, formats)):
             if fmt is None:
@@ -748,9 +758,10 @@ class MarketingRuns:
             todo = await self._reel_todo(job, listing, facts, job.get("posts") or [], job.get("link_line") or "")
             if job.get("reels_note"):   # the agent's note: the room meets again with it, then the reels are written anew
                 job = await self._reroom(job, listing, facts, pool)
-            ads = await self._ad_reels(job, todo if not job.get("reels_note") else
-                                       await self._reel_todo(job, listing, facts, job.get("posts") or [], job.get("link_line") or ""),
-                                       out, ctx.project, pool, facts, listing)
+            ads = [] if self._video(listing) else await self._ad_reels(
+                job, todo if not job.get("reels_note") else
+                await self._reel_todo(job, listing, facts, job.get("posts") or [], job.get("link_line") or ""),
+                out, ctx.project, pool, facts, listing)   # one reel a listing: a filmed video stays the one
             reels = [r for r in job.get("reels") or [] if r.get("kind") not in ("slides", "ad")] + ads
             await self._set(job["_id"], reels=reels, reels_state="done", reels_error=None)
             if job.get("calendar"):
@@ -776,6 +787,20 @@ class MarketingRuns:
         pdf = files.brochure_pdf(listing, self.uploads_dir)
         return (files.claims_for(listing, pdf) or {}) if pdf else {}
 
+    async def _judge_pictures(self, own: Sequence[str]) -> None:
+        """The model's one look at each uploaded picture (listing_posts.judge_pictures). Without Gemini or credit the word count
+        stands, so a run never waits on this."""
+        if not gemini.available() or not own:
+            return
+        cost = brochure_once.Cost()
+        try:
+            await listing_posts.judge_pictures(own, brochure_once.asker(cost))
+        except (brochure_once.NoCredit, brochure_once.OverCap) as e:
+            log.info("marketing: pictures not judged (%s)", type(e).__name__)
+        finally:
+            if cost.calls:
+                await budget.spend(self.db, self.now(), cost.inr, cost.calls, cost.tokens_in, cost.tokens_out, "pictures")
+
     async def _photo_pool(self, listing: dict, out: Path) -> List[str]:
         """The property's own pictures for the post cards, one per post, best first: its photos and the stills of its video
         ranked together by pictures.rank (clear place shots, sharp and colourful first; a
@@ -786,6 +811,7 @@ class MarketingRuns:
 
         from . import pictures
         own = [str(p) for p in listing_photos(listing, self.uploads_dir) if Path(p).is_file()]
+        await self._judge_pictures(own)
         video = self._video(listing)
         stills: List[str] = []
         if video:

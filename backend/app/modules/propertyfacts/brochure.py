@@ -293,6 +293,17 @@ def usable_images(kit: Optional[dict], uploads_dir: Any) -> List[dict]:
     return out
 
 
+def post_renders(kit: Optional[dict], uploads_dir: Any) -> List[str]:
+    """Files of the renders of a verified brochure the agent has not dropped: they fill a post or reel when the agent's own
+    pictures fall short. No tick needed, since the owner approves every post; always labelled as an artist's impression."""
+    if not kit or kit.get("status") != "done" or (kit.get("registration") or {}).get("status") != "verified":
+        return []
+    folder = Path(uploads_dir) / "brochures" / _safe(kit["listing_id"]) / kit["sha256"]
+    files = (folder / f"{_safe(im['id'])}.jpg" for im in kit.get("images") or []
+             if im.get("kind") == "render" and im.get("state") != "dropped")
+    return [str(p) for p in files if p.is_file()]
+
+
 def _fact_doc(i: int, c: bp.Candidate) -> dict:
     return {"id": f"f{i}", "key": c.key, "label": c.label, "value": c.value, "page": c.page, "quote": c.quote,
             "level": "builder_claim", "state": "pending", "edited": False, "config": c.config, "by": c.by}

@@ -215,3 +215,15 @@ async def test_gemini_may_name_the_box_either_way(monkeypatch):
 def test_a_table_heading_is_not_a_project_name():
     facts = once.best_of_each([bp.Candidate("project_name", "Area Statement", 1, "x")])
     assert facts == []
+
+
+def test_renders_of_a_verified_brochure_fill_a_post_unless_the_agent_dropped_them(tmp_path):
+    folder = tmp_path / "brochures" / "l1" / "sha"
+    folder.mkdir(parents=True)
+    for n in ("i3", "i5", "i8"):
+        (folder / f"{n}.jpg").write_bytes(b"x")
+    kit = {"listing_id": "l1", "sha256": "sha", "status": "done", "registration": {"status": "verified"},
+           "images": [{"id": "i3", "kind": "render", "state": "pending"}, {"id": "i5", "kind": "render", "state": "dropped"},
+                      {"id": "i8", "kind": "floor_plan", "state": "pending"}]}
+    assert [p[-6:] for p in br.post_renders(kit, tmp_path)] == ["i3.jpg"]
+    assert br.post_renders({**kit, "registration": {"status": "unverified"}}, tmp_path) == []

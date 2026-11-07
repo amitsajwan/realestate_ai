@@ -16,12 +16,14 @@ number the facts do not hold. English cards; the caption follows the run's langu
     posts = make(listing, ctx, pictures, out_dir, contact=..., link_line=..., brand_name=..., logo=...)
     # [{"angle", "layout", "format", "images": [local paths], "caption", "used_llm": False, "prompts": []}]
 """
+import asyncio
+import io
 import logging
 import re
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Sequence, Tuple
 
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageOps
 
@@ -58,7 +60,7 @@ def headline(listing: dict, c: Ctx) -> str:
     where = c.where or c.locality or listing.get("locality") or "Pune"
     low = homes.from_price(listing)
     if homes.several(listing):
-        what = homes.bhk_range(table) or ("Plots" if listing.get("property_type") == "plot" else "Homes")
+        what = homes.bhk_range(table) or units_word(listing)
         return f"{where}: {what}" + (f" from {homes.short_price(low)} onwards" if low else "")
     what = table[0]["label"] if table else ("Plot" if listing.get("property_type") == "plot" else "Home")
     return f"{what} at {where}" + (f": {homes.short_price(low)}" if low else "")
@@ -97,7 +99,7 @@ def details_caption(listing: dict, c: Ctx, contact: Sequence[str], link_line: st
     table = homes.rows(listing)
     parts = [headline(listing, c)]
     if table and (len(table) > 1 or table[0].get("carpet_sqft")):
-        lines = ["🏠 Homes and prices"]
+        lines = [f"🏠 {units_word(listing)} and prices"]
         for r in table:
             lines.append("• " + " · ".join(x for x in (r["label"], f"{int(r['carpet_sqft']):,} sq ft carpet" if r.get("carpet_sqft") else "",
                                                        homes.short_price(r.get("price_inr"))) if x))
@@ -187,6 +189,10 @@ MIN_COLOURS = 4000      # distinct colours on a 96 px copy: photos and renders m
 PAPER = 0.5             # share of near-white pixels above which it is a page of text, not a place
 
 
+JUDGE_MAX = 12          # pictures of one listing the model looks at
+JUDGE = ("Is this picture an advert or brochure page, or a plain photo or 3D render of a building, room or place? Shop signs and a "
+         "building's own name on a render are fine. It is an advert when marketing has been laid over it: slogans, prices, offers, "
+         "headlines, or a stock lifestyle scene sold with a tagline. JSON {\"advert\": true or false}.")
 PRINTED = 6   # words printed on a picture at which it is an advert (a builder creative's "₹1.20 Cr onwards, Pay for 2 BHK ...")
 WORD = re.compile(r"[A-Za-z]{3,}")
 
@@ -215,11 +221,45 @@ def printed_words(path: str) -> int:
     return n
 
 
-def photo_like(path: str) -> bool:
+def _small_jpeg(path: str, side: int = 800) -> bytes:
+    with Image.open(path) as im:
+        im = ImageOps.exif_transpose(im).convert("RGB")
+        im.thumbnail((side, side))
+        out = io.BytesIO()
+        im.save(out, "JPEG", quality=80)
+        return out.getvalue()
+
+
+async def judge_pictures(paths: Sequence[str], ask: Callable[[List[bytes], str], Awaitable[Any]], limit: int = JUDGE_MAX) -> int:
+    """One look by the model at each picture an agent uploaded, kept beside it as '<picture>.judged' so it is never asked twice,
+    and written over `printed_words`' count, which `photo_like` then reads. Word counts could not tell UBC's clean renders (7
+    and 13 words: shop signs) from KP Supernova's adverts (9 to 14), and missed the "Childhood Memories" advert (1). A picture
+    the model cannot judge keeps the word count. -> how many were judged."""
+    judged = 0
+    for path in list(paths)[:limit]:
+        mark = Path(f"{path}.judged")
+        if mark.exists():
+            continue
+        answer = await ask([await asyncio.to_thread(_small_jpeg, path)], JUDGE)
+        if isinstance(answer, dict) and isinstance(answer.get("advert"), bool):
+            Path(f"{path}.words").write_text("99" if answer["advert"] else "0")
+            mark.write_text("advert" if answer["advert"] else "picture")
+            judged += 1
+    return judged
+
+
+def units_word(listing: dict) -> str:
+    """What the listing sells, for a heading: shops and offices are not homes."""
+    kind = listing.get("property_type")
+    return "Plots" if kind == "plot" else "Shops and offices" if kind in ("office", "shop", "commercial") else "Homes"
+
+
+def photo_like(path: str, render: bool = False) -> bool:
     """A picture a gallery slide, a reel or the boost pair may show: readable, big enough, and a photo or render rather
     than an illustration, a map, a QR code, a screenshot of text or an advert with its own words and prices printed on it
     (all of which agents upload among the photos; Ivara 2026-10-20: clipart, a black strip and a builder creative with
-    "Pay for 2 BHK ₹10,499*/month" reached the boost reel)."""
+    "Pay for 2 BHK ₹10,499*/month" reached the boost reel). `render`: a page the brochure's labels already call a render of this
+    project, whose captions are not an advert's words."""
     try:
         with Image.open(path) as im:
             im = ImageOps.exif_transpose(im).convert("RGB")
@@ -231,7 +271,7 @@ def photo_like(path: str) -> bool:
     if len(set(t.getdata())) < MIN_COLOURS:
         return False
     grey = t.convert("L").histogram()
-    return sum(grey[235:]) / (96 * 96) <= PAPER and printed_words(path) < PRINTED
+    return sum(grey[235:]) / (96 * 96) <= PAPER and (render or printed_words(path) < PRINTED)
 
 
 GAP = 10
@@ -490,7 +530,7 @@ def make(listing: dict, c: Ctx, pictures: Sequence[Tuple[str, bool]], out_dir: P
     COLLAGE_FROM pictures, the rest one a slide), with the full details in its caption; the price sheet alone when there are
     fewer than 2 pictures. `pictures`: (path, is a builder's render), best first. [] when nothing could be drawn."""
     name = brand_name or brand.NAME
-    pics = [(p, r) for p, r in pictures if p and Path(p).is_file() and photo_like(p)][:GALLERY_MAX]
+    pics = [(p, r) for p, r in pictures if p and Path(p).is_file() and photo_like(p, r)][:GALLERY_MAX]
     # the price sheet's band is wide: the first wide picture after the cover (the cover may be a builder's creative)
     band = next((p for p, _ in pics[1:] if _landscape(p)), pics[0][0] if pics else None)
     try:

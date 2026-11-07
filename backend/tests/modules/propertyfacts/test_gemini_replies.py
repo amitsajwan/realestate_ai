@@ -23,3 +23,25 @@ async def test_a_reading_wrapped_in_a_list_is_the_reading(monkeypatch):
 
 def test_a_one_page_brochures_label_arrives_unwrapped_and_is_kept():
     assert brochure_triage.clean({"page": 1, "kind": "floor_plan"}, [1])[1]["kind"] == "floor_plan"
+
+
+async def test_the_model_judges_each_picture_once_and_the_word_count_gate_reads_its_verdict(tmp_path):
+    from PIL import Image
+    from app.modules.propertyfacts import listing_posts
+    clean, advert = str(tmp_path / "clean.jpg"), str(tmp_path / "advert.jpg")
+    Image.new("RGB", (900, 700), (90, 120, 150)).save(clean)
+    Image.new("RGB", (900, 700), (200, 80, 60)).save(advert)
+    asked = []
+
+    async def ask(images, prompt):
+        asked.append(prompt)
+        return {"advert": len(asked) == 2}
+    assert await listing_posts.judge_pictures([clean, advert], ask) == 2
+    assert listing_posts.printed_words(clean) == 0 and listing_posts.printed_words(advert) == 99
+    assert await listing_posts.judge_pictures([clean, advert], ask) == 0 and len(asked) == 2
+
+
+def test_shops_are_not_called_homes():
+    from app.modules.propertyfacts import listing_posts
+    assert listing_posts.units_word({"property_type": "office"}) == "Shops and offices"
+    assert listing_posts.units_word({"property_type": "apartment"}) == "Homes"
