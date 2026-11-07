@@ -81,6 +81,8 @@ async def read(images: List[bytes], prompt: str, models: Sequence[str] = READ_MO
         try:
             parts = await _post(model, body, timeout)
             out = json.loads("".join(p.get("text", "") for p in parts))
+            if isinstance(out, list) and len(out) == 1:   # gemini-3-flash wraps a JSON object in a list (brochure pilot, 2026-11-07)
+                out = out[0]
         except (GeminiError, ValueError) as e:
             why = str(e)
             continue

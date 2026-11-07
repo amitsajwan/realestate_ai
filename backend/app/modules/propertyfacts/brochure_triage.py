@@ -128,7 +128,7 @@ def _flag(v: Any) -> bool:
 def clean(data: Any, allowed: Iterable[int]) -> Dict[int, Dict[str, Any]]:
     """The model's labels for pages on the sheet, in the contract's shape; anything else is dropped."""
     allowed = set(allowed)
-    items = data.get("pages") if isinstance(data, dict) else None
+    items = data.get("pages") if isinstance(data, dict) else data   # Gemini sends the bare list (KP Supernova lost all 25 labels)
     out: Dict[int, Dict[str, Any]] = {}
     for it in items if isinstance(items, list) else []:
         if not isinstance(it, dict):

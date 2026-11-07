@@ -182,12 +182,12 @@ def decide(listing: dict, seen: Dict[str, Any], registered: bool, units_total: O
     if not listing.get("size_min_sqft") and sizes:
         lo, hi = min(sizes), max(sizes)
         if scope == "layout" and lo != hi:
-            ask.append(_q("sizes", f"The brochure shows {word} sizes from {_fmt(lo)} to {_fmt(hi)} sq ft. Is that right?",
+            ask.append(_q("sizes", f"We found {word} sizes from {_fmt(lo)} to {_fmt(hi)} sq ft. Is that right?",
                           [("Yes", {"min": lo, "max": hi}), ("No / not sure", None)]))
         elif not listing.get("carpet_sqft") or lo == hi:
             pick = [(f"{_fmt(s)} sq ft", {"min": s, "max": s}) for s in sizes[:3]]
             ask.append(_q("sizes", f"Which size is the {word} on offer?" if len(sizes) > 1
-                          else f"The brochure shows {_fmt(lo)} sq ft. Is that the {word} size?",
+                          else f"We found {_fmt(lo)} sq ft. Is that the {word} size?",
                           pick + [("Not sure", None)] if len(sizes) > 1 else [("Yes", {"min": lo, "max": lo}), ("No / not sure", None)]))
 
     # the land of the whole project
