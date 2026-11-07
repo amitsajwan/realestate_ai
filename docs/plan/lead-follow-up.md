@@ -40,6 +40,11 @@ come in, leads of the last 24 h only), 3 (one Studio alert per 2 h+ wait, kind l
 leads live; no owner WhatsApp/email yet: that needs a paid alert template) and 11 (timeline points in the score). Loop:
 inbox/followups.py, role conversations.
 
+LIVE 2026-11-08: **the follow-up's questions go once.** A buyer told the bot "Kothrud, ready to move, to live in" and got the same three
+questions from the Studio button 35 hours later. Now a lead who has replied on WhatsApp, or was already sent a template, gets the
+approved `project_enquiry_v2` words ("Thank you for asking about 2 BHK homes in Kothrud ... You asked for a shortlist of homes. Our
+team will call you shortly"). If it fails the person is told; the questions do not go instead. `inbox/service.py` start.
+
 LIVE 2026-11-06: **the follow-ups offer Marathi as well as Hindi.** `enquiry_followup_v2` and `project_enquiry_v2` say "Hindi ya Marathi
 mein baat karna ho to bataiye"; until Meta approves them the send fails and the v1 templates go ([chat-reach.md](chat-reach.md)).
 

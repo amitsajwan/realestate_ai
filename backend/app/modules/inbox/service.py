@@ -14,7 +14,8 @@ A person's reply goes out only on WhatsApp, only inside the 24-hour window, thro
 records); the bot then stays quiet in that chat for HUMAN_HOLD, so it does not talk over the person. Outside the window a person can
 start (or restart) a chat from a lead with the approved follow-up template, once per 24 hours (start). The template alone does not
 hold the bot back: their answer to it gets the bot's reply at once (2026-10-23: Rahul's "Hi" sat unanswered for hours because the
-template started the 12-hour hold and nobody was watching). Messaging a New lead moves it to Contacted.
+template started the 12-hour hold and nobody was watching). The template's questions go once: after that, or after any reply, the
+template says the team will call instead. Messaging a New lead moves it to Contacted.
 """
 import base64
 import binascii
@@ -67,6 +68,10 @@ PROJECT_OLD_BODY = ("Namaste {} ji, this is Avasetu. Thank you for asking about 
 PROJECT_TEMPLATE = "project_enquiry_v2"
 PROJECT_BODY = PROJECT_OLD_BODY.replace("Hindi mein baat", "Hindi ya Marathi mein baat")
 PROJECT_WANT = {"A site visit": "a site visit", "Floor plans": "the floor plans"}
+# The questions above go once. A buyer who answered them, or was sent them and stayed quiet, is not asked again (2026-11-07: a Kothrud
+# buyer told the bot where, when and why on 6 Nov, and the button sent the same three questions 35 hours later). They get the project
+# template's words, already approved, about what they want; there is no fallback to the questions.
+ASKED_WANT = "a shortlist of homes"
 
 
 class InboxError(Exception):
@@ -346,8 +351,11 @@ class InboxService:
             await self.c("whatsapp_conversations").insert_one(conv)
         project = await self.project_of(lead)
         rec = None
-        tries = [(PROJECT_TEMPLATE, PROJECT_BODY, project_params(lead, project)), (PROJECT_OLD, PROJECT_OLD_BODY, project_params(lead, project))] if project else []
-        tries += [(FOLLOWUP_TEMPLATE, FOLLOWUP_BODY, followup_params(lead, project)), (FOLLOWUP_OLD, FOLLOWUP_OLD_BODY, followup_params(lead, project))]
+        asked = bool(conv.get("last_inbound_at") or conv.get("template_sent_at"))
+        about = project_params(lead, project) if project else asked_params(lead, conv) if asked else None
+        tries = [(PROJECT_TEMPLATE, PROJECT_BODY, about), (PROJECT_OLD, PROJECT_OLD_BODY, about)] if about else []
+        if not asked:
+            tries += [(FOLLOWUP_TEMPLATE, FOLLOWUP_BODY, followup_params(lead, project)), (FOLLOWUP_OLD, FOLLOWUP_OLD_BODY, followup_params(lead, project))]
         for name, body, params in tries:
             text = body.format(*params)
             rec = await self.whatsapp.send_template(conv, name, "en", params, text, now)
@@ -685,6 +693,17 @@ def project_params(lead: dict, project: dict) -> List[str]:
     where = f", {project['area']}" if project.get("area") else ""
     want = PROJECT_WANT.get(handover.ask_of(lead.get("message"))["want"] or "", "the price sheet and floor plans")
     return [_first_name(lead), re.sub(r"\s+", " ", f"{project['name']}{where}").strip()[:100], want]
+
+
+def asked_params(lead: dict, conv: dict) -> List[str]:
+    """The project template's {{1}} name, {{2}} what they are looking for, {{3}} ASKED_WANT, for a lead with no project page. The lead's
+    requirement comes first, then what they told the bot."""
+    req, said = lead.get("requirement") or {}, conv.get("data") or {}
+    bhk = req.get("bhk") or said.get("bhk")
+    area = ", ".join(req.get("localities") or []) or said.get("locality")
+    what = f"{int(bhk) if float(bhk).is_integer() else bhk} BHK homes" if bhk else "homes"
+    topic = f"{what} in {area}" if area else what if bhk else "a home in Pune"
+    return [_first_name(lead), re.sub(r"\s+", " ", topic).strip()[:100], ASKED_WANT]
 
 
 def followup_params(lead: dict, project: Optional[dict] = None) -> List[str]:
