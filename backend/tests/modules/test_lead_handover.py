@@ -82,13 +82,50 @@ def test_the_form_line_says_what_they_asked_for():
     assert handover.ask_of("About 3 BHK near EON: call after 6")["said"] == "call after 6"
 
 
-def test_template_parameters_are_five_single_lines_none_empty():
+def test_template_parameters_are_seven_single_lines_none_empty():
     c = handover.card({"name": "Ravi\nK", "phone": "+919000000001", "requirement": {"bhk": 3, "budget_max_inr": 9000000,
                                                                                    "timeline": "now"}})
     params = handover.template_params(c)
-    assert len(params) == 5 and all(p and "\n" not in p for p in params)
+    assert len(params) == 7 and all(p and "\n" not in p for p in params)
     assert params[0] == "Ravi K" and params[2] == "a home in Pune"
     assert params[3] == "3 BHK; budget under 90L; buying now"
+    assert params[5:] == ["Not recorded", "Nothing in their own words yet"]
+
+
+def test_the_agent_gets_a_link_to_every_page_they_read_with_the_enquiry_page_first():
+    lead = {"name": "Vikram", "message": "Floor plans of AMIT ELITE (MahaRERA PM1)",
+            "first_touch": {"enquiry_page": "/projects/amit-elite-katraj?src=g"}}
+    pages = ["/projects/area/katraj", "/projects?bhk=1", "/projects/amit-elite-katraj", "/agent/house-deal", "/enquire/x", "/for-agents"]
+    c = handover.card(lead, pages=pages)
+    assert c["links"] == ["https://avasetu.in/projects/amit-elite-katraj", "https://avasetu.in/projects/area/katraj",
+                          "https://avasetu.in/projects"]
+    assert handover.template_params(c)[5] == ", ".join(c["links"])
+    assert "Pages seen: " + ", ".join(c["links"]) in c["text"]
+
+
+def test_the_buyers_words_and_the_private_line_reach_the_agent():
+    c = handover.card({"name": "Vikram"}, chats=[{"thread": [{"from": "them", "text": "Katraj"}, {"from": "them", "text": "1 bhk"}]}])
+    params = handover.template_params(c)
+    assert params[6] == '"Katraj" / "1 bhk"'
+    assert handover.PRIVATE_LINE in c["text"]
+    assert handover.PRIVATE_LINE in handover.AGENT_BODY.format(*params)
+
+
+def test_when_the_links_outgrow_whatsapps_limit_whole_links_stay_and_the_rest_are_counted():
+    lead = {"name": "N" * 80, "phone": "+919000000001", "message": "About " + "P" * 200,
+            "requirement": {"bhk": 3, "budget_max_inr": 9000000, "timeline": "now"}}
+    pages = [f"/projects/a-very-long-project-page-name-in-pune-number-{i}" for i in range(40)]
+    params = handover.template_params(handover.card(lead, pages=pages))
+    assert len(handover.AGENT_BODY.format(*params)) <= handover.MAX_BODY
+    assert params[5].endswith("more in Studio") and params[5].split(", ")[0].endswith("number-0")
+    assert all(p.startswith("https://") and p[-1].isdigit() for p in params[5].split(", ")[:-1])
+
+
+async def test_pages_read_before_the_enquiry_reach_the_card():
+    db = await setup(form_lead(anon_ids=["a1"]))
+    await db.get_collection("events").insert_one({"_id": "e1", "anon_id": "a1", "path": "/projects/area/wagholi", "ts": NOW - timedelta(hours=1)})
+    h = await InboxService(db, FakeWhatsApp(), now=lambda: NOW).handover_for(OWNER, "saket")
+    assert "https://avasetu.in/projects/area/wagholi" in h["card"]["links"]
 
 
 async def test_the_picker_leaves_out_retired_accounts_and_a_pass_to_one_is_refused():
@@ -223,5 +260,5 @@ async def test_until_meta_approves_the_site_enquiry_template_the_pass_template_g
 
     wa = NotApprovedYet()
     r = await InboxService(db, wa, now=lambda: NOW).tell_agent_of_lead(await db.get_collection("contacts").find_one({"_id": "own"}))
-    assert [name for _, name, _ in wa.sent] == ["agent_site_enquiry_v1", "lead_passed_v1"]
+    assert [name for _, name, _ in wa.sent] == ["agent_site_enquiry_v1", handover.AGENT_TEMPLATE]
     assert r["whatsapp_status"] == "sent" and r["agent_name"] == "House Deal"

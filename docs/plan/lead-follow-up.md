@@ -75,6 +75,7 @@ LIVE (this change):
   (price sheet / visit / floor plans), BHK, budget, when, home loan, areas, their own words, page, source, time (IST), pages seen,
   what we already sent, owner notes, and "not known yet, please ask: ...". The agent's lead page shows it ("Passed to you").
 - **Pass from the lead page or a chat**: the owner sees the card first; the lead and all its chats move together.
+- **Since 2026-11-07 the agent template is `lead_passed_v2`** (id 3083367448668990): it adds a link to every page the buyer read, what they wrote, and "for you only, please do not share or forward". `lead_passed_v1` below is the old copy.
 - **WhatsApp to the agent from our number**: UTILITY template `lead_passed_v1` (submitted 2026-10-26, id 1459495656106326; until
   Meta approves it the send fails, the pass still happens and the owner gets the wa.me button with the full card).
 - **Rules** (`lead_routes`): "pass every Wagholi lead / every <project> lead to House Deal by itself", picked in the pass box or added in

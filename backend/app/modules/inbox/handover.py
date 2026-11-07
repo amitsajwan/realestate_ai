@@ -6,8 +6,11 @@ follow-up template has none of it; the lead record has the project, the form ans
 from the lead first and the chats second, and it says what is still unknown, so the agent asks for it on the first call.
 
 `card` is pure (tests pin it): the caller reads the lead, its chats, its page visits and the project page brief.
-`template_params` is the same facts cut to the five one-line parameters of the agent template (WhatsApp rejects empty or
+`template_params` is the same facts cut to the seven one-line parameters of the agent template (WhatsApp rejects empty or
 multi-line parameters).
+
+Owner, 2026-11-07: the agent also gets a link to every page the buyer read and what they wrote, so they can see what the buyer
+compared before calling, and the card says the buyer's details are for them only.
 """
 import re
 from datetime import datetime, timedelta
@@ -18,9 +21,10 @@ from app.modules.tracking import origin
 from app.modules.tracking.requirement import TIMELINE_LABEL, bhk_text, budget_text
 
 IST = timedelta(hours=5, minutes=30)
-AGENT_TEMPLATE = "lead_passed_v1"   # UTILITY template on our WABA; the body below must match Meta's copy
+AGENT_TEMPLATE = "lead_passed_v2"   # UTILITY template on our WABA; the body below must match Meta's copy
 AGENT_BODY = ("New buyer enquiry passed to you by Avasetu.\n\n"
-              "Name: {}\nPhone: {}\nProject: {}\nLooking for: {}\nCame from: {}\n\n"
+              "Name: {}\nPhone: {}\nProject: {}\nLooking for: {}\nCame from: {}\nPages they read: {}\nThey wrote: {}\n\n"
+              "This buyer's details are for you only. Please do not share or forward them.\n\n"
               "Please call them today. Their full details and messages are in Avasetu Studio, Leads.\n\n"
               "Avasetu team")
 # An enquiry made on the agent's own site is theirs, not a pass (owner, 2026-10-30): the card names their business and does not
@@ -34,7 +38,11 @@ FINANCING_LABEL = {"home_loan": "Home loan", "own_funds": "Own funds", "undecide
 SOURCE_LABEL = {"google": "Google search", "bing": "Bing search", "instagram": "Instagram", "facebook": "Facebook",
                 "whatsapp": "WhatsApp", "direct": "Opened the link directly", "youtube": "YouTube", **origin.AI_NAMES}
 MAX_SAID = 300
-MAX_PAGES = 5
+MAX_BODY = 1024   # WhatsApp's limit on a template body with its parameters filled in
+PRIVATE_LINE = "This buyer's details are for you only. Please do not share or forward them."
+# pages an agent reads, not a buyer: a lead who opened them may be an agent trying us out
+AGENT_PAGES = ("/agents", "/for-agents", "/trial", "/join", "/studio", "/pilot")
+SKIP_PAGES = ("/agent/", "/enquire", "/r/", "/i/", "/go/")   # say nothing about what a buyer wants
 
 
 def _ist(dt: Optional[datetime]) -> str:
@@ -109,6 +117,12 @@ def _contact_line(chats: List[dict], lead: dict) -> str:
     return line[:1].upper() + line[1:] if line else "Nobody has contacted them yet"
 
 
+def page_links(page: Optional[str], pages: Optional[List[str]], site: str = brand.SITE) -> List[str]:
+    """Every page they read that says what they want, as a link, each once, the page they enquired from first."""
+    paths = [p.split("?")[0].split("#")[0].rstrip("/") or "/" for p in ([page] if page else []) + list(pages or []) if p]
+    return [f"{site}{p}" for p in dict.fromkeys(paths) if not p.startswith(SKIP_PAGES + AGENT_PAGES)]
+
+
 def card(lead: dict, project: Optional[dict] = None, chats: Optional[List[dict]] = None, pages: Optional[List[str]] = None,
          site: str = brand.SITE) -> dict:
     """{lines: [(label, value)], text, missing}. `chats` are inbox threads (thread() shape), `pages` the paths they opened,
@@ -127,7 +141,7 @@ def card(lead: dict, project: Optional[dict] = None, chats: Optional[List[dict]]
     said = [ask["said"]] if ask["said"] else []
     said += [m["text"] for c in chats for m in c.get("thread") or [] if m.get("from") == "them" and m.get("text")][-3:]
     wants = ask["want"] or ("Price sheet and floor plans" if (page or "").startswith("/projects/") else None)
-    seen = list(dict.fromkeys(p.split("?")[0] for p in pages or [] if p))
+    links = page_links(page, pages, site)
     lines = [
         ("Name", (lead.get("name") or "").strip() or "Not given"),
         ("Phone", phone_text(lead.get("phone")) or "Not given"),
@@ -142,7 +156,7 @@ def card(lead: dict, project: Optional[dict] = None, chats: Optional[List[dict]]
         ("Page", f"{site}{page.split('?')[0]}" if page else None),
         ("Came from", source_text(lead)),
         ("Enquired", _ist(lead.get("created_at"))),
-        ("Pages seen", f"{len(seen)}: " + ", ".join(seen[-MAX_PAGES:]) if len(seen) > 1 else None),
+        ("Pages seen", ", ".join(links) if len(links) > 1 else None),
         ("So far", _contact_line(chats, lead)),
         ("Notes", " / ".join(n.get("text", "") for n in lead.get("notes") or [] if n.get("text")) or None),
     ]
@@ -153,13 +167,13 @@ def card(lead: dict, project: Optional[dict] = None, chats: Optional[List[dict]]
     body = [head, ""] + [f"{k}: {v}" for k, v in lines]
     if missing:
         body += ["", "Not known yet, please ask: " + ", ".join(missing)]
-    body += ["", "Please call them today and tell us how it went.", f"{brand.NAME} team"]
-    return {"lines": [{"label": k, "value": v} for k, v in lines], "missing": missing, "text": "\n".join(body)}
+    body += ["", PRIVATE_LINE, "", "Please call them today and tell us how it went.", f"{brand.NAME} team"]
+    return {"lines": [{"label": k, "value": v} for k, v in lines], "missing": missing, "text": "\n".join(body), "links": links}
 
 
 def site_params(c: dict, business: str) -> List[str]:
     """The site-enquiry template's six parameters: the agent's business name, then the pass card's five."""
-    return [_one_line(business, 60) or "Avasetu"] + template_params(c)
+    return [_one_line(business, 60) or "Avasetu"] + template_params(c)[:5]
 
 
 def _one_line(s: Optional[str], n: int) -> str:
@@ -167,11 +181,24 @@ def _one_line(s: Optional[str], n: int) -> str:
 
 
 def template_params(c: dict) -> List[str]:
-    """The card cut to the agent template's five parameters: name, phone, project, what they want, where from and when."""
+    """The card cut to the agent template's seven parameters: name, phone, project, what they want, where from and when, the
+    links, their own words. Every link goes in while the body stays under WhatsApp's limit; the rest are counted, not cut in half."""
     v = {x["label"]: x["value"] for x in c["lines"]}
     looking = "; ".join(x for x in (v.get("Home"), v.get("Wants"), v.get("Budget") and "budget " + v["Budget"],
                                     v.get("Buying when") and "buying " + v["Buying when"].lower()) if x)
     came = ", ".join(x for x in (v.get("Came from"), v.get("Enquired")) if x)
-    return [_one_line(v.get("Name"), 60) or "A buyer", _one_line(v.get("Phone"), 20) or "not given",
-            _one_line(v.get("Project"), 120) or "a home in Pune", _one_line(looking, 160) or "details on the call",
-            _one_line(came, 100) or "our website"]
+    params = [_one_line(v.get("Name"), 60) or "A buyer", _one_line(v.get("Phone"), 20) or "not given",
+              _one_line(v.get("Project"), 120) or "a home in Pune", _one_line(looking, 160) or "details on the call",
+              _one_line(came, 100) or "our website"]
+    wrote = _one_line(v.get("They wrote"), 100) or "Nothing in their own words yet"
+    room = MAX_BODY - len(AGENT_BODY.replace("{}", "")) - sum(map(len, params)) - len(wrote) - len(", and 99 more in Studio")
+    links = c.get("links") or []
+    kept: List[str] = []
+    for link in links:
+        if len(", ".join(kept + [link])) > room:
+            break
+        kept.append(link)
+    pages = ", ".join(kept) or "Not recorded"
+    if kept and len(kept) < len(links):
+        pages += f", and {len(links) - len(kept)} more in Studio"
+    return params + [pages, wrote]

@@ -433,7 +433,8 @@ class InboxService:
                 chats.append({**await self.thread(agent_id, tid), "data": doc.get("data")})
             except InboxError:
                 continue
-        events = await self.c("events").find({"contact_id": lead["_id"]}).sort("ts", 1).to_list(200)
+        events = await self.c("events").find({"$or": [{"contact_id": lead["_id"]}, {"anon_id": {"$in": lead.get("anon_ids") or []}}]}
+                                             ).sort("ts", 1).to_list(200)
         return handover.card(lead, project, chats, [e.get("path") for e in events if e.get("path")])
 
     async def pass_lead(self, owner_id: str, lead_id: str, to_agent: str, by: str = "owner", rule: Optional[dict] = None,
