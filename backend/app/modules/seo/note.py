@@ -139,13 +139,20 @@ def summary(week: Optional[dict], ago: Optional[dict], cov: dict, board: dict, w
             return "-"
         p = (ago or {}).get(k)
         return f"{v:,}" + (f" ({'+' if v - p >= 0 else ''}{v - p:,})" if isinstance(p, int) and isinstance(v, int) else "")
+    def seen() -> str:
+        w = (week or {}).get("week")
+        if not w:
+            return f"clicks {num('clicks')}, impressions {num('impressions')}"
+        diff = w["clicks"] - w["clicks_before"]
+        return (f"clicks in 7 days {w['clicks']:,} ({'+' if diff >= 0 else ''}{diff:,}), {w['clicks_listed']:,} on pages in search; "
+                f"impressions {w['impressions']:,}, {w['impressions_listed']:,} on pages in search")
     idx = f"{cov.get('indexed', 0):,} of {cov.get('inspected', 0):,} checked" if cov.get("inspected") else "not checked yet"
     # head to head (both on the page) once the board counts it; a search MagicBricks has no page for says little
     if board.get("both"):
         mb = f"{board.get('above_mb_when_shown', 0)} of {board['both']} head to head"
     else:
         mb = f"{board.get('above_mb', 0)} of {board.get('searches', 0)}" if board.get("searches") else "-"
-    return (f"SEO week: clicks {num('clicks')}, impressions {num('impressions')}, page one {num('page_one')}; indexed {idx}; "
+    return (f"SEO week: {seen()}, page one {num('page_one')}; indexed {idx}; "
             f"above MagicBricks {mb}. {waiting} pages to ask Google for, {PER_DAY} a day: Insights → Rankings.")
 
 

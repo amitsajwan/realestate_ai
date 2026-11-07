@@ -82,7 +82,11 @@ export interface ProjectIndex { listed: number; inspected: number; indexed: numb
 /** What the project pages in search hold (pages.content_counts). `full`: prices, web facts, highlights, photos and plans. */
 export interface PageContent { pages: number; prices: number; facts: number; highlights: number; photos: number; plans: number; full: number; median_text: number }
 
-export interface WeekNumbers { at: string; clicks: number; impressions: number; page_one: number; near_page_one: number; targeted: number; page_one_listed?: number }
+export interface WeekNumbers { at: string; clicks: number; impressions: number; page_one: number; near_page_one: number; targeted: number; page_one_listed?: number; week?: WeekCounts }
+export interface WeekCounts {
+  clicks: number; clicks_before: number; clicks_listed: number; clicks_listed_before: number
+  impressions: number; impressions_before: number; impressions_listed: number; impressions_listed_before: number
+}
 
 export interface FixResult {
   fix: string

@@ -660,6 +660,7 @@ _COUNT = r"(\d[\d,]*)"
 _TOWERS = re.compile(_COUNT + r"\s+(?:[a-z-]+\s+)?(?:towers?|buildings?|wings?)\b", re.I)
 _FLOORS_EACH = re.compile(r"\b(?:each|all)\b[^.;]*?" + _COUNT + r"\s+(?:[a-z-]+\s+)?(?:floors?|stor(?:eys?|ies))\b|"
                           + _COUNT + r"\s+(?:[a-z-]+\s+)?(?:floors?|stor(?:eys?|ies))\s+(?:each|all)\b", re.I)
+_SINGLE_TOWER = re.compile(r"\bsingle\b\s+(?:[a-z0-9-]+\s+)?(?:towers?|buildings?)\b", re.I)
 _SITTING_IN = re.compile(r"\b(?:located|nestled|situated|set|sits?)\b(?:(?!\b(?:near|close|next|from|off|beside|opposite|towards?|by)\b)[^.;])*?"
                          r"\b(?:in|at)\b(?:(?!\b(?:near|close|next|from|off|beside|opposite|towards?|by)\b)[^.;])*", re.I)
 BACKED_SHARE = 0.5   # of the bullet's words the second site's sentence must hold, as well as every number
@@ -696,7 +697,7 @@ def elsewhere(text: str, doc: Optional[dict]) -> bool:
 
 
 def contradicts(text: str, doc: Optional[dict], official: bool = False) -> bool:
-    """A bullet MahaRERA's buildings prove wrong: fewer towers than this one registration files (more may be the whole project's), or
+    """A bullet MahaRERA's buildings prove wrong: fewer towers than this one registration files, "a single tower" included (more may be the whole project's), or
     one floor count for each tower where the filed towers differ (Godrej Ivara: "each with 43 floors", filed 37 to 43), or taller than
     any filed tower (Kohinoor Riverdale: "6 towers with 30 floors each", filed 28). Not those two on the builder's own site: it counts
     habitable floors where MahaRERA files sanctioned ones (Neco Park Central: "18 habitable"). Or a bullet in another area (`elsewhere`)."""
@@ -706,6 +707,8 @@ def contradicts(text: str, doc: Optional[dict], official: bool = False) -> bool:
     plain = _digits(text)
     filed = ((doc or {}).get("building_totals") or {}).get("towers")
     if filed and any(int(n.replace(",", "")) < filed for n in _TOWERS.findall(plain)):
+        return True
+    if filed and filed > 1 and _SINGLE_TOWER.search(plain):   # Dreams Rakshak: "a single 12-floor tower", 2 buildings filed
         return True
     floors = {b["floors"] for b in built if isinstance(b.get("floors"), int) and b["floors"] > 0}
     each = _FLOORS_EACH.search(plain)

@@ -318,6 +318,8 @@ def nice_case(name: str) -> str:
 
     def word(m: re.Match) -> str:
         w = m.group(0)
+        if w == "S" and name[m.start() - 1:m.start()] in ("'", "’"):   # "KINGS’S GRACE" read "Kings’S Grace" on the page
+            return "s"
         if len(w) == 1 or _ROMAN.match(w) or not re.search(r"[AEIOUY]", w):
             return w
         if w in _SMALL and m.start() > 0:

@@ -5,7 +5,7 @@ import { ErrorBox, Spinner } from '@/components/app/ui'
 import { timeAgo } from '@/lib/app/format'
 import { errorMessage } from '@/lib/app/client'
 import { getRankings, revertPage } from '@/lib/app/insights'
-import type { AiVisits, BoardLeader, BoardRow, BoardStanding, PageCheck, PageContent, ProjectIndex, RankAction, RankTarget, Scoreboard, WeekNumbers } from '@/lib/app/insights'
+import type { AiVisits, BoardLeader, BoardRow, BoardStanding, PageCheck, PageContent, ProjectIndex, RankAction, RankTarget, Scoreboard, WeekCounts, WeekNumbers } from '@/lib/app/insights'
 import { useAsync } from '@/lib/app/useAsync'
 import { getNotifications, markNotificationRead } from '@/lib/app/whatsapp'
 
@@ -21,10 +21,34 @@ const WEEK_ROWS: [keyof WeekNumbers, string, string][] = [
   ['near_page_one', 'Pages near page one', 'Average place 8-20 and shown 20+ times: the pages a better page most often lifts. The doctor works these first.'],
   ['targeted', 'Pages with a target search', 'Pages given the one search they should win (the most-seen search in Search Console). Grows only as pages get seen.'],
 ]
+// the last 7 full days against the 7 before: a 28-day total keeps rising while a new site's empty days leave it (+467 clicks in a
+// week when clicks fell 40%), and most of it is pages we took out, which fade as Google reads them again
+const WEEK_COUNTS: ['clicks' | 'impressions', string, string][] = [
+  ['clicks', 'Clicks (7 days)', 'People who clicked one of our project pages in Google, last 7 full days against the 7 before.'],
+  ['impressions', 'Impressions (7 days)', 'Times a project page of ours was shown in Google, last 7 full days against the 7 before.'],
+]
 const card = 'list-none rounded-2xl bg-white p-3'
 const btn = 'min-h-[44px] rounded-xl border border-gray-300 px-3 text-sm font-semibold text-[#0f2340] active:bg-gray-100 disabled:text-gray-400'
 const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '')
 const pos = (p: number | null | undefined) => (p == null ? '-' : `#${Math.round(p * 10) / 10}`)
+
+function WeekCount({ kind, label, hint, total, w }: { kind: 'clicks' | 'impressions'; label: string; hint: string; total: number; w: WeekCounts }) {
+  const diff = w[kind] - w[`${kind}_before`]
+  const listed = w[`${kind}_listed`]
+  const listedDiff = listed - w[`${kind}_listed_before`]
+  return (
+    <div>
+      <dt className="text-xs text-gray-600">{label}</dt>
+      <dd className="text-lg font-semibold text-gray-900">{w[kind].toLocaleString('en-IN')}
+        <span className={`ml-1 text-xs ${diff >= 0 ? 'text-green-700' : 'text-red-700'}`}>{diff >= 0 ? '+' : ''}{diff.toLocaleString('en-IN')}</span>
+      </dd>
+      <dd className="text-xs font-medium text-gray-800" data-testid={`week-${kind}-listed`}>
+        {listed.toLocaleString('en-IN')} ({listedDiff >= 0 ? '+' : ''}{listedDiff.toLocaleString('en-IN')}) on pages in search now; the rest are pages we took out, which fade as Google reads them again
+      </dd>
+      <dd className="text-xs text-gray-500">{hint} 28 days: {total.toLocaleString('en-IN')}.</dd>
+    </div>
+  )
+}
 
 function Empty({ children }: { children: React.ReactNode }) {
   return <p className="rounded-2xl bg-white p-4 text-sm text-gray-600">{children}</p>
@@ -356,7 +380,8 @@ export default function RankingsTab() {
         <p className="font-semibold text-gray-900">This week</p>
         {!now ? <p className="text-sm text-gray-600">No numbers yet: they start the day after Search Console is read.</p> : (
           <dl className="mt-1 grid grid-cols-2 gap-2 sm:grid-cols-5">
-            {WEEK_ROWS.map(([k, label, hint]) => {
+            {now.week && WEEK_COUNTS.map(([k, label, hint]) => <WeekCount key={k} kind={k} label={label} hint={hint} total={now[k]} w={now.week!} />)}
+            {WEEK_ROWS.filter(([k]) => !now.week || (k !== 'clicks' && k !== 'impressions')).map(([k, label, hint]) => {
               const v = Number(now[k])
               const diff = ago ? v - Number(ago[k]) : null
               return (

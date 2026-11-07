@@ -20,7 +20,7 @@ reads as scaled content, and the filter judges the site, not one page. Three thi
 1. **Churn.** Since then the sitemap went from about 13,000 to 243 to 343 project pages, pages go in and out of noindex as
    enrichment fills them, texts are rewritten every day (20 pages in search a day, plus night runs of 300 and more), and the
    page template, titles and opening block change every few days. To a classifier that is a site run by a machine and not yet
-   settled. The title hold until 2026-11-17 (`seo/actions.HOLD_UNTIL`) is right; it covers titles only.
+   settled. The title hold, moved to 2026-12-15 on 2026-11-07 (`seo/actions.HOLD_UNTIL`), is right; it covers titles only.
 2. **Little Google does not already have.** A project page is MahaRERA's record (public, and on many sites), facts read from the
    sites that already rank for the project (marketers and portals), and 3 to 5 points a model writes from those. However well
    checked, the web facts are those sites' content in our words, and Google ranks the source. What exists nowhere else is small
@@ -42,7 +42,7 @@ The algorithm's job moves from "read what others say and rewrite it" to "work ou
   for that alone (`enrich.REWRITES_PER_DAY`), and `REST_DAYS` only spaces it out.
 - A page stays in or out of search for at least 30 days once decided, unless it breaks (an error page, a wrong project). Today
   a page goes back in as soon as enrichment fills it (`THIN_RETRY_DAYS`).
-- The page template and titles stay as they are until the site is back. Widen the 2026-11-17 hold from titles to templates.
+- The page template and titles stay as they are until the site is back. Widen the hold (2026-12-15) from titles to templates.
   (Not code: a rule for whoever changes the pages.)
 - Sitemap size moves in steps the owner decides, not with each night run. (The hold below slows it; the steps are the owner's.)
 

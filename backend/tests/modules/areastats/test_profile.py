@@ -266,3 +266,9 @@ def test_floors_each_taller_than_any_filed_tower_are_not_shown_but_the_builder_m
     assert profile.contradicts("There are 6 towers with 30 floors each", RIVERDALE)
     assert not profile.contradicts("There are 6 towers with 28 floors each", RIVERDALE)
     assert not profile.contradicts("There are 6 towers with 30 floors each", RIVERDALE, official=True)
+
+
+def test_a_single_tower_is_not_shown_where_maharera_files_two():
+    doc = {"building_totals": {"towers": 2}, "buildings": [{"floors": 8}, {"floors": 8}]}
+    assert profile.contradicts("The project consists of a single 12-floor tower with four units per floor", doc)
+    assert not profile.contradicts("The project consists of a single 12-floor tower", {"building_totals": {"towers": 1}})

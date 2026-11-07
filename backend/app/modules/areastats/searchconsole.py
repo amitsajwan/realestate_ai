@@ -28,6 +28,8 @@ log = logging.getLogger(__name__)
 SCOPE = "https://www.googleapis.com/auth/webmasters.readonly"
 API = "https://searchconsole.googleapis.com/webmasters/v3/sites/{site}/searchAnalytics/query"
 DAYS = 28
+WEEK = 7                             # the owner's weekly numbers: 7 full days against the 7 before them
+WEEK_LAG = 3                         # newest full day: "final" data can still lack the day before yesterday
 ROWS = 5000                          # most rows Search Console returns per call
 READ_EVERY = timedelta(hours=24)
 HISTORY = 60         # daily readings kept per project: enough to compare with 28 days ago
@@ -66,10 +68,12 @@ async def token(sa: dict, client: httpx.AsyncClient) -> str:
     return r.json()["access_token"]
 
 
-async def _rows(sa: dict, today: date, dimensions: List[str], transport: Optional[httpx.AsyncBaseTransport] = None) -> List[dict]:
+async def _rows(sa: dict, today: date, dimensions: List[str], transport: Optional[httpx.AsyncBaseTransport] = None,
+                first: int = DAYS + 2, last: int = 2) -> List[dict]:
+    """Rows from `first` days ago to `last` days ago."""
     async with httpx.AsyncClient(timeout=30, transport=transport) as c:
         bearer = await token(sa, c)
-        body = {"startDate": (today - timedelta(days=DAYS + 2)).isoformat(), "endDate": (today - timedelta(days=2)).isoformat(),
+        body = {"startDate": (today - timedelta(days=first)).isoformat(), "endDate": (today - timedelta(days=last)).isoformat(),
                 "dimensions": dimensions, "rowLimit": ROWS}
         r = await c.post(API.format(site=quote(site(), safe="")), json=body, headers={"Authorization": f"Bearer {bearer}"})
         r.raise_for_status()
@@ -84,15 +88,33 @@ async def query_rows(sa: dict, today: date, transport: Optional[httpx.AsyncBaseT
             for row in await _rows(sa, today, ["query", "page"], transport) if len(row.get("keys") or []) == 2]
 
 
-async def page_counts(sa: dict, today: date, transport: Optional[httpx.AsyncBaseTransport] = None) -> Dict[str, dict]:
+async def page_counts(sa: dict, today: date, transport: Optional[httpx.AsyncBaseTransport] = None,
+                      first: int = DAYS + 2, last: int = 2) -> Dict[str, dict]:
     """{path: {"impressions", "clicks", "position"}} for our pages over the last DAYS days (Search Console lags about 2 days)."""
     out = {}
-    for row in await _rows(sa, today, ["page"], transport):
+    for row in await _rows(sa, today, ["page"], transport, first, last):
         path = urlparse((row.get("keys") or [""])[0]).path.rstrip("/")
         pos = row.get("position")
         out[path] = {"impressions": int(row.get("impressions") or 0), "clicks": int(row.get("clicks") or 0),
                      "position": round(float(pos), 1) if pos is not None else None}
     return out
+
+
+async def week_counts(sa: dict, today: date, transport: Optional[httpx.AsyncBaseTransport] = None) -> Optional[tuple]:
+    """({path: counts} of the last WEEK full days, {path: counts} of the WEEK before), or None when they could not be read. A 28-day
+    total rises for weeks after a new site's empty days leave it, whatever Google is doing: clicks read +467 on 2026-11-07 in a week
+    when project pages' clicks fell 40%."""
+    try:
+        end = WEEK_LAG + WEEK - 1
+        return (await page_counts(sa, today, transport, end, WEEK_LAG),
+                await page_counts(sa, today, transport, end + WEEK, WEEK_LAG + WEEK))
+    except Exception:
+        log.exception("searchconsole: reading the weekly numbers failed")
+        return None
+
+
+def _plain(counts: Optional[dict]) -> dict:
+    return {"impressions": int((counts or {}).get("impressions") or 0), "clicks": int((counts or {}).get("clicks") or 0)}
 
 
 def _previous(hist: list, now: datetime) -> int:
@@ -111,6 +133,7 @@ async def refresh(store: Store, now: datetime, transport: Optional[httpx.AsyncBa
     if not force and isinstance(last, datetime) and now - (last if last.tzinfo else last.replace(tzinfo=timezone.utc)) < READ_EVERY:
         return None
     counts = await page_counts(sa, now.date(), transport)
+    weeks = await week_counts(sa, now.date(), transport)
     updated = 0
     for d in await store.all_projects():
         slug = d.get("page_slug")
@@ -118,8 +141,12 @@ async def refresh(store: Store, now: datetime, transport: Optional[httpx.AsyncBa
         if c or d.get("gsc_impressions"):
             c = c or {"impressions": 0, "clicks": 0, "position": None}
             hist = (list(d.get("gsc_history") or []) + [{"at": now, "impressions": c["impressions"]}])[-HISTORY:]
+            fresh = {}
+            if weeks:
+                path = f"/projects/{slug}"
+                fresh = {"gsc_week": _plain(weeks[0].get(path)), "gsc_week_before": _plain(weeks[1].get(path))}
             await store.set_project(d["_id"], gsc_impressions=c["impressions"], gsc_clicks=c["clicks"], gsc_position=c.get("position"),
-                                    gsc_read_at=now, gsc_history=hist, gsc_impressions_prev=_previous(hist, now))
+                                    gsc_read_at=now, gsc_history=hist, gsc_impressions_prev=_previous(hist, now), **fresh)
             updated += 1
     near = sorted(({"path": p or "/", **c} for p, c in counts.items() if near_page_one(c.get("position"), c["impressions"])),
                   key=lambda x: -x["impressions"])[:NEAR_KEEP]

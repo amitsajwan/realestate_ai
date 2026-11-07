@@ -302,3 +302,8 @@ def test_content_counts_say_what_the_pages_in_search_hold():
 
 def test_content_counts_with_no_pages():
     assert pages.content_counts([])["median_text"] == 0
+
+
+def test_an_apostrophe_s_stays_small_in_a_name_filed_in_capitals():
+    assert pages.nice_case("KINGS’S GRACE") == "Kings’s Grace"
+    assert pages.nice_case("KING'S COURT") == "King's Court"
