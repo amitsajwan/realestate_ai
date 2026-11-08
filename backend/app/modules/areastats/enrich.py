@@ -223,7 +223,14 @@ def _aware(d: datetime) -> datetime:
 
 
 def _ours(d: dict) -> bool:
-    return bool(d.get("page_slug")) and (d.get("locality") in BY_KEY or bool(d.get("watched_by")))
+    """Kept fresh on our areas' timetable: in our areas, an agent's project, or a watched page already in search. Any other watched
+    page is not: a first read puts every page on the watch list (`pages.marketed`), and 3,700 pages read again each week would
+    spend Serper's balance in days."""
+    if not d.get("page_slug"):
+        return False
+    if d.get("locality") in BY_KEY or pages.marketed(d):
+        return True
+    return bool(d.get("watched_by")) and (d.get("search_state") or {}).get("in") is True
 
 
 def wider(d: dict, now: datetime) -> bool:

@@ -103,3 +103,10 @@ def test_offices_outside_our_areas_need_one_kind_less_and_a_flat_price_counts_fo
     offices = {**OUTSIDE, **FACTS, "project_type": "Commercial"}
     assert pages.searchable(offices, NOW)
     assert not pages.searchable({**offices, "web_facts": {}}, NOW)
+
+
+
+def test_a_page_outside_our_areas_watched_only_because_it_was_read_still_needs_to_be_fully_enriched():
+    read = {**OUTSIDE, **FACTS, "profile": {}, "watched_by": ["property_facts"]}
+    assert not pages.searchable(read, NOW)
+    assert pages.searchable({**read, "watched_by": ["agent_projects", "property_facts"]}, NOW)

@@ -1106,3 +1106,11 @@ def test_a_search_line_calling_offices_homes_does_not_outlive_a_rewrite():
     assert enrich.kept_line({"project_type": "Commercial", "page_summary": line}) is None
     assert enrich.kept_line({"project_type": "Residential", "page_summary": line}) == line
     assert enrich.kept_line({"project_type": "Commercial", "page_summary": "Gateway: 29 commercial units."}) == "Gateway: 29 commercial units."
+
+
+
+def test_a_page_read_once_outside_our_areas_is_not_read_again_on_our_timetable():
+    read = {**WIDE, "watched_by": ["property_facts"], "enriched_at": NOW}
+    assert not enrich._ours(read)
+    assert enrich._ours({**read, "search_state": {"in": True, "at": NOW}})
+    assert enrich._ours({**read, "watched_by": ["agent_projects"]})

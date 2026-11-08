@@ -34,6 +34,16 @@ def _place_word(doc: dict) -> str:
     return "" if name.endswith(" taluka") else name
 
 
+AGENT_WATCH = "agent_projects"   # areastats.watch source: projects agents list
+
+
+def marketed(doc: dict) -> bool:
+    """A project an agent lists. The watch list's `property_facts` source marks every project whose facts were ever gathered, the
+    first read of a page outside our areas included (2026-11-08: 34 of 52 such reads were "watched" the same hour), so being
+    watched says nothing about who wants the page; an agent's listing does."""
+    return AGENT_WATCH in (doc.get("watched_by") or [])
+
+
 def in_register(d: dict) -> bool:
     """A record that gets a project page: in one of our areas, on a watch list, or anywhere in Pune district."""
     return d.get("locality") in BY_KEY or bool(d.get("watched_by")) or bool(d.get("pune_place"))
@@ -283,7 +293,7 @@ def ready_for_search(doc: dict) -> bool:
         return False
     if not (indexable(doc) and doc.get("page_text") and own_facts(doc)):
         return False
-    outside = doc.get("pune_place") and doc.get("locality") not in BY_KEY and not doc.get("watched_by")
+    outside = doc.get("pune_place") and doc.get("locality") not in BY_KEY and not marketed(doc)
     return not outside or (doc.get("search_state") or {}).get("in") is True or fully_enriched(doc)
 
 
