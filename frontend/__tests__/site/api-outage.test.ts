@@ -89,12 +89,15 @@ describe('site data access', () => {
         const t = setTimeout(() => resolve(json(200, { slug: 'a', agent_name: 'A', name: 'A' })), 8000)
         init.signal.addEventListener('abort', () => { clearTimeout(t); reject(Object.assign(new Error('aborted'), { name: 'AbortError' })) })
       })) as unknown as () => Promise<unknown>)
+      const hubs = await import('@/lib/site/hubs')
+      const builder = hubs.getBuilder('a')   // a builder page waits as a project page does (9 of them gave 500s at 5 s)
       const project = register.getRegisterProject('a')
       const shared = api.getCatalogProject('a')
       const agent = expect(api.getAgent('a')).rejects.toThrow(/temporarily unavailable/)
       await jest.advanceTimersByTimeAsync(9000)
       expect((await project)?.slug).toBe('a')
       expect((await shared)?.slug).toBe('a')
+      expect(((await builder) as { slug?: string } | null)?.slug).toBe('a')
       await jest.advanceTimersByTimeAsync(9000)
       await agent
     } finally {

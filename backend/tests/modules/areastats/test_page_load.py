@@ -79,3 +79,39 @@ async def test_a_caller_changing_its_list_leaves_the_kept_one_alone():
     rows.clear()
     assert await pages.listing(db, area="wagholi")
     shared._SHARED.clear()
+
+
+# ---- builder pages: the same work once per shared load (9 of them answered the crawl with 500s after the project fix) ----------
+
+async def test_the_builder_grouping_and_list_are_worked_out_once_per_shared_load(monkeypatch):
+    from app.modules.areastats import hubs
+    db = FakeDb()
+    db.get_collection("projects").docs = register()
+    shared._SHARED.clear()
+    grouped, listed = [], []
+    real_group, real_list = hubs._group_by_builder, hubs._builders
+    monkeypatch.setattr(hubs, "_group_by_builder", lambda docs: grouped.append(1) or real_group(docs))
+    monkeypatch.setattr(hubs, "_builders", lambda docs, only: listed.append(only) or real_list(docs, only))
+    slug = pages.builder_key({"promoter": "Rohan Builders Pvt Ltd", "name": "Project 0"})
+    first = await hubs.builder_page(db, slug)
+    assert await hubs.builder_page(db, slug) == first
+    rows = await hubs.builders(db, only_indexable=False)
+    assert await hubs.builders(db, only_indexable=False) == rows
+    assert len(grouped) == 1 and listed == [False]
+    shared._SHARED.clear()
+
+
+async def test_a_builder_page_sorting_its_projects_leaves_the_shared_grouping_alone():
+    from app.modules.areastats import hubs
+    db = FakeDb()
+    db.get_collection("projects").docs = register()
+    shared._SHARED.clear()
+    slug = pages.builder_key({"promoter": "Rohan Builders Pvt Ltd", "name": "Project 0"})
+    docs = await shared.Store(db).shared_projects()
+    before = [d["_id"] for d in hubs._by_builder(docs)[slug]]
+    await hubs.builder_page(db, slug)
+    assert [d["_id"] for d in hubs._by_builder(docs)[slug]] == before
+    rows = await hubs.builders(db, only_indexable=False)
+    rows[0]["name"] = "changed by a caller"
+    assert (await hubs.builders(db, only_indexable=False))[0]["name"] != "changed by a caller"
+    shared._SHARED.clear()

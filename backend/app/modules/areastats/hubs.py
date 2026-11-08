@@ -17,8 +17,8 @@ from app.modules.newsroom.store import Store
 from . import hot
 from .enrich import km_between
 from . import brands as brand_list
-from .pages import (MOVED_MIN, _long, _served, booked, branded_name, builder_key, builder_logo, can_host, cluster_stamps, cluster_updated, completion_moves,
-                    delivery, indexable, is_old, months_later, names, searchable)
+from .pages import (MOVED_MIN, _long, _served, booked, branded_name, builder_key, builder_logo, can_host, cluster_updated, completion_moves,
+                    delivery, indexable, is_old, load_index, months_later, names, per_load, searchable)
 from .text import builder_slug
 from .service import _count, _day
 
@@ -54,8 +54,13 @@ def fact_line(d: dict, now: datetime) -> dict:
 
 
 def _primaries(docs: List[dict]) -> List[dict]:
-    """The records that are a page of their own: served, and not standing behind a primary search may list."""
-    hosted = {d["_id"] for d in docs if can_host(d)}
+    """The records that are a page of their own: served, and not standing behind a primary search may list. Worked out once per
+    shared load (pages.per_load): builder pages and the builders sitemap ask it on every request (500s under a crawl, 2026-11-08)."""
+    return per_load(docs, ("primaries",), lambda: _primaries_of(docs))
+
+
+def _primaries_of(docs: List[dict]) -> List[dict]:
+    hosted = load_index(docs).hosted
     return [d for d in docs if _served(d) and d.get("cluster_primary") not in hosted]
 
 
@@ -132,6 +137,11 @@ async def near_projects(db, area_slug: str, slug: str, limit: int = NEAR_PROJECT
 # ---- builder pages (R6) ---------------------------------------------------------------------------------------------------
 
 def _by_builder(docs: List[dict]) -> dict:
+    """{builder slug: its page records}, once per shared load. Read-only: a caller that sorts a builder's list copies it first."""
+    return per_load(docs, ("by_builder",), lambda: _group_by_builder(docs))
+
+
+def _group_by_builder(docs: List[dict]) -> dict:
     out: dict = {}
     for d in _primaries(docs):
         s = builder_key(d)
@@ -144,7 +154,12 @@ async def builders(db, only_indexable: bool = True) -> List[dict]:
     """Every builder with projects in the register: [{slug, name, projects, indexable, page_updated, logo}], most projects first.
     `logo` is the builder's own logo (areastats.logos) or None."""
     docs = await Store(db).shared_projects()
-    by_cluster = cluster_stamps(docs)
+    # the builders sitemap and list ask this many times a minute: one answer per shared load, a copy each
+    return [dict(r) for r in per_load(docs, ("builders", only_indexable), lambda: _builders(docs, only_indexable))]
+
+
+def _builders(docs: List[dict], only_indexable: bool) -> List[dict]:
+    by_cluster = load_index(docs).stamps
     out = []
     for s, mine in _by_builder(docs).items():
         n = sum(1 for d in mine if searchable(d))   # in search with two pages search sees, not two register-only ones
@@ -209,8 +224,8 @@ async def builder_page(db, slug: str) -> Optional[dict]:
     """A builder's page: every Pune project of theirs (towers merged) with MahaRERA's dates and bookings, and how often the
     filed completion date moved. None for an unknown builder."""
     docs = await Store(db).shared_projects()
-    by_cluster = cluster_stamps(docs)
-    mine = _by_builder(docs).get(slug)
+    by_cluster = load_index(docs).stamps
+    mine = list(_by_builder(docs).get(slug) or [])   # a copy: it is sorted below, and the grouping is shared
     if not mine:
         # a company whose every project is now counted under its brand: its old address points at the brand (301)
         moved = {builder_key(d) for d in _primaries(docs) if builder_slug(d.get("promoter")) == slug}
