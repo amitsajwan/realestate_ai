@@ -2,7 +2,7 @@
  * Our own page for every MahaRERA project (docs/plan/project-pages.md): GET /api/v1/public/register/projects/{slug} and the list.
  * The facts are Avasetu's (the register); an agent's listing in the project lives on the agent's page and uses them.
  */
-import { getCatalog, serverApiBase } from './api'
+import { PAGE_DATA_MS, getCatalog, serverApiBase } from './api'
 import { badStatus, failed, withRetry, type Got } from './retry'
 import type { WebFacts } from './webfacts'
 import type { ProjectProfile } from './profile'
@@ -345,7 +345,7 @@ const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+){0,15}$/
 /** The project page data; null for an unknown slug. An outage throws, so it is never shown (or cached) as a 404. */
 export async function getRegisterProject(slug: string): Promise<RegisterProject | null> {
   if (!SLUG.test(slug)) return null
-  const r = await get<RegisterProject>('/api/v1/public/register/projects/' + encodeURIComponent(slug))
+  const r = await get<RegisterProject>('/api/v1/public/register/projects/' + encodeURIComponent(slug), PAGE_DATA_MS)
   if (r.ok) return r.data
   if (r.notFound) return null
   throw new Error('Project data is temporarily unavailable')

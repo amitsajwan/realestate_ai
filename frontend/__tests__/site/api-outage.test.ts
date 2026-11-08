@@ -78,6 +78,30 @@ describe('site data access', () => {
     }
   })
 
+  // an API busy with a crawl answered project pages in 5 s or more, and the pages reached Google as 500s (2026-11-08)
+  it("waits up to 15 s for a project page's own data, while other reads keep their 5 s", async () => {
+    const api = await load()
+    const register = await import('@/lib/site/register')
+    jest.useFakeTimers()
+    try {
+      // answers after 8 s unless the caller gave up first
+      mockFetch(((_url: string, init: { signal: AbortSignal }) => new Promise((resolve, reject) => {
+        const t = setTimeout(() => resolve(json(200, { slug: 'a', agent_name: 'A', name: 'A' })), 8000)
+        init.signal.addEventListener('abort', () => { clearTimeout(t); reject(Object.assign(new Error('aborted'), { name: 'AbortError' })) })
+      })) as unknown as () => Promise<unknown>)
+      const project = register.getRegisterProject('a')
+      const shared = api.getCatalogProject('a')
+      const agent = expect(api.getAgent('a')).rejects.toThrow(/temporarily unavailable/)
+      await jest.advanceTimersByTimeAsync(9000)
+      expect((await project)?.slug).toBe('a')
+      expect((await shared)?.slug).toBe('a')
+      await jest.advanceTimersByTimeAsync(9000)
+      await agent
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
   it('returns data on success', async () => {
     const api = await load()
     mockFetch(() => json(200, { slug: 'a', agent_name: 'A' }))

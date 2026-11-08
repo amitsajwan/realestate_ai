@@ -17,13 +17,13 @@ type Result<T> = Got<T>
 
 /** Retried (./retry): while a deploy restarts the API the page waits for it, and a slow or failed call gets one more try: a slow
  *  page is better than an error page for buyers and for Google, which slows its crawl after 5xx answers. A 404 is final. */
-async function getJson<T>(path: string): Promise<Result<T>> {
-  return withRetry(() => getJsonOnce<T>(path))
+async function getJson<T>(path: string, ms = 5000): Promise<Result<T>> {
+  return withRetry(() => getJsonOnce<T>(path, ms))
 }
 
-async function getJsonOnce<T>(path: string): Promise<Result<T>> {
+async function getJsonOnce<T>(path: string, ms: number): Promise<Result<T>> {
   const ctrl = new AbortController()
-  const timer = setTimeout(() => ctrl.abort(), 5000)
+  const timer = setTimeout(() => ctrl.abort(), ms)
   try {
     const res = await fetch(serverApiBase() + path, {
       headers: { Accept: 'application/json' },
@@ -149,10 +149,15 @@ export async function getCatalog(locality?: string): Promise<CatalogProject[]> {
   return r.ok ? r.data.items : []
 }
 
+/** How long a project page waits for its own data before the temporary-error page (a 500). A busy API answered project pages in
+ *  5 s or more while a crawl read the area lists, and 1 in 12 of them reached Google as a 500 (2026-11-08): a slow page is
+ *  better than an error page, for buyers and for Google. Optional extras on the page keep their short wait. */
+export const PAGE_DATA_MS = 15000
+
 /** One shared project page, or null when there is no such project. An outage throws (see unavailable()). */
 export async function getCatalogProject(slug: string): Promise<CatalogProject | null> {
   if (fixturesForced()) return null
-  const r = await getJson<CatalogProject>('/api/v1/public/projects/' + encodeURIComponent(slug))
+  const r = await getJson<CatalogProject>('/api/v1/public/projects/' + encodeURIComponent(slug), PAGE_DATA_MS)
   if (r.ok) return r.data
   if (r.notFound) return null
   return unavailable()

@@ -10,9 +10,10 @@ list first (areastats.watch), and then has its page at once.
 import re
 import time
 from functools import lru_cache
+from dataclasses import dataclass
 from statistics import median
 from datetime import date, datetime, timedelta, timezone
-from typing import Any, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from app.core import brand
 from app.core.areas import BY_KEY
@@ -703,16 +704,16 @@ def builder_logo(docs: List[dict]) -> Optional[dict]:
     return None
 
 
-def track_record(doc: dict, docs: List[dict]) -> Optional[dict]:
+def track_record(doc: dict, docs: List[dict], ix: Optional["LoadIndex"] = None) -> Optional[dict]:
     """The builder's (brand's, else promoter's) projects in our register, towers and phases counted once: how many, how many
-    moved their completion date later and by how much."""
+    moved their completion date later and by how much. `ix`: the shared load's index (load_index), when `docs` is that load."""
     key = builder_key(doc)
     if not key:
         return None
     from . import brands
-    hosted = {d["_id"] for d in docs if can_host(d)}
-    mine = [d for d in docs if builder_key(d) == key
-            and not (d.get("cluster_primary") in hosted and d.get("cluster_primary") != d["_id"])]
+    hosted = ix.hosted if ix else {d["_id"] for d in docs if can_host(d)}
+    candidates = ix.by_builder.get(key, []) if ix else [d for d in docs if builder_key(d) == key]
+    mine = [d for d in candidates if not (d.get("cluster_primary") in hosted and d.get("cluster_primary") != d["_id"])]
     mine.sort(key=lambda d: (_day(d.get("completion_now")) or "9999", d.get("name", "")))
     b = brands.BY_SLUG.get(key)
     return {"name": b.name if b else doc.get("promoter"), "slug": key, "count": len(mine), **delivery(mine),
@@ -764,7 +765,7 @@ def checked_count(doc: dict) -> Optional[int]:
     return sum(1 for k in CHECK_LABELS if (steps.get(k) or {}).get("ok"))
 
 
-def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None) -> dict:
+def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None, ix: Optional["LoadIndex"] = None) -> dict:
     area = BY_KEY.get(doc.get("locality") or "")
     read = doc.get("details_checked_at")
     geo = doc.get("geo") or {}
@@ -779,7 +780,7 @@ def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None) ->
         # a street map around the pin, for the hero when the project has no picture (areastats.locmap)
         "location_picture": location_picture(doc),
         "checks": checks(doc), "text_checked": bool(doc.get("page_text")),
-        "builder": track_record(doc, docs) if docs is not None else None,
+        "builder": track_record(doc, docs, ix) if docs is not None else None,
         "place": doc.get("place_locality") or None, "taluka": doc.get("taluka") or None,
         "slug": doc.get("page_slug"), "name": doc.get("name", ""), "regno": doc.get("regno") or doc["_id"],
         "promoter": doc.get("promoter") or None, "pincode": doc.get("pincode") or None,
@@ -821,7 +822,7 @@ def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None) ->
         # the points at the top of the page from the writer's version 6 on (enrich.write_points): {heading, text, facts}
         "points": [{"label": x.get("heading"), "text": x.get("text")} for x in doc.get("page_sections") or []]
                   if doc.get("page_text") and int(doc.get("page_text_version") or 1) >= 6 else [],
-        "same_promoter": same_promoter(doc, docs) if docs is not None else [],
+        "same_promoter": same_promoter(doc, docs, ix) if docs is not None else [],
         "enriched_at": doc["enriched_at"].date().isoformat() if isinstance(doc.get("enriched_at"), datetime) else None,
         # links into other pages say how people search for them (rank-loop R5): search_name, else the marketed name
         "same_area": [{"name": s.get("search_name") or branded_name(s) or names(s)[0], "slug": s["page_slug"], "completion_now": _day(s.get("completion_now"))}
@@ -833,12 +834,13 @@ def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None) ->
 SAME_PROMOTER = 8
 
 
-def same_promoter(doc: dict, docs: List[dict]) -> List[dict]:
+def same_promoter(doc: dict, docs: List[dict], ix: Optional["LoadIndex"] = None) -> List[dict]:
     """Up to 8 other pages by the same promoter, active (not finished) first: {name, marketed_name, slug, completion_now}."""
     key = promoter_key(doc.get("promoter"))
     if not key:
         return []
-    mine = [d for d in docs if d["_id"] != doc["_id"] and _served(d) and promoter_key(d.get("promoter")) == key]
+    served = ix.served_by_promoter.get(key, []) if ix else [d for d in docs if _served(d) and promoter_key(d.get("promoter")) == key]
+    mine = [d for d in served if d["_id"] != doc["_id"]]
     mine.sort(key=lambda d: (is_old(d), d.get("name", "")))
     return [{"name": d.get("name", ""), "marketed_name": names(d)[0], "search_name": d.get("search_name") or None, "branded_name": branded_name(d), "slug": d["page_slug"],
              "completion_now": _day(d.get("completion_now"))} for d in mine[:SAME_PROMOTER]]
@@ -883,10 +885,12 @@ def web_public(web: Optional[dict]) -> Optional[dict]:
                       for f in web["facts"]]}
 
 
-def group_primary(doc: dict, docs: List[dict]) -> dict:
+def group_primary(doc: dict, docs: List[dict], ix: Optional["LoadIndex"] = None) -> dict:
     """The record a tower group's shared facts are kept on (the doc itself when it is alone or the primary)."""
     want = doc.get("cluster_primary")
-    return next((d for d in docs if d["_id"] == want), doc) if want else doc
+    if not want:
+        return doc
+    return ix.by_id.get(want, doc) if ix else next((d for d in docs if d["_id"] == want), doc)
 
 
 async def web_facts_for(db, regno: str) -> Optional[dict]:
@@ -912,22 +916,22 @@ async def profile_for(db, regno: str) -> Optional[dict]:
     return profile_public(doc.get("profile"), doc=doc)
 
 
-def primary_of(doc: dict, docs: List[dict]) -> dict:
+def primary_of(doc: dict, docs: List[dict], ix: Optional["LoadIndex"] = None) -> dict:
     """The page a registration is shown on: its cluster's primary when that one is a page search may list (tower and phase
     pages answer 301 to it, docs/plan/rank-loop.md R0), else its own."""
     want = doc.get("cluster_primary")
     if not want:
         return doc
-    p = next((d for d in docs if d["_id"] == want), None)
+    p = ix.by_id.get(want) if ix else next((d for d in docs if d["_id"] == want), None)
     return p if p is not None and can_host(p) else doc
 
 
-def towers(doc: dict, docs: List[dict]) -> List[dict]:
+def towers(doc: dict, docs: List[dict], ix: Optional["LoadIndex"] = None) -> List[dict]:
     """Every registration of the project a primary page stands for (towers, phases), its own first: MahaRERA facts each."""
     cid = doc.get("cluster_id")
     if not cid:
         return []
-    mine = [d for d in docs if d.get("cluster_id") == cid]
+    mine = list(ix.by_cluster.get(cid, [])) if ix else [d for d in docs if d.get("cluster_id") == cid]
     if len(mine) < 2:
         return []
     mine.sort(key=lambda d: (d["_id"] != doc["_id"], _day(d.get("completion_now")) or "9999", d.get("name", "")))
@@ -955,6 +959,61 @@ def cluster_updated(doc: dict, docs: List[dict], stamps: Optional[dict] = None) 
     if not cid:
         return page_updated(doc)
     return (stamps if stamps is not None else cluster_stamps(docs)).get(cid) or page_updated(doc)
+
+
+# ---- whole-register figures, worked out once per shared load ----------------------------------------------------------------
+# Store.shared_projects hands every public request the same list of ~13k records for SHARED_SECONDS. What is worked out over
+# all of it (which records host a page, each builder's and promoter's records, the cluster dates, the area price floors, a
+# list's rows) is the same for every request in that time. Working it out again per request held the API's one event loop for
+# a second or more per list and ~150 ms per project page on the VM: a crawl reading the area sitemaps kept project pages past
+# the site's 5 s wait, and Google was answered 500 for 1 in 12 of them (2026-11-08). Kept for the current list only; the
+# shared list is read-only, so the figures hold as long as it does.
+_LOAD: Dict[str, Any] = {"docs": None, "memo": {}}
+
+
+def per_load(docs: List[dict], key: Tuple, build: Callable[[], Any]) -> Any:
+    """`build()` once for this list of records (by identity: the shared load), then the same answer until the list changes."""
+    if _LOAD["docs"] is not docs:
+        _LOAD["docs"], _LOAD["memo"] = docs, {}
+    memo = _LOAD["memo"]
+    if key not in memo:
+        memo[key] = build()
+    return memo[key]
+
+
+@dataclass
+class LoadIndex:
+    """The shared load looked up by what project pages ask of it, each list in the load's own order (the scans it replaces)."""
+    by_id: Dict[str, dict]
+    hosted: set
+    by_builder: Dict[str, List[dict]]
+    served_by_promoter: Dict[str, List[dict]]
+    by_cluster: Dict[str, List[dict]]
+    by_area: Dict[Tuple[str, Any], List[dict]]
+    stamps: dict
+
+
+def _build_index(docs: List[dict]) -> LoadIndex:
+    ix = LoadIndex(by_id={}, hosted=set(), by_builder={}, served_by_promoter={}, by_cluster={}, by_area={}, stamps=cluster_stamps(docs))
+    for d in docs:
+        ix.by_id.setdefault(d["_id"], d)   # the first, as next() over the list found it
+        if can_host(d):
+            ix.hosted.add(d["_id"])
+        ix.by_builder.setdefault(builder_key(d), []).append(d)
+        if _served(d):
+            ix.served_by_promoter.setdefault(promoter_key(d.get("promoter")), []).append(d)
+        if d.get("cluster_id"):
+            ix.by_cluster.setdefault(d["cluster_id"], []).append(d)
+        for field in ("locality", "pune_place"):
+            if d.get(field):
+                ix.by_area.setdefault((field, d[field]), []).append(d)
+    return ix
+
+
+def load_index(docs: List[dict]) -> LoadIndex:
+    """The index of the shared load (Store.shared_projects), built once per load. Only for that list: other callers' lists may
+    change between calls."""
+    return per_load(docs, ("index",), lambda: _build_index(docs))
 
 
 def _area_of(doc: dict) -> tuple:
@@ -987,40 +1046,42 @@ async def project_page(db, slug: str, now: Optional[datetime] = None) -> Optiona
     if doc is None or not in_register(doc):
         return None
     docs = await store.shared_projects()   # ~13k records: the same-area list and the builder's track record
-    doc = primary_of(doc, docs)
+    ix = load_index(docs)                    # looked up, not scanned, per page (see per_load)
+    doc = primary_of(doc, docs, ix)
     key = "locality" if doc.get("locality") else "pune_place"
-    peers = [d for d in docs if doc.get(key) and d.get(key) == doc[key] and not d.get("cluster_primary")]
+    peers = [d for d in ix.by_area.get((key, doc[key]), []) if not d.get("cluster_primary")] if doc.get(key) else []
     similar = _similar(doc, peers)
-    out = view(doc, similar, docs)
-    out["towers"] = towers(doc, docs)
-    out["page_updated"] = cluster_updated(doc, docs)
+    out = view(doc, similar, docs, ix)
+    out["towers"] = towers(doc, docs, ix)
+    out["page_updated"] = cluster_updated(doc, docs, ix.stamps)
+    group = group_primary(doc, docs, ix)
     # a count on the builder's or a property site said with its scope: the whole project's, or this registration's
-    out["web_facts"] = pagefacts.with_scope(web_public(group_primary(doc, docs).get("web_facts")), out["details"])
+    out["web_facts"] = pagefacts.with_scope(web_public(group.get("web_facts")), out["details"])
     from .profile import public as profile_public
     # no AI pictures on any page (owner 2026-11-04); they stay on the record
-    out["profile"] = profile_public(group_primary(doc, docs).get("profile"), drawn=False, doc=group_primary(doc, docs))
-    out["plans_3d"] = plans3d.public(group_primary(doc, docs).get("plans_3d"))   # 3D drawings of its checked floor plans
+    out["profile"] = profile_public(group.get("profile"), drawn=False, doc=group)
+    out["plans_3d"] = plans3d.public(group.get("plans_3d"))   # 3D drawings of its checked floor plans
     from .prices import homes_only, ideas, public as prices_public, starts   # asked prices per home size, from the builder's site or two sites
     # the area's records, each project once (its group's primary record): its prices for the rate and the usual band per size
     field, place = _area_of(doc)
     mine = doc.get("cluster_primary") or doc["_id"]
-    others = [d for d in docs if field and d.get(field) == doc[field] and not d.get("cluster_primary") and d["_id"] != mine
-              and d.get("prices")]
+    area_docs = ix.by_area.get((field, doc[field]), []) if field else []
+    others = [d for d in area_docs if not d.get("cluster_primary") and d["_id"] != mine and d.get("prices")]
     area_bands = priceidea.area_bands(starts(d.get("prices"), now) for d in others if not is_old(d, (now or datetime.now(timezone.utc)).date()))
     # an overall price far under the area's cheapest homes is a studio's, an office's or a booking amount (VJ IndiLife's "35 Lacs*
     # Onwards", headed "Studio Apartments, Office Space" on the site, read as "Homes from ₹35 L", 2026-11-03)
     floor = priceidea.overall_floor(area_bands)
-    out["prices"] = homes_only(prices_public(group_primary(doc, docs).get("prices"), now), floor)
+    out["prices"] = homes_only(prices_public(group.get("prices"), now), floor)
     # the compare list: each other project's lowest published price and the sizes it is priced for
     for row, s in zip(out["same_area"], similar):
         shown = homes_only(prices_public(s.get("prices"), now), floor)
         row["price_from"], row["bhk"] = pagefacts.price_from(shown), pagefacts.sizes_label(shown)
     out["area_rate"] = pagefacts.area_rate(place, (prices_public(d.get("prices"), now) for d in others))
     # this project beside the rest of its area: booked share and date move (the area's records, each project once)
-    neighbours = [d for d in docs if field and d.get(field) == doc[field] and not d.get("cluster_primary") and d["_id"] != mine]
+    neighbours = [d for d in area_docs if not d.get("cluster_primary") and d["_id"] != mine]
     out["area_compare"] = area_compare(doc, neighbours, place, (now or datetime.now(timezone.utc)).date())
     # the rounded price idea (areastats.priceidea): the sizes one site prices, and the area's usual band per size
-    own = group_primary(doc, docs).get("prices")
+    own = group.get("prices")
     read = (own or {}).get("at")
     out["price_idea"] = priceidea.view(ideas(own, now), area_bands, place, read.date().isoformat() if isinstance(read, datetime) else None)
     if not out["homes"]:
@@ -1057,9 +1118,13 @@ async def listing(db, area: Optional[str] = None, only_indexable: bool = True, l
                   place: Optional[str] = None) -> List[dict]:
     """Pages for the sitemap, area pages and search: {slug, regno, name, area, place, place_name, promoter, completion_now,
     checked, active, indexable}, newest listed first. `area` is one of our covered areas; `place` any Pune place (key or slug)."""
-    store = Store(db)
-    every = await store.shared_projects()
-    served = {d["_id"] for d in every if can_host(d)}
+    every = await Store(db).shared_projects()
+    # the sitemaps, area pages and lists ask the same few questions many times a minute: one answer per shared load (per_load)
+    return list(per_load(every, ("listing", area, only_indexable, limit, place), lambda: _listing(every, area, only_indexable, limit, place)))
+
+
+def _listing(every: List[dict], area: Optional[str], only_indexable: bool, limit: int, place: Optional[str]) -> List[dict]:
+    served = load_index(every).hosted
     # a tower or phase whose project has a page search may list is not a page of its own (it answers 301 to it)
     docs = [d for d in every if _served(d) and d.get("cluster_primary") not in served]
     if area:
@@ -1071,9 +1136,9 @@ async def listing(db, area: Optional[str] = None, only_indexable: bool = True, l
     if only_indexable:
         docs = [d for d in docs if indexable(d)]
     docs.sort(key=lambda d: (_day(d.get("last_modified")) or "", d.get("name", "")), reverse=True)
-    stamps = cluster_stamps(every)
+    stamps = load_index(every).stamps
     from .prices import floor_for, homes_only, overall_floors, price_from, public as shown_prices
-    floors = overall_floors(every)
+    floors = per_load(every, ("floors",), lambda: overall_floors(every))
 
     def finder(d: dict) -> dict:
         """What the home finder filters on (owner 2026-10-30): each size's lowest published price, months the builder moved the
