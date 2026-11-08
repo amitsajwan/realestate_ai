@@ -472,7 +472,14 @@ def needs_profile(d: dict, now: datetime) -> bool:
             and (not pages.completion_passed(d, now.date()) or featured(d, now)))
 
 
-async def next_project(store: Store, now: datetime) -> Optional[dict]:
+def backfill(d: dict, now: datetime, urgent: bool = False, rewrite: bool = False) -> bool:
+    """A rewrite for a newer writer (BACKFILL): it goes once per BACKFILL_EVERY and only when a model has room."""
+    return not urgent and not rewrite and not launch_due(d, now) and (_priority(d, now) or (0,))[0] == BACKFILL
+
+
+async def next_project(store: Store, now: datetime, backfills: bool = True) -> Optional[dict]:
+    """The project the facts turn takes. `backfills=False`: the best one that is not a backfill rewrite, for when the backfill
+    at the head must wait (on 2026-11-08 one waiting at the head held the loop to a round every 30 minutes from 02:00 to 07:20)."""
     urgent = {r["_id"] for r in await store.db.get_collection(REQUESTS).find({}).to_list(200)}
     shown = frozenset(await _deps["shown"](store.db)) if _deps["shown"] else frozenset()
     rewrite = await rewrites_left(store, now) > 0
@@ -486,7 +493,7 @@ async def next_project(store: Store, now: datetime) -> Optional[dict]:
                 ranked.append((wider_key(d), d))
             continue
         key = priority(d, urgent, now, shown, rewrite)
-        if key is not None:
+        if key is not None and (backfills or not backfill(d, now, (d.get("regno") or d["_id"]) in urgent, rewrite and rewrite_due(d, now))):
             ranked.append((key, d))
     ranked.sort(key=lambda x: x[0])
     return ranked[0][1] if ranked else None
@@ -1445,29 +1452,43 @@ async def enrich_now(db, regno: str, by: str = "campaign") -> bool:
 busy = budget.busy   # moved to areastats.budget; kept here for callers of the old name
 
 
-async def step(store: Store, llm, now: datetime, last_regular: Optional[datetime], every: timedelta) -> Optional[dict]:
+async def step(store: Store, llm, now: datetime, last_regular: Optional[datetime], every: timedelta,
+               last_backfill: Optional[datetime] = None) -> Optional[dict]:
     """The facts turn: urgent requests always; otherwise one project when `every` has passed since the last regular one. Its
-    reading runs in the same round when a model may be asked, else it is put off (read_step takes it later)."""
+    reading runs in the same round when a model may be asked, else it is put off (read_step takes it later). A backfill rewrite
+    keeps its own clock (`last_backfill`): while it waits, the next project that is not one goes."""
     urgent = await store.db.get_collection(REQUESTS).count_documents({})
     if not urgent and last_regular is not None and now - _aware(last_regular) < every:
         return None
     doc = await next_project(store, now)
     if doc is None:
         return None
-    reread = True
+    reread, is_backfill = True, False
     is_urgent = bool(urgent) and (doc.get("regno") or doc["_id"]) in await _urgent(store)
-    if not is_urgent and wider(doc, now) and not launch_due(doc, now):
-        await count_wider(store, now)
     rewrite = not is_urgent and rewrite_due(doc, now) and await rewrites_left(store, now) > 0
     if rewrite:                                                 # the writer alone when what the sites say is recent
         reread = not sources_fresh(doc, now) or bool(outdated(doc))
-    elif not is_urgent and not launch_due(doc, now) and (_priority(doc, now) or (0,))[0] == BACKFILL:   # the group of the key before the area and launch order
+    elif backfill(doc, now, is_urgent):                         # the group of the key before the area and launch order
         reread = not sources_fresh(doc, now) or bool(outdated(doc))
-        if reread and last_regular is not None and now - _aware(last_regular) < BACKFILL_EVERY:
-            return None
-        if not can_read(llm, tier_of(doc)) or busy(llm):   # a rewrite is reading only: it waits for a model with room
-            log.info("enrich: rewrite for %s waits: no model has room", doc.get("_id"))
-            return None
+        is_backfill = True
+        if reread and last_backfill is not None and now - _aware(last_backfill) < BACKFILL_EVERY:
+            wait = "its turn is every %d minutes" % (BACKFILL_EVERY.total_seconds() // 60)
+        elif not can_read(llm, tier_of(doc)) or busy(llm):      # a rewrite is reading only: it waits for a model with room
+            wait = "no model has room"
+        else:
+            wait = ""
+        if wait:
+            log.info("enrich: rewrite for %s waits (%s); the next project goes", doc.get("_id"), wait)
+            doc = await next_project(store, now, backfills=False)
+            if doc is None:
+                return None
+            reread, is_backfill = True, False
+            is_urgent = bool(urgent) and (doc.get("regno") or doc["_id"]) in await _urgent(store)
+            rewrite = not is_urgent and rewrite_due(doc, now) and await rewrites_left(store, now) > 0
+            if rewrite:
+                reread = not sources_fresh(doc, now) or bool(outdated(doc))
+    if not is_urgent and wider(doc, now) and not launch_due(doc, now):
+        await count_wider(store, now)
     try:
         out = await asyncio.wait_for(enrich_one(store, doc, llm, now, reread=reread, urgent=is_urgent, rewrite=rewrite), ROUND_SECONDS)
     except asyncio.CancelledError:
@@ -1475,6 +1496,7 @@ async def step(store: Store, llm, now: datetime, last_regular: Optional[datetime
     except Exception as e:   # noted on the record and the next project goes on; the request does not keep the loop busy
         out = await failed_round(store, doc, now, e)
     out["urgent"] = bool(urgent)
+    out["backfill"] = is_backfill
     return out
 
 
@@ -1542,6 +1564,7 @@ async def loop() -> None:
 
     log.info("enrich: loop started")
     last_regular: Optional[datetime] = None
+    last_backfill: Optional[datetime] = None
     last_read: Optional[datetime] = None
     last_prices: Optional[datetime] = None
     pruned_day: Optional[str] = None
@@ -1576,10 +1599,12 @@ async def loop() -> None:
                             log.exception("enrich: pruning kept answers failed")
                     # today's model budget (areastats.budget): None when no model key is set at all
                     llm = await budget.reader(get_database(), now)
-                    out = await step(Store(get_database()), llm, now, last_regular, cfg.every)
+                    out = await step(Store(get_database()), llm, now, last_regular, cfg.every, last_backfill)
                     if out:   # enrich_one logged it (pipeline=enrich)
                         if not out["urgent"]:
                             last_regular = now
+                        if out.get("backfill"):
+                            last_backfill = now
                     try:   # a project whose reading was put off, when today's budget has room
                         if await read_step(Store(get_database()), llm, datetime.now(timezone.utc), last_read, cfg.read_every):
                             last_read = now

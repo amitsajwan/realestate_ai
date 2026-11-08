@@ -1114,3 +1114,33 @@ def test_a_page_read_once_outside_our_areas_is_not_read_again_on_our_timetable()
     assert not enrich._ours(read)
     assert enrich._ours({**read, "search_state": {"in": True, "at": NOW}})
     assert enrich._ours({**read, "watched_by": ["agent_projects"]})
+
+
+
+# ---- a waiting backfill rewrite does not hold the loop (2026-11-08: a round every 30 minutes from 02:00 to 07:20) ------------
+
+OLD_WRITER = {**FULL, "enriched_at": NOW - timedelta(days=3), "page_text_version": 3,
+              "enrichment": {"score": "4/4", "steps": {"web": {"ok": True, "at": NOW - timedelta(days=enrich.REFRESH_DAYS + 1)}}, "versions": dict(enrich.VERSIONS)}}   # web pages read long ago: a full re-read
+
+
+async def _backfill_first():
+    db, store = await ready(("O", "Old", "baner", OLD_WRITER), ("N", "New", "hinjawadi", {**FULL}))
+    assert (await enrich.next_project(store, NOW))["_id"] == "O"
+    return store
+
+
+async def test_the_best_project_that_is_not_a_backfill_rewrite_can_be_asked_for():
+    store = await _backfill_first()
+    assert (await enrich.next_project(store, NOW, backfills=False))["_id"] == "N"
+
+
+async def test_while_a_backfill_rewrite_waits_its_turn_the_next_project_is_read():
+    store = await _backfill_first()
+    out = await enrich.step(store, FakeLLM(GOOD), NOW, NOW - timedelta(minutes=5), timedelta(minutes=3), NOW - timedelta(minutes=5))
+    assert out["regno"] == "N" and not out["backfill"]
+
+
+async def test_a_backfill_rewrite_goes_when_its_turn_comes():
+    store = await _backfill_first()
+    out = await enrich.step(store, FakeLLM(GOOD), NOW, NOW - timedelta(minutes=5), timedelta(minutes=3), NOW - timedelta(minutes=31))
+    assert out["regno"] == "O" and out["backfill"]
