@@ -326,3 +326,19 @@ def test_content_counts_with_no_pages():
 def test_an_apostrophe_s_stays_small_in_a_name_filed_in_capitals():
     assert pages.nice_case("KINGS’S GRACE") == "Kings’s Grace"
     assert pages.nice_case("KING'S COURT") == "King's Court"
+
+
+async def test_same_promoter_links_a_merged_project_by_its_page_never_its_towers():
+    """A tower answers 301 to its project's page: the project's own page listed its towers, Google read each as a redirect."""
+    kp = {**FULL, "promoter": "Venkatesh Buildcon"}
+    main = {"_id": "P1", "name": "Vanaya Phase 2", "page_slug": "vanaya-phase-2", "locality": "kharadi", **kp}
+    tower_a = {"_id": "P2", "name": "Vanaya Phase 5", "page_slug": "vanaya-phase-5", "locality": "kharadi", "cluster_primary": "P1", **kp}
+    tower_b = {"_id": "P3", "name": "Vanaya Phase 1", "page_slug": "vanaya-phase-1", "locality": "kharadi", "cluster_primary": "P1", **kp}
+    other = {"_id": "P4", "name": "Venkatesh Graffiti", "page_slug": "venkatesh-graffiti", "locality": "kharadi", **kp}
+    other_tower = {"_id": "P5", "name": "Venkatesh Graffiti B", "page_slug": "venkatesh-graffiti-b", "locality": "kharadi",
+                   "cluster_primary": "P4", **kp}
+    docs = [main, tower_a, tower_b, other, other_tower]
+    assert [s["slug"] for s in pages.same_promoter(main, docs)] == ["venkatesh-graffiti"]
+    assert [s["slug"] for s in pages.same_promoter(other, docs)] == ["vanaya-phase-2"]
+    ix = pages.load_index(docs)
+    assert pages.same_promoter(main, docs, ix) == pages.same_promoter(main, docs)

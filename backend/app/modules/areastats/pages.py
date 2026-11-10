@@ -850,8 +850,16 @@ def same_promoter(doc: dict, docs: List[dict], ix: Optional["LoadIndex"] = None)
     if not key:
         return []
     served = ix.served_by_promoter.get(key, []) if ix else [d for d in docs if _served(d) and promoter_key(d.get("promoter")) == key]
-    mine = [d for d in served if d["_id"] != doc["_id"]]
-    mine.sort(key=lambda d: (is_old(d), d.get("name", "")))
+    served = sorted(served, key=lambda d: (is_old(d), d.get("name", "")))
+    # each one by the page it is shown on: a tower or phase answers 301 to its project's page, and that page linked its own towers
+    # (2026-11-10: 275 "Page with redirect" in Search Console, Vanaya's page linking its 6 merged towers back to itself)
+    seen = {primary_of(doc, docs, ix).get("page_slug")}
+    mine = []
+    for d in served:
+        p = primary_of(d, docs, ix)
+        if p.get("page_slug") and p["page_slug"] not in seen:
+            seen.add(p["page_slug"])
+            mine.append(p)
     return [{"name": d.get("name", ""), "marketed_name": names(d)[0], "search_name": d.get("search_name") or None, "branded_name": branded_name(d), "slug": d["page_slug"],
              "completion_now": _day(d.get("completion_now"))} for d in mine[:SAME_PROMOTER]]
 
