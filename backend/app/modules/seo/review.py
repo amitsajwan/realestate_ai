@@ -81,6 +81,15 @@ def plain(raw: str) -> str:
     return html.unescape(re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", body))).strip()
 
 
+def quoted(raw: str) -> List[str]:
+    """What search engines and AI answers quote from a page's head, each apart: its title, its description and its structured
+    data (JSON-LD). Not Next's data payload, which carries every registration's raw figures for the page to draw."""
+    parts = re.findall(r"(?is)<title[^>]*>(.*?)</title>", raw)
+    parts += re.findall(r"""(?is)<meta[^>]+name=["']description["'][^>]+content=["']([^"']*)""", raw)
+    parts += re.findall(r"""(?is)<script[^>]+type=["']application/ld\+json["'][^>]*>(.*?)</script>""", raw)
+    return [html.unescape(x) for x in parts]
+
+
 def _sections(doc: dict) -> List[str]:
     """The written text a page shows. Text from before the writer's sections stays on the record but is on no page."""
     if not doc.get("page_text"):
@@ -99,8 +108,9 @@ def _problem(kind: str, detail: str, **more) -> dict:
     return {"kind": kind, "detail": detail, **more}
 
 
-def against_record(doc: dict, text: str) -> List[dict]:
-    """Where the live words differ from the record: what a page cache can cause, so `check` reads twice before it reports."""
+def against_record(doc: dict, text: str, scope: Optional[dict] = None) -> List[dict]:
+    """Where the live words differ from the record: what a page cache can cause, so `check` reads twice before it reports.
+    `scope` (pages.project_scope): the page stands for several registrations, so it must say the whole project's bookings."""
     seen, out = _squash(text), []
     regno = str(doc.get("regno") or doc.get("_id") or "")
     if regno and regno.casefold() not in seen:
@@ -109,7 +119,9 @@ def against_record(doc: dict, text: str) -> List[dict]:
     if day and _squash(day) not in seen:
         out.append(_problem("record", f"Completion date {day} is not on the page"))
     booked, total = pages.booked(doc), pages._count(doc.get("units_total"))
-    if isinstance(booked, int) and isinstance(total, int) and total > 0 and f"{booked} of {total}" not in seen:
+    if scope:
+        booked, total = scope["units_booked"], scope["booked_of"]
+    if isinstance(booked, int) and isinstance(total, int) and total > 0 and _squash(f"{booked:,} of {total:,}".replace(",", "")) not in seen.replace(",", ""):
         out.append(_problem("record", f"{booked} of {total} homes booked is not on the page"))
     missing = [t for t in _sections(doc) if t.strip() and _squash(t)[:80] not in seen]
     if missing:
@@ -117,17 +129,45 @@ def against_record(doc: dict, text: str) -> List[dict]:
     return out
 
 
+SCOPE_REACH = 90   # characters either side of a count within which its registration must be named
+
+
+def scope_problems(doc: dict, text: str, scope: Optional[dict]) -> List[dict]:
+    """On a page that stands for several registrations, the main registration's own home count said without its registration
+    beside it: one part's figure read as the project's (2026-11-12: 85 of 88 such pages did, Venkatesh Vanaya 168 of 745).
+    The towers table and the record's notes name the registration, so they pass."""
+    total = pages._count(doc.get("units_total"))
+    if not scope or not total or total == scope["units_total"] or total == scope["booked_of"]:
+        return []
+    regno = str(doc.get("regno") or doc.get("_id") or "").casefold()
+    flat = " ".join(text.split())
+    for m in re.finditer(rf"(?<![\d,]){total}(?![\d,])", flat):
+        around = flat[max(0, m.start() - SCOPE_REACH):m.end() + SCOPE_REACH].casefold()
+        if regno not in around and "registration" not in around:
+            return [_problem("scope", f"{total}, one registration's homes, is said without naming the registration: "
+                                      f"\"{flat[max(0, m.start() - 60):m.end() + 30]}\"")]
+    return []
+
+
 def _place(doc: dict) -> Optional[str]:
     area = BY_KEY.get(doc.get("locality") or "")
     return doc.get("pune_place_name") or (area.name if area else None)
 
 
-def rule_problems(doc: dict, raw: str, others: List[str]) -> List[dict]:
-    """Everything the rules see on one page that answered 200. `others` are other projects' names in its area."""
+def rule_problems(doc: dict, raw: str, others: List[str], scope: Optional[dict] = None) -> List[dict]:
+    """Everything the rules see on one page that answered 200. `others` are other projects' names in its area; `scope`
+    (pages.project_scope) when the page stands for several registrations."""
     out, text = [], plain(raw)
     if re.search(r"""(?i)<meta[^>]+name=["']robots["'][^>]+noindex""", raw):
         out.append(_problem("not_in_search", "The page says noindex, though its record counts as in search"))
-    out += against_record(doc, text)
+    out += against_record(doc, text, scope)
+    # the head's title, description and structured data are what search and AI answers quote: each is checked on its own, so
+    # a registration named at the end of one does not excuse a count at the start of the next
+    for part in [text, *quoted(raw)]:
+        found = scope_problems(doc, part, scope)
+        if found:
+            out += found
+            break
     place = _place(doc)
     if place and _squash(place) not in _squash(text):
         out.append(_problem("location", f"The page does not name {place}"))
@@ -181,16 +221,17 @@ def checked_answer(answer: Optional[dict], text: str, sources: str) -> List[dict
     return out[:PROBLEMS_MAX]
 
 
-async def check(db, doc: dict, url: str, others: List[str], http: httpx.AsyncClient, ask, wait_s: float = STALE_WAIT_S) -> dict:
+async def check(db, doc: dict, url: str, others: List[str], http: httpx.AsyncClient, ask, wait_s: float = STALE_WAIT_S,
+                scope: Optional[dict] = None) -> dict:
     """{problems, model}: one page. A read that fails altogether raises, and the page stays due: a restart is not the page's fault."""
     headers = {"User-Agent": AGENT}
     r = await http.get(url, headers=headers)
-    if r.status_code == 200 and against_record(doc, plain(r.text)):
+    if r.status_code == 200 and against_record(doc, plain(r.text), scope):
         await asyncio.sleep(wait_s)
         r = await http.get(url, headers=headers)
     if r.status_code != 200:
         return {"problems": [_problem("not_in_search", f"The page answered {r.status_code}")], "model": False}
-    problems = rule_problems(doc, r.text, others)
+    problems = rule_problems(doc, r.text, others, scope)
     question = await model_question(db, doc)
     if question is None:
         return {"problems": problems, "model": True}   # nothing written: nothing for the model to read, so no reason to come back
@@ -265,7 +306,8 @@ async def run_once(store: Store, now: datetime, http: Optional[httpx.AsyncClient
             slug, url = doc["page_slug"], f"{cfg.site}/projects/{doc['page_slug']}"
             ask = reader.ask(pricing.tier_of(doc, now), "review") if reader else None
             try:
-                res = await check(store.db, doc, url, _others(doc, docs), client, ask, wait_s)
+                res = await check(store.db, doc, url, _others(doc, docs), client, ask, wait_s,
+                                  pages.project_scope(doc, docs, pages.load_index(docs)))
             except asyncio.CancelledError:
                 raise
             except Exception as e:   # one page must not stop the others; it is still due tomorrow

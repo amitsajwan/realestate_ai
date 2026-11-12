@@ -187,13 +187,16 @@ describe('a project MahaRERA holds as several registrations', () => {
       tower('PR1261012601264', '2030-12-31', 144, 0), tower('PR1261012601304', '2031-01-31', 249, 0),
       tower('PR1261012601229', '2031-10-31', 90, 0), tower('PC1261012601213', '2032-04-30', 16, 0),
       tower('PR1261012601239', '2033-01-31', 0, 0)],
+    // worked out by the backend (areastats/pages.project_scope), the one place the whole project's counts come from
+    project: { registrations: 7, regnos: ['PR1261012601206', 'PR1261012601751', 'PR1261012601264', 'PR1261012601304', 'PR1261012601229',
+      'PC1261012601213', 'PR1261012601239'], units_total: 745, units_counted: 6, units_booked: 0, booked_of: 745, booked_counted: 6,
+      completion_first: '2030-08-31', completion_last: '2033-01-31', completion_passed: false },
   }
 
-  it('sums homes and bookings over the registrations that report them, never one part\'s count for the project', () => {
-    const w = wholeProject(VANAYA)!
-    expect(w).toMatchObject({ registrations: 7, units: 745, counted: 6, booked: 0, bookedOf: 745, bookedCounted: 6,
-      firstDate: '2030-08-31', lastDate: '2033-01-31' })
+  it('reads the whole project from the backend\'s scope, and none for a project registered once', () => {
+    expect(wholeProject(VANAYA)).toBe(VANAYA.project)
     expect(wholeProject(P)).toBeNull()
+    expect(wholeProject({ ...VANAYA, project: null })).toBeNull()
   })
 
   it('the FAQ answers for the whole project and names the page\'s own registration as one part', () => {
@@ -221,11 +224,13 @@ describe('a project MahaRERA holds as several registrations', () => {
   })
 })
 
+const VANAYA_SCOPE = { registrations: 7, regnos: ['A', 'B'], units_total: 745, units_counted: 6, units_booked: 0, booked_of: 745,
+  booked_counted: 6, completion_first: '2030-08-31', completion_last: '2033-01-31', completion_passed: false }
+
 describe('the heading of a project in several registrations', () => {
   it('names the project, not the phase of its main registration', () => {
-    const t = { regno: 'X', name: 'X', completion_now: null, completion_at_registration: null, units_total: null, units_booked: null, registered_on: null, maharera_url: null }
     const p = { name: 'VENKATESH VANAYA-WING- I & J-PHASE -2', marketed_name: 'Venkatesh Vanaya' }
     expect(headingName(p)).toBe('Venkatesh Vanaya Phase 2')
-    expect(headingName({ ...p, towers: [t, { ...t, regno: 'Y' }] })).toBe('Venkatesh Vanaya')
+    expect(headingName({ ...p, project: { ...VANAYA_SCOPE } })).toBe('Venkatesh Vanaya')
   })
 })

@@ -9,7 +9,7 @@
 import { BRAND_NAME } from '@/lib/brand'
 import { breadcrumbJsonLd } from '@/lib/marketing/seo'
 import { clipWords, fitDescription } from './format'
-import { areaName, askedPrices, displayName, monthYear, offerPrice, otherNames, placePath, unitWord } from './register'
+import { areaName, askedPrices, displayName, homesOf, monthYear, offerPrice, otherNames, placePath, possessionLabel, unitWord } from './register'
 import type { Faq, Offer, RegisterProject } from './register'
 
 /** Titles longer than this get cut in Google's results on phones; the first option that fits is used. */
@@ -50,7 +50,8 @@ function nameAt(p: RegisterProject): { shown: string; at: string } {
  *  sheet, so the title quotes the price the page shows. */
 export function registerTitle(p: RegisterProject, price?: QuotedPrice): string {
   const { shown, at } = nameAt(p)
-  const when = monthYear(p.completion_now)
+  // the project's possession: for one in several registrations the earliest of theirs ("from Aug 2030"), never the main one's alone
+  const when = possessionLabel(p)
   const q = quoted(p, price)
   const options: string[] = []
   if (q) {
@@ -93,14 +94,16 @@ export function registerDescription(p: RegisterProject, price?: QuotedPrice): st
   const by = p.builder?.name || p.promoter
   // the agent's sheet has its own sizes: the portals' square feet are not quoted beside its price
   const sqft = price ? '' : sqftRange(p)
-  const when = monthYear(p.completion_now)
+  // the project's possession: for one in several registrations the earliest of theirs ("from Aug 2030"), never the main one's alone
+  const when = possessionLabel(p)
   return fitDescription((has) => {
     const head = `${shown}${has(1) ? legal : ''}${by && has(2) ? ` by ${by}` : ''}${area ? `, ${area}` : ''}, Pune`
     const sizes = [q?.bhks, has(3) ? sqft : ''].filter(Boolean)
     // "3 & 4 BHK from ₹1.99 Cr", or with the sizes "3 & 4 BHK, 1,310–1,720 sq ft, from ₹1.99 Cr"
     const offer = q ? `${sizes.join(', ')}${sizes.length > 1 || (sizes.length && !q.bhks) ? ',' : ''} from ${q.from}`.trim() : ''
-    const homes = p.units_total
-      ? (p.units_booked != null ? `${p.units_booked} of ${p.units_total} ${unitWord(p)} booked` : `${p.units_total} ${unitWord(p)}`) : ''
+    // the whole project's homes (homesOf), never one registration's
+    const h = homesOf(p)
+    const homes = h.booked != null ? `${h.booked} of ${h.of} ${unitWord(p)} booked` : h.total ? `${h.total} ${unitWord(p)}` : ''
     const record = [when ? `Possession ${when}` : '', has(5) ? homes : ''].filter(Boolean).join(', ')
     const check = `MahaRERA ${p.regno}${has(4) ? `, checked by ${BRAND_NAME}` : ''}`
     return [`${head}${offer ? `: ${offer}` : ''}.`, record ? `${record}.` : '', `${check}.`].filter(Boolean).join(' ')
@@ -173,7 +176,7 @@ export function registerProjectJsonLd({ p, siteUrl, faq = [], photos = [], offer
     description: registerDescription(p, price),
     address: clean({ '@type': 'PostalAddress', addressLocality: area ? `${area}, Pune` : 'Pune', addressRegion: 'Maharashtra', postalCode: p.pincode || undefined, addressCountry: 'IN' }),
     geo: p.map ? { '@type': 'GeoCoordinates', latitude: p.map.lat, longitude: p.map.lon } : undefined,
-    numberOfAccommodationUnits: p.homes === false ? undefined : p.units_total || undefined,
+    numberOfAccommodationUnits: p.homes === false ? undefined : homesOf(p).total || undefined,
     identifier: { '@type': 'PropertyValue', propertyID: 'MahaRERA registration', value: p.regno },
     builder: builder ? { '@type': 'Organization', name: builder } : undefined,
     // the builder's pictures we keep (profile): never illustrations or unchecked ones

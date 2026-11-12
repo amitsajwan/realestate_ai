@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { builderLine, cardFacts } from '@/lib/site/facets'
 import type { FacetRow } from '@/lib/site/facets'
 import { formatPrice, readableName } from '@/lib/site/format'
-import { monthYear, sizePriceLine } from '@/lib/site/register'
+import { cardPossession, monthYear, sizePriceLine } from '@/lib/site/register'
 import OpenChatButton from './OpenChatButton'
 import CardPicture from './CardPicture'
 
@@ -81,7 +81,7 @@ export function RankedCard({ r }: { r: FacetRow }) {
         </div>
         <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-3">
           <div><dt className="text-xs text-slate-500">Price</dt><dd className="font-semibold text-slate-900">{price ?? 'Ask for price'}</dd></div>
-          {r.completion_now && <div><dt className="text-xs text-slate-500">Possession filed</dt><dd>{monthYear(r.completion_now)}</dd></div>}
+          {r.completion_now && <div><dt className="text-xs text-slate-500">Possession filed</dt><dd>{cardPossession(r)}</dd></div>}
           {r.registered_on && <div><dt className="text-xs text-slate-500">Registered</dt><dd>{monthYear(r.registered_on)}</dd></div>}
         </dl>
         <Booked r={r} />
@@ -125,7 +125,7 @@ export function RailCard({ r, rank }: { r: FacetRow; rank?: number }) {
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200" aria-hidden><div className="h-full bg-[#0f2340]" style={{ width: `${pct}%` }} /></div>
         )}
         <p className="mt-1 text-xs text-slate-600">
-          {[open, !price && pct != null && !justOpened(r) ? `${pct}% booked` : null, r.completion_now ? `possession ${monthYear(r.completion_now)}` : null].filter(Boolean).join(' · ')}
+          {[open, !price && pct != null && !justOpened(r) ? `${pct}% booked` : null, r.completion_now ? `possession ${cardPossession(r)}` : null].filter(Boolean).join(' · ')}
         </p>
         {!price && (
           <div className="mt-auto pt-3">

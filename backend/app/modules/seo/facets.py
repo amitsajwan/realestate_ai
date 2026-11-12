@@ -24,9 +24,9 @@ from app.core.areas import AREAS
 from app.modules.areastats import brands, hot, priceidea, prices
 from app.modules.areastats.areamap import _photo, card_pictures
 from app.modules.areastats.hubs import _primaries, link_name
-from app.modules.areastats.pages import (OPEN_MIN, _long, booked, builder_key, buyable, cluster_stamps, cluster_updated,
-                                         completion_passed, delivery, family_name, homes, indexable, is_old, months_later,
-                                         open_homes, searchable)
+from app.modules.areastats.pages import (OPEN_MIN, _long, booked, builder_key, buyable, card_counts, cluster_stamps,
+                                         cluster_updated, completion_passed, delivery, family_name, homes, indexable, is_old,
+                                         load_index, months_later, open_homes, project_scope, searchable)
 from app.modules.areastats.service import _count, _day
 from app.modules.areastats.text import builder_slug
 from app.modules.newsroom.store import Store
@@ -488,8 +488,11 @@ def changes(rows: List[dict], now: datetime) -> List[dict]:
 
 # ---- the page ----------------------------------------------------------------------------------------------------------------
 
-def _row(d: dict, why: str, n: int, now: datetime) -> dict:
+def _row(d: dict, why: str, n: int, now: datetime, docs: Optional[List[dict]] = None) -> dict:
+    """A card on a list. `docs` (every register record): when the card's page stands for several registrations, its homes and
+    bookings are the whole project's (pages.project_scope), never its main registration's."""
     total = _count(d.get("units_total"))
+    scope = project_scope(d, docs, load_index(docs)) if docs and d.get("cluster_id") else None
     return {"rank": n, "slug": d["page_slug"], "name": link_name(d), "legal_name": d.get("name", ""),
             "regno": d.get("regno") or d["_id"], "promoter": d.get("promoter") or None,
             "builder_name": builder_name(d),          # the brand buyers search; `promoter` is the company it is filed under
@@ -499,7 +502,17 @@ def _row(d: dict, why: str, n: int, now: datetime) -> dict:
             "units_total": total, "units_booked": booked(d), "units_open": _open(d), "reason": why, "source": "MahaRERA",
             # for the card: where it is, the cheapest published price and one picture (with where it came from); `photos` and
             # the stand-ins for a card with none (areastats.areamap.card_pictures)
-            "stage": stage(d, now), "price": lowest_price(d, now), "sizes": size_prices(d, now), "photo": _photo([d]), **card_pictures(d)}
+            "stage": stage(d, now), "price": lowest_price(d, now), "sizes": size_prices(d, now), "photo": _photo([d]), **card_pictures(d),
+            # last, so it wins: a card whose page stands for several registrations says the whole project (pages.card_counts)
+            **(_whole_card(scope) if scope else {})}
+
+
+def _whole_card(scope: dict) -> dict:
+    out = card_counts({}, scope)
+    out["units_open"] = scope["booked_of"] - scope["units_booked"] if scope["units_booked"] is not None else None
+    # the date move and the registration day are one part's
+    out["completion_at_registration"] = None
+    return out
 
 
 def _price_row(row: dict, d: dict, bhk: int, now: datetime) -> dict:
@@ -605,7 +618,7 @@ def facet_view(f: Facet, docs: List[dict], now: datetime, stamps: Optional[dict]
     prim = _primaries(docs)
     listed = members(f, prim, now)
     rows_docs = [d for d, _ in listed[:MAX_ROWS]]
-    rows = [_row(d, why, i + 1, now) for i, (d, why) in enumerate(listed[:MAX_ROWS])]
+    rows = [_row(d, why, i + 1, now, docs) for i, (d, why) in enumerate(listed[:MAX_ROWS])]
     gone = sold_out(f, prim, now) if f.intent == "top" and not f.bhk else []
     if f.bhk:
         rows = [_price_row(r, d, f.bhk, now) for r, d in zip(rows, rows_docs)]
@@ -624,7 +637,7 @@ def facet_view(f: Facet, docs: List[dict], now: datetime, stamps: Optional[dict]
         "intent": f.intent, "possession": f.possession, "builder": f.builder, "builder_name": builder_name, "bhk": f.bhk,
         "title": title(f, place, len(listed), _month(last_change), builder_name), "h1": h1(f, place, builder_name),
         "answer": answer(f, place, rows, as_of, len(listed), len(gone)), "rows": rows, "count": len(listed), "changes": changed,
-        "sold_out": [_row(d, why, 0, now) for d, why in gone[:MAX_ROWS]], "sold_out_count": len(gone),
+        "sold_out": [_row(d, why, 0, now, docs) for d, why in gone[:MAX_ROWS]], "sold_out_count": len(gone),
         "picks": picks(listed, prim, now) if f.intent == "top" and not f.bhk else [],
         "month": _month(last_change), "page_updated": max(updated) if updated else None,
         "indexable": in_search(listed), "as_of": now.date().isoformat(), "source": "MahaRERA public records",

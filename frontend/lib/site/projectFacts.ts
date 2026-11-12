@@ -5,9 +5,9 @@
  */
 import { formatPrice } from './format'
 import { bhkRange as offerBhks } from './projects'
-import { acrossRegistrations, askedPrices, askedSource, displayName, extensionSentence, isExtensionOnly, longDay, monthsApart, unitWord,
-  wholeProject } from './register'
-import type { RegisterProject, WholeProject } from './register'
+import { acrossRegistrations, areaCompareOf, askedPrices, askedSource, completionPassedOf, displayName, extensionSentence, isExtensionOnly,
+  longDay, mainRegistration, monthsApart, unitWord, wholeProject } from './register'
+import type { ProjectScope, RegisterProject } from './register'
 import type { CatalogProject } from './types'
 
 /** The facts the opening is written from, the same for both kinds of project page. */
@@ -38,7 +38,7 @@ export interface AnswerFacts {
   /** "units" for offices or shops only: they are not homes */
   unitWord?: 'homes' | 'units'
   /** a project MahaRERA holds as several registrations: the counts above are then one part's, so the whole project's are said */
-  whole?: WholeProject | null
+  whole?: ProjectScope | null
 }
 
 const n = (x: number) => x.toLocaleString('en-IN')
@@ -49,8 +49,8 @@ export function projectAnswer(f: AnswerFacts): string {
   const w = f.whole
   const parts = [`${day ? `As of ${day}, ` : ''}${f.name}${f.builder ? ` by ${f.builder}` : ''} in ${f.where} is registered with MahaRERA `
     + (w ? `in ${w.registrations} parts, the main one ${f.regno}.` : `as ${f.regno}.`)]
-  if (w?.firstDate && w.lastDate && w.firstDate !== w.lastDate) {
-    parts.push(`Its parts have filed completion dates from ${longDay(w.firstDate)} to ${longDay(w.lastDate)}.`)
+  if (w?.completion_first && w.completion_last && w.completion_first !== w.completion_last) {
+    parts.push(`Its parts have filed completion dates from ${longDay(w.completion_first)} to ${longDay(w.completion_last)}.`)
   }
   if (f.completionNow) {
     if (w) parts.push(`For ${f.regno}:`)
@@ -70,8 +70,8 @@ export function projectAnswer(f: AnswerFacts): string {
   // registrations, the sum over its registrations; the pace and the area comparison are the main registration's alone, so left out.
   if (w) {
     const what = f.unitWord ?? 'homes'
-    if (w.booked != null && w.bookedOf) {
-      parts.push(`MahaRERA shows ${n(w.booked)} of ${n(w.bookedOf)} ${what} booked, ${acrossRegistrations(w.bookedCounted, w.registrations)}.`)
+    if (w.units_booked != null && w.booked_of) {
+      parts.push(`MahaRERA shows ${n(w.units_booked)} of ${n(w.booked_of)} ${what} booked, ${acrossRegistrations(w.booked_counted, w.registrations)}.`)
     }
   } else if (f.unitsTotal && f.unitsBooked != null && f.unitsBooked <= f.unitsTotal) {
     const what = f.unitWord ?? 'homes'
@@ -95,8 +95,8 @@ export function projectAnswer(f: AnswerFacts): string {
 }
 
 /** Homes booked between our first and latest dated readings, when the count went up (ProjectHistory shows the readings). */
-export function bookedSince(p: Pick<RegisterProject, 'booked_readings'>): { rose: number; since: string } | null {
-  const rows = p.booked_readings ?? []
+export function bookedSince(r: Pick<RegisterProject, 'booked_readings'>): { rose: number; since: string } | null {
+  const rows = r.booked_readings ?? []
   if (rows.length < 2) return null
   const rose = rows[rows.length - 1].booked - rows[0].booked
   return rose > 0 ? { rose, since: rows[0].on } : null
@@ -107,14 +107,17 @@ export function registerAnswer(p: RegisterProject, offer?: { from: string; bhks:
   const asked = askedPrices(p)
   const price = offer ? `${offer.bhks ? `${offer.bhks} ` : ''}from ${offer.from} on a local agent's price sheet`
     : asked ? `${asked.bhks || 'homes'} from ${asked.from}${askedSource(asked)}` : null
+  // the main registration's record, named as such: projectAnswer says the whole project's counts and dates when `whole` is set
+  const main = mainRegistration(p)
+  const compare = areaCompareOf(p)
   return projectAnswer({
     name: displayName(p), builder: p.builder?.name || p.promoter,
     where: p.area ? `${p.area.name}, Pune` : [p.pune_place?.name ?? p.place, 'Pune district'].filter(Boolean).join(', '),
     regno: p.regno, asOf: p.details_read_at ?? p.page_updated,
-    completionNow: p.completion_now, completionAtRegistration: p.completion_at_registration,
-    extensionMonths: p.details?.extension_months, extensionOnly: p.extension_only, completionPassed: p.completion_passed,
-    unitsTotal: p.units_total, unitsBooked: p.units_booked, price, bookedSince: bookedSince(p),
-    areaBooked: p.area_compare?.booked ? { ...p.area_compare.booked, place: p.area_compare.place } : null,
+    completionNow: main.completion_now, completionAtRegistration: main.completion_at_registration,
+    extensionMonths: main.details?.extension_months, extensionOnly: main.extension_only, completionPassed: completionPassedOf(p),
+    unitsTotal: main.units_total, unitsBooked: main.units_booked, price, bookedSince: bookedSince(main),
+    areaBooked: compare?.booked ? { ...compare.booked, place: compare.place } : null,
     builderRecord: p.builder?.record_ok ? p.builder : null, unitWord: unitWord(p), whole: wholeProject(p),
   })
 }

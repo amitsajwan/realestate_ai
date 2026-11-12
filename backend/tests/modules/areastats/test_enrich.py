@@ -1151,7 +1151,7 @@ def _vanaya():
     base = {"locality": "kharadi", "promoter": "SVBPL HOMES PVT LTD", "cluster_id": "C1", "units_booked": 0, "completion_now": "2031-04-30"}
     counts = [("PR1261012601206", 168), ("PR1261012601751", 78), ("PR1261012601264", 144), ("PR1261012601304", 249),
               ("PR1261012601229", 90), ("PC1261012601213", 16), ("PR1261012601239", 0)]
-    docs = [{**base, "_id": r, "regno": r, "name": f"VENKATESH VANAYA {r}", "units_total": n,
+    docs = [{**base, "_id": r, "regno": r, "name": f"VENKATESH VANAYA {r}", "units_total": n, "page_slug": f"vanaya-{r.lower()}",
              **({} if i == 0 else {"cluster_primary": "PR1261012601206"})} for i, (r, n) in enumerate(counts)]
     return docs[0], docs
 
@@ -1172,3 +1172,26 @@ def test_code_points_give_the_whole_project_count_never_one_part_s():
     assert out["sections"][0] == {"heading": "0% of homes booked", "facts": ["project_homes"],
                                   "text": "MahaRERA shows 0 of 745 homes booked across 6 of the 7 MahaRERA registrations."}
     assert "of 168" not in out["text"]
+
+
+def test_a_point_that_says_one_registration_s_homes_as_the_project_s_is_dropped():
+    doc, docs = _vanaya()
+    sheet = enrich.fact_sheet(doc, None, None, None, False, docs=docs)
+    out = {"points": [_point("Zero of 168 homes booked", "None of the 168 homes are booked yet.", "booked"),
+                      _point("0 of 745 homes booked", "MahaRERA shows 0 of 745 homes booked across 6 of the 7 registrations.", "project_homes"),
+                      _point("168 homes in this registration", "This registration holds 168 of the project's homes, none booked yet.", "booked")]}
+    kept, why = enrich.points_of(out, sheet, doc, None)
+    assert [x["heading"] for x in kept] == ["0 of 745 homes booked", "168 homes in this registration"]
+    assert why == ["Zero of 168 homes booked: says one registration's homes as the project's"]
+    alone = enrich.fact_sheet(ROSE | {"units_total": 24, "units_booked": 1}, None, None, None, False, docs=[])
+    kept, _ = enrich.points_of({"points": [_point("1 of 24 booked", "MahaRERA shows 1 of 24 homes booked.", "booked")]}, alone, ROSE | {"units_total": 24}, None)
+    assert len(kept) == 1   # a project registered once: its count is the project's
+
+
+def test_the_read_s_pace_line_says_it_is_one_registration_s_on_a_page_of_several():
+    doc, docs = _vanaya()
+    doc = {**doc, "booked_history": [{"at": datetime(2026, 7, 3, tzinfo=timezone.utc), "booked": 0},
+                                     {"at": datetime(2026, 10, 3, tzinfo=timezone.utc), "booked": 2}]}
+    lines = {f["key"]: f["text"] for f in enrich.read_lines(doc, enrich.fact_sheet(doc, None, None, None, False, docs=docs))}
+    assert lines["read_pace"].startswith("2 more homes booked in this registration between")
+    assert "project_homes" in lines
