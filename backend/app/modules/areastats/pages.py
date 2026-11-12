@@ -490,14 +490,36 @@ def _long(day: Optional[str]) -> Optional[str]:
     return f"{int(d)} {_MONTHS[int(m) - 1]} {y}"
 
 
-def paragraph(doc: dict) -> str:
-    """Plain sentences from the record's facts only: no adjectives, no prices, nothing the register does not say."""
+def paragraph(doc: dict, scope: Optional[dict] = None) -> str:
+    """Plain sentences from the record's facts only: no adjectives, no prices, nothing the register does not say. `scope`
+    (project_scope): the page stands for several registrations, so its counts and dates are the whole project's."""
     area = BY_KEY.get(doc.get("locality") or "")
     place = doc.get("pune_place_name")
     where = (f"in {area.name}, Pune" if area else f"in {place}, Pune district" if place
              else ("in Pune district" + (f" (pincode {doc['pincode']})" if doc.get("pincode") else "")))
     who = f" by {doc['promoter']}" if doc.get("promoter") else ""
-    out = [f"{names(doc)[0] or 'This project'} is a project{who} {where}, registered with MahaRERA as {doc.get('regno') or doc['_id']}."]
+    regno = doc.get("regno") or doc["_id"]
+    read = doc.get("details_checked_at")
+    when = f" when we read the record on {_long(read.date().isoformat())}" if isinstance(read, datetime) else ""
+    if scope:
+        out = [f"{names(doc)[0] or 'This project'} is a project{who} {where}, registered with MahaRERA in "
+               f"{scope['registrations']} parts (towers or phases): {', '.join(scope['regnos'])}."]
+        first, last = scope["completion_first"], scope["completion_last"]
+        if first and last and first != last:
+            out.append(f"Its parts have filed completion dates from {_long(first)} to {_long(last)}.")
+        elif first:
+            out.append(f"Its filed completion date is {_long(first)}.")
+        part = (f"all {scope['registrations']} parts" if scope["booked_counted"] == scope["registrations"]
+                else f"{scope['booked_counted']} of its {scope['registrations']} parts")
+        if scope["units_booked"] is not None:
+            out.append(f"{scope['units_booked']} of {scope['booked_of']} homes were booked{when}, across {part}.")
+        elif scope["units_total"]:
+            out.append(f"MahaRERA lists {scope['units_total']} homes; bookings were not reported{when}.")
+        if scope["completion_passed"]:
+            out.append("The filed completion dates have passed: ask for the occupancy certificate (OC).")
+        out.append("Check the MahaRERA record before you book, and ask the builder for the agreement's possession date in writing.")
+        return " ".join(out)
+    out = [f"{names(doc)[0] or 'This project'} is a project{who} {where}, registered with MahaRERA as {regno}."]
     now, first = _day(doc.get("completion_now")), _day(doc.get("completion_at_registration"))
     if now and first and now != first:
         out.append(f"Its filed completion date is {_long(now)}; at registration it was {_long(first)}.")
@@ -506,8 +528,6 @@ def paragraph(doc: dict) -> str:
     elif now:
         out.append(f"Its filed completion date is {_long(now)}.")
     total, sold = _count(doc.get("units_total")), booked(doc)
-    read = doc.get("details_checked_at")
-    when = f" when we read the record on {_long(read.date().isoformat())}" if isinstance(read, datetime) else ""
     if total and sold is not None and sold <= total:
         out.append(f"{sold} of {total} homes were booked{when}.")
     elif total:
@@ -775,7 +795,8 @@ def checked_count(doc: dict) -> Optional[int]:
     return sum(1 for k in CHECK_LABELS if (steps.get(k) or {}).get("ok"))
 
 
-def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None, ix: Optional["LoadIndex"] = None) -> dict:
+def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None, ix: Optional["LoadIndex"] = None,
+         scope: Optional[dict] = None) -> dict:
     area = BY_KEY.get(doc.get("locality") or "")
     read = doc.get("details_checked_at")
     geo = doc.get("geo") or {}
@@ -808,7 +829,7 @@ def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None, ix
         "listed_or_updated": _day(doc.get("last_modified")), "maharera_url": doc.get("source_url") or None,
         # the enriched text (model-written from gathered facts, checked) when there is one, else the code-written paragraph
         # from the writer's version 4 on, page_text is its sections (shown under "About"): the paragraph is the code's own then
-        "paragraph": (doc.get("page_text") if int(doc.get("page_text_version") or 1) < 4 else None) or paragraph(doc),
+        "paragraph": (doc.get("page_text") if int(doc.get("page_text_version") or 1) < 4 else None) or paragraph(doc, scope),
         "indexable": searchable(doc),
         # finished (is_old): the page drops its enquiry form and leads with the projects still being built nearby
         "finished": is_old(doc),
@@ -959,6 +980,58 @@ def towers(doc: dict, docs: List[dict], ix: Optional["LoadIndex"] = None) -> Lis
             for d in mine]
 
 
+def project_scope(doc: dict, docs: List[dict], ix: Optional["LoadIndex"] = None) -> Optional[dict]:
+    """The whole project a page stands for when it hosts several registrations (towers, phases): the one place its counts and
+    dates are worked out, for the page, its FAQ and opening, the list cards and the fact sheet. None when the page is one
+    registration's: a project registered once, or a cluster whose primary cannot host (each registration keeps its own page).
+
+    The page's own record is one of the registrations, so its `units_total`, `units_booked` and `completion_now` are one part's.
+    Read alone they said one wing's figures as the project's on 85 of 88 such pages (2026-11-12: Venkatesh Vanaya 168 of 745).
+    Homes are summed over the registrations that report a count (a 0 is one that has not reported yet); bookings over those
+    that report both, against those registrations' homes (`booked_of`), so "X of Y booked" compares like with like."""
+    if doc.get("cluster_primary") or not can_host(doc):
+        return None
+    rows = towers(doc, docs, ix)
+    if len(rows) < 2:
+        return None
+    counted = [t for t in rows if (t["units_total"] or 0) > 0]
+    both = [t for t in counted if t["units_booked"] is not None and t["units_booked"] <= t["units_total"]]
+    dates = sorted(t["completion_now"] for t in rows if t["completion_now"])
+    today = date.today().isoformat()
+    return {"registrations": len(rows), "regnos": [t["regno"] for t in rows],
+            "units_total": sum(t["units_total"] for t in counted) or None, "units_counted": len(counted),
+            "units_booked": sum(t["units_booked"] for t in both) if both else None,
+            "booked_of": sum(t["units_total"] for t in both) or None, "booked_counted": len(both),
+            "completion_first": dates[0] if dates else None, "completion_last": dates[-1] if dates else None,
+            # every part's date has passed: only then is the project's "completion date passed"
+            "completion_passed": bool(dates) and len(dates) == len(rows) and dates[-1] < today}
+
+
+async def project_scopes(db) -> Dict[str, dict]:
+    """{record id: project_scope} for every page that stands for several registrations, from the shared load: for readers that
+    go over every page (the chat's knowledge index) and must say each project's own counts."""
+    docs = await Store(db).shared_projects()
+    ix = load_index(docs)
+    return {d["_id"]: s for d in docs if d.get("cluster_id") and (s := project_scope(d, docs, ix))}
+
+
+def card_counts(row_doc: dict, scope: Optional[dict]) -> dict:
+    """What a list card says about a project that may stand for several registrations: for one, the record's own homes and
+    bookings; for several, the whole project's (`registrations` says how many), its earliest filed date as `completion_now` with
+    the latest as `possession_to` (a card reads "possession from"), sold out only when every part is, and no stage: the parts
+    are at different stages. Spread it after the record's own fields so it wins."""
+    if not scope:
+        return {"units_total": _count(row_doc.get("units_total")), "units_booked": booked(row_doc)}
+    whole_booked = scope["units_booked"] is not None
+    out = {"units_total": scope["booked_of"] if whole_booked else scope["units_total"],
+           "units_booked": scope["units_booked"] if whole_booked else None, "registrations": scope["registrations"],
+           "completion_now": scope["completion_first"], "stage": None,
+           "sold_out": whole_booked and scope["booked_counted"] == scope["registrations"] and scope["units_booked"] == scope["booked_of"]}
+    if scope["completion_last"] and scope["completion_last"] != scope["completion_first"]:
+        out["possession_to"] = scope["completion_last"]
+    return out
+
+
 def cluster_stamps(docs: List[dict]) -> dict:
     """{cluster_id: the newest page_updated of its members}, in one pass (lists call cluster_updated thousands of times)."""
     out: dict = {}
@@ -1051,8 +1124,11 @@ async def chat_brief(db, slug: str) -> Optional[dict]:
     if doc is None or not in_register(doc):
         return None
     area = BY_KEY.get(doc.get("locality") or "")
+    # a page for several registrations: its group's records only (a handful), so the chat says the whole project's counts
+    group = [d async for d in Store(db).projects.find({"cluster_id": doc["cluster_id"]})] if doc.get("cluster_id") else []
     return {"slug": slug, "name": names(doc)[0], "regno": doc.get("regno") or doc["_id"],
-            "area": area.name if area else (doc.get("pune_place_name") or None), "paragraph": paragraph(doc)}
+            "area": area.name if area else (doc.get("pune_place_name") or None),
+            "paragraph": paragraph(doc, project_scope(doc, group) if group else None)}
 
 
 async def project_page(db, slug: str, now: Optional[datetime] = None) -> Optional[dict]:
@@ -1069,8 +1145,10 @@ async def project_page(db, slug: str, now: Optional[datetime] = None) -> Optiona
     key = "locality" if doc.get("locality") else "pune_place"
     peers = [d for d in ix.by_area.get((key, doc[key]), []) if not d.get("cluster_primary")] if doc.get(key) else []
     similar = _similar(doc, peers)
-    out = view(doc, similar, docs, ix)
+    scope = project_scope(doc, docs, ix)
+    out = view(doc, similar, docs, ix, scope)
     out["towers"] = towers(doc, docs, ix)
+    out["project"] = scope
     out["page_updated"] = cluster_updated(doc, docs, ix.stamps)
     group = group_primary(doc, docs, ix)
     # a count on the builder's or a property site said with its scope: the whole project's, or this registration's
@@ -1097,7 +1175,9 @@ async def project_page(db, slug: str, now: Optional[datetime] = None) -> Optiona
     out["area_rate"] = pagefacts.area_rate(place, (prices_public(d.get("prices"), now) for d in others))
     # this project beside the rest of its area: booked share and date move (the area's records, each project once)
     neighbours = [d for d in area_docs if not d.get("cluster_primary") and d["_id"] != mine]
-    out["area_compare"] = area_compare(doc, neighbours, place, (now or datetime.now(timezone.utc)).date())
+    # the comparison is one record's booked share and date move: for a page of several registrations it would set one part
+    # beside the area as if it were the project, so it is left out there
+    out["area_compare"] = None if scope else area_compare(doc, neighbours, place, (now or datetime.now(timezone.utc)).date())
     # the rounded price idea (areastats.priceidea): the sizes one site prices, and the area's usual band per size
     own = group.get("prices")
     read = (own or {}).get("at")
@@ -1106,7 +1186,8 @@ async def project_page(db, slug: str, now: Optional[datetime] = None) -> Optiona
         # offices or shops: a flat price read under the whole project's name is its homes' price (Ganga Altus Building G showed
         # "2 & 3 BHK from ₹85 L"), and an area's rate or booked share is about homes
         out["prices"] = out["price_idea"] = out["area_rate"] = out["area_compare"] = None
-    out["sales"] = pagefacts.sales(doc)
+    # homes booked lately: summed over the registrations for a project in several (each keeps its own dated readings)
+    out["sales"] = pagefacts.sales_of([d for d in ix.by_cluster.get(doc["cluster_id"], [])]) if scope else pagefacts.sales(doc)
     out["commute"] = pagefacts.commute(out["map"])
     from .cautions import cautions   # 'Check before you book' (docs/plan/project-pages.md)
     out["cautions"] = cautions(doc, out["towers"], out["web_facts"])
@@ -1142,7 +1223,8 @@ async def listing(db, area: Optional[str] = None, only_indexable: bool = True, l
 
 
 def _listing(every: List[dict], area: Optional[str], only_indexable: bool, limit: int, place: Optional[str]) -> List[dict]:
-    served = load_index(every).hosted
+    ix = load_index(every)
+    served = ix.hosted
     # a tower or phase whose project has a page search may list is not a page of its own (it answers 301 to it)
     docs = [d for d in every if _served(d) and d.get("cluster_primary") not in served]
     if area:
@@ -1181,7 +1263,10 @@ def _listing(every: List[dict], area: Optional[str], only_indexable: bool, limit
              "price_from": price_from(d, floors=floors),   # the lowest asked price we publish (areastats.prices), else None
              "page_updated": cluster_updated(d, every, stamps),   # our own last change (the sitemap's lastmod; a primary: its newest tower), never MahaRERA's dates
              # `only_indexable` keeps every listable page for the area lists; this flag is the stricter one search sees
-             "indexable": searchable(d)} for d in docs[:limit]]
+             "indexable": searchable(d),
+             # last, so it wins: a card whose page stands for several registrations says the whole project (card_counts)
+             **(card_counts(d, project_scope(d, every, ix)) if d.get("cluster_id") and project_scope(d, every, ix) else {})}
+            for d in docs[:limit]]
 
 
 # ---- search by the names buyers type -------------------------------------------------------------------------------------

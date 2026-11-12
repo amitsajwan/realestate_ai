@@ -37,6 +37,9 @@ export interface FacetRow {
   builder_slug: string | null
   registered_on: string | null
   completion_now: string | null
+  /** the latest part's filed date when the card's page stands for several registrations (backend pages.card_counts) */
+  possession_to?: string | null
+  registrations?: number | null
   completion_at_registration: string | null
   units_total: number | null
   units_booked: number | null

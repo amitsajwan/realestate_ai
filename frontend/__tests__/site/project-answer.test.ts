@@ -1,6 +1,6 @@
 // The dated opening of a project page, from the page's own facts (lib/site/projectFacts)
 import { catalogAnswer, projectAnswer, projectUpdated, registerAnswer } from '@/lib/site/projectFacts'
-import { askedPrices, completionChange, headingName, monthsApart, projectFaq, sizePriceLine } from '@/lib/site/register'
+import { askedPrices, completionChange, headingName, monthsApart, projectFaq, sizePriceLine, wholeProject } from '@/lib/site/register'
 import type { RegisterProject } from '@/lib/site/register'
 import type { CatalogProject } from '@/lib/site/types'
 
@@ -172,5 +172,65 @@ describe('the answer sets the project beside its area and its builder', () => {
     const a = registerAnswer({ ...P, builder: { ...builder, record_ok: false } })
     expect(a).not.toContain('projects in Pune with both dates')
     expect(a).not.toContain('registered within a year of it')
+  })
+})
+
+describe('a project MahaRERA holds as several registrations', () => {
+  // Venkatesh Vanaya, 2026-11-12: seven registrations, 745 homes; the page's own record (wings I & J) has 168 of them
+  const tower = (regno: string, completion_now: string, units_total: number | null, units_booked: number | null) =>
+    ({ regno, name: regno, completion_now, completion_at_registration: null, units_total, units_booked, registered_on: null, maharera_url: null })
+  const VANAYA: RegisterProject = {
+    ...P, name: 'Venkatesh Vanaya', regno: 'PR1261012601206', units_total: 168, units_booked: 0, completion_now: '2031-04-30',
+    completion_at_registration: '2031-04-30', details: { towers: 2, max_floors: 25, units_total: 168 } as never,
+    booked_readings: [{ on: '2026-07-03', booked: 0 }, { on: '2026-10-03', booked: 0 }],
+    towers: [tower('PR1261012601206', '2031-04-30', 168, 0), tower('PR1261012601751', '2030-08-31', 78, 0),
+      tower('PR1261012601264', '2030-12-31', 144, 0), tower('PR1261012601304', '2031-01-31', 249, 0),
+      tower('PR1261012601229', '2031-10-31', 90, 0), tower('PC1261012601213', '2032-04-30', 16, 0),
+      tower('PR1261012601239', '2033-01-31', 0, 0)],
+    // worked out by the backend (areastats/pages.project_scope), the one place the whole project's counts come from
+    project: { registrations: 7, regnos: ['PR1261012601206', 'PR1261012601751', 'PR1261012601264', 'PR1261012601304', 'PR1261012601229',
+      'PC1261012601213', 'PR1261012601239'], units_total: 745, units_counted: 6, units_booked: 0, booked_of: 745, booked_counted: 6,
+      completion_first: '2030-08-31', completion_last: '2033-01-31', completion_passed: false },
+  }
+
+  it('reads the whole project from the backend\'s scope, and none for a project registered once', () => {
+    expect(wholeProject(VANAYA)).toBe(VANAYA.project)
+    expect(wholeProject(P)).toBeNull()
+    expect(wholeProject({ ...VANAYA, project: null })).toBeNull()
+  })
+
+  it('the FAQ answers for the whole project and names the page\'s own registration as one part', () => {
+    const faq = projectFaq(VANAYA)
+    const a = (re: RegExp) => faq.find((f) => re.test(f.q))!.a
+    expect(a(/How many flats/)).toBe('MahaRERA lists 745 units across 6 of its 7 MahaRERA registrations; PR1261012601206 has 168.')
+    expect(a(/are booked/)).toBe('0 of 745 homes were booked as per MahaRERA on 3 Oct 2026, across 6 of its 7 MahaRERA registrations.')
+    expect(a(/MahaRERA number/)).toContain('in 7 parts (towers or phases): PR1261012601206, PR1261012601751')
+    expect(a(/towers and floors/)).toBe("MahaRERA lists 2 buildings in registration PR1261012601206, one of the project's 7, the tallest with 25 floors.")
+    expect(a(/possession date/)).toMatch(/^The 7 MahaRERA registrations of Venkatesh Vanaya have filed completion dates from 31 Aug 2030 to 31 Jan 2033\. For PR1261012601206: /)
+    expect(faq.map((f) => f.a).join(' ')).not.toMatch(/\b168 (homes|units)\b(?! of)/)
+  })
+
+  it('the opening says the whole project\'s count and leaves out the main part\'s pace and area comparison', () => {
+    const a = registerAnswer({ ...VANAYA, area_compare: { place: 'Kharadi', booked: { pct: 0, area_pct: 40, projects: 20 }, moved: null } })
+    expect(a).toContain('is registered with MahaRERA in 7 parts, the main one PR1261012601206.')
+    expect(a).toContain('Its parts have filed completion dates from 31 Aug 2030 to 31 Jan 2033. For PR1261012601206: The completion date')
+    expect(a).toContain('MahaRERA shows 0 of 745 homes booked, across 6 of its 7 MahaRERA registrations.')
+    expect(a).not.toContain('of 168')
+    expect(a).not.toContain('middle of')
+  })
+
+  it('a project registered once reads as before', () => {
+    expect(projectFaq(P).find((f) => /are booked/.test(f.q))!.a).toBe('244 of 416 homes were booked as per MahaRERA on 3 Oct 2026.')
+  })
+})
+
+const VANAYA_SCOPE = { registrations: 7, regnos: ['A', 'B'], units_total: 745, units_counted: 6, units_booked: 0, booked_of: 745,
+  booked_counted: 6, completion_first: '2030-08-31', completion_last: '2033-01-31', completion_passed: false }
+
+describe('the heading of a project in several registrations', () => {
+  it('names the project, not the phase of its main registration', () => {
+    const p = { name: 'VENKATESH VANAYA-WING- I & J-PHASE -2', marketed_name: 'Venkatesh Vanaya' }
+    expect(headingName(p)).toBe('Venkatesh Vanaya Phase 2')
+    expect(headingName({ ...p, project: { ...VANAYA_SCOPE } })).toBe('Venkatesh Vanaya')
   })
 })

@@ -44,7 +44,8 @@ The algorithm's job moves from "read what others say and rewrite it" to "work ou
   a page goes back in as soon as enrichment fills it (`THIN_RETRY_DAYS`).
 - The page template and titles stay as they are until the site is back. Widen the hold (2026-12-15) from titles to templates.
   (Not code: a rule for whoever changes the pages.)
-- Sitemap size moves in steps the owner decides, not with each night run. (The hold below slows it; the steps are the owner's.)
+- ~~Sitemap size moves in steps the owner decides, not with each night run. (The hold below slows it; the steps are the owner's.)~~
+  DROPPED 2026-11-12 (owner): no cap; a fully enriched page goes into search when it qualifies.
 
 Built:
 - `enrich.REWRITES_PER_DAY` is 0: no page in search goes to a newer writer for that alone.

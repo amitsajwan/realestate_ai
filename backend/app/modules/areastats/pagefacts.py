@@ -6,7 +6,7 @@ Code only, from what areastats.pages already loaded for the request: no reads of
 when the facts are not there, and the page then shows nothing.
 """
 import math
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from statistics import median
 from typing import Any, Iterable, List, Optional
 
@@ -57,6 +57,18 @@ def sales(doc: dict) -> Optional[dict]:
     if base is None or last - base[1] <= 0:
         return None
     return {"booked": last - base[1], "days": (last_at - base[0]).days, "since": base[0].date().isoformat()}
+
+
+def sales_of(docs: List[dict]) -> Optional[dict]:
+    """sales() for a project in several registrations: homes booked lately summed over the registrations that have them, over
+    the longest window among them (each registration keeps its own dated readings). None when none went up."""
+    each = [s for d in docs if (s := sales(d))]
+    if not each:
+        return None
+    # each count rose inside its own window, so the sum rose inside the span from the earliest start to the latest end
+    starts = [date.fromisoformat(s["since"]) for s in each]
+    end = max(st + timedelta(days=s["days"]) for st, s in zip(starts, each))
+    return {"booked": sum(s["booked"] for s in each), "days": (end - min(starts)).days, "since": min(starts).isoformat()}
 
 
 READINGS_SHOWN = 12   # booking readings a page shows: a year at one change a month

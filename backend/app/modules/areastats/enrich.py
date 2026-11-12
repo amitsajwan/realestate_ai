@@ -737,6 +737,17 @@ def homes_per_acre(doc: dict, land: Optional[dict], scoped: dict) -> Optional[in
     return round(total / acres)
 
 
+def whole_project_homes(doc: dict, docs: List[dict]) -> Optional[str]:
+    """The fact sheet's line for the whole project when the page stands for several registrations (pages.project_scope, the one
+    place those counts are worked out). None for one registration's page, or when no registration reports its bookings."""
+    scope = pages.project_scope(doc, docs)
+    if not scope or scope["units_booked"] is None:
+        return None
+    n, counted, total, sold = scope["registrations"], scope["booked_counted"], scope["booked_of"], scope["units_booked"]
+    part = f"all {n} MahaRERA registrations" if counted == n else f"{counted} of the {n} MahaRERA registrations"
+    return f"Homes across {part} of the project: {total}, {sold} of {total} booked ({round(100 * sold / total)}%)"
+
+
 def fact_sheet(doc: dict, gathered: Optional[dict], web: Optional[dict], prof: Optional[dict], pinned: bool,
                others: Optional[List[dict]] = None, docs: Optional[List[dict]] = None, now: Optional[datetime] = None) -> List[dict]:
     """Every fact the page may say, one per line: {key, text, source, url, quote}. Worked out by code from the record, the checked
@@ -768,7 +779,13 @@ def fact_sheet(doc: dict, gathered: Optional[dict], web: Optional[dict], prof: O
         whole = PART_OF_PROJECT.search(str(doc.get("name") or "")) or doc.get("cluster_id")
         add("homes", f"{unit} in this registration: {total}" + (" (one part of a bigger project, not the whole project)" if whole else ""))
     if total and sold is not None and sold <= total:
-        add("booked", f"{unit} booked: {sold} of {total} ({round(100 * sold / total)}%)")
+        # scoped like the line above: the model read a part's bare "booked: 0 of 168" as the whole project's (Venkatesh Vanaya,
+        # 7 registrations and 745 homes, opened "Zero of 168 homes booked", 2026-11-12)
+        add("booked", f"{unit} booked{' in this registration' if whole else ''}: {sold} of {total} ({round(100 * sold / total)}%)")
+    several = bool(docs) and pages.project_scope(doc, docs) is not None
+    project = whole_project_homes(doc, docs) if several else None
+    if project:
+        add("project_homes", project.replace("Homes", unit, 1))
     t = doc.get("building_totals") or {}
     if t.get("towers"):
         add("buildings", f"Buildings in this registration: {t['towers']}" + (f", up to {t['max_floors']} floors" if t.get("max_floors") else ""))
@@ -776,7 +793,8 @@ def fact_sheet(doc: dict, gathered: Optional[dict], web: Optional[dict], prof: O
         add(f"worked{i}", line.replace("Worked out: ", "").replace(" homes ", " homes " if housing else " units "), "worked out from MahaRERA")
     rest = [o for o in others or [] if o.get("_id") != doc.get("_id") and not o.get("cluster_primary")]
     # an area's booked share and sizes are about homes, so offices and shops are not set beside them
-    compare = pages.area_compare(doc, rest, place, (now or datetime.now(timezone.utc)).date()) if place and housing else None
+    # one record's booked share set beside the area: for a page of several registrations that is one part's, so it is left out
+    compare = pages.area_compare(doc, rest, place, (now or datetime.now(timezone.utc)).date()) if place and housing and not several else None
     if compare and compare.get("booked"):
         c = compare["booked"]
         add("area_booked", f"{c['pct']}% booked here; the middle of {c['projects']} {place} projects registered within a year of it is {c['area_pct']}%", "worked out from MahaRERA")
@@ -851,9 +869,14 @@ def code_points(doc: dict, sheet: List[dict]) -> Optional[dict]:
     def point(label: str, text: str, key: str) -> None:
         points.append({"heading": label, "text": text + ".", "facts": [key]})
 
-    m = re.match(r"(?:Homes|Shop and office units) booked: (\d+) of (\d+) \((\d+)%\)", by_key.get("booked", ""))
-    if m:
-        word = "homes" if pages.homes(doc) else "units"
+    word = "homes" if pages.homes(doc) else "units"
+    whole = re.match(r"(?:Homes|Shop and office units) across (.+?) of the project: (\d+), (\d+) of (\d+) booked \((\d+)%\)",
+                     by_key.get("project_homes", ""))
+    m = re.match(r"(?:Homes|Shop and office units) booked(?: in this registration)?: (\d+) of (\d+) \((\d+)%\)", by_key.get("booked", ""))
+    if whole:   # a project in several registrations: its own count, never one part's
+        point(f"{whole.group(5)}% of {word} booked", f"MahaRERA shows {whole.group(3)} of {whole.group(4)} {word} booked across {whole.group(1)}",
+              "project_homes")
+    elif m:
         point(f"{m.group(3)}% of {word} booked", f"MahaRERA shows {m.group(1)} of {m.group(2)} {word} booked", "booked")
     if "buildings" in by_key:
         point(by_key["buildings"].split(":", 1)[1].strip().capitalize() + " floors" if "floors" not in by_key["buildings"] else by_key["buildings"].split(":", 1)[1].strip().capitalize(), by_key["buildings"], "buildings")
@@ -867,6 +890,20 @@ def code_points(doc: dict, sheet: List[dict]) -> Optional[dict]:
         return None
     points = points[:MAX_POINTS]
     return {"text": "\n\n".join(f"{x['heading']}: {x['text']}" for x in points), "sections": points, "summary": None}
+
+
+PART_WORDS = re.compile(r"(?i)\b(registrations?|wings?|phases?|towers?|parts?)\b")
+
+
+def one_part_as_whole(doc: dict, said: str, by_key: Dict[str, str]) -> bool:
+    """On a page of several registrations (the sheet has `project_homes`), words that say the page's own registration's home
+    count without saying it is one part: the model read "Homes booked in this registration: 0 of 168" and wrote "Zero of 168
+    homes booked" as the project's (Venkatesh Vanaya, 745 homes in 7 registrations, 2026-11-12)."""
+    total = _int(doc.get("units_total"))
+    if "project_homes" not in by_key or not total:
+        return False
+    return str(total) in _numbers(_without_names(doc, said)) and not PART_WORDS.search(said) \
+        and str(doc.get("regno") or doc.get("_id") or "") not in said
 
 
 def points_of(out: Any, sheet: List[dict], doc: dict, web: Optional[dict], outside: Optional[List[Tuple[str, str]]] = None) -> Tuple[List[dict], List[str]]:
@@ -893,6 +930,7 @@ def points_of(out: Any, sheet: List[dict], doc: dict, web: Optional[dict], outsi
         problem = ("no fact named" if not used else "empty" if not label or not text
                    else "calls offices or shops homes" if not pages.homes(doc) and pages.says_homes(said)
                    else "says the date moved" if pages.extension_months(doc) and pages.months_later(doc) == 0 and says_moved(said)
+                   else "says one registration's homes as the project's" if one_part_as_whole(doc, said, by_key)
                    else f"a number its facts do not say ({', '.join(sorted(_numbers(_without_names(doc, said)) - known)[:3])})" if _numbers(_without_names(doc, said)) - known
                    else "sales words" if BANNED.search(said) else "overclaims" if OVERCLAIM.search(said)
                    else "stock words" if STOCK.search(said) or AI_WORDS.search(said)
@@ -956,7 +994,7 @@ async def write_points(llm, doc: dict, sheet: List[dict], web: Optional[dict] = 
 # ---- Avasetu's read: the facts taken together (owner 2026-11-05: a line that reads as someone looked, with no site visits) ---------
 
 READ_SIGNALS = ("read_pace", "read_moves", "area_booked", "builder_record")
-READ_KEYS = READ_SIGNALS + ("booked", "filed")
+READ_KEYS = READ_SIGNALS + ("booked", "filed", "project_homes")
 READ_MIN_SIGNALS = 2                  # one signal is a fact the page already shows, not a reading of it
 MAX_READ = 480                        # characters
 READ_SYSTEM = ("You help home buyers in Pune. From the FACTS about one housing project, write 2 or 3 short plain sentences saying what "
@@ -986,10 +1024,12 @@ def read_lines(doc: dict, sheet: List[dict]) -> List[dict]:
     """The facts Avasetu's read may use: the sheet's own on bookings, dates and the builder, and what only our dated readings show,
     which is how fast homes are going and how often the date moved. MahaRERA shows neither."""
     lines = [dict(f, text=plain_middle(f["text"])) for f in sheet if f.get("key") in READ_KEYS]
+    # our dated readings are the page's own registration's: on a page of several they say so
+    part = " in this registration" if any(f.get("key") == "project_homes" for f in sheet) else ""
     seen = pagefacts.booked_readings(doc)
     if len(seen) >= 2 and seen[-1]["booked"] >= seen[0]["booked"]:
         gained = seen[-1]["booked"] - seen[0]["booked"]
-        lines.append({"key": "read_pace", "text": f"{gained} more homes booked between {pages._long(seen[0]['on'])} and {pages._long(seen[-1]['on'])}"})
+        lines.append({"key": "read_pace", "text": f"{gained} more homes booked{part} between {pages._long(seen[0]['on'])} and {pages._long(seen[-1]['on'])}"})
     moved = [m for m in pages.completion_moves(doc) if not m.get("blanket")]
     if moved:
         lines.append({"key": "read_moves", "text": f"The builder has moved the filed completion date {len(moved)} time{'s' if len(moved) > 1 else ''} since we began reading it"})
@@ -1017,7 +1057,8 @@ async def buyer_read(store: Store, doc: dict, llm, now: datetime) -> Optional[di
     known = _numbers(" ".join(by_key[k] for k in used) + " " + pages.names(doc)[0])
     bad = (not used or not 60 <= len(text) <= MAX_READ or _numbers(_without_names(doc, text)) - known or BANNED.search(text) or OVERCLAIM.search(text)
            or AI_WORDS.search(text) or STOCK.search(text) or VISITED.search(text) or FORECAST.search(text)
-           or pages.extension_months(doc) and pages.months_later(doc) == 0 and says_moved(this_project(text)))
+           or pages.extension_months(doc) and pages.months_later(doc) == 0 and says_moved(this_project(text))
+           or one_part_as_whole(doc, text, by_key))
     if bad:
         log.info("enrich: read for %s refused", doc.get("_id"))
         if hasattr(llm, "forget"):

@@ -232,3 +232,35 @@ def test_health_warns_when_the_check_stops_or_the_model_read_nothing():
     assert health.page_check_row({"at": NOW - timedelta(days=1), "read": 20, "model": 20}, NOW)["status"] == health.OK
     assert health.page_check_row({"at": NOW - timedelta(days=1), "read": 20, "model": 0}, NOW)["status"] == health.WARN
     assert health.page_check_row({"at": NOW - timedelta(days=4), "read": 20, "model": 20}, NOW)["status"] == health.WARN
+
+
+# a page that stands for several registrations (pages.project_scope): Venkatesh Vanaya's main registration holds 168 of 745 homes
+VANAYA = {"_id": "PR1261012601206", "regno": "PR1261012601206", "units_total": 168, "units_booked": 7}
+SCOPE = {"registrations": 7, "regnos": ["PR1261012601206"], "units_total": 745, "units_counted": 6, "units_booked": 40,
+         "booked_of": 745, "booked_counted": 6, "completion_first": "2030-08-31", "completion_last": "2033-01-31", "completion_passed": False}
+
+
+def test_a_page_saying_one_registration_s_count_as_the_project_s_is_reported():
+    wrong = "<html><body><h1>Venkatesh Vanaya</h1><p>How many flats are there? MahaRERA lists 168 units.</p></body></html>"
+    found = review.scope_problems(VANAYA, review.plain(wrong), SCOPE)
+    assert [p["kind"] for p in found] == ["scope"] and "168" in found[0]["detail"]
+    right = ("<html><body><p>MahaRERA lists 745 units across 6 of its 7 MahaRERA registrations; PR1261012601206 has 168.</p>"
+             "<table><tr><td>PR1261012601206</td><td>30 Apr 2031</td><td>7 of 168</td></tr></table></body></html>")
+    assert review.scope_problems(VANAYA, review.plain(right), SCOPE) == []
+    assert review.scope_problems(VANAYA, review.plain(wrong), None) == []   # a page of one registration: its count is the project's
+
+
+def test_the_head_search_quotes_is_read_too_but_not_the_page_s_data_payload():
+    head = ('<html><head><title>Venkatesh Vanaya</title><meta name="description" content="Possession Apr 2031, 7 of 168 homes booked.">'
+            '</head><body><p>40 of 745 homes booked across 6 of its 7 MahaRERA registrations.</p>'
+            '<script>self.__next_f.push([1,"{\\"units_total\\":168}"])</script></body></html>')
+    assert [p["kind"] for p in review.rule_problems(VANAYA, head, [], SCOPE) if p["kind"] == "scope"] == ["scope"]
+    payload_only = head.replace("7 of 168 homes booked", "40 of 745 homes booked")
+    assert [p for p in review.rule_problems(VANAYA, payload_only, [], SCOPE) if p["kind"] == "scope"] == []
+
+
+def test_a_page_of_several_registrations_must_show_the_whole_project_s_bookings():
+    text = "PR1261012601206 40 of 745 homes booked across 6 of its 7 MahaRERA registrations"
+    assert [p for p in review.against_record(VANAYA, text, SCOPE) if "booked" in p["detail"]] == []
+    assert [p["detail"] for p in review.against_record(VANAYA, "PR1261012601206 7 of 168 booked", SCOPE)
+            if "booked" in p["detail"]] == ["40 of 745 homes booked is not on the page"]
