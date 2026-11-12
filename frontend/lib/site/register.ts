@@ -181,6 +181,49 @@ export interface BuilderRecord {
 
 export interface Faq { q: string; a: string }
 
+/** The whole project a page stands for when MahaRERA holds it as several registrations (towers, phases): the page's own record
+ *  is one of them, so its counts are one part's. Homes are summed over the registrations that report a count, bookings over those
+ *  that report both, so "X of Y booked" always compares the same registrations. Null for a project registered once.
+ *  (2026-11-12: Venkatesh Vanaya's FAQ said 168 homes, one wing's count of the project's 745.) */
+export interface WholeProject {
+  registrations: number
+  regnos: string[]
+  units: number | null
+  /** registrations whose home count is in `units` */
+  counted: number
+  booked: number | null
+  /** homes of the registrations whose bookings are in `booked`, and how many registrations those are */
+  bookedOf: number | null
+  bookedCounted: number
+  firstDate: string | null
+  lastDate: string | null
+}
+
+export function wholeProject(p: Pick<RegisterProject, 'towers'>): WholeProject | null {
+  const rows = p.towers ?? []
+  if (rows.length < 2) return null
+  // a count of 0 is a registration that has not reported its homes yet, not an empty one
+  const withUnits = rows.filter((t) => (t.units_total ?? 0) > 0)
+  const withBooked = withUnits.filter((t) => t.units_booked != null && t.units_booked <= (t.units_total as number))
+  const dates = rows.map((t) => t.completion_now).filter((d): d is string => !!d).sort()
+  return {
+    registrations: rows.length,
+    regnos: rows.map((t) => t.regno),
+    units: withUnits.length ? withUnits.reduce((s, t) => s + (t.units_total as number), 0) : null,
+    counted: withUnits.length,
+    booked: withBooked.length ? withBooked.reduce((s, t) => s + (t.units_booked as number), 0) : null,
+    bookedOf: withBooked.length ? withBooked.reduce((s, t) => s + (t.units_total as number), 0) : null,
+    bookedCounted: withBooked.length,
+    firstDate: dates[0] ?? null,
+    lastDate: dates[dates.length - 1] ?? null,
+  }
+}
+
+/** "across all 7 registrations" or "across 6 of its 7 registrations": which part of the project a summed count covers. */
+export function acrossRegistrations(counted: number, of: number): string {
+  return counted === of ? `across all ${of} of its MahaRERA registrations` : `across ${counted} of its ${of} MahaRERA registrations`
+}
+
 /** Questions and answers written by code from the page's facts only; a question with no fact behind it is left out. The questions
  *  people really ask Google (p.faq, from the backend) take the place of our own question on the same topic. */
 export function projectFaq(p: RegisterProject, nearby: { label?: string | null; name?: string | null; km?: number | null }[] = [],
@@ -205,29 +248,45 @@ function ownFaq(p: RegisterProject, nearby: { label?: string | null; name?: stri
   const d = p.details
   const where = p.area ? `${p.area.name}, Pune` : [p.place, p.taluka, 'Pune district'].filter(Boolean).join(', ')
   const change = completionChange(p)
+  const whole = wholeProject(p)
+  // a project in several registrations has a filed date per registration: the span first, then the page's own registration's
+  const span = whole?.firstDate && whole.lastDate && whole.firstDate !== whole.lastDate
+    ? `The ${whole.registrations} MahaRERA registrations of ${shown} have filed completion dates from ${longDay(whole.firstDate)} to ${longDay(whole.lastDate)}. For ${p.regno}: ` : ''
   if (p.completion_now && change) {
     const ext = change.kind === 'moved' && change.extension
       ? ` MahaRERA added ${change.extension} months to most projects' dates in August 2026 (Order 66/2026).` : ''
     out.push({ topic: 'possession', q: `What is the possession date of ${shown}?`,
-      a: (change.kind === 'extension' ? extensionSentence(p.completion_now, change.months)
+      a: span + (change.kind === 'extension' ? extensionSentence(p.completion_now, change.months)
         : `The completion date filed with MahaRERA is ${longDay(p.completion_now)}.`
           + (change.kind === 'moved' ? ` At registration it was ${longDay(change.from)}.` : '') + ext)
         + ' Ask the builder for the possession date in your agreement, in writing.' })
   }
-  out.push({ topic: 'rera', q: `What is the MahaRERA number of ${shown}?`, a: `${shown} is registered with MahaRERA as ${p.regno}.` })
+  out.push({ topic: 'rera', q: `What is the MahaRERA number of ${shown}?`,
+    a: whole ? `${shown} is registered with MahaRERA in ${whole.registrations} parts (towers or phases): ${whole.regnos.join(', ')}.`
+      : `${shown} is registered with MahaRERA as ${p.regno}.` })
   if (d?.towers) {
     out.push({ topic: 'size', q: `How many towers and floors does ${shown} have?`,
-      a: `MahaRERA lists ${d.towers} building${d.towers === 1 ? '' : 's'}` + (d.max_floors ? `, the tallest with ${d.max_floors} floors.` : '.') })
+      a: `MahaRERA lists ${d.towers} building${d.towers === 1 ? '' : 's'}` + (whole ? ` in registration ${p.regno}, one of the project's ${whole.registrations}` : '')
+        + (d.max_floors ? `, the tallest with ${d.max_floors} floors.` : '.') })
   }
   const units = d?.units_total ?? p.units_total
-  if (units) {
-    out.push({ topic: 'size', q: `How many ${unitWord(p) === 'units' ? 'units' : 'flats'} are there in ${shown}?`,
+  const what = unitWord(p)
+  if (whole?.units) {
+    out.push({ topic: 'size', q: `How many ${what === 'units' ? 'units' : 'flats'} are there in ${shown}?`,
+      a: `MahaRERA lists ${whole.units} units ${acrossRegistrations(whole.counted, whole.registrations)}`
+        + (units ? `; ${p.regno} has ${units}.` : '.') })
+  } else if (units) {
+    out.push({ topic: 'size', q: `How many ${what === 'units' ? 'units' : 'flats'} are there in ${shown}?`,
       a: `MahaRERA lists ${units} units` + (d?.units_residential != null && d?.units_other ? ` (${d.units_residential} residential, ${d.units_other} other).` : '.') })
   }
-  if (p.units_total) {
-    const what = unitWord(p)
+  const on = p.details_read_at ? ` on ${longDay(p.details_read_at)}` : ''
+  if (whole?.units) {
     out.push({ topic: 'booked', q: `How many ${what} in ${shown} are booked?`,
-      a: p.units_booked != null ? `${p.units_booked} of ${p.units_total} ${what} were booked as per MahaRERA${p.details_read_at ? ` on ${longDay(p.details_read_at)}` : ''}.`
+      a: whole.booked != null ? `${whole.booked} of ${whole.bookedOf} ${what} were booked as per MahaRERA${on}, ${acrossRegistrations(whole.bookedCounted, whole.registrations)}.`
+        : 'The builder has not reported bookings on MahaRERA.' })
+  } else if (p.units_total) {
+    out.push({ topic: 'booked', q: `How many ${what} in ${shown} are booked?`,
+      a: p.units_booked != null ? `${p.units_booked} of ${p.units_total} ${what} were booked as per MahaRERA${on}.`
         : 'The builder has not reported bookings on MahaRERA.' })
   }
   if (p.promoter) {
@@ -558,9 +617,13 @@ export function completionChange(p: Pick<RegisterProject, 'completion_now' | 'co
 }
 
 /** The page heading's name: the one buyers know, with the phase when MahaRERA's name carries one and that name does not ("Park
- *  Eden" filed as "PARK EDEN PHASE I" is "Park Eden Phase I"), so two phases' pages do not read as one project. */
-export function headingName(p: { name: string; marketed_name?: string | null; search_name?: string | null; branded_name?: string | null }): string {
+ *  Eden" filed as "PARK EDEN PHASE I" is "Park Eden Phase I"), so two phases' pages do not read as one project. A page that stands
+ *  for several registrations (`towers`) is the whole project's and carries no phase. */
+export function headingName(p: { name: string; marketed_name?: string | null; search_name?: string | null; branded_name?: string | null;
+  towers?: RegisterTower[] | null }): string {
   const shown = displayName(p)
+  // a page for every phase of a project names the project: its main registration's phase would make it read as one phase
+  if ((p.towers ?? []).length >= 2) return shown
   const m = /\b(?:phase|ph\.?)[\s-]*([ivx]+|\d+[a-z]?)\b/i.exec(p.name)
   if (!m || /\b(?:phase|ph\.?)(?:\b|\s|\d)/i.test(shown)) return shown
   return `${shown} Phase ${/^[ivx]+$/i.test(m[1]) ? m[1].toUpperCase() : m[1]}`

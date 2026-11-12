@@ -737,6 +737,23 @@ def homes_per_acre(doc: dict, land: Optional[dict], scoped: dict) -> Optional[in
     return round(total / acres)
 
 
+def whole_project_homes(doc: dict, docs: List[dict]) -> Optional[str]:
+    """The homes and bookings of every registration of the project the page stands for (towers, phases), when there are several:
+    homes summed over the registrations that report a count (a 0 is one that has not yet), bookings over those that report both,
+    so the booked share compares the same registrations. None for a project registered once."""
+    rows = pages.towers(doc, docs)
+    if len(rows) < 2:
+        return None
+    counted = [t for t in rows if (t.get("units_total") or 0) > 0]
+    both = [t for t in counted if t.get("units_booked") is not None and t["units_booked"] <= t["units_total"]]
+    if not both:
+        return None
+    total, sold = sum(t["units_total"] for t in both), sum(t["units_booked"] for t in both)
+    scope = (f"all {len(rows)} MahaRERA registrations" if len(both) == len(rows)
+             else f"{len(both)} of the {len(rows)} MahaRERA registrations")
+    return f"Homes across {scope} of the project: {total}, {sold} of {total} booked ({round(100 * sold / total)}%)"
+
+
 def fact_sheet(doc: dict, gathered: Optional[dict], web: Optional[dict], prof: Optional[dict], pinned: bool,
                others: Optional[List[dict]] = None, docs: Optional[List[dict]] = None, now: Optional[datetime] = None) -> List[dict]:
     """Every fact the page may say, one per line: {key, text, source, url, quote}. Worked out by code from the record, the checked
@@ -768,7 +785,12 @@ def fact_sheet(doc: dict, gathered: Optional[dict], web: Optional[dict], prof: O
         whole = PART_OF_PROJECT.search(str(doc.get("name") or "")) or doc.get("cluster_id")
         add("homes", f"{unit} in this registration: {total}" + (" (one part of a bigger project, not the whole project)" if whole else ""))
     if total and sold is not None and sold <= total:
-        add("booked", f"{unit} booked: {sold} of {total} ({round(100 * sold / total)}%)")
+        # scoped like the line above: the model read a part's bare "booked: 0 of 168" as the whole project's (Venkatesh Vanaya,
+        # 7 registrations and 745 homes, opened "Zero of 168 homes booked", 2026-11-12)
+        add("booked", f"{unit} booked{' in this registration' if whole else ''}: {sold} of {total} ({round(100 * sold / total)}%)")
+    project = whole_project_homes(doc, docs) if docs else None
+    if project:
+        add("project_homes", project.replace("Homes", unit, 1))
     t = doc.get("building_totals") or {}
     if t.get("towers"):
         add("buildings", f"Buildings in this registration: {t['towers']}" + (f", up to {t['max_floors']} floors" if t.get("max_floors") else ""))
@@ -851,9 +873,14 @@ def code_points(doc: dict, sheet: List[dict]) -> Optional[dict]:
     def point(label: str, text: str, key: str) -> None:
         points.append({"heading": label, "text": text + ".", "facts": [key]})
 
-    m = re.match(r"(?:Homes|Shop and office units) booked: (\d+) of (\d+) \((\d+)%\)", by_key.get("booked", ""))
-    if m:
-        word = "homes" if pages.homes(doc) else "units"
+    word = "homes" if pages.homes(doc) else "units"
+    whole = re.match(r"(?:Homes|Shop and office units) across (.+?) of the project: (\d+), (\d+) of (\d+) booked \((\d+)%\)",
+                     by_key.get("project_homes", ""))
+    m = re.match(r"(?:Homes|Shop and office units) booked(?: in this registration)?: (\d+) of (\d+) \((\d+)%\)", by_key.get("booked", ""))
+    if whole:   # a project in several registrations: its own count, never one part's
+        point(f"{whole.group(5)}% of {word} booked", f"MahaRERA shows {whole.group(3)} of {whole.group(4)} {word} booked across {whole.group(1)}",
+              "project_homes")
+    elif m:
         point(f"{m.group(3)}% of {word} booked", f"MahaRERA shows {m.group(1)} of {m.group(2)} {word} booked", "booked")
     if "buildings" in by_key:
         point(by_key["buildings"].split(":", 1)[1].strip().capitalize() + " floors" if "floors" not in by_key["buildings"] else by_key["buildings"].split(":", 1)[1].strip().capitalize(), by_key["buildings"], "buildings")

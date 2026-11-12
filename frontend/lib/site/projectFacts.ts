@@ -5,8 +5,9 @@
  */
 import { formatPrice } from './format'
 import { bhkRange as offerBhks } from './projects'
-import { askedPrices, askedSource, displayName, extensionSentence, isExtensionOnly, longDay, monthsApart, unitWord } from './register'
-import type { RegisterProject } from './register'
+import { acrossRegistrations, askedPrices, askedSource, displayName, extensionSentence, isExtensionOnly, longDay, monthsApart, unitWord,
+  wholeProject } from './register'
+import type { RegisterProject, WholeProject } from './register'
 import type { CatalogProject } from './types'
 
 /** The facts the opening is written from, the same for both kinds of project page. */
@@ -36,6 +37,8 @@ export interface AnswerFacts {
   builderRecord?: { name: string; with_dates: number; moved_later: number } | null
   /** "units" for offices or shops only: they are not homes */
   unitWord?: 'homes' | 'units'
+  /** a project MahaRERA holds as several registrations: the counts above are then one part's, so the whole project's are said */
+  whole?: WholeProject | null
 }
 
 const n = (x: number) => x.toLocaleString('en-IN')
@@ -43,8 +46,14 @@ const n = (x: number) => x.toLocaleString('en-IN')
 /** The 40-70 word answer at the top of a project page. */
 export function projectAnswer(f: AnswerFacts): string {
   const day = longDay(f.asOf)
-  const parts = [`${day ? `As of ${day}, ` : ''}${f.name}${f.builder ? ` by ${f.builder}` : ''} in ${f.where} is registered with MahaRERA as ${f.regno}.`]
+  const w = f.whole
+  const parts = [`${day ? `As of ${day}, ` : ''}${f.name}${f.builder ? ` by ${f.builder}` : ''} in ${f.where} is registered with MahaRERA `
+    + (w ? `in ${w.registrations} parts, the main one ${f.regno}.` : `as ${f.regno}.`)]
+  if (w?.firstDate && w.lastDate && w.firstDate !== w.lastDate) {
+    parts.push(`Its parts have filed completion dates from ${longDay(w.firstDate)} to ${longDay(w.lastDate)}.`)
+  }
   if (f.completionNow) {
+    if (w) parts.push(`For ${f.regno}:`)
     const at = f.completionAtRegistration
     const moved = at && at !== f.completionNow
     // the 2026 order moved most projects' dates without the builder asking: when it is the only change the builder moved nothing,
@@ -57,8 +66,14 @@ export function projectAnswer(f: AnswerFacts): string {
         + (moved ? `, moved from ${longDay(at)} at registration${ext}.` : at ? ', not moved since registration.' : '.'))
     }
   }
-  // "27 of 249 homes booked": the total is every home MahaRERA lists, never the ones still for sale
-  if (f.unitsTotal && f.unitsBooked != null && f.unitsBooked <= f.unitsTotal) {
+  // "27 of 249 homes booked": the total is every home MahaRERA lists, never the ones still for sale. For a project in several
+  // registrations, the sum over its registrations; the pace and the area comparison are the main registration's alone, so left out.
+  if (w) {
+    const what = f.unitWord ?? 'homes'
+    if (w.booked != null && w.bookedOf) {
+      parts.push(`MahaRERA shows ${n(w.booked)} of ${n(w.bookedOf)} ${what} booked, ${acrossRegistrations(w.bookedCounted, w.registrations)}.`)
+    }
+  } else if (f.unitsTotal && f.unitsBooked != null && f.unitsBooked <= f.unitsTotal) {
     const what = f.unitWord ?? 'homes'
     parts.push(f.unitsBooked === f.unitsTotal ? `MahaRERA shows all ${n(f.unitsTotal)} ${what} booked.`
       : `MahaRERA shows ${n(f.unitsBooked)} of ${n(f.unitsTotal)} ${what} booked.`)
@@ -100,7 +115,7 @@ export function registerAnswer(p: RegisterProject, offer?: { from: string; bhks:
     extensionMonths: p.details?.extension_months, extensionOnly: p.extension_only, completionPassed: p.completion_passed,
     unitsTotal: p.units_total, unitsBooked: p.units_booked, price, bookedSince: bookedSince(p),
     areaBooked: p.area_compare?.booked ? { ...p.area_compare.booked, place: p.area_compare.place } : null,
-    builderRecord: p.builder?.record_ok ? p.builder : null, unitWord: unitWord(p),
+    builderRecord: p.builder?.record_ok ? p.builder : null, unitWord: unitWord(p), whole: wholeProject(p),
   })
 }
 

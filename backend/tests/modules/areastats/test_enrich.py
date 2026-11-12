@@ -1144,3 +1144,31 @@ async def test_a_backfill_rewrite_goes_when_its_turn_comes():
     store = await _backfill_first()
     out = await enrich.step(store, FakeLLM(GOOD), NOW, NOW - timedelta(minutes=5), timedelta(minutes=3), NOW - timedelta(minutes=31))
     assert out["regno"] == "O" and out["backfill"]
+
+
+def _vanaya():
+    """Venkatesh Vanaya, 2026-11-12: seven registrations, 745 homes; the page's own record (wings I & J) holds 168 of them."""
+    base = {"locality": "kharadi", "promoter": "SVBPL HOMES PVT LTD", "cluster_id": "C1", "units_booked": 0, "completion_now": "2031-04-30"}
+    counts = [("PR1261012601206", 168), ("PR1261012601751", 78), ("PR1261012601264", 144), ("PR1261012601304", 249),
+              ("PR1261012601229", 90), ("PC1261012601213", 16), ("PR1261012601239", 0)]
+    docs = [{**base, "_id": r, "regno": r, "name": f"VENKATESH VANAYA {r}", "units_total": n,
+             **({} if i == 0 else {"cluster_primary": "PR1261012601206"})} for i, (r, n) in enumerate(counts)]
+    return docs[0], docs
+
+
+def test_a_project_in_several_registrations_has_its_whole_count_and_a_part_says_it_is_one():
+    doc, docs = _vanaya()
+    sheet = {f["key"]: f["text"] for f in enrich.fact_sheet(doc, None, None, None, False, docs=docs)}
+    assert sheet["booked"] == "Homes booked in this registration: 0 of 168 (0%)"
+    assert sheet["project_homes"] == "Homes across 6 of the 7 MahaRERA registrations of the project: 745, 0 of 745 booked (0%)"
+    alone = {f["key"]: f["text"] for f in enrich.fact_sheet(ROSE | {"units_total": 24, "units_booked": 1}, None, None, None, False, docs=[])}
+    assert alone["booked"] == "Homes booked: 1 of 24 (4%)" and "project_homes" not in alone
+
+
+def test_code_points_give_the_whole_project_count_never_one_part_s():
+    doc, docs = _vanaya()
+    out = enrich.code_points(doc, enrich.fact_sheet(doc, None, None, None, False, docs=docs) + [
+        {"key": "filed", "text": "Completion date filed with MahaRERA: 30 Apr 2031"}])
+    assert out["sections"][0] == {"heading": "0% of homes booked", "facts": ["project_homes"],
+                                  "text": "MahaRERA shows 0 of 745 homes booked across 6 of the 7 MahaRERA registrations."}
+    assert "of 168" not in out["text"]
