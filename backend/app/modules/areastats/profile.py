@@ -663,6 +663,13 @@ _FLOORS_EACH = re.compile(r"\b(?:each|all)\b[^.;]*?" + _COUNT + r"\s+(?:[a-z-]+\
 _SINGLE_TOWER = re.compile(r"\bsingle\b\s+(?:[a-z0-9-]+\s+)?(?:towers?|buildings?)\b", re.I)
 _SITTING_IN = re.compile(r"\b(?:located|nestled|situated|set|sits?)\b(?:(?!\b(?:near|close|next|from|off|beside|opposite|towards?|by)\b)[^.;])*?"
                          r"\b(?:in|at)\b(?:(?!\b(?:near|close|next|from|off|beside|opposite|towards?|by)\b)[^.;])*", re.I)
+# an area said in a bullet, in the units sites use: 53,171 square meters, 2.5 lakh sq ft, 4 acres
+_AREA = re.compile(r"(\d[\d,]*(?:\.\d+)?)\s*(lakh\s+|lac\s+)?(sq\.?\s*m(?:t|tr|eters?|etres?)?\b|square\s+met(?:er|re)s?|sq\.?\s*ft\b|sq\.?\s*feet|"
+                   r"square\s+f(?:ee|oo)t|acres?\b)", re.I)
+SQFT_PER = {"m": 10.7639, "f": 1.0, "a": 43560.0}   # by the unit's first letter after "sq"/"square", or acre
+LAND_SLACK = 1.05    # the land figure is a site's too, so a bullet must be clearly larger to be called wrong
+GREEN_SHARE = 0.75   # gardens, open or green space said to take more of the land than this is the site's size misread as theirs
+_GREEN = re.compile(r"(?i)\b(?:green|open|landscaped?|gardens?|park|recreation(?:al)?|lawns?)\b")
 BACKED_SHARE = 0.5   # of the bullet's words the second site's sentence must hold, as well as every number
 
 
@@ -696,12 +703,38 @@ def elsewhere(text: str, doc: Optional[dict]) -> bool:
                for a in AREAS for x in (a.name, *a.aliases))
 
 
+def land_sqft(doc: Optional[dict]) -> Optional[float]:
+    """The project's land in sq ft, from its published web facts (webfacts `land_acres`), or None."""
+    for f in ((doc or {}).get("web_facts") or {}).get("facts") or []:
+        v = f.get("value") if f.get("key") == "land_acres" else None
+        if isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0:
+            return float(v) * SQFT_PER["a"]
+    return None
+
+
+def larger_than_land(text: str, doc: Optional[dict]) -> bool:
+    """A bullet giving a part of the project (green areas, a clubhouse) more ground than the whole site: Godrej Ivara showed
+    "53,171 square meters planned for green and recreational areas" on 12.8 acres (about 51,800 square meters) until 2026-11-13:
+    the site's own size read as its gardens'. So green or open ground over GREEN_SHARE of the land is wrong too. Built-up floor
+    area can exceed the land, so a bullet about built space is left alone."""
+    land = land_sqft(doc)
+    if not land or re.search(r"(?i)built[- ]?up|carpet|floor area|saleable|construction|fsi|tower|clubhouse|club house", text or ""):
+        return False
+    for n, lakh, unit in _AREA.findall(text or ""):
+        u = unit.lower()
+        per = SQFT_PER["a"] if u.startswith("acre") else SQFT_PER["f"] if re.search(r"ft|fe|foot", u) else SQFT_PER["m"]
+        size = float(n.replace(",", "")) * (100000 if lakh else 1) * per
+        if size > land * LAND_SLACK or (_GREEN.search(text) and size > land * GREEN_SHARE):
+            return True
+    return False
+
+
 def contradicts(text: str, doc: Optional[dict], official: bool = False) -> bool:
     """A bullet MahaRERA's buildings prove wrong: fewer towers than this one registration files, "a single tower" included (more may be the whole project's), or
     one floor count for each tower where the filed towers differ (Godrej Ivara: "each with 43 floors", filed 37 to 43), or taller than
     any filed tower (Kohinoor Riverdale: "6 towers with 30 floors each", filed 28). Not those two on the builder's own site: it counts
     habitable floors where MahaRERA files sanctioned ones (Neco Park Central: "18 habitable"). Or a bullet in another area (`elsewhere`)."""
-    if elsewhere(text, doc):
+    if elsewhere(text, doc) or larger_than_land(text, doc):
         return True
     built = (doc or {}).get("buildings") or []
     plain = _digits(text)

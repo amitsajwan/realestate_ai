@@ -272,3 +272,20 @@ def test_a_single_tower_is_not_shown_where_maharera_files_two():
     doc = {"building_totals": {"towers": 2}, "buildings": [{"floors": 8}, {"floors": 8}]}
     assert profile.contradicts("The project consists of a single 12-floor tower with four units per floor", doc)
     assert not profile.contradicts("The project consists of a single 12-floor tower", {"building_totals": {"towers": 1}})
+
+
+IVARA_LAND = {"web_facts": {"facts": [{"key": "land_acres", "value": 12.8}]}}
+
+
+def test_green_ground_as_large_as_the_whole_site_is_hidden():
+    # Godrej Ivara, 2026-11-13: about 51,800 sq m of land, and the bullet gave 53,171 sq m to its gardens
+    assert profile.contradicts("The project site covers 53,171 square meters planned for green and recreational areas", IVARA_LAND)
+    assert profile.contradicts("40 acres of greens", IVARA_LAND)
+
+
+def test_ground_a_site_can_hold_and_built_space_stay():
+    for text in ("30,000 sq ft of open green space", "2.5 lakh sq ft of landscaped gardens", "A 6 acre central park",
+                 "Spread over 13 acres", "A 50,000 sq ft clubhouse", "Total built-up area of 2 million sq ft"):
+        assert not profile.contradicts(text, IVARA_LAND), text
+    # with no land figure there is nothing to measure against
+    assert not profile.contradicts("53,171 square meters of green areas", {})

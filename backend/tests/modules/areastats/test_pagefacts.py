@@ -364,3 +364,26 @@ async def test_a_studios_onwards_price_is_not_shown_as_the_projects_homes_or_in_
     # with no area to judge by, the price stays
     alone = await seeded(("P1", "VJ IndiLife", {"prices": priced(("All homes", 3_500_000, "35 Lacs* Onwards"))}))
     assert (await pages.project_page(alone, "vj-indilife", now=NOW))["prices"]["rows"][0]["from_inr"] == 3_500_000
+
+
+def web_with(*facts):
+    return {"read_at": "2026-11-07", "facts": [{"key": k, "label": k, "value": v, "text": str(v), "official": False, "sources": []}
+                                               for k, v in facts]}
+
+
+def test_a_highest_floor_count_maharera_disproves_is_not_shown():
+    # Godrej Ivara, 2026-11-13: "up to 30 floors" under MahaRERA's 43, badged "Gathered and checked"
+    shown = pagefacts.against_register(web_with(("floors", 30), ("land_acres", 12.8)), 43)
+    assert [f["key"] for f in shown["facts"]] == ["land_acres"]
+    assert pagefacts.against_register(web_with(("floors", 45)), 43) is None   # taller than any filed tower, nothing left
+
+
+def test_habitable_floors_close_to_the_filed_ones_stay():
+    assert pagefacts.against_register(web_with(("floors", 40)), 43)["facts"][0]["value"] == 40
+    assert pagefacts.against_register(web_with(("floors", 30)), None)["facts"][0]["value"] == 30   # nothing filed to check against
+
+
+def test_the_tallest_filed_tower_is_over_every_registration_of_the_page():
+    docs = [{"buildings": [{"floors": 38}, {"floors": 43}]}, {"buildings": [{"floors": 22}, {"floors": True}]}, {}]
+    assert pagefacts.filed_floors(docs) == 43
+    assert pagefacts.filed_floors([{}]) is None

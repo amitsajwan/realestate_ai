@@ -856,7 +856,7 @@ def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None, ix
         "same_promoter": same_promoter(doc, docs, ix) if docs is not None else [],
         "enriched_at": doc["enriched_at"].date().isoformat() if isinstance(doc.get("enriched_at"), datetime) else None,
         # links into other pages say how people search for them (rank-loop R5): search_name, else the marketed name
-        "same_area": [{"name": s.get("search_name") or branded_name(s) or names(s)[0], "slug": s["page_slug"], "completion_now": _day(s.get("completion_now"))}
+        "same_area": [{"name": card_name(s), "slug": s["page_slug"], "completion_now": _day(s.get("completion_now"))}
                       for s in same_area],
         "source": "MahaRERA public records",
     }
@@ -885,6 +885,25 @@ def same_promoter(doc: dict, docs: List[dict], ix: Optional["LoadIndex"] = None)
              "completion_now": _day(d.get("completion_now"))} for d in mine[:SAME_PROMOTER]]
 
 
+def card_name(d: dict) -> str:
+    """The name a project's card in another page's list shows."""
+    return d.get("search_name") or branded_name(d) or names(d)[0]
+
+
+def _one_per_name(docs: List[dict], doc: dict) -> List[dict]:
+    """The first card of each shown name, and none named as the page itself: two registrations of one project that no cluster
+    merged showed as "Lodha Camelot" twice with two prices on Godrej Ivara's page (2026-11-13), which reads as a page nobody
+    checked. The other stays on its own page and in the area lists."""
+    seen = {card_name(doc).strip().lower()}
+    out = []
+    for d in docs:
+        key = card_name(d).strip().lower()
+        if key not in seen:
+            seen.add(key)
+            out.append(d)
+    return out
+
+
 def _similar(doc: dict, docs: List[dict]) -> List[dict]:
     """Other indexable projects in the same area still being built or finished within a year (not `is_old`), the closest
     completion year first. For a finished project the ones still being built come first, soonest possession first, then the
@@ -898,9 +917,9 @@ def _similar(doc: dict, docs: List[dict]) -> List[dict]:
     if is_old(doc):
         today = date.today().isoformat()
         others.sort(key=lambda d: (_day(d.get("completion_now")) < today, _day(d.get("completion_now")), d.get("name", "")))
-        return others[:SAME_AREA_FINISHED]
+        return _one_per_name(others, doc)[:SAME_AREA_FINISHED]
     others.sort(key=lambda d: (abs(int(_day(d.get("completion_now"))[:4]) - year) if year else 0, d.get("name", "")))
-    return others[:SAME_AREA]
+    return _one_per_name(others, doc)[:SAME_AREA]
 
 
 def _web_source(src: Any, builders: bool) -> Any:
@@ -940,7 +959,7 @@ async def web_facts_for(db, regno: str) -> Optional[dict]:
         return None
     if doc.get("cluster_primary"):
         doc = await store.project(doc["cluster_primary"]) or doc
-    return web_public(doc.get("web_facts"))
+    return pagefacts.against_register(web_public(doc.get("web_facts")), pagefacts.filed_floors([doc]))
 
 
 async def profile_for(db, regno: str) -> Optional[dict]:
@@ -1152,7 +1171,10 @@ async def project_page(db, slug: str, now: Optional[datetime] = None) -> Optiona
     out["page_updated"] = cluster_updated(doc, docs, ix.stamps)
     group = group_primary(doc, docs, ix)
     # a count on the builder's or a property site said with its scope: the whole project's, or this registration's
-    out["web_facts"] = pagefacts.with_scope(web_public(group.get("web_facts")), out["details"])
+    # less any fact MahaRERA's filed buildings disprove (a floor count far from the tallest tower filed)
+    filed = [doc, *(ix.by_cluster.get(doc.get("cluster_id"), []) if ix and doc.get("cluster_id") else [])]
+    out["web_facts"] = pagefacts.with_scope(pagefacts.against_register(web_public(group.get("web_facts")), pagefacts.filed_floors(filed)),
+                                            out["details"])
     from .profile import public as profile_public
     # no AI pictures on any page (owner 2026-11-04); they stay on the record
     out["profile"] = profile_public(group.get("profile"), drawn=False, doc=group)
