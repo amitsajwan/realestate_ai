@@ -342,3 +342,13 @@ async def test_same_promoter_links_a_merged_project_by_its_page_never_its_towers
     assert [s["slug"] for s in pages.same_promoter(other, docs)] == ["vanaya-phase-2"]
     ix = pages.load_index(docs)
     assert pages.same_promoter(main, docs, ix) == pages.same_promoter(main, docs)
+
+
+def test_other_projects_show_each_name_once_and_never_the_page_itself():
+    # Godrej Ivara's page, 2026-11-13: two registrations of Lodha Camelot no cluster merged showed as two cards, two prices
+    me = {"_id": "P1", "name": "Godrej Ivara", "search_name": "Godrej Ivara"}
+    others = [{"_id": "P2", "name": "Lodha Camelot", "search_name": "Lodha Camelot"},
+              {"_id": "P3", "name": "Lodha Camelot", "search_name": "lodha camelot "},
+              {"_id": "P4", "name": "Majestique Tower East Phase-8", "search_name": "Majestique Tower East Phase-8"},
+              {"_id": "P5", "name": "Godrej Ivara", "search_name": "Godrej Ivara"}]
+    assert [d["_id"] for d in pages._one_per_name(others, me)] == ["P2", "P4"]
