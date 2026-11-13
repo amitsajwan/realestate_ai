@@ -3,6 +3,7 @@ import Link from 'next/link'
 import type { MarketingConfig } from '@/lib/marketing/config'
 import { FOOTER, NAV } from '@/lib/marketing/strings'
 import ContactBlock from './ContactBlock'
+import TeamBlock from './TeamBlock'
 import { siteLinks, type SiteLink } from './siteLinks'
 
 const link = 'flex min-h-[44px] items-center text-slate-800 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-800'
@@ -28,7 +29,7 @@ function Column({ title, links }: { title: string; links: SiteLink[] }) {
   )
 }
 
-/** Cream footer: name and tagline with the phone-free contact block, then Explore / For agents / Legal link columns. */
+/** Cream footer: name and tagline, the contact block and the team behind the site (House Deal), then Explore / For agents / Legal link columns. */
 export default function SiteFooter({ cfg }: { cfg: MarketingConfig }) {
   const s = siteLinks()
   return (
@@ -39,6 +40,7 @@ export default function SiteFooter({ cfg }: { cfg: MarketingConfig }) {
           <p className="text-base font-bold text-slate-900">{cfg.businessName}</p>
           <p className="mt-1 text-slate-700">{FOOTER.tagline}</p>
           <div className="mt-5"><ContactBlock tone="light" /></div>
+          <TeamBlock />
         </div>
         <nav aria-label={NAV.footerLabel} className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3">
           <Column title="Explore" links={s.footerExplore} />

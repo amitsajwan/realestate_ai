@@ -88,7 +88,8 @@ showing every project as they do today. Fifty strong pages that hold still lift 
 
 - Google Business Profile for Avasetu.
 - The About page says who stands behind the site as the Avasetu team (owner, 2026-11-06: no personal names, on the About page or on
-  reviews).
+  reviews). BUILT 2026-11-13: the team is House Deal (owner), with its office, phone, email and MahaRERA agent number on `/contact`,
+  About and the footer.
 - Monthly data stories pitched to Pune press and blogs ("Kharadi bookings, November 2026", from the MahaRERA tracker), each
   linking to its area's page.
 - Links from House Deal and partner agents' sites to the projects they sell.

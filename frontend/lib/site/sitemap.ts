@@ -97,6 +97,7 @@ export async function buildSitemap(): Promise<Grouped> {
     core(at('/localities', 0.8)),
     core(at('/pune-maharera-tracker', 0.8)),
     core(at('/about', 0.5)),
+    core(at('/contact', 0.5)),
     // a locality with a guide of the same slug names the guide as its canonical page, so only the guide is listed
     ...LOCALITIES.filter((l) => !topics.some((t) => t.slug === l.slug)).map((l) => core(at(`/localities/${l.slug}`, 0.8, l.updated))),
     core(at('/news', 0.8)),
