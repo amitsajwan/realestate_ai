@@ -33,6 +33,8 @@ describe('privacy page', () => {
 
   it('shows no email and says details are shared with an invite when none is configured', () => {
     const { container } = render(<PrivacyPage />)
+    // the site footer names the team behind the site with its email (site-nav.test pins it); the policy itself names none
+    container.querySelector('footer')?.remove()
     expect(container.querySelector('a[href^="mailto:"]')).toBeNull()
     expect(container.textContent).not.toMatch(/[\w.+-]+@[\w-]+\.[\w.]+/)
     expect(screen.getAllByText(/contact details are shared when you request an invite/i).length).toBeGreaterThan(0)

@@ -86,7 +86,7 @@ describe('site header', () => {
 })
 
 describe('site footer', () => {
-  it('links to every main page, legal pages and the social profiles, with no phone number', () => {
+  it('links to every main page, legal pages and the social profiles, and its only phone is the team\'s', () => {
     render(<SiteFooter cfg={cfg} />)
     const footer = screen.getByRole('contentinfo')
     for (const [name, href] of EXPECTED) expect(hrefOf(footer, name)).toBe(href)
@@ -96,8 +96,18 @@ describe('site footer', () => {
     }
     const hrefs = within(footer).getAllByRole('link').map((a) => a.getAttribute('href'))
     expect(hrefs).toEqual(expect.arrayContaining([socialLinks().instagram, socialLinks().facebook]))
-    expect(footer.textContent).not.toMatch(/(?:\+?\d[\s\-().]*){10,}/)
-    expect(footer.querySelector('a[href^="tel:"], a[href*="wa.me"]')).toBeNull()
+    // the team behind the site (House Deal, lib/site/team): its office, phone, email and MahaRERA number, and no other number
+    const team = within(footer).getByTestId('team-block')
+    expect(team).toHaveTextContent('House Deal, MahaRERA agent A031262502865')
+    expect(team).toHaveTextContent('1107, RTC Silver, Upper Kharadi, Wagholi, Pune 412207')
+    expect(Array.from(footer.querySelectorAll('a[href^="tel:"]')).map((a) => a.getAttribute('href'))).toEqual(['tel:+917447212121'])
+    expect(within(team).getByRole('link', { name: 'housedealofficial@gmail.com' })).toHaveAttribute('href', 'mailto:housedealofficial@gmail.com')
+    expect(within(team).getByRole('link', { name: 'Contact us' })).toHaveAttribute('href', '/contact')
+    expect(hrefOf(footer, /^contact$/i)).toBe('/contact')
+    const outside = footer.cloneNode(true) as HTMLElement
+    outside.querySelector('[data-testid="team-block"]')!.remove()
+    expect(outside.textContent).not.toMatch(/(?:\+?\d[\s\-().]*){10,}/)
+    expect(footer.querySelector('a[href*="wa.me"]')).toBeNull()
     expect(within(footer).queryByRole('link', { name: /sample agent page/i })).toBeNull()
     expect(within(footer).queryByRole('link', { name: /^posts$/i })).toBeNull()   // out of search: not linked site-wide
   })

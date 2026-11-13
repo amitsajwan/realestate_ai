@@ -65,6 +65,8 @@ describe('/for-agents brochure', () => {
 
   it('shows no phone number and no invented social proof', () => {
     const { container } = render(<ForAgentsPage />)
+    // the site footer names the team behind the site with its office phone (site-nav.test pins it); the brochure itself has none
+    container.querySelector('footer')?.remove()
     // the interim host (an IP-style sslip.io name) is an address, not a phone number
     const text = (container.textContent || '').split(siteUrl().replace(/^https?:\/\//, '')).join('<site>')
     expect(text).not.toMatch(PHONE)

@@ -7,16 +7,17 @@ import { breadcrumbJsonLd, jsonLdString, organizationJsonLd, pageMetadata } from
 import { socialLinks } from '@/lib/marketing/social'
 import { BRAND_NAME, BRAND_NAME_DEVANAGARI } from '@/lib/brand'
 import { HOW } from '@/lib/site/listRules'
+import { TEAM, teamAddress, teamForOrganization } from '@/lib/site/team'
 
 // Who is behind the site and how its facts are made (owner 2026-11-04, the SEO review's first item): home buying is a money
 // decision, so Google and the AI assistants look for this page before trusting a site's lists, and /about answered 404.
-// Every sentence here is something the code does (backend seo/facets.py, areastats/pages.py); no names, phone or email, as on
-// the rest of the site (components/marketing/ContactBlock).
+// Every sentence here is something the code does (backend seo/facets.py, areastats/pages.py). Who answers for it is House Deal
+// (owner 2026-11-13), with its office, phone and MahaRERA number (lib/site/team); no person is named.
 
 const PATH = '/about'
 const TITLE = `About ${BRAND_NAME}: how we check Pune's new projects`
-// "what", not "who": the page names no person yet (owner 2026-11-04: anonymous for now, names to come later)
-const DESCRIPTION = `What ${BRAND_NAME} is, where every fact comes from (the MahaRERA register, builders' sites), how the top, new launch and ready lists are ranked.`
+// the team is House Deal (owner 2026-11-13); still no person named
+const DESCRIPTION = `What ${BRAND_NAME} is, who runs it (House Deal, Upper Kharadi), where every fact comes from and how the top, new launch and ready lists are ranked.`
 
 export const metadata: Metadata = pageMetadata(getMarketingConfig(), { title: TITLE, description: DESCRIPTION, path: PATH })
 
@@ -33,7 +34,7 @@ const LISTS: { name: string; how: string; example: string }[] = [
 
 export default function AboutPage() {
   const cfg = getMarketingConfig()
-  const org = { ...organizationJsonLd(cfg, DESCRIPTION, Object.values(socialLinks())), alternateName: [BRAND_NAME_DEVANAGARI] }
+  const org = { ...organizationJsonLd(cfg, DESCRIPTION, Object.values(socialLinks())), alternateName: [BRAND_NAME_DEVANAGARI], ...teamForOrganization(cfg.siteUrl) }
   const ld = [
     { '@context': 'https://schema.org', '@type': 'AboutPage', name: TITLE, url: cfg.siteUrl + PATH, description: DESCRIPTION, mainEntity: org },
     breadcrumbJsonLd(cfg.siteUrl, [{ name: 'Home', path: '/' }, { name: 'About', path: PATH }]),
@@ -108,22 +109,24 @@ export default function AboutPage() {
           </p>
         </section>
 
-        {/* the partner agency Avasetu powers (owner 2026-11-04, "add our partner House Deal, we power them"): only what House
-            Deal's own page says about itself; its own site is linked as theirs */}
+        {/* the team behind the site (owner 2026-11-13: House Deal's contact is the main contact, House Deal the main team): only what
+            House Deal publishes about itself (lib/site/team); its own site is linked as theirs */}
         <section aria-labelledby="partner-title" className="mt-10" data-testid="about-partner">
-          <h2 id="partner-title" className={h2}>Our partner: House Deal</h2>
+          <h2 id="partner-title" className={h2}>Who runs {BRAND_NAME}</h2>
           <p className={p}>
-            House Deal is a property advisory office at RTC Silver, Upper Kharadi, for new projects across East Pune. {BRAND_NAME} powers{' '}
-            <a href="/agent/house-deal" className={a}>House Deal&apos;s page</a>: its projects with their prices, the same MahaRERA checks
-            as every page here, and buyer enquiries. Being our partner never moves a project up our lists.{' '}
-            <a href="https://house-deal.com" target="_blank" rel="noopener noreferrer" className={a}>House Deal&apos;s own website<span className="sr-only"> (opens in a new tab)</span></a>.
+            The team behind {BRAND_NAME} is <a href={TEAM.page} className={a}>{TEAM.name}</a>, {TEAM.what}, registered with MahaRERA as a
+            real estate agent ({TEAM.rera}). Its office is at {teamAddress()}. The team answers the enquiries sent from this website and
+            fixes a page when someone tells us it is wrong. {TEAM.name} also sells homes in some of the projects here: its listings are
+            marked on their pages, and that never moves a project up our lists.{' '}
+            <a href="/contact" className={a}>Contact us</a> or see{' '}
+            <a href={TEAM.website} target="_blank" rel="noopener noreferrer" className={a}>House Deal&apos;s own website<span className="sr-only"> (opens in a new tab)</span></a>.
           </p>
         </section>
 
         <section aria-labelledby="fix-title" className="mt-10">
           <h2 id="fix-title" className={h2}>Found a mistake?</h2>
           <p className={p}>
-            Tell us through the <a href="/enquire?src=about_correction" className={a}>enquiry form</a> or a message on our Facebook or Instagram page (linked at the foot of this page), with the project&apos;s name. We
+            Tell us through the <a href="/enquire?src=about_correction" className={a}>enquiry form</a>, a call or an email (on the <a href="/contact" className={a}>contact page</a>), or a message on our Facebook or Instagram page, with the project&apos;s name. We
             check it against MahaRERA and the builder&apos;s documents and fix the page, which then shows the new date.
           </p>
         </section>
