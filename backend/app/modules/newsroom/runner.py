@@ -23,13 +23,16 @@ def load_sources(names) -> list:
     return build_sources(list(names))
 
 
-async def _weekly_digest(store: Store, stages: dict, now: datetime, counts: dict) -> None:
-    """Sunday from 18:00 IST: build the week's digest for the owner to approve (once per week, only with at least two stories)."""
+async def _weekly_digest(store: Store, stages: dict, now: datetime, counts: dict, auto_approve: bool = False) -> None:
+    """Sunday from 18:00 IST: build the week's digest (once per week, only with at least two stories). It has passed the check by
+    then; with auto-approve on it goes out like any other checked item, else it waits for the owner."""
     if not digest.is_due(now):
         return
     try:
         built = await digest.build(store, now, stages.get("check"), stages.get("cards"))
         counts["digest"] = 1 if built else 0
+        if built and auto_approve:
+            await store.move(built["_id"], "approved", "auto-approved: weekly digest passed the checks")
     except Exception:
         log.exception("newsroom: digest failed")
 
@@ -81,7 +84,7 @@ async def cycle(store: Store, cfg, hb=None) -> dict:
             counts = {k: counts.get(k, 0) + more.get(k, 0) for k in set(counts) | set(more)}
         await _track(store, llm, now, counts)
         await _wide_cards(store, counts)
-        await _weekly_digest(store, stages, now, counts)
+        await _weekly_digest(store, stages, now, counts, cfg.auto_approve)
         await _area_records(store, stages, cfg, counts)
         await store.set_run(last_run_at=now, last_error=None, last_counts=counts)
         return counts

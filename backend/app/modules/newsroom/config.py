@@ -28,7 +28,7 @@ class NewsroomConfig:
     owner_ids: Tuple[str, ...] = ()  # user ids allowed to review and approve; empty = superusers only
     read_articles: bool = False  # fetch the article page when a source gives only a headline and a line
     research: bool = True  # before writing: read the full report, other publishers' reports of the story, and our area guide
-    auto_approve: bool = False  # NEWSROOM_AUTO_APPROVE, on unless set false: a full report that passes every check is published without the owner's review (owner, 2026-10-17)
+    auto_approve: bool = False  # NEWSROOM_AUTO_APPROVE, on unless set false: a full report and the weekly digest that pass every check are published without the owner's review (owner, 2026-10-17 and 2026-11-15)
 
 
 def load() -> NewsroomConfig:

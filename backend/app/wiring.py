@@ -46,6 +46,9 @@ def wire() -> None:
     # newsroom research gives a story background from our verified area guide (conversations' knowledge)
     from app.modules.newsroom.stages import research as news_research
     news_research.configure(area_facts=_area_guide_facts)
+    # a published story also goes to our YouTube channel as a Short drawn from its cards, with reels' slide renderer
+    from app.modules.newsroom import adapters as news_adapters
+    news_adapters.configure(render_short=_render_news_short)
     # comment replies know which posts are our agent promos (content's rule, calendar.reach)
     from app.modules.reels.agent_reels import source_tag as agent_reel_source
     engage_service.configure(listing_facts=Facts.from_docs, audience=calendar_reach.audience, reel_source=agent_reel_source)
@@ -351,3 +354,9 @@ async def _pincode_centre(db, pincode):
         return (float(rows[0]["lat"]), float(rows[0]["lon"])) if rows else None
     except (KeyError, TypeError, ValueError, IndexError):
         return None
+
+
+def _render_news_short(slides, dest, hook):
+    """The newsroom's Short: its card images as a vertical slide video opening on the headline (reels.slides)."""
+    from app.modules.reels.slides import make_slides_reel
+    return make_slides_reel(list(slides), dest, hook=hook)

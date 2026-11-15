@@ -11,8 +11,10 @@ import httpx
 
 from app.platform.llm import default_llm as _default_llm
 from app.platform.meta_graph import config as social_config
+from app.core import brand
 from app.core.database import get_database
-from app.modules.social.distribution import graph_publisher, page_feed_post, send as ledger_send
+from app.modules.social.distribution import graph_publisher, page_feed_post, send as ledger_send, youtube_short
+from app.platform import youtube_upload as yt
 from app.platform.meta_graph.publisher import Post, PublishError, sanitize
 
 from . import captions, cards
@@ -132,8 +134,86 @@ async def register_hub(db, doc: dict, permalink: str = "") -> None:
 
 
 async def after_publish(db, doc: dict, channels: dict) -> None:
-    """The pipeline's optional `after_publish` stage: put the item on the link-in-bio hub, pointing at its Page post."""
+    """The pipeline's optional `after_publish` stage: put the item on the link-in-bio hub, pointing at its Page post, and the story
+    as a Short on our YouTube channel."""
     await register_hub(db, doc, (channels.get("facebook") or {}).get("permalink") or (channels.get("instagram") or {}).get("permalink") or "")
+    out = [c for c in channels.values() if isinstance(c, dict) and c.get("ok")]
+    if out and not all(c.get("dry_run") for c in out):  # a dry run stays a dry run: nothing goes to YouTube either
+        await to_youtube(db, doc)
+
+
+# ---- the story as a YouTube Short (docs/plan/visibility-base.md step 1) ----------------------------------------------------------------
+
+SHORTS_DIR = "news/shorts"
+_render_short: Optional[Callable] = None  # (slides: list of Paths, dest: Path, hook: str) -> Path; reels' slide renderer, from wiring
+
+
+def configure(render_short: Optional[Callable] = None) -> None:
+    """The composition root (app/wiring.py) passes reels' slide-video renderer in: reels sits beside the newsroom, not below it."""
+    global _render_short
+    _render_short = render_short
+
+
+def youtube_meta(doc: dict) -> yt.VideoMeta:
+    """Our headline (never the source's) with the place, the story's page first in the description, then the supporting fact and
+    who reported it. Nothing here that is not already on the checked card or the page."""
+    digest = (doc.get("draft") or {}).get("format") == "digest"
+    places = pr.area_names(doc)
+    head = pr.headline(doc)
+    where = f"{' · '.join(places)}, Pune" if places else "Pune"
+    if not any(p.lower() in head.lower() for p in (places or ["Pune"])):  # searches are by area: "kharadi" more than "pune"
+        head = f"{head} | {where}"
+    page = ((doc.get("draft") or {}).get("link") or f"{pr.site_url()}/news") if digest else pr.news_url(doc["_id"])
+    lines = [f"Full story with its sources: {page}"]
+    if digest:
+        lines += [f"• {s.get('hook')} ({s.get('source')})" for s in (doc.get("digest") or {}).get("items") or [] if s.get("hook")]
+    else:
+        line = pr.support_line(doc)
+        if line:
+            lines.append(line if line.endswith((".", "!", "?")) else line + ".")
+        who, when = ", ".join(pr.source_names(doc)), pr.as_of_label(doc)
+        if who:
+            lines.append(f"Reported by {who}" + (f", as of {when}." if when else "."))
+    lines.append(f'Search "{brand.NAME} {places[0] if places else "Pune"}" on Google for every project and its MahaRERA record.')
+    tags = places + ["Pune", "Pune real estate news", pr.pillar_label(doc), "MahaRERA", brand.NAME]
+    return yt.VideoMeta(title=head, description="\n\n".join(lines), tags=[t for t in tags if t], language="en")
+
+
+def short_slides(doc: dict, uploads: Path) -> list:
+    """The card images the Short is made of, in order: a story's portrait and square cards, or the digest's carousel. Empty when
+    any is missing."""
+    card = doc.get("card") or {}
+    ig = card.get("ig") if isinstance(card.get("ig"), list) else [card.get("ig")] if card.get("ig") else []
+    rels = ig + ([card["fb"]] if card.get("fb") and len(ig) < 2 else [])
+    paths = [Path(uploads) / r for r in rels]
+    return paths if len(paths) >= 2 and all(p.is_file() for p in paths) else []
+
+
+async def to_youtube(db, doc: dict, uploads: Optional[Path] = None, render: Optional[Callable] = None):
+    """Best effort, after the story is out on Facebook or Instagram: the same cards as a vertical video on our YouTube channel, once
+    per story (ledger key youtube:news-<id>, social.distribution). Nothing is drawn while the upload is not set up. None when not
+    set up, paused, capped, or the cards or renderer are missing; never raises."""
+    render = render or _render_short
+    try:
+        if db is None or render is None or not yt.load().ready:
+            return None
+        uploads = uploads or uploads_dir()
+        slides = short_slides(doc, uploads)
+        if not slides:
+            log.info("newsroom: no cards for a YouTube Short of %s", doc.get("_id"))
+            return None
+        dest = Path(uploads) / SHORTS_DIR / f"{doc['_id']}.mp4"
+        if not (dest.is_file() and dest.stat().st_size > 0):
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            hook = ((doc.get("digest") or {}).get("cover") if (doc.get("draft") or {}).get("format") == "digest" else None) or pr.hook(doc)
+            await asyncio.to_thread(render, slides, dest, hook)
+        res = await youtube_short(db, f"news-{doc['_id']}", dest, youtube_meta(doc))
+        if res:
+            log.info("newsroom: %s is on YouTube: %s", doc.get("_id"), res.permalink or res.external_id)
+        return res
+    except Exception as e:  # a YouTube refusal or a render failure must never touch the story that is already out
+        log.warning("newsroom: YouTube Short of %s failed: %s", doc.get("_id"), sanitize(f"{type(e).__name__}: {e}"))
+        return None
 
 
 def _fail(msg) -> dict:
