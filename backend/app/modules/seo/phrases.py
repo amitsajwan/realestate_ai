@@ -19,7 +19,7 @@ from typing import Dict, List, Optional, Tuple
 from app.core import pune_places
 
 from . import gaps
-from .facets import BHKS, FIRST_YEAR, LAST_YEAR, Facet
+from .facets import BHKS, BUDGETS, FIRST_YEAR, LAST_YEAR, Facet
 
 VOCAB = Path(__file__).with_name("vocabulary.json")
 # words in builders' names that say nothing about which builder ("Kolte Patil Developers" is "kolte patil")
@@ -51,6 +51,36 @@ def _blank(text: str, phrase: str) -> str:
     return text.replace(p, " ") if len(p) > 2 else text
 
 
+# the words of each budget list (facets.BUDGETS), after _budget_words; only a search whose band is exactly one of ours maps to
+# its page ("under 40 lakh" is not "under 50 lakh" and keeps going to the agents' pages)
+BUDGET_WORDS: Dict[str, Tuple[str, ...]] = {
+    "under-50-lakh": ("under 50 lakh", "below 50 lakh", "within 50 lakh", "less than 50 lakh", "upto 50 lakh", "up to 50 lakh"),
+    "50-lakh-to-1-crore": ("50 lakh to 1 crore", "50 lakh 1 crore"),
+    "1-to-2-crore": ("1 to 2 crore", "1 crore to 2 crore", "1 2 crore"),
+    "above-2-crore": ("above 2 crore", "over 2 crore", "more than 2 crore"),
+}
+assert set(BUDGET_WORDS) == set(BUDGETS)
+
+
+def _budget_words(text: str) -> str:
+    """Spellings of lakh and crore made one ("50 lakhs", "50 lacs", "2 cr")."""
+    for a, b in ((" lakhs ", " lakh "), (" lacs ", " lakh "), (" lac ", " lakh "), (" l ", " lakh "), (" crores ", " crore "),
+                 (" cr ", " crore "), (" cror ", " crore ")):
+        text = text.replace(a, b).replace(a, b)
+    return text
+
+
+def budget_band(phrase: str) -> Tuple[Optional[str], str]:
+    """The budget list a search asks for, or None; the normalised text with the band's words blanked out."""
+    text = _budget_words(_norm(phrase))
+    for slug, words in BUDGET_WORDS.items():
+        for w in sorted(words, key=len, reverse=True):
+            hit, text2 = _take(text, w)
+            if hit:
+                return slug, text2
+    return None, text
+
+
 def _place(text: str) -> Tuple[Optional[str], str]:
     """The place a search names, however it is spelt ("lohegoan" is Lohegaon: pune_places.in_search), and the text without it."""
     hit = pune_places.in_search(text)
@@ -80,14 +110,19 @@ def parse(phrase: str, builders: Optional[Dict[str, str]] = None) -> dict:
         if hit:
             out["unanswerable"].append(w)
             text = text2
-    # "2 bhk flats in lohegaon" (and "2 bhk flat price in ...") is a size page drawn from published prices; a budget ("under 50
-    # lakh") or a size we have no page for goes to the existing page types
+    # "2 bhk flats in lohegaon" (and "2 bhk flat price in ...") is a size page drawn from published prices; another budget
+    # ("under 40 lakh") or a size we have no page for goes to the existing page types
     size = re.search(r"\b(\d)(?:\.5)?\s*bhk\b", phrase.lower())
     bhk = int(size.group(1)) if size and int(size.group(1)) in BHKS else None
     if bhk:
         text = re.sub(r" \d(?: 5)? ?bhk ", " ", text)
+    # "flats under 50 lakh in wagholi" is the register's budget list when the band is one of ours, else the agents' page
+    band, banded = budget_band(text) if not size else (None, text)
+    if band:
+        text = banded
     budget = [w for w in v["existing_pages"] if w not in v["size_price_words"]]
-    if any(_norm(w) in text for w in budget) or (size and not bhk) or (not bhk and any(_norm(w) in text for w in v["existing_pages"])):
+    if not band and (any(_norm(w) in text for w in budget) or (size and not bhk)
+                     or (not bhk and any(_norm(w) in text for w in v["existing_pages"]))):
         out["existing"] = gaps.template(phrase, list((builders or {}).values()))
         return out
     for w in v["size_price_words"]:
@@ -118,6 +153,11 @@ def parse(phrase: str, builders: Optional[Dict[str, str]] = None) -> dict:
     out["unknown"] = [w for w in text.split() if not w.isdigit() and len(w) > 1]
     if bhk and intent is None:
         intent = "all"
+    if band:
+        # a budget list stands alone (facets.parse): "new launches under 50 lakh" or a builder's is left to the plain list
+        if place and intent in (None, "all") and not possession and not builder and not out["unanswerable"]:
+            out["facet"] = Facet(place, "all", budget=band)
+        return out
     if place and intent and not out["unanswerable"]:
         out["facet"] = Facet(place, intent, possession, builder, bhk)
     return out

@@ -28,7 +28,7 @@ import type { PropertyFactsView, PublicListing } from '@/lib/site/types'
 import type { WebFact } from '@/lib/site/webfacts'
 import { formatPrice, groupIndian } from '@/lib/site/format'
 import { agentPath } from '@/lib/site/slug'
-import { OWN_CASH_NOTE, ownCash } from '@/lib/site/upfront'
+import { emiFor, OWN_CASH_NOTE, ownCash } from '@/lib/site/upfront'
 import { projectUpdated, registerAnswer } from '@/lib/site/projectFacts'
 import ProjectPoints, { HomeSizes } from '@/components/site/ProjectPoints'
 import { backing, priceHelp, sizeHelp, type Backing, type PriceHelpText } from '@/lib/site/sellerHelp'
@@ -327,6 +327,23 @@ function PriceHelp({ help }: { help: PriceHelpText | null }) {
   )
 }
 
+/** The example EMI on the lowest published price, worked out as the agent's offer card does (lib/site/upfront emiFor). Homes only:
+ *  shops and offices are bought with other loans. */
+function PublishedEmi({ p }: { p: RegisterProject }) {
+  if (p.homes === false) return null
+  const lows = (p.prices?.rows ?? []).map((r) => r.from_inr).filter((v) => v > 0)
+  const e = lows.length ? emiFor(Math.min(...lows)) : null
+  if (!e) return null
+  return (
+    <p className="text-sm text-slate-800" data-testid="published-emi">
+      EMI on the lowest price, as an example: about <strong>{formatPrice(e.emi)} a month</strong>
+      <span className="mt-1 block text-xs text-slate-600">
+        On a {formatPrice(e.loan)} loan (80% of {formatPrice(Math.min(...lows))}) at {e.rate}% for {e.years} years. Ask your bank for its rate.
+      </span>
+    </p>
+  )
+}
+
 /** Prices and sizes ("<name> price"): the agent's offer first when there is one (the page's one price), else the published asked
  *  prices per home size, then the rough price guide (sizes one site prices, the area's usual bands); the area's ₹ per sq ft
  *  beside them, then what the buyer gets by asking. */
@@ -345,6 +362,7 @@ function PricesSection({ p, shown, offer, priced, numbers, stage, help }: {
       <div className="mt-3 space-y-4">
         {offer && <OfferBox o={offer} numbers={numbers} stage={stage} />}
         {!priced && <PriceBox prices={p.prices} stage={stage} />}
+        {!offer && rows && <PublishedEmi p={p} />}
         {!offer && !rows && !idea?.rows.length && <p className="text-slate-800">No price for {shown} is published yet.</p>}
         {idea && <PriceIdea idea={idea} shown={shown} />}
         {rate && (
@@ -1012,14 +1030,18 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
             <section aria-labelledby="promoter-title" data-testid="same-promoter">
               <h2 id="promoter-title" className={H2}>More by {p.promoter}</h2>
               <ul className="mt-3 grid list-none gap-2 p-0 sm:grid-cols-2">
-                {byPromoter.map((s) => (
-                  <li key={s.slug}>
-                    <Link href={`/projects/${s.slug}`} className="block min-h-[44px] rounded-xl border border-slate-200 bg-white px-3 py-2 no-underline hover:border-[#0f2340]">
-                      <span className="block font-semibold text-[#0f2340]">{displayName(s)}</span>
-                      {s.completion_now && <span className="text-sm text-slate-600">possession {monthYear(s.completion_now)}</span>}
-                    </Link>
-                  </li>
-                ))}
+                {byPromoter.map((s) => {
+                  const line = [s.bhk || null, s.price_from ? `from ${formatPrice(s.price_from)}` : null,
+                    s.completion_now ? `possession ${monthYear(s.completion_now)}` : null].filter(Boolean).join(' · ')
+                  return (
+                    <li key={s.slug}>
+                      <Link href={`/projects/${s.slug}`} className="block min-h-[44px] rounded-xl border border-slate-200 bg-white px-3 py-2 no-underline hover:border-[#0f2340]">
+                        <span className="block font-semibold text-[#0f2340]">{displayName(s)}</span>
+                        {line && <span className="text-sm text-slate-600">{line}</span>}
+                      </Link>
+                    </li>
+                  )
+                })}
               </ul>
             </section>
           )}

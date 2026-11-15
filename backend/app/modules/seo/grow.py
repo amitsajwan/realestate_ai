@@ -150,8 +150,8 @@ def gate(cand: dict, regnos: List[str], live: List[dict]) -> dict:
         if p["_id"] == cand["facet"].key or p.get("place") != cand["facet"].place:
             continue
         other = facets.from_key(p["_id"])
-        if other is not None and other.bhk != cand["facet"].bhk:
-            continue   # "2 bhk flats in X" is its own search, with prices the other lists do not show
+        if other is not None and (other.bhk != cand["facet"].bhk or other.budget != cand["facet"].budget):
+            continue   # "2 bhk flats in X" and "flats under 50 lakh in X" are their own searches, with prices the others do not show
         o = overlap(regnos, p.get("regnos") or [])
         if o > worst:
             worst, with_ = o, p["_id"]
@@ -303,10 +303,14 @@ async def live_pages(db, now: Optional[datetime] = None) -> List[dict]:
             f"Possession {f.possession}" if f.intent == "all" else f"{facets.LABEL[f.intent]}, possession {f.possession}")
         if f.bhk:
             label = f"{f.bhk} BHK flats" if f.intent == "all" and not f.possession else f"{label}, {f.bhk} BHK"
+        if f.budget:
+            label = f"Flats {facets.BUDGETS[f.budget][0]}"
         out.append({"key": f.key, "path": f.path, "place": f.place, "place_slug": facets.place_slug(f.place), "intent": f.intent,
-                    "possession": f.possession, "builder": f.builder, "bhk": f.bhk, "label": label, "count": len(listed),
+                    "possession": f.possession, "builder": f.builder, "bhk": f.bhk, "budget": f.budget, "label": label, "count": len(listed),
                     "indexable": facets.in_search(members), "page_updated": max(stamp) if stamp else None})
-    out.sort(key=lambda r: (r["place"], facets.INTENTS.index(r["intent"]), r["bhk"] or 0, r["possession"] or 0, r["builder"] or ""))
+    order = list(facets.BUDGETS)
+    out.sort(key=lambda r: (r["place"], facets.INTENTS.index(r["intent"]), r["bhk"] or 0,
+                            order.index(r["budget"]) + 1 if r["budget"] else 0, r["possession"] or 0, r["builder"] or ""))
     return out
 
 

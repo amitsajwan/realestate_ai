@@ -867,6 +867,12 @@ SAME_PROMOTER = 8
 
 def same_promoter(doc: dict, docs: List[dict], ix: Optional["LoadIndex"] = None) -> List[dict]:
     """Up to 8 other pages by the same promoter, active (not finished) first: {name, marketed_name, slug, completion_now}."""
+    return [{"name": d.get("name", ""), "marketed_name": names(d)[0], "search_name": d.get("search_name") or None, "branded_name": branded_name(d), "slug": d["page_slug"],
+             "completion_now": _day(d.get("completion_now"))} for d in promoter_pages(doc, docs, ix)]
+
+
+def promoter_pages(doc: dict, docs: List[dict], ix: Optional["LoadIndex"] = None) -> List[dict]:
+    """The records behind same_promoter, in its order."""
     key = promoter_key(doc.get("promoter"))
     if not key:
         return []
@@ -881,8 +887,7 @@ def same_promoter(doc: dict, docs: List[dict], ix: Optional["LoadIndex"] = None)
         if p.get("page_slug") and p["page_slug"] not in seen:
             seen.add(p["page_slug"])
             mine.append(p)
-    return [{"name": d.get("name", ""), "marketed_name": names(d)[0], "search_name": d.get("search_name") or None, "branded_name": branded_name(d), "slug": d["page_slug"],
-             "completion_now": _day(d.get("completion_now"))} for d in mine[:SAME_PROMOTER]]
+    return mine[:SAME_PROMOTER]
 
 
 def card_name(d: dict) -> str:
@@ -1194,6 +1199,12 @@ async def project_page(db, slug: str, now: Optional[datetime] = None) -> Optiona
     for row, s in zip(out["same_area"], similar):
         shown = homes_only(prices_public(s.get("prices"), now), floor)
         row["price_from"], row["bhk"] = pagefacts.price_from(shown), pagefacts.sizes_label(shown)
+    # the builder's other projects the same way, from their size rows only: they may be in another area, whose overall prices
+    # this area's floor cannot judge (a studio or booking amount read as "Homes from")
+    for row, s in zip(out["same_promoter"], promoter_pages(doc, docs, ix)):
+        shown = prices_public(s.get("prices"), now)
+        sized = {**shown, "rows": [r for r in shown["rows"] if r.get("bhk") != "All homes"]} if shown else None
+        row["price_from"], row["bhk"] = pagefacts.price_from(sized), pagefacts.sizes_label(sized)
     out["area_rate"] = pagefacts.area_rate(place, (prices_public(d.get("prices"), now) for d in others))
     # this project beside the rest of its area: booked share and date move (the area's records, each project once)
     neighbours = [d for d in area_docs if not d.get("cluster_primary") and d["_id"] != mine]

@@ -44,6 +44,9 @@ function description(p: FacetPage): string {
     const shown = p.rows.slice(0, has(2) ? 3 : has(3) ? 2 : has(6) ? 1 : 0).map((r) => r.name).join(', ')
     return shown ? `: ${shown}` : ''
   }
+  if (p.budget_label && lows.length) {
+    return fitDescription((has) => `${p.count} new projects in ${p.place.name}, Pune with flats ${p.budget_label}, from ${formatPrice(Math.min(...lows))}${names(has)}. ${has(1) ? "Price from the builder's site, possession" : 'Possession'} filed with MahaRERA and homes booked.`)
+  }
   if (p.bhk && lows.length) {
     return fitDescription((has) => `${p.count} new projects in ${p.place.name}, Pune with ${p.bhk} BHK flats from ${formatPrice(Math.min(...lows))}${names(has)}. ${has(1) ? "Price from the builder's site, possession" : 'Possession'} filed with MahaRERA and homes booked.`)
   }
@@ -165,7 +168,7 @@ export default async function FacetPageView({ params }: Props) {
   const zone = places.find((x) => x.key === p.place.key)?.zone
   const zoneKeys = new Set(places.filter((x) => x.zone === zone).map((x) => x.key))
   const nearby = all.filter((f) => f.indexable && f.place !== p.place.key && zoneKeys.has(f.place) && f.intent === p.intent
-    && f.possession === p.possession && (f.bhk ?? null) === (p.bhk ?? null) && !f.builder).slice(0, 8)
+    && f.possession === p.possession && (f.bhk ?? null) === (p.bhk ?? null) && (f.budget ?? null) === (p.budget ?? null) && !f.builder).slice(0, 8)
   const placeName = (key: string) => places.find((x) => x.key === key)?.name ?? key
   const faq = facetFaq(p)
   // the Top list is the buyer's shortlist: ranked cards, then rows into the other lists of the place, then the sold out ones
@@ -305,7 +308,8 @@ export default async function FacetPageView({ params }: Props) {
           <h2 id="how-title" className="text-xl font-semibold text-slate-900">How this list is made</h2>
           <p className="mt-2 text-slate-800">
             {p.bhk ? `Only projects with a ${p.bhk} BHK price (${p.bhk}.5 BHK counts) that the builder's own site states, or that two property sites agree on, read in the last 45 days. ` : ''}
-            {p.bhk && p.intent === 'all' ? 'Projects still being sold, cheapest first.' : HOW[p.intent]}{p.possession ? ` Only projects whose filed completion date is in ${p.possession}.` : ''}{p.builder_name ? ` Only projects by ${p.builder_name}.` : ''}{' '}
+            {p.budget_label ? `Only projects with a size whose starting price is ${p.budget_label}, as the builder's own site states it or two property sites agree, read in the last 45 days. ` : ''}
+            {(p.bhk || p.budget) && p.intent === 'all' ? 'Projects still being sold, cheapest first.' : HOW[p.intent]}{p.possession ? ` Only projects whose filed completion date is in ${p.possession}.` : ''}{p.builder_name ? ` Only projects by ${p.builder_name}.` : ''}{' '}
             Towers and phases of one project count once. From {p.source}, worked out on {longDay(p.as_of)}; each project&apos;s page shows the
             date we read its record. No builder pays to be on this list. This is general information, not investment or legal advice.
           </p>

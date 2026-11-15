@@ -161,6 +161,16 @@ async def test_compared_projects_show_their_lowest_price_and_sizes():
     assert got == {"sized": (7_000_000, "2, 3 BHK"), "overall-only": (8_000_000, None), "unpriced": (None, None)}
 
 
+async def test_the_builders_other_projects_show_their_lowest_size_price_never_an_overall_one():
+    db = await seeded(("P1", "Our Project", {}),
+                      ("P2", "Far Sized", {"locality": "baner", "prices": priced(("2 BHK", 9_500_000, "2 BHK from ₹ 95 L"),
+                                                                                   ("All homes", 3_500_000, "Studios from ₹ 35 L"))}),
+                      ("P3", "Far Overall", {"locality": "baner", "prices": priced(("All homes", 8_000_000, "Homes from ₹ 80 L"))}))
+    page = await pages.project_page(db, "our-project", now=NOW)
+    got = {s["slug"]: (s["price_from"], s["bhk"]) for s in page["same_promoter"]}
+    assert got == {"far-sized": (9_500_000, "2 BHK"), "far-overall": (None, None)}
+
+
 def test_sizes_label_puts_a_studio_first():
     assert pagefacts.sizes_label({"rows": [{"bhk": "1 RK"}, {"bhk": "1 BHK"}, {"bhk": "2 BHK"}]}) == "1 RK, 1, 2 BHK"
     assert pagefacts.sizes_label({"rows": [{"bhk": "Plot"}]}) is None

@@ -19,7 +19,9 @@ export interface RegisterProject {
   /** newest date this page's facts changed (our crawler or MahaRERA); null when unknown */
   page_updated?: string | null
   /** the promoter's other projects in our register */
-  same_promoter?: { name: string; marketed_name?: string | null; search_name?: string | null; slug: string; completion_now: string | null }[]
+  same_promoter?: { name: string; marketed_name?: string | null; search_name?: string | null; slug: string; completion_now: string | null
+    /** its lowest published size price and the sizes priced (backend pages.project_page), like same_area */
+    price_from?: number | null; bhk?: string | null }[]
   regno: string
   promoter: string | null
   pincode: string | null
@@ -292,8 +294,12 @@ export function projectFaq(p: RegisterProject, nearby: { label?: string | null; 
   const asked = (p.faq ?? []).filter((f) => f.q && f.a)
   if (!asked.length) return ownFaq(p, nearby, price).map(({ q, a }) => ({ q, a }))
   const topics = new Set(asked.map((f) => f.topic))
-  const own = ownFaq(p, nearby, price).filter((f) => !topics.has(f.topic))
-  return [...own.slice(0, 1), ...asked.map((f) => ({ q: f.q, a: f.a })), ...own.slice(1).map(({ q, a }) => ({ q, a }))].slice(0, 12)
+  const all = ownFaq(p, nearby, price)
+  // the distance questions come last and are kept whatever the writer asked: each names one place, the searches buyers make
+  const far = all.filter((f) => f.topic === 'near' && !asked.some((x) => x.q.toLowerCase() === f.q.toLowerCase()))
+  const rest = all.filter((f) => f.topic !== 'near' && !topics.has(f.topic))
+  return [...rest.slice(0, 1), ...asked.map((f) => ({ q: f.q, a: f.a })), ...rest.slice(1).map(({ q, a }) => ({ q, a }))].slice(0, 12)
+    .concat(far.map(({ q, a }) => ({ q, a })))
 }
 
 function ownFaq(p: RegisterProject, nearby: { label?: string | null; name?: string | null; km?: number | null }[] = [],
@@ -356,15 +362,42 @@ function ownFaq(p: RegisterProject, nearby: { label?: string | null; name?: stri
       a: `The promoter registered with MahaRERA is ${p.promoter}.` + (b && b.count > 1 ? ` Our register has ${b.count} Pune projects by ${b.name}${b.record_ok ? `; ${b.moved_later} of ${b.with_dates} with both dates moved their completion date 3 months or more later` : ''}.` : '') })
   }
   out.push({ topic: 'location', q: `Where is ${shown}?`, a: `${shown} is in ${where}${p.pincode ? ` (pincode ${p.pincode})` : ''}.` })
-  const near = nearby.filter((n) => n.name && n.km != null).slice(0, 3)
-  if (near.length) {
-    out.push({ topic: 'near', q: `What is near ${shown}?`,
-      a: near.map((n) => `${n.name}${n.label ? ` (${n.label})` : ''}, ${n.km} km`).join('; ') + ' (OpenStreetMap, straight-line distance).' })
-  }
   if (completionPassedOf(p)) {
     out.push({ topic: 'oc', q: `Has the completion date of ${shown} passed?`, a: 'Yes. Ask the builder for the occupancy certificate (OC) before you book.' })
   }
-  return out.slice(0, 11)
+  return [...out.slice(0, 11), ...distanceFaq(p, shown, nearby)]
+}
+
+const LINE = ' in a straight line from the map position; the drive is longer.'
+const kmText = (x: number) => `${Number.isInteger(x) ? x : x.toFixed(1)} km`
+
+/** The distance questions buyers search ("nearest hospital to <project>", "<project> distance from airport"), each answered from
+ *  a measured distance the page's location section shows: the nearest place of a kind (backend propertyfacts/surroundings) or a
+ *  work hub (backend core/work_hubs, measured only from a checked map position). A kind with no measured place asks nothing. */
+export function distanceFaq(p: Pick<RegisterProject, 'commute'>, shown: string,
+  nearby: { label?: string | null; name?: string | null; km?: number | null }[] = []): (Faq & { topic: string })[] {
+  const out: (Faq & { topic: string })[] = []
+  const nearest = (label: string) => nearby.filter((n) => n.name && n.km != null && n.label === label)
+    .sort((a, b) => (a.km as number) - (b.km as number))[0]
+  for (const [label, q] of [['Hospital', 'Which hospital is nearest to'], ['School', 'Which school is nearest to'],
+    ['Railway station', 'Which railway station is nearest to']] as const) {
+    const n = nearest(label)
+    if (n) out.push({ topic: 'near', q: `${q} ${shown}?`, a: `${n.name}, about ${kmText(n.km as number)} away${LINE}` })
+  }
+  const hubs = (p.commute ?? []).filter((c) => c.name && c.km != null)
+  const airport = hubs.find((c) => /airport/i.test(c.name))
+  if (airport) out.push({ topic: 'near', q: `How far is ${shown} from Pune Airport?`, a: `About ${kmText(airport.km)}${LINE}` })
+  const work = hubs.filter((c) => !/airport|railway/i.test(c.name)).sort((a, b) => a.km - b.km)[0]
+  if (work) out.push({ topic: 'near', q: `How far is ${shown} from ${work.name}?`, a: `About ${kmText(work.km)}${LINE} It is the nearest of Pune's main work hubs to ${shown}.` })
+  if (!out.length) {
+    // no place of the kinds above measured: the nearest places we have, as before
+    const near = nearby.filter((n) => n.name && n.km != null).slice(0, 3)
+    if (near.length) {
+      out.push({ topic: 'near', q: `What is near ${shown}?`,
+        a: near.map((n) => `${n.name}${n.label ? ` (${n.label})` : ''}, ${kmText(n.km as number)}`).join('; ') + `;${LINE}` })
+    }
+  }
+  return out
 }
 
 /** How far a project is through the time from MahaRERA registration to its filed completion date (backend areastats/pages.stage):
