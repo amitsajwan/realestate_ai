@@ -40,6 +40,15 @@ export default function LegalPage({ doc, cfg }: { doc: LegalDoc; cfg: MarketingC
                   {s.bullets.map((b, i) => <li key={i}>{b}</li>)}
                 </ul>
               )}
+              {s.links && (
+                <ul className="mt-3 space-y-1">
+                  {s.links.map((l) => (
+                    <li key={l.href}>
+                      <a href={l.href} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-[36px] items-center text-[#0f2340] underline underline-offset-2">{l.label}</a>
+                    </li>
+                  ))}
+                </ul>
+              )}
               {s.contact && <div className="mt-3"><ContactLines cfg={cfg} /></div>}
             </section>
           ))}
