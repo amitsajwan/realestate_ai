@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { useParams, useSearchParams } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
 import { AskAiPanel } from '@/components/app/AskAiPanel'
+import { BadgeBox } from '@/components/app/BadgeBox'
 import { BrochureCheck } from '@/components/app/BrochureCheck'
 import { FreshnessSection } from '@/components/app/FreshnessPrompt'
 import { ListingFacts } from '@/components/app/ListingFacts'
@@ -288,6 +289,8 @@ export default function ListingDetailPage() {
               <ShareBar url={link} message={`${listing.title}.`} />
             </section>
           )}
+
+          {shareable && listing.rera_no && <BadgeBox regno={listing.rera_no} name={listing.project_name || listing.title} />}
 
           {actionsFor(listing).some((a) => a.status !== 'publish') && (
             <section aria-label="Status" className="space-y-2 rounded-2xl border border-gray-200 bg-white p-4">
