@@ -195,6 +195,8 @@ export interface InquiryInput {
   phone: string
   message?: string
   consent: boolean
+  /** the "Call me back" button: the number only, so the name may be empty (backend InquiryIn.callback) */
+  callback?: boolean
   bhk?: number
   budget_min_inr?: number
   budget_max_inr?: number | null

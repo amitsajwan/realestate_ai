@@ -67,7 +67,7 @@ PROJECT_OLD_BODY = ("Namaste {} ji, this is Avasetu. Thank you for asking about 
                     "Avasetu team")
 PROJECT_TEMPLATE = "project_enquiry_v2"
 PROJECT_BODY = PROJECT_OLD_BODY.replace("Hindi mein baat", "Hindi ya Marathi mein baat")
-PROJECT_WANT = {"A site visit": "a site visit", "Floor plans": "the floor plans"}
+PROJECT_WANT = {"A site visit": "a site visit", "Floor plans": "the floor plans", "A call back": "a call back"}
 # The questions above go once. A buyer who answered them, or was sent them and stayed quiet, is not asked again (2026-11-07: a Kothrud
 # buyer told the bot where, when and why on 6 Nov, and the button sent the same three questions 35 hours later). They get the project
 # template's words, already approved, about what they want; there is no fallback to the questions.

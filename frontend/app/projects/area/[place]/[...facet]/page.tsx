@@ -4,7 +4,8 @@ import Link from 'next/link'
 import { notFound, permanentRedirect } from 'next/navigation'
 import MarketingShell from '@/components/marketing/MarketingShell'
 import FacetChips from '@/components/site/FacetChips'
-import { ListPicture, RailCard, RankedCard } from '@/components/site/ListCard'
+import CallbackButton from '@/components/site/CallbackButton'
+import { cardTopic, ListPicture, RailCard, RankedCard } from '@/components/site/ListCard'
 import ProjectRail, { READY_SUB, READY_TITLE } from '@/components/site/ProjectRail'
 import { getLocality } from '@/lib/marketing/localities'
 import { getMarketingConfig } from '@/lib/marketing/config'
@@ -95,6 +96,7 @@ function Row({ r, priceList }: { r: FacetRow; priceList: boolean }) {
           {r.units_booked != null && r.units_total ? <div><dt className="text-xs text-slate-500">Booked</dt><dd>{n(r.units_booked)} ({Math.round((100 * r.units_booked) / r.units_total)}%)</dd></div> : null}
         </dl>
         <p className="mt-1 text-xs text-slate-500">MahaRERA {r.regno}{r.legal_name && r.legal_name.toLowerCase() !== r.name.toLowerCase() ? ` · registered as ${r.legal_name}` : ''}{builder.filedBy ? ` · filed by ${builder.filedBy}` : ''}</p>
+        <div className="mt-2"><CallbackButton topic={cardTopic(r)} /></div>
       </div>
     </li>
   )

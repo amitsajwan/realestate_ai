@@ -4,6 +4,7 @@ import { builderLine, cardFacts } from '@/lib/site/facets'
 import type { FacetRow } from '@/lib/site/facets'
 import { formatPrice, readableName } from '@/lib/site/format'
 import { cardPossession, monthYear, sizePriceLine } from '@/lib/site/register'
+import CallbackButton from './CallbackButton'
 import OpenChatButton from './OpenChatButton'
 import CardPicture from './CardPicture'
 
@@ -63,6 +64,11 @@ function Booked({ r }: { r: FacetRow }) {
 }
 
 /** The Top list's ranked card: wide, with the reason it is here and two actions. */
+/** What a call back from a card is about: the project as MahaRERA names it, with its number (as the project page's form says it). */
+export function cardTopic(r: Pick<FacetRow, 'name' | 'legal_name' | 'regno'>): string {
+  return `${r.legal_name || r.name} (MahaRERA ${r.regno})`
+}
+
 export function RankedCard({ r }: { r: FacetRow }) {
   const price = cardPrice(r)
   const builder = builderLine(r)
@@ -93,6 +99,7 @@ export function RankedCard({ r }: { r: FacetRow }) {
           <Link href={`/projects/${r.slug}#enquire`} className="inline-flex min-h-[44px] items-center rounded-xl border border-[#0f2340] px-4 text-sm font-semibold text-[#0f2340] no-underline">
             {price ? 'Ask about floor plans' : 'Get the price'}
           </Link>
+          <CallbackButton topic={cardTopic(r)} />
         </div>
       </div>
     </li>

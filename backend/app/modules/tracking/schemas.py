@@ -45,7 +45,9 @@ class PingIn(BaseModel):
 
 
 class InquiryIn(TrackedTouch):
-    name: str = Field(..., min_length=2, max_length=100)
+    # a call-back request asks only the number (the site's "Call me back" button): its name may be empty; every other form needs one
+    name: str = Field("", max_length=100)
+    callback: bool = False
     phone: str
     message: Optional[str] = Field(None, max_length=1000)
     website: Optional[str] = None  # honeypot: hidden input, real visitors leave it empty
@@ -62,6 +64,13 @@ class InquiryIn(TrackedTouch):
     @classmethod
     def _phone(cls, v: str) -> str:
         return normalize_indian_mobile(v)
+
+    @model_validator(mode="after")
+    def _name_unless_callback(self):
+        self.name = self.name.strip()
+        if not self.callback and len(self.name) < 2:
+            raise ValueError("name must have at least 2 characters")
+        return self
 
     @model_validator(mode="after")
     def _budget_order(self):

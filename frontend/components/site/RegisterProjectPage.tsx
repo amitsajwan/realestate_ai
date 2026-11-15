@@ -2,6 +2,7 @@ import React from 'react'
 import ListThisProject from '@/components/site/ListThisProject'
 import Link from 'next/link'
 import AskPrompt from '@/components/site/AskPrompt'
+import CallbackButton from '@/components/site/CallbackButton'
 import EnquiryForm from '@/components/site/EnquiryForm'
 import ListingCard from '@/components/site/ListingCard'
 import SourceKind from '@/components/site/SourceKind'
@@ -189,7 +190,9 @@ function brandLine(p: RegisterProject): string | null {
  *  the builder's own picture, never an AI illustration standing in for a real one. With no picture (most projects, 2026-10-31),
  *  a street map around the project's pin takes its place with the builder's logo over it (backend areastats/locmap.py,
  *  logos.py), else the logo alone. Over a photo the builder's logo sits in a white badge (owner 2026-11-03). */
-function Hero({ p, price, photo, linkless = false, closed = false }: { p: RegisterProject; price: { from: string; bhks: string } | null; photo: ProfilePicture | null; linkless?: boolean; closed?: boolean }) {
+function Hero({ p, price, photo, linkless = false, closed = false, callback }: { p: RegisterProject; price: { from: string; bhks: string } | null; photo: ProfilePicture | null; linkless?: boolean; closed?: boolean
+  /** who the "Call me back" button's lead goes to, and what about: the same as the page's enquiry form */
+  callback?: { agentSlug: string; agentName: string; topic: string } }) {
   const stats: { label: string; value: React.ReactNode; sub?: React.ReactNode; id: string }[] = []
   // the agent's live sheet when there is one, else the portals' prices: one price on the page, never both
   const asked = price ?? askedPrices(p)
@@ -303,6 +306,7 @@ function Hero({ p, price, photo, linkless = false, closed = false }: { p: Regist
         <a href="#visit" className="inline-flex min-h-[48px] items-center rounded-full px-5 font-semibold text-white no-underline ring-1 ring-inset ring-white/30 hover:bg-white/10">
           {PROJECT_CTA.visit}
         </a>
+        {callback && <CallbackButton tone="dark" agentSlug={callback.agentSlug} agentName={callback.agentName} topic={callback.topic} />}
       </div>
       )}
       </div>
@@ -952,7 +956,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
       </nav>
       )}
 
-      <Hero p={p} price={price} photo={heroPhoto} linkless={!!seller} closed={closed} />
+      <Hero p={p} price={price} photo={heroPhoto} linkless={!!seller} closed={closed} callback={{ agentSlug: leadSlug, agentName: leadName, topic: enquiryTopic }} />
 
       {/* a partner agent's listing names them at the top and opens their own page for it (owner 2026-10-30); on that page itself
           (seller) it would link to itself, and Avasetu's own listings need no line */}

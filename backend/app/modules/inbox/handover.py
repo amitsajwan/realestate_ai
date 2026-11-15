@@ -62,7 +62,7 @@ def phone_text(phone: Optional[str]) -> str:
 
 def ask_of(message: Optional[str]) -> dict:
     """What the form said they want, from the line the site writes: 'About <topic>: <their words>', 'About Site visit: <topic>',
-    'Floor plans of <topic>'. -> {want, topic, said}."""
+    'Call back: <topic>' (the "Call me back" button), 'Floor plans of <topic>'. -> {want, topic, said}."""
     text = (message or "").strip()
     want = None
     if text.startswith("About "):
@@ -71,6 +71,8 @@ def ask_of(message: Optional[str]) -> dict:
         want, text = "Floor plans", text[len("Floor plans of "):]
     elif text.startswith("Site visit: "):
         want, text = "A site visit", text[len("Site visit: "):]
+    elif text.startswith("Call back: "):
+        want, text = "A call back", text[len("Call back: "):]
     if ")" in text:   # the topic ends with "(MahaRERA P...)"; their own words follow it
         topic, _, said = text.partition(")")
         topic, said = topic + ")", said.lstrip(": ")
