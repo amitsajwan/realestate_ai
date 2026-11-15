@@ -229,7 +229,7 @@ All in the `newsroom` worker role (seo loop every 30 minutes; each step runs onl
 - **Bing Webmaster Tools, once** (ChatGPT search and Copilot lean on Bing): bing.com/webmasters → add avasetu.in → "Import from
   Google Search Console" (or put the HTML meta tag value in `NEXT_PUBLIC_BING_SITE_VERIFICATION` in `deploy/gcp/.env` and
   redeploy) → submit `/sitemap.xml`. Then check its Index and Search Performance reports monthly.
-- **Google News and Discover, once** (2026-11-15): Search Console → Sitemaps → `news-sitemap.xml` (DONE 2026-11-15); publishercenter.google.com → add the publication "Avasetu" with the section `https://avasetu.in/news` → Publish (to confirm). Google decides whether we show in the News tab; Discover needs no sign-up. After a month, Search Console → Performance shows "Discover" and "Google News" tabs once there are impressions.
+- **Google News and Discover, once** (2026-11-15): Search Console → Sitemaps → `news-sitemap.xml` (DONE 2026-11-15); Publisher Center has nothing to add (it no longer takes sites for Google News, seen 2026-11-15). Google decides whether we show in the News tab; Discover needs no sign-up. After a month, Search Console → Performance shows "Discover" and "Google News" tabs once there are impressions.
 - **Be talked about** (AI answers lean on brands the web mentions): answer Pune property threads on Reddit and Quora with the
   project or area page that answers them, offer the MahaRERA tracker to journalists, keep the Google Business Profile current.
 
