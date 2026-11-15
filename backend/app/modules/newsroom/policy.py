@@ -46,6 +46,15 @@ NAME_ONLY_PINCODE_PREFIXES = ("411", "412")
 MAHARERA_PAGES = 15
 # the only honest wording for a MahaRERA item: the date we have is "Last Modified", not the registration date
 MAHARERA_PHRASE = "listed or updated on MahaRERA"
+
+# The regulator's own spelling, whatever the source or the model wrote ("Maharera", "MAHARERA", "Maha RERA"). Not inside a web
+# address or a slug ("maharera.mahaonline.gov.in", "/news/maharera-rejects-…"), which must stay as they are.
+_MAHARERA = re.compile(r"(?<![\w/.-])maha[\s-]?rera(?![\w/-])(?!\.\w)", re.I)
+
+
+def house_names(s: str) -> str:
+    """Names in the spelling we always print them in."""
+    return _MAHARERA.sub("MahaRERA", s)
 # corridor topics that affect our areas even when no area is named (matched together with a Pune hint). "Pune airport" is not one:
 # it is in the news every day for flights, passengers and parking, none of which helps a home buyer, and the phrase carries its own
 # Pune hint, so it used to let almost any airport story in. Airport news now comes in only when it names one of our areas (Lohegaon

@@ -70,7 +70,7 @@ HEADLINE_MAX_WORDS = 25  # a source text shorter than this is treated as headlin
 
 
 def _clean(s) -> str:
-    return re.sub(r"\s+", " ", URL.sub("", str(s or ""))).strip()
+    return policy.house_names(re.sub(r"\s+", " ", URL.sub("", str(s or ""))).strip())
 
 
 def is_maharera(item: RawItem) -> bool:
