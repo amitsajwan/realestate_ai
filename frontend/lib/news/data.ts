@@ -20,7 +20,11 @@ export interface NewsItem {
   /** The original article link. May be a Google redirect: never print it, only link it as "Read the original at <source>". */
   source_url: string | null
   as_of: string | null
+  /** The square (1080) social card. */
   image_url: string | null
+  /** The 1200x675 card drawn for the site: the page's picture, link previews and Google Discover (which needs 1200 px or
+   *  wider for a large card). Null for stories drawn before it existed, until the newsroom draws it. */
+  image_wide_url: string | null
   permalinks: Array<{ channel: 'facebook' | 'instagram'; url: string }>
   published_at: string | null
   our_view: string
@@ -80,7 +84,8 @@ export function cleanNewsItem(raw: unknown): NewsItem | null {
     id: r.id, kind: r.kind === 'digest' ? 'digest' : 'story', headline: r.headline.trim(), summary: str(r.summary),
     pillar: str(r.pillar), pillar_label: str(r.pillar_label) || 'News', areas,
     source_name: str(r.source_name), source_url: https(r.source_url) ? r.source_url : null,
-    as_of: str(r.as_of) || null, image_url: https(r.image_url) ? r.image_url : null, permalinks: links,
+    as_of: str(r.as_of) || null, image_url: https(r.image_url) ? r.image_url : null,
+    image_wide_url: https(r.image_wide_url) ? r.image_wide_url : null, permalinks: links,
     published_at: str(r.published_at) || null, our_view: str(r.our_view), what_to_check: str(r.what_to_check),
     buyer_line: str(r.buyer_line).trim() || null,
     body: (Array.isArray(r.body) ? r.body : []).flatMap((p) => (typeof p === 'string' && p.trim() ? [p.trim()] : [])),

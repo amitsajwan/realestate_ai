@@ -2,8 +2,9 @@
 
 Only items the owner approved (status approved, scheduled or published) are returned; drafts, pending, rejected, dropped and failed items
 never are. Each item carries our own plain headline, a summary without hashtags, link line or footer, the source name, the original link
-(which may be a Google redirect: the site shows it only as 'Read the original at <source>'), the 'as of' date, the card image and the
-Facebook / Instagram permalinks when published, and the fixed 'Worth checking' buyer line the captions carry (`buyer_line`, None when
+(which may be a Google redirect: the site shows it only as 'Read the original at <source>'), the 'as of' date, the card image (the
+square social card, and the 1200x675 one drawn for the site when it exists: `image_wide_url`) and the Facebook / Instagram
+permalinks when published, and the fixed 'Worth checking' buyer line the captions carry (`buyer_line`, None when
 the item has none: education and digest items). No phone numbers, ever.
 
 Addresses: a story's public `id` is a readable slug, `<up to 8 headline words>-<first 6 characters of its stored id>`
@@ -53,9 +54,10 @@ def _iso(d) -> Optional[str]:
     return d.isoformat() if isinstance(d, datetime) else (str(d) if d else None)
 
 
-def _media(doc: dict) -> Optional[str]:
+def _media(doc: dict, size: str = "fb") -> Optional[str]:
+    """The public address of one of the item's cards: `fb` (1080 square) or `web` (1200x675, the site's own, Discover-sized)."""
     import os
-    rel = ((doc.get("card") or {}).get("fb"))
+    rel = ((doc.get("card") or {}).get(size))
     base = (os.environ.get("PUBLIC_MEDIA_BASE_URL") or "").strip().rstrip("/")
     return f"{base}/uploads/{str(rel).lstrip('/')}" if rel and base else None
 
@@ -123,7 +125,7 @@ def view(doc: dict, full: bool = True, item_ids: Optional[Dict[str, str]] = None
         "source_name": _clean(pr.source_name(doc)),
         "source_url": url if str(url).startswith("http") and not is_digest else None,
         "source_is_redirect": pr.is_google_redirect(url),
-        "as_of": _iso(pr.as_of(doc)), "image_url": _media(doc), "permalinks": _permalinks(doc),
+        "as_of": _iso(pr.as_of(doc)), "image_url": _media(doc), "image_wide_url": _media(doc, "web"), "permalinks": _permalinks(doc),
         "published_at": _iso(doc.get("published_at") or doc.get("updated_at")),
         # the same fixed line the captions carry (presentation.buyer_line over policy.BUYER_LINES), never generated
         "buyer_line": _clean(pr.buyer_line(doc)) or None,

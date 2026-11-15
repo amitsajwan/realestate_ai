@@ -104,6 +104,17 @@ class Store:
         """Items shown on the public news page: approved, scheduled or published, newest first."""
         return await self.items.find({"status": {"$in": ["approved", *DONE]}}).sort("updated_at", -1).limit(limit).to_list(limit)
 
+    async def public_without_wide(self, limit: int = 20) -> List[dict]:
+        """Public items with social cards but no wide card for the site yet (drawn before 2026-11-15), newest first. An item
+        whose wide card was tried holds `card.web` ("" when it could not be drawn) and is not listed again."""
+        q = {"status": {"$in": ["approved", *DONE]}, "card.fb": {"$exists": True}, "card.web": {"$exists": False}}
+        return await self.items.find(q).sort("updated_at", -1).limit(limit).to_list(limit)
+
+    async def set_card(self, id: str, card: dict) -> None:
+        """Replace the card paths without moving `updated_at`: the public list is newest first by it, and an old story given its
+        wide card must not come back to the top of /news."""
+        await self.items.update_one({"_id": id}, {"$set": {"card": card}})
+
     async def counts(self) -> Dict[str, int]:
         return {s: await self.items.count_documents({"status": s}) for s in STATUSES}
 

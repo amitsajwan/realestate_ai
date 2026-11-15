@@ -34,6 +34,9 @@ export const metadata: Metadata = {
   title: DEFAULT_TITLE,
   description: DEFAULT_DESCRIPTION,
   applicationName: BRAND_NAME,
+  // Google shows a page's picture at full size in Discover and in search results only with max-image-preview:large; the
+  // snippet and video limits say "no limit" (Google's defaults, stated). A page that sets its own `robots` (noindex) replaces this.
+  robots: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1, 'max-video-preview': -1 },
   icons: {
     icon: [
       { url: LOGO.icon32, sizes: '32x32', type: 'image/png' },

@@ -61,7 +61,7 @@ describe('sitemap and robots', () => {
     for (const p of ['/studio', '/dashboard', '/onboarding', '/profile', '/properties', '/analytics', '/social-publishing', '/i/']) {
       expect(rule.disallow).toContain(p)
     }
-    expect(String(r.sitemap)).toMatch(/sitemap\.xml$/)
+    expect(String(r.sitemap)).toMatch(/\/sitemap\.xml/)
   })
 
   it('adds news stories and the agent, project and listing pages the backend says are indexable', async () => {
