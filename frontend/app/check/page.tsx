@@ -1,6 +1,7 @@
 import React from 'react'
 import type { Metadata } from 'next'
 import MarketingShell from '@/components/marketing/MarketingShell'
+import CheckEmbedBox from '@/components/site/CheckEmbedBox'
 import CheckSearch from '@/components/site/CheckSearch'
 import InstallApp from '@/components/site/InstallApp'
 import { getMarketingConfig } from '@/lib/marketing/config'
@@ -58,6 +59,7 @@ export default async function CheckPage({ searchParams }: Props) {
           </p>
         </section>
         <div className="mt-8"><InstallApp /></div>
+        <CheckEmbedBox siteUrl={getMarketingConfig().siteUrl} />
       </div>
     </MarketingShell>
   )
