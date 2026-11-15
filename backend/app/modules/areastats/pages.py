@@ -645,6 +645,25 @@ def delivery(mine: List[dict]) -> dict:
             "avg_months_later": round(sum(moved) / len(moved)) if moved else None, "record_ok": len(with_dates) >= RECORD_MIN}
 
 
+DATE_MOVES_SHOWN = 5
+
+
+def date_moves(docs: List[dict], today: date) -> dict:
+    """An area's possession dates, for the MahaRERA tracker's report (docs/plan/visibility-base.md step 3): among home projects
+    still being built (each project once: group primaries) with both filed dates, how many the builder moved MOVED_MIN+ months
+    later (net of MahaRERA's 2026 blanket extension, as `delivery`), how many changed by the extension alone, the median move,
+    and the biggest moves with both dates. {with_dates, moved, extension_only, median_months, biggest: [...]}."""
+    building = [d for d in docs if not d.get("cluster_primary") and homes(d) and _day(d.get("completion_now"))
+                and _day(d.get("completion_at_registration")) and not completion_passed(d, today)]
+    moves = [(m, d) for d in building if (m := months_later(d)) is not None and m >= MOVED_MIN]
+    moves.sort(key=lambda x: (-x[0], card_name(x[1]).lower()))
+    return {"with_dates": len(building), "moved": len(moves), "extension_only": sum(1 for d in building if extension_only(d)),
+            "median_months": round(median(m for m, _ in moves)) if moves else None,
+            "biggest": [{"name": card_name(d), "page": f"/projects/{d['page_slug']}" if d.get("page_slug") else None,
+                         "regno": d.get("regno") or d["_id"], "months": m, "from": _day(d.get("completion_at_registration")),
+                         "to": _day(d.get("completion_now"))} for m, d in moves[:DATE_MOVES_SHOWN]]}
+
+
 COMPARE_MIN = 8          # other projects being built in the area before a comparison with them is stated: with 5 the middle
                          # swung with one project (Upper Kharadi has few)
 COMPARE_AGE_DAYS = 365   # homes booked is set against projects registered within this of this one: a launch against a project

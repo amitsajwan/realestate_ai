@@ -76,3 +76,33 @@ describe('Pune MahaRERA tracker', () => {
     expect(ld.find((x) => x['@type'] === 'Dataset')).toMatchObject({ dateModified: '2026-10-04', isAccessibleForFree: true })
   })
 })
+
+describe('Possession dates that moved', () => {
+  const moves = (with_dates: number, moved: number, extension_only: number, median_months: number | null, biggest: unknown[] = []) =>
+    ({ with_dates, moved, extension_only, median_months, biggest })
+  const MOVES = {
+    ...BODY,
+    areas: [
+      area('wagholi', 'Wagholi', { projects: 41, date_moves: moves(30, 6, 9, 8, [
+        { name: 'Gagan Micasaa', page: '/projects/gagan-micasaa', regno: 'P52100000001', months: 14, from: '2027-06-30', to: '2028-12-31' }]) }),
+      area('kharadi', 'Kharadi', { projects: 20, date_moves: moves(10, 2, 3, 5, [
+        { name: 'Bad page', page: 'https://elsewhere.com', regno: 'P52100000002', months: 20, from: '2027-01-31', to: '2028-09-30' }]) }),
+    ],
+  }
+
+  it('says how many builders moved their date, area by area, net of MahaRERA\'s extension, biggest moves first', async () => {
+    mockFetch.mockResolvedValue({ ok: true, status: 200, json: async () => MOVES })
+    render(await TrackerPage())
+    const report = screen.getByTestId('date-moves')
+    expect(screen.getByTestId('date-moves-answer')).toHaveTextContent('the builders of 8 of 40 home projects still being built in these areas (20%)')
+    expect(within(report).getAllByRole('row').find((r) => r.textContent?.startsWith('Wagholi'))).toHaveTextContent('Wagholi306 (20%)8 months9')
+    const items = within(report).getAllByRole('listitem')
+    expect(items[0]).toHaveTextContent('Bad page (Kharadi): filed for 31 January 2027 at registration, now 30 September 2028, 20 months later')
+    expect(within(items[0]).queryByRole('link')).toBeNull()   // only our own project pages are linked
+    expect(within(items[1]).getByRole('link', { name: 'Gagan Micasaa' }).getAttribute('href')).toBe('/projects/gagan-micasaa')
+  })
+
+  it('leaves out figures that do not add up', () => {
+    expect(cleanCityStats({ ...MOVES, areas: [area('wagholi', 'Wagholi', { projects: 3, date_moves: moves(2, 2, 1, 3) })] })?.areas[0].date_moves).toBeNull()
+  })
+})

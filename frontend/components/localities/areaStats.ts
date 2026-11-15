@@ -25,6 +25,28 @@ export interface AreaStats {
   units_booked: number | null
   recent: AreaStatsProject[]
   source: string
+  /** possession dates the builder moved (the city tracker only; backend areastats.pages.date_moves) */
+  date_moves?: DateMoves | null
+}
+
+export interface DateMove { name: string; page: string | null; regno: string; months: number; from: string; to: string }
+/** Among home projects still being built with both filed dates: how many the builder moved 3+ months later (net of MahaRERA's
+ *  2026 blanket extension), how many changed by the extension alone, the median move and the biggest moves. */
+export interface DateMoves { with_dates: number; moved: number; extension_only: number; median_months: number | null; biggest: DateMove[] }
+
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/
+
+/** The report's figures, kept only when they add up; null otherwise (the page then shows no row for the area). */
+export function cleanDateMoves(raw: unknown): DateMoves | null {
+  if (!raw || typeof raw !== 'object') return null
+  const r = raw as Record<string, unknown>
+  const n = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v >= 0
+  if (!n(r.with_dates) || !n(r.moved) || !n(r.extension_only) || r.moved + r.extension_only > r.with_dates) return null
+  const biggest = (Array.isArray(r.biggest) ? r.biggest : []).filter((b): b is DateMove => !!b && typeof b.name === 'string'
+    && typeof b.regno === 'string' && n(b.months) && DAY_RE.test(b.from) && DAY_RE.test(b.to))
+    .map((b) => ({ ...b, page: typeof b.page === 'string' && /^\/projects\/[a-z0-9-]+$/.test(b.page) ? b.page : null }))
+  return { with_dates: r.with_dates, moved: r.moved, extension_only: r.extension_only,
+    median_months: n(r.median_months) ? r.median_months : null, biggest }
 }
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/
@@ -50,6 +72,7 @@ export function cleanAreaStats(raw: unknown, slug: string): AreaStats | null {
     area, as_of: r.as_of, projects: r.projects, completing,
     units_total: booked === null ? null : total, units_booked: booked,
     recent, source: typeof r.source === 'string' && r.source ? r.source : 'MahaRERA public records',
+    date_moves: cleanDateMoves(r.date_moves),
   }
 }
 

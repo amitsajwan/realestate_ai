@@ -35,6 +35,21 @@ _OWN_COMMENT = re.compile(r"\bcomment\b|कमेंट", re.I)
 _ACTION_LINE = re.compile(r"^\s*(👉|💬\s*WhatsApp)", re.M)   # the interest link and the WhatsApp line are actions, not asks
 
 
+# Buyer posts end by asking people to search for us by name (docs/plan/visibility-base.md step 4): searches for "Avasetu <area>" are
+# the trust a young site can earn from its own audience, and Search Console counts them. The brand stays in Latin letters in every
+# language, so the search is the one people see on the page.
+BRAND_SEARCH = {"en": '🔎 Search "{brand} {place}" on Google',
+                "mr": '🔎 Google वर "{brand} {place}" शोधा',
+                "hi": '🔎 Google पर "{brand} {place}" सर्च करें'}
+_BRAND_SEARCH_LINE = re.compile(r"^[ \t]*🔎[^\n]*Google[^\n]*$\n?", re.M)
+
+
+def brand_search_line(place: str = "", language: str = "en") -> str:
+    """'🔎 Search "Avasetu Kharadi" on Google' in the post's language; Pune when the post names no place."""
+    lang = language if language in BRAND_SEARCH else "en"
+    return BRAND_SEARCH[lang].format(brand=brand.NAME, place=(place or "Pune").strip())
+
+
 def ask_for(body: str, key: Optional[str] = None, place: str = "", language: str = "en") -> str:
     """The engagement ask. Without `key` (recruitment posts): the old asks, each left out when the caption already makes it.
     With `key` (buyer posts): at most one, none when the caption already asks for a comment, share or send."""
@@ -92,7 +107,9 @@ def with_footer(caption: str, channel: str, key: Optional[str] = None, place: st
                 page: str = "") -> str:
     """Caption + engagement ask + footer, once. At most 10 hashtags (5 on Instagram); Facebook stays under 900 characters and Instagram under 2000 (the body is trimmed, never the footer)."""
     foot = footer_for(channel, page)
-    body = _LEGACY_FOOTER.sub("", caption or "").strip()
+    # buyer posts (a key) ask for a search by name just above the footer; an earlier pass's line is taken out first, never kept twice
+    search = brand_search_line(place, language) if key is not None else ""
+    body = _BRAND_SEARCH_LINE.sub("", _LEGACY_FOOTER.sub("", caption or "")).strip()
     for f in dict.fromkeys((foot, footer_for(channel))):   # the plain footer of an earlier pass too, never kept twice
         if f in body:
             body = body.replace(f, "").rstrip(" \n·")
@@ -105,7 +122,8 @@ def with_footer(caption: str, channel: str, key: Optional[str] = None, place: st
         block, body = m.group(1).rstrip(), body[:m.start()].rstrip()
     ask = ask_for(body, key, place, language) if body else ""
     ask = "\n\n" + ask if ask else ""
-    room = _limit(channel) - 1 - len(foot) - len(block) - len(ask) - 2
+    tail = f"{search}\n{foot}" if search else foot
+    room = _limit(channel) - 1 - len(tail) - len(block) - len(ask) - 2
     body = _cut(body, room)
     text = (body + ask + block).strip()
-    return f"{text}\n\n{foot}" if text else foot
+    return f"{text}\n\n{tail}" if text else tail
