@@ -48,6 +48,16 @@ $Catalog = @(
   @{ Name = "YOUTUBE_API_KEY"; For = "YouTube videos about hot projects (official YouTube Data API)"
      Get = "https://console.cloud.google.com/apis/credentials -> Create credentials -> API key; enable 'YouTube Data API v3'"
      Check = { param($v) $null = Invoke-RestMethod -Uri "https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=1&q=Pune%20flats&key=$v" -TimeoutSec 30 } }
+  # the reels on our own YouTube channel (docs/plan/visibility-base.md): four settings from one consent, backend/scripts/youtube_token.py
+  @{ Name = "YOUTUBE_UPLOAD"; For = "Reels to our YouTube channel: 'on' to upload (needs the three keys below)"
+     Get = "set to on after backend/scripts/youtube_token.py has run" }
+  @{ Name = "YOUTUBE_CLIENT_ID"; For = "YouTube upload: the OAuth client (Google Auth Platform -> Clients -> Desktop app)"
+     Get = "https://console.cloud.google.com/auth/clients" }
+  @{ Name = "YOUTUBE_CLIENT_SECRET"; For = "YouTube upload: the OAuth client's secret"; Get = "the same client" }
+  @{ Name = "YOUTUBE_REFRESH_TOKEN"; For = "YouTube upload: the channel owner's consent (scope youtube.upload)"
+     Get = "cd backend; python scripts/youtube_token.py --client-id ... --client-secret ... (approve in the browser)" }
+  @{ Name = "YOUTUBE_PRIVACY"; For = "YouTube upload: private until Google's API audit passes, then public"
+     Get = "private or public (docs/plan/visibility-base.md, YouTube set up, step 5)" }
   @{ Name = "GOOGLE_TTS_API_KEY"; For = "Reel voice-overs (Google Cloud Text-to-Speech)"
      Get = "https://console.cloud.google.com/apis/credentials -> API key restricted to 'Cloud Text-to-Speech API'"
      Check = { param($v) $null = Invoke-RestMethod -Uri "https://texttospeech.googleapis.com/v1/voices?languageCode=hi-IN&key=$v" -TimeoutSec 30 } }
