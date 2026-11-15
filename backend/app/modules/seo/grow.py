@@ -46,6 +46,9 @@ AUTOCOMPLETE_PER_WEEK = 8
 AUTOCOMPLETE_SEEDS = ("new projects in {area}", "flats in {area}", "2 bhk flats in {area}", "property in {area}")
 SOURCES = ("search_console", "related", "question", "autocomplete")
 STATUSES = ("candidate", "live", "held", "never")
+# no new budget lists while Google holds the site back (the 2026-11-11 drop, docs/plan/visibility-base.md step 0): a young site
+# that adds many similar pages at once is what the filter seems to answer; they wait as candidates and go live from this day
+BUDGET_LISTS_FROM = datetime(2026, 12, 1, tzinfo=timezone.utc)
 
 
 def enabled() -> bool:
@@ -242,6 +245,8 @@ async def run_once(store: Store, now: datetime, force: bool = False,
         if c["source"] == "seed" and not r and old is None:
             continue   # a place's seed with nothing to list yet: not worth a record until it has a project
         status = "candidate"
+        if f.budget and now < BUDGET_LISTS_FROM:
+            g = {**g, "ok": False, "waits_until": BUDGET_LISTS_FROM.date().isoformat()}
         if g["ok"] and enabled() and (focus_seed or made < allowed):
             status = "live"
             if focus_seed:

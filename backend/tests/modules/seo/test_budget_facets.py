@@ -70,3 +70,24 @@ def test_a_budget_page_is_not_held_back_by_overlap_with_another_list():
     cand = {"facet": Facet("wagholi", "all", budget="under-50-lakh"), "impressions": 0, "sources": set(), "source": "seed"}
     live = [{"_id": "wagholi|top", "place": "wagholi", "regnos": ["P1", "P2", "P3"]}]
     assert grow.gate(cand, ["P1", "P2", "P3"], live)["ok"]
+
+
+async def test_budget_lists_wait_as_candidates_until_the_hold_ends(monkeypatch):
+    """Step 0 of docs/plan/visibility-base.md: no new budget list goes live before grow.BUDGET_LISTS_FROM; the size lists do."""
+    from app.modules.newsroom.store import Store
+    from ..fakes import FakeDb
+    monkeypatch.delenv("SERPER_API_KEY", raising=False)
+    monkeypatch.setenv("SEO_GROW_ENABLED", "1")
+    db = FakeDb()
+    store = Store(db)
+    for d in DOCS:
+        await store.projects.insert_one(d)
+    await grow.run_once(store, NOW, force=True)
+    pages = {p["_id"]: p for p in db.get_collection(grow.PAGES).docs}
+    held = pages["wagholi|all|budget=under-50-lakh"]
+    assert held["status"] == "candidate" and held["gate"]["waits_until"] == "2026-12-01"
+    assert pages["wagholi|all|bhk=1"]["status"] in ("live", "candidate")   # other lists follow their own rules
+    later = grow.BUDGET_LISTS_FROM + timedelta(days=1)
+    await grow.run_once(store, later, force=True)
+    assert db.get_collection(grow.PAGES).docs and next(
+        p for p in db.get_collection(grow.PAGES).docs if p["_id"] == "wagholi|all|budget=under-50-lakh")["status"] == "live"

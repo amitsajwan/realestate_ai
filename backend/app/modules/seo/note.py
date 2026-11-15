@@ -21,7 +21,7 @@ from app.core.areas import BY_KEY, BY_SLUG
 from app.core.brand import NAME_DEVANAGARI
 from app.modules.areastats import launches
 from app.modules.areastats.demand import DEMAND
-from app.modules.areastats.pages import searchable
+from app.modules.areastats.pages import date_moves, searchable
 from app.modules.insights.collector import owner_ids
 from app.modules.newsroom.store import Store
 from app.modules.notifications.service import notify
@@ -120,10 +120,35 @@ def brand_line(b: dict) -> str:
     return f"Searches for Avasetu by name, 28 days: {b['impressions']:,} impressions{change}, {b['clicks']:,} clicks."
 
 
-def notes(week_text: str, ai_text: str, brand_text: str, portal_text: str, review_text: str = "", launch_text: str = "") -> List[str]:
+def notes(week_text: str, ai_text: str, brand_text: str, portal_text: str, review_text: str = "", launch_text: str = "",
+          post_text: str = "") -> List[str]:
     """The week as Studio notifications, each within the notification's length (notifications.service MAX_SUMMARY): the numbers;
-    AI search and searches by name; the portal watch when it fired and the sites above us most often; the page check; new launches. One long text was cut off at the AI line before."""
-    return [t for t in (week_text, f"{ai_text} {brand_text}".strip(), portal_text, review_text, launch_text) if t]
+    AI search and searches by name; the portal watch when it fired and the sites above us most often; the page check; new launches;
+    the Business Profile post to paste. One long text was cut off at the AI line before."""
+    return [t for t in (week_text, f"{ai_text} {brand_text}".strip(), portal_text, review_text, launch_text, post_text) if t]
+
+
+POST_HEAD = "Post this on Google Business Profile (Add update): "
+
+
+def business_post(docs: List[dict], now: datetime) -> str:
+    """This week's update for House Deal's Google Business Profile (docs/plan/visibility-base.md step 1): one area's possession
+    dates from MahaRERA, the areas taking turns by week, and the tracker that holds the figures. The map pack is not touched by
+    the site-wide filter, and a dated fact from our own readings is the kind of post that earns its click. '' when the week's area
+    has fewer than 5 projects with both dates (a share of a handful says little), trying the next areas first."""
+    from app.core.areas import AREAS
+    today = now.date()
+    week = today.isocalendar()[1]
+    for i in range(len(AREAS)):
+        a = AREAS[(week + i) % len(AREAS)]
+        m = date_moves([d for d in docs if d.get("locality") == a.key], today)
+        if m["with_dates"] < 5:
+            continue
+        usual = f", usually by {m['median_months']} months" if m["median_months"] else ""
+        return (f"{POST_HEAD}{a.name}, {today.day} {today:%b %Y}: builders of {m['moved']} of {m['with_dates']} home projects being "
+                f"built moved their possession date 3+ months later{usual} (MahaRERA; its 2026 extension not counted). "
+                f"Which ones: avasetu.in/pune-maharera-tracker")
+    return ""
 
 
 def portal_line(board: dict) -> str:
@@ -174,7 +199,8 @@ async def run_once(store: Store, now: datetime, force: bool = False) -> Optional
     parts = notes(summary(week, ago, cov, board, waiting), aivisits.week_line(await aivisits.summary(store.db, now, days=7), leads),
                   brand_line(await branded(store, now)), " ".join(t for t in (portal_line(board), scoreboard.leader_line(board)) if t),
                   review.week_line(await review.summary(store, now)),
-                  launches.week_line(launches.summary(await store.all_projects(), now)))
+                  launches.week_line(launches.summary(docs := await store.all_projects(), now)),
+                  business_post(docs, now))
     text = " ".join(parts)
     for owner in owners:
         for part in parts:

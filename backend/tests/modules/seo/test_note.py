@@ -155,3 +155,18 @@ def test_the_weekly_note_counts_magicbricks_head_to_head_once_the_board_does():
     board = {"searches": 300, "above_mb": 70, "above_mb_when_shown": 30, "both": 60}
     assert "above MagicBricks 30 of 60 head to head." in note.summary({"clicks": 1}, None, {}, board, 0)
     assert "above MagicBricks 23 of 261." in note.summary({"clicks": 1}, None, {}, {"searches": 261, "above_mb": 23}, 0)
+
+
+def test_the_business_profile_post_states_one_areas_moved_dates_and_fits_a_notification():
+    from datetime import datetime, timezone
+    now = datetime(2026, 11, 16, 9, 0, tzinfo=timezone.utc)
+
+    def rec(n, locality, first, then):
+        return {"_id": f"P{n}", "regno": f"P{n}", "name": f"Project {n}", "page_slug": f"p-{n}", "locality": locality,
+                "registered_on": "2024-01-10", "completion_at_registration": first, "completion_now": then, "units_total": 80}
+    docs = [rec(i, "kharadi", "2027-06-30", "2028-06-30" if i < 3 else "2027-06-30") for i in range(8)]
+    docs += [rec(100 + i, "wagholi", "2027-06-30", "2027-06-30") for i in range(2)]   # too few to state a share
+    post = note.business_post(docs, now)
+    assert post.startswith(note.POST_HEAD + "Kharadi, 16 Nov 2026: builders of 3 of 8 home projects")
+    assert "usually by 8 months" in post and post.endswith("avasetu.in/pune-maharera-tracker") and len(post) <= MAX_SUMMARY
+    assert note.business_post(docs[-2:], now) == ""

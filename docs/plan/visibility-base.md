@@ -37,8 +37,9 @@ and the site stays steady. None of this needs Google to rank us first.
 
 ### 0. Stay steady while Google decides (owner decision, then code)
 
-- Hold the budget lists due 19 Nov (`seo_pages` status `held` for the four `budget=` facets per focus area, or
-  `SEO_GROW_ENABLED=0` for two rounds). Nothing is lost; the pages wait.
+- ~~Hold the budget lists due 19 Nov~~ BUILT 2026-11-15 (owner: "continue autonomously"): `seo/grow.BUDGET_LISTS_FROM`, the
+  weekly round keeps every budget list a candidate (`gate.waits_until`) until 2026-12-01, after the 11-29 judgement. Nothing is lost;
+  move the date in code to hold longer.
 - Pause new pages from outside our 8 areas for two weeks (`enrich` wider read off), keep east Pune's enrichment and the hot lane
   running. This reverses part of the owner's 2026-11-12 "no cap" call, so it is the owner's to make.
 - No mass rewrites or title changes in the same two weeks (the page doctor's hold already runs to 11-17; extend it to 12-01).
@@ -50,7 +51,7 @@ and the site stays steady. None of this needs Google to rank us first.
 | What | Why it works | Who | Status |
 |---|---|---|---|
 | **YouTube channel, every reel uploaded** with the project name in the title ("Godrej Ivara Upper Kharadi: price, possession, homes booked, Nov 2026"), the project page link first in the description, chapters where a reel has parts | Google ranks YouTube videos in days where a new site waits months; "<project> review" searches show the video on page one. Views come back as visits (`tracking/origin` already counts `youtube` as a source) | owner creates the channel (text ready in `docs/content/youtube/channel-text.md`) and runs the setup below; code BUILT 2026-11-15: `platform/youtube_upload.py` (resumable upload, OAuth refresh token), `social.distribution.youtube_short` (ledger key `youtube:<reel slug>`, the owner's posting pause, at most `YOUTUBE_UPLOADS_PER_DAY`, default 5, for the 10,000-unit quota), called by the calendar after each reel is out (`calendar/adapters.to_youtube`; title names the project and place, description opens with the page). Off until `YOUTUBE_UPLOAD=on` | code BUILT 2026-11-15, waits for the channel |
-| **Google Business Profile** (House Deal's, website avasetu.in) with a weekly post from our data ("5 Kharadi projects moved their possession date this month") and a "Call" button | The local map pack sits above organic results and is not touched by this filter; "property agent kharadi" shows it today | owner: profile and link; code: a weekly post text in the Monday note (`seo/note.py`) to paste, later the Business Profile API when the profile is verified | TARGET |
+| **Google Business Profile** (House Deal's, website avasetu.in) with a weekly post from our data ("5 Kharadi projects moved their possession date this month") and a "Call" button | The local map pack sits above organic results and is not touched by this filter; "property agent kharadi" shows it today | owner: profile and link; code BUILT 2026-11-15: the Monday note's last part is the week's post to paste (`seo/note.business_post`: one area's possession dates moved, areas in turn, the tracker link); the Business Profile API when the profile is verified | post text BUILT 2026-11-15 |
 | **Google News / Publisher Center** for `/news` | News and Discover are separate indexes and want exactly what the newsroom writes: dated, sourced, with a large picture | owner: publishercenter.google.com → add avasetu.in/news; code: check `/news` articles carry `NewsArticle` data, a 1200 px picture and `article:published_time` | TARGET |
 | **Reddit and Quora answers** with our numbers and the page that holds them, disclosed as Avasetu | Google puts both at the top of "is <project> good" and "<area> vs <area>" questions | owner posts (as today, [project_reddit_posts]); code: a weekly "answers to post" list in Studio → SEO from `search_demand` questions, each with a drafted answer from the page's facts and its link | TARGET |
 
