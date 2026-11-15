@@ -101,3 +101,34 @@ def test_same_story_on_fixture_duplicates_is_honest():
     b, _ = load("dup_metro")
     assert same_story(a.title, b.title)
     assert not same_story(a.title, load("ring_road")[0].title)
+
+
+# ---- tracker topics count as ours (2026-11-15: 1,149 of 1,149 items dropped from 21 Oct, most for naming no area) ----
+
+def test_a_headline_alone_about_a_tracker_topic_is_kept():
+    for title, slug in [("Purandar Airport Land Acquisition: Final 40 Hectares", "purandar-airport"),
+                        ("Ready to run, but yet to roll: Undue delay in Hinjewadi Metro launch frustrates IT professionals", "pune-metro-line-3"),
+                        ("Pune Sets October 30 Deadline for HCMTR and Inner Ring Road Surveys", "hcmtr")]:
+        r = assess(item(title=title, text=""), NOW)
+        assert r.keep and r.reason.startswith(f"tracker: {slug}"), (title, r.reason)
+
+
+def test_a_tracker_headline_still_passes_the_other_gates():
+    # the tracker rule only stands in for the area: crime and denied topics are still refused after it
+    r = assess(item(title="Purandar airport site: farmer arrested after assault on surveyor", text=""), NOW)
+    assert not r.keep and r.reason.startswith("non-news: crime")
+    r = assess(item(title="Purandar airport: festival celebrations at the site office", text=""), NOW)
+    assert not r.keep and r.reason.startswith("non-buyer topic")
+
+
+def test_a_headline_matching_no_tracker_still_needs_an_area():
+    r = assess(item(title="Pune Dengue Death: First Fatality of 2026 Reported", text=""), NOW)
+    assert not r.keep and r.reason == "off-topic: no target area or corridor"
+
+
+def test_a_maharera_ruling_is_city_wide_rules_news():
+    # the real item (Hindustan Times, 15 Nov): read as new supply for the word "maharera", and new supply needs an area
+    r = assess(item(title="MahaRERA rejects Pune homebuyer's parking claim, cites registered agreement stating no parking was sought",
+                    text="MahaRERA rejects Pune homebuyer's parking claim, says oral assurances cannot establish entitlement without "
+                         "documentary evidence"), NOW)
+    assert r.keep and r.pillar == "rules_money" and r.reason.startswith("city-wide buyer news")

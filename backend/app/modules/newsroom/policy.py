@@ -70,6 +70,10 @@ PILLAR_KEYWORDS = {
                     # buyer protection: MahaRERA rulings and what happens when a project is late
                     "refund", "delayed possession", "possession delay", "delay in possession", "delay interest", "compensation",
                     "maharera order", "maharera directs", "maharera holds", "rera order", "abeyance", "conveyance",
+                    # a MahaRERA ruling on a buyer's complaint is about rules, not supply ("MahaRERA rejects Pune homebuyer's
+                    # parking claim" read as new supply and was dropped for naming no area, 2026-11-15)
+                    "maharera rejects", "maharera dismisses", "maharera rules", "maharera fines", "maharera penalises",
+                    "maharera penalizes", "maharera upholds", "maharera allows", "maharera tells", "maharera asks",
                     "occupancy certificate", "redevelopment"],
     # the housing market: published sales, price and supply figures (reported, never predicted: check refuses forecasts)
     "market": ["housing sales", "home sales", "property sales", "residential sales", "property prices", "house prices", "housing prices",

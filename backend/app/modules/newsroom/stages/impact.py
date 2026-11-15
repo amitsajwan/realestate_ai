@@ -10,6 +10,7 @@ import logging
 import re
 from typing import Optional
 
+from ..tracker_topics import topic_of
 from ..types import Llm, RawItem, Relevance
 
 log = logging.getLogger(__name__)
@@ -27,7 +28,11 @@ SYSTEM = (
     "passengers, cargo, scanners, terminals), a one-day event or traffic notice, another city or country, a company's results or "
     "an advertisement, politics with no decision, or a figure with no effect on buyers. Score 0 to 10: 9-10 changes money or risk "
     "for most buyers (an RBI rate change, a stamp duty change), 7-8 a decision or funding for a project in or next to our areas, "
-    "5-6 useful local context, 0-4 not for buyers. Reply with JSON only: "
+    "5-6 useful local context, 0-4 not for buyers. A story marked 'Tracked topic' is about a city-wide project or rate we follow "
+    "on its own status page (the Purandar airport, the Ring Road, Metro Line 3, HCMTR, home-loan rates, the ready reckoner): for "
+    "those, distance from our areas is not a reason to score low; a real step (approval, funding, land acquisition, tender, cost, "
+    "delay, opening, a rate change) is 7-8, while a political demand, a naming or a ceremony with no step is still 0-4. "
+    "Reply with JSON only: "
     '{"score": <0-10>, "who": "<which buyers, in a few words>", "what_changes": "<one sentence: what changes for them>", '
     '"reason": "<one short sentence for the score>"}'
 )
@@ -42,8 +47,11 @@ async def judge(item: RawItem, relevance: Optional[Relevance], llm: Optional[Llm
     if llm is None:
         return None
     areas = ", ".join((relevance.areas if relevance else []) or []) or "none named (city-wide or corridor)"
+    tracked = topic_of(item.title)
     user = (f"Headline: {_clean(item.title)}\nPublisher: {_clean(item.source)}\nAreas named: {areas}\n"
-            f"Topic: {(relevance.pillar if relevance else '') or 'unknown'}\nText: {_clean(item.text)[:TEXT_CHARS]}")
+            f"Topic: {(relevance.pillar if relevance else '') or 'unknown'}\n"
+            + (f"Tracked topic: {tracked[0]} (we keep a status page for it)\n" if tracked else "")
+            + f"Text: {_clean(item.text)[:TEXT_CHARS]}")
     try:
         data = await llm.json(SYSTEM, user)
     except Exception as e:  # an LLM outage never crashes the pipeline: the item waits
