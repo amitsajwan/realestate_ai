@@ -22,7 +22,8 @@ export const REEL_STYLES: Array<{ code: ReelStyle; label: string; help: string }
 ]
 
 export interface ReelPost {
-  channel: 'instagram' | 'facebook_page'
+  /** youtube: the same reel on our channel, added by the server after a real (not test-mode) post */
+  channel: 'instagram' | 'facebook_page' | 'youtube'
   status: string
   permalink?: string | null
   error?: string | null

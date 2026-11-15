@@ -8,6 +8,7 @@ Phone numbers: stored only where the app already keeps them (invites, profile, t
 except the invite response, which goes to the owner who must send the code.
 """
 from app.core import brand
+import logging
 import urllib.parse
 from datetime import datetime
 from types import SimpleNamespace
@@ -17,6 +18,8 @@ from pydantic import ValidationError
 
 from app.modules.listings.schemas import ListingCreate, ListingUpdate
 from app.modules.listings.service import ListingError
+
+log = logging.getLogger(__name__)
 
 CONSENT_TEXT = (f"I agree that {brand.NAME} may feature me and my listings on the {brand.NAME} Facebook Page, Instagram "
                 "and website, with my name and RERA number, and that buyers' interest comes to my inbox.")
@@ -301,7 +304,7 @@ class ConciergeService:
         from app.modules.reels import listing_reel
         from app.modules.social import reel_publish
         from app.platform.meta_graph.config import load as load_config
-        from app.modules.social.distribution import send
+        from app.modules.social.distribution import send, youtube_short
         from app.platform.meta_graph.publisher import PublishError
         from .attribution import attribution_text, register_hub_item
         await self._agent(agent_id)
@@ -355,6 +358,16 @@ class ConciergeService:
                         pass  # the reel is out; the link-in-bio hub is best effort
             except PublishError as e:
                 results.append({"channel": ch, "status": "failed", "external_id": None, "permalink": None, "error": str(e), "caption": text})
+        if any(r["status"] == "published" for r in results):
+            # the same reel on our YouTube channel, once per reel job (ledger key youtube:listing-<job>); it never holds up or
+            # fails the posts that are already out, and does nothing until the upload is set up (platform.youtube_upload)
+            try:
+                yt = await youtube_short(self.db, f"listing-{job['_id']}", file_path, listing_reel.youtube_meta(listing, lang))
+                if yt:
+                    results.append({"channel": "youtube", "status": "published", "external_id": yt.external_id,
+                                    "permalink": yt.permalink, "error": None, "caption": None})
+            except Exception as e:
+                log.warning("concierge: YouTube upload of reel %s failed: %s", job.get("_id"), type(e).__name__)
         keep = [p for p in (job.get("posts") or []) if p["channel"] not in {r["channel"] for r in results if r["status"] != "already_posted"}]
         await self.reels.jobs.update_one({"_id": job["_id"]}, {"$set": {"posts": keep + [
             {k: r[k] for k in ("channel", "status", "external_id", "permalink", "error")} for r in results if r["status"] != "already_posted"]}})

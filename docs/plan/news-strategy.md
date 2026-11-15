@@ -97,6 +97,10 @@ Replayed on production's own items: the filter now keeps 142 of the 1,149 (on th
 Road cost rise, Lohgaon's development plan changes, the Pune-Ahilyanagar highway protest. The daily cap (4 on the VM) and
 auto-approval of full reports are unchanged. Watch: stories published a day, and any correction.
 
+Later the same day (owner: "publication needs to be automated"): the weekly digest is auto-approved too once it has passed
+its check (`runner._weekly_digest`), and every published story and digest also goes to YouTube as a Short drawn from its cards
+(`adapters.to_youtube`, after Facebook or Instagram, never in a dry run, shared 5-a-day cap). Nothing waits for the owner now.
+
 ## Next (TARGET, in order)
 
 - ~~N2b~~ BUILT 2026-10-26 (`trackers.suggest_due`, at most 3 model calls a newsroom cycle, checked by `stages.check.check_status_line`): a model *suggests* a new status line when new reports arrive (shown in the Trackers tab with the headlines it read; the owner

@@ -126,3 +126,18 @@ async def test_runner_builds_only_on_sunday_evening():
     again = {}
     await runner._weekly_digest(store, stages, SUNDAY_EVENING + timedelta(hours=3), again)
     assert again["digest"] == 0
+
+
+async def test_with_auto_approve_the_checked_digest_goes_out_without_review():
+    store = await stored(SAMPLES)
+    counts = {}
+    await runner._weekly_digest(store, {"check": ok_checker}, SUNDAY_EVENING, counts, auto_approve=True)
+    built = [d for d in store.items.docs if d["_id"].startswith("digest-")]
+    assert counts["digest"] == 1 and built[0]["status"] == "approved"
+    assert built[0]["history"][-1]["note"] == "auto-approved: weekly digest passed the checks"
+
+
+async def test_without_auto_approve_the_digest_waits_for_the_owner():
+    store = await stored(SAMPLES)
+    await runner._weekly_digest(store, {"check": ok_checker}, SUNDAY_EVENING, {}, auto_approve=False)
+    assert [d for d in store.items.docs if d["_id"].startswith("digest-")][0]["status"] == "pending_review"
