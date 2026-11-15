@@ -2,7 +2,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { sourceLabel } from '@/lib/app/leads'
-import { aboutLine, getLive, pageLabel, readTime, type Live, type LiveStory, type LiveVisitor } from '@/lib/app/live'
+import { aboutLine, getLive, howReached, pageLabel, readTime, startLine, type Live, type LiveStep, type LiveStory, type LiveVisitor } from '@/lib/app/live'
 
 /**
  * Studio > Results, top: who is on the site right now, today's reading so far and the story of each of today's visits
@@ -36,18 +36,65 @@ function useLive(): { live: Live | null; failed: boolean } {
 
 const fromLabel = (key: string) => sourceLabel(key) || 'Direct'
 
-function Steps({ steps }: { steps: Array<{ page: string; at?: string; read_s?: number | null }> }) {
+/**
+ * A visit step by step: where it started (the outside page, and for Google the searches that bring people to the first page),
+ * then each page with how they reached it (the link they tapped, Back, a new tab), its time and reading, what they did in
+ * between, and where they left. Pages from before 2026-11-16 do not know how they were reached and show only the page.
+ */
+export function Trail({ cameFrom, outside, searched, steps, did = [], hereNow, pages, partial }: {
+  cameFrom: string
+  outside?: string | null
+  searched?: string[]
+  steps: LiveStep[]
+  did?: Array<{ what: string; at: string }>
+  hereNow: boolean
+  pages: number
+  /** the steps are the latest few, not from the start of the visit */
+  partial?: boolean
+}) {
+  // each action goes after the last page opened at or before its minute
+  const after = steps.map(() => [] as Array<{ what: string; at: string }>)
+  for (const d of did) {
+    let i = 0
+    steps.forEach((s, j) => { if (s.at <= d.at) i = j })
+    if (after[i]) after[i].push(d)
+  }
   return (
     <ol className="space-y-1 text-sm">
-      {steps.map((s, i) => (
-        <li key={i} className="flex justify-between gap-2">
-          <span className="flex min-w-0 gap-2">
-            {s.at && <span className="shrink-0 tabular-nums text-gray-500">{s.at}</span>}
-            <a href={s.page} target="_blank" rel="noopener noreferrer" className="min-w-0 truncate text-blue-700 underline">{pageLabel(s.page)}</a>
-          </span>
-          <span className="shrink-0 tabular-nums text-gray-500">{readTime(s.read_s)}</span>
+      {!partial && (
+        <li className="text-gray-700">
+          <span className="font-semibold">Came from: </span>{startLine(cameFrom, outside, fromLabel(cameFrom))}
+          {searched && searched.length > 0 && (
+            <span className="block text-xs text-gray-500">
+              Google does not say what this person typed. People reach this page by searching{' '}
+              {searched.map((w) => `“${w}”`).join(', ')}.
+            </span>
+          )}
         </li>
-      ))}
+      )}
+      {partial && <li className="text-xs text-gray-500">Earlier pages not shown</li>}
+      {steps.map((s, i) => {
+        const how = i === 0 && !partial ? 'Landed on' : howReached(s, steps[i - 1]?.page)
+        return (
+          <li key={i}>
+            {how && <span className="block pl-[3.25rem] text-xs text-gray-500">↓ {how}</span>}
+            <span className="flex justify-between gap-2">
+              <span className="flex min-w-0 gap-2">
+                <span className="w-11 shrink-0 tabular-nums text-gray-500">{s.at}</span>
+                <a href={s.page} target="_blank" rel="noopener noreferrer" className="min-w-0 truncate text-blue-700 underline">{pageLabel(s.page)}</a>
+              </span>
+              <span className="shrink-0 tabular-nums text-gray-500">{readTime(s.read_s)}</span>
+            </span>
+            {after[i].map((d, k) => (
+              <span key={k} className="block pl-[3.25rem] text-xs font-semibold text-green-800">{d.at} {d.what}</span>
+            ))}
+          </li>
+        )
+      })}
+      {pages > steps.length && !partial && <li className="pl-[3.25rem] text-xs text-gray-500">…and {pages - steps.length} more page{pages - steps.length === 1 ? '' : 's'}</li>}
+      <li className="pl-[3.25rem] text-xs font-semibold text-gray-600">
+        {hereNow ? 'Still on the site' : `Left after ${pageLabel(steps[steps.length - 1]?.page || '/')}`}
+      </li>
     </ol>
   )
 }
@@ -72,7 +119,7 @@ function Visitor({ v }: { v: LiveVisitor }) {
       </button>
       {open && (
         <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-100 pl-3">
-          <Steps steps={v.journey} />
+          <Trail cameFrom={v.came_from} outside={v.outside} steps={v.journey} hereNow pages={v.pages} partial={v.pages > v.journey.length} />
           {v.who.lead_id && <Link href={`/studio/leads/${v.who.lead_id}`} className="inline-flex min-h-[44px] items-center text-sm font-semibold text-blue-700">Open lead</Link>}
         </div>
       )}
@@ -107,12 +154,7 @@ function Story({ s }: { s: LiveStory }) {
       </button>
       {open && (
         <div className="ml-4 mt-1 space-y-2 border-l-2 border-gray-100 pl-3">
-          <Steps steps={s.steps} />
-          {s.did.length > 0 && (
-            <ul className="space-y-1 text-sm text-gray-700">
-              {s.did.map((d, i) => <li key={i}><span className="tabular-nums text-gray-500">{d.at}</span> {d.what}</li>)}
-            </ul>
-          )}
+          <Trail cameFrom={s.came_from} outside={s.outside} searched={s.searched} steps={s.steps} did={s.did} hereNow={s.here_now} pages={s.pages} />
           {s.who.lead_id && <Link href={`/studio/leads/${s.who.lead_id}`} className="inline-flex min-h-[44px] items-center text-sm font-semibold text-blue-700">Open lead</Link>}
         </div>
       )}
@@ -135,7 +177,7 @@ function Stories({ stories }: { stories: LiveStory[] }) {
   return (
     <section aria-label="Today's visitors" className="space-y-2">
       <h2 className="text-lg font-bold">Today&apos;s visitors</h2>
-      <p className="text-sm text-gray-600">Newest first, India time. Tap one to see the pages they read and what they did.</p>
+      <p className="text-sm text-gray-600">Newest first, India time. Tap one to see where they came from, each page in order with the link they tapped to reach it, and what they did.</p>
       <ul className="divide-y divide-gray-100 rounded-2xl border border-gray-200 bg-white">
         {(all ? stories : stories.slice(0, STORIES)).map((s, i) => <Story key={`${s.who.label}-${s.start}-${i}`} s={s} />)}
       </ul>

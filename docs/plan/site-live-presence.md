@@ -106,6 +106,24 @@ Studio > Results gains **Today's visitors**: every visit today, newest first, in
 device · area · network, pages and reading time, and what they did (opened the chat, tapped WhatsApp/Call, shared, enquired).
 Tap one for the pages in order with the time on each.
 
+### D7. How each step of a visit happened (2026-11-16)
+
+Owner asked to know exactly how a visit went: from Google to a page, then the next page and how. Each page view now carries
+(frontend `readStep` in lib/site/tracking.ts, stored on the event by tracking/service.py):
+
+- **prev**: the page before it in this tab, or the page that opened this tab;
+- **via**: `link` (they tapped a link to it on our site; `link` keeps the link's words, 80 characters), `back` (Back/Forward),
+  `new_tab` (first page of a tab whose referrer is our own page) or `reload`. No `via` with a `prev` means they moved some other
+  way (the search box, a button, a form).
+
+Each tapped link is noted in the tab's sessionStorage and counts only if the next page is that link's page within 30 seconds.
+A story opens as a trail: **Came from** (the outside page, e.g. "google.co.in", "Google app (search or Discover)",
+"reddit.com/r/pune/..."), then each page with "↓ Tapped “…”", "↓ Went back" and so on, what they did placed between pages by
+the minute, and "Left after …" or "Still on the site". Google never passes what someone typed, so a visit from Google search
+also shows the top 3 searches that brought Google clicks to its first page in the last 28 days (areastats.demand
+`searches_by_page`, wired into tracking/live.py; read at most every 30 minutes), labelled as what people search, not this person.
+Views before this date have no `via`/`prev` and show only the page.
+
 ## Phases (each one is shippable alone)
 
 1. **P1 Measure.** D1 beacon on every buyer page + reading-time pings + bot filter. Done when Studio's existing numbers include
@@ -131,3 +149,4 @@ Tap one for the pages in order with the time on each.
   privacy page names reading time. Reading time starts at zero: views before this deploy have none. Watch after deploy: events
   per day (the weekly report reads the newest 20,000 events, so more page views shorten its window) and Core Web Vitals.
 - 2026-10-27: D6 built (work/visitor-story): device, area/network (DB-IP, IP dropped), robots, "You", chat_open, Today's visitors.
+- 2026-11-16: D7 built: prev/via/link on page views, the trail in Today's visitors and Right now, Google searches per landing page.

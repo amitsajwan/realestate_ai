@@ -4,12 +4,14 @@ from datetime import datetime, timedelta
 import pytest
 from pydantic import ValidationError
 
-from app.modules.tracking import device, visitor
-from app.modules.tracking.live import build_live, visits_of
+from app.modules.areastats.demand import DEMAND, searches_by_page
+from app.modules.tracking import device, live, visitor
+from app.modules.tracking.live import build_live, outside_site, visits_of
 from app.modules.tracking.schemas import PingIn
 from app.modules.tracking.service import TrackingService
 from app.platform.geoip import Place
 
+from .fakes import FakeDb
 from .test_tracking import BROWSER, ev, make
 
 pytestmark = pytest.mark.asyncio
@@ -294,3 +296,82 @@ async def test_where_people_came_from_leaves_out_robots():
     await db.get_collection("events").update_one({"anon_id": "anon-fake-0001"}, {"$set": {"robot": True}})
     agent_id = (await db.get_collection("events").find_one({"anon_id": "anon-real-0001"}))["agent_id"]
     assert sum(r["visitors"] for r in (await svc.origins(agent_id))["rows"]) == 1
+
+
+# ---- how each step of a visit was reached: the outside page, Google's searches, links tapped, back, new tab --------------------
+
+async def test_a_story_tells_each_step_from_google_to_the_link_tapped_and_back():
+    async def words(_db):
+        return {"/projects/godrej-ivara-pune": ["godrej ivara price", "ivara kharadi", "godrej ivara", "ivara floor plan"]}
+
+    live.configure(search_words=words)
+    try:
+        svc, _, clock, _ = await make_geo({})   # 12:00 UTC = 17:30 India
+        google = "https://www.google.co.in/"
+        await svc.track_event(view("/projects/godrej-ivara-pune", "viewG0000001", referrer=google,
+                                   landing="/projects/godrej-ivara-pune"), ANDROID)
+        clock.advance(minutes=2)
+        await svc.track_event(view("/projects/area/kharadi", "viewG0000002", referrer=google, prev="/projects/godrej-ivara-pune",
+                                   via="link", link="  More projects\n in   Kharadi "), ANDROID)
+        clock.advance(minutes=1)
+        await svc.track_event(view("/projects/godrej-ivara-pune", "viewG0000003", referrer=google, prev="/projects/area/kharadi",
+                                   via="back"), ANDROID)
+        s = (await build_live(svc, "A1"))["today"]["stories"][0]
+    finally:
+        live.configure()
+    assert (s["came_from"], s["outside"]) == ("google", "google.co.in")
+    assert s["searched"] == ["godrej ivara price", "ivara kharadi", "godrej ivara"]
+    assert [(x["page"], x.get("from_page"), x.get("via"), x.get("link")) for x in s["steps"]] == [
+        ("/projects/godrej-ivara-pune", None, None, None),
+        ("/projects/area/kharadi", "/projects/godrej-ivara-pune", "link", "More projects in Kharadi"),
+        ("/projects/godrej-ivara-pune", "/projects/area/kharadi", "back", None),
+    ]
+
+
+async def test_a_visit_not_from_google_shows_no_searches_and_names_the_app_that_sent_it():
+    async def words(_db):
+        return {"/": ["avasetu"]}
+
+    live.configure(search_words=words)
+    try:
+        svc, _, _, _ = await make_geo({})
+        await svc.track_event(view("/", "viewH0000001", referrer="android-app://com.google.android.gm/"), ANDROID)
+        s = (await build_live(svc, "A1"))["today"]["stories"][0]
+    finally:
+        live.configure()
+    assert (s["outside"], s["searched"]) == ("Gmail app", [])
+
+
+async def test_the_story_still_shows_when_the_searches_cannot_be_read():
+    async def broken(_db):
+        raise RuntimeError("search_demand down")
+
+    live.configure(search_words=broken)
+    try:
+        svc, _, _, _ = await make_geo({})
+        await svc.track_event(view("/", "viewI0000001", referrer="https://www.google.com/"), ANDROID)
+        s = (await build_live(svc, "A1"))["today"]["stories"][0]
+    finally:
+        live.configure()
+    assert (s["came_from"], s["searched"]) == ("google", [])
+
+
+def test_the_outside_page_reads_as_a_site_and_its_path():
+    assert outside_site("https://www.reddit.com/r/pune/comments/abc/") == "reddit.com/r/pune/comments/abc"
+    assert outside_site("android-app://com.google.android.googlequicksearchbox/") == "Google app (search or Discover)"
+    assert outside_site(None) is None
+
+
+def test_a_page_view_says_how_it_was_reached_only_in_known_words():
+    with pytest.raises(ValidationError):
+        view("/", "viewJ0000001", via="teleport")
+    assert view("/", "viewJ0000001", link="x" * 200).link == "x" * 80
+
+
+async def test_google_searches_are_grouped_by_the_page_they_brought_clicks_to():
+    db = FakeDb()
+    coll = db.get_collection(DEMAND)
+    await coll.insert_one({"_id": "ivara kharadi", "phrase": "ivara kharadi", "gsc": {"clicks": 2, "impressions": 90, "pages": ["/projects/godrej-ivara-pune"]}})
+    await coll.insert_one({"_id": "godrej ivara price", "phrase": "godrej ivara price", "gsc": {"clicks": 5, "impressions": 40, "pages": ["/projects/godrej-ivara-pune"]}})
+    await coll.insert_one({"_id": "kharadi flats", "phrase": "kharadi flats", "gsc": {"clicks": 0, "impressions": 500, "pages": ["/projects/godrej-ivara-pune"]}})
+    assert await searches_by_page(db) == {"/projects/godrej-ivara-pune": ["godrej ivara price", "ivara kharadi"]}

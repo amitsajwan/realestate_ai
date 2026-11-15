@@ -4,13 +4,22 @@ Owner scoped. Built from page_view / listing_view events: a view's last_seen mov
 seen in the last NOW_WINDOW is here now. Visits are a visitor's views with no gap longer than VISIT_GAP. Visitors are anonymous
 ("Visitor N", numbered by first appearance) unless the browser already belongs to one of the agent's leads; anon ids, IPs and
 user agents never leave the server, as in activity.py. A browser signed in to Studio is "You": listed, never counted. A visitor
-from a data centre (visitor.fields robot) is a robot and left out of everything."""
+from a data centre (visitor.fields robot) is a robot and left out of everything.
+
+Each step of a visit says how it was reached (the page before it, and whether they tapped a link, with its words, went back, opened
+a new tab or reloaded), and a visit names the outside site that sent it. Google never passes the words someone searched, so a
+visit from Google shows the searches Search Console says bring clicks to its first page: what people searched, not this person."""
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Awaitable, Callable, Dict, List, Optional
+from urllib.parse import urlparse
+
+import logging
 
 from . import origin
 from .activity import ist_date
 from .today import IST
+
+log = logging.getLogger(__name__)
 
 VIEW_TYPES = ["page_view", "listing_view"]
 # what a visitor did besides reading, shown in their story
@@ -22,6 +31,75 @@ VISIT_GAP = timedelta(minutes=30)
 LOOKBACK = timedelta(hours=3)            # how far back a visit still in progress can have started
 MAX_EVENTS = 20000
 MAX_NOW, MAX_JOURNEY, MAX_STORIES, TOP_PAGES, TOP_EXITS = 20, 12, 50, 5, 3
+MAX_STEPS = 30          # pages shown in one visit's story
+MAX_SEARCHED = 3        # Google searches shown for a landing page
+SEARCH_WORDS_TTL = timedelta(minutes=30)  # Search Console is read once a day; the panel refreshes every 15 s
+
+# db -> {page path: [searches that brought clicks to it, most clicks first]}; set by app/wiring.py (areastats owns the phrases)
+SearchWords = Callable[[object], Awaitable[Dict[str, List[str]]]]
+_search_words: Optional[SearchWords] = None
+_words_cache: dict = {}
+
+# apps that open pages and say so as android-app://<package>/ instead of a web address
+APPS = {"com.google.android.googlequicksearchbox": "Google app (search or Discover)", "com.google.android.gm": "Gmail app",
+        "com.linkedin.android": "LinkedIn app", "com.slack": "Slack app", "org.telegram.messenger": "Telegram app"}
+
+
+def configure(search_words: Optional[SearchWords] = None) -> None:
+    global _search_words
+    _search_words = search_words
+    _words_cache.clear()
+
+
+async def _searched(svc) -> Dict[str, List[str]]:
+    """The Google searches behind each page, read at most every SEARCH_WORDS_TTL; nothing when not wired or on a failure."""
+    if _search_words is None:
+        return {}
+    now = svc.now()
+    if _words_cache.get("at") and now - _words_cache["at"] < SEARCH_WORDS_TTL:
+        return _words_cache["words"]
+    try:
+        words = await _search_words(svc.db)
+    except Exception:  # the story still shows without the searches
+        log.warning("search words for the live panel failed", exc_info=True)
+        words = _words_cache.get("words") or {}
+    _words_cache.update(at=now, words=words)
+    return words
+
+
+def outside_site(referrer: Optional[str]) -> Optional[str]:
+    """The outside page that sent a visit, as the owner reads it: 'google.co.in', 'Google app (search or Discover)',
+    'reddit.com/r/pune/comments/...'. None when the browser did not say (apps, typed, bookmarks)."""
+    if not referrer:
+        return None
+    if referrer.startswith("android-app://"):
+        package = referrer[len("android-app://"):].split("/")[0]
+        return APPS.get(package) or f"app {package}"
+    u = urlparse(referrer)
+    host = (u.hostname or "").removeprefix("www.")
+    if not host:
+        return None
+    path = u.path.rstrip("/")
+    return host + (path[:60] + ("..." if len(path) > 60 else "") if path else "")
+
+
+def _from_google_search(first: dict) -> bool:
+    """Google search on the web or in the Google app; not Gmail or another Google app, which the origins grouping also calls google."""
+    ref = first.get("referrer") or ""
+    if ref.startswith("android-app://"):
+        return ref[len("android-app://"):].split("/")[0] == "com.google.android.googlequicksearchbox"
+    return _came_from(first) == "google"
+
+
+def _step(e: dict) -> dict:
+    """One page of a visit, with how it was reached when the browser told us (views before 2026-11-16 say nothing)."""
+    out = {"page": page_of(e), "ts": e["ts"], "at": _clock(e["ts"]), "read_s": e.get("read_s")}
+    for k in ("via", "link"):
+        if e.get(k):
+            out[k] = e[k]
+    if e.get("prev"):
+        out["from_page"] = e["prev"].split("?")[0].split("#")[0] or "/"
+    return out
 
 
 def _seen(e: dict) -> datetime:
@@ -99,6 +177,7 @@ async def build_live(svc, agent_id: str) -> dict:
             return {"kind": "lead", "label": lead.get("name") or "A lead", "lead_id": lead["_id"]}
         return {"kind": "visitor", "label": f"Visitor {numbers[anon]}"}
 
+    words = await _searched(svc)
     here: List[dict] = []
     day_visits: List[List[dict]] = []
     stories: List[dict] = []
@@ -109,7 +188,7 @@ async def build_live(svc, agent_id: str) -> dict:
                 continue
             if anon not in staff:
                 day_visits.append(v)
-            stories.append(_story(who(anon, v), v, acts.get(anon, []), now))
+            stories.append(_story(who(anon, v), v, acts.get(anon, []), now, words))
         last = visits[-1]
         if now - _seen(last[-1]) > NOW_WINDOW:
             continue
@@ -121,7 +200,8 @@ async def build_live(svc, agent_id: str) -> dict:
             "minutes": max(0, int((now - last[0]["ts"]).total_seconds() // 60)),
             "came_from": _came_from(last[0]),
             **_about(last),
-            "journey": [{"page": page_of(e), "ts": e["ts"], "at": _clock(e["ts"]), "read_s": e.get("read_s")} for e in last[-MAX_JOURNEY:]],
+            "outside": outside_site(last[0].get("referrer")),
+            "journey": [_step(e) for e in last[-MAX_JOURNEY:]],
             "_seen": _seen(last[-1]),
         })
     # the busiest visits first: most pages, then the longest stay, then the most recently active; your own browsers last
@@ -138,8 +218,9 @@ async def build_live(svc, agent_id: str) -> dict:
             "today": {**_today(now, day_visits), "stories": stories[:MAX_STORIES]}}
 
 
-def _story(who: dict, visit: List[dict], actions: List[dict], now: datetime) -> dict:
-    """One visit as the owner reads it: when, from where, on what, the pages in order with their time, and what they did."""
+def _story(who: dict, visit: List[dict], actions: List[dict], now: datetime, words: Optional[Dict[str, List[str]]] = None) -> dict:
+    """One visit as the owner reads it: when, from where (the outside page, and for Google the searches behind the first page),
+    on what, the pages in order with how each was reached and its time, and what they did."""
     start, end = visit[0]["ts"], _seen(visit[-1])
     did = [{"what": ACTIONS[a["type"]], "at": _clock(a["ts"])} for a in actions if start <= a["ts"] <= end + timedelta(minutes=5)]
     return {
@@ -148,11 +229,13 @@ def _story(who: dict, visit: List[dict], actions: List[dict], now: datetime) -> 
         "minutes": max(0, int((end - start).total_seconds() // 60)),
         "here_now": now - end <= NOW_WINDOW,
         "came_from": _came_from(visit[0]),
+        "outside": outside_site(visit[0].get("referrer")),
+        "searched": (words or {}).get(page_of(visit[0]), [])[:MAX_SEARCHED] if _from_google_search(visit[0]) else [],
         "landing": page_of(visit[0]),
         **_about(visit),
         "pages": len(visit),
         "read_s": sum(e.get("read_s") or 0 for e in visit),
-        "steps": [{"page": page_of(e), "at": _clock(e["ts"]), "read_s": e.get("read_s")} for e in visit[:MAX_JOURNEY]],
+        "steps": [{k: v for k, v in _step(e).items() if k != "ts"} for e in visit[:MAX_STEPS]],
         "did": did,
         "_start": start,
     }

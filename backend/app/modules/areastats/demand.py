@@ -156,6 +156,17 @@ async def from_results(store: Store, docs: List[dict], now: datetime, projects: 
     return {"ranked": ranked, "phrases": phrases}
 
 
+async def searches_by_page(db) -> Dict[str, List[str]]:
+    """{page path: the searches that brought Google clicks to it in the last 28 days, most clicks first}, for Studio's visit
+    stories (Google does not say what one visitor searched, so these are what people search to reach the page)."""
+    by: Dict[str, List[tuple]] = {}
+    async for d in db.get_collection(DEMAND).find({"gsc.clicks": {"$gt": 0}}, {"phrase": 1, "gsc": 1}):
+        g = d.get("gsc") or {}
+        for page in g.get("pages") or []:
+            by.setdefault(page, []).append((-int(g.get("clicks") or 0), -int(g.get("impressions") or 0), d.get("phrase") or d["_id"]))
+    return {page: [p for *_, p in sorted(rows)] for page, rows in by.items()}
+
+
 async def top(store: Store, kind: Optional[str] = None, area: Optional[str] = None, rising_only: bool = False,
               limit: int = 20) -> List[dict]:
     """The phrases most worth answering: by Search Console impressions, then by how many sources show them."""

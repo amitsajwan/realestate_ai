@@ -28,12 +28,32 @@ class TrackedTouch(BaseModel):
 
 
 VIEW_ID = r"^[A-Za-z0-9]{8,40}$"
+LINK_LEN = 80  # the words of a tapped link, as the visitor saw them
+
+
+Via = Literal["link", "back", "new_tab", "reload"]
 
 
 class EventIn(TrackedTouch):
     type: EventType
     view_id: Optional[str] = Field(None, pattern=VIEW_ID)  # one page view, made in the browser; its "still reading" pings name it
     staff: bool = False  # the browser is signed in to Studio: the agent's own visit, left out of the visitor counts
+    # how a page view was reached inside the site, so Studio can tell the visit step by step: the page before it in this tab
+    # (or the page that opened this tab), how they moved (tapped a link, went back, a new tab, a reload) and the tapped link's words
+    prev: Optional[str] = None
+    via: Optional[Via] = None
+    link: Optional[str] = None
+
+    @field_validator("prev")
+    @classmethod
+    def _clip_prev(cls, v: Optional[str]) -> Optional[str]:
+        return clip(v)
+
+    @field_validator("link")
+    @classmethod
+    def _clip_link(cls, v: Optional[str]) -> Optional[str]:
+        v = " ".join((v or "").split())
+        return v[:LINK_LEN] or None
 
 
 class PingIn(BaseModel):
