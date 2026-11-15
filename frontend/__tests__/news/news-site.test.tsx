@@ -10,7 +10,7 @@ import { buildMarketingConfig } from '@/lib/marketing/config'
 import { cleanNewsItem, cleanNewsList, formatNewsDate, isGoogleRedirect } from '@/lib/news/data'
 import { FIXTURE_NEWS } from '@/lib/news/fixtures'
 import { newsJsonLd, newsMetadata } from '@/lib/news/seo'
-import { newsSitemapXml, recentNews } from '@/lib/news/sitemap'
+import { NEWS_SITEMAP_FALLBACK, newsSitemapXml, recentNews } from '@/lib/news/sitemap'
 
 // The shell pulls in the chat widget, a font loader and the footer: not what is under test here.
 jest.mock('@/components/site/ChatWidget', () => ({ __esModule: true, default: () => null }))
@@ -272,9 +272,15 @@ describe('news sitemap (Google News)', () => {
     expect(xml).not.toMatch(/news\.google\.com/)
   })
 
-  it('is a valid, empty sitemap when nothing was published in two days', () => {
-    const xml = newsSitemapXml('https://site.example', FIXTURE_NEWS, new Date('2027-01-01T00:00:00Z').getTime())
-    expect(xml).toMatch(/<urlset [^>]+>\n<\/urlset>\n$/)
+  it('lists the newest few stories when nothing was published in two days, so Search Console never sees an empty sitemap', () => {
+    const later = new Date('2027-01-01T00:00:00Z').getTime()
+    const ids = recentNews(FIXTURE_NEWS, later).map((r) => r.item.id)
+    expect(ids).toHaveLength(NEWS_SITEMAP_FALLBACK)
+    expect(newsSitemapXml('https://site.example', FIXTURE_NEWS, later).match(/<url>/g)).toHaveLength(NEWS_SITEMAP_FALLBACK)
+  })
+
+  it('is still a valid sitemap with no stories at all', () => {
+    expect(newsSitemapXml('https://site.example', [], Date.now())).toMatch(/<urlset [^>]+>\n<\/urlset>\n$/)
   })
 })
 
