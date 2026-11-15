@@ -218,6 +218,10 @@ async def _publish_one(store: Store, publisher, social: SocialConfig, doc: dict,
         trace.event(log, "publish", doc["slug"], "send", trace.OK, channel=doc["channel"], kind="slides reel" if kind != "reel" and reel
                     else kind, attempt=attempts, permalink=res.permalink or res.external_id)
         await adapters.register_hub(store.db, doc, res.permalink or "", uploads)
+        if kind == "reel":   # the same reel on our YouTube channel, once per reel; it never holds up or fails this post
+            yt = await adapters.to_youtube(store.db, doc, uploads)
+            if yt:
+                trace.event(log, "publish", doc["slug"], "youtube", trace.OK, permalink=yt.permalink or yt.external_id)
         if link_comment and doc["channel"] == "facebook_page" and (kind == "reel" or reel):
             await link_comment(store.db, doc, res.external_id, social)
         return "published"

@@ -49,7 +49,7 @@ and the site stays steady. None of this needs Google to rank us first.
 
 | What | Why it works | Who | Status |
 |---|---|---|---|
-| **YouTube channel, every reel uploaded** with the project name in the title ("Godrej Ivara Upper Kharadi: price, possession, homes booked, Nov 2026"), the project page link first in the description, chapters where a reel has parts | Google ranks YouTube videos in days where a new site waits months; "<project> review" searches show the video on page one. Views come back as visits (`tracking/origin` already counts `youtube` as a source) | owner creates the channel (text ready in `docs/content/youtube/channel-text.md`); code adds a `youtube` target to `social.distribution` (YouTube Data API, resumable upload, one OAuth refresh token in the VM's `.env`), uploads each posted reel, stores the video id on the post | TARGET |
+| **YouTube channel, every reel uploaded** with the project name in the title ("Godrej Ivara Upper Kharadi: price, possession, homes booked, Nov 2026"), the project page link first in the description, chapters where a reel has parts | Google ranks YouTube videos in days where a new site waits months; "<project> review" searches show the video on page one. Views come back as visits (`tracking/origin` already counts `youtube` as a source) | owner creates the channel (text ready in `docs/content/youtube/channel-text.md`) and runs the setup below; code BUILT 2026-11-15: `platform/youtube_upload.py` (resumable upload, OAuth refresh token), `social.distribution.youtube_short` (ledger key `youtube:<reel slug>`, the owner's posting pause, at most `YOUTUBE_UPLOADS_PER_DAY`, default 5, for the 10,000-unit quota), called by the calendar after each reel is out (`calendar/adapters.to_youtube`; title names the project and place, description opens with the page). Off until `YOUTUBE_UPLOAD=on` | code BUILT 2026-11-15, waits for the channel |
 | **Google Business Profile** (House Deal's, website avasetu.in) with a weekly post from our data ("5 Kharadi projects moved their possession date this month") and a "Call" button | The local map pack sits above organic results and is not touched by this filter; "property agent kharadi" shows it today | owner: profile and link; code: a weekly post text in the Monday note (`seo/note.py`) to paste, later the Business Profile API when the profile is verified | TARGET |
 | **Google News / Publisher Center** for `/news` | News and Discover are separate indexes and want exactly what the newsroom writes: dated, sourced, with a large picture | owner: publishercenter.google.com → add avasetu.in/news; code: check `/news` articles carry `NewsArticle` data, a 1200 px picture and `article:published_time` | TARGET |
 | **Reddit and Quora answers** with our numbers and the page that holds them, disclosed as Avasetu | Google puts both at the top of "is <project> good" and "<area> vs <area>" questions | owner posts (as today, [project_reddit_posts]); code: a weekly "answers to post" list in Studio → SEO from `search_demand` questions, each with a drafted answer from the page's facts and its link | TARGET |
@@ -84,6 +84,19 @@ and the site stays steady. None of this needs Google to rank us first.
 2. The brand-search caption line in `calendar/adapters`, per language, with tests.
 3. The possession-move report page under `/news/track/`, from `completion_history`, with the method paragraph and a CSV.
 4. Then: the badge SVG and Studio box; the weekly Business Profile post text in the Monday note; the Reddit/Quora answer list.
+
+## YouTube set up (owner, about 30 minutes, once)
+
+1. Create the channel from `docs/content/youtube/channel-text.md`, signed in as the account that will own it.
+2. In the Google Cloud project the site already uses (Search Console key): APIs & Services → enable "YouTube Data API v3"; OAuth
+   consent screen (External, app name Avasetu, your email); Credentials → Create OAuth client ID → Desktop app. Keep the client
+   ID and secret.
+3. On this PC: `cd backend && python scripts/youtube_token.py --client-id <id> --client-secret <secret>`; approve in the browser
+   with the channel's account. It prints five lines.
+4. Add them to `deploy/gcp/.env` on the VM (`keys.ps1` or by hand) and redeploy. Uploads start with the next reel.
+5. Google keeps uploads from an unaudited API project private. Leave `YOUTUBE_PRIVACY=private` and send the audit form
+   (support.google.com/youtube/contact/yt_api_form: what we upload, our own channel only, about 5 videos a day). When it
+   passes, set `YOUTUBE_PRIVACY=public`. Videos uploaded while private can be made public in YouTube Studio in one go.
 
 ## What the owner does (about two hours in all)
 
