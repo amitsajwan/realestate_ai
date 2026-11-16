@@ -75,6 +75,8 @@ def wire() -> None:
     # area maps: pins found by the name a project is sold under (areastats.mappins), through propertyfacts' Google Places client
     from app.modules.areastats import mappins
     mappins.configure(search=_places_search)
+    # a page's own pin is asked under the same names (propertyfacts.pin); mappins sits above enrich, so they come in here
+    project_enrich.configure(sold_names=mappins.names_for)
     project_enrich.add_daily("map pins", mappins.refresh)
     # builder logos for project pages with no picture of their own (areastats.logos)
     from app.modules.areastats import logos
@@ -244,11 +246,11 @@ async def _project_start(db, regno, agent_id):
             "others": sum(1 for x in live if x.get("agent_id") != agent_id)}
 
 
-async def _gather_project(db, regno, name, locality, city="Pune", now=None):
+async def _gather_project(db, regno, name, locality, city="Pune", now=None, names=None):
     """propertyfacts.enrich.gather_project, imported lazily (propertyfacts sits above areastats)."""
     from app.modules.propertyfacts.enrich import gather_project
 
-    return await gather_project(db, regno, name, locality, city=city, now=now)
+    return await gather_project(db, regno, name, locality, city=city, now=now, names=names)
 
 
 def _area_guide_facts(key):

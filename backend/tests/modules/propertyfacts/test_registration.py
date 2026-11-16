@@ -75,7 +75,7 @@ class FakePins:
     def __init__(self, at=(18.7536353, 74.2445791)):
         self.at, self.asked = at, []
 
-    async def find(self, key, project, locality, pincode="", centre=None, now=None):
+    async def find(self, key, project, locality, pincode="", centre=None, now=None, names=()):
         self.asked.append((key, project, locality, pincode))
         if not self.at:
             return None, "not found on Google Maps"
