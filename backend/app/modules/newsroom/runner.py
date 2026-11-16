@@ -14,6 +14,7 @@ from .store import Store
 
 log = logging.getLogger(__name__)
 MAX_PASSES = 15
+WIDE_PER_CYCLE = 20  # wide cards drawn per cycle for older public items (about a second each)
 
 
 def load_sources(names) -> list:
@@ -46,6 +47,15 @@ async def _area_records(store: Store, stages: dict, cfg, counts: dict) -> None:
         log.exception("newsroom: area records failed")
 
 
+async def _wide_cards(store: Store, counts: dict) -> None:
+    """Stories already on the site were drawn before the wide (1200x675) picture existed: draw it for a few each cycle until
+    every public item has one (adapters.wide_cards). Never holds the newsroom back."""
+    try:
+        counts["wide"] = await adapters.wide_cards(store, WIDE_PER_CYCLE)
+    except Exception:
+        log.exception("newsroom: wide cards step failed")
+
+
 async def _track(store: Store, llm, now: datetime, counts: dict) -> None:
     """Attach the newly collected reports to the trackers they are about (trackers.py), whatever the filter made of them, then ask
     the model for a suggested status where new reports wait (shown to the owner in Studio, never put on the site by itself)."""
@@ -70,6 +80,7 @@ async def cycle(store: Store, cfg, hb=None) -> dict:
             more = await run_once(store, [], stages, publisher, llm, datetime.now(timezone.utc), cfg)
             counts = {k: counts.get(k, 0) + more.get(k, 0) for k in set(counts) | set(more)}
         await _track(store, llm, now, counts)
+        await _wide_cards(store, counts)
         await _weekly_digest(store, stages, now, counts)
         await _area_records(store, stages, cfg, counts)
         await store.set_run(last_run_at=now, last_error=None, last_counts=counts)

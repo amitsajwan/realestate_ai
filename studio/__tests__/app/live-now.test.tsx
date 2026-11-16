@@ -2,7 +2,7 @@
 import React from 'react'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import LiveNow from '@/components/app/LiveNow'
-import { aboutLine, getLive, pageLabel, readTime, type Live, type LiveStory } from '@/lib/app/live'
+import { aboutLine, getLive, howReached, pageLabel, readTime, type Live, type LiveStory } from '@/lib/app/live'
 
 jest.mock('@/lib/app/live', () => ({ ...jest.requireActual('@/lib/app/live'), getLive: jest.fn() }))
 const mockGetLive = getLive as jest.MockedFunction<typeof getLive>
@@ -120,4 +120,36 @@ test('your own browser is listed as You but the count says nobody else is here',
   expect(screen.getByText('Nobody else is on the site this minute.')).toBeInTheDocument()
   expect(screen.getByText(/You · 1 page/)).toBeInTheDocument()
   expect(screen.getByText('"You" is a browser signed in to Studio: shown, never counted.')).toBeInTheDocument()
+})
+
+test('a visit opens as a trail: from Google with the searches, each link tapped, Back, what they did, where they left', async () => {
+  const story: LiveStory = {
+    who: { kind: 'visitor', label: 'Visitor 9' }, start: '17:30', end: '17:36', minutes: 6, here_now: false,
+    came_from: 'google', outside: 'google.co.in', searched: ['godrej ivara price', 'ivara kharadi'],
+    landing: '/projects/godrej-ivara-pune', pages: 3, read_s: 200,
+    steps: [
+      { page: '/projects/godrej-ivara-pune', at: '17:30', read_s: 120 },
+      { page: '/projects/area/kharadi', at: '17:32', read_s: 50, via: 'link', link: 'More projects in Kharadi', from_page: '/projects/godrej-ivara-pune' },
+      { page: '/projects/godrej-ivara-pune', at: '17:34', read_s: 30, via: 'back', from_page: '/projects/area/kharadi' },
+    ],
+    did: [{ what: 'Tapped WhatsApp', at: '17:35' }],
+  }
+  mockGetLive.mockResolvedValue({ ...LIVE, today: { ...TODAY, stories: [story] } })
+  await act(async () => { render(<LiveNow />) })
+  const list = within(screen.getByRole('region', { name: "Today's visitors" }))
+  fireEvent.click(list.getByText(/Visitor 9 · from Google/))
+  expect(list.getByText('Google (google.co.in)')).toBeInTheDocument()
+  expect(list.getByText(/People reach this page by searching “godrej ivara price”, “ivara kharadi”/)).toBeInTheDocument()
+  expect(list.getByText('↓ Landed on')).toBeInTheDocument()
+  expect(list.getByText('↓ Tapped “More projects in Kharadi”')).toBeInTheDocument()
+  expect(list.getByText('↓ Went back')).toBeInTheDocument()
+  expect(list.getByText('17:35 Tapped WhatsApp')).toBeInTheDocument()
+  expect(list.getByText('Left after Project: Godrej ivara pune')).toBeInTheDocument()
+})
+
+test('how a step was reached reads in plain words', () => {
+  expect(howReached({ page: '/b', at: '', via: 'link', link: 'Price sheet', from_page: '/x' }, '/a')).toBe('Tapped “Price sheet” on /x')
+  expect(howReached({ page: '/b', at: '', via: 'new_tab', from_page: '/' }, '/a')).toBe('Opened in a new tab from Home page')
+  expect(howReached({ page: '/b', at: '', from_page: '/a' }, '/a')).toBe('Moved on (search box, a button or a form)')
+  expect(howReached({ page: '/b', at: '' }, '/a')).toBe('')
 })

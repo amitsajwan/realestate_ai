@@ -112,6 +112,10 @@ def wire() -> None:
     from app.modules.tracking import service as tracking_service
     # ...and a new website form lead is told to its agent at once: the Studio badge and, where they turned it on, their phone
     tracking_service.configure(project_area=_project_area, on_new_lead=_new_lead_alert)
+    # a visit from Google in Studio's live panel shows the searches that bring clicks to its first page (areastats' phrases)
+    from app.modules.areastats.demand import searches_by_page
+    from app.modules.tracking import live as tracking_live
+    tracking_live.configure(search_words=searches_by_page)
 
 
 async def _send_login_code(phone: str, code: str) -> None:

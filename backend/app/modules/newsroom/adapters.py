@@ -85,6 +85,19 @@ def render_cards(doc: dict, uploads: Optional[Path] = None) -> dict:
     return cards.render_doc(doc, uploads or uploads_dir())
 
 
+async def wide_cards(store, limit: int = 20, uploads: Optional[Path] = None) -> int:
+    """Draw the site's wide card for public items that have none yet (stories from before 2026-11-15), newest first, a few per
+    cycle. The social cards are left exactly as they were posted. An item whose wide card cannot be drawn is marked (None) so it
+    is not tried every cycle. Returns how many were drawn."""
+    done = 0
+    for doc in await store.public_without_wide(limit):
+        rel = await asyncio.to_thread(cards.render_web, doc, uploads or uploads_dir())
+        # "" and not None for one that could not be drawn: a value that exists, so the item is not listed again
+        await store.set_card(doc["_id"], {**(doc.get("card") or {}), "web": rel or ""})
+        done += bool(rel)
+    return done
+
+
 async def card_stage(doc: dict) -> dict:
     """The pipeline's optional `cards` stage: drawing is CPU work, so it runs off the event loop."""
     card = await asyncio.to_thread(render_cards, doc)

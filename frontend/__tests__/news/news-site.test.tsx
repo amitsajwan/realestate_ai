@@ -10,6 +10,7 @@ import { buildMarketingConfig } from '@/lib/marketing/config'
 import { cleanNewsItem, cleanNewsList, formatNewsDate, isGoogleRedirect } from '@/lib/news/data'
 import { FIXTURE_NEWS } from '@/lib/news/fixtures'
 import { newsJsonLd, newsMetadata } from '@/lib/news/seo'
+import { newsSitemapXml, recentNews } from '@/lib/news/sitemap'
 
 // The shell pulls in the chat widget, a font loader and the footer: not what is under test here.
 jest.mock('@/components/site/ChatWidget', () => ({ __esModule: true, default: () => null }))
@@ -36,6 +37,12 @@ describe('news data', () => {
     expect(out[0].permalinks).toEqual([{ channel: 'facebook', url: 'https://www.facebook.com/p/1' }])
     expect(cleanNewsList({})).toEqual([])
     expect(cleanNewsItem(undefined)).toBeNull()
+  })
+
+  it('keeps the wide card only as an https address', () => {
+    expect(cleanNewsItem({ id: '1', headline: 'H', image_wide_url: 'https://m/x-web.jpg' })!.image_wide_url).toBe('https://m/x-web.jpg')
+    expect(cleanNewsItem({ id: '1', headline: 'H', image_wide_url: 'http://m/x-web.jpg' })!.image_wide_url).toBeNull()
+    expect(cleanNewsItem({ id: '1', headline: 'H' })!.image_wide_url).toBeNull()
   })
 
   it('carries the buyer line from the API, null when missing, blank or not text', () => {
@@ -126,8 +133,21 @@ describe('NewsArticle', () => {
     expect(screen.queryByTestId('buyer-line')).toBeNull()
   })
 
+  it('shows the wide card as the picture, and the square one for a story drawn before it existed', () => {
+    const { unmount } = render(<NewsArticle item={ring} />)
+    const wide = screen.getByRole('img', { name: ring.headline })
+    expect(wide).toHaveAttribute('src', ring.image_wide_url as string)
+    expect(wide).toHaveAttribute('width', '1200')
+    expect(wide.className).toContain('aspect-video')
+    unmount()
+    render(<NewsArticle item={direct} />)
+    const square = screen.getByRole('img', { name: direct.headline })
+    expect(square).toHaveAttribute('src', direct.image_url as string)
+    expect(square.className).toContain('aspect-square')
+  })
+
   it('links to the Page post when there is one and works without an image', () => {
-    render(<NewsArticle item={{ ...ring, image_url: null }} />)
+    render(<NewsArticle item={{ ...ring, image_url: null, image_wide_url: null }} />)
     expect(screen.getByRole('link', { name: /Also on Facebook/ })).toHaveAttribute('href', 'https://www.facebook.com/PunePropertyHub/posts/1')
     expect(screen.queryByRole('img')).toBeNull()
   })
@@ -192,17 +212,31 @@ describe('InterestStrip', () => {
 })
 
 describe('SEO', () => {
-  it('open graph is an article with our own card as the image', () => {
+  it('open graph is an article with our own cards as the images, the wide one first', () => {
     const m = newsMetadata(cfg, ring) as any
     expect(m.openGraph.type).toBe('article')
     expect(m.openGraph.url).toBe(`https://site.example/news/${ring.id}`)
-    expect(m.openGraph.images[0].url).toBe(ring.image_url)
+    // Google Discover wants a picture 1200 px or wider: the 16:9 card leads, the square social card follows
+    expect(m.openGraph.images).toEqual([
+      { url: ring.image_wide_url, width: 1200, height: 675, alt: ring.headline },
+      { url: ring.image_url, width: 1080, height: 1080, alt: ring.headline },
+    ])
     expect(m.twitter.card).toBe('summary_large_image')
+    expect(m.twitter.images).toEqual([ring.image_wide_url])
+    expect(m.openGraph.publishedTime).toBe(ring.published_at)
     expect(m.alternates.canonical).toBe(`https://site.example/news/${ring.id}`)
   })
 
+  it('a story drawn before the wide card existed still previews with its square card', () => {
+    const m = newsMetadata(cfg, direct) as any
+    expect(direct.image_wide_url).toBeNull()
+    expect(m.openGraph.images).toEqual([{ url: direct.image_url, width: 1080, height: 1080, alt: direct.headline }])
+    expect((newsJsonLd(cfg, direct) as any).image).toEqual([direct.image_url])
+    expect((newsJsonLd(cfg, ring) as any).image).toEqual([ring.image_wide_url, ring.image_url])
+  })
+
   it('falls back to the brand preview image when the item has no card', () => {
-    const m = newsMetadata(cfg, { ...ring, image_url: null }) as any
+    const m = newsMetadata(cfg, { ...ring, image_url: null, image_wide_url: null }) as any
     expect(m.openGraph.images[0].url).toMatch(/\/brand\/og\.jpg$/)
   })
 
@@ -217,6 +251,30 @@ describe('SEO', () => {
     expect(ld.dateModified).toBe(ring.as_of)
     expect((newsJsonLd(cfg, direct) as any).isBasedOn.url).toBe(direct.source_url)
     expect((newsJsonLd(cfg, digest) as any).isBasedOn).toBeUndefined()
+  })
+})
+
+describe('news sitemap (Google News)', () => {
+  const now = new Date('2026-09-30T12:00:00Z').getTime()
+
+  it('lists the last two days of stories with publication, language, date and headline, newest first', () => {
+    const xml = newsSitemapXml('https://site.example', FIXTURE_NEWS, now)
+    expect(xml).toContain('xmlns:news="http://www.google.com/schemas/sitemap-news/0.9"')
+    const ids = recentNews(FIXTURE_NEWS, now).map((r) => r.item.id)
+    expect(ids.length).toBeGreaterThan(0)
+    expect(ids).toContain(ring.id)   // 29 Sep
+    expect(ids).not.toContain(FIXTURE_NEWS[2].id)   // 27 Sep: older than two days
+    expect(ids).toEqual([...ids].sort((a, b) => (FIXTURE_NEWS.find((n) => n.id === b)!.published_at! > FIXTURE_NEWS.find((n) => n.id === a)!.published_at! ? 1 : -1)))
+    expect(xml).toContain(`<loc>https://site.example/news/${ring.id}</loc>`)
+    expect(xml).toContain('<news:name>Avasetu</news:name><news:language>en</news:language>')
+    expect(xml).toContain(`<news:publication_date>${new Date(ring.published_at!).toISOString()}</news:publication_date>`)
+    expect(xml).toContain(`<news:title>${ring.headline.replace(/&/g, '&amp;')}</news:title>`)
+    expect(xml).not.toMatch(/news\.google\.com/)
+  })
+
+  it('is a valid, empty sitemap when nothing was published in two days', () => {
+    const xml = newsSitemapXml('https://site.example', FIXTURE_NEWS, new Date('2027-01-01T00:00:00Z').getTime())
+    expect(xml).toMatch(/<urlset [^>]+>\n<\/urlset>\n$/)
   })
 })
 

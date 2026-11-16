@@ -13,17 +13,26 @@ export function newsMetadata(cfg: MarketingConfig, item: NewsItem): Metadata {
   const branded = `${item.headline} | ${cfg.businessName}`
   const title = branded.length <= 65 ? branded : clip(item.headline, 65)
   const base = pageMetadata(cfg, { title, description, path })
-  const image = item.image_url ? { url: item.image_url, width: 1080, height: 1080, alt: item.headline } : undefined
+  const images = newsImages(item)
   const url = cfg.siteUrl + path
   return {
     ...base,
     openGraph: {
       title: item.headline, description, url, siteName: cfg.businessName, type: 'article', locale: 'en_IN',
       publishedTime: item.published_at ?? undefined, modifiedTime: item.as_of ?? undefined, section: item.pillar_label,
-      images: image ? [image] : base.openGraph?.images,
+      images: images.length ? images : base.openGraph?.images,
     },
-    twitter: { card: 'summary_large_image', title: item.headline, description, images: image ? [image.url] : undefined },
+    twitter: { card: 'summary_large_image', title: item.headline, description, images: images.length ? [images[0].url] : undefined },
   }
+}
+
+/** The item's own pictures, the wide one first: Google Discover shows a story as a large card only from a picture 1200 px or
+ *  wider, and link previews take the first; the square social card follows, so the structured data offers both shapes. */
+export function newsImages(item: NewsItem): Array<{ url: string; width: number; height: number; alt: string }> {
+  const out = []
+  if (item.image_wide_url) out.push({ url: item.image_wide_url, width: 1200, height: 675, alt: item.headline })
+  if (item.image_url) out.push({ url: item.image_url, width: 1080, height: 1080, alt: item.headline })
+  return out
 }
 
 /** schema.org NewsArticle that says what it is: our own summary of someone else's report, with that source named (isBasedOn).
@@ -45,7 +54,7 @@ export function newsJsonLd(cfg: MarketingConfig, item: NewsItem): Record<string,
     url: cfg.siteUrl + newsPath(item.id),
     datePublished: item.published_at ?? item.as_of ?? undefined,
     dateModified: item.as_of ?? item.published_at ?? undefined,
-    image: item.image_url ? [item.image_url] : undefined,
+    image: newsImages(item).length ? newsImages(item).map((i) => i.url) : undefined,
     author: { '@type': 'Organization', name: `${cfg.businessName} team` },
     publisher: { '@type': 'Organization', name: cfg.businessName, url: cfg.siteUrl },
     isBasedOn: source,

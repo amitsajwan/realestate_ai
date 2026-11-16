@@ -45,7 +45,17 @@ async def test_item_shape_headline_summary_source_and_date():
     assert r["pillar"] == "infrastructure" and [a["slug"] for a in r["areas"]] == ["kharadi", "wagholi"]
     assert r["what_to_check"].startswith("Read the official notice") and r["disclaimer"].startswith("Approvals and project status change")
     assert r["image_url"] == "https://media.test/uploads/news/a1b2c3d4e5-fb.jpg"
+    assert r["image_wide_url"] is None  # drawn before the wide card existed: the site shows the square one
     assert r["permalinks"] == [{"channel": "facebook", "url": "https://www.facebook.com/1"}]  # the failed channel has none
+
+
+async def test_item_carries_the_wide_card_for_the_site_when_it_has_one():
+    c, store = setup()
+    await put(store, SAMPLES[0], "published", card={"ig": "news/a-ig.jpg", "fb": "news/a1b2c3d4e5-fb.jpg", "web": "news/a1b2c3d4e5-web.jpg"})
+    r = c.get("/public/news/a1b2c3d4e5").json()
+    assert r["image_url"] == "https://media.test/uploads/news/a1b2c3d4e5-fb.jpg"
+    assert r["image_wide_url"] == "https://media.test/uploads/news/a1b2c3d4e5-web.jpg"
+    assert c.get("/public/news").json()[0]["image_wide_url"] == "https://media.test/uploads/news/a1b2c3d4e5-web.jpg"
     # the summary is the draft text without the link line, the question, the hashtags and the footer
     assert "http" not in r["summary"] and "#" not in r["summary"] and "?" not in r["summary"] and "Avasetu" not in r["summary"]
     assert r["summary"].startswith("The eastern stretch of the Pune Ring Road")

@@ -5,6 +5,7 @@ import { TEAM } from '@/lib/brand'
 const DISCLAIMER = 'Approvals and project status change, so check the sources before you decide. This is general information, not investment or legal advice.'
 const GOOGLE = (id: string) => `https://news.google.com/rss/articles/CBMi${id}Pq3Jf0lX8vN2mWk9TgYh7QdLr5sUe1aOcZbV4xEiMuHnR6yKtDjSwB?oc=5`
 const media = (id: string) => `https://media.example.com/uploads/news/${id}-fb.jpg`
+const wide = (id: string) => `https://media.example.com/uploads/news/${id}-web.jpg`
 const K = { key: 'kharadi', slug: 'kharadi', name: 'Kharadi' }
 const W = { key: 'wagholi', slug: 'wagholi', name: 'Wagholi' }
 const UK = { key: 'upper_kharadi', slug: 'upper-kharadi', name: 'Upper Kharadi' }
@@ -12,6 +13,7 @@ const UK = { key: 'upper_kharadi', slug: 'upper-kharadi', name: 'Upper Kharadi' 
 const base = {
   kind: 'story' as const, permalinks: [], items: [], tip: '', article: [], disclaimer: DISCLAIMER, our_view: '', buyer_line: null,
   body: [] as string[], background: '', sources: [] as NewsItem['sources'],
+  image_wide_url: null as string | null,   // most samples are older stories: only the square card, as on the live site today
 }
 // the fixed lines the backend chooses for these pillars (backend/app/modules/newsroom/policy.py BUYER_LINES)
 const LINE = {
@@ -27,7 +29,7 @@ export const FIXTURE_NEWS: NewsItem[] = [
     ...base, id: 'pune-ring-road-10502-crore-approved-a1b2c3', headline: 'Pune Ring Road: ₹10,502 crore approved for the 32 km eastern stretch',
     summary: 'The eastern stretch of the Pune Ring Road is 32 km long. ₹10,502 crore has been approved for this stretch.',
     pillar: 'infrastructure', pillar_label: 'Infrastructure', areas: [K, W], source_name: 'Times of India', source_url: GOOGLE('a1b2c3d4e5'),
-    as_of: '2026-09-29T06:30:00+00:00', image_url: media('a1b2c3d4e5'), published_at: '2026-09-29T09:00:00+00:00',
+    as_of: '2026-09-29T06:30:00+00:00', image_url: media('a1b2c3d4e5'), image_wide_url: wide('a1b2c3d4e5'), published_at: '2026-09-29T09:00:00+00:00',
     our_view: 'It may matter to people who commute between east Pune and the highways, but approval is not the same as work on the ground.',
     what_to_check: 'Read the official notice for the latest status before you decide.', buyer_line: LINE.transport,
     permalinks: [{ channel: 'facebook', url: 'https://www.facebook.com/PunePropertyHub/posts/1' }],

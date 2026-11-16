@@ -36,7 +36,11 @@ export default function NewsArticle({ item, projects = [] }: { item: NewsItem; p
         </p>
       )}
 
-      {item.image_url && (
+      {item.image_wide_url ? (
+        // the 16:9 card drawn for the site; the square social card stands in for stories drawn before it existed
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={item.image_wide_url} alt={item.headline} width={1200} height={675} decoding="async" className="mt-6 aspect-video w-full rounded-2xl border border-slate-200 object-cover" />
+      ) : item.image_url && (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={item.image_url} alt={item.headline} width={720} height={720} decoding="async" className="mt-6 aspect-square w-full rounded-2xl border border-slate-200 object-cover" />
       )}

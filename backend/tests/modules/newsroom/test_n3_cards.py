@@ -26,6 +26,25 @@ def test_card_size_margins_and_fit(doc, channel, size):
         assert s[0] >= 83 and s[2] <= 1080 - 83
 
 
+@pytest.mark.parametrize("doc", SAMPLES, ids=lambda d: d["_id"])
+def test_wide_card_for_the_site_is_1200_by_675_and_fits(doc):
+    """The 16:9 card Google Discover and the article page use: every sample fits inside the margins with nothing cut."""
+    img, r, variant = cards.render_card(doc, "web")
+    assert img.size == (1200, 675) and variant in cards.VARIANTS
+    assert cards.problems(r) == []
+    texts = " | ".join(i.text for i in r.items)
+    assert "NEWS ·" in texts and "As of" in texts and pr.source_name(doc) in texts  # the same chrome as the social cards
+    for it in r.items:
+        assert it.box[0] >= 83 and it.box[1] >= 83 and it.box[2] <= 1200 - 83 and it.box[3] <= 675 - 83, it.text
+
+
+def test_wide_card_keeps_the_figure_in_the_headline_and_the_photo_look():
+    _, r, _ = cards.render_card(SAMPLES[0], "web")   # a figure story: no room for the big number, so it stays in the hook
+    assert any("₹10,502" in i.text and i.role == "hook" for i in r.items)
+    _, r, _ = cards.render_card(SAMPLES[2], "web")   # infrastructure: on the bundled photo, labelled
+    assert "Illustrative photo" in " | ".join(i.text for i in r.items)
+
+
 def test_variant_rule_figure_photo_headline():
     by_id = {d["_id"]: cards.choose_variant(d) for d in SAMPLES}
     assert by_id["a1b2c3d4e5"] == "figure" and by_id["b2c3d4e5f6"] == "figure" and by_id["e5f6a7b8c9"] == "figure"
@@ -67,12 +86,22 @@ def test_chip_source_and_as_of_are_on_the_card():
     assert "Illustrative photo" in texts  # the stock photo is labelled
 
 
-def test_render_item_saves_both_jpegs_under_news(tmp_path):
+def test_render_item_saves_all_three_jpegs_under_news(tmp_path):
     out = cards.render_item(SAMPLES[0], tmp_path)
-    assert out["ig"] == "news/a1b2c3d4e5-ig.jpg" and out["fb"] == "news/a1b2c3d4e5-fb.jpg"
-    for rel, size in ((out["ig"], (1080, 1350)), (out["fb"], (1080, 1080))):
+    assert out["ig"] == "news/a1b2c3d4e5-ig.jpg" and out["fb"] == "news/a1b2c3d4e5-fb.jpg" and out["web"] == "news/a1b2c3d4e5-web.jpg"
+    for rel, size in ((out["ig"], (1080, 1350)), (out["fb"], (1080, 1080)), (out["web"], (1200, 675))):
         p = Path(tmp_path) / rel
         assert Image.open(p).size == size and p.stat().st_size < 400_000
+
+
+def test_a_wide_card_that_cannot_be_drawn_is_none_and_never_stops_the_social_cards(tmp_path, monkeypatch):
+    def refuse(*a, **k):
+        raise cards.CardError("does not fit")
+    monkeypatch.setattr(cards, "_render_wide", refuse)
+    assert cards.render_web(SAMPLES[0], tmp_path) is None
+    out = cards.render_item(SAMPLES[0], tmp_path)
+    assert out["web"] is None and (Path(tmp_path) / out["fb"]).is_file() and (Path(tmp_path) / out["ig"]).is_file()
+    assert cards.render_digest(digest.sample_digest(SAMPLES), tmp_path)["web"] is None
 
 
 def test_a_very_long_headline_still_fits_by_shrinking_or_shortening():
@@ -91,6 +120,7 @@ def test_digest_carousel_is_cover_stories_tip_and_closing(tmp_path):
     for rel in out["ig"]:
         assert Image.open(Path(tmp_path) / rel).size == (1080, 1350)
     assert Image.open(Path(tmp_path) / out["fb"]).size == (1080, 1080)
+    assert out["web"].endswith("-web.jpg") and Image.open(Path(tmp_path) / out["web"]).size == (1200, 675)  # the cover, for the site
 
 
 def test_render_doc_dispatches_between_story_and_digest(tmp_path):

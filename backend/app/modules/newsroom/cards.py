@@ -1,4 +1,6 @@
-"""News cards for social: a designed 1080x1350 (Instagram) and 1080x1080 (Facebook) image per item, and the digest carousel.
+"""News cards for social: a designed 1080x1350 (Instagram) and 1080x1080 (Facebook) image per item, and the digest carousel;
+and since 2026-11-15 a 1200x675 (16:9) one for the site itself: the article page, link previews and Google Discover, which only
+shows a story as a large card when its picture is at least 1200 px wide.
 
 One of the two files in the newsroom that may import `creative` (the other is adapters.py). It uses creative's drawing kit
 (Canvas, palettes, bundled photos) so the cards share the brand look; the news layouts themselves live here because a news card needs
@@ -8,18 +10,23 @@ Everything printed on a card is cut from the checked draft and its facts (`prese
 the supporting line is another checked fact, the figure variant only enlarges a figure already in the hook. Nothing is added.
 Three looks, chosen by a small rule (`choose_variant`):  figure (a rupee amount in the hook), photo (infrastructure, on a bundled dark
 photo, labelled 'Illustrative photo'), headline (everything else, a typographic card)."""
-from app.core import brand
+import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from PIL import Image
+
+from app.core import brand
 
 from app.modules.creative.layouts.base import Canvas, Rendered, gradient, photo, scrim, violations
 from app.modules.creative.layouts.palette import Palette, get as get_palette
 
 from . import presentation as pr
 
-SIZES = {"ig": (1080, 1350), "fb": (1080, 1080)}
+log = logging.getLogger(__name__)
+
+SIZES = {"ig": (1080, 1350), "fb": (1080, 1080), "web": (1200, 675)}
+SOCIAL = ("ig", "fb")  # the channels a story is posted to; "web" is the site's own picture
 MAX_BYTES = 380_000
 DARK_PHOTOS = ("glass-dusk", "tower-low")  # bundled photos that are dark enough for white text
 PALETTE_BY_PILLAR = {"infrastructure": "navy_gold", "new_supply": "navy_teal", "rules_money": "cream", "locality_life": "navy_coral",
@@ -173,6 +180,52 @@ def _render_photo(doc: dict, channel: str, hook: str, support: str) -> Rendered:
     return c.finish()
 
 
+def _render_wide(doc: dict, hook: str, support: str, variant: str, over: Optional[dict] = None) -> Rendered:
+    """The 16:9 card for the site (1200x675). Shorter than the social cards, so its chrome is tighter: chip, the place on its
+    own line, the headline (with a figure in the hook lit in the accent colour: there is no room for the big figure layout),
+    the source and date line, the brand bar. `photo` sits the words on the same bundled dark photo as the Instagram card;
+    anything else is the typographic card. `over` (the digest's cover) replaces the kicker, source line or place."""
+    over = over or {}
+    size = SIZES["web"]
+    bg = None
+    if variant == "photo":
+        img = photo(_photo_key(doc), size, centering=(0.5, 0.4))
+        bg = scrim(scrim(img if img is not None else gradient(size, (26, 54, 98), (9, 20, 42)), 0.30, 0.94), 0.50, 0.60, top=True)
+    c, pal = _canvas(variant, "web", doc, bg=bg)
+    if over.get("pal"):
+        pal = get_palette(over["pal"])
+        c = Canvas(size, pal, "news_headline", pattern="dots", glow_at=(0.9, 0.06))
+    dark = variant == "photo" or not pal.light
+    w = c.right - c.left
+    chip = c.chip(over.get("kicker", _kicker(doc)), c.left, c.top, icon="bolt")
+    c.brand_bar(right="Illustrative photo" if variant == "photo" else "", dark_bg=dark)
+    meta = over.get("meta", _meta_line(doc))
+    meta_y = c.bottom - 64 - 18 - 30
+    if meta:
+        fs, _, _, trunc = c.fit(meta, w, 30, "medium", 1, 24, balance=False)
+        if trunc:  # long source name: drop the label
+            meta = meta.replace("Source: ", "")
+        c.text(meta, c.left, meta_y, w, 30, "medium", pal.muted, 1, min_size=24, balance=False, role="meta")
+    y = chip[3] + 22
+    place = over.get("place", _dateline(doc))
+    if place:
+        c.text(place, c.left, y, w, 28, "semibold", pal.accent, 1, min_size=24, balance=False, role="meta")
+        y += 50
+    top, bottom = y, meta_y - 28
+    sh = c.measure(support, w, 30, "medium", 2, pitch=1.3, balance=False) if support else 0
+    room = bottom - top - 10 - 24 - (24 + sh if sh else 0)  # what is left for the headline under the accent bar
+    hh = c.measure(hook, w, 72, "bold", 3, pitch=1.08, min_size=50, h=room)
+    total = 10 + 24 + hh + (24 + sh if sh else 0)
+    y = top + max(0, (bottom - top - total) // 2)
+    c.rrect((c.left, y, c.left + 130, y + 10), 5, pal.accent_fill)
+    ink = (255, 255, 255) if variant == "photo" else pal.ink
+    y = c.text(hook, c.left, y + 10 + 24, w, 72, "bold", ink, 3, pitch=1.08, min_size=50, h=room, emph=_emph(hook), role="hook")
+    if support:
+        c.text(support, c.left, y + 24, w, 30, "medium", (222, 228, 240) if variant == "photo" else pal.muted, 2, pitch=1.3,
+               balance=False, role="support")
+    return c.finish()
+
+
 def problems(r: Rendered) -> List[str]:
     """Margin violations (nothing outside the 84 px safe area, so Instagram's 3:4 grid crop cannot cut anything) and text that did not fit."""
     out = violations(r)
@@ -197,7 +250,9 @@ def render_card(doc: dict, channel: str, variant: Optional[str] = None, counter:
     for limit in (12, 10, 8):
         hook = pr._cut_clause(base_hook, limit)
         for sup in ([support, ""] if support else [""]):
-            if variant == "figure":
+            if channel == "web":
+                r = _render_wide(doc, hook, sup, "photo" if variant == "photo" else "headline", over)
+            elif variant == "figure":
                 value, label = fig
                 r = _render_figure(doc, channel, value, pr._cut_clause(label, limit), sup)  # label is the hook
             elif variant == "photo":
@@ -220,15 +275,33 @@ def save(img: Image.Image, path: Path) -> int:
     return path.stat().st_size
 
 
-def render_item(doc: dict, uploads: Path, variant: Optional[str] = None) -> Dict[str, str]:
-    """Render and save both sizes for one item. Returns paths relative to `uploads`: {"ig": "news/<id>-ig.jpg", "fb": ..., "variant": ...}."""
-    out: Dict[str, str] = {}
-    for ch in ("ig", "fb"):
+def render_item(doc: dict, uploads: Path, variant: Optional[str] = None) -> Dict[str, Optional[str]]:
+    """Render and save every size for one item. Returns paths relative to `uploads`: {"ig": "news/<id>-ig.jpg", "fb": ...,
+    "web": ..., "variant": ...}. The social cards must fit (a CardError stops the item); the site's wide card is extra, so when
+    it alone does not fit the item keeps "web": None and the site shows the square card instead."""
+    out: Dict[str, Optional[str]] = {}
+    for ch in SOCIAL:
         img, _, used = render_card(doc, ch, variant)
         rel = f"news/{doc['_id']}-{ch}.jpg"
         save(img, Path(uploads) / rel)
         out[ch], out["variant"] = rel, used
+    out["web"] = render_web(doc, uploads, variant)
     return out
+
+
+def render_web(doc: dict, uploads: Path, variant: Optional[str] = None) -> Optional[str]:
+    """Save the 1200x675 card of a story or the digest's cover; the path relative to `uploads`, or None when it cannot be drawn."""
+    rel = f"news/{doc['_id']}-web.jpg"
+    try:
+        if (doc.get("draft") or {}).get("format") == "digest":
+            img = digest_cover_wide(doc.get("digest") or {})
+        else:
+            img = render_card(doc, "web", variant)[0]
+    except CardError as e:
+        log.warning("newsroom: wide card for %s not drawn: %s", doc.get("_id"), e)
+        return None
+    save(img, Path(uploads) / rel)
+    return rel
 
 
 # ---- the weekly digest: cover, one slide per story, the tip, a closing slide (Instagram); the cover alone for Facebook ----------------------
@@ -254,18 +327,36 @@ def _hl(*args, **kw) -> Image.Image:
     return r.img
 
 
-def digest_slides(dg: dict, channel: str = "ig") -> List[Image.Image]:
-    """Cover, one slide per story, the tip, and a closing slide (Instagram); just the cover for Facebook.
-    A digest of another kind (New on MahaRERA) brings its own kicker, meta, cover line and closing words."""
+def _digest_cover(dg: dict) -> Tuple[dict, str, str, str, str]:
+    """What every size of the digest's cover prints: the stand-in doc, the cover line, its supporting line, the kicker, the meta line."""
     when = dg.get("as_of")
     as_of = f"{when.day} {pr.MONTHS[when.month - 1]} {when.year}" if when else ""
     meta = dg.get("meta") or "Our summaries of local reports" + (f" · As of {as_of}" if as_of else "")
-    items = dg.get("items", [])
     base = {"_id": "digest", "relevance": {"pillar": "digest", "areas": ["kharadi", "wagholi"]}, "draft": {"format": "digest"}}
+    n = len(dg.get("items", []))
+    cover_sup = dg.get("cover_line") or f"{n} local updates and one buyer tip"
+    return base, dg.get("cover") or dg.get("title", "Kharadi and Wagholi this week"), cover_sup, dg.get("kicker") or "NEWS · THIS WEEK", meta
+
+
+def digest_cover_wide(dg: dict) -> Image.Image:
+    """The digest's cover at 1200x675 for the site; shorter supporting lines tried until it fits."""
+    base, cover, sup, kicker, meta = _digest_cover(dg)
+    last: Optional[Rendered] = None
+    for s in (sup, ""):
+        last = _render_wide(base, cover, s, "headline", _digest_over(kicker, meta=meta))
+        if not problems(last):
+            return last.img
+    raise CardError("digest cover does not fit: " + "; ".join(problems(last))[:200])
+
+
+def digest_slides(dg: dict, channel: str = "ig") -> List[Image.Image]:
+    """Cover, one slide per story, the tip, and a closing slide (Instagram); just the cover for Facebook.
+    A digest of another kind (New on MahaRERA) brings its own kicker, meta, cover line and closing words."""
+    base, cover, cover_sup, kicker, meta = _digest_cover(dg)
+    items = dg.get("items", [])
     n = len(items)
-    cover_sup = (dg.get("cover_line") or f"{n} local updates and one buyer tip") + (". Swipe." if channel == "ig" else "")
-    slides = [_hl(base, channel, dg.get("cover") or dg.get("title", "Kharadi and Wagholi this week"), cover_sup, "",
-                               _digest_over(dg.get("kicker") or "NEWS · THIS WEEK", meta=meta))]
+    cover_sup += ". Swipe." if channel == "ig" else ""
+    slides = [_hl(base, channel, cover, cover_sup, "", _digest_over(kicker, meta=meta))]
     if channel != "ig":
         return slides
     for i, it in enumerate(items, 1):
@@ -280,7 +371,8 @@ def digest_slides(dg: dict, channel: str = "ig") -> List[Image.Image]:
 
 
 def render_digest(doc: dict, uploads: Path) -> dict:
-    """Save the digest cards. Paths relative to `uploads`: {"ig": [cover, ..., closing], "fb": cover, "variant": "digest"}."""
+    """Save the digest cards. Paths relative to `uploads`: {"ig": [cover, ..., closing], "fb": cover, "web": the wide cover (or
+    None), "variant": "digest"}."""
     dg = doc.get("digest") or {}
     stem = f"news/{doc['_id']}"
     ig = []
@@ -290,7 +382,7 @@ def render_digest(doc: dict, uploads: Path) -> dict:
         ig.append(rel)
     fb = f"{stem}-fb.jpg"
     save(digest_slides(dg, "fb")[0], Path(uploads) / fb)
-    return {"ig": ig, "fb": fb, "variant": "digest"}
+    return {"ig": ig, "fb": fb, "web": render_web(doc, uploads), "variant": "digest"}
 
 
 def render_doc(doc: dict, uploads: Path) -> dict:

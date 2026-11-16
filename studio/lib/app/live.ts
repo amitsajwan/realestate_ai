@@ -27,6 +27,12 @@ export interface LiveStep {
   ts?: string
   /** seconds the page was visible; null for pages before reading time was counted */
   read_s?: number | null
+  /** how this page was reached (views from 2026-11-16 on): tapped a link, went back, a new tab, a reload */
+  via?: 'link' | 'back' | 'new_tab' | 'reload'
+  /** the tapped link's words */
+  link?: string
+  /** the page they were on before (or that opened this tab) */
+  from_page?: string
 }
 
 export interface LiveVisitor extends LiveAbout {
@@ -38,6 +44,8 @@ export interface LiveVisitor extends LiveAbout {
   minutes: number
   /** the origins report's key: google, instagram, a src= tag, direct... */
   came_from: string
+  /** the outside page that sent them: "google.co.in", "Google app (search or Discover)", "reddit.com/r/pune/..." */
+  outside?: string | null
   journey: LiveStep[]
 }
 
@@ -63,10 +71,13 @@ export interface LiveStory extends LiveAbout {
   minutes: number
   here_now: boolean
   came_from: string
+  outside?: string | null
+  /** from Google: the searches Search Console says bring clicks to the first page (Google never says what this person typed) */
+  searched?: string[]
   landing: string
   pages: number
   read_s: number
-  steps: Array<{ page: string; at: string; read_s?: number | null }>
+  steps: LiveStep[]
   did: Array<{ what: string; at: string }>
 }
 
@@ -133,4 +144,21 @@ export function readTime(seconds?: number | null): string {
   const m = Math.floor(seconds / 60)
   const s = seconds % 60
   return m ? `${m}m${s ? ` ${s}s` : ''}` : `${s}s`
+}
+
+/** How one step of a visit was reached, in words; `before` is the page of the step above it. Empty when the browser did not say. */
+export function howReached(s: LiveStep, before?: string): string {
+  const elsewhere = s.from_page && s.from_page !== before ? ` on ${pageLabel(s.from_page)}` : ''
+  if (s.via === 'link') return s.link ? `Tapped “${s.link}”${elsewhere}` : `Tapped a link${elsewhere}`
+  if (s.via === 'back') return 'Went back'
+  if (s.via === 'new_tab') return `Opened in a new tab from ${pageLabel(s.from_page || '/')}`
+  if (s.via === 'reload') return 'Reloaded the page'
+  if (s.from_page) return elsewhere ? `Moved on from ${pageLabel(s.from_page)}` : 'Moved on (search box, a button or a form)'
+  return ''
+}
+
+/** Where a visit started, in words: "Google search (google.co.in)", "Instagram app", "Tagged link ig_ivara", "Opened directly". */
+export function startLine(cameFrom: string, outside: string | null | undefined, label: string): string {
+  if (cameFrom === 'direct' || cameFrom === 'unknown') return 'Opened directly: typed, a bookmark, or an app that hides where from'
+  return outside && !label.toLowerCase().includes(outside.toLowerCase()) ? `${label} (${outside})` : label
 }

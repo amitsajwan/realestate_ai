@@ -91,10 +91,13 @@ class TrackingService:
         view_id = getattr(e, "view_id", None)
         # a page view the browser named gets its reading time from later pings; last_seen says whether they are still on it
         reading = {"view_id": view_id, "read_s": 0, "last_seen": now} if view_id else {}
+        # how this page was reached inside the site (page views only; an enquiry carries none)
+        step = {k: getattr(e, k, None) for k in ("prev", "via", "link")}
+        step = {k: v for k, v in step.items() if v}
         await self.events.insert_one({
             "agent_id": agent_id, "anon_id": e.anon_id, "contact_id": contact_id, "type": type_,
             "listing_id": e.listing_id, "source": e.source, "utm": e.utm, **origin.touch_fields(e), "in_app": app, "ts": now,
-            **reading, **(who or {}),
+            **reading, **step, **(who or {}),
         })
         return scoring.event_points(type_, prior)
 
