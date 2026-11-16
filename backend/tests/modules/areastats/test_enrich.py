@@ -45,7 +45,7 @@ GOOD = ("Rohan Abhilasha 4 is a residential project by Rohan Builders in Wagholi
 def gatherer(monkeypatch):
     calls = []
 
-    async def gather(db, regno, name, locality, city="Pune", now=None):
+    async def gather(db, regno, name, locality, city="Pune", now=None, names=None):
         calls.append(regno)
         return GATHERED
     monkeypatch.setitem(enrich._deps, "gather", gather)
@@ -167,6 +167,19 @@ async def test_without_a_gatherer_it_still_writes_from_the_register_facts(monkey
     db, store = await ready(("P1", "Rohan Abhilasha 4", "wagholi", {**FULL, "promoter": "Rohan Builders"}))
     out = await enrich.step(store, FakeLLM(GOOD), NOW, None, timedelta(minutes=30))
     assert out["text"] and "no gatherer configured" in out["notes"]
+
+
+async def test_the_gatherer_is_told_the_names_the_project_is_sold_under(monkeypatch):
+    asked = []
+
+    async def gather(db, regno, name, locality, city="Pune", now=None, names=None):
+        asked.append((name, names))
+        return GATHERED
+    monkeypatch.setitem(enrich._deps, "gather", gather)
+    monkeypatch.setitem(enrich._deps, "sold_names", lambda doc: ["Kumar Primeview"])
+    db, store = await ready(("P1", "Kumar Primeview G2", "wagholi", {**FULL, "promoter": "Kumar Properties"}))
+    await enrich.step(store, FakeLLM(GOOD), NOW, None, timedelta(minutes=30))
+    assert asked == [("Kumar Primeview G2", ["Kumar Primeview"])]
 
 
 async def test_enrich_now_for_an_unknown_project_says_so():

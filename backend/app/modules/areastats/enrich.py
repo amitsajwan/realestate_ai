@@ -174,12 +174,13 @@ STOCK = re.compile(r"sales? agreement|possession (?:date|timeline)|maharera reco
                    r"specific (?:registration|phase|portion|part)|(?:broader|wider|larger) (?:development|project)|consists? of|"
                    r"takes shape|boutique|footprint|solitary|ventures?\b|true low-rise|the structures? (?:is|are)", re.I)
 
-Gather = Callable[..., Awaitable[Optional[dict]]]   # gather(db, regno, name, locality, city="Pune", now=None) -> {"view", "notes", ...}
+Gather = Callable[..., Awaitable[Optional[dict]]]   # gather(db, regno, name, locality, city="Pune", now=None, names=None) -> {"view", "notes", ...}
 PincodeCentre = Callable[..., Awaitable[Optional[tuple]]]   # centre(db, pincode) -> (lat, lon) or None
 SheetOf = Callable[..., Awaitable[Optional[dict]]]          # sheet(db, regno) -> the kept property-facts document or None
 KeptView = Callable[..., Awaitable[Optional[dict]]]         # view(db, regno) -> the public view of the kept facts sheet, or None
 Shown = Callable[..., Awaitable[set]]                       # shown(db) -> page slugs the owner picked for the banner (spotlight)
-_deps: Dict[str, Any] = {"gather": None, "pincode_centre": None, "sheet": None, "view": None, "shown": None,
+SoldNames = Callable[[dict], List[str]]                     # sold_names(record) -> the names it is sold under (mappins.names_for)
+_deps: Dict[str, Any] = {"gather": None, "pincode_centre": None, "sheet": None, "view": None, "shown": None, "sold_names": None,
                          "general": project_api.make_fetch(), "buildings": project_api.make_fetch_buildings()}
 
 
@@ -195,9 +196,9 @@ def add_daily(name: str, fn: Daily) -> None:
 
 def configure(gather: Optional[Gather] = None, pincode_centre: Optional[PincodeCentre] = None, sheet: Optional[SheetOf] = None,
               general: Optional[project_api.Fetch] = None, buildings: Optional[project_api.Fetch] = None,
-              view: Optional[KeptView] = None, shown: Optional[Shown] = None) -> None:
+              view: Optional[KeptView] = None, shown: Optional[Shown] = None, sold_names: Optional[SoldNames] = None) -> None:
     for k, v in (("gather", gather), ("pincode_centre", pincode_centre), ("sheet", sheet), ("general", general),
-                 ("buildings", buildings), ("view", view), ("shown", shown)):
+                 ("buildings", buildings), ("view", view), ("shown", shown), ("sold_names", sold_names)):
         if v is not None:
             _deps[k] = v
 
@@ -1276,7 +1277,9 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime, reread: bool =
                                else (doc["pincode"], "pincode") if doc.get("pincode") else (None, ""))
         if gather is not None:
             try:
-                got = await gather(store.db, regno, doc.get("name", ""), where, now=now) or {}
+                # the names it is sold under: Google Maps knows the project, not the tower MahaRERA registered
+                sold = _deps["sold_names"](doc) if _deps["sold_names"] is not None else None
+                got = await gather(store.db, regno, doc.get("name", ""), where, now=now, names=sold) or {}
                 # propertyfacts.enrich.gather_project: {"key", "view" (the public facts view), "notes", "match"}; a plain view is accepted too
                 gathered = got.get("view") if "view" in got else (got or None)
                 notes += [str(n) for n in got.get("notes") or []][:5]
