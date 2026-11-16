@@ -33,7 +33,7 @@ from app.modules.propertyfacts.pin import Pins  # noqa: E402
 
 async def _candidates(store: Store) -> list[dict]:
     """All indexable projects whose position is not Google-checked."""
-    all_docs = await store.all_register()
+    all_docs = await store.all_projects()
     return [
         d for d in all_docs
         if pages.indexable(d) and not pages.own_position(d)
