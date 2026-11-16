@@ -1,0 +1,112 @@
+# The site from above: a satellite view on project pages (2026-11-16, TARGET)
+
+Owner, 2026-11-16: "can we get live images of project, like satellite images", then "let's add satellite, create a plan and
+developers will follow". Nothing here is built yet. Each step is marked code or owner, and steps are in the order to build them.
+
+Background: [seo-system.md](seo-system.md) section 11 (2026-11-16: a median project page's own text is a third of it; two pages
+in three have no checked position), [project-pages.md](project-pages.md) (the location section and the street map picture),
+[location-checks.md](location-checks.md) (how a position is checked).
+
+## What we can and cannot have
+
+| Source | How old | Detail | Cost | May we keep the picture? | Use |
+|---|---|---|---|---|---|
+| Google satellite, shown through Maps Embed | 6 months to 3 years | sharp: the plot, roads, neighbours | free with a browser key | no: shown from Google only, never downloaded | step 2 |
+| Sentinel-2 (Copernicus, public) | a pass about every 5 days | coarse, 10 m a pixel: a tower is a few pixels | free | yes, with its credit line | step 3, a trial first |
+| Planet, Maxar and other paid imagery | days to weeks | sharp | contracts per area | by licence | not doing |
+
+- Nothing sharp is live. For a project being built, Google's picture often shows bare land. The page must say so, with no date
+  we cannot prove: Maps Embed gives no capture date.
+- What only we can have is **the same site over time** (Sentinel-2): land cleared, a footprint appearing. That is a dated
+  reading of our own, the kind section 8b of seo-system.md says a portal cannot copy. Whether 10 m shows anything a buyer
+  understands is not known: step 3 starts with five projects and the owner looks at the pictures.
+- For Google ranking the gain is indirect: a real view on pages that have no picture, and one more thing on the page that is
+  this project's alone. It is not a ranking signal by itself.
+
+## Rules
+
+- **Only at a checked position.** A satellite view is shown only where `pages.own_position` is true (the project's own Google
+  pin, passed by the places check), the same rule as the nearby list. An area's or a pincode's centre shows somebody else's
+  land: no view. The wrong plot is worse than no picture.
+- **Google's imagery is never downloaded, stored, drawn on or used in a reel or post.** Embed only, with Google's own credit
+  as it renders. The server's `google_maps_api_key` never reaches the browser: the embed uses its own key (step 2).
+- **Sentinel pictures carry their credit** ("Contains modified Copernicus Sentinel data <year>") on the picture and in the
+  caption, and their capture date. A cloudy pass is not shown.
+- **Never throw a reading away** (seo-system.md section 9): each Sentinel picture kept is appended, dated, beside the earlier ones.
+- No sentence about construction progress is written from a picture by a model. A statement such as "building visible since
+  <month>" is made only by code from a measured change, and only after step 3's trial shows the measure is right.
+- Config comes from the settings objects, the loop step has its own on/off setting, off until its key is set, and a row on
+  Admin → Health if it can fail quietly (CLAUDE.md rule 5, seo-upkeep section 3).
+- Before a paid or keyed service is switched on, read its price and terms on the provider's own page and write the date read
+  into section 8a of seo-system.md. The figures in the table above are from memory, not from such a read.
+
+## The plan, in order
+
+### 1. More pages with a checked position (code, written 2026-11-16, not yet released)
+
+Nothing below works without a pin, and 26 of 40 sampled pages had none. Cause found: `propertyfacts/pin.py` asked Google Maps
+for the registered name and refused a place whose name lacked the tower's code ("Kumar Primeview G2" against "Kumar Primeview").
+
+- `pin.sold_as` cuts the tower, wing and phase labels from the end of a registered name; `pin.also_known` adds the names the
+  register knows (`mappins.names_for`, passed in through `wiring.py`); `Pins.find` judges the first search's places against all
+  of them and asks once more under the first other name. Pincode, distance and "not a shop or office" checks are unchanged.
+- A "not found" kept before the change is asked again on the project's next enrichment round, once.
+- Cost: at most one more Text Search per project not found, per 30 days.
+- Tests: `tests/modules/propertyfacts/test_pin.py`, and one in `tests/modules/areastats/test_enrich.py`.
+- After release, count pages with `map` set on Admin → Health (or from the page check) a week later; write the before and
+  after into seo-system.md section 11. Target: more than half of the project pages in search.
+
+### 2. "Map / Satellite" on the location section (code and owner, about one day)
+
+| Part | What | Where |
+|---|---|---|
+| Owner | In the Google Cloud project the site uses: enable **Maps Embed API**; create a second API key restricted to HTTP referrers `https://avasetu.in/*` and to Maps Embed API only. Add it as `NEXT_PUBLIC_MAPS_EMBED_KEY` with `deploy/gcp/keys.ps1` | Google Cloud console, `deploy/gcp/.env` |
+| Code | In `LocationSection`, when `p.map` is set and the key is present, two buttons above the map: **Map** (today's OpenStreetMap embed, the default) and **Satellite** (`https://www.google.com/maps/embed/v1/view?key=…&center=<lat>,<lon>&zoom=17&maptype=satellite`). The satellite frame is created on the first tap, not before: no request to Google and no cost to page speed for a reader who never asks | `frontend/components/site/RegisterProjectPage.tsx` (a small client component beside it, as `DescriptionSwitch.tsx` is) |
+| Code | Under the satellite frame: "Google's satellite picture of the checked position. It can be months or years old, so a site being built may look emptier than it is today." | same |
+| Code | No key, or no checked position: the section renders exactly as today | same |
+| Code | No frame-source rule exists today (none in `next.config` or `deploy/gcp/`, read 2026-11-16), so nothing to allow. If one is added later it must list `www.google.com` | — |
+| Tests | jest: with a pin and a key the switch is there and the satellite frame is absent until tapped; without a pin or without a key there is no switch; the note is shown with the frame | `frontend/__tests__/site/` |
+
+Not in this step: the satellite picture as the hero image or the social card. Those would need a stored picture, which
+Google's terms do not give us.
+
+### 3. The site over time, from Sentinel-2: a trial on five projects (code, then the owner decides)
+
+1. A script, not a loop: `backend/scripts/sentinel_trial.py --regno <n>`. For the checked pin, a 1 km square, it asks the
+   Copernicus Data Space for the least cloudy true-colour picture of each quarter since the project's registration date, and
+   writes them side by side as one PNG with dates and the credit line. Stub `httpx` in its test; no network in tests.
+2. Run it for five large projects being built in Kharadi, Upper Kharadi and Wagholi whose registration is 2 or more years old
+   (enough passes to show change). The owner looks at the five pictures.
+3. **Owner decides.** If a buyer can see the site change: step 4. If it is a blur: mark this step DROPPED here with the five
+   pictures' date, and stop. Nothing on the site changes in this step.
+
+### 4. If the trial passes: "Seen from space" on the page (code, about three days)
+
+- A daily step inside the enrichment loop (`add-background-loop` skill is not needed: it is a pass added with
+  `enrich.add_daily`, like `locmap`), `areastats/sitepics.py`: for up to N projects a day with a checked pin, being built, the
+  hottest first, keep one picture a quarter. Stored as an appended list `site_pictures` = [{path, at, cloud, lat, lon}] on the
+  register record (areastats owns it); a pin that moves 50 m starts a new series (`pages.MAP_MOVED`).
+- The page shows the first and the newest picture side by side with their months ("Jan 2024" / "Oct 2026"), the credit, and a
+  line of method. `ImageObject` data with `contentUrl`, `datePublished` and the credit, so image search can read it.
+- For a page with no picture of its own, the newest site picture may replace the street map as the hero (it is ours to store).
+- Setting `SITE_PICTURES` (off by default), a Health row "site pictures: newest within 120 days", and a line in the operator guide.
+- Tests: fixed `NOW`, fakes for the store, a stubbed tile response; a cloudy pass is skipped; a moved pin starts a new series;
+  a reading is appended, never replaced.
+
+## What the owner does
+
+1. Step 2: enable Maps Embed API and create the restricted browser key (10 minutes).
+2. Step 3: look at five pictures and say yes or no.
+
+## How we judge it (four weeks after step 2 is live)
+
+- Share of project pages in search with a checked position: above a half (step 1).
+- Studio → Leads → visits: readers who tap **Satellite**, and enquiries from those visits against the rest (the tap is sent
+  as a tracking event, `satellite_open`).
+- Search Console: no fall in the pages' Core Web Vitals (the frame loads on tap, so none is expected).
+
+## Not doing
+
+- Downloading or screenshotting Google, Bing or Esri imagery; paid imagery; drone pictures we do not own.
+- A satellite view at an area's centre for a page without its own pin.
+- Any model-written sentence about what a picture shows.
