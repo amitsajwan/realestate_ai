@@ -70,7 +70,7 @@ HEADLINE_MAX_WORDS = 25  # a source text shorter than this is treated as headlin
 
 
 def _clean(s) -> str:
-    return re.sub(r"\s+", " ", URL.sub("", str(s or ""))).strip()
+    return policy.house_names(re.sub(r"\s+", " ", URL.sub("", str(s or ""))).strip())
 
 
 def is_maharera(item: RawItem) -> bool:
@@ -172,6 +172,12 @@ def _source_line(sources: List[Tuple[str, str]], as_of: str) -> str:
     return f"Sources: {'; '.join(cited)}{when}."
 
 
+def _ended(s: str) -> str:
+    """A sentence with its full stop: the house line follows it, and "...in the area This is our view" read "This" as a name and
+    failed the check (2026-10-22 and 10-24, Lohegaon hospital and Wagholi water)."""
+    return s if s.endswith((".", "?", "!")) else s + "."
+
+
 def _article(item: RawItem, facts: Facts, rel: Relevance, parts: dict, research: Optional[Research]) -> Draft:
     """A full article: standfirst, body paragraphs, labelled background, our labelled view, what to check, every source with its
     link, the 'as of' date and the disclaimer. `split_text` takes the same text apart for the site and the captions."""
@@ -182,7 +188,7 @@ def _article(item: RawItem, facts: Facts, rel: Relevance, parts: dict, research:
     bg, why = _clean(parts.get("background")), _clean(parts.get("why"))
     paras = [_clean(parts.get("standfirst"))] + body
     paras += [f"Background: {bg}"] if bg else []
-    paras += [f"Why it may matter: {why} This is our view, not a fact from the source."] if why else []
+    paras += [f"Why it may matter: {_ended(why)} This is our view, not a fact from the source."] if why else []
     paras += [f"What to check: {' '.join(c if c.endswith(('.', '?')) else c + '.' for c in checks)}"] if checks else []
     paras += [_source_line(sources, _as_of(facts, item)), policy.DISCLAIMER]
     link = next((u for _, u in sources if _readable(u)), item.url)
@@ -223,7 +229,7 @@ def _assemble(item: RawItem, facts: Facts, rel: Relevance, fmt: str, parts: dict
     if not q.endswith("?"):
         q = _question(rel)
     if fmt == "article":
-        body = [what, f"Why it may matter: {why} This is our view, not a fact from the source." if why else "", f"What to check: {chk}",
+        body = [what, f"Why it may matter: {_ended(why)} This is our view, not a fact from the source." if why else "", f"What to check: {chk}",
                 f"{src}. Read it here: {item.url}", policy.DISCLAIMER]
         text = "\n\n".join(p for p in body if p)
         return Draft("article", text, _clean(parts.get("title")) or None, item.url, [name])

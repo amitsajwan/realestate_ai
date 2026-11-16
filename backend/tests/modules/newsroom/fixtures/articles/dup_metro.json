@@ -6,7 +6,9 @@
   "text": "PMRDA said Pune Metro Line 3 from Hinjewadi to Shivajinagar is now 78 per cent complete. Trial runs are planned for December 2026 on the 23.3 km corridor.",
   "published_at": "2026-09-27T06:00:00+00:00",
   "expect": {
-    "keep": false,
-    "reason": "off-topic"
+    "keep": true,
+    "pillar": "infrastructure",
+    "areas": [],
+    "note": "2026-09-30 off-topic (Hinjewadi is not our corridor); from 2026-11-15 kept: Metro Line 3 has its own tracker page (/news/track/pune-metro-line-3), so its news is ours"
   }
 }

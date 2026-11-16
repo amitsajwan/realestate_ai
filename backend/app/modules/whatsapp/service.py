@@ -161,6 +161,10 @@ class WhatsAppService(ChatBrain):
         mtype = msg.get("type") or "unknown"
         text = self._text_of(msg).strip()[:MAX_TEXT]
         sent_at = _ts(msg.get("timestamp")) or now
+        if mtype == "button":   # a tap on a template's button: say which listing it answers
+            asked = await self.messages.find_one({"_id": str((msg.get("context") or {}).get("id") or "")})
+            if asked and asked.get("about"):
+                text = f"{text} ({asked['about']})"
 
         cid = f"{pid}:{wa_id}"
         conv = await self.convs.find_one({"_id": cid})
@@ -333,6 +337,24 @@ class WhatsAppService(ChatBrain):
             conv["replies"] = recent + [now]
         rec["_id"] = rec.get("_id") or f"out-{uuid.uuid4().hex}"
         await self.messages.insert_one(rec)
+        return rec
+
+    async def tell_agent(self, wa_id: str, name: str, template: str, params: list, text: str, about: str, now: datetime) -> dict:
+        """A message to an agent from our number, kept like any other so it shows in their Inbox thread (owner, 2026-11-07: "we
+        should know the messages we passed to agents"). `about`: the listing a tap on its buttons is about."""
+        pid = str(self.cfg.phone_number_id)
+        cid = f"{pid}:{wa_id}"
+        conv = await self.convs.find_one({"_id": cid})
+        if conv is None:
+            conv = {"_id": cid, "wa_id": wa_id, "phone_number_id": pid, "agent_id": self.cfg.owner_agent_id, "routed_by": "owner",
+                    "name": name, "role": "agent", "data": adapters.new_chat_state("+" + wa_id, name), "messages": [], "created_at": now,
+                    "opted_out": False, "notice_sent_at": None, "lead_id": None, "context": None, "language": None,
+                    "needs_human_notified": False}
+            await self.convs.insert_one(conv)
+        rec = await self.send_template(conv, template, "en", params, text, now)
+        await self.messages.update_one({"_id": rec["_id"]}, {"$set": {"sent_by": "auto", "about": about}})
+        msgs = (conv.get("messages") or []) + [{"role": "agent", "sent_by": "auto", "text": text, "ts": now, "status": rec["status"]}]
+        await self.convs.update_one({"_id": cid}, {"$set": {"messages": msgs[-MAX_KEPT:], "updated_at": now}})
         return rec
 
     async def send_template(self, conv: dict, name: str, language: str, params: list, text: str, now: datetime) -> dict:

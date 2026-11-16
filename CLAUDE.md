@@ -76,6 +76,12 @@ Don't touch:
 9. **Login (`core/auth_backend.py`) is not rewritten.**
 10. **The site and Studio do not import each other.** What both need goes in `shared/` as plain TypeScript. A link from one app
     to a page of the other is a plain `<a>`, never Next's `<Link>`.
+11. **A project page that stands for several MahaRERA registrations says the whole project's figures.** Its own record is one
+    registration, so its `units_total`, `units_booked`, `completion_now` and the like are one part's. The whole project's counts
+    and dates come from one place, `areastats.pages.project_scope` (sent as `project`; list cards via `card_counts`); the site
+    reads them through `lib/site/register` (`homesOf`, `possessionOf`, `completionPassedOf`, ...) and one registration's figures
+    only through `mainRegistration(p)`, naming the registration on the page. `__tests__/site/project-scope.test.tsx` fails on a
+    direct read, and the daily page check reports a count said without its registration (`scope`).
 
 ## Conventions
 

@@ -6,7 +6,7 @@ Code only, from what areastats.pages already loaded for the request: no reads of
 when the facts are not there, and the page then shows nothing.
 """
 import math
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from statistics import median
 from typing import Any, Iterable, List, Optional
 
@@ -19,6 +19,10 @@ COMMUTE_KM = 25          # hubs farther than this are not anyone's daily commute
 COMMUTE_MAX = 4
 # web facts that count something MahaRERA also counts for a registration, and the MahaRERA figure (pages.details) they meet
 COUNTS = {"towers": "towers", "homes_total": "units_total"}
+# a site's "highest floors" this far under MahaRERA's tallest filed tower is another building or a misreading, not the habitable
+# floors a builder counts where MahaRERA files sanctioned ones (Neco Park Central: 18 habitable); Godrej Ivara's "up to 30 floors"
+# beside 43 filed was shown until 2026-11-13
+FLOORS_LOW = 0.8
 
 
 def rate_of(shown: Optional[dict]) -> Optional[float]:
@@ -57,6 +61,18 @@ def sales(doc: dict) -> Optional[dict]:
     if base is None or last - base[1] <= 0:
         return None
     return {"booked": last - base[1], "days": (last_at - base[0]).days, "since": base[0].date().isoformat()}
+
+
+def sales_of(docs: List[dict]) -> Optional[dict]:
+    """sales() for a project in several registrations: homes booked lately summed over the registrations that have them, over
+    the longest window among them (each registration keeps its own dated readings). None when none went up."""
+    each = [s for d in docs if (s := sales(d))]
+    if not each:
+        return None
+    # each count rose inside its own window, so the sum rose inside the span from the earliest start to the latest end
+    starts = [date.fromisoformat(s["since"]) for s in each]
+    end = max(st + timedelta(days=s["days"]) for st, s in zip(starts, each))
+    return {"booked": sum(s["booked"] for s in each), "days": (end - min(starts)).days, "since": min(starts).isoformat()}
 
 
 READINGS_SHOWN = 12   # booking readings a page shows: a year at one change a month
@@ -105,6 +121,28 @@ def with_scope(web: Optional[dict], details: dict) -> Optional[dict]:
             scope = "project" if theirs > ours else "registration" if theirs == ours else None
         out.append({**f, "scope": scope})
     return {**web, "facts": out}
+
+
+def filed_floors(docs: Iterable[dict]) -> Optional[int]:
+    """The tallest tower MahaRERA files over these registrations (the page's and its towers'), or None when none files floors."""
+    floors = [b["floors"] for d in docs for b in d.get("buildings") or []
+              if isinstance(b, dict) and isinstance(b.get("floors"), int) and not isinstance(b.get("floors"), bool) and b["floors"] > 0]
+    return max(floors) if floors else None
+
+
+def against_register(web: Optional[dict], tallest: Optional[int]) -> Optional[dict]:
+    """The shown web facts without the ones MahaRERA's filed buildings prove wrong: a highest floor count above the tallest filed
+    tower, or under FLOORS_LOW of it. Google's raters mark a page down for a fact a reader can check and find false, and a
+    "Gathered and checked" badge over one says the checking failed. The record keeps every reading."""
+    if not web or not tallest:
+        return web
+    def wrong(f: dict) -> bool:
+        v = f.get("value")
+        if f.get("key") != "floors" or not isinstance(v, (int, float)) or isinstance(v, bool):
+            return False
+        return v > tallest or v < FLOORS_LOW * tallest
+    facts = [f for f in web.get("facts") or [] if not wrong(f)]
+    return {**web, "facts": facts} if facts else None
 
 
 def sizes_label(shown: Optional[dict]) -> Optional[str]:

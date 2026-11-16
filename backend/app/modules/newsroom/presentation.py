@@ -49,7 +49,7 @@ def unmangle(s: str) -> str:
 
 
 def one_line(s: object) -> str:
-    return SPACE.sub(" ", PHONE.sub("", unmangle(str(s or "")))).strip()
+    return policy.house_names(SPACE.sub(" ", PHONE.sub("", unmangle(str(s or "")))).strip())
 
 
 @dataclass

@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from app.modules.areastats import enrich, pages
+from app.modules.newsroom.store import Store
 
 from ..fakes import FakeDb
 from .test_pages import FULL, seeded
@@ -44,7 +45,7 @@ GOOD = ("Rohan Abhilasha 4 is a residential project by Rohan Builders in Wagholi
 def gatherer(monkeypatch):
     calls = []
 
-    async def gather(db, regno, name, locality, city="Pune", now=None):
+    async def gather(db, regno, name, locality, city="Pune", now=None, names=None):
         calls.append(regno)
         return GATHERED
     monkeypatch.setitem(enrich._deps, "gather", gather)
@@ -166,6 +167,19 @@ async def test_without_a_gatherer_it_still_writes_from_the_register_facts(monkey
     db, store = await ready(("P1", "Rohan Abhilasha 4", "wagholi", {**FULL, "promoter": "Rohan Builders"}))
     out = await enrich.step(store, FakeLLM(GOOD), NOW, None, timedelta(minutes=30))
     assert out["text"] and "no gatherer configured" in out["notes"]
+
+
+async def test_the_gatherer_is_told_the_names_the_project_is_sold_under(monkeypatch):
+    asked = []
+
+    async def gather(db, regno, name, locality, city="Pune", now=None, names=None):
+        asked.append((name, names))
+        return GATHERED
+    monkeypatch.setitem(enrich._deps, "gather", gather)
+    monkeypatch.setitem(enrich._deps, "sold_names", lambda doc: ["Kumar Primeview"])
+    db, store = await ready(("P1", "Kumar Primeview G2", "wagholi", {**FULL, "promoter": "Kumar Properties"}))
+    await enrich.step(store, FakeLLM(GOOD), NOW, None, timedelta(minutes=30))
+    assert asked == [("Kumar Primeview G2", ["Kumar Primeview"])]
 
 
 async def test_enrich_now_for_an_unknown_project_says_so():
@@ -635,10 +649,49 @@ async def test_outside_pages_are_read_live_and_a_page_that_fails_is_left_out():
 OWN = {"prices": {"rows": [{"bhk": "2 BHK", "from_inr": 5000000}]}}
 
 
-def test_towers_and_offices_are_not_worth_a_model():
+def test_towers_are_not_worth_a_model_but_offices_are():
     assert enrich.worth_model({"project_type": "Residential"})
+    assert enrich.worth_model({"project_type": "Commercial"})
     assert not enrich.worth_model({"cluster_primary": "P9"})
-    assert not enrich.worth_model({"project_type": "Commercial"})
+
+
+def test_offices_are_read_after_the_homes_of_their_area():
+    homes = enrich.priority({"_id": "H", "regno": "H", "locality": "kharadi", "project_type": "Residential"}, set(), NOW)
+    offices = enrich.priority({"_id": "O", "regno": "O", "locality": "kharadi", "project_type": "Commercial"}, set(), NOW)
+    assert homes < offices
+
+
+def test_a_number_on_another_line_of_the_sheet_is_kept_and_that_line_named():
+    sheet = [{"key": "booked", "text": "Homes booked: 1 of 24 (4%)"}, {"key": "buildings", "text": "Buildings in this registration: 1, up to 6 floors"}]
+    kept, why = enrich.points_of({"points": [_point("Taller than most", "It rises 6 floors and has 24 homes.", "booked")]}, sheet, ROSE, None)
+    assert not why and kept[0]["facts"] == ["booked", "buildings"]
+
+
+def test_a_number_on_no_line_of_the_sheet_still_goes():
+    sheet = [{"key": "booked", "text": "Homes booked: 1 of 24 (4%)"}]
+    kept, why = enrich.points_of({"points": [_point("Taller", "It rises 6 floors.", "booked")]}, sheet, ROSE, None)
+    assert not kept and "6" in why[0]
+
+
+OFFICE = {**ROSE, "project_type": "Commercial", "prices": {"rows": [{"bhk": "2 BHK", "from_inr": 8500000}]}, "units_total": 24}
+
+
+def test_a_point_may_not_call_offices_homes():
+    sheet = [{"key": "booked", "text": "Shop and office units booked: 1 of 24 (4%)"}]
+    kept, why = enrich.points_of({"points": [_point("Few sold", "Only 1 of 24 homes are booked.", "booked"),
+                                             _point("Few taken", "Only 1 of 24 units are booked.", "booked")]}, sheet, OFFICE, None)
+    assert [x["heading"] for x in kept] == ["Few taken"] and "homes" in why[0]
+
+
+def test_the_sheet_of_offices_says_units_and_holds_no_flat_price():
+    sheet = {f["key"]: f["text"] for f in enrich.fact_sheet(OFFICE, None, None, None, False)}
+    assert sheet["homes"].startswith("Shop and office units in this registration: 24")
+    assert not any(k.startswith("price_") for k in sheet)
+
+
+def test_code_written_points_say_units_for_offices():
+    sheet = [{"key": "booked", "text": "Shop and office units booked: 1 of 24 (4%)"}, {"key": "buildings", "text": "Buildings in this registration: 1, up to 6 floors"}]
+    assert "1 of 24 units booked" in enrich.code_points(OFFICE, sheet)["text"]
 
 
 def test_a_tower_goes_after_everything_and_only_for_its_facts():
@@ -1008,3 +1061,150 @@ def test_the_builders_other_projects_are_no_word_on_this_ones_date():
     assert enrich.this_project(text) == "Half the homes are booked."
     assert not enrich.says_moved(enrich.this_project(text))
     assert enrich.says_moved(enrich.this_project("The completion date was moved to 2031."))
+
+
+# ---- the rest of Pune (owner 2026-11-08) ---------------------------------------------------------------------------------------
+
+WIDE = {"_id": "W", "regno": "W", "page_slug": "w", "pune_place": "moshi", "completion_now": "2029-06-30", "promoter": "P",
+        "registered_on": "2026-08-01", "units_total": 200}
+
+
+def test_a_page_outside_our_areas_is_read_once_if_it_is_filed_for_2027_or_later():
+    assert enrich.wider(WIDE, NOW)
+    assert not enrich.wider({**WIDE, "completion_now": "2026-12-31"}, NOW)
+    assert not enrich.wider({**WIDE, "enriched_at": NOW}, NOW)
+    assert not enrich.wider({**WIDE, "cluster_primary": "P9"}, NOW)
+    assert not enrich.wider({**WIDE, "locality": "kharadi"}, NOW)
+
+
+def test_big_projects_go_before_small_homes_before_offices_and_the_newest_first():
+    older = {**WIDE, "_id": "A", "registered_on": "2024-01-01"}
+    small = {**WIDE, "_id": "B", "units_total": 20}
+    offices = {**WIDE, "_id": "C", "project_type": "Commercial"}
+    order = sorted([small, offices, older, WIDE], key=enrich.wider_key)
+    assert [d["_id"] for d in order] == ["W", "A", "B", "C"]
+
+
+def test_everything_in_our_areas_goes_before_the_rest_of_pune():
+    ours = enrich.priority({"_id": "H", "regno": "H", "locality": "kharadi", "page_slug": "h", "project_type": "Commercial"}, set(), NOW)
+    assert ours < enrich.wider_key(WIDE)
+
+
+async def test_the_daily_limit_and_the_serper_floor_stop_the_wider_reads(monkeypatch):
+    store = Store(FakeDb())
+
+    async def credits(*a):
+        return 2000
+    monkeypatch.setattr(enrich.websearch, "credits", credits)
+    assert await enrich.wider_left(store, NOW) == enrich.WIDER_PER_DAY
+    await enrich.count_wider(store, NOW)
+    assert await enrich.wider_left(store, NOW) == enrich.WIDER_PER_DAY - 1
+
+    async def low(*a):
+        return enrich.WIDER_KEEP_CREDITS
+    monkeypatch.setattr(enrich.websearch, "credits", low)
+    assert await enrich.wider_left(store, NOW + timedelta(days=1)) == 0
+    assert await enrich.wider_left(store, NOW + timedelta(days=1, hours=1)) == 0
+
+
+async def test_an_unknown_serper_balance_stops_them_too(monkeypatch):
+    async def unknown(*a):
+        return None
+    monkeypatch.setattr(enrich.websearch, "credits", unknown)
+    assert await enrich.wider_left(Store(FakeDb()), NOW) == 0
+
+
+def test_a_search_line_calling_offices_homes_does_not_outlive_a_rewrite():
+    line = "AP4 Tech Park in Wagholi offers residential units."
+    assert enrich.kept_line({"project_type": "Commercial", "page_summary": line}) is None
+    assert enrich.kept_line({"project_type": "Residential", "page_summary": line}) == line
+    assert enrich.kept_line({"project_type": "Commercial", "page_summary": "Gateway: 29 commercial units."}) == "Gateway: 29 commercial units."
+
+
+
+def test_a_page_read_once_outside_our_areas_is_not_read_again_on_our_timetable():
+    read = {**WIDE, "watched_by": ["property_facts"], "enriched_at": NOW}
+    assert not enrich._ours(read)
+    assert enrich._ours({**read, "search_state": {"in": True, "at": NOW}})
+    assert enrich._ours({**read, "watched_by": ["agent_projects"]})
+
+
+
+# ---- a waiting backfill rewrite does not hold the loop (2026-11-08: a round every 30 minutes from 02:00 to 07:20) ------------
+
+OLD_WRITER = {**FULL, "enriched_at": NOW - timedelta(days=3), "page_text_version": 3,
+              "enrichment": {"score": "4/4", "steps": {"web": {"ok": True, "at": NOW - timedelta(days=enrich.REFRESH_DAYS + 1)}}, "versions": dict(enrich.VERSIONS)}}   # web pages read long ago: a full re-read
+
+
+async def _backfill_first():
+    db, store = await ready(("O", "Old", "baner", OLD_WRITER), ("N", "New", "hinjawadi", {**FULL}))
+    assert (await enrich.next_project(store, NOW))["_id"] == "O"
+    return store
+
+
+async def test_the_best_project_that_is_not_a_backfill_rewrite_can_be_asked_for():
+    store = await _backfill_first()
+    assert (await enrich.next_project(store, NOW, backfills=False))["_id"] == "N"
+
+
+async def test_while_a_backfill_rewrite_waits_its_turn_the_next_project_is_read():
+    store = await _backfill_first()
+    out = await enrich.step(store, FakeLLM(GOOD), NOW, NOW - timedelta(minutes=5), timedelta(minutes=3), NOW - timedelta(minutes=5))
+    assert out["regno"] == "N" and not out["backfill"]
+
+
+async def test_a_backfill_rewrite_goes_when_its_turn_comes():
+    store = await _backfill_first()
+    out = await enrich.step(store, FakeLLM(GOOD), NOW, NOW - timedelta(minutes=5), timedelta(minutes=3), NOW - timedelta(minutes=31))
+    assert out["regno"] == "O" and out["backfill"]
+
+
+def _vanaya():
+    """Venkatesh Vanaya, 2026-11-12: seven registrations, 745 homes; the page's own record (wings I & J) holds 168 of them."""
+    base = {"locality": "kharadi", "promoter": "SVBPL HOMES PVT LTD", "cluster_id": "C1", "units_booked": 0, "completion_now": "2031-04-30"}
+    counts = [("PR1261012601206", 168), ("PR1261012601751", 78), ("PR1261012601264", 144), ("PR1261012601304", 249),
+              ("PR1261012601229", 90), ("PC1261012601213", 16), ("PR1261012601239", 0)]
+    docs = [{**base, "_id": r, "regno": r, "name": f"VENKATESH VANAYA {r}", "units_total": n, "page_slug": f"vanaya-{r.lower()}",
+             **({} if i == 0 else {"cluster_primary": "PR1261012601206"})} for i, (r, n) in enumerate(counts)]
+    return docs[0], docs
+
+
+def test_a_project_in_several_registrations_has_its_whole_count_and_a_part_says_it_is_one():
+    doc, docs = _vanaya()
+    sheet = {f["key"]: f["text"] for f in enrich.fact_sheet(doc, None, None, None, False, docs=docs)}
+    assert sheet["booked"] == "Homes booked in this registration: 0 of 168 (0%)"
+    assert sheet["project_homes"] == "Homes across 6 of the 7 MahaRERA registrations of the project: 745, 0 of 745 booked (0%)"
+    alone = {f["key"]: f["text"] for f in enrich.fact_sheet(ROSE | {"units_total": 24, "units_booked": 1}, None, None, None, False, docs=[])}
+    assert alone["booked"] == "Homes booked: 1 of 24 (4%)" and "project_homes" not in alone
+
+
+def test_code_points_give_the_whole_project_count_never_one_part_s():
+    doc, docs = _vanaya()
+    out = enrich.code_points(doc, enrich.fact_sheet(doc, None, None, None, False, docs=docs) + [
+        {"key": "filed", "text": "Completion date filed with MahaRERA: 30 Apr 2031"}])
+    assert out["sections"][0] == {"heading": "0% of homes booked", "facts": ["project_homes"],
+                                  "text": "MahaRERA shows 0 of 745 homes booked across 6 of the 7 MahaRERA registrations."}
+    assert "of 168" not in out["text"]
+
+
+def test_a_point_that_says_one_registration_s_homes_as_the_project_s_is_dropped():
+    doc, docs = _vanaya()
+    sheet = enrich.fact_sheet(doc, None, None, None, False, docs=docs)
+    out = {"points": [_point("Zero of 168 homes booked", "None of the 168 homes are booked yet.", "booked"),
+                      _point("0 of 745 homes booked", "MahaRERA shows 0 of 745 homes booked across 6 of the 7 registrations.", "project_homes"),
+                      _point("168 homes in this registration", "This registration holds 168 of the project's homes, none booked yet.", "booked")]}
+    kept, why = enrich.points_of(out, sheet, doc, None)
+    assert [x["heading"] for x in kept] == ["0 of 745 homes booked", "168 homes in this registration"]
+    assert why == ["Zero of 168 homes booked: says one registration's homes as the project's"]
+    alone = enrich.fact_sheet(ROSE | {"units_total": 24, "units_booked": 1}, None, None, None, False, docs=[])
+    kept, _ = enrich.points_of({"points": [_point("1 of 24 booked", "MahaRERA shows 1 of 24 homes booked.", "booked")]}, alone, ROSE | {"units_total": 24}, None)
+    assert len(kept) == 1   # a project registered once: its count is the project's
+
+
+def test_the_read_s_pace_line_says_it_is_one_registration_s_on_a_page_of_several():
+    doc, docs = _vanaya()
+    doc = {**doc, "booked_history": [{"at": datetime(2026, 7, 3, tzinfo=timezone.utc), "booked": 0},
+                                     {"at": datetime(2026, 10, 3, tzinfo=timezone.utc), "booked": 2}]}
+    lines = {f["key"]: f["text"] for f in enrich.read_lines(doc, enrich.fact_sheet(doc, None, None, None, False, docs=docs))}
+    assert lines["read_pace"].startswith("2 more homes booked in this registration between")
+    assert "project_homes" in lines

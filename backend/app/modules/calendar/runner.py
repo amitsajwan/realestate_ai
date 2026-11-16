@@ -15,7 +15,7 @@ import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Callable, Dict, Optional
+from typing import Any, Awaitable, Callable, Dict, Optional
 
 from app.core.database import get_database
 from app.platform.controls import is_paused
@@ -123,8 +123,28 @@ async def run_once(store: Store, publisher, social: SocialConfig, cfg: CalendarC
         counts[outcome] += 1
         if outcome == "published" and doc.get("agent_id"):
             sent_now.add((doc["agent_id"], doc["slug"]))
+            if _on_posted:
+                try:
+                    await _on_posted(store, doc)
+                except Exception:   # the post is out: a message that fails never touches it
+                    log.warning("calendar: telling the agent about %s failed", doc.get("slug"), exc_info=True)
+    if _on_cycle:
+        try:
+            await _on_cycle(store, now)
+        except Exception:   # a message to an agent never stops the calendar
+            log.warning("calendar: the agents' results round failed", exc_info=True)
     await store.set_run(last_run_at=now, last_counts=counts, last_error=None if not counts["failed"] and not counts["retry"] else "see items")
     return counts
+
+
+_on_posted: Optional[Callable[[Store, dict], Awaitable[Any]]] = None
+_on_cycle: Optional[Callable[[Store, datetime], Awaitable[Any]]] = None
+
+
+def configure(on_posted: Callable[[Store, dict], Awaitable[Any]], on_cycle: Optional[Callable[[Store, datetime], Awaitable[Any]]] = None) -> None:
+    """Who hears that a row went out, and what runs each cycle after the posts (app.wiring: the calendar does not know about agents)."""
+    global _on_posted, _on_cycle
+    _on_posted, _on_cycle = on_posted, on_cycle
 
 
 def _images(doc: dict) -> list:
@@ -198,6 +218,10 @@ async def _publish_one(store: Store, publisher, social: SocialConfig, doc: dict,
         trace.event(log, "publish", doc["slug"], "send", trace.OK, channel=doc["channel"], kind="slides reel" if kind != "reel" and reel
                     else kind, attempt=attempts, permalink=res.permalink or res.external_id)
         await adapters.register_hub(store.db, doc, res.permalink or "", uploads)
+        if kind == "reel":   # the same reel on our YouTube channel, once per reel; it never holds up or fails this post
+            yt = await adapters.to_youtube(store.db, doc, uploads)
+            if yt:
+                trace.event(log, "publish", doc["slug"], "youtube", trace.OK, permalink=yt.permalink or yt.external_id)
         if link_comment and doc["channel"] == "facebook_page" and (kind == "reel" or reel):
             await link_comment(store.db, doc, res.external_id, social)
         return "published"

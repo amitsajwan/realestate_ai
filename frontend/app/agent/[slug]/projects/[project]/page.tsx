@@ -9,6 +9,7 @@ import SiteShell from '@/components/site/SiteShell'
 import StickyBar from '@/components/site/StickyBar'
 import TrackingBeacon from '@/components/site/TrackingBeacon'
 import { getAgent, getProject } from '@/lib/site/api'
+import { projectPageOfListing } from '@/lib/site/register'
 import { bhkRange, priceRange, projectWhatsAppMessage } from '@/lib/site/projects'
 import { jsonLdString, projectJsonLd, projectMetadata } from '@/lib/site/seo'
 import { breadcrumbJsonLd } from '@/lib/marketing/seo'
@@ -32,7 +33,11 @@ async function load(params: Props['params']) {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { agent, p } = await load(params)
   if (!agent || !p) return { title: 'Project not found', robots: { index: false } }
-  return projectMetadata(agent, p, priceRange(p) + ', ' + bhkRange(p.bhk_options))
+  const md = projectMetadata(agent, p, priceRange(p) + ', ' + bhkRange(p.bhk_options))
+  // not on a shared page yet, but the project has its own page in search: that page is the one to rank, as for a listing
+  const shown = p.catalog_slug ? null : await projectPageOfListing(p.rera_no)
+  if (shown) md.alternates = { canonical: siteOrigin() + '/projects/' + shown }
+  return md
 }
 
 export default async function ProjectPage({ params }: Props) {

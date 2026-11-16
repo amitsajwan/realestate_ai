@@ -8,6 +8,7 @@ from app.core.areas import AREAS
 
 from ..policy import (AREA_KEYWORDS, AREA_PINCODES, BANNED, CITYWIDE_HINT, CITYWIDE_PILLARS, CORRIDOR_KEYWORDS, MAX_AGE_DAYS,
                       NATIONAL_MONEY, PILLAR_KEYWORDS, PILLAR_PRIORITY, PUNE_HINT)
+from ..tracker_topics import topic_of
 from ..types import RawItem, Relevance
 from . import topics
 
@@ -122,8 +123,16 @@ def assess(item: RawItem, now: datetime) -> Relevance:
     by_body = [a for a in dict.fromkeys(body_areas) if a not in areas]
     areas += by_body
     corridor = any(p.search(full) for p in _CORRIDOR_RE) and any(p.search(full) for p in _HINT_RE)
+    # a headline about one of our trackers (Purandar airport, Metro Line 3, Ring Road, HCMTR, home-loan rates, ...) is ours
+    # wherever it happens: those are the city-wide stories we follow on /news/track. Google News items are often a headline
+    # alone, so "Purandar Airport land acquisition: final 40 hectares" never carried the Pune hint a corridor needs, and from
+    # 2026-10-21 to 2026-11-15 every one of 1,149 collected items was dropped (952 for "no target area or corridor"). The rest
+    # of the gates below still apply: crime, one-day notices, denied topics, the score, then the model's importance check.
+    tracked = topic_of(title) if not areas and not corridor else None
+    if tracked:
+        areas = [a for a in tracked[1] if a in AREA_KEYWORDS]
     citywide = False
-    if not areas and not corridor:
+    if not areas and not corridor and not tracked:
         # rules, money and market news applies to every buyer in Pune: it needs no area, only a Pune or Maharashtra mention (or, for
         # national money news like the repo rate, the topic itself), and the headline must be about it, not mention it in passing
         lead = _lead_pillar(head)
@@ -163,11 +172,14 @@ def assess(item: RawItem, now: datetime) -> Relevance:
     if by_body and supply and "new_supply" in scores and len(by_body) == len(areas):
         pillar = "new_supply"  # the area was found only because it is a new-project item
     # buyer-relevance score: pillar evidence, plus the area being in the headline
-    in_title = any(p.search(title.lower()) for pats in _AREA_RE.values() for p in pats) or any(p.search(title.lower()) for p in _CORRIDOR_RE)
+    # a tracker's headline is about its topic by its own rules, as an area named in the headline is about the area
+    in_title = (bool(tracked) or any(p.search(title.lower()) for pats in _AREA_RE.values() for p in pats)
+                or any(p.search(title.lower()) for p in _CORRIDOR_RE))
     score = scores[pillar] + (2 if in_title else 1 if areas else 0)  # area in the first sentence counts for less than in the headline
     if score < topics.MIN_SCORE:
         return _no(f"no buyer relevance: score {score} below {topics.MIN_SCORE}")
-    where = ("areas: " + ", ".join(areas)) if areas else "corridor topic with Pune hint" if corridor else "city-wide buyer news"
+    where = (f"tracker: {tracked[0]}" if tracked else ("areas: " + ", ".join(areas)) if areas
+             else "corridor topic with Pune hint" if corridor else "city-wide buyer news")
     why = where + f"; score {score}"
     return Relevance(keep=True, pillar=pillar, areas=areas, reason=why)
 

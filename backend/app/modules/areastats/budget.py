@@ -252,6 +252,13 @@ async def prune(db, now: datetime) -> int:
     return int(getattr(res, "deleted_count", 0) or 0)
 
 
+async def spend(db, now: datetime, inr: float, calls: int, tokens_in: int, tokens_out: int, step: str) -> None:
+    """Paid Gemini work outside the Reader (a brochure read) counts on the same day's cap. This module owns the usage record."""
+    await db.get_collection(USAGE).update_one({"_id": day_of(now)}, {
+        "$inc": {"gemini_inr": inr, "gemini_calls": calls, "tokens_in": tokens_in, "tokens_out": tokens_out, f"steps.{step}": calls},
+        "$set": {"at": now}}, upsert=True)
+
+
 async def today(db, now: datetime, cfg: Optional[Config] = None) -> dict:
     """The owner's view of today's spend against the caps."""
     cfg = cfg or load()

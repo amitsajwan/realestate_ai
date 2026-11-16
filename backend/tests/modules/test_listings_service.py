@@ -298,6 +298,7 @@ async def test_sitemap_entries_skip_samples_private_demo_and_preview_sites():
     entries = await svc.sitemap_entries()
     assert [(e["agent_slug"], e["id"]) for e in entries] == [("rahul", real.id)]
     assert entries[0]["updated_at"] is not None and entries[0]["locality"] == "Baner"
+    assert "project_name" in entries[0]  # the sitemap matches a listing with no number to its project by name
 
 
 # ---- delete ----------------------------------------------------------------------------------

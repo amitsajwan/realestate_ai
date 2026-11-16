@@ -71,6 +71,18 @@ export default function InboxThreadPage() {
 
   if (error && !doc) return <ErrorBox message={error} onRetry={load} />
   if (!doc) return <Spinner />
+  async function askPost() {
+    setBusy(true)
+    setError(null)
+    try {
+      setDoc(await inboxApi.askPost(id))
+    } catch (e) {
+      setError(errorMessage(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const name = doc.name || (doc.role === 'agent' ? 'Agent' : doc.channel === 'website' ? 'Website visitor' : 'Buyer')
   return (
     <div className="space-y-4">
@@ -108,6 +120,11 @@ export default function InboxThreadPage() {
         )
       ) : doc.opted_out ? (
         <p className="rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-800">They replied STOP. Do not message them on WhatsApp.</p>
+      ) : doc.role === 'agent' && !doc.can_reply ? (
+        <section aria-label="Ask about their post" className="space-y-2 rounded-2xl border border-gray-200 bg-white p-3">
+          <p className="text-sm text-gray-700">WhatsApp lets you write freely only within 24 hours of their last message. This sends their latest post&apos;s numbers with Boost, Keep and Remove buttons. When they tap, you can reply here.</p>
+          <Btn disabled={busy} onClick={askPost}>{busy ? 'Sending...' : 'Ask: boost, keep or remove?'}</Btn>
+        </section>
       ) : doc.can_reply ? (
         <section aria-label="Reply" className="space-y-2 rounded-2xl border border-gray-200 bg-white p-3">
           <label htmlFor="inbox-reply" className="text-sm font-semibold text-gray-800">Reply on WhatsApp</label>

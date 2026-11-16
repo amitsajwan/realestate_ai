@@ -2,7 +2,7 @@
  * Our own page for every MahaRERA project (docs/plan/project-pages.md): GET /api/v1/public/register/projects/{slug} and the list.
  * The facts are Avasetu's (the register); an agent's listing in the project lives on the agent's page and uses them.
  */
-import { serverApiBase } from './api'
+import { PAGE_DATA_MS, getCatalog, serverApiBase } from './api'
 import { badStatus, failed, withRetry, type Got } from './retry'
 import type { WebFacts } from './webfacts'
 import type { ProjectProfile } from './profile'
@@ -19,7 +19,9 @@ export interface RegisterProject {
   /** newest date this page's facts changed (our crawler or MahaRERA); null when unknown */
   page_updated?: string | null
   /** the promoter's other projects in our register */
-  same_promoter?: { name: string; marketed_name?: string | null; search_name?: string | null; slug: string; completion_now: string | null }[]
+  same_promoter?: { name: string; marketed_name?: string | null; search_name?: string | null; slug: string; completion_now: string | null
+    /** its lowest published size price and the sizes priced (backend pages.project_page), like same_area */
+    price_from?: number | null; bhk?: string | null }[]
   regno: string
   promoter: string | null
   pincode: string | null
@@ -87,6 +89,8 @@ export interface RegisterProject {
   home_sizes?: { bhk: string; low: number; high: number; kind: string; official?: boolean; one_site?: boolean; sites?: string[] }[]
   /** every MahaRERA registration of the project (towers, phases) when this page stands for several (R0) */
   towers?: RegisterTower[]
+  /** the whole project when the page stands for several registrations (backend pages.project_scope); null for one */
+  project?: ProjectScope | null
   /** the nearest neighbourhood guide (R5) */
   near_guide?: { name: string; path: string; km: number } | null
   /** the builder's page: /builders/<slug> (R6) */
@@ -181,6 +185,108 @@ export interface BuilderRecord {
 
 export interface Faq { q: string; a: string }
 
+/** The whole project a page stands for when MahaRERA holds it as several registrations (towers, phases): worked out once, by the
+ *  backend (areastats/pages.project_scope), and sent as `project`. The page's own record is one of the registrations, so its
+ *  `units_total`, `units_booked`, `completion_now` and the rest are one part's (2026-11-12: 85 of 88 such pages said one wing's
+ *  homes as the project's; Venkatesh Vanaya 168 of 745).
+ *
+ *  THE RULE: a project page never reads those record fields directly. It asks `homesOf`, `possessionOf`, `completionPassedOf`
+ *  and `areaCompareOf` for what the page says about the project, and `mainRegistration` (by that name, so the scope shows where
+ *  it is used) for what it says about one registration. __tests__/site/project-scope.test.ts fails on a direct read. */
+export interface ProjectScope {
+  registrations: number
+  regnos: string[]
+  /** homes summed over the registrations that report a count, and how many those are */
+  units_total: number | null
+  units_counted: number
+  /** bookings summed over the registrations that report both, against those registrations' homes (`booked_of`) */
+  units_booked: number | null
+  booked_of: number | null
+  booked_counted: number
+  completion_first: string | null
+  completion_last: string | null
+  /** every part's filed date has passed */
+  completion_passed: boolean
+}
+
+export function wholeProject(p: Pick<RegisterProject, 'project'>): ProjectScope | null {
+  return p.project && p.project.registrations >= 2 ? p.project : null
+}
+
+/** The page's own MahaRERA record: one registration. Its counts and dates are the whole project's only when `wholeProject` is
+ *  null; anything said from them on a page of several registrations names the registration. */
+export function mainRegistration(p: RegisterProject) {
+  return {
+    regno: p.regno, units_total: p.units_total, units_booked: p.units_booked, completion_now: p.completion_now,
+    completion_at_registration: p.completion_at_registration, completion_passed: p.completion_passed, details: p.details,
+    booked_readings: p.booked_readings, completion_moves: p.completion_moves, extension_only: p.extension_only, stage: p.stage,
+    sold_out: p.sold_out, area_compare: p.area_compare,
+  }
+}
+
+/** The homes and bookings the page says for the project. `booked` is compared with `of` (the same registrations' homes);
+ *  `across` names the part of the project the counts cover, for a page of several registrations. */
+export interface HomesCount { total: number | null; booked: number | null; of: number | null; across: string | null }
+
+export function homesOf(p: RegisterProject): HomesCount {
+  const w = wholeProject(p)
+  if (w) {
+    return { total: w.units_total, booked: w.units_booked, of: w.booked_of,
+      across: w.units_booked != null ? acrossRegistrations(w.booked_counted, w.registrations) : w.units_total ? acrossRegistrations(w.units_counted, w.registrations) : null }
+  }
+  const ok = p.units_total != null && p.units_booked != null && p.units_booked <= p.units_total
+  return { total: p.units_total ?? null, booked: ok ? p.units_booked : null, of: ok ? p.units_total : null, across: null }
+}
+
+/** The project's possession as a page states it: one filed date, or for a project in several registrations the span of
+ *  theirs (`from` and `to`), never the main registration's date alone. */
+export function possessionOf(p: RegisterProject): { date: string | null; from: string | null; to: string | null } {
+  const w = wholeProject(p)
+  if (w) {
+    return w.completion_first && w.completion_last && w.completion_first !== w.completion_last
+      ? { date: null, from: w.completion_first, to: w.completion_last } : { date: w.completion_first, from: null, to: null }
+  }
+  return { date: p.completion_now ?? null, from: null, to: null }
+}
+
+/** A card's possession: "Apr 2031", or "Aug 2030 to Jan 2033" for a project whose parts finish at different times. */
+export function cardPossession(r: { completion_now?: string | null; possession_to?: string | null }): string {
+  return r.possession_to && r.completion_now ? `${monthYear(r.completion_now)} to ${monthYear(r.possession_to)}` : monthYear(r.completion_now)
+}
+
+/** "Possession Apr 2031", or "Possession from Aug 2030" for a project whose parts finish at different times. */
+export function possessionLabel(p: RegisterProject): string {
+  const x = possessionOf(p)
+  return x.from ? `from ${monthYear(x.from)}` : monthYear(x.date)
+}
+
+export function completionPassedOf(p: RegisterProject): boolean {
+  const w = wholeProject(p)
+  return w ? w.completion_passed : !!p.completion_passed
+}
+
+/** Every home of every part booked, as MahaRERA shows them. */
+export function soldOutOf(p: RegisterProject): boolean {
+  const w = wholeProject(p)
+  return w ? w.units_booked != null && w.booked_counted === w.registrations && w.units_booked === w.booked_of : !!p.sold_out
+}
+
+/** The stage by dates (registration to filed completion): one registration's, so none for a page of several, whose parts
+ *  are at different stages. */
+export function stageOf(p: RegisterProject): Stage | null {
+  return wholeProject(p) ? null : p.stage ?? null
+}
+
+/** The project beside its area: one record's share and date move, so none for a page of several registrations. */
+export function areaCompareOf(p: RegisterProject): AreaCompare | null {
+  return wholeProject(p) ? null : p.area_compare ?? null
+}
+
+/** "across all 7 registrations" or "across 6 of its 7 registrations": which part of the project a summed count covers. */
+export function acrossRegistrations(counted: number, of: number): string {
+  return counted === of ? `across all ${of} of its MahaRERA registrations` : `across ${counted} of its ${of} MahaRERA registrations`
+}
+
 /** Questions and answers written by code from the page's facts only; a question with no fact behind it is left out. The questions
  *  people really ask Google (p.faq, from the backend) take the place of our own question on the same topic. */
 export function projectFaq(p: RegisterProject, nearby: { label?: string | null; name?: string | null; km?: number | null }[] = [],
@@ -188,8 +294,12 @@ export function projectFaq(p: RegisterProject, nearby: { label?: string | null; 
   const asked = (p.faq ?? []).filter((f) => f.q && f.a)
   if (!asked.length) return ownFaq(p, nearby, price).map(({ q, a }) => ({ q, a }))
   const topics = new Set(asked.map((f) => f.topic))
-  const own = ownFaq(p, nearby, price).filter((f) => !topics.has(f.topic))
-  return [...own.slice(0, 1), ...asked.map((f) => ({ q: f.q, a: f.a })), ...own.slice(1).map(({ q, a }) => ({ q, a }))].slice(0, 12)
+  const all = ownFaq(p, nearby, price)
+  // the distance questions come last and are kept whatever the writer asked: each names one place, the searches buyers make
+  const far = all.filter((f) => f.topic === 'near' && !asked.some((x) => x.q.toLowerCase() === f.q.toLowerCase()))
+  const rest = all.filter((f) => f.topic !== 'near' && !topics.has(f.topic))
+  return [...rest.slice(0, 1), ...asked.map((f) => ({ q: f.q, a: f.a })), ...rest.slice(1).map(({ q, a }) => ({ q, a }))].slice(0, 12)
+    .concat(far.map(({ q, a }) => ({ q, a })))
 }
 
 function ownFaq(p: RegisterProject, nearby: { label?: string | null; name?: string | null; km?: number | null }[] = [],
@@ -205,29 +315,45 @@ function ownFaq(p: RegisterProject, nearby: { label?: string | null; name?: stri
   const d = p.details
   const where = p.area ? `${p.area.name}, Pune` : [p.place, p.taluka, 'Pune district'].filter(Boolean).join(', ')
   const change = completionChange(p)
+  const whole = wholeProject(p)
+  // a project in several registrations has a filed date per registration: the span first, then the page's own registration's
+  const span = whole?.completion_first && whole.completion_last && whole.completion_first !== whole.completion_last
+    ? `The ${whole.registrations} MahaRERA registrations of ${shown} have filed completion dates from ${longDay(whole.completion_first)} to ${longDay(whole.completion_last)}. For ${p.regno}: ` : ''
   if (p.completion_now && change) {
     const ext = change.kind === 'moved' && change.extension
       ? ` MahaRERA added ${change.extension} months to most projects' dates in August 2026 (Order 66/2026).` : ''
     out.push({ topic: 'possession', q: `What is the possession date of ${shown}?`,
-      a: (change.kind === 'extension' ? extensionSentence(p.completion_now, change.months)
+      a: span + (change.kind === 'extension' ? extensionSentence(p.completion_now, change.months)
         : `The completion date filed with MahaRERA is ${longDay(p.completion_now)}.`
           + (change.kind === 'moved' ? ` At registration it was ${longDay(change.from)}.` : '') + ext)
         + ' Ask the builder for the possession date in your agreement, in writing.' })
   }
-  out.push({ topic: 'rera', q: `What is the MahaRERA number of ${shown}?`, a: `${shown} is registered with MahaRERA as ${p.regno}.` })
+  out.push({ topic: 'rera', q: `What is the MahaRERA number of ${shown}?`,
+    a: whole ? `${shown} is registered with MahaRERA in ${whole.registrations} parts (towers or phases): ${whole.regnos.join(', ')}.`
+      : `${shown} is registered with MahaRERA as ${p.regno}.` })
   if (d?.towers) {
     out.push({ topic: 'size', q: `How many towers and floors does ${shown} have?`,
-      a: `MahaRERA lists ${d.towers} building${d.towers === 1 ? '' : 's'}` + (d.max_floors ? `, the tallest with ${d.max_floors} floors.` : '.') })
+      a: `MahaRERA lists ${d.towers} building${d.towers === 1 ? '' : 's'}` + (whole ? ` in registration ${p.regno}, one of the project's ${whole.registrations}` : '')
+        + (d.max_floors ? `, the tallest with ${d.max_floors} floors.` : '.') })
   }
   const units = d?.units_total ?? p.units_total
-  if (units) {
-    out.push({ topic: 'size', q: `How many flats are there in ${shown}?`,
+  const what = unitWord(p)
+  if (whole?.units_total) {
+    out.push({ topic: 'size', q: `How many ${what === 'units' ? 'units' : 'flats'} are there in ${shown}?`,
+      a: `MahaRERA lists ${whole.units_total} units ${acrossRegistrations(whole.units_counted, whole.registrations)}`
+        + (units ? `; ${p.regno} has ${units}.` : '.') })
+  } else if (units) {
+    out.push({ topic: 'size', q: `How many ${what === 'units' ? 'units' : 'flats'} are there in ${shown}?`,
       a: `MahaRERA lists ${units} units` + (d?.units_residential != null && d?.units_other ? ` (${d.units_residential} residential, ${d.units_other} other).` : '.') })
   }
-  if (p.units_total) {
-    const what = unitWord(p)
+  const on = p.details_read_at ? ` on ${longDay(p.details_read_at)}` : ''
+  if (whole?.units_total) {
     out.push({ topic: 'booked', q: `How many ${what} in ${shown} are booked?`,
-      a: p.units_booked != null ? `${p.units_booked} of ${p.units_total} ${what} were booked as per MahaRERA${p.details_read_at ? ` on ${longDay(p.details_read_at)}` : ''}.`
+      a: whole.units_booked != null ? `${whole.units_booked} of ${whole.booked_of} ${what} were booked as per MahaRERA${on}, ${acrossRegistrations(whole.booked_counted, whole.registrations)}.`
+        : 'The builder has not reported bookings on MahaRERA.' })
+  } else if (p.units_total) {
+    out.push({ topic: 'booked', q: `How many ${what} in ${shown} are booked?`,
+      a: p.units_booked != null ? `${p.units_booked} of ${p.units_total} ${what} were booked as per MahaRERA${on}.`
         : 'The builder has not reported bookings on MahaRERA.' })
   }
   if (p.promoter) {
@@ -236,15 +362,42 @@ function ownFaq(p: RegisterProject, nearby: { label?: string | null; name?: stri
       a: `The promoter registered with MahaRERA is ${p.promoter}.` + (b && b.count > 1 ? ` Our register has ${b.count} Pune projects by ${b.name}${b.record_ok ? `; ${b.moved_later} of ${b.with_dates} with both dates moved their completion date 3 months or more later` : ''}.` : '') })
   }
   out.push({ topic: 'location', q: `Where is ${shown}?`, a: `${shown} is in ${where}${p.pincode ? ` (pincode ${p.pincode})` : ''}.` })
-  const near = nearby.filter((n) => n.name && n.km != null).slice(0, 3)
-  if (near.length) {
-    out.push({ topic: 'near', q: `What is near ${shown}?`,
-      a: near.map((n) => `${n.name}${n.label ? ` (${n.label})` : ''}, ${n.km} km`).join('; ') + ' (OpenStreetMap, straight-line distance).' })
-  }
-  if (p.completion_passed) {
+  if (completionPassedOf(p)) {
     out.push({ topic: 'oc', q: `Has the completion date of ${shown} passed?`, a: 'Yes. Ask the builder for the occupancy certificate (OC) before you book.' })
   }
-  return out.slice(0, 11)
+  return [...out.slice(0, 11), ...distanceFaq(p, shown, nearby)]
+}
+
+const LINE = ' in a straight line from the map position; the drive is longer.'
+const kmText = (x: number) => `${Number.isInteger(x) ? x : x.toFixed(1)} km`
+
+/** The distance questions buyers search ("nearest hospital to <project>", "<project> distance from airport"), each answered from
+ *  a measured distance the page's location section shows: the nearest place of a kind (backend propertyfacts/surroundings) or a
+ *  work hub (backend core/work_hubs, measured only from a checked map position). A kind with no measured place asks nothing. */
+export function distanceFaq(p: Pick<RegisterProject, 'commute'>, shown: string,
+  nearby: { label?: string | null; name?: string | null; km?: number | null }[] = []): (Faq & { topic: string })[] {
+  const out: (Faq & { topic: string })[] = []
+  const nearest = (label: string) => nearby.filter((n) => n.name && n.km != null && n.label === label)
+    .sort((a, b) => (a.km as number) - (b.km as number))[0]
+  for (const [label, q] of [['Hospital', 'Which hospital is nearest to'], ['School', 'Which school is nearest to'],
+    ['Railway station', 'Which railway station is nearest to']] as const) {
+    const n = nearest(label)
+    if (n) out.push({ topic: 'near', q: `${q} ${shown}?`, a: `${n.name}, about ${kmText(n.km as number)} away${LINE}` })
+  }
+  const hubs = (p.commute ?? []).filter((c) => c.name && c.km != null)
+  const airport = hubs.find((c) => /airport/i.test(c.name))
+  if (airport) out.push({ topic: 'near', q: `How far is ${shown} from Pune Airport?`, a: `About ${kmText(airport.km)}${LINE}` })
+  const work = hubs.filter((c) => !/airport|railway/i.test(c.name)).sort((a, b) => a.km - b.km)[0]
+  if (work) out.push({ topic: 'near', q: `How far is ${shown} from ${work.name}?`, a: `About ${kmText(work.km)}${LINE} It is the nearest of Pune's main work hubs to ${shown}.` })
+  if (!out.length) {
+    // no place of the kinds above measured: the nearest places we have, as before
+    const near = nearby.filter((n) => n.name && n.km != null).slice(0, 3)
+    if (near.length) {
+      out.push({ topic: 'near', q: `What is near ${shown}?`,
+        a: near.map((n) => `${n.name}${n.label ? ` (${n.label})` : ''}, ${kmText(n.km as number)}`).join('; ') + `;${LINE}` })
+    }
+  }
+  return out
 }
 
 /** How far a project is through the time from MahaRERA registration to its filed completion date (backend areastats/pages.stage):
@@ -293,7 +446,11 @@ export interface RegisterListItem {
   units_booked?: number | null
   area: string | null
   promoter?: string | null
+  /** for a card whose page stands for several registrations: the earliest part's filed date, with the latest in `possession_to` */
   completion_now: string | null
+  possession_to?: string | null
+  /** how many MahaRERA registrations the card's page stands for, when more than one: its counts are then the whole project's */
+  registrations?: number | null
   /** enrichment checks passed (null: our crawler has not reached it yet) out of checks_total */
   checked?: number | null
   checks_total?: number
@@ -345,7 +502,7 @@ const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+){0,15}$/
 /** The project page data; null for an unknown slug. An outage throws, so it is never shown (or cached) as a 404. */
 export async function getRegisterProject(slug: string): Promise<RegisterProject | null> {
   if (!SLUG.test(slug)) return null
-  const r = await get<RegisterProject>('/api/v1/public/register/projects/' + encodeURIComponent(slug))
+  const r = await get<RegisterProject>('/api/v1/public/register/projects/' + encodeURIComponent(slug), PAGE_DATA_MS)
   if (r.ok) return r.data
   if (r.notFound) return null
   throw new Error('Project data is temporarily unavailable')
@@ -361,10 +518,14 @@ export async function getRegisterProjectByRegno(regno: string | null | undefined
 
 /** The project page an agent's listing of this MahaRERA number shows and names as its canonical page: the number's register page
  *  (a tower merged into its project resolves to the project's page) when that page is in search; null otherwise or when it
- *  cannot be read. The listing page and the sitemap both decide with this, so the sitemap never lists a page naming another. */
+ *  cannot be read. A project with a shared page answers with that page: its register address 301s there, and a canonical should
+ *  name where a page ends up (Lodha Camelot's listing named the redirect). The listing page and the sitemap both decide with
+ *  this, so the sitemap never lists a page naming another. */
 export async function projectPageOfListing(regno: string | null | undefined): Promise<string | null> {
   const r = await getRegisterProjectByRegno(regno)
-  return r?.indexable ? r.slug : null
+  if (!r?.indexable) return null
+  const regnos = new Set([r.regno, ...(r.towers ?? []).map((t) => t.regno)])   // as /projects/<slug> chooses where to redirect
+  return (await getCatalog()).find((x) => regnos.has(x.rera_no) && x.agents.length)?.slug ?? r.slug
 }
 
 /** A MahaRERA number as the register keys it. */
@@ -554,9 +715,13 @@ export function completionChange(p: Pick<RegisterProject, 'completion_now' | 'co
 }
 
 /** The page heading's name: the one buyers know, with the phase when MahaRERA's name carries one and that name does not ("Park
- *  Eden" filed as "PARK EDEN PHASE I" is "Park Eden Phase I"), so two phases' pages do not read as one project. */
-export function headingName(p: { name: string; marketed_name?: string | null; search_name?: string | null; branded_name?: string | null }): string {
+ *  Eden" filed as "PARK EDEN PHASE I" is "Park Eden Phase I"), so two phases' pages do not read as one project. A page that stands
+ *  for several registrations (`project`) is the whole project's and carries no phase. */
+export function headingName(p: { name: string; marketed_name?: string | null; search_name?: string | null; branded_name?: string | null;
+  project?: ProjectScope | null }): string {
   const shown = displayName(p)
+  // a page for every phase of a project names the project: its main registration's phase would make it read as one phase
+  if (wholeProject(p)) return shown
   const m = /\b(?:phase|ph\.?)[\s-]*([ivx]+|\d+[a-z]?)\b/i.exec(p.name)
   if (!m || /\b(?:phase|ph\.?)(?:\b|\s|\d)/i.test(shown)) return shown
   return `${shown} Phase ${/^[ivx]+$/i.test(m[1]) ? m[1].toUpperCase() : m[1]}`

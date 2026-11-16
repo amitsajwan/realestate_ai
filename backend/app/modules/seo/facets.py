@@ -6,9 +6,10 @@ A facet is {place, intent, filters}:
 - intent:  "new-launches" (registered in the last LAUNCH_DAYS), "top" (homes booked lately), "ready-to-move" (filed completion
            date passed in the last READY_DAYS), or "all" (every project still being built);
 - filters: {"bhk": 2} (home size: projects with a published price for that size, areastats.prices), {"possession": 2027}
-           (filed completion year) and/or {"builder": "<builder slug>"}.
+           (filed completion year) and/or {"builder": "<builder slug>"}; or, alone on "all", {"budget": "under-50-lakh"}
+           (projects with a size whose published starting price is inside one of BUDGETS).
 Its URL is `/projects/area/<place slug>/<intent>[/<n>-bhk][/possession-<year>][/by-<builder slug>]`; "all" has no segment of
-its own (`/projects/area/kharadi/possession-2027`, `/projects/area/lohegaon/2-bhk`). `key` is the one canonical id; `parse` turns any segment order into it.
+its own (`/projects/area/kharadi/possession-2027`, `/projects/area/lohegaon/2-bhk`, `/projects/area/wagholi/under-50-lakh`). `key` is the one canonical id; `parse` turns any segment order into it.
 
 `view(db, place_slug, segments)` gives everything a page shows: the ranked rows with one sourced reason each, the answer
 paragraph written from the numbers, what changed in the last CHANGES_DAYS, the month the data last changed and page_updated.
@@ -24,9 +25,9 @@ from app.core.areas import AREAS
 from app.modules.areastats import brands, hot, priceidea, prices
 from app.modules.areastats.areamap import _photo, card_pictures
 from app.modules.areastats.hubs import _primaries, link_name
-from app.modules.areastats.pages import (OPEN_MIN, _long, booked, builder_key, buyable, cluster_stamps, cluster_updated,
-                                         completion_passed, delivery, family_name, homes, indexable, is_old, months_later,
-                                         open_homes, searchable)
+from app.modules.areastats.pages import (OPEN_MIN, _long, booked, builder_key, buyable, card_counts, cluster_stamps,
+                                         cluster_updated, completion_passed, delivery, family_name, homes, indexable, is_old,
+                                         load_index, months_later, open_homes, project_scope, searchable)
 from app.modules.areastats.service import _count, _day
 from app.modules.areastats.text import builder_slug
 from app.modules.newsroom.store import Store
@@ -43,6 +44,15 @@ CHANGES_SHOWN = 8
 FIRST_YEAR, LAST_YEAR = 2024, 2035   # possession years a page can be about
 BHKS = (1, 2, 3, 4)
 SEED_BHKS = (1, 2, 3)                # every place's first size pages ("1/2/3 bhk flats in <place>" are the most searched)                  # home sizes a page can be about ("2 BHK" takes in "2.5 BHK", as the listing pages do)
+# budget lists ("flats under 50 lakh in wagholi"): slug -> (label, lowest, highest) in rupees, the highest not included. The
+# bands do not overlap, so two budget pages of a place never list the same price; a project with homes in two bands is on both.
+LAKH, CRORE = 100_000, 10_000_000
+BUDGETS: Dict[str, Tuple[str, int, int]] = {
+    "under-50-lakh": ("under 50 lakh", 0, 50 * LAKH),
+    "50-lakh-to-1-crore": ("50 lakh to 1 crore", 50 * LAKH, CRORE),
+    "1-to-2-crore": ("1 to 2 crore", CRORE, 2 * CRORE),
+    "above-2-crore": ("above 2 crore", 2 * CRORE, 10**12),
+}
 _MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 
 LABEL = {"new-launches": "New launch projects", "top": "Top projects", "ready-to-move": "Ready to move projects",
@@ -58,6 +68,7 @@ class Facet:
     possession: Optional[int] = None
     builder: Optional[str] = None                # builder slug (areastats.text.builder_slug)
     bhk: Optional[int] = None                    # home size, one of BHKS
+    budget: Optional[str] = None                 # one of BUDGETS, only on "all" with no other filter
 
     @property
     def key(self) -> str:
@@ -68,6 +79,8 @@ class Facet:
             bits.append(f"possession={self.possession}")
         if self.builder:
             bits.append(f"builder={self.builder}")
+        if self.budget:
+            bits.append(f"budget={self.budget}")
         return "|".join(bits)
 
     @property
@@ -79,6 +92,8 @@ class Facet:
             out.append(f"possession-{self.possession}")
         if self.builder:
             out.append(f"by-{self.builder}")
+        if self.budget:
+            out.append(self.budget)
         return out
 
     @property
@@ -88,15 +103,17 @@ class Facet:
     @property
     def kind(self) -> str:
         """The facet's type for learning which types earn (11.6): "new-launches", "all+possession", "top+builder"..."""
-        f = [k for k, v in (("bhk", self.bhk), ("possession", self.possession), ("builder", self.builder)) if v]
+        f = [k for k, v in (("bhk", self.bhk), ("possession", self.possession), ("builder", self.builder), ("budget", self.budget)) if v]
         return "+".join([self.intent, *f])
 
     @property
     def is_place_page(self) -> bool:
         """The plain place page (/projects/area/<place>), which exists already and is not a facet page."""
-        return self.intent == "all" and not self.possession and not self.builder and not self.bhk
+        return self.intent == "all" and not self.possession and not self.builder and not self.bhk and not self.budget
 
     def parent(self) -> "Facet":
+        if self.budget:
+            return Facet(self.place)
         if self.builder:
             return Facet(self.place, self.intent, self.possession, None, self.bhk)
         if self.possession:
@@ -129,7 +146,7 @@ _SLUG = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+){0,15}$")
 
 def parse(place: str, segments: List[str]) -> Optional[Facet]:
     """The facet for URL segments in any order; None for a segment we do not know or a repeated one."""
-    intent, possession, builder, bhk = "all", None, None, None
+    intent, possession, builder, bhk, budget = "all", None, None, None, None
     for s in segments:
         s = (s or "").strip().lower()
         if s in INTENTS and s != "all" and intent == "all":
@@ -138,11 +155,15 @@ def parse(place: str, segments: List[str]) -> Optional[Facet]:
             bhk = int(m.group(1))
         elif (m := re.fullmatch(r"possession-(\d{4})", s)) and possession is None and FIRST_YEAR <= int(m.group(1)) <= LAST_YEAR:
             possession = int(m.group(1))
+        elif s in BUDGETS and budget is None:
+            budget = s
         elif s.startswith("by-") and builder is None and _SLUG.match(s[3:]):
             builder = s[3:]
         else:
             return None
-    return Facet(place_key(place), intent, possession, builder, bhk)
+    if budget and (intent != "all" or possession or builder or bhk):
+        return None   # a budget list stands alone: "new launches under 50 lakh by X" is too thin to be a page
+    return Facet(place_key(place), intent, possession, builder, bhk, budget)
 
 
 def from_key(key: str) -> Optional[Facet]:
@@ -158,6 +179,8 @@ def from_key(key: str) -> Optional[Facet]:
             kw["builder"] = v
         elif k == "bhk" and v.isdigit() and int(v) in BHKS:
             kw["bhk"] = int(v)
+        elif k == "budget" and v in BUDGETS:
+            kw["budget"] = v
         else:
             return None
     return Facet(bits[0], bits[1], **kw)
@@ -405,6 +428,8 @@ def _price_why(sp: dict, bhk: int) -> str:
 def members(f: Facet, docs: List[dict], now: datetime) -> List[Tuple[dict, str]]:
     """[(record, reason)] the facet lists, best first. Only pages search may list (indexable primaries)."""
     pool = [d for d in docs if d.get("pune_place") == f.place and indexable(d)]
+    if f.budget:
+        return _budget_members(f.budget, pool, now)
     if f.bhk:
         sized = {id(d): sp for d in pool if (sp := size_price(d, f.bhk, now))}
         pool = [d for d in pool if id(d) in sized]
@@ -454,6 +479,32 @@ def members(f: Facet, docs: List[dict], now: datetime) -> List[Tuple[dict, str]]
     return [(d, why) for _, d, why in rows]
 
 
+def budget_sizes(d: dict, band: str, now: datetime) -> List[dict]:
+    """The project's sizes whose published starting price falls in the band: [{bhk, from_inr}], smallest size first."""
+    _, lo, hi = BUDGETS[band]
+    return [s for s in size_prices(d, now) if lo <= s["from_inr"] < hi]
+
+
+def _budget_members(band: str, pool: List[dict], now: datetime) -> List[Tuple[dict, str]]:
+    """"Flats under 50 lakh in <place>": every project still being sold with a size priced in the band, cheapest first, one row
+    per project family (sites price the whole project, as on the size lists). The reason names the sizes in the band."""
+    rows = []
+    for d in pool:
+        if is_old(d, now.date()) or _open(d) == 0:
+            continue
+        got = budget_sizes(d, band, now)
+        if got:
+            rows.append((min(s["from_inr"] for s in got), d, ", ".join(f"{s['bhk']} BHK from {inr(s['from_inr'])}" for s in got)))
+    rows.sort(key=lambda r: (r[0], link_name(r[1]).lower()))
+    seen, out = set(), []
+    for _, d, why in rows:
+        key = (family_name(d).lower(), builder_key(d))
+        if key not in seen:
+            seen.add(key)
+            out.append((d, why))
+    return out
+
+
 def regnos(f: Facet, docs: List[dict], now: datetime) -> List[str]:
     return [d.get("regno") or d["_id"] for d, _ in members(f, docs, now)[:MAX_ROWS]]
 
@@ -488,8 +539,11 @@ def changes(rows: List[dict], now: datetime) -> List[dict]:
 
 # ---- the page ----------------------------------------------------------------------------------------------------------------
 
-def _row(d: dict, why: str, n: int, now: datetime) -> dict:
+def _row(d: dict, why: str, n: int, now: datetime, docs: Optional[List[dict]] = None) -> dict:
+    """A card on a list. `docs` (every register record): when the card's page stands for several registrations, its homes and
+    bookings are the whole project's (pages.project_scope), never its main registration's."""
     total = _count(d.get("units_total"))
+    scope = project_scope(d, docs, load_index(docs)) if docs and d.get("cluster_id") else None
     return {"rank": n, "slug": d["page_slug"], "name": link_name(d), "legal_name": d.get("name", ""),
             "regno": d.get("regno") or d["_id"], "promoter": d.get("promoter") or None,
             "builder_name": builder_name(d),          # the brand buyers search; `promoter` is the company it is filed under
@@ -499,12 +553,28 @@ def _row(d: dict, why: str, n: int, now: datetime) -> dict:
             "units_total": total, "units_booked": booked(d), "units_open": _open(d), "reason": why, "source": "MahaRERA",
             # for the card: where it is, the cheapest published price and one picture (with where it came from); `photos` and
             # the stand-ins for a card with none (areastats.areamap.card_pictures)
-            "stage": stage(d, now), "price": lowest_price(d, now), "sizes": size_prices(d, now), "photo": _photo([d]), **card_pictures(d)}
+            "stage": stage(d, now), "price": lowest_price(d, now), "sizes": size_prices(d, now), "photo": _photo([d]), **card_pictures(d),
+            # last, so it wins: a card whose page stands for several registrations says the whole project (pages.card_counts)
+            **(_whole_card(scope) if scope else {})}
+
+
+def _whole_card(scope: dict) -> dict:
+    out = card_counts({}, scope)
+    out["units_open"] = scope["booked_of"] - scope["units_booked"] if scope["units_booked"] is not None else None
+    # the date move and the registration day are one part's
+    out["completion_at_registration"] = None
+    return out
 
 
 def _price_row(row: dict, d: dict, bhk: int, now: datetime) -> dict:
     sp = size_price(d, bhk, now) or {}
     return {**row, "price_from": sp.get("from_inr"), "price_to": sp.get("to_inr")}
+
+
+def _budget_row(row: dict, d: dict, band: str, now: datetime) -> dict:
+    """A budget list's card: its cheapest price in the band, and every size priced in it."""
+    got = budget_sizes(d, band, now)
+    return {**row, "price_from": min(s["from_inr"] for s in got) if got else None, "price_to": None, "budget_sizes": got}
 
 
 def answer(f: Facet, place: str, rows: List[dict], as_of: str, count: Optional[int] = None, sold: int = 0) -> str:
@@ -515,6 +585,12 @@ def answer(f: Facet, place: str, rows: List[dict], as_of: str, count: Optional[i
     if not rows:
         return f"As of {as_of}, no project in {place}{who}{year} matches this list in MahaRERA's records."
     first = rows[0]
+    if f.budget:
+        lows = [r["price_from"] for r in rows if r.get("price_from")]
+        span = f" Starting prices run from {inr(min(lows))} to {inr(max(lows))}." if len(lows) > 1 else ""
+        return (f"As of {as_of}, {n} project{'s' if n > 1 else ''} in {place} being built or recently finished have flats with a "
+                f"published starting price {BUDGETS[f.budget][0]}. The lowest is {first['name']}: {first['reason']}.{span} "
+                f"Parking, GST, stamp duty and registration usually come on top.")
     if f.bhk:
         lows = [r["price_from"] for r in rows if r.get("price_from")]
         span = f" Prices start from {inr(min(lows))} to {inr(max(lows))} across them." if len(lows) > 1 else ""
@@ -560,8 +636,10 @@ def title(f: Facet, place: str, n: int, month: Optional[str], builder_name: Opti
         what += f", Possession {f.possession}"
     if builder_name:
         what = f"{builder_name} {what}"
+    if f.budget:
+        what = f"Flats {BUDGETS[f.budget][0].title().replace(' To ', ' to ')}"
     when = f" ({month})" if month else ""
-    tail = f"{n} Projects, Prices" if f.bhk else f"{n} on MahaRERA"
+    tail = f"{n} Projects, Prices" if f.bhk or f.budget else f"{n} on MahaRERA"
     if f.intent == "top" and not (f.bhk or f.possession or builder_name) and n >= TOP_TEN_MIN:
         # people search "top 10 projects in kharadi" and click a dated, ranked list (a rival's "Ranked 2026 - Top 10 Picks" led
         # that search, 2026-11-03); the tail says how we rank ("most booked" is also searched), never "best", which is a claim
@@ -590,6 +668,8 @@ def h1(f: Facet, place: str, builder_name: Optional[str] = None) -> str:
         what += f" with possession in {f.possession}"
     if builder_name:
         what = f"{builder_name}: {what[0].lower()}{what[1:]}"
+    if f.budget:
+        what = f"New projects with flats {BUDGETS[f.budget][0]}"
     return f"{what} in {place}, Pune"
 
 
@@ -605,10 +685,12 @@ def facet_view(f: Facet, docs: List[dict], now: datetime, stamps: Optional[dict]
     prim = _primaries(docs)
     listed = members(f, prim, now)
     rows_docs = [d for d, _ in listed[:MAX_ROWS]]
-    rows = [_row(d, why, i + 1, now) for i, (d, why) in enumerate(listed[:MAX_ROWS])]
+    rows = [_row(d, why, i + 1, now, docs) for i, (d, why) in enumerate(listed[:MAX_ROWS])]
     gone = sold_out(f, prim, now) if f.intent == "top" and not f.bhk else []
     if f.bhk:
         rows = [_price_row(r, d, f.bhk, now) for r, d in zip(rows, rows_docs)]
+    if f.budget:
+        rows = [_budget_row(r, d, f.budget, now) for r, d in zip(rows, rows_docs)]
     place = place_name(f.place, docs)
     as_of = _long(now.date().isoformat())
     changed = changes(rows_docs, now)
@@ -622,9 +704,10 @@ def facet_view(f: Facet, docs: List[dict], now: datetime, stamps: Optional[dict]
     return {
         "key": f.key, "path": f.path, "place": {"key": f.place, "slug": place_slug(f.place), "name": place},
         "intent": f.intent, "possession": f.possession, "builder": f.builder, "builder_name": builder_name, "bhk": f.bhk,
+        "budget": f.budget, "budget_label": BUDGETS[f.budget][0] if f.budget else None,
         "title": title(f, place, len(listed), _month(last_change), builder_name), "h1": h1(f, place, builder_name),
         "answer": answer(f, place, rows, as_of, len(listed), len(gone)), "rows": rows, "count": len(listed), "changes": changed,
-        "sold_out": [_row(d, why, 0, now) for d, why in gone[:MAX_ROWS]], "sold_out_count": len(gone),
+        "sold_out": [_row(d, why, 0, now, docs) for d, why in gone[:MAX_ROWS]], "sold_out_count": len(gone),
         "picks": picks(listed, prim, now) if f.intent == "top" and not f.bhk else [],
         "month": _month(last_change), "page_updated": max(updated) if updated else None,
         "indexable": in_search(listed), "as_of": now.date().isoformat(), "source": "MahaRERA public records",
@@ -675,5 +758,7 @@ def seeds(docs: List[dict]) -> List[Facet]:
         if d.get("pune_place") and d.get("page_slug") and indexable(d):
             counts[d["pune_place"]] = counts.get(d["pune_place"], 0) + 1
     order = sorted(counts, key=lambda k: (k not in FOCUS, FOCUS.index(k) if k in FOCUS else 0, -counts[k], k))
+    # budget lists start in our focus areas only; elsewhere a budget page waits for people to search for it (seo.grow)
     return [Facet(k, i) for k in order for i in ("new-launches", "top", "ready-to-move")] + \
-        [Facet(k, "all", bhk=b) for k in order for b in SEED_BHKS]
+        [Facet(k, "all", bhk=b) for k in order for b in SEED_BHKS] + \
+        [Facet(k, "all", budget=b) for k in order if k in FOCUS for b in BUDGETS]

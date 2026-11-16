@@ -261,7 +261,8 @@ def kit_out(doc: Optional[dict]) -> Optional[dict]:
            "pages": int(doc.get("pages") or 0), "image_only_pages": list(doc.get("image_only_pages") or []),
            "status": doc.get("status") or "failed", "read_at": _iso(doc.get("read_at")),
            "facts": [{"id": f["id"], "key": f["key"], "label": f["label"], "value": f["value"], "page": f["page"],
-                      "quote": f["quote"], "level": "builder_claim", "state": f["state"], "edited": bool(f.get("edited"))}
+                      "quote": f["quote"], "level": "builder_claim", "state": f["state"], "edited": bool(f.get("edited")),
+                      "config": f.get("config") or ""}
                      for f in doc.get("facts") or []],
            "registration": {"status": reg.get("status") or "unknown", "rera_no": reg.get("rera_no") or None,
                             "note": reg.get("note") or ""},
@@ -290,6 +291,17 @@ def usable_images(kit: Optional[dict], uploads_dir: Any) -> List[dict]:
             out.append({"id": im["id"], "page": im["page"], "kind": im["kind"], "label": label,
                         "configs": list(im.get("configs") or []), "path": str(p)})
     return out
+
+
+def post_renders(kit: Optional[dict], uploads_dir: Any) -> List[str]:
+    """Files of the renders of a verified brochure the agent has not dropped: they fill a post or reel when the agent's own
+    pictures fall short. No tick needed, since the owner approves every post; always labelled as an artist's impression."""
+    if not kit or kit.get("status") != "done" or (kit.get("registration") or {}).get("status") != "verified":
+        return []
+    folder = Path(uploads_dir) / "brochures" / _safe(kit["listing_id"]) / kit["sha256"]
+    files = (folder / f"{_safe(im['id'])}.jpg" for im in kit.get("images") or []
+             if im.get("kind") == "render" and im.get("state") != "dropped")
+    return [str(p) for p in files if p.is_file()]
 
 
 def _fact_doc(i: int, c: bp.Candidate) -> dict:
@@ -615,6 +627,38 @@ class Brochures:
         await self._refresh_page(doc["registration"])
         if self.label_pages:
             label_pages_later(folder / sha, read.pages)
+        return doc
+
+    async def adopt(self, listing: dict, sha: str, filename: str, reading: dict, data: bytes) -> dict:
+        """The kit of a stored one-time reading (brochure_once): no model here. Only a number read off the brochure proves whose
+        it is: the listing's own number stands in for nothing, or a wrong PDF's plans would reach this project's page. A number
+        that is not the listing's and not one of its group's is held too, whatever MahaRERA says of it."""
+        listing_id = listing["_id"]
+        same = await self.col.find_one({"listing_id": listing_id, "sha256": sha, "status": "done"})
+        if same:
+            return same
+        now = self.now()
+        folder = self._dir(listing_id)
+        folder.mkdir(parents=True, exist_ok=True)
+        await asyncio.to_thread((folder / f"{sha}.pdf").write_bytes, data)
+        numbers = list(reading.get("numbers") or [])
+        facts = [{**f, "id": f"f{i + 1}", "level": "builder_claim", "state": "pending", "edited": False}
+                 for i, f in enumerate(reading.get("facts") or [])]
+        name = next((f["value"] for f in facts if f["key"] == "project_name"), "") or (listing.get("project_name") or "")
+        clients = self.clients_factory() if self.clients_factory else None
+        reg = await check_registration(clients, numbers[0] if numbers else "", name, now, numbers[1:])
+        own = bp.rera_no(str(listing.get("rera_no") or ""))
+        if reg.get("status") == "verified" and own and reg.get("rera_no") != own and not reg.get("group"):
+            reg = {**reg, "status": "unverified",
+                   "note": f"The brochure shows {reg['rera_no']}, but this listing is {own}. Its plans stay off the page until this is sorted out."}
+        doc = {"_id": uuid.uuid4().hex, "listing_id": listing_id, "agent_id": listing.get("agent_id"), "sha256": sha,
+               "filename": (filename or "brochure.pdf")[:200], "pages": reading.get("pages") or 0,
+               "image_only_pages": reading.get("image_only_pages") or [], "uploaded_at": now, "read_at": now, "facts": facts,
+               "page_types": {}, "used_llm": True, "images": reading.get("images") or [], "registration": reg, "status": "done",
+               "error": None, "photo_note": photo_note(reading.get("image_only_pages") or [], int(reading.get("pages") or 0),
+                                                       {int(k): v for k, v in (reading.get("labels") or {}).items()})}
+        await self.col.insert_one(doc)
+        await self._refresh_page(reg)
         return doc
 
     async def _refresh_page(self, reg: dict) -> None:

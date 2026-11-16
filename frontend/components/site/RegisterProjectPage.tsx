@@ -2,6 +2,7 @@ import React from 'react'
 import ListThisProject from '@/components/site/ListThisProject'
 import Link from 'next/link'
 import AskPrompt from '@/components/site/AskPrompt'
+import CallbackButton from '@/components/site/CallbackButton'
 import EnquiryForm from '@/components/site/EnquiryForm'
 import ListingCard from '@/components/site/ListingCard'
 import SourceKind from '@/components/site/SourceKind'
@@ -17,17 +18,19 @@ import { distinctPhotos } from '@/components/site/ProfilePictures'
 import CostBreakdown from '@/components/site/CostBreakdown'
 import PriceBox from '@/components/site/PriceBox'
 import PriceIdea from '@/components/site/PriceIdea'
+import LocationMapSwitch from '@/components/site/LocationMapSwitch'
 import ProjectHistory from '@/components/site/ProjectHistory'
 import { isCommercial, type Stage } from '@/lib/site/allin'
-import { areaName, askedPrices, bhkRange, completionChange, displayName, extensionSentence, headingName, longDay, monthYear, offerPrice,
-  otherNames, projectFaq, placePath, STAGE_LABEL, STAGE_NOTE, unitWord } from '@/lib/site/register'
+import { areaCompareOf, areaName, askedPrices, bhkRange, completionChange, completionPassedOf, displayName, extensionSentence, headingName,
+  homesOf, longDay, mainRegistration, monthYear, offerPrice, otherNames, possessionLabel, possessionOf, projectFaq, placePath, soldOutOf,
+  STAGE_LABEL, STAGE_NOTE, stageOf, unitWord, wholeProject as projectScope } from '@/lib/site/register'
 import type { EnrichCheck, Faq, Offer } from '@/lib/site/register'
 import type { ProfilePicture } from '@/lib/site/profile'
 import type { PropertyFactsView, PublicListing } from '@/lib/site/types'
 import type { WebFact } from '@/lib/site/webfacts'
 import { formatPrice, groupIndian } from '@/lib/site/format'
 import { agentPath } from '@/lib/site/slug'
-import { OWN_CASH_NOTE, ownCash } from '@/lib/site/upfront'
+import { emiFor, OWN_CASH_NOTE, ownCash } from '@/lib/site/upfront'
 import { projectUpdated, registerAnswer } from '@/lib/site/projectFacts'
 import ProjectPoints, { HomeSizes } from '@/components/site/ProjectPoints'
 import { backing, priceHelp, sizeHelp, type Backing, type PriceHelpText } from '@/lib/site/sellerHelp'
@@ -188,17 +191,28 @@ function brandLine(p: RegisterProject): string | null {
  *  the builder's own picture, never an AI illustration standing in for a real one. With no picture (most projects, 2026-10-31),
  *  a street map around the project's pin takes its place with the builder's logo over it (backend areastats/locmap.py,
  *  logos.py), else the logo alone. Over a photo the builder's logo sits in a white badge (owner 2026-11-03). */
-function Hero({ p, price, photo, linkless = false, closed = false }: { p: RegisterProject; price: { from: string; bhks: string } | null; photo: ProfilePicture | null; linkless?: boolean; closed?: boolean }) {
+function Hero({ p, price, photo, linkless = false, closed = false, callback }: { p: RegisterProject; price: { from: string; bhks: string } | null; photo: ProfilePicture | null; linkless?: boolean; closed?: boolean
+  /** who the "Call me back" button's lead goes to, and what about: the same as the page's enquiry form */
+  callback?: { agentSlug: string; agentName: string; topic: string } }) {
   const stats: { label: string; value: React.ReactNode; sub?: React.ReactNode; id: string }[] = []
   // the agent's live sheet when there is one, else the portals' prices: one price on the page, never both
   const asked = price ?? askedPrices(p)
   if (asked?.bhks) stats.push({ id: 'chip-bhk', label: 'Homes', value: asked.bhks })
   if (asked) stats.push({ id: 'chip-price', label: 'Price', value: `from ${asked.from}` })
-  if (p.completion_now) stats.push({ id: 'chip-possession', label: 'Possession', value: monthYear(p.completion_now), sub: 'completion filed with MahaRERA' })
-  if (p.units_total && p.units_booked != null) {
-    stats.push({ id: 'chip-booked', label: 'Booked', value: `${n(p.units_booked)} of ${n(p.units_total)} booked`,
-      sub: p.sales && p.sales.booked > 0 ? `${n(p.sales.booked)} booked in the last ${p.sales.days} days` : undefined })
-  } else if (p.units_total) stats.push({ id: 'chip-homes', label: 'Homes', value: `${n(p.units_total)} homes` })
+  // the whole project's possession and homes (one registration's only when the page is one registration's)
+  const possession = possessionOf(p)
+  if (possession.date || possession.from) {
+    stats.push({ id: 'chip-possession', label: 'Possession', value: possessionLabel(p),
+      sub: possession.from ? `its parts filed ${monthYear(possession.from)} to ${monthYear(possession.to)}` : 'completion filed with MahaRERA' })
+  }
+  const homes = homesOf(p)
+  // `sales` comes from the backend already summed over the parts for a page of several registrations
+  if (homes.booked != null) {
+    stats.push({ id: 'chip-booked', label: 'Booked', value: `${n(homes.booked)} of ${n(homes.of as number)} booked`,
+      sub: p.sales && p.sales.booked > 0 ? `${n(p.sales.booked)} booked in the last ${p.sales.days} days`
+        : homes.across ? homes.across : undefined })
+  } else if (homes.total) stats.push({ id: 'chip-homes', label: 'Homes', value: `${n(homes.total)} homes`, sub: homes.across ?? undefined })
+  const stage = stageOf(p)
   const where = p.area ? `${p.area.name}, Pune` : [p.pune_place?.name ?? p.place, p.taluka, 'Pune district'].filter(Boolean).join(', ')
   const shown = displayName(p)
   const heading = headingName(p)
@@ -259,10 +273,10 @@ function Hero({ p, price, photo, linkless = false, closed = false }: { p: Regist
         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/15 px-3 py-1 text-xs font-semibold text-emerald-200 ring-1 ring-inset ring-emerald-300/30" data-testid="regno">
           <span aria-hidden>✓</span> MahaRERA registered <span className="font-mono font-normal text-slate-200">{p.regno}</span>
         </span>
-        {p.completion_passed && <span className="rounded-full bg-amber-400/20 px-3 py-1 text-xs font-semibold text-amber-200">Completion date passed</span>}
+        {completionPassedOf(p) && <span className="rounded-full bg-amber-400/20 px-3 py-1 text-xs font-semibold text-amber-200">Completion date passed</span>}
         {/* plain words on the badge; how the stage is worked out (by dates, not a site check) is its title */}
-        {p.stage && p.stage !== 'passed' && <span className="rounded-full bg-sky-400/20 px-3 py-1 text-xs font-semibold text-sky-100" title={STAGE_NOTE} data-testid="stage">{STAGE_LABEL[p.stage]}</span>}
-        {p.sold_out && <span className="rounded-full bg-rose-400/20 px-3 py-1 text-xs font-semibold text-rose-100">Sold out on MahaRERA</span>}
+        {stage && stage !== 'passed' && <span className="rounded-full bg-sky-400/20 px-3 py-1 text-xs font-semibold text-sky-100" title={STAGE_NOTE} data-testid="stage">{STAGE_LABEL[stage]}</span>}
+        {soldOutOf(p) && <span className="rounded-full bg-rose-400/20 px-3 py-1 text-xs font-semibold text-rose-100">Sold out on MahaRERA</span>}
       </div>
       <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">{heading}{area && !shown.toLowerCase().includes(area.toLowerCase()) ? `, ${area}` : ''}</h1>
       <ListThisProject regno={p.regno} />
@@ -293,6 +307,7 @@ function Hero({ p, price, photo, linkless = false, closed = false }: { p: Regist
         <a href="#visit" className="inline-flex min-h-[48px] items-center rounded-full px-5 font-semibold text-white no-underline ring-1 ring-inset ring-white/30 hover:bg-white/10">
           {PROJECT_CTA.visit}
         </a>
+        {callback && <CallbackButton tone="dark" agentSlug={callback.agentSlug} agentName={callback.agentName} topic={callback.topic} />}
       </div>
       )}
       </div>
@@ -317,6 +332,23 @@ function PriceHelp({ help }: { help: PriceHelpText | null }) {
   )
 }
 
+/** The example EMI on the lowest published price, worked out as the agent's offer card does (lib/site/upfront emiFor). Homes only:
+ *  shops and offices are bought with other loans. */
+function PublishedEmi({ p }: { p: RegisterProject }) {
+  if (p.homes === false) return null
+  const lows = (p.prices?.rows ?? []).map((r) => r.from_inr).filter((v) => v > 0)
+  const e = lows.length ? emiFor(Math.min(...lows)) : null
+  if (!e) return null
+  return (
+    <p className="text-sm text-slate-800" data-testid="published-emi">
+      EMI on the lowest price, as an example: about <strong>{formatPrice(e.emi)} a month</strong>
+      <span className="mt-1 block text-xs text-slate-600">
+        On a {formatPrice(e.loan)} loan (80% of {formatPrice(Math.min(...lows))}) at {e.rate}% for {e.years} years. Ask your bank for its rate.
+      </span>
+    </p>
+  )
+}
+
 /** Prices and sizes ("<name> price"): the agent's offer first when there is one (the page's one price), else the published asked
  *  prices per home size, then the rough price guide (sizes one site prices, the area's usual bands); the area's ₹ per sq ft
  *  beside them, then what the buyer gets by asking. */
@@ -335,6 +367,7 @@ function PricesSection({ p, shown, offer, priced, numbers, stage, help }: {
       <div className="mt-3 space-y-4">
         {offer && <OfferBox o={offer} numbers={numbers} stage={stage} />}
         {!priced && <PriceBox prices={p.prices} stage={stage} />}
+        {!offer && rows && <PublishedEmi p={p} />}
         {!offer && !rows && !idea?.rows.length && <p className="text-slate-800">No price for {shown} is published yet.</p>}
         {idea && <PriceIdea idea={idea} shown={shown} />}
         {rate && (
@@ -371,8 +404,12 @@ function LocationSection({ p, shown, nearby, sources }: { p: RegisterProject; sh
   return (
     <section aria-labelledby="map-title">
       <SectionHead id="map-title" title={`${shown} location`} kind={m ? 'checked' : 'unchecked'} tag={m ? 'Position checked' : 'Position not checked'} />
-      <iframe title={`Map around ${p.name}`} src={src} loading="lazy" referrerPolicy="no-referrer-when-downgrade"
-        className="mt-3 h-64 w-full rounded-xl border border-slate-200 sm:h-80" />
+      {m ? (
+        <LocationMapSwitch lat={m.lat} lon={m.lon} shown={shown} osmSrc={src} osmLink={link} />
+      ) : (
+        <iframe title={`Map around ${p.name}`} src={src} loading="lazy" referrerPolicy="no-referrer-when-downgrade"
+          className="mt-3 h-64 w-full rounded-xl border border-slate-200 sm:h-80" />
+      )}
       <p className="mt-2 text-xs text-slate-500">
         {m && p.map_from === 'google' ? "The project's pin on Google Maps, checked against its MahaRERA name and pincode."
           : m ? "Approximate area from OpenStreetMap, checked to be near the project's pincode; not the exact plot."
@@ -451,7 +488,7 @@ function Checks({ p, offer }: { p: RegisterProject; offer: Offer | null }) {
   ]
   for (const key of CHECK_KEYS) {
     const c = byKey[key]
-    const label = CHECK_NAMES[key]
+    const label = key === 'maharera_general' && unitWord(p) === 'units' ? 'Dates and units booked' : CHECK_NAMES[key]
     const fromRera = key === 'maharera_general' || key === 'buildings'
     if (!c) rows.push({ label, kind: 'unchecked', note: 'We are still checking this' })
     else rows.push({ label, kind: c.ok ? (fromRera ? 'rera' : 'checked') : 'unchecked',
@@ -596,7 +633,7 @@ function TowerByTower({ p }: { p: RegisterProject }) {
  *  part shows only when the backend had enough projects to compare with. No ₹ per sq ft comparison: sites mix carpet and super
  *  built-up areas, so a gap may be only the measure (owner 2026-11-03). */
 function AreaCompare({ p, shown }: { p: RegisterProject; shown: string }) {
-  const c = p.area_compare
+  const c = areaCompareOf(p)
   if (!c || !(c.booked || c.moved)) return null
   return (
     <div role="group" aria-labelledby="compare-area-title" data-testid="area-compare">
@@ -684,23 +721,29 @@ const wholeProject = (f: WebFact) => (f.official ? "whole project (builder's sit
  *  blanket extension is the regulator's, so when it is the only change the date is never said to have moved. */
 function Possession({ p, shown }: { p: RegisterProject; shown: string }) {
   const change = completionChange(p)
-  if (!p.completion_now || !change) {
+  const main = mainRegistration(p)
+  if (!main.completion_now || !change) {
     return <p className="mt-3 text-sm text-slate-600">We are still reading this project&apos;s details from MahaRERA; this page fills in by itself.</p>
   }
-  const movedMonths = p.details?.completion_moved_months
+  const movedMonths = main.details?.completion_moved_months
+  // a project in several registrations has a filed date for each: the span leads, then the main registration's date and its moves
+  const span = possessionOf(p)
+  const whole = projectScope(p)
   return (
     <div role="group" aria-labelledby="possession-title" data-testid="possession">
       <SectionHead id="possession-title" title={`${shown} possession date`} level={3} />
-      <p className="mt-2 text-2xl font-bold text-slate-900">{longDay(p.completion_now)}</p>
+      <p className="mt-2 text-2xl font-bold text-slate-900">{span.from ? `${longDay(span.from)} to ${longDay(span.to)}` : longDay(span.date ?? main.completion_now)}</p>
+      {span.from && whole && <p className="mt-1 text-slate-800">The completion dates filed with MahaRERA for its {whole.registrations} registrations; each is in the table of towers and phases below.</p>}
       <p className="mt-1 text-slate-800">
-        {change.kind === 'extension' ? <>{extensionSentence(p.completion_now, change.months)} At registration: {longDay(change.from)}.</>
+        {whole ? <>For {p.regno}: {longDay(main.completion_now)}. </> : null}
+        {change.kind === 'extension' ? <>{extensionSentence(main.completion_now, change.months)} At registration: {longDay(change.from)}.</>
           : change.kind === 'moved' ? <>Completion date filed with MahaRERA. At registration: {longDay(change.from)}.
             {movedMonths ? ` Moved ${months(movedMonths)} later` : ' Moved later'}
             {change.extension ? `, ${change.extension} of them by MahaRERA's August 2026 order for most projects.` : '.'}</>
           : change.kind === 'same' ? <>Completion date filed with MahaRERA. Not moved since registration.</>
           : <>Completion date filed with MahaRERA.</>}
       </p>
-      {p.completion_passed && <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">The filed completion date has passed. Ask for the occupancy certificate (OC) before you book.</p>}
+      {completionPassedOf(p) && <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">The filed completion date has passed. Ask for the occupancy certificate (OC) before you book.</p>}
       <p className="mt-2 text-xs text-slate-500">The builder&apos;s possession date is the one in your agreement for sale: ask for it in writing.</p>
     </div>
   )
@@ -710,16 +753,20 @@ function Possession({ p, shown }: { p: RegisterProject; shown: string }) {
  *  tower by tower, what the builder's and property sites say and the builder's track record. It used to be six blocks saying the
  *  same dates and counts (design review 2026-10-25, docs/plan/project-page-v2.md): each fact is said here once. */
 function RecordSection({ p, shown, facts, linkless = false }: { p: RegisterProject; shown: string; facts: PropertyFactsView | null; linkless?: boolean }) {
-  const d = p.details
+  // MahaRERA's figures here are the page's own registration's; the whole project's homes come from homesOf
+  const main = mainRegistration(p)
+  const whole = projectScope(p)
+  const homes = homesOf(p)
+  const d = main.details
   const web = (p.web_facts?.facts ?? []).filter((f) => f.text)
   const webTowers = web.find((f) => f.key === 'towers')
   const webHomes = web.find((f) => f.key === 'homes_total')
   // a whole-project count sits beside MahaRERA's; a count about this registration is MahaRERA's to give, so it is not said twice
   const towersNote = d?.towers && webTowers?.scope === 'project' ? `${webTowers.text} in the ${wholeProject(webTowers)}` : null
-  const units = d?.units_total ?? p.units_total
+  const units = d?.units_total ?? main.units_total
   const homesNote = units && webHomes?.scope === 'project' ? `${webHomes.text} in the ${wholeProject(webHomes)}` : null
   // the "Units" row is there only for the split, or when bookings are not; the whole project's homes go beside whichever shows
-  const unitsRow = !!(d?.units_total && (d.units_other || !p.units_total))
+  const unitsRow = !!(d?.units_total && (d.units_other || !main.units_total))
   const merged = new Set<string>([...(d?.towers && webTowers ? ['towers'] : []), ...(units && webHomes ? ['homes_total'] : [])])
   const rest = web.filter((f) => !merged.has(f.key))
   const projectType = facts?.maharera?.project_type
@@ -734,8 +781,10 @@ function RecordSection({ p, shown, facts, linkless = false }: { p: RegisterProje
         <div role="group" aria-labelledby="record-title">
           <h3 id="record-title" className="text-lg font-semibold text-slate-900">The record</h3>
           <dl className="mt-1 grid gap-x-6 sm:grid-cols-2">
-            {p.units_total ? <Row label={unitWord(p) === 'units' ? 'Units booked' : 'Homes booked'} value={p.units_booked != null ? `${p.units_booked} of ${p.units_total}` : `Not reported (${p.units_total} ${unitWord(p)})`}
-              note={!unitsRow && homesNote ? `${homesNote}.` : undefined} /> : null}
+            {homes.total ? <Row label={unitWord(p) === 'units' ? 'Units booked' : 'Homes booked'} value={homes.booked != null ? `${n(homes.booked)} of ${n(homes.of as number)}` : `Not reported (${n(homes.total)} ${unitWord(p)})`}
+              note={[whole && homes.across ? `${homes.across.charAt(0).toUpperCase()}${homes.across.slice(1)}.` : null,
+                whole && main.units_total ? `${p.regno} alone: ${main.units_booked != null ? `${n(main.units_booked)} of ` : ''}${n(main.units_total)}.` : null,
+                !unitsRow && homesNote ? `${homesNote}.` : null].filter(Boolean).join(' ') || undefined} /> : null}
             {d?.towers ? <Row label="Towers" value={`${n(d.towers)} in this registration`}
               note={[d.max_floors ? `The tallest has ${d.max_floors} floors.` : null, towersNote ? `${towersNote}.` : null].filter(Boolean).join(' ') || undefined} /> : null}
             {/* the total is in "Homes booked" already: a row of its own only for the split, or when bookings are not there */}
@@ -743,7 +792,7 @@ function RecordSection({ p, shown, facts, linkless = false }: { p: RegisterProje
               note={[d.units_other ? `${n(d.units_residential ?? d.units_total - d.units_other)} homes, ${n(d.units_other)} shops or offices.` : null,
                 homesNote ? `${homesNote}.` : null].filter(Boolean).join(' ') || undefined} /> : null}
             {registeredOn && <Row label="Registered on" value={longDay(registeredOn)} />}
-            <Row label="MahaRERA registration" value={p.regno} note={p.listed_or_updated ? `Listed or updated on MahaRERA ${longDay(p.listed_or_updated)}.` : undefined} />
+            <Row label={whole ? 'Main MahaRERA registration' : 'MahaRERA registration'} value={p.regno} note={p.listed_or_updated ? `Listed or updated on MahaRERA ${longDay(p.listed_or_updated)}.` : undefined} />
             {p.promoter && <Row label="Promoter (builder)" value={p.promoter} />}
             {projectType && <Row label="Project type" value={projectType} />}
             {p.pincode && <Row label="Pincode" value={p.pincode} />}
@@ -820,7 +869,8 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
   const askNote = seller ? `${seller.name} calls or WhatsApps you back; your number is never shared without your OK.` : ASK_NOTE
   const shown = displayName(p)
   // GST is added only while MahaRERA's completion date is ahead; past it (or not yet read) the OC decides, so the page asks
-  const stage: Stage = p.completion_now && !p.completion_passed ? 'building' : 'completion_passed'
+  const filed = possessionOf(p)
+  const stage: Stage = (filed.date || filed.from) && !completionPassedOf(p) ? 'building' : 'completion_passed'
   // the Pune place page listing this project's neighbours (every Pune district project has one)
   const placeName = p.pune_place?.name ?? null
   const placeHref = p.pune_place ? placePath(p.pune_place.key.replace(/_/g, '-')) : null
@@ -840,7 +890,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
   const price = offerPrice(offer)
   const faq = projectFaq(p, nearby, offer?.price_inr ? `${offer.homes && offer.homes.length > 1 ? 'from ' : ''}${formatPrice(offer.price_inr)}` : null)
   // the dated answer AI answers and snippets quote, first in the page's text; only once the record's dates or homes are read
-  const answer = p.completion_now || p.units_total ? registerAnswer(p, price) : null
+  const answer = filed.date || filed.from || homesOf(p).total ? registerAnswer(p, price) : null
   const updated = projectUpdated(p)
   const byPromoter = (p.same_promoter ?? []).filter((x) => x.slug && x.slug !== p.slug)
   // the hero names the BHK types, so the highlights' "homes" bullet would say them again
@@ -858,7 +908,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
               <h2 id="same-title" className={H2}>{closed ? `Still being built in ${p.area?.name ?? placeName}` : `Other projects in ${p.area?.name ?? placeName}`}</h2>
               {closed && (
                 <p className="mt-2 text-slate-800" data-testid="finished-note">
-                  {shown} is finished{p.completion_now ? ` (completion filed for ${monthYear(p.completion_now)})` : ''}, so we do not take
+                  {shown} is finished{filed.date || filed.to ? ` (completion filed for ${monthYear(filed.to ?? filed.date)})` : ''}, so we do not take
                   enquiries for it. These projects nearby still have homes to book, the soonest possession first.
                 </p>
               )}
@@ -911,13 +961,14 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
       </nav>
       )}
 
-      <Hero p={p} price={price} photo={heroPhoto} linkless={!!seller} closed={closed} />
+      <Hero p={p} price={price} photo={heroPhoto} linkless={!!seller} closed={closed} callback={{ agentSlug: leadSlug, agentName: leadName, topic: enquiryTopic }} />
 
       {/* a partner agent's listing names them at the top and opens their own page for it (owner 2026-10-30); on that page itself
           (seller) it would link to itself, and Avasetu's own listings need no line */}
       {!seller && offer?.agent?.name && offer.agent.slug !== HOUSE_AGENT && offer.agent.listing_id && (
         <p className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2" data-testid="listed-by">
-          <span className="text-slate-900">Listed by <strong>{offer.agent.name}</strong></span>
+          {/* the one link from a page in search to the agent's own site: without it Google had found /agent/house-deal and never read it */}
+          <span className="text-slate-900">Listed by <Link href={agentPath(offer.agent.slug)} className="font-bold underline underline-offset-2">{offer.agent.name}</Link></span>
           <Link href={agentPath(offer.agent.slug, 'listings/' + offer.agent.listing_id)}
             className="inline-flex min-h-[44px] items-center font-semibold text-[#0f2340] underline underline-offset-2">
             See it on {offer.agent.name}&apos;s page &rarr;
@@ -988,14 +1039,18 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
             <section aria-labelledby="promoter-title" data-testid="same-promoter">
               <h2 id="promoter-title" className={H2}>More by {p.promoter}</h2>
               <ul className="mt-3 grid list-none gap-2 p-0 sm:grid-cols-2">
-                {byPromoter.map((s) => (
-                  <li key={s.slug}>
-                    <Link href={`/projects/${s.slug}`} className="block min-h-[44px] rounded-xl border border-slate-200 bg-white px-3 py-2 no-underline hover:border-[#0f2340]">
-                      <span className="block font-semibold text-[#0f2340]">{displayName(s)}</span>
-                      {s.completion_now && <span className="text-sm text-slate-600">possession {monthYear(s.completion_now)}</span>}
-                    </Link>
-                  </li>
-                ))}
+                {byPromoter.map((s) => {
+                  const line = [s.bhk || null, s.price_from ? `from ${formatPrice(s.price_from)}` : null,
+                    s.completion_now ? `possession ${monthYear(s.completion_now)}` : null].filter(Boolean).join(' · ')
+                  return (
+                    <li key={s.slug}>
+                      <Link href={`/projects/${s.slug}`} className="block min-h-[44px] rounded-xl border border-slate-200 bg-white px-3 py-2 no-underline hover:border-[#0f2340]">
+                        <span className="block font-semibold text-[#0f2340]">{displayName(s)}</span>
+                        {line && <span className="text-sm text-slate-600">{line}</span>}
+                      </Link>
+                    </li>
+                  )
+                })}
               </ul>
             </section>
           )}

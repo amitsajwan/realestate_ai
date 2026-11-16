@@ -14,7 +14,8 @@ A person's reply goes out only on WhatsApp, only inside the 24-hour window, thro
 records); the bot then stays quiet in that chat for HUMAN_HOLD, so it does not talk over the person. Outside the window a person can
 start (or restart) a chat from a lead with the approved follow-up template, once per 24 hours (start). The template alone does not
 hold the bot back: their answer to it gets the bot's reply at once (2026-10-23: Rahul's "Hi" sat unanswered for hours because the
-template started the 12-hour hold and nobody was watching). Messaging a New lead moves it to Contacted.
+template started the 12-hour hold and nobody was watching). The template's questions go once: after that, or after any reply, the
+template says the team will call instead. Messaging a New lead moves it to Contacted.
 """
 import base64
 import binascii
@@ -28,6 +29,14 @@ from app.modules.areastats import pages as project_pages
 from app.modules.whatsapp.service import mask
 
 from . import handover
+
+_ask_post = None   # app.wiring: the boost, keep or remove question (propertyfacts.run_news), a domain above this one
+
+
+def configure(ask_post) -> None:
+    global _ask_post
+    _ask_post = ask_post
+
 
 HUMAN_HOLD = timedelta(hours=12)
 MAX_THREADS = 100
@@ -58,7 +67,11 @@ PROJECT_OLD_BODY = ("Namaste {} ji, this is Avasetu. Thank you for asking about 
                     "Avasetu team")
 PROJECT_TEMPLATE = "project_enquiry_v2"
 PROJECT_BODY = PROJECT_OLD_BODY.replace("Hindi mein baat", "Hindi ya Marathi mein baat")
-PROJECT_WANT = {"A site visit": "a site visit", "Floor plans": "the floor plans"}
+PROJECT_WANT = {"A site visit": "a site visit", "Floor plans": "the floor plans", "A call back": "a call back"}
+# The questions above go once. A buyer who answered them, or was sent them and stayed quiet, is not asked again (2026-11-07: a Kothrud
+# buyer told the bot where, when and why on 6 Nov, and the button sent the same three questions 35 hours later). They get the project
+# template's words, already approved, about what they want; there is no fallback to the questions.
+ASKED_WANT = "a shortlist of homes"
 
 
 class InboxError(Exception):
@@ -293,6 +306,18 @@ class InboxService:
             "messages": msgs[-20:], "replies": conv.get("replies", []), "human_until": now + HUMAN_HOLD, "updated_at": now}})
         return await self.thread(agent_id, tid)
 
+    async def ask_about_post(self, agent_id: str, tid: str) -> dict:
+        """The owner asks an agent, any time: boost, keep or remove their latest post, with its numbers. A template, so it goes
+        outside the 24-hour window too."""
+        kind, conv = await self._own(agent_id, tid)
+        if kind != "wa" or conv.get("role") != "agent":
+            raise InboxError("This is for a WhatsApp chat with an agent", 409)
+        if conv.get("opted_out"):
+            raise InboxError("They replied STOP. Do not message them on WhatsApp.", 409)
+        if not _ask_post or not await _ask_post(self.db, conv["wa_id"]):
+            raise InboxError("This agent has no post to ask about yet", 409)
+        return await self.thread(agent_id, tid)
+
     # ---- a person starts a WhatsApp chat with a lead --------------------------------------------------------------
     # Our number is on the Cloud API, so nobody can open it in the WhatsApp app (owner, 2026-10-21: "we need a way to send a
     # WhatsApp message"). Inside the 24-hour window the person just writes in the thread; outside it the only thing WhatsApp allows is
@@ -326,8 +351,11 @@ class InboxService:
             await self.c("whatsapp_conversations").insert_one(conv)
         project = await self.project_of(lead)
         rec = None
-        tries = [(PROJECT_TEMPLATE, PROJECT_BODY, project_params(lead, project)), (PROJECT_OLD, PROJECT_OLD_BODY, project_params(lead, project))] if project else []
-        tries += [(FOLLOWUP_TEMPLATE, FOLLOWUP_BODY, followup_params(lead, project)), (FOLLOWUP_OLD, FOLLOWUP_OLD_BODY, followup_params(lead, project))]
+        asked = bool(conv.get("last_inbound_at") or conv.get("template_sent_at"))
+        about = project_params(lead, project) if project else asked_params(lead, conv) if asked else None
+        tries = [(PROJECT_TEMPLATE, PROJECT_BODY, about), (PROJECT_OLD, PROJECT_OLD_BODY, about)] if about else []
+        if not asked:
+            tries += [(FOLLOWUP_TEMPLATE, FOLLOWUP_BODY, followup_params(lead, project)), (FOLLOWUP_OLD, FOLLOWUP_OLD_BODY, followup_params(lead, project))]
         for name, body, params in tries:
             text = body.format(*params)
             rec = await self.whatsapp.send_template(conv, name, "en", params, text, now)
@@ -433,7 +461,8 @@ class InboxService:
                 chats.append({**await self.thread(agent_id, tid), "data": doc.get("data")})
             except InboxError:
                 continue
-        events = await self.c("events").find({"contact_id": lead["_id"]}).sort("ts", 1).to_list(200)
+        events = await self.c("events").find({"$or": [{"contact_id": lead["_id"]}, {"anon_id": {"$in": lead.get("anon_ids") or []}}]}
+                                             ).sort("ts", 1).to_list(200)
         return handover.card(lead, project, chats, [e.get("path") for e in events if e.get("path")])
 
     async def pass_lead(self, owner_id: str, lead_id: str, to_agent: str, by: str = "owner", rule: Optional[dict] = None,
@@ -664,6 +693,17 @@ def project_params(lead: dict, project: dict) -> List[str]:
     where = f", {project['area']}" if project.get("area") else ""
     want = PROJECT_WANT.get(handover.ask_of(lead.get("message"))["want"] or "", "the price sheet and floor plans")
     return [_first_name(lead), re.sub(r"\s+", " ", f"{project['name']}{where}").strip()[:100], want]
+
+
+def asked_params(lead: dict, conv: dict) -> List[str]:
+    """The project template's {{1}} name, {{2}} what they are looking for, {{3}} ASKED_WANT, for a lead with no project page. The lead's
+    requirement comes first, then what they told the bot."""
+    req, said = lead.get("requirement") or {}, conv.get("data") or {}
+    bhk = req.get("bhk") or said.get("bhk")
+    area = ", ".join(req.get("localities") or []) or said.get("locality")
+    what = f"{int(bhk) if float(bhk).is_integer() else bhk} BHK homes" if bhk else "homes"
+    topic = f"{what} in {area}" if area else what if bhk else "a home in Pune"
+    return [_first_name(lead), re.sub(r"\s+", " ", topic).strip()[:100], ASKED_WANT]
 
 
 def followup_params(lead: dict, project: Optional[dict] = None) -> List[str]:

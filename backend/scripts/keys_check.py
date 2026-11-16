@@ -138,10 +138,23 @@ def whatsapp(c: httpx.Client, token: str) -> Result:
     return _ok(r, f"number: {r.json().get('display_phone_number')}" if r.status_code < 400 else "")
 
 
+def youtube_upload(c: httpx.Client, token: str) -> Result:
+    """The channel owner's consent still holds: the refresh token buys an access token (free, no quota)."""
+    cid, secret = env("YOUTUBE_CLIENT_ID"), env("YOUTUBE_CLIENT_SECRET")
+    if not (cid and secret):
+        return ("SKIP", "YOUTUBE_CLIENT_ID / YOUTUBE_CLIENT_SECRET not set")
+    r = c.post("https://oauth2.googleapis.com/token", data={"client_id": cid, "client_secret": secret, "refresh_token": token,
+                                                            "grant_type": "refresh_token"})
+    if r.status_code >= 400:
+        return ("FAILED", _reason(r) + " (run backend/scripts/youtube_token.py again)")
+    return ("OK", f"upload {'on' if env('YOUTUBE_UPLOAD').lower() in ('on', '1', 'true', 'yes') else 'OFF'}, {env('YOUTUBE_PRIVACY') or 'public'}")
+
+
 # (key, what it is for, its check): the same keys deploy/gcp/keys.ps1 lists
 CHECKS: List[Tuple[str, str, Check]] = [
     ("SERPER_API_KEY", "Google results for hot projects", serper),
     ("YOUTUBE_API_KEY", "YouTube videos for hot projects", youtube),
+    ("YOUTUBE_REFRESH_TOKEN", "Reels to our YouTube channel", youtube_upload),
     ("GOOGLE_TTS_API_KEY", "Reel voice-overs", google_tts),
     ("GEMINI_API_KEY", "Gemini (voice, fallback AI)", gemini),
     ("BROCHURE_GEMINI_KEY", "Brochure reading (Gemini, one read per PDF)", gemini_brochure),

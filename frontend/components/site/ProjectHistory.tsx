@@ -1,5 +1,5 @@
 import React from 'react'
-import { longDay } from '@/lib/site/register'
+import { longDay, mainRegistration, wholeProject } from '@/lib/site/register'
 import type { RegisterProject } from '@/lib/site/register'
 
 // What changed, as we read it (docs/plan/seo-system.md 8b, H1): MahaRERA shows only today's homes-booked count and today's
@@ -31,8 +31,11 @@ function BookedChart({ rows, total }: { rows: { on: string; booked: number }[]; 
 }
 
 export default function ProjectHistory({ p, shown }: { p: RegisterProject; shown: string }) {
-  const rows = p.booked_readings ?? []
-  const moves = p.completion_moves ?? []
+  // our dated readings are kept per MahaRERA record: the main registration's. On a page of several registrations they say so.
+  const main = mainRegistration(p)
+  const rows = main.booked_readings ?? []
+  const moves = main.completion_moves ?? []
+  const part = wholeProject(p) ? ` in ${p.regno}, one of its registrations` : ''
   if (rows.length < 2 && moves.length === 0) return null
   const first = rows[0]
   const last = rows[rows.length - 1]
@@ -46,9 +49,9 @@ export default function ProjectHistory({ p, shown }: { p: RegisterProject; shown
             {rose > 0 ? `${n(rose)} more homes booked between ${longDay(first.on)} and ${longDay(last.on)}: ${n(first.booked)} to ${n(last.booked)}`
               : rose < 0 ? `Homes booked went from ${n(first.booked)} to ${n(last.booked)} between ${longDay(first.on)} and ${longDay(last.on)} (MahaRERA shows cancellations this way)`
               : `${n(last.booked)} homes booked on every reading from ${longDay(first.on)} to ${longDay(last.on)}`}
-            {p.units_total ? `, of ${n(p.units_total)} homes.` : '.'}
+            {main.units_total ? `, of ${n(main.units_total)} homes${part}.` : `${part}.`}
           </p>
-          <BookedChart rows={rows} total={p.units_total} />
+          <BookedChart rows={rows} total={main.units_total} />
           <ul className="mt-2 grid list-none grid-cols-2 gap-x-6 p-0 text-sm text-slate-700 sm:grid-cols-3">
             {rows.slice().reverse().map((r) => <li key={r.on}>{longDay(r.on)}: {n(r.booked)} booked</li>)}
           </ul>
@@ -56,7 +59,7 @@ export default function ProjectHistory({ p, shown }: { p: RegisterProject; shown
       )}
       {moves.length > 0 && (
         <div className="mt-4" data-testid="date-history">
-          <p className="font-semibold text-slate-900">Completion date filed with MahaRERA</p>
+          <p className="font-semibold text-slate-900">Completion date filed with MahaRERA{part ? ` for ${p.regno}` : ''}</p>
           <ol className="mt-1 list-none space-y-1 p-0 text-slate-800">
             {moves.map((m) => (
               <li key={`${m.from}-${m.to}-${m.seen_on}`}>

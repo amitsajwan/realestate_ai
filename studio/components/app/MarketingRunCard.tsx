@@ -194,7 +194,7 @@ function RunQuestions({ listingId, questions, onAnswer }: {
 }
 
 const STATE_LABEL: Record<CampaignResult['state'], string> = {
-  waiting: 'Waiting for your approval', approved: 'Approved, will post', posted: 'Posted',
+  waiting: 'Waiting for approval', approved: 'Approved, will post', posted: 'Posted',
   failed: 'Could not post', skipped: 'Skipped', removed: 'Removed',
 }
 const STATE_STYLE: Record<CampaignResult['state'], string> = {
@@ -231,7 +231,7 @@ function CalendarState({ items }: { items: CampaignResult[] }) {
           </li>
         ))}
       </ul>
-      <a href="/studio/content" className="inline-block font-semibold text-blue-700 underline">{t('approveInCalendar')}</a>
+      <p className="text-gray-700">The Avasetu team approves each post. We tell you when it goes out, with the links.</p>
     </div>
   )
 }

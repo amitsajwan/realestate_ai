@@ -507,6 +507,60 @@ async def test_concierge_reel_post_sends_the_cover_to_instagram_when_the_reel_ha
 
 
 
+async def _posted_reel(tmp_path, monkeypatch, dry_run: bool):
+    """A live listing with a finished reel and consent, posted on Instagram and Facebook; YouTube answered by a stub."""
+    from app.modules.listings.schemas import ListingCreate
+    from app.modules.social import distribution
+    from app.platform.meta_graph.config import SocialConfig
+    from ..concierge.helpers import FULL, PHONE, make
+
+    svc, db, _ = make()
+    aid = (await svc.create_agent("OWNER", "Rahul Sharma", PHONE, "Rahul"))["agent"]["id"]
+    media = [{"url": photo(tmp_path, f"c{i}.jpg"), "kind": "image", "order": i} for i in range(2)]
+    lid = (await svc.create_listing("OWNER", aid, ListingCreate(**FULL, media=media)))["id"]
+    await svc.publish_listing("OWNER", aid, lid)
+    svc.reels = lr.ReelJobs(db, tmp_path, renderer=Renderer(), voice_available=lambda: False)
+    await svc.make_reel("OWNER", aid, lid, "en")
+    await svc.record_consent("OWNER", aid)
+    await svc.reels.run_once()
+    uploads = []
+
+    async def youtube_short(db_, ref, video, meta, **kw):
+        uploads.append((ref, video, meta))
+        return distribution.Result(external_id="vid1", permalink="https://www.youtube.com/shorts/vid1")
+    monkeypatch.setattr(distribution, "youtube_short", youtube_short)
+
+    async def publish_fn(ch, url, text, cfg=None, file_path=None, **kw):
+        return SimpleNamespace(external_id=f"{ch}_1", permalink=f"https://social.test/{ch}")
+
+    cfg = lambda: SocialConfig(dry_run=dry_run, media_base_url="https://media.test", page_id="p", page_token="t", ig_id="ig")
+    out = await svc.post_reel("OWNER", aid, lid, "en", ["instagram", "facebook_page"], publish_fn=publish_fn, config_loader=cfg)
+    return out, uploads, lid, svc
+
+
+async def test_a_posted_listing_reel_also_goes_to_youtube_once_without_the_agents_name(tmp_path, monkeypatch):
+    out, uploads, lid, svc = await _posted_reel(tmp_path, monkeypatch, dry_run=False)
+    assert [o["channel"] for o in out] == ["instagram", "facebook_page", "youtube"]
+    assert out[-1]["permalink"] == "https://www.youtube.com/shorts/vid1"
+    (ref, video, meta), = uploads
+    assert ref.startswith("listing-") and video.is_file()
+    assert meta.description.startswith(f"Photos, details and a call back: https://avasetu.in/listings/{lid}")
+    assert "Rahul" not in meta.title + meta.description and "9876543210" not in meta.description
+
+
+async def test_a_dry_run_listing_reel_never_reaches_youtube(tmp_path, monkeypatch):
+    out, uploads, _, _ = await _posted_reel(tmp_path, monkeypatch, dry_run=True)
+    assert [o["status"] for o in out] == ["dry_run", "dry_run"] and uploads == []
+
+
+def test_the_listing_video_title_says_what_where_and_the_price():
+    listing = {"_id": "L9", "title": "Sunrise Heights", "property_type": "apartment", "bedrooms": 2, "price_inr": 7_800_000,
+               "locality": "Kharadi", "city": "Pune", "transaction": "sale"}
+    m = lr.youtube_meta(listing, "en")
+    assert "Kharadi" in m.title and "78" in m.title and "Pune" in " ".join(m.tags)
+    assert m.description.splitlines()[0].endswith("/listings/L9") and m.language == "en"
+
+
 def test_render_leaves_out_beats_rather_than_repeating_photos(tmp_path, stubs):
     script = _script()   # 4 beats + the call to action
     lr.render(script, ["a.jpg", "b.jpg", "c.jpg"], "en", tmp_path / "r.mp4", voiced=False)

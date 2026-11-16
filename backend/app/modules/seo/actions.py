@@ -21,8 +21,9 @@ FIELD = {"title": "search_name", "description": "seo_description", "rival": "seo
 
 
 # No new title or description fixes until then: after the site-wide drop of 2026-10-26 Google should see a still site while
-# the thin pages leave search (seo-system.md section 11). Measuring and undoing earlier fixes go on.
-HOLD_UNTIL = datetime(2026, 11, 17, tzinfo=timezone.utc)
+# the thin pages leave search (seo-system.md section 11). Measuring and undoing earlier fixes go on. Moved from 11-17 on 2026-11-07:
+# no fix had earned its keep (185 titles measured: median gain 0; link slot -0.2; refresh -1.05), so read them again first.
+HOLD_UNTIL = datetime(2026, 12, 15, tzinfo=timezone.utc)
 
 
 def on_hold(now: datetime) -> bool:

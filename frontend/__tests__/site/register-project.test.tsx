@@ -499,6 +499,7 @@ describe('the listing agent at the top', () => {
     const line = screen.getByTestId('listed-by')
     expect(line).toHaveTextContent('Listed by House Deal')
     expect(within(line).getByRole('link', { name: /See it on House Deal's page/ })).toHaveAttribute('href', '/agent/house-deal/listings/l1')
+    expect(within(line).getByRole('link', { name: 'House Deal' })).toHaveAttribute('href', '/agent/house-deal')   // Google's way to the agent's site
     unmount()
     const own = { offer: { ...OFFER, agent: { slug: 'avasetu', name: 'Avasetu', listing_id: 'l2' } } } as never
     render(<RegisterProjectPage p={P} siteUrl="https://avasetu.in" facts={own} />)

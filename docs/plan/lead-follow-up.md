@@ -40,6 +40,11 @@ come in, leads of the last 24 h only), 3 (one Studio alert per 2 h+ wait, kind l
 leads live; no owner WhatsApp/email yet: that needs a paid alert template) and 11 (timeline points in the score). Loop:
 inbox/followups.py, role conversations.
 
+LIVE 2026-11-08: **the follow-up's questions go once.** A buyer told the bot "Kothrud, ready to move, to live in" and got the same three
+questions from the Studio button 35 hours later. Now a lead who has replied on WhatsApp, or was already sent a template, gets the
+approved `project_enquiry_v2` words ("Thank you for asking about 2 BHK homes in Kothrud ... You asked for a shortlist of homes. Our
+team will call you shortly"). If it fails the person is told; the questions do not go instead. `inbox/service.py` start.
+
 LIVE 2026-11-06: **the follow-ups offer Marathi as well as Hindi.** `enquiry_followup_v2` and `project_enquiry_v2` say "Hindi ya Marathi
 mein baat karna ho to bataiye"; until Meta approves them the send fails and the v1 templates go ([chat-reach.md](chat-reach.md)).
 
@@ -75,6 +80,7 @@ LIVE (this change):
   (price sheet / visit / floor plans), BHK, budget, when, home loan, areas, their own words, page, source, time (IST), pages seen,
   what we already sent, owner notes, and "not known yet, please ask: ...". The agent's lead page shows it ("Passed to you").
 - **Pass from the lead page or a chat**: the owner sees the card first; the lead and all its chats move together.
+- **Since 2026-11-07 the agent template is `lead_passed_v2`** (id 3083367448668990): it adds a link to every page the buyer read, what they wrote, and "for you only, please do not share or forward". `lead_passed_v1` below is the old copy.
 - **WhatsApp to the agent from our number**: UTILITY template `lead_passed_v1` (submitted 2026-10-26, id 1459495656106326; until
   Meta approves it the send fails, the pass still happens and the owner gets the wa.me button with the full card).
 - **Rules** (`lead_routes`): "pass every Wagholi lead / every <project> lead to House Deal by itself", picked in the pass box or added in

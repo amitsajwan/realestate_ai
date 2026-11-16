@@ -6,7 +6,7 @@ offer an earlier campaign stored (price, size, type: readings from "listing"), s
 post quoted. Sources keep their limits: one shared Clients per process (Nominatim at most 1 request a second, answers
 cached), MahaRERA only when our register lacks the project or its details are stale."""
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from .gather import Clients, gather
 from .public import view
@@ -42,8 +42,8 @@ def _offer(kept: Optional[dict]) -> Dict[str, Any]:
 
 
 async def gather_project(db, regno: str, name: str, locality: Optional[str], city: str = "Pune",
-                         now: Optional[datetime] = None, clients: Any = None) -> dict:
-    """Gather and keep the facts for one registered project. Returns {"key", "view", "notes", "match"}: `view` is what
+                         now: Optional[datetime] = None, clients: Any = None, names: Optional[List[str]] = None) -> dict:
+    """Gather and keep the facts for one registered project. `names`: the names it is sold under, for finding its pin (pin.py). Returns {"key", "view", "notes", "match"}: `view` is what
     GET /public/property-facts/by-regno/{regno} serves (None when nothing usable was found). Never raises for a source that
     is down: the sheet says what could not be found."""
     now = now or datetime.utcnow()
@@ -51,7 +51,8 @@ async def gather_project(db, regno: str, name: str, locality: Optional[str], cit
     store = clients.facts_store or FactsStore(db)
     regno = (regno or "").strip().upper()
     kept = await store.get(regno) if regno else None
-    doc = {**_offer(kept), "project_name": name, "rera_no": regno, "locality": locality or "", "city": city}
+    doc = {**_offer(kept), "project_name": name, "rera_no": regno, "locality": locality or "", "city": city,
+           "sold_as": [n for n in names or [] if n]}
     sheet = await gather({k: v for k, v in doc.items() if v not in (None, "")}, clients, now)
     saved = await store.find(regno, name, locality or "")
     return {"key": (saved or {}).get("_id"), "view": view(saved), "notes": list(sheet.notes),

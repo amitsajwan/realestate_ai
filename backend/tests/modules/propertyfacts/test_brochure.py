@@ -126,7 +126,7 @@ async def test_upload_makes_a_kit_once_per_file(tmp_path, monkeypatch):
                         "images", "photo_note"}
     assert kit["status"] == "done" and kit["pages"] == 6 and kit["image_only_pages"] == [6] and kit["read_at"] == "2026-10-11T09:00:00Z"
     f = kit["facts"][0]
-    assert set(f) == {"id", "key", "label", "value", "page", "quote", "level", "state", "edited"}
+    assert set(f) == {"id", "key", "label", "value", "page", "quote", "level", "state", "edited", "config"}
     assert all(x["level"] == "builder_claim" and x["state"] == "pending" and not x["edited"] for x in kit["facts"])
     assert len({x["id"] for x in kit["facts"]}) == len(kit["facts"])
     sha = (await db.get_collection("brochures").find_one({}))["sha256"]

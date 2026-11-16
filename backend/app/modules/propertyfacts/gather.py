@@ -153,7 +153,8 @@ async def _project_pin(doc: Dict[str, Any], clients: Any, where: Optional[place_
     locality = doc.get("locality") or ""
     key = regno.upper() or "-".join(pin_mod._words(f"{name} {locality}")) or "unknown"
     try:
-        p, note = await pins.find(key, name, locality, str(got.get("pincode") or ""), (where.lat, where.lon) if where else None, now)
+        p, note = await pins.find(key, name, locality, str(got.get("pincode") or ""), (where.lat, where.lon) if where else None, now,
+                                  names=[str(n) for n in doc.get("sold_as") or []])
     except Exception as e:  # a lookup that breaks must not stop the sheet
         log.exception("pin: lookup failed for %s", key)
         return [], f"Google Maps lookup failed ({type(e).__name__})"

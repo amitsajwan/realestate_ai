@@ -148,3 +148,17 @@ describe('register project structured data', () => {
     expect(byType(lds, 'WebPage')!.dateModified).toBe('2026-10-24')
   })
 })
+
+
+describe('offices and shops', () => {
+  const base = { slug: 'gateway-kharadi', name: 'Gateway', regno: 'P1', units_total: 29, towers: [] } as unknown as RegisterProject
+  it('are a Place, not an ApartmentComplex, with no accommodation count', () => {
+    const [ld] = registerProjectJsonLd({ p: { ...base, homes: false }, siteUrl: 'https://avasetu.in' }) as Record<string, unknown>[]
+    expect(ld['@type']).toBe('Place')
+    expect(ld.numberOfAccommodationUnits).toBeUndefined()
+  })
+  it('homes stay an ApartmentComplex', () => {
+    const [ld] = registerProjectJsonLd({ p: { ...base, homes: true }, siteUrl: 'https://avasetu.in' }) as Record<string, unknown>[]
+    expect(ld['@type']).toBe('ApartmentComplex')
+  })
+})

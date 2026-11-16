@@ -48,3 +48,20 @@ async def test_page_one_also_counts_the_pages_in_search_today(monkeypatch):
     await targets.run_once(store, NOW)
     snap = (await store.get_mark(targets.MARK))["history"][-1]
     assert (snap["page_one"], snap["page_one_listed"]) == (2, 1)
+
+
+async def test_the_week_counts_pages_in_search_apart_from_pages_taken_out(monkeypatch):
+    """Most of what Google shows are pages we took out; they fade, so the pages in search are counted on their own."""
+    monkeypatch.setattr(searchconsole, "key", lambda: {"client_email": "x"})
+    db = FakeDb()
+    ready = {"locality": "kharadi", "completion_now": "2029-06-30", "promoter": "Kolte Patil", "page_text": "Written.",
+             "prices": {"rows": [{"size": "2 BHK"}]}, "gsc_read_at": NOW, "gsc_position": 4.0, "gsc_impressions": 30}
+    await db.get_collection("projects").insert_one({"_id": "P1", "page_slug": "a", **ready, "gsc_week": {"clicks": 2, "impressions": 20},
+                                                    "gsc_week_before": {"clicks": 4, "impressions": 30}})
+    await db.get_collection("projects").insert_one({"_id": "P2", "page_slug": "b", **ready, "page_text": "", "gsc_week": {"clicks": 5, "impressions": 50},
+                                                    "gsc_week_before": {"clicks": 6, "impressions": 70}})
+    store = Store(db)
+    await targets.run_once(store, NOW)
+    w = (await store.get_mark(targets.MARK))["history"][-1]["week"]
+    assert (w["clicks"], w["clicks_before"], w["clicks_listed"], w["clicks_listed_before"]) == (7, 10, 2, 4)
+    assert (w["impressions"], w["impressions_before"], w["impressions_listed"], w["impressions_listed_before"]) == (70, 100, 20, 30)

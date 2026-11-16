@@ -49,6 +49,12 @@ COMMON |= set("""this that these those there they them their it its we you your 
 what when where which who why whether if though although because so then now today still even only just already soon later
 observe verify confirm ask visit track watch monitor compare note look keep consider review contact inspect read see plan expect
 find call request get make take use follow wait choose think talk stay avoid budget factor allow give""".split())
+# sentence openers that failed real reports from 21 Oct to 15 Nov 2026 ("Delays in land acquisition...", "Higher project costs...",
+# "Prospective buyers...", "Calculate the EMI..."): ordinary words, and the people and bodies a news report talks about
+COMMON |= set("""delay delays higher lower rising falling prospective potential calculate clarification analysts analyst additionally
+borrowers borrower banks bank lenders lender authorities customs police awareness residents resident commuters commuter homebuyers
+homebuyer owners owner farmers farmers' landowners tenants developers developer builders builder experts officials work works costs
+cost prices price rents rent demand supply sales land roads unauthorized unauthorised illegal construction""".split())
 GERUND = re.compile(r"^[A-Z][a-z]{2,}(ing|ed|ly)$")  # sentence-initial 'Having', 'Improved', 'Currently': ordinary words, not names
 
 # generic hedges that say nothing specific; a 'why it matters' made of these is padding, not information
@@ -86,7 +92,8 @@ FORWARD = re.compile(r"\b(will|expected to|likely to|set to|poised to|bound to|g
 BUILDER_WORD = re.compile(r"\b(builders?|developers?|promoters?|bilders?)\b|\b[A-Z][a-z]+ (?:Developers|Builders|Constructions|Realty|Group|Infra|Properties|Estates|Lifespaces|Homes)\b")
 OPINION = re.compile(r"\b(reliable|trusted?|trustworthy|best|top|excellent|renowned|reputed|reputable|leading|great|fraud\w*|cheat\w*|scam\w*|poor|bad|worst|"
                      r"avoid|recommend\w*|shoddy|unreliable|untrustworthy|admired|well[- ]known|known for|quality|superb|amazing)\b", re.I)
-WORD = re.compile(r"(?<![A-Za-z0-9])[A-Za-z][A-Za-z'’\-]*(?![A-Za-z0-9])")  # whole words: "PR1260002601689" is a number, not the name "PR"
+# the model writes non-breaking hyphens ("loan‑to‑value", U+2011): they join a word as "-" does, or "R‑LLR" left a stray "R"
+WORD = re.compile(r"(?<![A-Za-z0-9])[A-Za-z][A-Za-z'’\-‐‑]*(?![A-Za-z0-9])")  # whole words: "PR1260002601689" is a number, not the name "PR"
 
 
 def _words(text: str) -> List[str]:
@@ -140,8 +147,39 @@ def _headline_quoted(text: str, title_words: List[str]) -> bool:
     return False
 
 
-def _unknown_names(text: str, known: Set[str], allowed: Set[str]) -> List[str]:
+# Pune and Indian bodies a report names by their short form: the long form is the same body, not a new name. The draft writes
+# "the Pune Municipal Corporation" for PMC and "the Reserve Bank of India" for RBI, and 10 of the reports dropped in October
+# failed only on that.
+EXPANSIONS = {
+    "pmc": "pune municipal corporation", "pcmc": "pimpri chinchwad municipal corporation",
+    "pmrda": "pune metropolitan region development authority", "msrdc": "maharashtra state road development corporation",
+    "madc": "maharashtra airport development company", "nhai": "national highways authority of india",
+    "rbi": "reserve bank of india", "sbi": "state bank of india", "pnb": "punjab national bank",
+    "maharera": "maharashtra real estate regulatory authority", "rera": "real estate regulatory authority",
+    "pmpml": "pune mahanagar parivahan mahamandal limited", "mahametro": "maharashtra metro rail corporation",
+}
+
+
+def known_words(source: str) -> Set[str]:
+    """The normalised words of the source, plus the long forms of the short names it uses (EXPANSIONS)."""
+    words = {_norm(w) for w in _words(source)}
+    for short, long in EXPANSIONS.items():
+        if short in words:
+            words |= {_norm(w) for w in long.split()}
+    return words
+
+
+def _lower_uses(text: str) -> Set[str]:
+    """Words written in lower case somewhere in `text`: an ordinary word, whatever starts a sentence with it."""
+    return {_norm(w) for w in re.findall(r"(?<![A-Za-z])[a-z][a-z'’]+", text)}
+
+
+def _unknown_names(text: str, known: Set[str], allowed: Set[str], ordinary: Optional[Set[str]] = None) -> List[str]:
+    """Capitalised words that are neither in the source nor ours. `ordinary`: words used in lower case in the source or the
+    draft; one of them opening a sentence ("Delays in land acquisition...", "Prospective buyers...") is not a name. A name never
+    shows up in lower case, so an invented one is still caught; the allow lists (COMMON) cannot hold every English word."""
     t = HASHTAG.sub(" ", URL.sub(" ", text))
+    ordinary = ordinary or set()
     bad: List[str] = []
     for m in WORD.finditer(t):
         w = m.group(0)
@@ -150,10 +188,13 @@ def _unknown_names(text: str, known: Set[str], allowed: Set[str]) -> List[str]:
         n = _norm(w)
         if n in known or n in allowed or w.lower() in ALLOW or w.lower() in allowed:
             continue
-        parts = [x for x in re.split(r"[-–]", w) if x]
-        if len(parts) > 1 and all(_norm(x) in known or x.lower() in ALLOW or _norm(x) in allowed for x in parts):
-            continue  # a hyphenated name whose parts all appear in the source, e.g. Soratwadi-Varve
-        if _sentence_start(t, m.start()) and (w.lower() in COMMON or n in COMMON or GERUND.match(w)) and (w == "A" or not w.isupper()):
+        parts = [x for x in re.split(r"[-–‐‑]", w) if x]
+        if len(parts) > 1 and all(_norm(x) in known or x.lower() in ALLOW or _norm(x) in allowed or (len(x) == 1 and x.isupper()) for x in parts):
+            continue  # a hyphenated name whose parts all appear in the source (Soratwadi-Varve); a lone capital is an initial (R‑LLR)
+        start = _sentence_start(t, m.start())
+        if start and (w.lower() in COMMON or n in COMMON or GERUND.match(w)) and (w == "A" or not w.isupper()):
+            continue
+        if start and not w.isupper() and len(n) >= 3 and n in ordinary:
             continue
         if w not in bad:
             bad.append(w)
@@ -193,8 +234,8 @@ def check(draft: Draft, facts: Facts, item: RawItem, now: Optional[datetime] = N
         problems.append("Date not found in the source: " + ", ".join(bad_dates))
 
     # 2. Proper nouns must come from the source or our own allowlist
-    known = {_norm(w) for w in _words(source + " " + item.source + " " + " ".join(draft.source_names))}
-    names = _unknown_names(full.replace(policy.DISCLAIMER, " "), known, set())
+    known = known_words(source + " " + item.source + " " + " ".join(draft.source_names))
+    names = _unknown_names(full.replace(policy.DISCLAIMER, " "), known, set(), _lower_uses(source + "\n" + full))
     if names:
         problems.append("Names not in the source: " + ", ".join(names[:8]))
 
@@ -218,7 +259,10 @@ def check(draft: Draft, facts: Facts, item: RawItem, now: Optional[datetime] = N
 
     # 4. No long runs copied from the source, no copied headline
     n = policy.MAX_QUOTE_WORDS + 1
-    src_words, dr_words = _words(source), _words(full)
+    # links are left out, as for figures and names: the source line's "Read it here: <url>" spells the publisher's headline in
+    # its address (".../pune-maharera-orders-gera-developments-to-pay-interest-over-delayed-flat-handovers"), and 11 of the 19
+    # reports that failed the check from 21 Oct to 15 Nov were "copying" and "repeating the headline" through their own link
+    src_words, dr_words = _words(URL.sub(" ", source)), _words(URL.sub(" ", full))
     grams = {tuple(src_words[i:i + n]) for i in range(len(src_words) - n + 1)}
     if any(tuple(dr_words[i:i + n]) in grams for i in range(len(dr_words) - n + 1)):
         problems.append(f"Copies more than {policy.MAX_QUOTE_WORDS} words in a row from the source: reword it")

@@ -19,6 +19,8 @@ export interface FacetLink {
   possession: number | null
   builder: string | null
   bhk?: number | null
+  /** a budget list's band ("under-50-lakh"), backend seo/facets.BUDGETS */
+  budget?: string | null
   label: string
   count: number
   indexable: boolean
@@ -37,6 +39,9 @@ export interface FacetRow {
   builder_slug: string | null
   registered_on: string | null
   completion_now: string | null
+  /** the latest part's filed date when the card's page stands for several registrations (backend pages.card_counts) */
+  possession_to?: string | null
+  registrations?: number | null
   completion_at_registration: string | null
   units_total: number | null
   units_booked: number | null
@@ -49,6 +54,8 @@ export interface FacetRow {
   /** For the card: where the project is, its cheapest published price and one picture with where it came from. */
   stage?: 'new-launch' | 'under-construction' | 'possession-soon' | 'ready'
   price?: { bhk: number; from_inr: number; to_inr: number | null } | null
+  /** a budget list only: the sizes whose published starting price is in the band */
+  budget_sizes?: { bhk: number; from_inr: number }[]
   /** every size's published starting price, smallest size first (backend seo/facets.size_prices) */
   sizes?: { bhk: number; from_inr: number }[]
   photo?: { url: string; alt: string; source: string } | null
@@ -72,6 +79,9 @@ export interface FacetPage {
   builder: string | null
   builder_name: string | null
   bhk?: number | null
+  budget?: string | null
+  /** "under 50 lakh" */
+  budget_label?: string | null
   title: string
   h1: string
   answer: string
@@ -183,7 +193,12 @@ export function facetFaq(p: FacetPage): { q: string; a: string }[] {
   const out: { q: string; a: string }[] = []
   const place = p.place.name
   const names = p.rows.slice(0, 5).map((r) => r.name).join(', ')
-  if (p.bhk) {
+  if (p.budget && p.budget_label) {
+    out.push({ q: `Which new projects in ${place}, Pune have flats ${p.budget_label}?`, a: `${p.answer} Cheapest first: ${names}.` })
+    out.push({ q: `Is the price ${p.budget_label} the full cost?`,
+      a: "No. It is the starting price the builder's own site states or two property sites agree on, read in the last 45 days. " +
+         'Parking, GST on homes being built, stamp duty and registration usually come on top: ask the builder for the full cost sheet.' })
+  } else if (p.bhk) {
     out.push({ q: `Which new projects in ${place}, Pune have ${p.bhk} BHK flats?`, a: `${p.answer} Cheapest first: ${names}.` })
     out.push({ q: `What is the price of a ${p.bhk} BHK flat in ${place}?`,
       a: `On this list, from the price the builder's own site states or two property sites agree on, read in the last 45 days. ` +

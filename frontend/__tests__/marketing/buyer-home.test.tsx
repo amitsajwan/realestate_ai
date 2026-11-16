@@ -128,7 +128,10 @@ describe("buyers' home", () => {
     const ld = Array.from(container.querySelectorAll('script[type="application/ld+json"]')).map((s) => JSON.parse(s.textContent || '{}'))
     expect(ld.map((x) => x['@type'])).toEqual(['Organization', 'WebSite'])
     expect(ld[1].potentialAction.target.urlTemplate).toMatch(/\/projects\?q=\{search_term_string\}$/)
-    expect(ld[0].contactPoint).toBeUndefined()
+    // who answers for the site: House Deal's office and phone (lib/site/team, owner 2026-11-13)
+    expect(ld[0].contactPoint).toEqual([expect.objectContaining({ telephone: '+917447212121', email: 'housedealofficial@gmail.com' })])
+    expect(ld[0].address).toMatchObject({ streetAddress: '1107, RTC Silver, Upper Kharadi, Wagholi', postalCode: '412207' })
+    expect(ld[0].member[0]).toMatchObject({ '@type': 'RealEstateAgent', name: 'House Deal', identifier: { value: 'A031262502865' } })
     // the brand's own profiles and its Devanagari name, so Google ties "Avasetu" to this page; no WhatsApp chat link
     expect(ld[0].name).toBe('Avasetu')
     expect(ld[0].sameAs).toEqual(['https://www.facebook.com/profile.php?id=61594653947865', 'https://www.instagram.com/avasetu_/'])

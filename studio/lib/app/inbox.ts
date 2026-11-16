@@ -184,6 +184,9 @@ const fixtureInbox = {
 export const inboxApi = {
   threads: async (): Promise<InboxThread[]> => (isFixtureMode() ? fixtureInbox.threads() : (await call<{ items: InboxThread[] }>('')).items ?? []),
   thread: (id: string) => (isFixtureMode() ? fixtureInbox.thread(id) : call<InboxThreadFull>(`/${encodeURIComponent(id)}`)),
+  /** Owner: an agent's latest post, its numbers, and Boost, Keep and Remove buttons on WhatsApp. */
+  askPost: (id: string) =>
+    (isFixtureMode() ? fixtureInbox.thread(id) : call<InboxThreadFull>(`/${encodeURIComponent(id)}/ask-post`, { method: 'POST' })),
   reply: (id: string, text: string) =>
     (isFixtureMode() ? fixtureInbox.reply(id, text) : call<InboxThreadFull>(`/${encodeURIComponent(id)}/reply`, { method: 'POST', json: { text } })),
   /** A comment thread was answered on Facebook/Instagram (or needs no answer). */

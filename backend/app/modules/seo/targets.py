@@ -80,6 +80,18 @@ def name_words(phrase: str) -> List[str]:
     return [w for i, w in enumerate(raw) if names_it(i)]
 
 
+def week_numbers(pages: List[dict], now: datetime) -> dict:
+    """Clicks and impressions of the last 7 full days and the 7 before, all project pages and those in search today. Most of what
+    Google still shows are pages we took out (77% of impressions in the week to 2026-11-05): they fade as Google reads them again,
+    so the pages in search are the number that tells how we stand. Both weeks count the same pages in search today."""
+    listed = [d for d in pages if searchable(d, now)]
+
+    def total(docs: List[dict], field: str, kind: str) -> int:
+        return sum(int((d.get(field) or {}).get(kind) or 0) for d in docs)
+    return {f"{kind}{tail}": total(docs, field, kind) for kind in ("clicks", "impressions")
+            for docs, part in ((pages, ""), (listed, "_listed")) for field, tail in (("gsc_week", part), ("gsc_week_before", f"{part}_before"))}
+
+
 def readable(phrase: str, doc: dict) -> Optional[str]:
     """The target as a name for the title: generic words dropped, each word capitalised; None when the project's name is not in
     it any more (a target like "rera pune" never becomes a title), it carries a word the record does not call the project by,
@@ -170,6 +182,8 @@ async def run_once(store: Store, now: datetime, force: bool = False) -> Optional
                                    and searchable(d, now)),
             "near_page_one": sum(1 for d in pages if searchconsole.near_page_one(d.get("gsc_position"), d.get("gsc_impressions"))),
             "targeted": targeted}
+    if any(d.get("gsc_week") for d in pages):
+        snap["week"] = week_numbers(pages, now)
     history = ((await store.get_mark(MARK)).get("history") or [])[-(HISTORY - 1):] + [snap]
     await store.set_mark(MARK, at=now, targeted=targeted, changed=changed, history=history, held=held)
     if held:

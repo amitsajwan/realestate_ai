@@ -2,8 +2,8 @@
 import type { MarketingConfig } from './config'
 import { BRAND_NAME, TAGLINE } from '@/lib/brand'
 
-export const LEGAL_LAST_UPDATED_ISO = '2026-09-29'
-export const LEGAL_LAST_UPDATED = '7 October 2026'
+export const LEGAL_LAST_UPDATED_ISO = '2026-11-15'
+export const LEGAL_LAST_UPDATED = '15 November 2026'
 export const LEGAL_NOTICE =
   'This page is written in plain language to explain how the service works. It is not legal advice.'
 
@@ -234,9 +234,16 @@ export interface LegalSection {
   heading: string
   paragraphs?: string[]
   bullets?: string[]
+  /** Outside pages the section points to (opened in a new tab). */
+  links?: { label: string; href: string }[]
   /** Render the contact lines after the text. */
   contact?: boolean
 }
+
+/** Google's own pages a site that uses the YouTube API must link (YouTube API Services Terms, section III.A.2). */
+export const GOOGLE_PRIVACY_URL = 'https://policies.google.com/privacy'
+export const YOUTUBE_TERMS_URL = 'https://www.youtube.com/t/terms'
+export const GOOGLE_SECURITY_SETTINGS_URL = 'https://security.google.com/settings/security/permissions'
 export interface LegalDoc {
   metaTitle: string
   metaDescription: string
@@ -309,6 +316,19 @@ export function privacyDoc(cfg: MarketingConfig): LegalDoc {
         id: 'social-posts', heading: 'Posts on our Facebook and Instagram pages',
         paragraphs: [
           'When an agent\'s property is posted to our Facebook or Instagram page, our team name appears in the post (never an agent\'s name or phone number), with that agent\'s consent. Those posts are public.',
+        ],
+      },
+      {
+        id: 'youtube', heading: 'Our YouTube channel and the YouTube API',
+        paragraphs: [
+          "We upload our own videos (project summaries from public MahaRERA records and local property news) to our YouTube channel using YouTube API Services. The upload uses only our own channel's account. We do not ask you to sign in with Google or YouTube, and we do not collect, store or share any YouTube or Google data about you.",
+          "When you watch our videos on YouTube, YouTube and Google handle that under their own terms and Google's Privacy Policy. By watching or using our YouTube content you agree to be bound by the YouTube Terms of Service.",
+          "Our channel's access can be revoked at any time from the Google security settings page.",
+        ],
+        links: [
+          { label: 'Google Privacy Policy', href: GOOGLE_PRIVACY_URL },
+          { label: 'YouTube Terms of Service', href: YOUTUBE_TERMS_URL },
+          { label: 'Google security settings (third-party access)', href: GOOGLE_SECURITY_SETTINGS_URL },
         ],
       },
       {
@@ -405,6 +425,16 @@ export function termsDoc(cfg: MarketingConfig): LegalDoc {
         id: 'your-content', heading: 'Your content',
         paragraphs: [
           'You keep ownership of the listings and photos you post. You allow us to store, display and format them so the service can work, including on your website, in the marketing we create for you, and, when you choose, on our social pages.',
+        ],
+      },
+      {
+        id: 'youtube', heading: 'YouTube',
+        paragraphs: [
+          "Some of our videos are published on our YouTube channel through YouTube API Services. By using our YouTube content you agree to be bound by the YouTube Terms of Service. Google's Privacy Policy applies to what YouTube and Google collect when you watch.",
+        ],
+        links: [
+          { label: 'YouTube Terms of Service', href: YOUTUBE_TERMS_URL },
+          { label: 'Google Privacy Policy', href: GOOGLE_PRIVACY_URL },
         ],
       },
       {

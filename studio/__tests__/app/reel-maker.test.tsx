@@ -224,3 +224,14 @@ test('Post sheet: a finished reel can be posted as a Reel, only with consent', a
   expect(postReel).toHaveBeenCalledWith('a1', 'L1', 'en')
   expect(screen.getByTestId('reel-results')).toHaveTextContent('Avasetu Instagram: checked (test mode, nothing was published)')
 })
+
+test('Post sheet: the reel on our YouTube channel is named in the results', async () => {
+  latestReels.mockResolvedValue({ en: job({ status: 'done', video_path: '/uploads/reels/x.mp4' }) })
+  postReel.mockResolvedValue([{ channel: 'instagram', status: 'published' }, { channel: 'youtube', status: 'published' }])
+  render(<PostSheet agentId="a1" agentName="Rahul Sharma" listingId="L1" listingTitle="2 BHK" consentGiven onClose={() => undefined} />)
+  const btn = await screen.findByRole('button', { name: 'Post the reel for Rahul' })
+  await act(async () => {
+    fireEvent.click(btn)
+  })
+  expect(screen.getByTestId('reel-results')).toHaveTextContent('Avasetu YouTube: reel posted')
+})

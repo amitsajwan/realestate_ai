@@ -45,20 +45,22 @@ export function siteLinks() {
   const insights: SiteLink = { href: '/insights', label: 'Insights' }
   // what Avasetu is and how the lists are ranked (app/about): in the footer and the phone menu, where people look for it
   const about: SiteLink = { href: '/about', label: 'About us' }
+  // who answers, with the office address and phone (app/contact, lib/site/team)
+  const contact: SiteLink = { href: '/contact', label: 'Contact' }
   const invite: SiteLink = { href: INVITE_PATH, label: 'Claim your free trial' }
   const signIn: SiteLink = { href: SIGN_IN_PATH, label: 'Sign in', otherApp: true }
   const need: SiteLink = { href: buyerEnquirePath(), label: 'Tell us what you need' }
   const ig: SiteLink = { href: instagram, label: 'Instagram', external: true }
   const fb: SiteLink = { href: facebook, label: 'Facebook', external: true }
   return {
-    forAgents, about, news, posts, areas, projects, homePlan, builders, check, insights, invite, signIn, need, instagram: ig, facebook: fb,
+    forAgents, about, contact, news, posts, areas, projects, homePlan, builders, check, insights, invite, signIn, need, instagram: ig, facebook: fb,
     /** Header, wide screens, by audience (the buyer or invite button sits next to these; 'For agents' is always there). */
     headerWide: { buyer: [projects, homePlan, builders, areas, news, forAgents], agent: [projects, forAgents, areas] } as Record<Audience, SiteLink[]>,
     /** Header menu on phones: everything. */
     // no Posts: each one repeats a Facebook or Instagram post and is out of search (seo-system.md), so buyers lose nothing
-    menu: [projects, homePlan, builders, check, areas, news, insights, about, forAgents, signIn, ig, fb],
+    menu: [projects, homePlan, builders, check, areas, news, insights, about, contact, forAgents, signIn, ig, fb],
     footerAgents: [forAgents, invite, signIn],
-    footerExplore: [projects, homePlan, builders, check, areas, news, insights, about],
+    footerExplore: [projects, homePlan, builders, check, areas, news, insights, about, contact],
     footerFollow: [ig, fb],
   }
 }

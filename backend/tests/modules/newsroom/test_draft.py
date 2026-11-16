@@ -144,3 +144,14 @@ async def test_template_without_facts_is_none():
 async def test_invented_claim_from_llm_is_caught_by_check():
     d = await draft(ITEM, FACTS, REL, "post", FakeLlm({**GOOD, "what": "The Pune ring road near Wagholi will cost 9,000 crore."}))
     assert not check(d, FACTS, ITEM, now=NOW).ok
+
+
+def test_mahareras_name_is_always_printed_in_its_own_spelling():
+    from app.modules.newsroom import policy
+    from app.modules.newsroom import presentation as pr
+    assert policy.house_names("Maharera rejects a claim; MAHARERA and Maha RERA too") == "MahaRERA rejects a claim; MahaRERA and MahaRERA too"
+    # web addresses and slugs stay as they are
+    assert policy.house_names("see maharera.mahaonline.gov.in and /news/maharera-rejects-x") == "see maharera.mahaonline.gov.in and /news/maharera-rejects-x"
+    assert policy.house_names("registered on maharera.") == "registered on MahaRERA."
+    # a stored headline already published with the wrong spelling is shown right
+    assert pr.headline({"draft": {"title": "Maharera rejects homebuyer’s parking complaint in Pune"}}) == "MahaRERA rejects homebuyer’s parking complaint in Pune"

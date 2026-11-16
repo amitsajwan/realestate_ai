@@ -199,16 +199,15 @@ async def test_send_to_calendar_plans_rows_for_approval(tmp_path):
     reels = [r for r in rows if r["kind"] == "reel"]
     ads = [r for r in reels if r["slug"].endswith("-ad")]
     assert [p["angle"] for p in out["posts"]] == ["listing"]                                      # one post (owner, 2026-10-19)
-    assert len(ads) == 2 * jobs.FALLBACK_REELS and all(r["status"] == "planned" for r in rows)     # no room met: two reels
+    assert len(ads) == 2 * jobs.REELS_PER_LISTING and all(r["status"] == "planned" for r in rows)   # one reel, on both channels
     assert len(posts) == 2 * n and len(posts[0]["images"]) == 3   # cover, price sheet, picture
     assert all(r["creative"]["experiment"] == "ad_reel" and r["creative"]["variant"] for r in ads)
     assert all(r["video"].startswith("campaigns/L1/") and r["video"].endswith(".mp4") for r in reels)
     assert all(r["agent_id"] == "a1" and r["listing_id"] == "L1" for r in rows)
     ig = sorted((r for r in rows if r["channel"] == "instagram"), key=lambda r: r["due_at"])
-    assert ig[0]["slug"] == "campaign-L1-listing" and ig[1]["slug"].endswith("-ad") and ig[2]["slug"].endswith("-ad")
-    when = [r["due_at"].astimezone(schedule.IST).strftime("%m-%d %H:%M") for r in ig[:3]]
-    # two a day (11:00 and 19:00 IST); the 8th's 19:00 is within 6 h of the brand post at 19:30, so the next free slot follows
-    assert when == ["10-07 11:00", "10-07 19:00", "10-08 11:00"]
+    assert len(ig) == 2 and ig[0]["slug"] == "campaign-L1-listing" and ig[1]["slug"].endswith("-ad")
+    when = [r["due_at"].astimezone(schedule.IST).strftime("%m-%d %H:%M") for r in ig]
+    assert when == ["10-07 11:00", "10-07 19:00"]   # two a day (11:00 and 19:00 IST)
     assert all(not i.startswith("/") and i.startswith("campaigns/L1/") for r in posts for i in r["images"])
     fb = next(r for r in rows if r["channel"] == "facebook_page")
     # Facebook links to this listing's own page (its photos, as in the post: jobs._post_page)
@@ -218,6 +217,20 @@ async def test_send_to_calendar_plans_rows_for_approval(tmp_path):
     assert len([r for r in await cal.all() if r["slug"].startswith("campaign-L1-")]) == 2 * (n + jobs.FALLBACK_REELS)
     assert len(again["calendar"]) == 2 * (n + jobs.FALLBACK_REELS)
     assert jobs.run_out(again)["calendar"][0]["due_at"] == "2026-10-07T05:30:00Z"   # 11 am IST
+    assert not [r for r in again["reels"] if r["kind"] == "walkthrough"]   # one reel a listing (owner, 2026-11-07)
+
+
+async def test_the_walkthrough_stands_in_when_no_story_reel_could_be_made(tmp_path):
+    from app.modules.calendar.store import Store as CalendarStore
+    db, runs, _, _ = await setup(tmp_path, listing=with_photos(tmp_path))
+    cal = CalendarStore(db)
+
+    def broken(*a, **k):
+        raise RuntimeError("no renderer")
+    runs.ad_renderer = broken
+    await runs.create("a1", "L1")
+    await runs.run_once()
+    await runs.to_calendar("a1", "L1")
     # the walkthrough reel renders later (its own worker): sending again then adds it on both channels
     runs.reel_jobs.render()
     d = await runs.latest("a1", "L1")
@@ -425,6 +438,10 @@ async def test_the_walkthrough_is_made_in_the_campaign_language(tmp_path, monkey
     from app.modules.reels import listing_reel
     monkeypatch.setattr(listing_reel, "listing_photos", lambda listing, uploads: [Path("a.jpg"), Path("b.jpg")])   # a listing with 2 photos
     db, runs, _, _ = await setup(tmp_path)
+
+    def broken(*a, **k):
+        raise RuntimeError("no renderer")
+    runs.ad_renderer = broken   # it stands in only when no story reel could be made
     await runs.create("a1", "L1", language="mr")
     await runs.run_once()
     d = await runs.latest("a1", "L1")
@@ -432,3 +449,19 @@ async def test_the_walkthrough_is_made_in_the_campaign_language(tmp_path, monkey
     assert runs.reel_jobs.asked["lang"] == "mr" and walk["language"] == "mr" and walk["style"] == jobs.walkthrough_style("L1")
     head = walk["caption"].splitlines()[0]   # the caption follows the reel's language too
     assert any("\u0900" <= ch <= "\u097f" for ch in head) and " for " not in head
+
+
+async def test_a_listing_with_its_own_video_makes_that_one_reel_only(tmp_path, monkeypatch):
+    db, runs, _, _ = await setup(tmp_path)
+    video = tmp_path / "v.mp4"
+    video.write_bytes(b"x")
+    monkeypatch.setattr(runs, "_video", lambda listing: video)
+
+    async def video_reel(job, listing, v, out, project, link_line):
+        return {"kind": "video", "status": "done"}
+    monkeypatch.setattr(runs, "_video_reel", video_reel)
+    RENDERED.clear()
+    await runs.create("a1", "L1")
+    await runs.run_once()
+    d = await runs.latest("a1", "L1")
+    assert [r["kind"] for r in d["reels"]] == ["video"] and RENDERED == []

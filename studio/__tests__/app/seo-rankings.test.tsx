@@ -48,6 +48,16 @@ it('says how many page-one pages are in search now and what page one counts', as
   expect(screen.getByText(/average Google place is 1-10/)).toBeInTheDocument()
 })
 
+it('leads with the last 7 days and how much of them is pages in search now', async () => {
+  const w = { clicks: 297, clicks_before: 496, clicks_listed: 99, clicks_listed_before: 217, impressions: 18707, impressions_before: 19903, impressions_listed: 4212, impressions_listed_before: 4863 }
+  mockRankings.mockResolvedValue({ ...data, week: { now: { ...week, week: w }, week_ago: null } })
+  render(<RankingsTab />)
+  expect(await screen.findByText('Clicks (7 days)')).toBeInTheDocument()
+  expect(screen.getByText('-199')).toBeInTheDocument()
+  expect(screen.getByTestId('week-clicks-listed')).toHaveTextContent('99 (-118) on pages in search now')
+  expect(screen.queryByText('Clicks (28 days)')).toBeNull()
+})
+
 it('counts MagicBricks head to head and names our page for each search', async () => {
   render(<RankingsTab />)
   expect(await screen.findByTestId('head-to-head')).toHaveTextContent(/^Above them in 30 of 60$/)   // no diff against a week that counted lookups

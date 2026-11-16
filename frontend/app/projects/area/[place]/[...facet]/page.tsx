@@ -4,7 +4,8 @@ import Link from 'next/link'
 import { notFound, permanentRedirect } from 'next/navigation'
 import MarketingShell from '@/components/marketing/MarketingShell'
 import FacetChips from '@/components/site/FacetChips'
-import { ListPicture, RailCard, RankedCard } from '@/components/site/ListCard'
+import CallbackButton from '@/components/site/CallbackButton'
+import { cardTopic, ListPicture, RailCard, RankedCard } from '@/components/site/ListCard'
 import ProjectRail, { READY_SUB, READY_TITLE } from '@/components/site/ProjectRail'
 import { getLocality } from '@/lib/marketing/localities'
 import { getMarketingConfig } from '@/lib/marketing/config'
@@ -43,6 +44,9 @@ function description(p: FacetPage): string {
   const names = (has: (n: number) => boolean) => {
     const shown = p.rows.slice(0, has(2) ? 3 : has(3) ? 2 : has(6) ? 1 : 0).map((r) => r.name).join(', ')
     return shown ? `: ${shown}` : ''
+  }
+  if (p.budget_label && lows.length) {
+    return fitDescription((has) => `${p.count} new projects in ${p.place.name}, Pune with flats ${p.budget_label}, from ${formatPrice(Math.min(...lows))}${names(has)}. ${has(1) ? "Price from the builder's site, possession" : 'Possession'} filed with MahaRERA and homes booked.`)
   }
   if (p.bhk && lows.length) {
     return fitDescription((has) => `${p.count} new projects in ${p.place.name}, Pune with ${p.bhk} BHK flats from ${formatPrice(Math.min(...lows))}${names(has)}. ${has(1) ? "Price from the builder's site, possession" : 'Possession'} filed with MahaRERA and homes booked.`)
@@ -92,6 +96,7 @@ function Row({ r, priceList }: { r: FacetRow; priceList: boolean }) {
           {r.units_booked != null && r.units_total ? <div><dt className="text-xs text-slate-500">Booked</dt><dd>{n(r.units_booked)} ({Math.round((100 * r.units_booked) / r.units_total)}%)</dd></div> : null}
         </dl>
         <p className="mt-1 text-xs text-slate-500">MahaRERA {r.regno}{r.legal_name && r.legal_name.toLowerCase() !== r.name.toLowerCase() ? ` · registered as ${r.legal_name}` : ''}{builder.filedBy ? ` · filed by ${builder.filedBy}` : ''}</p>
+        <div className="mt-2"><CallbackButton topic={cardTopic(r)} /></div>
       </div>
     </li>
   )
@@ -165,7 +170,7 @@ export default async function FacetPageView({ params }: Props) {
   const zone = places.find((x) => x.key === p.place.key)?.zone
   const zoneKeys = new Set(places.filter((x) => x.zone === zone).map((x) => x.key))
   const nearby = all.filter((f) => f.indexable && f.place !== p.place.key && zoneKeys.has(f.place) && f.intent === p.intent
-    && f.possession === p.possession && (f.bhk ?? null) === (p.bhk ?? null) && !f.builder).slice(0, 8)
+    && f.possession === p.possession && (f.bhk ?? null) === (p.bhk ?? null) && (f.budget ?? null) === (p.budget ?? null) && !f.builder).slice(0, 8)
   const placeName = (key: string) => places.find((x) => x.key === key)?.name ?? key
   const faq = facetFaq(p)
   // the Top list is the buyer's shortlist: ranked cards, then rows into the other lists of the place, then the sold out ones
@@ -305,7 +310,8 @@ export default async function FacetPageView({ params }: Props) {
           <h2 id="how-title" className="text-xl font-semibold text-slate-900">How this list is made</h2>
           <p className="mt-2 text-slate-800">
             {p.bhk ? `Only projects with a ${p.bhk} BHK price (${p.bhk}.5 BHK counts) that the builder's own site states, or that two property sites agree on, read in the last 45 days. ` : ''}
-            {p.bhk && p.intent === 'all' ? 'Projects still being sold, cheapest first.' : HOW[p.intent]}{p.possession ? ` Only projects whose filed completion date is in ${p.possession}.` : ''}{p.builder_name ? ` Only projects by ${p.builder_name}.` : ''}{' '}
+            {p.budget_label ? `Only projects with a size whose starting price is ${p.budget_label}, as the builder's own site states it or two property sites agree, read in the last 45 days. ` : ''}
+            {(p.bhk || p.budget) && p.intent === 'all' ? 'Projects still being sold, cheapest first.' : HOW[p.intent]}{p.possession ? ` Only projects whose filed completion date is in ${p.possession}.` : ''}{p.builder_name ? ` Only projects by ${p.builder_name}.` : ''}{' '}
             Towers and phases of one project count once. From {p.source}, worked out on {longDay(p.as_of)}; each project&apos;s page shows the
             date we read its record. No builder pays to be on this list. This is general information, not investment or legal advice.
           </p>

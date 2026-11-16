@@ -61,9 +61,8 @@ _TEST = re.compile(r"\btest", re.I)
 MAX_PAGES = 8
 NAMES_TTL = timedelta(hours=1)
 IST = timedelta(hours=5, minutes=30)
-# pages an agent reads, not a buyer: a lead who opened them may be an agent trying us out
-AGENT_PAGES = ("/agents", "/for-agents", "/trial", "/join", "/studio", "/pilot")
-_SKIP = ("/agent/", "/enquire", "/r/", "/i/", "/go/")
+AGENT_PAGES = handover.AGENT_PAGES
+_SKIP = handover.SKIP_PAGES
 _PROJECT = re.compile(r"^/projects/([a-z0-9-]+)/?$")
 _names: Dict[str, tuple] = {}   # project page slug -> (name, read at, area): a board read every 30 s must not re-read the register
 DEMAND_DAYS = 7

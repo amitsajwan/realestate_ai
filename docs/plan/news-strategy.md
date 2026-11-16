@@ -72,6 +72,35 @@ Decided and built (N1, most of N2 and N3):
   "What is changing near <area>" when a tracker names the area (the city-wide rate trackers come along, never alone).
 - Mangled text from feeds read as Windows-1252 (the Ring Road headline showed "â‚¹10,502") is put back in `presentation.one_line`.
 
+## Nothing published for 26 days, fixed 2026-11-15 (BUILT, deploys with the commit)
+
+Found while building Google News readiness: `/news-sitemap.xml` was empty because the newest public story was from 20 Oct. From 21 Oct
+to 15 Nov the newsroom ran every 2 hours without an error, collected 1,149 items and dropped every one:
+
+| Where | Dropped | Why it was wrong |
+|---|---|---|
+| Filter, "no target area or corridor" | 952 | Google News items are often a headline alone, so a corridor never met its Pune hint; city-wide stories we keep tracker pages for (Purandar airport, Metro Line 3) named none of our four areas |
+| Editor (model, under 6/10) | 32 | Told the reader lives in Kharadi, Upper Kharadi, Wagholi or Lohegaon, it gave the Purandar airport 1-2/10: "unrelated to their area" |
+| Check | 19 | 11 only because "Read it here: <url>" spells the publisher's headline (the copy check read links, the name and figure checks did not); others on "Delays", "Higher" or "This" opening a sentence, or "Pune Municipal Corporation" where the source says PMC |
+
+Changed: a headline that matches a tracker's own rules counts as ours (`tracker_topics.topic_of`, read from `tracker_data`; the
+rest of the filter still applies); the editor is told "Tracked topic: <slug>" and that distance from our areas is no reason to
+score low, while a political demand or naming is still 0-4; MahaRERA rulings ("MahaRERA rejects/dismisses/fines…") are rules news;
+the copy and headline checks leave links out; the long forms of PMC, RBI, PMRDA, MSRDC, MADC, NHAI, SBI, PNB, PMPML and MahaRERA
+count when the short form is in the source; a sentence-opening word used in lower case in the source or the draft, or on the list
+of ordinary openers, is not a name; the model's non-breaking hyphen joins a word; the "This is our view" line always follows a full
+stop. What is checked did not change: invented figures, dates and names, copying, hype, forecasts and age are refused as before.
+MHADA stays out (stopped 2026-10-20). Metro Line 3 news is kept now: it has a tracker (the 2026-09-30 fixture said off-topic).
+
+Replayed on production's own items: the filter now keeps 142 of the 1,149 (on the same texts the old one kept 60), and 4 of the
+19 failed drafts pass the check before the one redraft each gets: MahaRERA orders Gera to pay Wagholi buyers interest, the Ring
+Road cost rise, Lohgaon's development plan changes, the Pune-Ahilyanagar highway protest. The daily cap (4 on the VM) and
+auto-approval of full reports are unchanged. Watch: stories published a day, and any correction.
+
+Later the same day (owner: "publication needs to be automated"): the weekly digest is auto-approved too once it has passed
+its check (`runner._weekly_digest`), and every published story and digest also goes to YouTube as a Short drawn from its cards
+(`adapters.to_youtube`, after Facebook or Instagram, never in a dry run, shared 5-a-day cap). Nothing waits for the owner now.
+
 ## Next (TARGET, in order)
 
 - ~~N2b~~ BUILT 2026-10-26 (`trackers.suggest_due`, at most 3 model calls a newsroom cycle, checked by `stages.check.check_status_line`): a model *suggests* a new status line when new reports arrive (shown in the Trackers tab with the headlines it read; the owner

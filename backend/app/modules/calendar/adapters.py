@@ -567,6 +567,49 @@ def _language(doc: dict) -> str:
     return str((doc.get("tags") or {}).get("language") or (doc.get("creative") or {}).get("language") or "en")
 
 
+# A reel on YouTube (docs/plan/visibility-base.md step 1): Google shows a video for "<project> review" within days, where a new
+# site waits months. The title names the project and the place as people search them; the description opens with the page.
+_LEAD_SYMBOLS = re.compile(r"^[^\w₹\"'(]+", re.U)
+_IG_ONLY = re.compile(r"link in our bio|tap the link", re.I)
+
+
+def youtube_meta(doc: dict):
+    """The video's title, description and tags, from the published row: its caption, project, place and page."""
+    from app.platform.youtube_upload import VideoMeta
+    from .footer import footer_for
+    from .reach import locality, project_and_locality
+    project, _ = project_and_locality(doc)
+    place = locality(doc)[0]
+    caption = str(doc.get("caption") or "")
+    lines = [ln for ln in caption.splitlines() if not _IG_ONLY.search(ln)
+             and ln.strip() not in (footer_for("instagram"), footer_for("facebook_page"))
+             and not ln.strip().startswith(brand.NAME + " ·")]
+    head = _LEAD_SYMBOLS.sub("", (lines[0] if lines else "").strip()) or project or f"New homes in {place or 'Pune'}"
+    if project and project.lower() not in head.lower():
+        head = f"{project}: {head}"
+    if place and place.lower() not in head.lower():
+        head = f"{head} | {place}, Pune"
+    page = page_for(doc) or brand.SITE
+    body = "\n".join(lines[1:]).strip()
+    description = f"Full details, price sheet and MahaRERA status: {page}\n\n{body}".strip()
+    tags = [t for t in (project, place, f"{place} flats" if place else "", "Pune", "new projects Pune", "MahaRERA", brand.NAME) if t]
+    return VideoMeta(title=head, description=description, tags=tags, language=_language(doc))
+
+
+async def to_youtube(db, doc: dict, uploads: Path):
+    """Best effort, after a reel is out on Instagram or Facebook: the same video on our YouTube channel, once per reel (its slug),
+    through social.distribution. None when it is not set up, paused, capped or the file is gone; never raises."""
+    from app.modules.social.distribution import youtube_short
+    try:
+        video = uploads / str(doc.get("video") or "")
+        if not doc.get("video") or not video.is_file():
+            return None
+        return await youtube_short(db, str(doc.get("slug") or doc["_id"]), video, youtube_meta(doc))
+    except Exception as e:   # a YouTube refusal must never touch the post that is already out
+        logging.getLogger(__name__).warning("calendar: YouTube upload of %s failed: %s", doc.get("slug"), type(e).__name__)
+        return None
+
+
 async def with_interest(db, doc: dict) -> dict:
     """The row with its caption ready to publish: a tap-to-show-interest line (a real link on Facebook, 'link in our bio' on Instagram,
     whose bio link is the /go hub) and the standard footer, linking the page the post is about (page_for). Any failure returns the

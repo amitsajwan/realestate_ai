@@ -87,3 +87,28 @@ async def test_the_searches_behind_our_pages_become_phrases(monkeypatch):
     # the same search on two pages, spelt two ways, is one phrase: impressions add up, position is the impression-weighted mean
     assert project["kind"] == "project" and project["regno"] == "P1" and project["gsc"]["impressions"] == 40
     assert project["gsc"]["position"] == 8.5 and project["gsc"]["pages"] == ["/localities/wagholi", "/projects/rohan-abhilasha-4-wagholi"]
+
+
+async def test_a_page_keeps_its_last_seven_days_and_the_seven_before(monkeypatch):
+    monkeypatch.setenv("GSC_SA_KEY_B64", base64.b64encode(json.dumps(fake_key()).encode()).decode())
+    db, store = await seeded(("P1", "Rohan Abhilasha 4", "wagholi", FULL))
+    await pages.assign_all(store)
+    seen = []
+    await searchconsole.refresh(store, NOW, transport=google(seen))
+    p1 = await store.project("P1")
+    assert p1["gsc_week"] == p1["gsc_week_before"] == {"impressions": 40, "clicks": 3}
+    windows = [(b["startDate"], b["endDate"]) for b in seen if isinstance(b, dict) and b["dimensions"] == ["page"]]
+    assert windows[1:] == [("2026-09-27", "2026-10-03"), ("2026-09-20", "2026-09-26")]   # 7 full days each, none overlapping
+
+
+async def test_a_failed_weekly_read_leaves_the_daily_read_standing(monkeypatch):
+    monkeypatch.setenv("GSC_SA_KEY_B64", base64.b64encode(json.dumps(fake_key()).encode()).decode())
+    db, store = await seeded(("P1", "Rohan Abhilasha 4", "wagholi", FULL))
+    await pages.assign_all(store)
+
+    async def broken(*a, **k):
+        return None
+    monkeypatch.setattr(searchconsole, "week_counts", broken)
+    await searchconsole.refresh(store, NOW, transport=google([]))
+    p1 = await store.project("P1")
+    assert p1["gsc_impressions"] == 40 and "gsc_week" not in p1

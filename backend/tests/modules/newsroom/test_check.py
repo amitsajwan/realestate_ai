@@ -198,3 +198,44 @@ def test_invented_name_in_article_title():
 @pytest.mark.parametrize("text", ["", "   "])
 def test_empty_text_never_passes(text):
     assert not run(text).ok
+
+
+# ---- names: ordinary sentence openers and long forms of short names (2026-11-15, from the drafts dropped in October) ----
+
+def test_an_ordinary_word_opening_a_sentence_is_not_a_name_when_it_is_used_in_lower_case():
+    # "Delays" and "Prospective" opened sentences in real drafts and failed every report they were in
+    text = add("Delays in land acquisition could hold up the work, and buyers watch for delays.")
+    assert "Delays" not in " ".join(run(text).problems)
+    item = replace(ITEM, text=SRC_TEXT + " Prospective buyers asked about the stretch.")
+    assert run(add("Prospective buyers may want the latest status."), item=item).ok
+
+
+def test_an_invented_name_opening_a_sentence_is_still_caught():
+    bad(run(add("Shinde Constructions has bid for the work.")), "Names not in the source: Shinde")
+
+
+def test_the_long_form_of_a_short_name_in_the_source_is_the_same_body():
+    item = replace(ITEM, text=SRC_TEXT + " The PMC and the RBI were not part of it.")
+    res = run(add("The Pune Municipal Corporation was not part of it, nor was the Reserve Bank of India."), item=item)
+    assert not any("Municipal" in p or "Reserve" in p for p in res.problems), res.problems
+    # without the short form in the source the long form is still a name it does not give
+    bad(run(add("The Pune Municipal Corporation was not part of it.")), "Municipal")
+
+
+def test_a_link_in_the_source_line_is_not_copying_the_headline():
+    # the publisher's address spells its headline: "Read it here: <url>" made 11 of 19 failed reports "copy" (21 Oct to 15 Nov)
+    title = "Pune MahaRERA orders Gera Developments to pay interest over delayed flat handovers at Planet of Joy"
+    item = replace(ITEM, title=title)
+    link = "https://www.freepressjournal.in/pune/pune-maharera-orders-gera-developments-to-pay-interest-over-delayed-flat-handovers-at-planet-of-joy"
+    res = run(CLEAN + f"\n\nRead it here: {link}", item=item)
+    assert not any("headline" in p or "Copies" in p for p in res.problems), res.problems
+    # the same words written out in the text are still copying
+    bad(run(CLEAN + "\n\n" + title + ".", item=item), "headline")
+
+
+def test_a_non_breaking_hyphen_joins_a_word():
+    # the model writes U+2011: the word is read whole, so a name is judged as written, never as a stray "R"
+    text = add("Banks raised the R‑LLR for loan‑to‑value bands.")
+    bad(run(text), "Names not in the source: R‑LLR")
+    item = replace(ITEM, text=SRC_TEXT + " Banks linked rates to the LLR.")
+    assert not any(p.startswith("Names") for p in run(text, item=item).problems), run(text, item=item).problems

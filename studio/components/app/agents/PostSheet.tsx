@@ -157,7 +157,7 @@ export function PostSheet({ agentId, agentName, listingId, listingTitle, consent
               <ul className="space-y-1 text-sm" data-testid="reel-results">
                 {reelResults.map((r) => (
                   <li key={r.channel} className={r.status === 'failed' ? 'text-red-700' : 'text-green-700'}>
-                    {CHANNEL_LABEL[r.channel]}: {r.status === 'failed' ? `failed. ${r.error ?? ''}` : r.status === 'dry_run' ? 'checked (test mode, nothing was published)' : r.status === 'already_posted' ? 'already posted' : 'reel posted'}
+                    {r.channel === 'youtube' ? `${BRAND_NAME} YouTube` : CHANNEL_LABEL[r.channel]}: {r.status === 'failed' ? `failed. ${r.error ?? ''}` : r.status === 'dry_run' ? 'checked (test mode, nothing was published)' : r.status === 'already_posted' ? 'already posted' : 'reel posted'}
                   </li>
                 ))}
               </ul>

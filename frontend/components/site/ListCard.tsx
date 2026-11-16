@@ -3,7 +3,8 @@ import Link from 'next/link'
 import { builderLine, cardFacts } from '@/lib/site/facets'
 import type { FacetRow } from '@/lib/site/facets'
 import { formatPrice, readableName } from '@/lib/site/format'
-import { monthYear, sizePriceLine } from '@/lib/site/register'
+import { cardPossession, monthYear, sizePriceLine } from '@/lib/site/register'
+import CallbackButton from './CallbackButton'
 import OpenChatButton from './OpenChatButton'
 import CardPicture from './CardPicture'
 
@@ -63,6 +64,11 @@ function Booked({ r }: { r: FacetRow }) {
 }
 
 /** The Top list's ranked card: wide, with the reason it is here and two actions. */
+/** What a call back from a card is about: the project as MahaRERA names it, with its number (as the project page's form says it). */
+export function cardTopic(r: Pick<FacetRow, 'name' | 'legal_name' | 'regno'>): string {
+  return `${r.legal_name || r.name} (MahaRERA ${r.regno})`
+}
+
 export function RankedCard({ r }: { r: FacetRow }) {
   const price = cardPrice(r)
   const builder = builderLine(r)
@@ -81,7 +87,7 @@ export function RankedCard({ r }: { r: FacetRow }) {
         </div>
         <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-3">
           <div><dt className="text-xs text-slate-500">Price</dt><dd className="font-semibold text-slate-900">{price ?? 'Ask for price'}</dd></div>
-          {r.completion_now && <div><dt className="text-xs text-slate-500">Possession filed</dt><dd>{monthYear(r.completion_now)}</dd></div>}
+          {r.completion_now && <div><dt className="text-xs text-slate-500">Possession filed</dt><dd>{cardPossession(r)}</dd></div>}
           {r.registered_on && <div><dt className="text-xs text-slate-500">Registered</dt><dd>{monthYear(r.registered_on)}</dd></div>}
         </dl>
         <Booked r={r} />
@@ -93,6 +99,7 @@ export function RankedCard({ r }: { r: FacetRow }) {
           <Link href={`/projects/${r.slug}#enquire`} className="inline-flex min-h-[44px] items-center rounded-xl border border-[#0f2340] px-4 text-sm font-semibold text-[#0f2340] no-underline">
             {price ? 'Ask about floor plans' : 'Get the price'}
           </Link>
+          <CallbackButton topic={cardTopic(r)} />
         </div>
       </div>
     </li>
@@ -125,7 +132,7 @@ export function RailCard({ r, rank }: { r: FacetRow; rank?: number }) {
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200" aria-hidden><div className="h-full bg-[#0f2340]" style={{ width: `${pct}%` }} /></div>
         )}
         <p className="mt-1 text-xs text-slate-600">
-          {[open, !price && pct != null && !justOpened(r) ? `${pct}% booked` : null, r.completion_now ? `possession ${monthYear(r.completion_now)}` : null].filter(Boolean).join(' · ')}
+          {[open, !price && pct != null && !justOpened(r) ? `${pct}% booked` : null, r.completion_now ? `possession ${cardPossession(r)}` : null].filter(Boolean).join(' · ')}
         </p>
         {!price && (
           <div className="mt-auto pt-3">

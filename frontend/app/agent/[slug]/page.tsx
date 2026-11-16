@@ -36,8 +36,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const slug = normalizeSlug((await params).slug)
   const agent = slug ? await getAgent(slug) : null
   if (!slug || !agent) return { title: 'Agent not found', robots: { index: false } }
-  const { items } = await getListings(slug)
-  return agentMetadata(agent, items, agentCity(agent, items))
+  const [{ items }, projects] = await Promise.all([getListings(slug), getProjects(slug)])
+  return agentMetadata(agent, items, agentCity(agent, items), projects.length > 0)
 }
 
 /** The drawn area map for the chosen area, when there is one (Upper Kharadi, Wagholi, Kharadi). */

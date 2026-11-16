@@ -17,7 +17,7 @@ import asyncio
 import hashlib
 import logging
 from datetime import datetime
-from typing import Any, Callable, Dict, Iterable, List
+from typing import Any, Callable, Dict, Iterable, List, Optional
 
 from . import site, vectors
 from .areas import AREAS
@@ -107,11 +107,13 @@ def topic_chunks() -> Iterable[dict]:
             yield _chunk(f"topic:{slug}:warning", "topic", f"{title}: warning", _both(t["warning"]), url)
 
 
-def _details(doc: dict) -> str:
+def _details(doc: dict, scope: Optional[dict] = None) -> str:
     from app.modules.areastats import pages
     d = pages.details(doc)
     bits = []
-    if d.get("towers"):
+    if scope:   # the towers and floors MahaRERA lists are the main registration's: say how many registrations there are
+        bits.append(f"{scope['registrations']} MahaRERA registrations (towers or phases)")
+    elif d.get("towers"):
         bits.append(f"{d['towers']} towers/wings" + (f", up to {d['max_floors']} floors" if d.get("max_floors") else ""))
     if d.get("completion_moved_months"):
         bits.append(f"completion date moved {d['completion_moved_months']} months later since registration")
@@ -120,7 +122,9 @@ def _details(doc: dict) -> str:
     return ("Project details: " + "; ".join(bits) + ".") if bits else ""
 
 
-def project_chunks(doc: dict) -> List[dict]:
+def project_chunks(doc: dict, scope: Optional[dict] = None) -> List[dict]:
+    """The passages of one project page. `scope` (areastats.pages.project_scope): the page stands for several registrations,
+    so its counts are the whole project's, never its main registration's."""
     from app.core.areas import BY_KEY
     from app.modules.areastats import pages
     regno = doc.get("regno") or doc["_id"]
@@ -133,7 +137,7 @@ def project_chunks(doc: dict) -> List[dict]:
     sections = doc.get("page_sections") or []
     joined = "\n\n".join(s.get("text") or "" for s in sections if s.get("text"))
     summary = doc.get("page_text") if doc.get("page_text") != joined else None
-    first = " ".join(x for x in (summary or pages.paragraph(doc), _details(doc)) if x)
+    first = " ".join(x for x in (summary or pages.paragraph(doc, scope), _details(doc, scope)) if x)
     out = [_chunk(f"project:{regno}", "project", title, first, url, akey, regno)]
     if doc.get("page_text"):
         for i, s in enumerate(doc.get("page_sections") or []):
@@ -154,12 +158,13 @@ def project_chunks(doc: dict) -> List[dict]:
 async def project_all(db) -> List[dict]:
     from app.modules.areastats import pages
     out = []
+    scopes = await pages.project_scopes(db)
     async for d in db.projects.find({"page_slug": {"$nin": [None, ""]}}, PROJECT_FIELDS):
         if not pages.can_host(d):
             continue
         if d.get("cluster_primary") and d["cluster_primary"] != d["_id"]:
             continue   # a tower of a group: its page redirects to the group's primary, which carries the shared facts
-        out.extend(project_chunks(d))
+        out.extend(project_chunks(d, scopes.get(d["_id"])))
     return out
 
 

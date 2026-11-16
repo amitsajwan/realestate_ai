@@ -1,11 +1,15 @@
 """`GET /public/areas/{slug}/stats` (mounted at /api/v1/public, no auth): one area's MahaRERA facts for its locality page.
 
 404 for an area we do not cover. Short public caching: the numbers change a few times a day at most."""
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Response
 
 from app.core.database import get_database
+from app.modules.newsroom.store import Store
 
-from .service import CACHE_SECONDS, SOURCE, all_area_stats, area_stats
+from .pages import date_moves
+from .service import CACHE_SECONDS, IST, SOURCE, all_area_stats, area_stats
 
 public_router = APIRouter()
 
@@ -18,6 +22,11 @@ def get_db():
 async def public_all_area_stats(response: Response, db=Depends(get_db)) -> dict:
     """Every area we cover, in menu order: the Pune MahaRERA tracker page (frontend/app/pune-maharera-tracker)."""
     areas = await all_area_stats(db)
+    # each area's possession dates that moved, for the tracker's report (pages.date_moves), from the shared load public pages read
+    docs = await Store(db).shared_projects()
+    today = datetime.now(IST).date()
+    for a in areas:
+        a["date_moves"] = date_moves([d for d in docs if d.get("locality") == a["area"]["key"]], today)
     response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
     return {"as_of": max((a["as_of"] for a in areas), default=None), "areas": areas, "source": SOURCE}
 

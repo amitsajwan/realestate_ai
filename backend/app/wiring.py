@@ -8,19 +8,30 @@ def wire() -> None:
     from app.modules.calendar import library as calendar_library
     from app.modules.calendar import quality as calendar_quality
     from app.modules.calendar import reach as calendar_reach
+    from app.modules.calendar import runner as calendar_runner
     from app.modules.concierge.attribution import attribution_text, register_hub_item
     from app.modules.concierge.config import is_operator
     from app.modules.engage import service as engage_service
+    from app.modules.inbox import service as inbox_service
     from app.modules.knowledge import grounding
     from app.modules.marketing.content import link_line
     from app.modules.marketing.facts import Facts
     from app.modules.newsroom import quality as news_quality
     from app.modules.photoquality import router as quality_routes
+    from app.modules.propertyfacts import run_news
+    from app.modules.propertyfacts.brochure_once import sweep as brochure_sweep
+    from app.modules.reels import render_job
     from app.modules.showcase import samples
     from app.modules.social import service as social_service
     from app.modules.waitlist import router as waitlist_routes
 
     social_service.configure(link_line=link_line)  # the pack's link line, in marketing's words
+    # a stuck marketing queue shows no error anywhere else; a brochure attached to a listing queues its one read
+    render_job.configure(alert=_tell_owner_of_stuck_runs, sweep=brochure_sweep)
+    # who hears about an agent's posts: the owner, and the agent on WhatsApp
+    run_news.configure(owner=_owner_id, tell=_tell_agent)
+    calendar_runner.configure(on_posted=run_news.posted, on_cycle=run_news.results_due)
+    inbox_service.configure(ask_post=_ask_agent_about_post)
     # the quality route: the operator may review any agent's listing cards; calendar and news items are found by their owners
     quality_routes.configure(is_operator=is_operator,
                              resolvers={"calendar": calendar_quality.review_target, "news": news_quality.review_target})
@@ -35,6 +46,9 @@ def wire() -> None:
     # newsroom research gives a story background from our verified area guide (conversations' knowledge)
     from app.modules.newsroom.stages import research as news_research
     news_research.configure(area_facts=_area_guide_facts)
+    # a published story also goes to our YouTube channel as a Short drawn from its cards, with reels' slide renderer
+    from app.modules.newsroom import adapters as news_adapters
+    news_adapters.configure(render_short=_render_news_short)
     # comment replies know which posts are our agent promos (content's rule, calendar.reach)
     from app.modules.reels.agent_reels import source_tag as agent_reel_source
     engage_service.configure(listing_facts=Facts.from_docs, audience=calendar_reach.audience, reel_source=agent_reel_source)
@@ -61,6 +75,8 @@ def wire() -> None:
     # area maps: pins found by the name a project is sold under (areastats.mappins), through propertyfacts' Google Places client
     from app.modules.areastats import mappins
     mappins.configure(search=_places_search)
+    # a page's own pin is asked under the same names (propertyfacts.pin); mappins sits above enrich, so they come in here
+    project_enrich.configure(sold_names=mappins.names_for)
     project_enrich.add_daily("map pins", mappins.refresh)
     # builder logos for project pages with no picture of their own (areastats.logos)
     from app.modules.areastats import logos
@@ -230,11 +246,11 @@ async def _project_start(db, regno, agent_id):
             "others": sum(1 for x in live if x.get("agent_id") != agent_id)}
 
 
-async def _gather_project(db, regno, name, locality, city="Pune", now=None):
+async def _gather_project(db, regno, name, locality, city="Pune", now=None, names=None):
     """propertyfacts.enrich.gather_project, imported lazily (propertyfacts sits above areastats)."""
     from app.modules.propertyfacts.enrich import gather_project
 
-    return await gather_project(db, regno, name, locality, city=city, now=now)
+    return await gather_project(db, regno, name, locality, city=city, now=now, names=names)
 
 
 def _area_guide_facts(key):
@@ -306,6 +322,34 @@ async def _forget_place(db, regno):
     await db.get_collection(COLLECTION).delete_one({"_id": regno})
 
 
+def _owner_id() -> str:
+    from app.modules.engage.config import load
+
+    return load().owner_agent_id or ""
+
+
+async def _tell_agent(db, wa_id: str, name: str, template: str, params: list, text: str, about: str) -> None:
+    from datetime import datetime
+
+    from app.modules.whatsapp.router import build_service
+
+    await build_service(db=db).tell_agent(wa_id, name, template, params, text, about, datetime.utcnow())
+
+
+async def _ask_agent_about_post(db, wa_id: str) -> bool:
+    from app.modules.calendar.store import Store
+    from app.modules.propertyfacts import run_news
+
+    return await run_news.ask_by_hand(Store(db), wa_id)
+
+
+async def _tell_owner_of_stuck_runs(db, summary: str) -> None:
+    from app.modules.engage.config import load
+    from app.modules.notifications.service import notify
+
+    await notify(db, load().owner_agent_id, "marketing_stuck", summary, {"screen": "/studio"})
+
+
 async def _pincode_centre(db, pincode):
     """(lat, lon) of an Indian pincode from Nominatim, through the gatherer's shared polite client (1 request a second, cached)."""
     from app.modules.propertyfacts import place
@@ -316,3 +360,9 @@ async def _pincode_centre(db, pincode):
         return (float(rows[0]["lat"]), float(rows[0]["lon"])) if rows else None
     except (KeyError, TypeError, ValueError, IndexError):
         return None
+
+
+def _render_news_short(slides, dest, hook):
+    """The newsroom's Short: its card images as a vertical slide video opening on the headline (reels.slides)."""
+    from app.modules.reels.slides import make_slides_reel
+    return make_slides_reel(list(slides), dest, hook=hook)

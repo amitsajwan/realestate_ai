@@ -7,7 +7,7 @@
  * GET /api/v1/public/register/map?area=            an area's most active projects on its street map (areastats/areamap.py)
  * Lists come back empty on any failure; a builder page is null on a 404 and throws on an outage (never a cached 404).
  */
-import { serverApiBase } from './api'
+import { PAGE_DATA_MS, serverApiBase } from './api'
 import type { BuilderLogo } from './register'
 
 export interface ActiveProject { slug: string; name: string; fact: string; source: string; km?: number }
@@ -82,9 +82,9 @@ export interface BuilderPage {
 
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+){0,15}$/
 
-async function get<T>(path: string): Promise<{ ok: true; data: T } | { ok: false; notFound: boolean }> {
+async function get<T>(path: string, ms = 5000): Promise<{ ok: true; data: T } | { ok: false; notFound: boolean }> {
   const ctrl = new AbortController()
-  const timer = setTimeout(() => ctrl.abort(), 5000)
+  const timer = setTimeout(() => ctrl.abort(), ms)
   try {
     const res = await fetch(serverApiBase() + path, { headers: { Accept: 'application/json' }, next: { revalidate: 300 }, signal: ctrl.signal })
     if (res.status === 404) return { ok: false, notFound: true }
@@ -165,7 +165,8 @@ export async function getBuilders(): Promise<BuilderCard[]> {
 /** A builder page; { redirect } when the address is a company whose projects are all counted under a brand now. */
 export async function getBuilder(slug: string): Promise<BuilderPage | { redirect: string } | null> {
   if (!SLUG.test(slug)) return null
-  const r = await get<BuilderPage | { redirect: string }>('/api/v1/public/builders/' + encodeURIComponent(slug))
+  // the page's own data: waits as a project page does (PAGE_DATA_MS); 9 builder pages answered a crawl with 500s at 5 s (2026-11-08)
+  const r = await get<BuilderPage | { redirect: string }>('/api/v1/public/builders/' + encodeURIComponent(slug), PAGE_DATA_MS)
   if (r.ok) return r.data
   if (r.notFound) return null
   throw new Error('Builder data is temporarily unavailable')

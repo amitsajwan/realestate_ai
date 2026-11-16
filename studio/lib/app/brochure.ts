@@ -21,6 +21,8 @@ export interface BrochureFact {
   level: 'builder_claim'
   state: FactState
   edited: boolean
+  /** The home type a carpet area belongs to ("2 BHK"). */
+  config?: string
 }
 
 export type BrochureImageKind = 'floor_plan' | 'master_plan' | 'location_map' | 'render'
@@ -63,9 +65,17 @@ export interface BrochureKit {
 
 export type RegistrationAnswer = { status: 'registered'; rera_no: string } | { status: 'exempt' }
 
+/** Where the one-time background read of the listing's brochure has got to. */
+export interface BrochureReading {
+  status: 'none' | 'queued' | 'reading' | 'done' | 'failed' | 'dropped'
+  note: string | null
+}
+
 export interface BrochureApi {
   /** The kit, or null when no brochure was uploaded (404). */
   get(listingId: string): Promise<BrochureKit | null>
+  /** How the background read is going. */
+  reading(listingId: string): Promise<BrochureReading>
   /** Upload a PDF; `onProgress` gets 0..1 while the bytes go up. The server reads it before answering. */
   upload(listingId: string, file: File, onProgress?: (fraction: number) => void): Promise<BrochureKit>
   setFact(listingId: string, factId: string, state: FactState, value?: FactValue): Promise<BrochureKit>
@@ -194,6 +204,8 @@ export function createBrochureApi(opts: {
       }
     },
 
+    reading: (lid) => request<BrochureReading>(`${root(lid)}/reading`),
+
     upload: (lid, file, onProgress) =>
       new Promise<BrochureKit>((resolve, reject) => {
         const x = opts.xhr ? opts.xhr() : (new XMLHttpRequest() as unknown as XhrLike)
@@ -287,6 +299,7 @@ export function createFixtureBrochureApi(): BrochureApi {
       const k = kits.get(lid)
       return k ? copy(k) : null
     },
+    reading: async (lid) => ({ status: kits.has(lid) ? 'done' : 'none', note: null }),
     upload: async (lid, file, onProgress) => {
       const err = brochureFileError(file)
       if (err) throw new ApiError(422, err)
@@ -332,6 +345,7 @@ const pick = () => (isFixtureMode() ? (fake ??= createFixtureBrochureApi()) : re
 /** The API screens use: the fixture fake in fixture mode, else the server. */
 export const brochureApi: BrochureApi = {
   get: (...a) => pick().get(...a),
+  reading: (...a) => pick().reading(...a),
   upload: (...a) => pick().upload(...a),
   setFact: (...a) => pick().setFact(...a),
   setRegistration: (...a) => pick().setRegistration(...a),

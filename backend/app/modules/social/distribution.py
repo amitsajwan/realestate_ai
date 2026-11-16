@@ -1,4 +1,4 @@
-"""The one way out to Facebook and Instagram (docs/ARCHITECTURE.md §7): every real post goes through `send`.
+"""The one way out to Facebook, Instagram and our YouTube channel (docs/ARCHITECTURE.md §7): every real post goes through `send`.
 
 `send(db, key, publish)` names what is being posted where (`key`, e.g. 'calendar:<id>' or 'news:<id>:instagram') and posts
 it at most once, whatever retries, restarts or crashes happen around it. The record is one document per key in
@@ -19,6 +19,7 @@ A paused flag (platform.controls) given to send is checked here too, so a pause 
 import logging
 import os
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Awaitable, Callable, Optional
 from urllib.parse import quote
 
@@ -26,6 +27,7 @@ import httpx
 
 from pymongo.errors import DuplicateKeyError
 
+from app.platform import youtube_upload as yt
 from app.platform.controls import is_paused
 from app.platform.meta_graph.config import SocialConfig
 from app.platform.meta_graph.graph import GRAPH_HOST, REQUEST_TIMEOUT_S, GraphPublisher
@@ -118,6 +120,38 @@ async def page_comment(cfg: SocialConfig, object_id: str, text: str, transport=N
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+YOUTUBE_PREFIX = "youtube:"
+
+
+async def youtube_short(db, ref: str, video: Path, meta: yt.VideoMeta, *, now: Callable[[], datetime] = _now,
+                        transport=None) -> Optional[Result]:
+    """Uploads a reel to our YouTube channel once per `ref` (the ledger key 'youtube:<ref>'; docs/plan/visibility-base.md step 1).
+    None, and nothing sent, when the upload is not set up (platform.youtube_upload), posting is paused, or today's uploads have
+    reached the daily cap (each costs 1,600 of 10,000 quota units). A ref already uploaded returns its earlier result."""
+    cfg = yt.load()
+    if not cfg.ready or await is_paused(db, "posting_paused"):
+        return None
+    key = YOUTUBE_PREFIX + ref
+    col = db.get_collection(COLLECTION)
+    done = await col.find_one({"_id": key, "status": "sent"})
+    if done:
+        return Result(external_id=done.get("external_id") or "", permalink=done.get("permalink"))
+    t = now()
+    day = t.replace(hour=0, minute=0, second=0, microsecond=0)
+    today = await col.find({"_id": {"$regex": "^" + YOUTUBE_PREFIX}, "status": "sent", "sent_at": {"$gte": day}}).to_list(None)
+    if len(today) >= cfg.per_day:
+        log.info("distribution: %s waits, %s YouTube uploads today already (cap %s)", key, len(today), cfg.per_day)
+        return None
+
+    async def publish() -> Result:
+        try:
+            vid = await yt.upload(cfg, video, meta, transport)
+        except yt.UploadError as e:
+            raise PublishError(sanitize(str(e), cfg.secrets)) from e
+        return Result(external_id=vid, permalink=yt.watch_url(vid))
+    return await send(db, key, publish, paused_flag="posting_paused", now=now)
 
 
 async def send(db, key: str, publish: Callable[[], Awaitable[Result]], *, dry_run: bool = False,

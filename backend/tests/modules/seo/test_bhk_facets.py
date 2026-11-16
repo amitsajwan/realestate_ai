@@ -13,7 +13,7 @@ NOW = datetime(2026, 10, 21, tzinfo=timezone.utc)
 def _doc(i, rows, completion="2028-06-30", registered="2025-03-01", place="lohegaon"):
     return {"_id": f"P{i}", "regno": f"P{i}", "name": f"Project {i}", "page_slug": f"project-{i}", "pune_place": place,
             "promoter": f"Builder {i}", "completion_now": completion, "registered_on": registered, "units_total": 100,
-            "page_text": "Written.", "prices": {"at": NOW - timedelta(days=3), "rows": [
+            "page_text": "Written.", "search_state": {"in": True, "at": NOW - timedelta(days=60)}, "prices": {"at": NOW - timedelta(days=3), "rows": [
                 {"bhk": b, "from_inr": lo, "to_inr": hi, "official": i % 2 == 0,
                  "sources": [{"site": "builder.in" if i % 2 == 0 else "site-a.com"}] + ([] if i % 2 == 0 else [{"site": "site-b.com"}])}
                 for b, lo, hi in rows]}}

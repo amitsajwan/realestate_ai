@@ -46,6 +46,10 @@ INDEXES: Iterable[Tuple[str, list, dict]] = [
     ("projects", [("locality", ASC), ("last_modified", DESC)], {}),
     # the projects a news story names, for its page's links (newsroom public)
     ("projects", [("news.item_id", ASC)], {}),
+    # a project page by its address, and an old address that redirects to it (areastats.pages.project_page): every page view
+    # and every crawl of /projects/<slug> asks one of these; without them each is a scan of the whole register
+    ("projects", [("page_slug", ASC)], {}),
+    ("projects", [("old_slugs", ASC)], {}),
     # trackers (newsroom/trackers.py): one tracker's reports, newest first
     ("newsroom_tracker_reports", [("slug", ASC), ("date", DESC)], {}),
     # marketing + social

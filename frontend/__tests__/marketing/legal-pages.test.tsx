@@ -33,6 +33,8 @@ describe('privacy page', () => {
 
   it('shows no email and says details are shared with an invite when none is configured', () => {
     const { container } = render(<PrivacyPage />)
+    // the site footer names the team behind the site with its email (site-nav.test pins it); the policy itself names none
+    container.querySelector('footer')?.remove()
     expect(container.querySelector('a[href^="mailto:"]')).toBeNull()
     expect(container.textContent).not.toMatch(/[\w.+-]+@[\w-]+\.[\w.]+/)
     expect(screen.getAllByText(/contact details are shared when you request an invite/i).length).toBeGreaterThan(0)
@@ -72,5 +74,23 @@ describe('data deletion page', () => {
     process.env.NEXT_PUBLIC_CONTACT_EMAIL = 'delete@acme.example'
     render(<DataDeletionPage />)
     expect(screen.getByText(/email delete@acme.example/i)).toBeInTheDocument()
+  })
+})
+
+describe('YouTube API disclosures (YouTube API Services Terms, needed for the upload audit)', () => {
+  it('the privacy policy says how we use YouTube and links Google\'s Privacy Policy, YouTube\'s Terms and the revoke page', () => {
+    render(<PrivacyPage />)
+    headings([/our youtube channel and the youtube api/i])
+    expect(screen.getByRole('link', { name: 'Google Privacy Policy' })).toHaveAttribute('href', 'https://policies.google.com/privacy')
+    expect(screen.getByRole('link', { name: 'YouTube Terms of Service' })).toHaveAttribute('href', 'https://www.youtube.com/t/terms')
+    expect(screen.getByRole('link', { name: /google security settings/i })).toHaveAttribute('href', 'https://security.google.com/settings/security/permissions')
+    expect(screen.getByText(/do not collect, store or share any YouTube or Google data about you/)).toBeInTheDocument()
+  })
+
+  it('the terms bind users of our YouTube content to YouTube\'s Terms of Service', () => {
+    render(<TermsPage />)
+    headings([/^youtube$/i])
+    expect(screen.getByText(/agree to be bound by the YouTube Terms of Service/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'YouTube Terms of Service' })).toHaveAttribute('target', '_blank')
   })
 })

@@ -37,6 +37,7 @@ from app.modules.marketing.maharera import ProjectRegistration, badge as maharer
 from app.modules.photoquality import rank_photos, room_order, shown, tag_photos
 from app.platform import trace
 from app.platform.text import money
+from app.platform.youtube_upload import VideoMeta
 
 from . import ffmpeg, narration, voice
 from .compose import Scene, TextLine, devanagari_clean, devanagari_ok, make_reel, plan, stretch
@@ -823,6 +824,26 @@ def ensure_worker() -> Optional[asyncio.Task]:
 
 
 _CAPTION_KIND = {"en": {"carpet": "carpet", "super built-up": "super built-up"}, "hi": _KIND["hi"], "mr": _KIND["mr"]}
+
+
+def youtube_meta(listing: dict, lang: str = "en") -> VideoMeta:
+    """The listing reel on our YouTube channel: what and where with its price as the title, the listing's page first in the
+    description, then its facts. No agent's name and never a phone number (public text names only Avasetu)."""
+    lang = lang if lang in LANGS else "en"
+    f = Facts.from_docs(listing, None, "")
+    title = f.title_line(lang)
+    if f.price_line:
+        title = f"{title}: {f.price_line}"
+    if f.locality and f.locality.lower() not in title.lower():
+        title = f"{title} | {f.locality}, Pune"
+    page = f"{brand.site()}/listings/{listing['_id']}"
+    facts = " · ".join(x for x in (f.price_line, f.area_text, f.payment_plan and f"Payment plan {f.payment_plan}",
+                                   f.rera and f"MahaRERA {f.rera}") if x)
+    lines = [f"Photos, details and a call back: {page}", facts,
+             f'Search "{brand.NAME} {f.locality or "Pune"}" on Google for every project and its MahaRERA record.',
+             f"{brand.NAME} · {brand.TAGLINE}"]
+    tags = [t for t in (f.locality, f.locality and f"{f.locality} flats", f.city or "Pune", "Pune property", "MahaRERA", brand.NAME) if t]
+    return VideoMeta(title=title, description="\n\n".join(x for x in lines if x), tags=tags, language=lang)
 
 
 def caption(listing: dict, attribution: str, lang: str = "en") -> str:

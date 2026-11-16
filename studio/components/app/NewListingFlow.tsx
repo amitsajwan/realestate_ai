@@ -35,7 +35,7 @@ function FilePick({ label, empty, file, accept, onPick, testid }: { label: strin
   )
 }
 
-/** The builder's brochure: stored with the listing, never read (reading PDFs is heavy). */
+/** The builder's brochure: read once in the background after the listing is saved (backend propertyfacts.brochure_once). */
 function BrochurePick({ file, onPick }: { file: File | null; onPick: (f: File | null) => void }) {
   return (
     <section className="space-y-1" aria-label={t('brochurePdf')}>

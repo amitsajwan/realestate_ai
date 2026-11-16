@@ -408,6 +408,7 @@ Steps: `docs/MESSENGER_SETUP.md`. Same Meta app and Page token as posting.
 | `PROJECT_ENRICH_ENABLED` | off | Starts the project-page loop: the daily hot-projects score and page text for one project every interval. Publishes nothing to social media. |
 | `PROJECT_ENRICH_EVERY_MINUTES` | `5` (minimum 1) | One project's facts round per interval: MahaRERA (the register's own read when under 30 days old), place, pictures; its reading too when the budget has room (campaign requests go at once). |
 | `PROJECT_READ_EVERY_MINUTES` | `10` | One project whose reading was put off (no model, or the day's budget spent), premium first, when the budget has room. |
+| `PROJECT_WIDER_PER_DAY` | `60` | First reads a day of pages outside our areas; they stop by themselves at 500 Serper searches left |
 | `ENRICH_GEMINI_INR_PER_DAY` | `50` | Rupees a day the enrichment may spend on Gemini (needs `GEMINI_API_KEY`), metered from each answer's tokens; half is kept for campaigns, hot projects, pages Google shows and Upper Kharadi / Kharadi / Wagholi. Chat uses the same key and is not counted here: keep a budget alert on the key in Google Cloud. |
 | `ENRICH_FREE_CALLS_PER_DAY` | `400` | Calls a day the enrichment may make to the free tiers (Groq, GitHub Models, SambaNova, Cloudflare). |
 | `USD_INR` | `88` | The rate the Gemini meter prices tokens at. |

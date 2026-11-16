@@ -9,7 +9,7 @@ import { getMarketingConfig } from '@/lib/marketing/config'
 import { pageMetadata } from '@/lib/marketing/seo'
 import { CHECK_STYLE, checkPill, checkState, checkVerdict, extensionMonths, monthsLater } from '@/lib/site/check'
 import type { CheckState } from '@/lib/site/check'
-import { displayName, getRegisterProject, longDay, monthYear } from '@/lib/site/register'
+import { displayName, getRegisterProject, longDay, mainRegistration, monthYear } from '@/lib/site/register'
 import type { RegisterProject } from '@/lib/site/register'
 
 /** The status card (docs/plan/project-check.md): what one project's possession date did, from MahaRERA, made to be read on a phone
@@ -29,6 +29,7 @@ interface Picked {
   booked: number | null
   total: number | null
   maharera_url: string | null
+  registered: string | null
 }
 
 async function load({ params, searchParams }: Props): Promise<{ p: RegisterProject; t: Picked; slug: string } | null> {
@@ -39,15 +40,17 @@ async function load({ params, searchParams }: Props): Promise<{ p: RegisterProje
   const raw = (await searchParams)?.r
   const r = (Array.isArray(raw) ? raw[0] : raw ?? '').trim().toUpperCase()
   const tower = (p.towers ?? []).find((x) => x.regno === r && x.regno !== p.regno)
+  const main = mainRegistration(p)
   const t: Picked = tower
     ? { regno: tower.regno, label: tower.name, now: tower.completion_now, first: tower.completion_at_registration,
         moved: monthsLater(tower.completion_now, tower.completion_at_registration, tower.registered_on),
         ext: extensionMonths(tower.completion_now, tower.registered_on), booked: tower.units_booked, total: tower.units_total,
-        maharera_url: tower.maharera_url }
-    : { regno: p.regno, label: (p.towers ?? []).length > 1 ? p.name : null, now: p.completion_now, first: p.completion_at_registration,
-        moved: p.details?.completion_moved_months ?? monthsLater(p.completion_now, p.completion_at_registration, p.details?.registered_on),
-        ext: extensionMonths(p.completion_now, p.details?.registered_on),
-        booked: p.units_booked, total: p.units_total, maharera_url: p.maharera_url }
+        maharera_url: tower.maharera_url, registered: tower.registered_on }
+    // the check is of one registration, named when the project has several: the main one's own record
+    : { regno: main.regno, label: (p.towers ?? []).length > 1 ? p.name : null, now: main.completion_now, first: main.completion_at_registration,
+        moved: main.details?.completion_moved_months ?? monthsLater(main.completion_now, main.completion_at_registration, main.details?.registered_on),
+        ext: extensionMonths(main.completion_now, main.details?.registered_on),
+        booked: main.units_booked, total: main.units_total, maharera_url: p.maharera_url, registered: main.details?.registered_on ?? null }
   return { p, t, slug }
 }
 
@@ -127,7 +130,7 @@ export default async function CheckCardPage(props: Props) {
             <Fact label="Homes booked" value={t.booked != null && t.booked <= t.total ? `${Math.round((100 * t.booked) / t.total)}%` : 'Not reported'}
               sub={t.booked != null && t.booked <= t.total ? `${n(t.booked)} of ${n(t.total)}` : `${n(t.total)} homes`} />
           ) : null}
-          {p.details?.registered_on && <Fact label="Registered" value={monthYear(p.details.registered_on)} sub={longDay(p.details.registered_on)} />}
+          {t.registered && <Fact label="Registered" value={monthYear(t.registered)} sub={longDay(t.registered)} />}
           {towers.length > 1 && <Fact label="Registrations" value={towers.length} sub="towers or phases, each with its own date" />}
         </dl>
 

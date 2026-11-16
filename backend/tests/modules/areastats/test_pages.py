@@ -268,11 +268,30 @@ def test_a_project_with_no_homes_is_offices_whatever_its_type_says():
     assert pages.homes({**FULL, "project_type": "Residential / Group Housing"})
 
 
-def test_offices_and_shops_are_never_in_search_however_full_the_page():
+def test_offices_and_shops_go_into_search_by_the_same_rule_as_homes():
     full = {**FULL, "page_text": "About the project.", "profile": {"photos": [{"path": "b.webp", "source": "builder"}]}}
     assert pages.searchable(full)
-    assert not pages.searchable({**full, "project_type": "Commercial"})
-    assert not pages.searchable({**full, "project_type": "Others", **OFFICES})
+    assert pages.searchable({**full, "project_type": "Commercial"})
+    assert pages.searchable({**full, "project_type": "Others", **OFFICES})
+    assert not pages.searchable({**full, "project_type": "Commercial", "page_text": ""})
+
+
+def test_offices_called_homes_stay_out_until_written_again():
+    full = {**FULL, "page_text": "About the project.", "project_type": "Commercial", "profile": {"photos": [{"path": "b.webp", "source": "builder"}]}}
+    assert not pages.searchable({**full, "page_summary": "AP4 Tech Park in Wagholi offers residential units."})
+    assert not pages.searchable({**full, "page_text": "The homes and the building: one tower."})
+    assert pages.searchable({**full, "page_summary": "Gateway, Kharadi: commercial units, 29 in all."})
+
+
+def test_a_held_page_of_offices_called_homes_leaves_at_once():
+    assert pages.must_leave({**FULL, "page_text": "Fine homes.", "project_type": "Commercial"})
+    assert not pages.must_leave({**FULL, "page_text": "Fine offices.", "project_type": "Commercial"})
+
+
+def test_a_flat_price_is_no_fact_of_its_own_on_a_page_of_offices():
+    priced = {**FULL, "prices": {"rows": [{"bhk": "2 BHK", "from_inr": 8_500_000}]}}
+    assert pages.own_facts(priced)
+    assert not pages.own_facts({**priced, "project_type": "Commercial"})
 
 
 async def test_an_offices_page_shows_no_flat_prices_and_says_it_has_no_homes():
@@ -302,3 +321,34 @@ def test_content_counts_say_what_the_pages_in_search_hold():
 
 def test_content_counts_with_no_pages():
     assert pages.content_counts([])["median_text"] == 0
+
+
+def test_an_apostrophe_s_stays_small_in_a_name_filed_in_capitals():
+    assert pages.nice_case("KINGS’S GRACE") == "Kings’s Grace"
+    assert pages.nice_case("KING'S COURT") == "King's Court"
+
+
+async def test_same_promoter_links_a_merged_project_by_its_page_never_its_towers():
+    """A tower answers 301 to its project's page: the project's own page listed its towers, Google read each as a redirect."""
+    kp = {**FULL, "promoter": "Venkatesh Buildcon"}
+    main = {"_id": "P1", "name": "Vanaya Phase 2", "page_slug": "vanaya-phase-2", "locality": "kharadi", **kp}
+    tower_a = {"_id": "P2", "name": "Vanaya Phase 5", "page_slug": "vanaya-phase-5", "locality": "kharadi", "cluster_primary": "P1", **kp}
+    tower_b = {"_id": "P3", "name": "Vanaya Phase 1", "page_slug": "vanaya-phase-1", "locality": "kharadi", "cluster_primary": "P1", **kp}
+    other = {"_id": "P4", "name": "Venkatesh Graffiti", "page_slug": "venkatesh-graffiti", "locality": "kharadi", **kp}
+    other_tower = {"_id": "P5", "name": "Venkatesh Graffiti B", "page_slug": "venkatesh-graffiti-b", "locality": "kharadi",
+                   "cluster_primary": "P4", **kp}
+    docs = [main, tower_a, tower_b, other, other_tower]
+    assert [s["slug"] for s in pages.same_promoter(main, docs)] == ["venkatesh-graffiti"]
+    assert [s["slug"] for s in pages.same_promoter(other, docs)] == ["vanaya-phase-2"]
+    ix = pages.load_index(docs)
+    assert pages.same_promoter(main, docs, ix) == pages.same_promoter(main, docs)
+
+
+def test_other_projects_show_each_name_once_and_never_the_page_itself():
+    # Godrej Ivara's page, 2026-11-13: two registrations of Lodha Camelot no cluster merged showed as two cards, two prices
+    me = {"_id": "P1", "name": "Godrej Ivara", "search_name": "Godrej Ivara"}
+    others = [{"_id": "P2", "name": "Lodha Camelot", "search_name": "Lodha Camelot"},
+              {"_id": "P3", "name": "Lodha Camelot", "search_name": "lodha camelot "},
+              {"_id": "P4", "name": "Majestique Tower East Phase-8", "search_name": "Majestique Tower East Phase-8"},
+              {"_id": "P5", "name": "Godrej Ivara", "search_name": "Godrej Ivara"}]
+    assert [d["_id"] for d in pages._one_per_name(others, me)] == ["P2", "P4"]

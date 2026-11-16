@@ -3,6 +3,8 @@ import Link from 'next/link'
 import { useParams, useSearchParams } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
 import { AskAiPanel } from '@/components/app/AskAiPanel'
+import { BadgeBox } from '@/components/app/BadgeBox'
+import { BrochureCheck } from '@/components/app/BrochureCheck'
 import { FreshnessSection } from '@/components/app/FreshnessPrompt'
 import { ListingFacts } from '@/components/app/ListingFacts'
 import { MahareraCheck } from '@/components/app/MahareraCheck'
@@ -288,6 +290,8 @@ export default function ListingDetailPage() {
             </section>
           )}
 
+          {shareable && listing.rera_no && <BadgeBox regno={listing.rera_no} name={listing.project_name || listing.title} />}
+
           {actionsFor(listing).some((a) => a.status !== 'publish') && (
             <section aria-label="Status" className="space-y-2 rounded-2xl border border-gray-200 bg-white p-4">
               <h2 className="font-bold text-gray-900">Status: {listingStatusWord(listing.status, listing.transaction).toLowerCase()}</h2>
@@ -400,13 +404,14 @@ export default function ListingDetailPage() {
               </label>
             )}
             <p className="text-sm font-semibold text-gray-800">Brochure</p>
-            <p className="text-sm text-gray-600">The builder&apos;s PDF (up to {MAX_BROCHURE_MB} MB).</p>
+            <p className="text-sm text-gray-600">The builder&apos;s PDF (up to {MAX_BROCHURE_MB} MB). We read it once and put its floor plans on the project page.</p>
             {brochures.map((b) => (
               <div key={b.url} className="flex items-center justify-between gap-2">
                 <a href={b.url} target="_blank" rel="noopener noreferrer" className="flex min-h-[44px] items-center font-semibold text-blue-700 underline">Open brochure (PDF)</a>
                 <Btn block={false} variant="secondary" disabled={busy || marketingActive} onClick={() => removeFile(b.url)}>Remove</Btn>
               </div>
             ))}
+            {brochures.length > 0 && <BrochureCheck listingId={listing.id} />}
             {brochures.length === 0 && (
               <label className="flex min-h-[44px] cursor-pointer items-center justify-center rounded-xl border border-dashed border-gray-300 p-3 text-sm font-semibold text-blue-700">
                 {busy ? 'Uploading…' : 'Add the brochure (PDF)'}

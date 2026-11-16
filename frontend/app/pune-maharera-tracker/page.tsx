@@ -3,7 +3,7 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 import AgentStrip from '@/components/marketing/AgentStrip'
 import MarketingShell from '@/components/marketing/MarketingShell'
-import { type AreaStats, type CityStats, getCityStats, longDate } from '@/components/localities/areaStats'
+import { type AreaStats, type CityStats, type DateMoves, getCityStats, longDate } from '@/components/localities/areaStats'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/seo'
 import { fixturesForced } from '@/lib/site/api'
@@ -15,7 +15,7 @@ import { fixturesForced } from '@/lib/site/api'
 export const dynamic = 'force-dynamic'
 const PATH = '/pune-maharera-tracker'
 const TITLE = 'Pune MahaRERA tracker: new home projects by area'
-const DESCRIPTION = 'How many MahaRERA-registered projects each Pune area has, how many homes are booked and when projects are due to complete. From MahaRERA public records, updated as they change.'
+const DESCRIPTION = 'How many MahaRERA-registered projects each Pune area has, how many homes are booked, when projects are due to complete and how many builders moved their possession date. From MahaRERA public records, updated as they change.'
 
 /** The figures, or an error page when none have been read since the site started: Google reads a 5xx again later, while a
  *  noindex it happens to read drops the page from search. Only fixture mode (no API at all) shows the empty, noindex page. */
@@ -34,6 +34,83 @@ const fmt = (n: number) => n.toLocaleString('en-IN')
 
 function due(a: AreaStats, year: number): number {
   return a.completing.find((c) => c.year === year)?.projects ?? 0
+}
+
+const months = (m: number) => `${m} month${m === 1 ? '' : 's'}`
+
+/** Possession dates that moved, area by area (docs/plan/visibility-base.md step 3): the figure only our dated readings of
+ *  MahaRERA give, set out so a journalist can quote it. The builder's own moves only: MahaRERA's 2026 blanket extension is
+ *  counted apart, never as a move. */
+function DateMovesReport({ city, asOf }: { city: CityStats; asOf: string }) {
+  const rows = city.areas.filter((a) => a.date_moves && a.date_moves.with_dates > 0)
+  if (!rows.length) return null
+  const sum = (k: 'with_dates' | 'moved' | 'extension_only') => rows.reduce((s, a) => s + (a.date_moves?.[k] ?? 0), 0)
+  const all = sum('with_dates')
+  const moved = sum('moved')
+  const biggest = rows.flatMap((a) => (a.date_moves?.biggest ?? []).map((b) => ({ ...b, area: a.area.name })))
+    .sort((x, y) => y.months - x.months || x.name.localeCompare(y.name)).slice(0, 8)
+  return (
+    <section className="mt-10" aria-labelledby="moves" data-testid="date-moves">
+      <h2 id="moves" className="text-2xl font-semibold text-slate-900">Possession dates that moved</h2>
+      <p className="mt-2 text-slate-700" data-testid="date-moves-answer">
+        As of {asOf}, the builders of {fmt(moved)} of {fmt(all)} home projects still being built in these areas ({all ? Math.round((100 * moved) / all) : 0}%)
+        have moved their filed completion date 3 months or more later than at registration, not counting the 4 months MahaRERA
+        added to most projects in August 2026 (Order 66/2026).
+      </p>
+      <div className="mt-4 overflow-x-auto rounded-2xl border border-slate-200">
+        <table className="w-full min-w-[560px] border-collapse text-left text-sm">
+          <caption className="sr-only">Home projects being built whose possession date moved, by Pune area, as of {asOf}</caption>
+          <thead className="bg-[#fbf6ea] text-slate-900">
+            <tr>
+              <th scope="col" className="p-3 font-semibold">Area</th>
+              <th scope="col" className="p-3 text-right font-semibold">Being built</th>
+              <th scope="col" className="p-3 text-right font-semibold">Moved by the builder</th>
+              <th scope="col" className="p-3 text-right font-semibold">Usual move</th>
+              <th scope="col" className="p-3 text-right font-semibold">Only MahaRERA&apos;s extension</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((a) => {
+              const m = a.date_moves as DateMoves
+              return (
+                <tr key={a.area.key} className="border-t border-slate-200">
+                  <th scope="row" className="p-3 font-medium"><Link href={`/localities/${a.area.slug}`} className="text-[#0f2340] underline underline-offset-2">{a.area.name}</Link></th>
+                  <td className="p-3 text-right">{fmt(m.with_dates)}</td>
+                  <td className="p-3 text-right">{fmt(m.moved)}{m.with_dates ? ` (${Math.round((100 * m.moved) / m.with_dates)}%)` : ''}</td>
+                  <td className="p-3 text-right">{m.median_months != null ? months(m.median_months) : '–'}</td>
+                  <td className="p-3 text-right">{fmt(m.extension_only)}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+          <tfoot>
+            <tr className="border-t-2 border-slate-300 font-semibold">
+              <th scope="row" className="p-3">All areas</th>
+              <td className="p-3 text-right">{fmt(all)}</td>
+              <td className="p-3 text-right">{fmt(moved)}{all ? ` (${Math.round((100 * moved) / all)}%)` : ''}</td>
+              <td className="p-3 text-right" />
+              <td className="p-3 text-right">{fmt(sum('extension_only'))}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <p className="mt-2 text-sm text-slate-600">&ldquo;Usual move&rdquo; is the middle move among the projects whose date moved. Each project counts once, however many towers it registered.</p>
+      {biggest.length > 0 && (
+        <>
+          <h3 className="mt-6 text-lg font-semibold text-slate-900">The biggest moves</h3>
+          <ul className="mt-2 list-none space-y-2 p-0">
+            {biggest.map((b) => (
+              <li key={b.regno} className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-800">
+                {b.page ? <Link href={b.page} className="font-semibold text-[#0f2340] underline underline-offset-2">{b.name}</Link> : <span className="font-semibold">{b.name}</span>}
+                {' '}({b.area}): filed for {longDate(b.from)} at registration, now {longDate(b.to)}, {months(b.months)} later by the builder
+                <span className="block text-xs text-slate-500">MahaRERA {b.regno}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </section>
+  )
 }
 
 export default async function TrackerPage() {
@@ -55,7 +132,7 @@ export default async function TrackerPage() {
     spatialCoverage: { '@type': 'Place', name: 'Pune, Maharashtra, India' },
     dateModified: city.asOf,
     isAccessibleForFree: true,
-    variableMeasured: ['MahaRERA-registered projects', 'Homes registered', 'Homes booked', 'Projects due to complete by year'],
+    variableMeasured: ['MahaRERA-registered projects', 'Homes registered', 'Homes booked', 'Projects due to complete by year', 'Projects whose possession date the builder moved'],
   }
   return (
     <MarketingShell>
@@ -107,6 +184,7 @@ export default async function TrackerPage() {
               </table>
             </div>
             <p className="mt-2 text-sm text-slate-600">&ldquo;n/a&rdquo;: MahaRERA did not give booked homes for every project in that area, so no total is shown rather than a partial one.</p>
+            <DateMovesReport city={city} asOf={asOf} />
           </>
         )}
         <section className="mt-10" aria-labelledby="how">

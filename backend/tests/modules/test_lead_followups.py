@@ -1,8 +1,10 @@
 """Lead follow-ups loop (app/modules/inbox/followups.py): auto template to fresh form leads, one alert per wait."""
 from datetime import datetime, timedelta
 
+import pytest
+
 from app.modules.inbox import followups
-from app.modules.inbox.service import InboxService
+from app.modules.inbox.service import InboxError, InboxService
 
 from .fakes import FakeDb
 
@@ -144,3 +146,45 @@ async def test_an_enquiry_off_a_project_page_keeps_the_general_follow_up():
     wa = Templates()
     assert await followups.auto_followups(db, await project_inbox(db, wa), "A", NOW) == 1
     assert [(n, p) for n, p, _ in wa.names] == [("enquiry_followup_v2", ["Rahul", "home", "your enquiry on our website"])]
+
+
+async def told_the_bot(db, **kw):
+    """Enquired, was asked the questions, answered them, then heard nothing for more than a day."""
+    await db.get_collection("whatsapp_conversations").insert_one({
+        "_id": "P:919730369091", "wa_id": "919730369091", "phone_number_id": "P", "agent_id": "A", "opted_out": False, "messages": [],
+        "last_inbound_at": NOW - timedelta(hours=35), "template_sent_at": NOW - timedelta(hours=36), **kw})
+
+
+async def test_a_buyer_who_already_answered_is_told_the_team_will_call_not_asked_again():
+    db = await setup(lead("pramod", stage="contacted", requirement={"bhk": 2, "localities": ["Kothrud"]}))
+    await told_the_bot(db)
+    wa = Templates()
+    assert (await InboxService(db, wa, now=lambda: NOW).start("A", "pramod", "person"))["sent"]
+    [(name, params, text)] = wa.names
+    assert name == "project_enquiry_v2" and params == ["Pramod", "2 BHK homes in Kothrud", "a shortlist of homes"]
+    assert "will call you shortly" in text and "part of Pune" not in text
+
+
+async def test_what_they_told_the_bot_fills_in_what_the_lead_does_not_have():
+    db = await setup(lead("pramod", stage="contacted"))
+    await told_the_bot(db, data={"bhk": 3, "locality": "Baner"})
+    wa = Templates()
+    await InboxService(db, wa, now=lambda: NOW).start("A", "pramod", "person")
+    assert wa.names[0][1][1] == "3 BHK homes in Baner"
+
+
+async def test_a_buyer_who_never_replied_is_not_sent_the_questions_a_second_time():
+    db = await setup(lead("pramod", stage="contacted"))
+    await told_the_bot(db, last_inbound_at=None)
+    wa = Templates()
+    await InboxService(db, wa, now=lambda: NOW).start("A", "pramod", "person")
+    assert [(n, p[1]) for n, p, _ in wa.names] == [("project_enquiry_v2", "a home in Pune")]
+
+
+async def test_when_the_call_template_fails_the_person_is_told_and_the_questions_do_not_go_instead():
+    db = await setup(lead("pramod", stage="contacted"))
+    await told_the_bot(db)
+    wa = Templates(refuse=("project_enquiry_v2", "project_enquiry_v1"))
+    with pytest.raises(InboxError):
+        await InboxService(db, wa, now=lambda: NOW).start("A", "pramod", "person")
+    assert [n for n, _, _ in wa.names] == ["project_enquiry_v2", "project_enquiry_v1"]
