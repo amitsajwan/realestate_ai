@@ -18,6 +18,7 @@ import { distinctPhotos } from '@/components/site/ProfilePictures'
 import CostBreakdown from '@/components/site/CostBreakdown'
 import PriceBox from '@/components/site/PriceBox'
 import PriceIdea from '@/components/site/PriceIdea'
+import LocationMapSwitch from '@/components/site/LocationMapSwitch'
 import ProjectHistory from '@/components/site/ProjectHistory'
 import { isCommercial, type Stage } from '@/lib/site/allin'
 import { areaCompareOf, areaName, askedPrices, bhkRange, completionChange, completionPassedOf, displayName, extensionSentence, headingName,
@@ -403,8 +404,12 @@ function LocationSection({ p, shown, nearby, sources }: { p: RegisterProject; sh
   return (
     <section aria-labelledby="map-title">
       <SectionHead id="map-title" title={`${shown} location`} kind={m ? 'checked' : 'unchecked'} tag={m ? 'Position checked' : 'Position not checked'} />
-      <iframe title={`Map around ${p.name}`} src={src} loading="lazy" referrerPolicy="no-referrer-when-downgrade"
-        className="mt-3 h-64 w-full rounded-xl border border-slate-200 sm:h-80" />
+      {m ? (
+        <LocationMapSwitch lat={m.lat} lon={m.lon} shown={shown} osmSrc={src} osmLink={link} />
+      ) : (
+        <iframe title={`Map around ${p.name}`} src={src} loading="lazy" referrerPolicy="no-referrer-when-downgrade"
+          className="mt-3 h-64 w-full rounded-xl border border-slate-200 sm:h-80" />
+      )}
       <p className="mt-2 text-xs text-slate-500">
         {m && p.map_from === 'google' ? "The project's pin on Google Maps, checked against its MahaRERA name and pincode."
           : m ? "Approximate area from OpenStreetMap, checked to be near the project's pincode; not the exact plot."

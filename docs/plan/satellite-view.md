@@ -1,4 +1,4 @@
-# The site from above: a satellite view on project pages (2026-11-16, TARGET)
+# The site from above: a satellite view on project pages (2026-11-16, step 2 BUILT 2026-11-16)
 
 Owner, 2026-11-16: "can we get live images of project, like satellite images", then "let's add satellite, create a plan and
 developers will follow". Nothing here is built yet. Each step is marked code or owner, and steps are in the order to build them.
@@ -56,16 +56,18 @@ for the registered name and refused a place whose name lacked the tower's code (
 - After release, count pages with `map` set on Admin → Health (or from the page check) a week later; write the before and
   after into seo-system.md section 11. Target: more than half of the project pages in search.
 
-### 2. "Map / Satellite" on the location section (code and owner, about one day)
+### 2. "Map / Satellite" on the location section (BUILT 2026-11-16)
+
+Owner still needs to do their part before the switch appears on the live site (see "What the owner does" below).
 
 | Part | What | Where |
 |---|---|---|
 | Owner | In the Google Cloud project the site uses: enable **Maps Embed API**; create a second API key restricted to HTTP referrers `https://avasetu.in/*` and to Maps Embed API only. Add it as `NEXT_PUBLIC_MAPS_EMBED_KEY` with `deploy/gcp/keys.ps1` | Google Cloud console, `deploy/gcp/.env` |
-| Code | In `LocationSection`, when `p.map` is set and the key is present, two buttons above the map: **Map** (today's OpenStreetMap embed, the default) and **Satellite** (`https://www.google.com/maps/embed/v1/view?key=…&center=<lat>,<lon>&zoom=17&maptype=satellite`). The satellite frame is created on the first tap, not before: no request to Google and no cost to page speed for a reader who never asks | `frontend/components/site/RegisterProjectPage.tsx` (a small client component beside it, as `DescriptionSwitch.tsx` is) |
-| Code | Under the satellite frame: "Google's satellite picture of the checked position. It can be months or years old, so a site being built may look emptier than it is today." | same |
-| Code | No key, or no checked position: the section renders exactly as today | same |
-| Code | No frame-source rule exists today (none in `next.config` or `deploy/gcp/`, read 2026-11-16), so nothing to allow. If one is added later it must list `www.google.com` | — |
-| Tests | jest: with a pin and a key the switch is there and the satellite frame is absent until tapped; without a pin or without a key there is no switch; the note is shown with the frame | `frontend/__tests__/site/` |
+| ~~Code~~ BUILT | In `LocationSection`, when `p.map` is set and the key is present, two buttons above the map: **Map** (today's OpenStreetMap embed, the default) and **Satellite** (`https://www.google.com/maps/embed/v1/view?key=…&center=<lat>,<lon>&zoom=17&maptype=satellite`). The satellite frame is created on the first tap, not before: no request to Google and no cost to page speed for a reader who never asks | `frontend/components/site/LocationMapSwitch.tsx` |
+| ~~Code~~ BUILT | Under the satellite frame: "Google's satellite picture of the checked position. It can be months or years old, so a site being built may look emptier than it is today." | same |
+| ~~Code~~ BUILT | No key, or no checked position: the section renders exactly as today | same |
+| ~~Code~~ BUILT | No frame-source rule exists today (none in `next.config` or `deploy/gcp/`, read 2026-11-16), so nothing to allow. If one is added later it must list `www.google.com` | — |
+| ~~Tests~~ BUILT | jest: with a pin and a key the switch is there and the satellite frame is absent until tapped; without a pin or without a key there is no switch; the note is shown with the frame | `frontend/__tests__/site/location-map-switch.test.tsx` |
 
 Not in this step: the satellite picture as the hero image or the social card. Those would need a stored picture, which
 Google's terms do not give us.
@@ -110,3 +112,4 @@ Google's terms do not give us.
 - Downloading or screenshotting Google, Bing or Esri imagery; paid imagery; drone pictures we do not own.
 - A satellite view at an area's centre for a page without its own pin.
 - Any model-written sentence about what a picture shows.
+- **Project boundary overlay.** MahaRERA gives survey numbers and a text description of what lies on each side, not a shape. A boundary drawn in the wrong place on a money-decision page is the kind of checkable error we have been removing; a wrong boundary is worse than none. It also cannot be drawn on Google's free embedded map — it needs a paid map product or a different satellite source with its own terms. A checked pin on the right plot gives most of the value with none of that risk. If a builder's own layout plan is available for a specific project, a boundary for that project could come later.
