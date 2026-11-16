@@ -7,7 +7,7 @@ from app.core.auth_backend import current_active_user
 from app.core.database import get_database
 from app.models.user import User
 
-from .live import build_live
+from .live import build_lead_visits, build_live
 from .origin import client_ip
 from .schemas import DraftIn, EventIn, InquiryIn, PingIn, StageUpdate
 from .service import TrackingError, TrackingService
@@ -60,7 +60,9 @@ async def list_leads(stage: Optional[str] = None, limit: int = Query(50, le=200)
 async def lead_detail(lead_id: str, user: User = Depends(current_active_user),
                       svc: TrackingService = Depends(get_service)):
     try:
-        return await svc.lead_detail(str(user.id), lead_id)
+        detail = await svc.lead_detail(str(user.id), lead_id)
+        detail["visits"] = await build_lead_visits(svc, lead_id)
+        return detail
     except TrackingError as e:
         raise _http(e)
 

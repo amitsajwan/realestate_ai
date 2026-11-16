@@ -555,6 +555,8 @@ export interface LeadDetail extends Lead {
   timeline: LeadEvent[]
   /** Only in the PATCH response, when the lead was marked won with a listing. The app offers to call setListingStatus. */
   suggest_listing_status?: { listing_id: string; status: 'sold' | 'rented' } | null
+  /** Their visits to the site, newest first (up to 10). Same shape as LiveStory from the Results screen. */
+  visits?: import('./live').LiveStory[]
 }
 
 /** One entry of the legacy POST /api/v1/uploads/images response `files[]`. */

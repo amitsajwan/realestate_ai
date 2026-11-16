@@ -271,3 +271,29 @@ def _today(now: datetime, visits: List[List[dict]]) -> dict:
 
 def _avg(values: List[int]) -> Optional[int]:
     return round(sum(values) / len(values)) if values else None
+
+
+MAX_LEAD_VISITS = 10
+
+
+async def build_lead_visits(svc, contact_id: str) -> list:
+    """The visit stories for one known lead, newest first (up to MAX_LEAD_VISITS).
+
+    Called from service.lead_detail to include the visit trail in the lead page.
+    """
+    views = await svc.events.find(
+        {"contact_id": contact_id, "type": {"$in": VIEW_TYPES}}
+    ).sort("ts", 1).to_list(2000)
+    if not views:
+        return []
+    acts = await svc.events.find(
+        {"contact_id": contact_id, "type": {"$in": list(ACTIONS)}}
+    ).sort("ts", 1).to_list(500)
+    words = await _searched(svc)
+    now = svc.now()
+    who: dict = {"kind": "lead", "label": ""}
+    stories = [_story(who, v, acts, now, words) for v in visits_of(views)]
+    stories.sort(key=lambda s: s["_start"], reverse=True)
+    for s in stories:
+        del s["_start"]
+    return stories[:MAX_LEAD_VISITS]

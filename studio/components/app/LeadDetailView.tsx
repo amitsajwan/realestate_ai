@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import React, { useState } from 'react'
 import { LeadConversations } from '@/components/app/LeadConversations'
+import { Trail } from '@/components/app/LiveNow'
 import { PassBox } from '@/components/app/PassBox'
 import { useIsOwner } from '@/components/app/agents/useIsOwner'
 import { AiSummaryCard, DraftPanel, FollowUpDue, MatchesList, RequirementChips } from '@/components/app/LeadPanels'
@@ -10,13 +11,15 @@ import { DealClosedSheet, LostReasonSheet, MarkSoldPrompt, OutcomeSummary } from
 import { Btn, ErrorBox, LinkBtn, STAGES, Spinner, TempChip, inputCls } from '@/components/app/ui'
 import { api, errorMessage } from '@/lib/app/client'
 import { displayPhone, timeAgo, waDigits } from '@/lib/app/format'
-import { cameFromLine, CONTACT_TONE, contactLine, eventLabel, pagesReadLine } from '@/lib/app/leads'
+import { aboutLine } from '@/lib/app/live'
+import { cameFromLine, CONTACT_TONE, contactLine, eventLabel, pagesReadLine, sourceLabel } from '@/lib/app/leads'
 import { inboxApi, type InboxThreadFull } from '@/lib/app/inbox'
 import { dealListings } from '@/lib/app/outcomes'
 import { whatsappChatUrl } from '@/lib/app/share'
 import { t } from '@shared/strings'
 import { useAsync } from '@/lib/app/useAsync'
 import type { LeadDetail, LeadPatch, Listing, OutcomeInput, Stage } from '@/lib/app/types'
+import type { LiveStory } from '@/lib/app/live'
 
 type Sheet = 'won' | 'lost' | null
 
@@ -32,6 +35,52 @@ function PageLinks({ text }: { text: string }) {
         ),
       )}
     </>
+  )
+}
+
+function VisitEntry({ s }: { s: LiveStory }) {
+  const [open, setOpen] = useState(false)
+  const time = s.start === s.end ? s.start : `${s.start}–${s.end}`
+  const from = sourceLabel(s.came_from) || 'Direct'
+  const about = aboutLine(s)
+  return (
+    <li className="rounded-xl border border-gray-200 bg-white">
+      <button type="button" onClick={() => setOpen(!open)} aria-expanded={open}
+        className="flex min-h-[44px] w-full items-start gap-2 px-3 py-2 text-left">
+        <span className="w-[5.5rem] shrink-0 pt-0.5 text-sm tabular-nums text-gray-500">{time}</span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-semibold text-gray-900">
+            From {from}{s.here_now && <span className="ml-1 text-xs font-semibold text-green-700">here now</span>}
+          </span>
+          <span className="block text-sm text-gray-600">
+            {s.pages} page{s.pages === 1 ? '' : 's'}{s.read_s ? ` · read ${Math.round(s.read_s / 60)} min` : ''} · first: {s.landing}
+          </span>
+          {about && <span className="block text-xs text-gray-500">{about}</span>}
+          {s.did.length > 0 && (
+            <span className="mt-1 flex flex-wrap gap-1">
+              {s.did.map((d, i) => <span key={i} className="rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-800">{d.what}</span>)}
+            </span>
+          )}
+        </span>
+        <span aria-hidden className="mt-1 text-gray-400">{open ? '▴' : '▾'}</span>
+      </button>
+      {open && (
+        <div className="border-t border-gray-100 px-3 py-2">
+          <Trail cameFrom={s.came_from} outside={s.outside} searched={s.searched} steps={s.steps} did={s.did} hereNow={s.here_now} pages={s.pages} />
+        </div>
+      )}
+    </li>
+  )
+}
+
+function VisitTrails({ visits }: { visits: LiveStory[] }) {
+  return (
+    <section className="space-y-2">
+      <h2 className="font-semibold">Site visits</h2>
+      <ul className="space-y-2">
+        {visits.map((s, i) => <VisitEntry key={i} s={s} />)}
+      </ul>
+    </section>
   )
 }
 
@@ -159,6 +208,7 @@ export function LeadDetailView({ id }: { id: string }) {
       {contact && <p className={`rounded-xl px-3 py-2 text-sm font-semibold ${CONTACT_TONE[contact.tone]}`}>{contact.text}</p>}
       {cameFromLine(lead) && <p className="break-words text-sm text-gray-600"><PageLinks text={cameFromLine(lead)} /></p>}
       {pagesReadLine(lead) && <p data-testid="pages-read" className="break-words text-sm text-gray-600">{pagesReadLine(lead)}</p>}
+      {lead.visits && lead.visits.length > 0 && <VisitTrails visits={lead.visits} />}
 
       {lead.outcome && (lead.stage === 'won' || lead.stage === 'lost') && (
         <OutcomeSummary
