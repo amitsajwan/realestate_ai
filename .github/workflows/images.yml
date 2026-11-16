@@ -62,5 +62,6 @@ jobs:
             NEXT_PUBLIC_CONTACT_WHATSAPP=${{ vars.NEXT_PUBLIC_CONTACT_WHATSAPP }}
             NEXT_PUBLIC_SITE_URL=https://${{ vars.SITE_HOST }}
             NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION=${{ vars.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION }}
+            NEXT_PUBLIC_MAPS_EMBED_KEY=${{ vars.NEXT_PUBLIC_MAPS_EMBED_KEY }}
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,scope=${{ matrix.image }},mode=max
