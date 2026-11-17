@@ -14,6 +14,7 @@ import ProjectCard from '@/components/site/ProjectCard'
 import ActiveProjects from '@/components/site/ActiveProjects'
 import { getActive, getAreaMap, getListed, type ListedProject } from '@/lib/site/hubs'
 import AreaMap, { showsMap } from '@/components/site/AreaMap'
+import AreaFromAbove from '@/components/site/AreaFromAbove'
 import AreaLatest from '@/components/localities/AreaLatest'
 import { AreaTrackers } from '@/components/news/Trackers'
 import { fetchTrackers } from '@/lib/news/trackers'
@@ -179,6 +180,8 @@ export default async function LocalityPage({ params }: Props) {
         <a href={l.fallback ? fallbackEnquireHref(l.slug) : enquireHref(l)} className="mt-5 inline-flex min-h-[48px] items-center rounded-full bg-amber-400 px-6 font-bold text-slate-900 no-underline">Tell us what you are looking for</a>
         {/* the area's most active projects on its street map, first thing after the intro (only areas with a drawn map) */}
         {showsMap(map) && <AreaMap data={map} listed={listed} allHref={`/projects/area/${l.slug}`} className="mt-10" />}
+        {/* no drawn map yet: Google's view from above, on tap, at a hand-set centre (only with the embed key) */}
+        {!showsMap(map) && <AreaFromAbove slug={l.slug} name={l.name} className="mt-10" />}
 
         {EAST_GUIDES.has(l.slug) && <div className="mt-10"><HomePlanBox area={l.name} /></div>}
 
