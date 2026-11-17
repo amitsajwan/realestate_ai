@@ -7,11 +7,13 @@
   "areas": ["hinjawadi", "wakad", "baner"],
   "stages": ["Construction", "Safety clearance", "Open"],
   "match": {"all": ["metro"], "any": ["hinj[ae]wadi|line 3|line-3|metro 3|metro-3"], "not": ["mumbai"]},
-  "means": "The line is built but not open. Until it runs, count your commute by road; a 'metro nearby' line in an ad means nothing yet.",
+  "means": "The line runs from Hinjawadi to District Court at 17 of its 23 stations. Before you count on it, check that the station near the home is one of the 17 open ones; Baner's and Shivajinagar's are still to open.",
   "history": [
     {"date": "2026-07-17", "stage": 0, "status": "The line missed its 15 July opening target.", "sources": ["News18"]},
     {"date": "2026-09-30", "stage": 1, "status": "The Commissioner of Metro Rail Safety cleared five more stations.", "sources": ["Pune Mirror", "Hindustan Times"]},
     {"date": "2026-10-24", "stage": 1, "status": "Ready to run but not open: five more stations were cleared for safety on 30 September, and the opening date is still not fixed because the Prime Minister's visit, expected for the inauguration, was deferred.",
-     "sources": ["Punekar News", "Hindustan Times", "The Times of India"]}
+     "sources": ["Punekar News", "Hindustan Times", "The Times of India"]},
+    {"date": "2026-11-04", "stage": 2, "status": "Open: passenger trains run between Hinjawadi and District Court at 17 of the 23 stations, after the inauguration on 3 November. The other six, including Baner's and Shivajinagar, are to open in stages by January 2027.",
+     "sources": ["Hindustan Times", "The Times of India", "International Railway Journal"]}
   ]
 }

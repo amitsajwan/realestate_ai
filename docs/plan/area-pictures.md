@@ -1,8 +1,8 @@
-# Area pages that show the place: landmarks, metro, the view from above, pictures (2026-11-17, plan only)
+# Area pages that show the place: landmarks, metro, the view from above, pictures (2026-11-17; steps 1 to 4 BUILT the same day, owner steps open)
 
 Owner, 2026-11-17: "For area pages think creative.. can we add area images. Or major attractions like metro station, places
-important ones etc. satellite view etc". Nothing here is built yet. Each step says what is code and what is the owner's, in
-the order to build them.
+important ones etc. satellite view etc". Steps 1 to 4 were built on 2026-11-17 (owner: "Everything is live, so you can build"); what each needs from the owner is
+under "What the owner does". Each step says what is code and what is the owner's, in the order they were planned.
 
 Background: [area-maps.md](area-maps.md) (the drawn street maps, live for Kharadi, Upper Kharadi, Wagholi),
 [satellite-view.md](satellite-view.md) (project pages' Map / Satellite switch, built, waiting for the owner's browser key),
@@ -31,7 +31,21 @@ knows** (an IT park, the metro, a hospital, the airport) and **no metro station*
 
 ## The plan, in order
 
-### 1. Landmarks and the metro on every area page (code, about 2 days, no owner step)
+### 1. Landmarks and the metro on every area page (BUILT 2026-11-17)
+
+Built: `app/core/pune_metro.py`, 57 stations (Lines 1, 2, 3; 46 running, 11 being built), each with its OpenStreetMap object
+(checked on Nominatim 2026-11-17) and source (Maha-Metro's station lists; Line 3 opened 4 Nov 2026 with 17 of 23 stations,
+Hindustan Times, The Times of India, International Railway Journal). `areastats/landmarks.py`: 7 to 9 hand-picked places per
+area with OSM ids. The middle is the drawn map's centre, else the boundary box's (`area_bounds`), else OSM's point for the
+place. `GET /api/v1/public/areas/{slug}/landmarks` gives the nearest 1 or 2 running stations, a nearer being-built one said as
+such, and the landmarks with rounded straight-line distances "from the middle of <area>"; the guide shows "Landmarks near
+<area>" after Getting around (`AreaLandmarks.tsx`, `ItemList` of `Place`s with geo); the drawn maps draw the ones inside
+their frame as square icons named under the map (`AreaMapLandmarks.tsx`, `landmarks` on `/register/map`). Not yet: Line 2A,
+2B (Ramwadi to Wagholi, which matters for the east) and 1B stations, no checked positions yet; Phoenix Mall of the
+Millennium; the missing street maps (Overpass is not reachable from the build machine: run
+`python scripts/build_area_map.py <area>` on the VM for baner, hinjawadi, wakad, lohegaon, keshav-nagar). The Line 3 tracker
+was a month behind (said "not open"); its 4 Nov opening was added the same day.
+
 
 What a buyer sees, after "Getting around":
 
@@ -62,7 +76,15 @@ What a buyer sees, after "Getting around":
 Why first: it answers the questions buyers ask first, needs no key and no owner decision, and it is text and links Google
 and AI assistants read ("nearest metro to Kharadi" is a common search).
 
-### 2. The area from above, on tap (code, half a day; uses the key satellite-view.md step 2 already needs)
+### 2. The area from above, on tap (BUILT 2026-11-17)
+
+Built: area maps (`/localities/<slug>`, `/projects/area/<slug>`) have Map / Satellite (Google's embed of the map box, zoom
+fitted, frame made on the first tap); guides without a drawn map get "<Area> from above" at a hand-set centre
+(`frontend/lib/site/areaCentres.ts`, OSM points from Nominatim, Lohegaon from `area_bounds`). Shared embed code:
+`frontend/components/site/mapsEmbed.tsx`. Taps are recorded as site events `satellite_open` / `streetview_open` on the visit
+(they used to post to `/t/feature`, which never existed, so project pages' taps had never been kept). Invisible until
+`NEXT_PUBLIC_MAPS_EMBED_KEY` is in the image build.
+
 
 - On the area's map: **Map / Satellite**, as on project pages. Satellite is Google's embed of the area's map box
   (`maptype=satellite`, zoom to fit), created on the first tap. Same caption rule: "Google's satellite picture. It can be
@@ -72,7 +94,17 @@ and AI assistants read ("nearest metro to Kharadi" is a common search).
 - **Owner**: the `NEXT_PUBLIC_MAPS_EMBED_KEY` from satellite-view.md step 2. Once set, project pages and area pages both get
   the switch.
 
-### 3. "How <area> grew": the same ground in 2017 and today (code, then the owner decides; the creative one)
+### 3. "How <area> grew": the same ground in 2017 and today (BUILT 2026-11-17; pictures wait for the owner's run)
+
+Built: area stats carry `registered` (projects registered with MahaRERA per year, empty years 0); the guide shows "How <area>
+grew" after the MahaRERA records, a server-rendered bar chart with a hidden table of the same numbers (left out under 3
+years). `backend/scripts/area_from_above.py <slug> [--years 2017 2026] [--box s,w,n,e] [--dry-run]` picks the least cloudy
+Feb to Apr Sentinel-2 L2A pass per year from the catalogue (tile cloud under 10%), asks the Process API
+(`sh.dataspace.copernicus.eu/process/v1`, per its OpenAPI file read 2026-11-17) for that day, refuses a picture that is cloudy or
+does not cover the box, and writes `frontend/public/areas/<slug>-<year>.webp` with `<slug>.json`. With two years there, the
+guide shows the oldest and newest with month captions, the credit and `ImageObject` data, and uses the newest as its link
+preview. No real Copernicus call has been made yet (no credentials on the build machine).
+
 
 - Sentinel-2 (Copernicus, public, free, ours to keep with its credit) is too coarse for one project (10 m a pixel; that is
   why satellite-view.md step 3 is only a trial), but **an area is 3 to 6 km across**: fields turning into towers over eight
@@ -89,7 +121,15 @@ and AI assistants read ("nearest metro to Kharadi" is a common search).
   look at the Kharadi and Wagholi pairs and say yes or no before the rest are made. If they are a blur: mark this step
   DROPPED here, nothing on the site changes.
 
-### 4. Photos of the place (owner decides the source)
+### 4. Photos of the place (BUILT 2026-11-17: own and free-licensed photos through Studio; Street View on tap as a component)
+
+Built: Studio → More → Area photos. Agents and the team upload their own photos, or free-licensed ones entered by hand with
+author, CC licence (CC0, CC BY, CC BY-SA, 2.0 to 4.0) and https source link; each needs a caption, date taken and credit.
+A photo waits until the owner publishes it; the owner can hide and reorder. Stored upright, EXIF removed (no phone GPS on a
+public page), as WebP 1600 and 640 px (`platform.media.keep_photo`); module `areaphotos` owns `area_photos`. The guide shows
+up to 8 live photos after the intro, credited, any licence linked, with `ImageObject` data. `StreetViewOnTap.tsx` is ready,
+not yet placed on a page.
+
 
 A real photo of the main road, the metro, the IT park is what buyers expect at the top of the page. Three ways, best first:
 
