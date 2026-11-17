@@ -5,7 +5,7 @@ import { createAreaPhotosApi, factsProblem } from '@/lib/app/areaPhotos'
 import type { AreaPhotoItem, AreaPhotoList } from '@/lib/app/areaPhotos'
 
 const mockApi: Record<string, jest.Mock> = {}
-;['list', 'upload', 'edit', 'publish', 'hide', 'reorder'].forEach((n) => (mockApi[n] = jest.fn()))
+;['list', 'upload', 'edit', 'publish', 'hide', 'refuse', 'publishAll', 'reorder'].forEach((n) => (mockApi[n] = jest.fn()))
 
 jest.mock('@/lib/app/session', () => ({ getToken: () => 'tok' }))
 jest.mock('@/lib/app/client', () => ({ errorMessage: (e: Error) => e.message, isFixtureMode: () => false }))
@@ -18,7 +18,8 @@ jest.mock('@/lib/app/areaPhotos', () => ({
 const photo = (id: string, status: AreaPhotoItem['status'], over: Partial<AreaPhotoItem> = {}): AreaPhotoItem => ({
   id, area: 'kharadi', url: `/uploads/area_photos/kharadi/${id}.webp`, small_url: `/uploads/area_photos/kharadi/${id}-small.webp`,
   width: 1600, height: 1067, caption: `Kharadi photo ${id}`, taken_on: '2026-11-10', credit: 'Rohan', kind: 'own', licence: null,
-  licence_url: null, source_url: null, status, order: 0, created_by: 'a1', created_at: null, mine: true, can_edit: true, ...over,
+  licence_url: null, source_url: null, status, order: 0, created_by: 'a1', created_at: null, mine: true, can_edit: true,
+  origin: 'upload', ai: null, ...over,
 })
 const list = (items: AreaPhotoItem[], can_publish = true): AreaPhotoList => ({ area: { key: 'kharadi', name: 'Kharadi', slug: 'kharadi' }, items, can_publish })
 
@@ -48,6 +49,40 @@ describe('Studio > Area photos', () => {
     const [row] = await screen.findAllByTestId('area-photo-row')
     expect(within(row).queryByTestId('area-photo-publish')).toBeNull()
     expect(within(row).queryByRole('button', { name: 'Move up' })).toBeNull()
+  })
+
+  it('shows the photo scout\'s suggestions with their reason, and the owner publishes or refuses one', async () => {
+    const suggested = photo('s1', 'suggested', {
+      origin: 'scout', kind: 'licensed', licence: 'CC BY-SA 4.0', source_url: 'https://commons.wikimedia.org/wiki/File:x.jpg',
+      ai: { score: 4, shows: ['metro'], reason: "Shows Kharadi's metro; taken March 2024; CC BY-SA 4.0." },
+    })
+    mockApi.list.mockResolvedValue(list([photo('p1', 'live'), suggested]))
+    mockApi.refuse.mockResolvedValue({ ...suggested, status: 'refused' })
+    render(<AreaPhotosPage />)
+    const section = await screen.findByTestId('area-photos-suggested')
+    expect(section).toHaveTextContent("Shows Kharadi's metro; taken March 2024; CC BY-SA 4.0.")
+    const [row] = within(section).getAllByTestId('area-photo-row')
+    expect(within(row).getByTestId('area-photo-publish')).toBeInTheDocument()
+    fireEvent.click(within(row).getByTestId('area-photo-refuse'))
+    await waitFor(() => expect(mockApi.refuse).toHaveBeenCalledWith('s1'))
+  })
+
+  it('the owner publishes every suggested photo at once', async () => {
+    mockApi.list.mockResolvedValue(list([photo('s1', 'suggested', { origin: 'scout' }), photo('s2', 'suggested', { origin: 'scout' })]))
+    mockApi.publishAll.mockResolvedValue([])
+    render(<AreaPhotosPage />)
+    await screen.findByTestId('area-photos-suggested')
+    fireEvent.click(screen.getByTestId('area-photo-publish-all'))
+    await waitFor(() => expect(mockApi.publishAll).toHaveBeenCalledWith('kharadi'))
+  })
+
+  it('an agent sees suggestions read-only, with no publish-all button', async () => {
+    mockApi.list.mockResolvedValue(list([photo('s1', 'suggested', { origin: 'scout' })], false))
+    render(<AreaPhotosPage />)
+    const section = await screen.findByTestId('area-photos-suggested')
+    expect(within(section).queryByTestId('area-photo-publish')).toBeNull()
+    expect(within(section).queryByTestId('area-photo-refuse')).toBeNull()
+    expect(screen.queryByTestId('area-photo-publish-all')).toBeNull()
   })
 
   it('sends a licensed photo only with its licence and link', async () => {

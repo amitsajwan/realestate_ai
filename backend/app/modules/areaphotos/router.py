@@ -8,6 +8,8 @@
                                          while it waits)
   POST  /area-photos/{id}/publish        (owner) show it on the area guide
   POST  /area-photos/{id}/hide           (owner) take it off the guide
+  POST  /area-photos/{id}/refuse         (owner) turn down a photo scout suggestion; never offered again
+  POST  /area-photos/publish-all         (owner) {area}: publish every photo the scout suggested for it
   PUT   /area-photos/order               (owner) {area, ids}: the order photos show in
   GET   /public/areas/{slug}/photos      the live photos for /localities/<slug>, with who took them, when, and any licence
 
@@ -125,6 +127,23 @@ async def publish(pid: str, user: User = Depends(admin_only), svc: AreaPhotos = 
 @router.post("/{pid}/hide")
 async def hide(pid: str, user: User = Depends(admin_only), svc: AreaPhotos = Depends(get_service)) -> dict:
     return _studio(await _run(svc.set_status(pid, "hidden", str(user.id))), user)
+
+
+@router.post("/{pid}/refuse")
+async def refuse(pid: str, user: User = Depends(admin_only), svc: AreaPhotos = Depends(get_service)) -> dict:
+    """Turn down a photo scout suggestion; it is never offered for this area again (its Commons page id is remembered)."""
+    return _studio(await _run(svc.set_status(pid, "refused", str(user.id))), user)
+
+
+class PublishAllIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    area: str = Field(..., min_length=1, max_length=40)
+
+
+@router.post("/publish-all")
+async def publish_all(body: PublishAllIn, user: User = Depends(admin_only), svc: AreaPhotos = Depends(get_service)) -> dict:
+    docs = await _run(svc.publish_all_suggested(body.area, str(user.id)))
+    return {"items": [_studio(d, user) for d in docs]}
 
 
 @public_router.get("/areas/{slug}/photos")

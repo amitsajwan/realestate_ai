@@ -61,12 +61,18 @@ async def _seo_rows(svc: AdminService) -> list:
     names = ["indexnow", "gsc_coverage", "gsc_pages", freshness.MARK, review.MARK]
     marks = {d["_id"]: d for d in await svc.c("newsroom_status").find({"_id": {"$in": names}}).to_list(len(names))}
     beats, now = await heartbeats.read_all(svc.db), datetime.now(timezone.utc)
+    from app.modules.areaphotos.config import load as photo_scout_cfg
+    from app.modules.areaphotos.runner import INTERVAL_S as PHOTO_SCOUT_INTERVAL_S
     loops = [health.loop_row("seo", "SEO loop", beats.get("seo"), float(SEO_INTERVAL_S) if seo_on() else None, now, "",
                              "rankings, coverage and IndexNow are not being updated"),
              health.loop_row("enrich", "Project page refresh", beats.get("project_enrich"),
                              float(ENRICH_POLL_S) if enrich_cfg().enabled else None, now,
                              "Set PROJECT_ENRICH_ENABLED=true in the server settings",
-                             "project pages are not re-read, so their dates and facts go old")]
+                             "project pages are not re-read, so their dates and facts go old"),
+             health.loop_row("photo_scout", "Photo scout", beats.get("area_photo_scout"),
+                             float(PHOTO_SCOUT_INTERVAL_S) if photo_scout_cfg().enabled else None, now,
+                             "Set AREA_PHOTO_SCOUT=true in the server settings",
+                             "no new Commons photos are suggested for the area guides")]
     from app.modules.communities.discover import COLLECTION as COMMUNITIES
     from app.modules.communities.runner import enabled as articles_on
     hoods = await svc.c(COMMUNITIES).find({}).to_list(None)

@@ -19,7 +19,9 @@ log = logging.getLogger(__name__)
 COLLECTION = "area_photos"
 FOLDER = "area_photos"
 KINDS = ("own", "licensed")
-STATUSES = ("pending", "live", "hidden")
+# "suggested": found and kept by the photo scout, waiting for the owner's tap (docs/plan/area-pictures.md step 4, the scout);
+# "refused": a suggestion the owner turned down, kept so the scout never offers it again.
+STATUSES = ("pending", "live", "hidden", "suggested", "refused")
 # the free licences a photo may carry, with the deed a page links to; anything else (NC, ND, "all rights reserved") is refused
 LICENCES: Dict[str, str] = {
     "CC0": "https://creativecommons.org/publicdomain/zero/1.0/",
@@ -100,7 +102,8 @@ def view(d: dict) -> Dict[str, Any]:
             "width": img.get("width"), "height": img.get("height"), "caption": d["caption"], "taken_on": d["taken_on"],
             "credit": d["credit"], "kind": d["kind"], "licence": d.get("licence"),
             "licence_url": LICENCES.get(d.get("licence") or ""), "source_url": d.get("source_url"), "status": d["status"],
-            "order": d.get("order") or 0, "created_by": d.get("created_by"),
+            "order": d.get("order") or 0, "created_by": d.get("created_by"), "origin": d.get("origin") or "upload",
+            "ai": d.get("ai"),
             "created_at": d["created_at"].isoformat() if isinstance(d.get("created_at"), datetime) else d.get("created_at")}
 
 
@@ -189,8 +192,8 @@ class AreaPhotos:
         return await self._get(pid)
 
     async def set_status(self, pid: str, status: str, user_id: str) -> dict:
-        """Publish (live) or hide. The caller checks that the user is the owner."""
-        if status not in ("live", "hidden"):
+        """Publish (live), hide, or refuse a scout suggestion. The caller checks that the user is the owner."""
+        if status not in ("live", "hidden", "refused"):
             raise PhotoRefused("Unknown status.")
         d = await self._get(pid)
         if status == "live":
@@ -198,6 +201,31 @@ class AreaPhotos:
         await self.col.update_one({"_id": pid}, {"$set": {"status": status, "updated_by": user_id, "updated_at": self.now()}})
         log.info("area photo %s %s by %s", pid, status, user_id)
         return await self._get(pid)
+
+    async def publish_all_suggested(self, key_or_slug: str, user_id: str) -> List[dict]:
+        """Every photo the scout suggested for this area, published at once (Studio's "Publish all suggested")."""
+        a = self.area(key_or_slug)
+        docs = await self.col.find({"area": a.key, "status": "suggested"}).to_list(PER_AREA_MAX)
+        now = self.now()
+        for d in docs:
+            check_facts(d, self._today())
+            await self.col.update_one({"_id": d["_id"]}, {"$set": {"status": "live", "updated_by": user_id, "updated_at": now}})
+        log.info("area photos: published all %d suggested for %s by %s", len(docs), a.key, user_id)
+        return await self.list_area(a.key)
+
+    async def add_suggestion(self, key: str, image: Dict[str, Any], facts: Dict[str, Any], commons_pageid: int,
+                             ai: Dict[str, Any], now: datetime) -> dict:
+        """One photo the scout found and already checked and kept (the image is downloaded and sized before this is
+        called); stored as `suggested`, never public until the owner publishes it. `areaphotos` stays the only writer."""
+        clean = check_facts(facts, now.astimezone(IST).date())
+        pid = uuid.uuid4().hex
+        first = await self.col.find_one({"area": key}, sort=[("order", 1)])
+        doc = {"_id": pid, "area": key, "image": image, **clean, "status": "suggested",
+               "order": ((first or {}).get("order") or 0) - 1 if first else 0, "origin": "scout",
+               "commons_pageid": commons_pageid, "ai": ai, "created_by": "scout", "created_at": now,
+               "updated_by": "scout", "updated_at": now}
+        await self.col.insert_one(doc)
+        return doc
 
     async def reorder(self, key_or_slug: str, ids: List[str], user_id: str) -> List[dict]:
         """Put an area's photos in this order; photos not named keep their order after the named ones."""
@@ -211,6 +239,23 @@ class AreaPhotos:
         for i, pid in enumerate(list(ids) + rest):
             await self.col.update_one({"_id": pid}, {"$set": {"order": i, "updated_by": user_id, "updated_at": now}})
         return await self.list_area(a.key)
+
+    async def known_pageids(self, key: str) -> List[int]:
+        """Commons page ids already stored for this area, any status: the scout never re-suggests one of these."""
+        docs = await self.col.find({"area": key, "commons_pageid": {"$exists": True}}).to_list(PER_AREA_MAX * 2)
+        return [d["commons_pageid"] for d in docs if d.get("commons_pageid")]
+
+    async def live_and_suggested_count(self, key: str) -> int:
+        return await self.col.count_documents({"area": key, "status": {"$in": ["live", "suggested"]}})
+
+    async def unflagged_uploads(self, key: str, limit: int) -> List[dict]:
+        """Agent uploads (not the scout's own) with no vision check yet, oldest first: `scout.flag_uploads` reads these."""
+        docs = await self.col.find({"area": key, "origin": {"$ne": "scout"}, "ai": {"$exists": False}}).to_list(limit * 3)
+        return sorted(docs, key=lambda d: d.get("created_at") or datetime.min)[:limit]
+
+    async def set_ai_flag(self, pid: str, ai: Dict[str, Any]) -> None:
+        """Attach the vision check's reason to an agent's own upload -- it is never rejected for it, only flagged."""
+        await self.col.update_one({"_id": pid}, {"$set": {"ai": ai}})
 
     async def public(self, slug: str) -> Optional[Dict[str, Any]]:
         """The live photos of an area for its guide, with every credit field; None for an area we do not cover."""

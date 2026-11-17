@@ -102,6 +102,7 @@ loops check the owner's pause switch (Admin → Controls, stored in the `admin_s
 | Listing reels: renders walkthrough reels in the background | `modules/reels/listing_reel.py` | on (needs a request) | continuous | none |
 | Marketing runs: an agent's campaign from the facts sheet to scheduled posts | `modules/propertyfacts/jobs.py` | on (needs a request) | continuous | none |
 | Insights: reads Meta's numbers for every published post at 1 h, 24 h, 72 h and 7 days | `modules/insights/collector.py` | `INSIGHTS_ENABLED` (on) | 15 min | off in dry run |
+| Photo scout: once a week per area, finds free-licensed photos on Wikimedia Commons, judges each with Gemini vision (same daily Gemini budget as project pages), and keeps up to 8 per area as suggestions the owner publishes or refuses in Studio → Area photos; also flags agents' own uploads with the same check (never rejects them); nudges agents once a month when an area has under 4 live+suggested photos | `modules/areaphotos/scout.py` | `AREA_PHOTO_SCOUT` | 24 h poll | none |
 | Answer gaps: questions the chat could not answer, grouped for the knowledge base | `modules/knowledge/gaps.py` | on | 1 h | none |
 
 No post, carousel or reel goes to Facebook or Instagram without a person's approval (Studio → Content, Newsroom, or Post to Avasetu on
@@ -326,6 +327,7 @@ All backend settings go in `~/app/deploy/gcp/.env` on the VM; Compose passes the
 | `WHATSAPP_OWNER_AGENT_ID` | falls back to `INTEREST_OWNER_AGENT_ID`, then `ENGAGE_OWNER_AGENT_ID` | Receives chats that name no agent. |
 | `LEAD_AUTO_FOLLOWUP` | `false` | `true` = website form leads of `WHATSAPP_OWNER_AGENT_ID` nobody contacted get the approved follow-up template 2 minutes after they come in (once per lead, paid utility message; `lead_followups` loop). The 2-hour waiting alerts run either way. |
 | `GEOIP_REFRESH` | `false` (`true` in deploy/gcp/docker-compose.yml) | `true` = the `geoip` loop (newsroom role) downloads DB-IP's free city and network files into `uploads/geoip` when missing or over 35 days old. Studio > Results then shows each visitor's approximate area and network, and visits from cloud networks count as robots. Off = no area or network, nothing else changes. `GEOIP_DIR` moves the folder. |
+| `AREA_PHOTO_SCOUT` | `false` | `true` = the photo scout loop (newsroom role, `modules/areaphotos/scout.py`) looks for free-licensed Commons photos of each area, judges them with Gemini vision and suggests up to 8 per area in Studio → Area photos; off = no Commons calls, no extra Gemini spend, Studio shows only what agents upload by hand. Spends from the same daily Gemini rupee cap as project pages (`ENRICH_GEMINI_INR_PER_DAY`); never publishes anything itself. |
 | `WHATSAPP_NUMBER_AGENTS` | `{}` | JSON map `{"<phone number id>": "<agent id>"}` for agents' own numbers (coexistence, later). |
 | `WHATSAPP_GRAPH_VERSION` | `v23.0` | Graph API version. |
 | `WHATSAPP_PUBLIC_NUMBER` | falls back to `NEXT_PUBLIC_WHATSAPP_NUMBER` | Number the website chat offers for "Continue on WhatsApp". Empty = never offered. |
