@@ -58,6 +58,9 @@ def wire() -> None:
     # area photos: any agent uploads, the operator (concierge owner) publishes, hides and orders them
     from app.modules.areaphotos import router as area_photo_routes
     area_photo_routes.configure(is_operator=is_operator)
+    # the photo scout's gap nudge: agents whose declared areas cover it, else the owner (docs/plan/area-pictures.md step 4)
+    from app.modules.areaphotos import scout as area_photo_scout
+    area_photo_scout.configure(notify_gap=_tell_agents_about_photo_gap)
     # a website request to join shows as an alert in the owner's Studio (it waits in Studio > Admin)
     waitlist_routes.configure(on_new_request=_tell_owner_about_invite_request)
 
@@ -344,6 +347,29 @@ async def _ask_agent_about_post(db, wa_id: str) -> bool:
     from app.modules.propertyfacts import run_news
 
     return await run_news.ask_by_hand(Store(db), wa_id)
+
+
+async def _tell_agents_about_photo_gap(db, area, missing: int, now) -> None:
+    """An area that ended a scout round short of photos: nudge the agents whose declared areas cover it (their site's
+    branding_data.areas, set at onboarding), or the owner when none has said this area."""
+    import logging
+
+    from app.core import brand
+    from app.modules.concierge.config import owner_ids
+    from app.modules.notifications.service import notify
+
+    text = (f"{brand.NAME} needs more photos of {area.name}: the main road, a metro or bus stop, a new tower cluster. "
+           f"Upload in Studio → Area photos.")
+    names = {area.name.lower(), *[a.lower() for a in area.aliases]}
+    agents = await db.get_collection("agent_public_profiles").find(
+        {"is_public": True, "branding_data.areas": {"$exists": True}}).to_list(500)
+    told = [a["agent_id"] for a in agents if any(str(x).lower() in names for x in (a.get("branding_data") or {}).get("areas") or [])]
+    if not told:
+        told = list(owner_ids())
+        if not told:
+            logging.getLogger(__name__).warning("photo scout: no agent for %s and no CONCIERGE_OWNER_IDS set", area.key)
+    for agent_id in told:
+        await notify(db, agent_id, "content_needs_you", text, {"screen": "/studio/area-photos"}, now=now)
 
 
 async def _tell_owner_of_stuck_runs(db, summary: str) -> None:

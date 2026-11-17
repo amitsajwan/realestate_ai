@@ -214,3 +214,57 @@ def test_signed_out_callers_get_nothing(tmp_path):
     c = TestClient(app)
     assert c.get("/area-photos", params={"area": "kharadi"}).status_code == 401
     assert c.post("/area-photos/x/publish").status_code == 401
+
+
+# ---- the photo scout's suggestions: owner-only publish, refuse and publish-all --------------------------------------------
+async def _suggestion(db, tmp_path, pid="s1", area="kharadi"):
+    svc = AreaPhotos(db, now=lambda: NOW, root=tmp_path)
+    pic = {"url": f"/uploads/area_photos/{area}/{pid}.webp", "small_url": f"/uploads/area_photos/{area}/{pid}-small.webp",
+          "width": 1600, "height": 1067}
+    return await svc.add_suggestion(area, pic, LICENSED, commons_pageid=42, ai={"score": 4, "shows": ["main_road"],
+                                   "reason": "Shows Kharadi's main road; taken March 2024; CC BY-SA 4.0."}, now=NOW)
+
+
+async def test_an_agent_sees_suggestions_read_only(tmp_path):
+    db = FakeDb()
+    await _suggestion(db, tmp_path)
+    c = client(AGENT, db, tmp_path)
+    r = c.get("/area-photos", params={"area": "kharadi"})
+    [item] = r.json()["items"]
+    assert item["status"] == "suggested" and item["origin"] == "scout" and item["ai"]["score"] == 4
+    assert c.post(f"/area-photos/{item['id']}/publish").status_code == 403
+    assert c.post(f"/area-photos/{item['id']}/refuse").status_code == 403
+    assert c.post("/area-photos/publish-all", json={"area": "kharadi"}).status_code == 403
+
+
+async def test_the_owner_publishes_a_suggestion_and_the_guide_shows_it(tmp_path):
+    db = FakeDb()
+    doc = await _suggestion(db, tmp_path)
+    owner = client(OWNER, db, tmp_path)
+    r = owner.post(f"/area-photos/{doc['_id']}/publish")
+    assert r.status_code == 200 and r.json()["status"] == "live"
+    [p] = owner.get("/public/areas/kharadi/photos").json()["photos"]
+    assert p["credit"] == LICENSED["credit"]
+
+
+async def test_the_owner_refuses_a_suggestion_and_it_stays_off_the_guide(tmp_path):
+    db = FakeDb()
+    doc = await _suggestion(db, tmp_path)
+    owner = client(OWNER, db, tmp_path)
+    r = owner.post(f"/area-photos/{doc['_id']}/refuse")
+    assert r.status_code == 200 and r.json()["status"] == "refused"
+    assert owner.get("/public/areas/kharadi/photos").json()["photos"] == []
+
+
+async def test_publish_all_suggested_publishes_every_one_for_the_area_only(tmp_path):
+    db = FakeDb()
+    for i in range(3):
+        await _suggestion(db, tmp_path, pid=f"s{i}")
+    await _suggestion(db, tmp_path, pid="other-area", area="wagholi")
+    owner = client(OWNER, db, tmp_path)
+    r = owner.post("/area-photos/publish-all", json={"area": "kharadi"})
+    assert r.status_code == 200
+    assert {i["status"] for i in r.json()["items"]} == {"live"}
+    kharadi_live = owner.get("/public/areas/kharadi/photos").json()["photos"]
+    assert len(kharadi_live) == 3
+    assert owner.get("/public/areas/wagholi/photos").json()["photos"] == []
