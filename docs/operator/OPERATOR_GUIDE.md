@@ -58,6 +58,10 @@ One Google Cloud VM runs five Docker containers with Docker Compose (`deploy/gcp
 | `worker` | same image as `backend` | `python -m app.worker`: every background loop (table below), in its own process, so restarting the API never interrupts posting or reels. Same `.env` and the same `uploads` volume. |
 | `mongo` | `mongo:7` | MongoDB, private to the compose network (no published port). Database `propertyai` by default. Volume `mongo_data`. |
 
+CPU: the site, the API, Mongo and Caddy keep Docker's default weight (1024); the background roles get less (`cpu_shares`: media 128,
+newsroom 256, conversations and embedder 512; `<ROLE>_CPU_SHARES` in `.env`), so a reel render never slows the pages Google reads.
+A weight only matters when the CPU is busy: an idle machine still renders at full speed (docs/plan/seo-system.md, 2026-11-17).
+
 Volumes: `mongo_data` (database), `uploads` (photos, cards, reels, the depth model), `caddy_data` and `caddy_config` (certificates).
 
 ### Component diagram
