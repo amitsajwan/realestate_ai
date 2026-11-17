@@ -124,3 +124,12 @@ def test_project_pages_are_counted_alone_with_why_the_others_are_not_in():
             {"_id": urls[2], "verdict": "PASS"}, {"_id": urls[3], "verdict": "PASS"}, {"_id": urls[4], "verdict": "PASS"}]
     assert coverage.project_pages(urls, docs) == {"listed": 2, "inspected": 2, "indexed": 1,
                                                   "missing_by_state": {"Discovered - currently not indexed": 1}}
+
+
+async def test_a_page_dropped_from_the_sitemap_is_marked_so_no_one_asks_google_for_it(monkeypatch):
+    store, seen = configured(monkeypatch), []
+    await coverage.run_once(store, NOW, google(seen))
+    shorter = URLS[:3]   # /news/n1 left the sitemap (a list that fell under its bar is noindex and leaves it)
+    await coverage.run_once(store, NOW + timedelta(days=1), google(seen, urls=shorter), force=True)
+    docs = {d["_id"]: d.get(coverage.LISTED) for d in await store.db.get_collection(coverage.COLLECTION).find({}).to_list(None)}
+    assert docs == {**{u: True for u in shorter}, "https://avasetu.in/news/n1": False}

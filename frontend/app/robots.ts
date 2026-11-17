@@ -2,7 +2,8 @@ import type { MetadataRoute } from 'next'
 import { getMarketingConfig } from '@/lib/marketing/config'
 
 /** The signed-in app and one-off links stay out of search; everything public is crawlable. Two sitemaps: the index of every
- *  page, and the Google News one with the last two days' stories (app/news-sitemap.xml). */
+ *  page, and the Google News one with the last two days' stories (app/news-sitemap.xml). No `Host` line: Google ignores it and
+ *  Search Console flags it; each page's canonical names the domain. */
 export const PRIVATE_PATHS = [
   '/api/', '/studio', '/join', '/login', '/register', '/i/',
   '/dashboard', '/onboarding', '/profile', '/properties', '/analytics', '/social-publishing',
@@ -13,6 +14,5 @@ export default function robots(): MetadataRoute.Robots {
   return {
     rules: [{ userAgent: '*', allow: '/', disallow: PRIVATE_PATHS }],
     sitemap: [`${base}/sitemap.xml`, `${base}/news-sitemap.xml`],
-    host: base,
   }
 }
