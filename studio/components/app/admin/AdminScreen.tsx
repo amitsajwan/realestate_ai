@@ -8,6 +8,7 @@ import { timeAgo } from '@/lib/app/format'
 import { useAsync } from '@/lib/app/useAsync'
 import { BRAND_NAME } from '@shared/brand'
 import { AddAgentSheet } from '../agents/AddAgentSheet'
+import { AreaPicturesReview } from './AreaPicturesReview'
 import { SpotlightEditor } from './SpotlightEditor'
 import { MapPinsReview } from './MapPinsReview'
 import { NavyBtn } from '../agents/InviteRequests'
@@ -211,6 +212,10 @@ export function AdminScreen() {
 
       <Section title="Map pins to check" id="map-pins">
         <MapPinsReview />
+      </Section>
+
+      <Section title="Pictures from above" id="area-pictures">
+        <AreaPicturesReview />
       </Section>
 
       <Section title="Health" id="health">

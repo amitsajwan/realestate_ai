@@ -140,9 +140,12 @@ def test_dry_run_prints_the_requests_and_needs_no_key_or_network(tmp_path):
     assert afa.main(["kharadi", "--dry-run", "--years", "2017", "--out", str(tmp_path)]) == 0
 
 
-def test_an_area_without_a_map_box_needs_one_given():
+def test_an_area_without_a_drawn_map_falls_back_to_its_boundary_then_a_square_around_its_middle():
+    # Baner has no drawn map and no boundary (app/core/area_bounds.py): it falls back to a square around its hand-set
+    # middle (areastats.landmarks.middle), so every one of our areas gets a box without needing --box (box_for.py tests).
     lines = []
-    assert afa.run("baner", [2017], dry_run=True, echo=lines.append) == 1 and "pass --box" in lines[0]
+    assert afa.run("baner", [2017], dry_run=True, echo=lines.append) == 0
+    assert '"bbox": [\n    73.76557,\n    18.54103,\n    73.80347,\n    18.57696\n  ]' in "\n".join(lines)
     lines.clear()
     assert afa.run("baner", [2017], afa.parse_box("18.545,73.765,18.580,73.800"), dry_run=True, echo=lines.append) == 0
     assert "[\n    73.765,\n    18.545,\n    73.8,\n    18.58\n  ]" in "\n".join(lines)

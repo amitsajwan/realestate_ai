@@ -29,12 +29,12 @@ LoopTable = Dict[str, Callable[[], Awaitable[Any]]]
 ALL_LOOP_NAMES = (
     "engage", "newsroom", "calendar", "calendar_reels", "listing_reels", "marketing_runs", "project_enrich", "insights",
     "answer_gaps", "inbound_messages", "token_cleanup", "radar", "seo", "communities", "knowledge_index", "lead_followups",
-    "video_cleanup", "geoip",
+    "video_cleanup", "geoip", "area_pictures",
 )   # render_dispatch is not among them: only the `dispatch` role starts it (it calls Cloud Run; development has none)
 ROLE_LOOPS = {
     "conversations": ("engage", "answer_gaps", "inbound_messages", "lead_followups"),
     "newsroom": ("newsroom", "seo", "communities", "project_enrich", "radar", "insights", "calendar", "token_cleanup",
-                 "knowledge_index", "video_cleanup", "geoip"),
+                 "knowledge_index", "video_cleanup", "geoip", "area_pictures"),
     "media": ("calendar_reels", "listing_reels", "marketing_runs"),
     # on the VM in place of media once reels are drawn by the Cloud Run Job (reels.render_job): it only starts that job
     "dispatch": ("render_dispatch",),
@@ -45,6 +45,7 @@ def loops() -> LoopTable:
     """Lease name -> loop. The names are also the heartbeat names."""
     from app.modules.admin.video_cleanup import loop as video_cleanup_loop
     from app.modules.areastats.enrich import loop as enrich_loop
+    from app.modules.areastats.picturesloop import loop as area_pictures_loop
     from app.modules.calendar.runner import loop as calendar_loop
     from app.modules.calendar.runner import render_loop as calendar_reels_loop
     from app.modules.engage.runner import loop as engage_loop
@@ -68,7 +69,8 @@ def loops() -> LoopTable:
             "answer_gaps": gaps_loop, "inbound_messages": inbound_loop, "token_cleanup": token_cleanup_loop,
             "radar": radar_loop, "seo": seo_loop,
             "communities": communities_loop, "knowledge_index": knowledge_index_loop, "render_dispatch": dispatch_loop,
-            "lead_followups": lead_followups_loop, "video_cleanup": video_cleanup_loop, "geoip": geoip_loop}
+            "lead_followups": lead_followups_loop, "video_cleanup": video_cleanup_loop, "geoip": geoip_loop,
+            "area_pictures": area_pictures_loop}
 
 
 def requested_loop_names(role: Optional[str] = None, value: Optional[str] = None) -> Tuple[str, ...]:
@@ -131,6 +133,8 @@ def expected_intervals() -> Dict[str, Optional[float]]:
     from app.modules.admin.video_cleanup import INTERVAL_S as VIDEO_CLEANUP_INTERVAL_S
     from app.modules.areastats.enrich import POLL_SECONDS as ENRICH_POLL_S
     from app.modules.areastats.enrich import load as enrich_cfg
+    from app.modules.areastats.picturesloop import POLL_SECONDS as AREA_PICTURES_INTERVAL_S
+    from app.modules.areastats.picturesloop import enabled as area_pictures_on
     from app.modules.calendar.config import load as calendar_cfg
     from app.modules.calendar.runner import PRERENDER_INTERVAL_S
     from app.modules.engage.config import load as engage_cfg
@@ -175,6 +179,7 @@ def expected_intervals() -> Dict[str, Optional[float]]:
         "lead_followups": float(LEAD_FOLLOWUPS_INTERVAL_S),  # always on (waiting alerts); LEAD_AUTO_FOLLOWUP adds the auto template
         "video_cleanup": float(VIDEO_CLEANUP_INTERVAL_S),  # always on (drawn reels older than 2 days)
         "geoip": float(GEOIP_INTERVAL_S) if geoip_on() else None,  # GEOIP_REFRESH (area/network files for the Live panel)
+        "area_pictures": float(AREA_PICTURES_INTERVAL_S) if area_pictures_on() else None,  # AREA_FROM_ABOVE + Copernicus creds
     }
 
 

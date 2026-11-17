@@ -53,7 +53,7 @@ from app.modules.admin.router import router as admin_router
 from app.modules.reels.router import router as listing_reels_router
 from app.modules.photoquality.router import router as quality_router
 from app.modules.agentprojects.router import router as agentprojects_router, public_router as agentprojects_public_router
-from app.modules.areastats.router import public_router as areastats_public_router
+from app.modules.areastats.router import public_router as areastats_public_router, router as areastats_router
 from app.modules.areaphotos.router import public_router as area_photos_public_router, router as area_photos_router
 from app.api.v1.endpoints.listing_sellers import router as listing_sellers_router
 from app.modules.seo.router import owner_router as seo_owner_router
@@ -121,6 +121,7 @@ api_router.include_router(quality_router, prefix="/quality", tags=["quality"])
 api_router.include_router(agentprojects_router, prefix="/agentprojects", tags=["agent-projects"])
 api_router.include_router(agentprojects_public_router, prefix="/public", tags=["public"])
 api_router.include_router(areastats_public_router, prefix="/public", tags=["public"])
+api_router.include_router(areastats_router, prefix="/area-pictures", tags=["area-pictures"])
 api_router.include_router(area_photos_router, prefix="/area-photos", tags=["area-photos"])
 api_router.include_router(area_photos_public_router, prefix="/public", tags=["public"])
 api_router.include_router(seo_public_router, prefix="/public", tags=["public"])

@@ -114,6 +114,20 @@ def keep_photo(body: bytes, folder: str, name: str, min_side: int = 0, root: Pat
     return out
 
 
+def keep_picture(im: Image.Image, folder: str, name: str, root: Path = UPLOADS) -> Dict[str, Any]:
+    """Save one already-decoded picture as uploads/<folder>/<name>.webp, exactly as given: one size, no EXIF handling
+    (there is none to strip: a Sentinel-2 render, not a phone photo). For `areastats`'s pictures from above
+    (docs/plan/area-pictures.md step 3), which keep_photo's two-size, EXIF-aware shape does not fit. Returns
+    {url, width, height}; the url is site-relative (/uploads/...), as keep_photo's."""
+    if not _NAME_RE.match(name) or not all(_NAME_RE.match(p) for p in folder.split("/")):
+        raise PhotoError("bad file name")
+    out_dir = root / folder
+    out_dir.mkdir(parents=True, exist_ok=True)
+    rel = (root / folder).relative_to(root).as_posix()
+    im.save(out_dir / f"{name}.webp", "WEBP", quality=82, method=6)
+    return {"url": f"/uploads/{rel}/{name}.webp", "width": im.width, "height": im.height}
+
+
 def drop_photo(folder: str, name: str, root: Path = UPLOADS) -> None:
     """Remove what keep_photo saved (a record that could not be stored afterwards). Never raises."""
     for suffix, _ in PHOTO_SIZES:

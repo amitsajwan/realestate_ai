@@ -4,7 +4,7 @@ import io
 import pytest
 from PIL import Image
 
-from app.platform.media import PhotoError, drop_photo, keep_photo
+from app.platform.media import PhotoError, drop_photo, keep_photo, keep_picture
 
 
 def photo(w, h, orientation=None) -> bytes:
@@ -45,3 +45,13 @@ def test_drop_photo_removes_both_sizes(tmp_path):
     assert len(list(tmp_path.rglob("*.webp"))) == 2
     drop_photo("x", "a", root=tmp_path)
     assert not list(tmp_path.rglob("*.webp"))
+
+
+def test_keep_picture_saves_one_size_with_no_resize_or_exif_handling(tmp_path):
+    from PIL import Image
+    im = Image.new("RGB", (1000, 994), (90, 110, 80))
+    out = keep_picture(im, "area_pictures", "kharadi-2017", root=tmp_path)
+    assert out == {"url": "/uploads/area_pictures/kharadi-2017.webp", "width": 1000, "height": 994}
+    assert Image.open(tmp_path / "area_pictures" / "kharadi-2017.webp").size == (1000, 994)
+    with pytest.raises(PhotoError):
+        keep_picture(im, "../etc", "a", root=tmp_path)

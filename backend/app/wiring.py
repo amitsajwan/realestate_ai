@@ -58,6 +58,9 @@ def wire() -> None:
     # area photos: any agent uploads, the operator (concierge owner) publishes, hides and orders them
     from app.modules.areaphotos import router as area_photo_routes
     area_photo_routes.configure(is_operator=is_operator)
+    # the area-from-above pictures (areastats.pictures): the operator approves or refuses the AI judge's picks
+    from app.modules.areastats import router as area_stats_routes
+    area_stats_routes.configure(is_operator=is_operator)
     # a website request to join shows as an alert in the owner's Studio (it waits in Studio > Admin)
     waitlist_routes.configure(on_new_request=_tell_owner_about_invite_request)
 
