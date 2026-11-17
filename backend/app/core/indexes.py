@@ -15,6 +15,9 @@ INDEXES: Iterable[Tuple[str, list, dict]] = [
     # agent projects: one per (agent, slug); public site reads live ones in order
     ("agent_projects", [("agent_id", ASC), ("slug", ASC)], {"unique": True}),
     ("agent_projects", [("agent_id", ASC), ("status", ASC), ("order", ASC)], {}),
+    # area photos: an area's guide reads its live ones in order; Studio lists an area's; uploads are counted per person per day
+    ("area_photos", [("area", ASC), ("status", ASC), ("order", ASC)], {}),
+    ("area_photos", [("created_by", ASC), ("created_at", DESC)], {}),
     # public agent sites: looked up by slug on every visit
     ("agent_public_profiles", [("slug", ASC)], {"unique": True, "sparse": True}),
     ("agent_public_profiles", [("agent_id", ASC)], {}),
