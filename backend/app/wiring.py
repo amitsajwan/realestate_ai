@@ -55,6 +55,9 @@ def wire() -> None:
     # the radar's review queue is the operator's (concierge owner) until signals are routed to agents
     from app.modules import radar
     radar.configure(is_operator=is_operator)
+    # area photos: any agent uploads, the operator (concierge owner) publishes, hides and orders them
+    from app.modules.areaphotos import router as area_photo_routes
+    area_photo_routes.configure(is_operator=is_operator)
     # a website request to join shows as an alert in the owner's Studio (it waits in Studio > Admin)
     waitlist_routes.configure(on_new_request=_tell_owner_about_invite_request)
 
