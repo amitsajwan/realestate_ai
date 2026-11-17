@@ -15,6 +15,8 @@ import ActiveProjects from '@/components/site/ActiveProjects'
 import { getActive, getAreaMap, getListed, type ListedProject } from '@/lib/site/hubs'
 import AreaMap, { showsMap } from '@/components/site/AreaMap'
 import AreaLatest from '@/components/localities/AreaLatest'
+import AreaPhotos from '@/components/localities/AreaPhotos'
+import { getAreaPhotos } from '@/components/localities/areaPhotoData'
 import { AreaTrackers } from '@/components/news/Trackers'
 import { fetchTrackers } from '@/lib/news/trackers'
 import AreaRecords from '@/components/localities/AreaRecords'
@@ -138,6 +140,7 @@ export default async function LocalityPage({ params }: Props) {
   const slug = (await params).slug
   if (!validSlug(slug)) notFound()
   const l = pageLocality(slug)
+  const photosRead = l.fallback ? Promise.resolve([]) : getAreaPhotos(l.slug)   // read alongside the rest; never rejects
   const [listings, projects, stats, posts, news, hoods, active, facets, map, listed, trackers] = await Promise.all([
     getLocalityListings(l.listingName), getCatalog(l.listingName), l.fallback ? Promise.resolve(null) : getAreaStats(l.slug),
     l.fallback ? Promise.resolve([]) : getAreaPosts(l, 6), l.fallback ? Promise.resolve([]) : getAreaNews(l, 5),
@@ -148,6 +151,7 @@ export default async function LocalityPage({ params }: Props) {
     l.fallback ? Promise.resolve(new Map<string, ListedProject>()) : getListed(),
     l.fallback ? Promise.resolve([]) : fetchTrackers(l.key),
   ])
+  const photos = await photosRead
   // the block shows when something tracked touches this area; the city-wide rates come along with it, never alone
   const nearby = trackers.some((t) => t.areas.some((a) => a.slug === l.slug)) ? trackers : []
   // the area's own lists (new launches, 2 BHK flats ...) and the agents' pages that still answer here
@@ -177,6 +181,8 @@ export default async function LocalityPage({ params }: Props) {
         {l.updated && l.updatedLabel && <p className="mt-2 text-sm text-slate-600">Last updated: <time dateTime={l.updated}>{l.updatedLabel}</time></p>}
         <p className="mt-5 text-lg leading-relaxed text-slate-800">{l.summary}</p>
         <a href={l.fallback ? fallbackEnquireHref(l.slug) : enquireHref(l)} className="mt-5 inline-flex min-h-[48px] items-center rounded-full bg-amber-400 px-6 font-bold text-slate-900 no-underline">Tell us what you are looking for</a>
+        {/* real photos of the place, credited (Studio > Area photos); nothing when none is published */}
+        <AreaPhotos name={l.name} photos={photos} className="mt-10" />
         {/* the area's most active projects on its street map, first thing after the intro (only areas with a drawn map) */}
         {showsMap(map) && <AreaMap data={map} listed={listed} allHref={`/projects/area/${l.slug}`} className="mt-10" />}
 
