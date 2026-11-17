@@ -77,6 +77,14 @@ async def test_request_list_leaves_out_project_pages_that_are_not_in_search():
     assert SITE + "/projects/quiet-tower" in urls and SITE + "/projects/area/baner" in urls
 
 
+async def test_request_list_leaves_out_pages_no_longer_in_the_sitemap():
+    store = await store_with_waiting_pages()
+    gone = SITE + "/projects/area/hadapsar"   # fell under its bar: noindex now, and out of the sitemap (2026-11-17: wakad/top)
+    await store.db.get_collection(coverage.COLLECTION).update_one({"_id": gone}, {"$set": {coverage.LISTED: False}})
+    urls = [r["url"] for r in await note.request_list(store)]
+    assert gone not in urls and SITE + "/projects/area/baner" in urls
+
+
 async def test_request_list_is_empty_when_nothing_waits():
     assert await note.request_list(Store(FakeDb())) == []
 

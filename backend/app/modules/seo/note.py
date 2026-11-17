@@ -67,8 +67,10 @@ def _rank(path: str, p: dict) -> tuple:
 
 
 async def request_list(store: Store, n: int = PER_DAY * 7) -> List[dict]:
-    """Up to n not-indexed sitemap pages, most worth a Request-indexing first: [{url, state, why}]."""
-    docs = await store.db.get_collection(coverage.COLLECTION).find({"state": {"$in": list(WAITING)}}).to_list(None)
+    """Up to n not-indexed sitemap pages, most worth a Request-indexing first: [{url, state, why}]. A page that has left the
+    sitemap since it was inspected is left out: it is noindex or redirects now (2026-11-17, /projects/area/wakad/top)."""
+    docs = await store.db.get_collection(coverage.COLLECTION).find(
+        {"state": {"$in": list(WAITING)}, coverage.LISTED: {"$ne": False}}).to_list(None)
     if not docs:
         return []
     by_slug = {d.get("page_slug"): d for d in await store.shared_projects() if d.get("page_slug")}

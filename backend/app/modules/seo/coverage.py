@@ -6,7 +6,7 @@ never inspected first, then those inspected longest ago, so the whole sitemap (~
 with less than SHORT of the pages the last day counted (the index is served stale for up to 10 minutes after a deploy) does
 not count as the day's run: the next round reads it again. A sitemap still short after SHORT_WAIT has really shrunk and is
 counted (2026-10-27 we cut it from 13,178 pages to 345, and the check skipped itself for a week). Each answer
-is kept in `seo_index` ({_id: url, state, verdict, crawled, checked_at}) and the summary on the `gsc_coverage` mark: how many
+is kept in `seo_index` ({_id: url, state, verdict, crawled, checked_at, in_sitemap}) and the summary on the `gsc_coverage` mark: how many
 current sitemap pages are indexed, the same per child sitemap (`by_sitemap`: area-kharadi, core, builders...: listed, inspected,
 indexed, so the lagging area gets the Request-indexing turns first), the same for project pages alone (`projects`: an area's row
 mixes them with its list pages), why the others are not (count per Search Console state, e.g. "Crawled - currently not
@@ -39,6 +39,7 @@ EVERY = timedelta(hours=24)
 COLLECTION = "seo_index"
 MARK = "gsc_coverage"
 EXAMPLES = 20
+LISTED = "in_sitemap"   # False once a page has left the sitemap: a list under its bar is noindex then, not one to ask Google for
 PROJECT_PAGE = re.compile(r"^https?://[^/]+/projects/(?!upcoming$)[^/]+$")
 
 
@@ -65,6 +66,14 @@ async def save(db, url: str, result: dict, now: datetime) -> None:
         await coll.update_one({"_id": url}, {"$set": fields})
     else:
         await coll.insert_one({"_id": url, **fields})
+
+
+async def mark_listed(db, urls: List[str]) -> None:
+    """Note which inspected pages the sitemap lists today. A page keeps its last answer after it leaves the sitemap (the
+    summary skips it), but nothing should offer it for a Request-indexing: it is noindex or redirects now."""
+    coll = db.get_collection(COLLECTION)
+    await coll.update_many({"_id": {"$in": urls}}, {"$set": {LISTED: True}})
+    await coll.update_many({"_id": {"$nin": urls}}, {"$set": {LISTED: False}})
 
 
 async def indexed_paths(db) -> Set[str]:
@@ -129,6 +138,7 @@ async def run_once(store: Store, now: datetime, transport: Optional[httpx.AsyncB
                 return None
             log.warning("coverage: sitemap has listed under %s pages since %s; counting it as the real size", int(before * SHORT), since)
         bearer = await searchconsole.token(sa, c)
+        await mark_listed(store.db, urls)
         todo = await pick(store.db, urls, PER_DAY)
         done, stop = 0, False
 
