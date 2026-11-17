@@ -23,9 +23,28 @@ export interface AreaMapItem {
   photo: { url: string; alt: string; source: string } | null
 }
 
+export type MapLandmarkIcon = 'metro' | 'office' | 'hospital' | 'shopping' | 'airport' | 'rail' | 'college'
+
+/** A landmark or metro station inside the map's frame (backend areastats/landmarks.on_map), drawn as a small square icon apart
+ *  from the numbered project pins. `running` is set for metro stations only. */
+export interface MapLandmark {
+  name: string; icon: MapLandmarkIcon; x: number; y: number; lat: number; lon: number; label: string; running?: boolean
+}
+
 export interface AreaMapData {
   area: string; area_slug: string; name: string; map: string; box: number[]; attribution: string
   items: AreaMapItem[]; left_out: number
+  /** absent from answers made before the landmarks were added */
+  landmarks?: MapLandmark[]
+}
+
+const ICONS = new Set<MapLandmarkIcon>(['metro', 'office', 'hospital', 'shopping', 'airport', 'rail', 'college'])
+const frac = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 1
+
+/** Only icons the map can draw where they belong: a known kind, inside the frame, with a name. */
+export function mapLandmarks(raw: unknown): MapLandmark[] {
+  return (Array.isArray(raw) ? raw : []).filter((m): m is MapLandmark => !!m && typeof m === 'object'
+    && typeof m.name === 'string' && m.name.trim() !== '' && typeof m.label === 'string' && ICONS.has(m.icon) && frac(m.x) && frac(m.y))
 }
 
 export interface BuilderCard {
@@ -101,7 +120,7 @@ async function get<T>(path: string, ms = 5000): Promise<{ ok: true; data: T } | 
 export async function getAreaMap(area: string): Promise<AreaMapData | null> {
   if (!SLUG.test(area.replace(/_/g, '-'))) return null
   const r = await get<AreaMapData>('/api/v1/public/register/map?area=' + encodeURIComponent(area))
-  return r.ok && Array.isArray(r.data?.items) ? r.data : null
+  return r.ok && Array.isArray(r.data?.items) ? { ...r.data, landmarks: mapLandmarks(r.data.landmarks) } : null
 }
 
 export async function getActive(where: { area?: string; place?: string }, limit = 8): Promise<ActiveProject[]> {

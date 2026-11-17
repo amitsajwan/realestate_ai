@@ -5,6 +5,7 @@ import type { AreaMapData, AreaMapItem } from '@/lib/site/hubs'
 import { formatPrice } from '@/lib/site/format'
 import { formatDay } from '@/lib/site/projects'
 import { MapTypeSwitch, boxCentre, mapsEmbedKey, satelliteSrc, sendFeature, zoomToFit, type MapMode } from './mapsEmbed'
+import { MapLandmarkIcons, MapLandmarkLegend } from './AreaMapLandmarks'
 
 /** The interactive part of the area map (AreaMap.tsx): pins on the drawn street map, the picked project's card and the numbered
  *  list. The server renders it with the first project picked, so it reads in full without JavaScript; picking a pin and lighting
@@ -90,6 +91,8 @@ export default function AreaMapView({ data, items }: { data: AreaMapData; items:
           {/* the streets are a picture: what it shows is said in the list beside it */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={data.map} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full" />
+          {/* landmarks and metro stations: square icons under the round project pins, named in the legend below */}
+          <MapLandmarkIcons items={data.landmarks ?? []} />
           {items.map((x) => {
             const on = x.n === p.n || x.n === lit
             const side = x.n === p.n ? (labels[x.n] ?? toMiddle(x)) : labels[x.n]
@@ -122,6 +125,7 @@ export default function AreaMapView({ data, items }: { data: AreaMapData; items:
           <li className="flex items-center gap-1.5"><span aria-hidden="true" className="h-3 w-3 rounded-full bg-[#2f5fa7] ring-2 ring-[#f0b440]" />Listed by a local agent</li>
           <li className="text-slate-600">{data.attribution}</li>
         </ul>
+        <MapLandmarkLegend items={data.landmarks ?? []} />
       </div>
 
       <div className="min-w-0 flex-[1_1_320px]">

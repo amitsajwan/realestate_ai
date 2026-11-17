@@ -106,7 +106,7 @@ async def public_places(response: Response, db=Depends(get_db)) -> list:
 
 
 # ---- internal links and builder pages (docs/plan/rank-loop.md R5, R6) -------------------------------------------------------
-from . import areamap, hubs  # noqa: E402
+from . import areamap, hubs, landmarks  # noqa: E402
 
 
 @public_router.get("/register/active")
@@ -123,6 +123,20 @@ async def public_area_map(area: str, response: Response, db=Depends(get_db)) -> 
     out = await areamap.public(db, area)
     if out is None:
         raise HTTPException(status_code=404, detail="No map for this area")
+    # the landmarks and metro stations inside the map's frame, drawn as small icons apart from the numbered pins
+    out["landmarks"] = landmarks.on_map(tuple(out["box"]))
+    response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
+    return out
+
+
+@public_router.get("/areas/{slug}/landmarks")
+async def public_area_landmarks(slug: str, response: Response) -> dict:
+    """"Landmarks near <area>": the nearest metro stations and the places buyers know, with straight-line distances from the
+    middle of the area (landmarks.py). 404 for an area we do not cover. Hand-checked data, so it can be cached as long as the
+    other public answers."""
+    out = landmarks.public(slug)
+    if out is None:
+        raise HTTPException(status_code=404, detail="Unknown area")
     response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
     return out
 
