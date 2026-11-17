@@ -121,6 +121,7 @@ source_modules =
     app.modules.notifications
     app.modules.onboarding
     app.modules.photoquality
+    app.modules.press
     app.modules.propertyfacts
     app.modules.reels
     app.modules.report

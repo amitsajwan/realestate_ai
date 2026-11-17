@@ -58,6 +58,10 @@ def wire() -> None:
     # area photos: any agent uploads, the operator (concierge owner) publishes, hides and orders them
     from app.modules.areaphotos import router as area_photo_routes
     area_photo_routes.configure(is_operator=is_operator)
+    # the monthly press agent: owner-only Studio screen, and a Studio alert once a month's drafts are ready
+    from app.modules import press
+    press.configure_router(is_operator=is_operator)
+    press.configure_runner(tell_owner=_tell_owner_press_ready)
     # a website request to join shows as an alert in the owner's Studio (it waits in Studio > Admin)
     waitlist_routes.configure(on_new_request=_tell_owner_about_invite_request)
 
@@ -196,6 +200,22 @@ async def _tell_owner_about_invite_request(name: str, city: str) -> None:
     for owner in owners:
         await notify(get_database(), owner, "invite_request", f"{name} ({city}) asked to join on the website",
                      {"screen": "/studio/admin"})
+
+
+async def _tell_owner_press_ready(result: dict) -> None:
+    """This month's press drafts are ready to review and send by hand (CLAUDE.md rule 6: nobody but the owner sends)."""
+    import logging
+
+    from app.core.database import get_database
+    from app.modules.concierge.config import owner_ids
+    from app.modules.notifications.service import notify
+
+    owners = owner_ids()
+    if not owners:
+        logging.getLogger(__name__).warning("press: no CONCIERGE_OWNER_IDS set, so nobody gets an alert (it waits in Studio > Press)")
+    text = f"{result.get('pitches', 0)} press pitch drafts ready for {result.get('month')}"
+    for owner in owners:
+        await notify(get_database(), owner, "press_drafts_ready", text, {"screen": "/studio/press"})
 
 
 async def _property_facts_watch():

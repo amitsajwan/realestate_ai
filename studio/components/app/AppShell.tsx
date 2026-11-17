@@ -23,6 +23,8 @@ const LEADS_TAB: Tab = { href: '/studio/leads', label: 'leads', icon: 'M17 20h5v
 /** Owner only (the server answers 403 to anyone else, so these are simply not shown). */
 const AGENTS_TAB: Tab = { href: '/studio/agents', label: 'agents', icon: 'M16 11a4 4 0 10-8 0 4 4 0 008 0zM4 21a8 8 0 0116 0M18 8l2 2 3-3' }
 const ADMIN_TAB: Tab = { href: '/studio/admin', label: 'admin', icon: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM9 12l2 2 4-4' }
+/** Owner only: this month's press story and the pitch drafts to journalists (docs/plan/visibility-base.md). */
+const PRESS_TAB: Tab = { href: '/studio/press', label: 'press', icon: 'M4 4h16v12H5l-1 3V4zM8 8h8M8 11h5' }
 const RADAR_TAB: Tab = { href: '/studio/radar', label: 'radar', icon: 'M12 12m-9 0a9 9 0 1018 0 9 9 0 10-18 0M12 12m-5 0a5 5 0 1010 0 5 5 0 10-10 0M12 12l6-6' }
 /** Everyone: agents send photos of their areas, the owner publishes them on the area guides (docs/plan/area-pictures.md step 4). */
 const AREA_PHOTOS_TAB: Tab = { href: '/studio/area-photos', label: 'areaPhotos', icon: 'M3 7h4l2-3h6l2 3h4v13H3zM12 17a4 4 0 100-8 4 4 0 000 8z' }
@@ -40,7 +42,7 @@ const AGENT_MORE: Tab[] = [RESULTS_TAB, CONTENT_TAB, RADAR_TAB, AREA_PHOTOS_TAB,
  * a bottom sheet with the rest.
  */
 const OWNER_BAR: Tab[] = [HOME_TAB, INBOX_TAB, CONTENT_TAB, NEWSROOM_TAB]
-const OWNER_MORE: Tab[] = [SEO_TAB, LEADS_TAB, LISTINGS_TAB, RESULTS_TAB, RADAR_TAB, AGENTS_TAB, ADMIN_TAB, AREA_PHOTOS_TAB, PROFILE_TAB]
+const OWNER_MORE: Tab[] = [SEO_TAB, LEADS_TAB, LISTINGS_TAB, RESULTS_TAB, RADAR_TAB, AGENTS_TAB, ADMIN_TAB, PRESS_TAB, AREA_PHOTOS_TAB, PROFILE_TAB]
 
 export function FixtureBanner() {
   const [on, setOn] = useState(false)

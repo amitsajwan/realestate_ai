@@ -51,7 +51,7 @@ describe('AppShell tabs', () => {
     fireEvent.click(more)
     const sheet = screen.getByRole('dialog', { name: 'More' })
     const rows = within(sheet).getAllByRole('link')
-    expect(rows.map((l) => l.getAttribute('href'))).toEqual(['/studio/seo', '/studio/leads', '/studio/listings', '/studio/results', '/studio/radar', '/studio/agents', '/studio/admin', '/studio/area-photos', '/studio/profile'])
+    expect(rows.map((l) => l.getAttribute('href'))).toEqual(['/studio/seo', '/studio/leads', '/studio/listings', '/studio/results', '/studio/radar', '/studio/agents', '/studio/admin', '/studio/press', '/studio/area-photos', '/studio/profile'])
     expect(rows[6]).toHaveAttribute('aria-current', 'page')
     expect(rows[0].className).toContain('min-h-[56px]')
     fireEvent.click(within(sheet).getByRole('button', { name: 'Close' }))

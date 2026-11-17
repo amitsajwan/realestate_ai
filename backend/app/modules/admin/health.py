@@ -151,6 +151,20 @@ def search_row(on: bool, left: Optional[int]) -> Dict:
     return _row("google_search", "Google search (Serper)", OK, f"{left} searches left")
 
 
+def press_row(enabled: bool, made_this_month: bool, beat: Optional[dict], interval_s: Optional[float], now: datetime,
+              month: str) -> Dict:
+    """Admin -> Health: whether this month's press story and pitch drafts were made (docs/plan/visibility-base.md
+    "one data report a month, pitched to press"). The owner still sends every pitch by hand."""
+    if not enabled:
+        return _row("press", "Press drafts", WARN, "Off: PRESS_AGENT is not set", "Set PRESS_AGENT=true to turn it on")
+    if made_this_month:
+        return _row("press", "Press drafts", OK, f"This month's drafts are made ({month})")
+    if interval_s is not None and heartbeats.stale(beat, interval_s, now):
+        return _row("press", "Press drafts", BAD, "Stopped: the press loop has not run",
+                    "Restart the newsroom worker, then read its log: docker logs gcp-newsroom-1 | grep pipeline=press")
+    return _row("press", "Press drafts", WARN, f"Not made yet this month ({month}); it runs in the month's first week")
+
+
 def freshness_row(mark: Optional[dict], window_days: int) -> Dict:
     """How many of our areas' live project pages were re-read lately (seo.freshness): the dated answers that get us cited."""
     m = mark or {}

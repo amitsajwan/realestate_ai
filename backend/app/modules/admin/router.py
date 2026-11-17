@@ -79,6 +79,18 @@ async def _seo_rows(svc: AdminService) -> list:
         health.freshness_row(marks.get(freshness.MARK), freshness.WINDOW.days), health.page_check_row(marks.get(review.MARK), now)]
 
 
+async def _press_row(svc: AdminService) -> dict:
+    from app.modules.press.config import load as press_cfg
+    from app.modules.press.runner import INTERVAL_S as PRESS_INTERVAL_S
+    from app.modules.press.store import Store as PressStore
+    from app.platform import heartbeats
+    cfg, now = press_cfg(), datetime.now(timezone.utc)
+    month = now.strftime("%Y-%m")
+    story = await PressStore(svc.db).story(month) if cfg.enabled else None
+    beat = (await heartbeats.read_all(svc.db)).get("press") if cfg.enabled else None
+    return health.press_row(cfg.enabled, story is not None, beat, PRESS_INTERVAL_S if cfg.enabled else None, now, month)
+
+
 @router.get("/overview")
 async def overview(user: User = Depends(owner_only), svc: AdminService = Depends(get_service), concierge=Depends(get_concierge),
                    ai_ping=Depends(get_ai_ping)) -> dict:
@@ -96,6 +108,7 @@ async def overview(user: User = Depends(owner_only), svc: AdminService = Depends
     rows += await _seo_rows(svc)
     from app.modules.areastats.websearch import credits, provider
     rows.append(health.search_row(provider() is not None, await credits()))
+    rows.append(await _press_row(svc))
     return {
         "generated_at": datetime.utcnow().isoformat() + "Z",
         "counts": await svc.counts(),

@@ -61,6 +61,7 @@ const en = {
   content: 'Content',
   agents: 'Agents',
   admin: 'Admin',
+  press: 'Press',
   profile: 'My brand and website',
   more: 'More',
   radar: 'Buyer radar',
