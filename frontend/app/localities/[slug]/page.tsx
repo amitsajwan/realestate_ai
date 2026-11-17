@@ -18,6 +18,8 @@ import AreaLatest from '@/components/localities/AreaLatest'
 import { AreaTrackers } from '@/components/news/Trackers'
 import { fetchTrackers } from '@/lib/news/trackers'
 import AreaRecords from '@/components/localities/AreaRecords'
+import AreaGrowth from '@/components/localities/AreaGrowth'
+import { areaOgImage, readAreaPictures } from '@/components/localities/areaPictures'
 import { getAreaNews, getAreaPosts } from '@/components/localities/areaFeed'
 import { getAreaStats } from '@/components/localities/areaStats'
 import { getCommunities } from '@/components/localities/communities'
@@ -90,6 +92,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: `Living in ${l.name}, Pune: area guide for home buyers`,
     description: areaDescription(l.summary),
     path: `/localities/${l.slug}`,
+    // the area from above (Sentinel-2, ours to keep) as its link preview, when the page shows the then-and-now pair
+    image: areaOgImage(l.name, await readAreaPictures(l.slug)),
   })
   // an area with its own full guide has one page for search: the guide (both ranked for "upper kharadi" and held each other back)
   const guide = (await fetchTopics()).some((t) => t.slug === l.slug)
@@ -189,6 +193,7 @@ export default async function LocalityPage({ params }: Props) {
           {l.gettingAround.map((p) => <p key={p} className="mt-3 leading-relaxed text-slate-800">{p}</p>)}</section>
 
         <AreaRecords name={l.name} stats={stats} />
+        {!l.fallback && <AreaGrowth name={l.name} stats={stats} pictures={await readAreaPictures(l.slug)} siteUrl={getMarketingConfig().siteUrl} />}
 
         {hoods.length > 0 && (
           <section className="mt-9" aria-labelledby="hoods-title">

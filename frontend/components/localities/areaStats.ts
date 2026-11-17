@@ -21,6 +21,8 @@ export interface AreaStats {
   as_of: string
   projects: number
   completing: Array<{ year: number; projects: number }>
+  /** projects registered with MahaRERA per year, the first year with one to as_of's, empty years as 0 ("How <area> grew") */
+  registered: Array<{ year: number; projects: number }>
   units_total: number | null
   units_booked: number | null
   recent: AreaStatsProject[]
@@ -61,6 +63,12 @@ export function cleanAreaStats(raw: unknown, slug: string): AreaStats | null {
   const completing = (Array.isArray(r.completing) ? r.completing : [])
     .filter((c): c is { year: number; projects: number } => !!c && count(c.year) && count(c.projects) && c.projects > 0)
     .sort((a, b) => a.year - b.year)
+  // whole non-negative counts only, one per year, oldest first; a year after as_of's is a typo, not a registration
+  const byYear = new Map<number, number>()
+  for (const c of Array.isArray(r.registered) ? r.registered : []) {
+    if (c && count(c.year) && c.year >= 2000 && c.year <= +r.as_of.slice(0, 4) && count(c.projects) && !byYear.has(c.year)) byYear.set(c.year, c.projects)
+  }
+  const registered = [...byYear].map(([year, projects]) => ({ year, projects })).sort((a, b) => a.year - b.year)
   const total = count(r.units_total) && r.units_total > 0 ? r.units_total : null
   const booked = count(r.units_booked) && total !== null && r.units_booked <= total ? r.units_booked : null
   const recent = (Array.isArray(r.recent) ? r.recent : [])
@@ -69,7 +77,7 @@ export function cleanAreaStats(raw: unknown, slug: string): AreaStats | null {
     .map((p) => ({ ...p, url: typeof p.url === 'string' && /^https:\/\/[a-z0-9.-]*maharera[a-z0-9.-]*\.gov\.in\//i.test(p.url) ? p.url : null,
       page: typeof p.page === 'string' && /^\/projects\/[a-z0-9-]+$/.test(p.page) ? p.page : null }))
   return {
-    area, as_of: r.as_of, projects: r.projects, completing,
+    area, as_of: r.as_of, projects: r.projects, completing, registered,
     units_total: booked === null ? null : total, units_booked: booked,
     recent, source: typeof r.source === 'string' && r.source ? r.source : 'MahaRERA public records',
     date_moves: cleanDateMoves(r.date_moves),
