@@ -5,7 +5,14 @@ import { isFixtureMode } from './client'
 import { getToken } from './session'
 
 export type PhotoKind = 'own' | 'licensed'
-export type PhotoStatus = 'pending' | 'live' | 'hidden'
+export type PhotoStatus = 'pending' | 'live' | 'hidden' | 'suggested' | 'refused'
+export type PhotoOrigin = 'upload' | 'scout'
+/** What the photo scout's vision check said (backend areaphotos/judge.py): never a reason to reject an agent's own upload. */
+export interface PhotoAiFlag {
+  score: number
+  shows: string[]
+  reason: string
+}
 
 /** The free licences a photo may carry (backend areaphotos/service.py LICENCES); anything else is refused there too. */
 export const LICENCES = ['CC BY 4.0', 'CC BY-SA 4.0', 'CC0', 'CC BY 3.0', 'CC BY-SA 3.0', 'CC BY 2.0', 'CC BY-SA 2.0'] as const
@@ -33,6 +40,8 @@ export interface AreaPhotoItem {
   created_at: string | null
   mine: boolean
   can_edit: boolean
+  origin: PhotoOrigin
+  ai: PhotoAiFlag | null
 }
 export interface AreaPhotoList {
   area: { key: string; name: string; slug: string }
@@ -69,6 +78,8 @@ export interface AreaPhotosApi {
   edit(id: string, changes: Partial<PhotoFacts>): Promise<AreaPhotoItem>
   publish(id: string): Promise<AreaPhotoItem>
   hide(id: string): Promise<AreaPhotoItem>
+  refuse(id: string): Promise<AreaPhotoItem>
+  publishAll(area: string): Promise<AreaPhotoItem[]>
   reorder(area: string, ids: string[]): Promise<AreaPhotoItem[]>
 }
 
@@ -114,6 +125,8 @@ export function createAreaPhotosApi(opts: { getToken: () => string | null; baseU
     edit: (id, changes) => request<AreaPhotoItem>(one(id), { method: 'PATCH', json: changes }),
     publish: (id) => request<AreaPhotoItem>(`${one(id)}/publish`, { method: 'POST' }),
     hide: (id) => request<AreaPhotoItem>(`${one(id)}/hide`, { method: 'POST' }),
+    refuse: (id) => request<AreaPhotoItem>(`${one(id)}/refuse`, { method: 'POST' }),
+    publishAll: async (area) => (await request<{ items: AreaPhotoItem[] }>('/publish-all', { method: 'POST', json: { area } })).items ?? [],
     reorder: async (area, ids) => (await request<{ items: AreaPhotoItem[] }>('/order', { method: 'PUT', json: { area, ids } })).items ?? [],
   }
 }
@@ -126,7 +139,14 @@ export function createFixtureAreaPhotosApi(): AreaPhotosApi {
     id: 'fx-p1', area: 'kharadi', url: FX_PICTURE, small_url: FX_PICTURE, width: 400, height: 300,
     caption: 'Kharadi bypass road at the EON IT Park signal', taken_on: '2026-11-10', credit: 'Avasetu team', kind: 'own',
     licence: null, licence_url: null, source_url: null, status: 'live', order: 0, created_by: 'owner', created_at: '2026-11-10T06:00:00Z',
-    mine: true, can_edit: true,
+    mine: true, can_edit: true, origin: 'upload', ai: null,
+  }, {
+    id: 'fx-s1', area: 'kharadi', url: FX_PICTURE, small_url: FX_PICTURE, width: 400, height: 300,
+    caption: 'Kharadi: Ramwadi metro station, Aqua Line', taken_on: '2024-03-02', credit: 'Jane Doe', kind: 'licensed',
+    licence: 'CC BY-SA 4.0', licence_url: 'https://creativecommons.org/licenses/by-sa/4.0/',
+    source_url: 'https://commons.wikimedia.org/wiki/File:Ramwadi_metro.jpg', status: 'suggested', order: -1,
+    created_by: 'scout', created_at: '2026-11-17T06:00:00Z', mine: false, can_edit: false, origin: 'scout',
+    ai: { score: 4, shows: ['metro'], reason: "Shows Kharadi's metro; taken March 2024; CC BY-SA 4.0." },
   }]
   const find = (id: string) => {
     const p = items.find((x) => x.id === id)
@@ -142,6 +162,7 @@ export function createFixtureAreaPhotosApi(): AreaPhotosApi {
         ...facts, licence: facts.kind === 'licensed' ? facts.licence : null, licence_url: null,
         source_url: facts.kind === 'licensed' ? facts.source_url : null, status: 'pending',
         order: Math.min(0, ...sorted(area).map((x) => x.order)) - 1, created_by: 'owner', created_at: new Date().toISOString(), mine: true, can_edit: true,
+        origin: 'upload', ai: null,
       }
       items = [...items, p]
       return p
@@ -149,6 +170,11 @@ export function createFixtureAreaPhotosApi(): AreaPhotosApi {
     edit: async (id, changes) => Object.assign(find(id), changes),
     publish: async (id) => Object.assign(find(id), { status: 'live' as const }),
     hide: async (id) => Object.assign(find(id), { status: 'hidden' as const }),
+    refuse: async (id) => Object.assign(find(id), { status: 'refused' as const }),
+    publishAll: async (area) => {
+      sorted(area).filter((p) => p.status === 'suggested').forEach((p) => (p.status = 'live'))
+      return sorted(area)
+    },
     reorder: async (area, ids) => {
       ids.forEach((id, i) => (find(id).order = i))
       return sorted(area)
@@ -167,5 +193,7 @@ export const areaPhotosApi: AreaPhotosApi = {
   edit: (id, c) => impl().edit(id, c),
   publish: (id) => impl().publish(id),
   hide: (id) => impl().hide(id),
+  refuse: (id) => impl().refuse(id),
+  publishAll: (a) => impl().publishAll(a),
   reorder: (a, ids) => impl().reorder(a, ids),
 }

@@ -11,8 +11,14 @@ import { Btn, ErrorBox, inputCls, Spinner } from '../ui'
 
 /** The long side sent: the backend keeps 1600 px for the page, so a phone's 4000 px photo is shrunk here first. */
 const SEND_SIDE = 1600
-const STATUS_WORD: Record<PhotoStatus, string> = { pending: 'Waiting for the owner', live: 'On the area guide', hidden: 'Hidden' }
-const STATUS_TONE: Record<PhotoStatus, string> = { pending: 'bg-amber-100 text-amber-900', live: 'bg-green-100 text-green-900', hidden: 'bg-gray-200 text-gray-700' }
+const STATUS_WORD: Record<PhotoStatus, string> = {
+  pending: 'Waiting for the owner', live: 'On the area guide', hidden: 'Hidden', suggested: 'Suggested by the photo scout',
+  refused: 'Refused',
+}
+const STATUS_TONE: Record<PhotoStatus, string> = {
+  pending: 'bg-amber-100 text-amber-900', live: 'bg-green-100 text-green-900', hidden: 'bg-gray-200 text-gray-700',
+  suggested: 'bg-sky-100 text-sky-900', refused: 'bg-gray-200 text-gray-500',
+}
 
 function today(): string {
   const d = new Date()
@@ -115,8 +121,9 @@ function UploadForm({ area, onDone }: { area: string; onDone: () => void }) {
 
 function PhotoRow({ p, i, count, canPublish, busy, act, move }: {
   p: AreaPhotoItem; i: number; count: number; canPublish: boolean; busy: boolean
-  act: (p: AreaPhotoItem, what: 'publish' | 'hide') => void; move: (i: number, by: number) => void
+  act: (p: AreaPhotoItem, what: 'publish' | 'hide' | 'refuse') => void; move: (i: number, by: number) => void
 }) {
+  const suggested = p.status === 'suggested'
   return (
     <li data-testid="area-photo-row" data-status={p.status} className="flex gap-3 rounded-2xl border border-gray-200 bg-white p-3">
       <img src={p.small_url} alt={p.caption} width={96} height={72} className="h-[72px] w-24 shrink-0 rounded-lg bg-gray-100 object-cover" />
@@ -126,6 +133,7 @@ function PhotoRow({ p, i, count, canPublish, busy, act, move }: {
           Photo: {p.credit}, {p.taken_on}{p.kind === 'licensed' && p.licence ? ` · ${p.licence}` : ''}
           {p.source_url && <> · <a href={p.source_url} target="_blank" rel="noopener noreferrer" className="underline">source</a></>}
         </p>
+        {p.ai?.reason && <p className="text-xs text-sky-800" data-testid="area-photo-ai-reason">{p.ai.reason}</p>}
         <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_TONE[p.status]}`}>{STATUS_WORD[p.status]}</span>
         {canPublish && (
           <div className="flex flex-wrap gap-1 pt-1">
@@ -137,10 +145,18 @@ function PhotoRow({ p, i, count, canPublish, busy, act, move }: {
               <button type="button" disabled={busy} onClick={() => act(p, 'hide')} data-testid="area-photo-hide"
                 className="min-h-[44px] rounded-lg border border-gray-300 px-3 text-sm font-semibold text-gray-800 disabled:opacity-50">Hide</button>
             )}
-            <button type="button" aria-label="Move up" disabled={busy || i === 0} onClick={() => move(i, -1)}
-              className="h-11 w-11 rounded-lg border border-gray-200 disabled:opacity-40">↑</button>
-            <button type="button" aria-label="Move down" disabled={busy || i === count - 1} onClick={() => move(i, 1)}
-              className="h-11 w-11 rounded-lg border border-gray-200 disabled:opacity-40">↓</button>
+            {suggested && (
+              <button type="button" disabled={busy} onClick={() => act(p, 'refuse')} data-testid="area-photo-refuse"
+                className="min-h-[44px] rounded-lg border border-gray-300 px-3 text-sm font-semibold text-gray-800 disabled:opacity-50">Refuse</button>
+            )}
+            {!suggested && (
+              <>
+                <button type="button" aria-label="Move up" disabled={busy || i === 0} onClick={() => move(i, -1)}
+                  className="h-11 w-11 rounded-lg border border-gray-200 disabled:opacity-40">↑</button>
+                <button type="button" aria-label="Move down" disabled={busy || i === count - 1} onClick={() => move(i, 1)}
+                  className="h-11 w-11 rounded-lg border border-gray-200 disabled:opacity-40">↓</button>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -156,6 +172,8 @@ export function AreaPhotosScreen() {
   const [actError, setActError] = useState<string | null>(null)
   const list = data as AreaPhotoList | null
   const items = list?.items ?? []
+  const suggested = items.filter((p) => p.status === 'suggested')
+  const rest = items.filter((p) => p.status !== 'suggested')
   const page = LOCALITIES.find((l) => l.key === area)
 
   async function run(fn: () => Promise<unknown>) {
@@ -170,13 +188,14 @@ export function AreaPhotosScreen() {
       setBusy(false)
     }
   }
-  const act = (p: AreaPhotoItem, what: 'publish' | 'hide') => run(() => areaPhotosApi[what](p.id))
+  const act = (p: AreaPhotoItem, what: 'publish' | 'hide' | 'refuse') => run(() => areaPhotosApi[what](p.id))
+  const publishAll = () => run(() => areaPhotosApi.publishAll(area))
   const move = (i: number, by: number) => {
     const j = i + by
-    if (!list || j < 0 || j >= items.length) return
-    const next = [...items];
+    if (!list || j < 0 || j >= rest.length) return
+    const next = [...rest];
     [next[i], next[j]] = [next[j], next[i]]
-    setData({ ...list, items: next })
+    setData({ ...list, items: [...suggested, ...next] })
     run(() => areaPhotosApi.reorder(area, next.map((p) => p.id)))
   }
 
@@ -197,13 +216,33 @@ export function AreaPhotosScreen() {
 
       {actError && <ErrorBox message={actError} />}
       {loading && !data ? <Spinner /> : error && !data ? <ErrorBox message={error} onRetry={reload} /> : (
-        items.length === 0 ? (
-          <p className="rounded-2xl bg-white p-4 text-center text-gray-600">No photos of {page?.name ?? 'this area'} yet.</p>
-        ) : (
-          <ul className="space-y-2">
-            {items.map((p, i) => <PhotoRow key={p.id} p={p} i={i} count={items.length} canPublish={!!list?.can_publish} busy={busy} act={act} move={move} />)}
-          </ul>
-        )
+        <>
+          {suggested.length > 0 && (
+            <section className="space-y-2" data-testid="area-photos-suggested">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-bold text-[#102340]">Suggested by the photo scout</h2>
+                {list?.can_publish && (
+                  <button type="button" disabled={busy} onClick={publishAll} data-testid="area-photo-publish-all"
+                    className="min-h-[40px] rounded-lg bg-[#102340] px-3 text-xs font-semibold text-white disabled:opacity-50">
+                    Publish all suggested
+                  </button>
+                )}
+              </div>
+              <ul className="space-y-2">
+                {suggested.map((p, i) => (
+                  <PhotoRow key={p.id} p={p} i={i} count={suggested.length} canPublish={!!list?.can_publish} busy={busy} act={act} move={move} />
+                ))}
+              </ul>
+            </section>
+          )}
+          {rest.length === 0 ? (
+            <p className="rounded-2xl bg-white p-4 text-center text-gray-600">No photos of {page?.name ?? 'this area'} yet.</p>
+          ) : (
+            <ul className="space-y-2">
+              {rest.map((p, i) => <PhotoRow key={p.id} p={p} i={i} count={rest.length} canPublish={!!list?.can_publish} busy={busy} act={act} move={move} />)}
+            </ul>
+          )}
+        </>
       )}
     </div>
   )
