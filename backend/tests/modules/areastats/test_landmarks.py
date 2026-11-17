@@ -140,3 +140,9 @@ async def test_the_map_answer_carries_the_icons_inside_its_frame():
     app.dependency_overrides[ar.get_db] = lambda: FakeDb()
     body = TestClient(app).get("/register/map?area=upper-kharadi").json()
     assert {i["name"] for i in body["landmarks"]} >= {"EON IT Park (EON Free Zone)", "G H Raisoni College of Engineering, Wagholi"}
+
+
+def test_the_answer_says_the_day_the_metro_table_was_checked():
+    # pages say "as of" this day, so a station's status is never read as newer than its check
+    out = landmarks.public("kharadi")
+    assert out["checked_on"] == pune_metro.CHECKED_ON == "2026-11-17"

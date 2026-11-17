@@ -1,6 +1,7 @@
 import React from 'react'
 import { jsonLdString } from '@/lib/marketing/seo'
 import { fixturesForced, serverApiBase } from '@/lib/site/api'
+import { longDate } from './areaStats'
 
 /**
  * "Landmarks near <area>" on an area guide (docs/plan/area-pictures.md, step 1): the nearest metro stations and the places buyers
@@ -25,6 +26,8 @@ export interface AreaLandmarksData {
   landmarks: LandmarkRow[]
   note: string
   attribution: string
+  /** the day the metro table was last checked (backend core/pune_metro.CHECKED_ON): what "as of" says */
+  checkedOn: string | null
 }
 
 const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
@@ -63,7 +66,52 @@ export function cleanAreaLandmarks(raw: unknown, slug: string): AreaLandmarksDat
   return { area: { key: area.key, name: area.name, slug: area.slug }, middle: { lat: middle.lat, lon: middle.lon,
     how: text(middle.how) ? middle.how : '', label: `the middle of ${area.name}` }, metro, landmarks,
     note: text(r.note) ? r.note : `Straight-line distances from the middle of ${area.name}, rounded; not travel times.`,
-    attribution: text(r.attribution) ? r.attribution : 'Positions © OpenStreetMap contributors' }
+    attribution: text(r.attribution) ? r.attribution : 'Positions © OpenStreetMap contributors',
+    checkedOn: text(r.checked_on) && /^\d{4}-\d{2}-\d{2}$/.test(r.checked_on) ? r.checked_on : null }
+}
+
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+const monthOf = (day: string | null): string => (day ? `${MONTHS[Number(day.slice(5, 7)) - 1]} ${day.slice(0, 4)}` : '')
+
+/** One dated sentence on the metro, the line Google's answers and the AI assistants quote ("nearest metro to Kharadi"): the nearest
+ *  running station, and a nearer one still being built said as such. Null without a station. */
+export function metroAnswer(d: AreaLandmarksData): string | null {
+  const running = d.metro.find((m) => m.running)
+  const building = d.metro.find((m) => !m.running)
+  const asOf = d.checkedOn ? `, as of ${monthOf(d.checkedOn)}` : ''
+  if (!running && !building) return null
+  const first = running
+    ? `The nearest running metro station to ${d.area.name} is ${running.name} (${running.line_short}), ${running.distance}${asOf}.`
+    : `${d.area.name} has no running metro station near it yet${asOf}.`
+  const nearer = building && (!running || building.km < running.km)
+    ? ` ${building.name} (${building.line_short}) is ${running ? 'nearer' : building.distance} but not open yet.` : ''
+  return first + nearer
+}
+
+/** The buyer questions these facts answer, for the guide's questions list and its FAQPage data: each answer one dated sentence
+ *  from the landmark table or the MahaRERA counts, never a model's words. A question the guide already asks is not asked twice. */
+export function areaQuestions(name: string, d: AreaLandmarksData | null, registered: { year: number; projects: number }[],
+  statsAsOf: string | null, asked: string[] = []): { q: string; a: string }[] {
+  const out: { q: string; a: string }[] = []
+  const has = (word: RegExp) => asked.some((q) => word.test(q))
+  const list = (rows: LandmarkRow[]) => rows.map((r) => `${r.name} (${r.distance})`).join('; ')
+  if (d) {
+    const metro = metroAnswer(d)
+    if (metro && !has(/metro/i)) out.push({ q: `Is there a metro station near ${name}?`, a: metro })
+    const work = d.landmarks.filter((r) => r.kind === 'work')
+    if (work.length && !has(/IT park|office/i)) out.push({ q: `Which IT parks and offices are near ${name}?`, a: `${list(work)}. Straight-line distances, not travel times.` })
+    const care = d.landmarks.filter((r) => r.kind === 'hospital')
+    if (care.length && !has(/hospital/i)) out.push({ q: `Which hospitals are near ${name}?`, a: `${list(care)}. Straight-line distances, not travel times.` })
+    const air = d.landmarks.find((r) => /airport/i.test(r.name))
+    if (air && !has(/airport/i)) out.push({ q: `How far is Pune airport from ${name}?`, a: `${air.name} is ${air.distance} in a straight line; road distance is longer.` })
+  }
+  const year = statsAsOf ? Number(statsAsOf.slice(0, 4)) - 1 : null
+  const last = year ? registered.find((r) => r.year === year) : undefined
+  if (last && statsAsOf && !has(/registered/i)) {
+    out.push({ q: `How many new projects were registered in ${name} in ${year}?`,
+      a: `${last.projects} ${last.projects === 1 ? 'project' : 'projects'} in ${name} ${last.projects === 1 ? 'was' : 'were'} registered with MahaRERA in ${year}, as MahaRERA's register read on ${longDate(statsAsOf)}.` })
+  }
+  return out
 }
 
 export async function getAreaLandmarks(slug: string): Promise<AreaLandmarksData | null> {
@@ -113,7 +161,9 @@ function MapsLink({ r, label }: { r: LandmarkRow; label?: string }) {
 }
 
 /** Renders nothing without data. Groups in the order the answer gives them (Work, Shopping, Hospitals, Colleges, Travel). */
-export default function AreaLandmarks({ data }: { data: AreaLandmarksData | null }) {
+export default function AreaLandmarks({ data, homesNearWork }: { data: AreaLandmarksData | null
+  /** where the homes near these offices are listed (the East Pune home plan), on the guides it covers */
+  homesNearWork?: string }) {
   if (!data || (!data.metro.length && !data.landmarks.length)) return null
   const groups: { label: string; rows: LandmarkRow[] }[] = []
   for (const r of data.landmarks) {
@@ -126,6 +176,7 @@ export default function AreaLandmarks({ data }: { data: AreaLandmarksData | null
     <section className="mt-9" aria-labelledby="landmarks-title" data-testid="area-landmarks">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(landmarksJsonLd(data)) }} />
       <h2 id="landmarks-title" className="text-xl font-semibold text-slate-900">Landmarks near {data.area.name}</h2>
+      {metroAnswer(data) && <p className="mt-2 font-medium leading-relaxed text-slate-900" data-testid="metro-answer">{metroAnswer(data)}</p>}
       <p className="mt-1 text-sm text-slate-600">{data.note} Each name opens the place on Google Maps.</p>
 
       {data.metro.length > 0 && (
@@ -155,6 +206,9 @@ export default function AreaLandmarks({ data }: { data: AreaLandmarksData | null
               </li>
             ))}
           </ul>
+          {g.rows[0]?.kind === 'work' && homesNearWork && (
+            <p className="mt-1 text-sm"><a href={homesNearWork} className={link}>Homes near these offices, by commute</a></p>
+          )}
         </div>
       ))}
 

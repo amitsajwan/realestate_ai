@@ -24,6 +24,9 @@ Status is only ever `running` or `being built`: a page says which in words, and 
 from dataclasses import dataclass
 from typing import Dict, Tuple
 
+# the day every row was last checked: pages say "as of" this, so a status is never read as newer than it is
+CHECKED_ON = "2026-11-17"
+
 RUNNING = "running"
 BEING_BUILT = "being built"
 

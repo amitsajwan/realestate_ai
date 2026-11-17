@@ -1,6 +1,6 @@
 import React from 'react'
 import { render, screen, within } from '@testing-library/react'
-import AreaLandmarks, { cleanAreaLandmarks, landmarksJsonLd } from '@/components/localities/AreaLandmarks'
+import AreaLandmarks, { areaQuestions, cleanAreaLandmarks, landmarksJsonLd, metroAnswer } from '@/components/localities/AreaLandmarks'
 import AreaMapView, { type Shown } from '@/components/site/AreaMapView'
 import { mapLandmarks, type AreaMapData } from '@/lib/site/hubs'
 
@@ -28,6 +28,7 @@ const RAW = {
   ],
   note: 'Straight-line distances from the middle of Baner, rounded; not travel times.',
   attribution: 'Positions © OpenStreetMap contributors',
+  checked_on: '2026-11-17',
 }
 
 describe('landmarks near an area', () => {
@@ -110,4 +111,38 @@ describe('landmarks on the area map', () => {
     expect(screen.queryAllByTestId('area-map-landmark')).toHaveLength(0)
     expect(screen.queryByTestId('area-map-landmark-legend')).toBeNull()
   })
+})
+
+describe('the answers the landmarks give (for Google and the AI assistants)', () => {
+  const baner = cleanAreaLandmarks(RAW, 'baner')!
+
+  it('says the nearest running metro in one dated sentence, and a nearer one being built as not open', () => {
+    expect(metroAnswer(baner)).toBe('The nearest running metro station to Baner is R K Laxman Museum Balewadi (Pink Line (Line 3)), '
+      + 'about 2 km north-west of the middle of Baner, as of November 2026. Baner Gaon (Pink Line (Line 3)) is nearer but not open yet.')
+    render(<AreaLandmarks data={baner} />)
+    expect(screen.getByTestId('metro-answer').textContent).toBe(metroAnswer(baner))
+  })
+
+  it('never calls a station running when none is, and leaves out the date it does not have', () => {
+    const none = cleanAreaLandmarks({ ...RAW, checked_on: 'soon', metro: [RAW.metro[0]] }, 'baner')!
+    expect(none.checkedOn).toBeNull()
+    expect(metroAnswer(none)).toBe('Baner has no running metro station near it yet. Baner Gaon (Pink Line (Line 3)) is about 0.6 km from the middle of Baner but not open yet.')
+  })
+
+  it("asks the area's buyer questions once each, answered from the table and the MahaRERA counts", () => {
+    const qa = areaQuestions('Baner', baner, [{ year: 2024, projects: 9 }, { year: 2025, projects: 12 }], '2026-11-16', ['What is the metro like?'])
+    expect(qa.map((x) => x.q)).toEqual([
+      'Which IT parks and offices are near Baner?', 'Which hospitals are near Baner?', 'How many new projects were registered in Baner in 2025?'])
+    expect(qa[1].a).toBe('Jupiter Hospital, Baner (about 0.8 km from the middle of Baner). Straight-line distances, not travel times.')
+    expect(qa[2].a).toBe("12 projects in Baner were registered with MahaRERA in 2025, as MahaRERA's register read on 16 November 2026.")
+    expect(areaQuestions('Baner', null, [], null)).toEqual([])
+    expect(areaQuestions('Baner', baner, [], null)[0].q).toBe('Is there a metro station near Baner?')
+  })
+})
+
+it('links the offices to the homes near them where the home plan covers the area, and nowhere else', () => {
+  const { rerender } = render(<AreaLandmarks data={cleanAreaLandmarks(RAW, 'baner')} homesNearWork="/home-plan" />)
+  expect(screen.getByRole('link', { name: 'Homes near these offices, by commute' })).toHaveAttribute('href', '/home-plan')
+  rerender(<AreaLandmarks data={cleanAreaLandmarks(RAW, 'baner')} />)
+  expect(screen.queryByRole('link', { name: 'Homes near these offices, by commute' })).toBeNull()
 })

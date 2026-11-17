@@ -122,3 +122,10 @@ export function areaPhotosJsonLd(photos: AreaPhoto[], siteUrl: string, areaName:
     })),
   }
 }
+
+/** The first published photo as the guide's link preview when there is no picture from above (areaPictures.areaOgImage leads):
+ *  a real, credited photo of the place is what a shared link should show. Undefined without one. */
+export function areaPhotoOgImage(photos: AreaPhoto[]): { path: string; width: number; height: number; alt: string } | undefined {
+  const p = photos[0]
+  return p ? { path: p.url, width: p.width, height: p.height, alt: p.caption } : undefined
+}

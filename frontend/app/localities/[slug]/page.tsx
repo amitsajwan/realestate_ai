@@ -17,13 +17,13 @@ import AreaMap, { showsMap } from '@/components/site/AreaMap'
 import AreaFromAbove from '@/components/site/AreaFromAbove'
 import AreaLatest from '@/components/localities/AreaLatest'
 import AreaPhotos from '@/components/localities/AreaPhotos'
-import { getAreaPhotos } from '@/components/localities/areaPhotoData'
+import { areaPhotoOgImage, getAreaPhotos } from '@/components/localities/areaPhotoData'
 import { AreaTrackers } from '@/components/news/Trackers'
 import { fetchTrackers } from '@/lib/news/trackers'
 import AreaRecords from '@/components/localities/AreaRecords'
 import AreaGrowth from '@/components/localities/AreaGrowth'
 import { areaOgImage, readAreaPictures } from '@/components/localities/areaPictures'
-import AreaLandmarks, { getAreaLandmarks } from '@/components/localities/AreaLandmarks'
+import AreaLandmarks, { areaQuestions, getAreaLandmarks } from '@/components/localities/AreaLandmarks'
 import { getAreaNews, getAreaPosts } from '@/components/localities/areaFeed'
 import { getAreaStats, recordLinks } from '@/components/localities/areaStats'
 import { getCommunities } from '@/components/localities/communities'
@@ -96,8 +96,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: `Living in ${l.name}, Pune: area guide for home buyers`,
     description: areaDescription(l.summary),
     path: `/localities/${l.slug}`,
-    // the area from above (Sentinel-2, ours to keep) as its link preview, when the page shows the then-and-now pair
-    image: areaOgImage(l.name, await readAreaPictures(l.slug)),
+    // the area from above (Sentinel-2, ours to keep) as its link preview, when the page shows the then-and-now pair; else the
+    // first published photo of the place; else the brand's card
+    image: areaOgImage(l.name, await readAreaPictures(l.slug)) ?? areaPhotoOgImage(await getAreaPhotos(l.slug)),
   })
   // an area with its own full guide has one page for search: the guide (both ranked for "upper kharadi" and held each other back)
   const guide = (await fetchTopics()).some((t) => t.slug === l.slug)
@@ -172,9 +173,12 @@ export default async function LocalityPage({ params }: Props) {
   }
   const sameTier = localitiesByTier(l.tier).filter((o) => o.slug !== l.slug)
   const guides = l.guides.map((s) => getInsight(s)).filter((g): g is NonNullable<typeof g> => !!g)
+  // the guide's own questions, then the ones the landmarks and MahaRERA counts answer (metro, offices, hospitals, airport, projects
+  // registered last year): the "People also ask" questions for an area, each answered by one dated sentence
+  const faqs = l.fallback ? l.faqs : [...l.faqs, ...areaQuestions(l.name, landmarks, stats?.registered ?? [], stats?.as_of ?? null, l.faqs.map((f) => f.q))]
   const faqLd = {
     '@context': 'https://schema.org', '@type': 'FAQPage',
-    mainEntity: l.faqs.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
+    mainEntity: faqs.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
   }
   return (
     <MarketingShell hot={{ area: l.slug }}>
@@ -203,7 +207,7 @@ export default async function LocalityPage({ params }: Props) {
 
         <section className="mt-9"><h2 className="text-xl font-semibold text-slate-900">Getting around</h2>
           {l.gettingAround.map((p) => <p key={p} className="mt-3 leading-relaxed text-slate-800">{p}</p>)}</section>
-        <AreaLandmarks data={landmarks} />
+        <AreaLandmarks data={landmarks} homesNearWork={EAST_GUIDES.has(l.slug) ? '/home-plan' : undefined} />
 
         <AreaRecords name={l.name} stats={stats} links={recordLinks(l, places, facets)} />
         {!l.fallback && <AreaGrowth name={l.name} stats={stats} pictures={await readAreaPictures(l.slug)} siteUrl={getMarketingConfig().siteUrl} />}
@@ -255,7 +259,7 @@ export default async function LocalityPage({ params }: Props) {
           <ul className="mt-3 list-disc space-y-2 pl-6 leading-relaxed text-slate-800">{l.checks.map((s) => <li key={s}>{s}</li>)}</ul></section>
 
         <section className="mt-9"><h2 className="text-xl font-semibold text-slate-900">Questions buyers ask</h2>
-          <dl className="mt-3 space-y-4">{l.faqs.map((f) => (<div key={f.q}><dt className="font-semibold text-slate-900">{f.q}</dt><dd className="mt-1 leading-relaxed text-slate-800">{f.a}</dd></div>))}</dl></section>
+          <dl className="mt-3 space-y-4">{faqs.map((f) => (<div key={f.q}><dt className="font-semibold text-slate-900">{f.q}</dt><dd className="mt-1 leading-relaxed text-slate-800">{f.a}</dd></div>))}</dl></section>
 
         {guides.length > 0 && (
           <section className="mt-9"><h2 className="text-xl font-semibold text-slate-900">Related guides</h2>

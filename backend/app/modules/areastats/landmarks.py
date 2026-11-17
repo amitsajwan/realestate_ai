@@ -215,7 +215,7 @@ def public(area: Optional[str]) -> Optional[dict]:
     places.sort(key=lambda r: (order.index(r["kind"]), r["km"], r["name"]))
     return {"area": {"key": a.key, "name": a.name, "slug": a.slug},
             "middle": {"lat": lat, "lon": lon, "how": how, "label": f"the middle of {a.name}"},
-            "metro": metro, "landmarks": places,
+            "metro": metro, "landmarks": places, "checked_on": pune_metro.CHECKED_ON,
             "note": f"Straight-line distances from the middle of {a.name}, rounded; not travel times.",
             "attribution": ATTRIBUTION}
 

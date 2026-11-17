@@ -8,6 +8,13 @@ import { articleJsonLd, breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/l
 import Link from 'next/link'
 import OpenChatButton from '@/components/site/OpenChatButton'
 import { fetchTopic, say, sayList, topicPath, type Availability, type Text, type Topic, type TopicTable } from '@/lib/site/topics'
+import AreaGrowth from '@/components/localities/AreaGrowth'
+import AreaLandmarks, { areaQuestions, getAreaLandmarks } from '@/components/localities/AreaLandmarks'
+import AreaPhotos from '@/components/localities/AreaPhotos'
+import { getAreaPhotos } from '@/components/localities/areaPhotoData'
+import { readAreaPictures } from '@/components/localities/areaPictures'
+import { getAreaStats } from '@/components/localities/areaStats'
+import { getLocality } from '@/lib/marketing/localities'
 
 export const revalidate = 60
 
@@ -184,12 +191,22 @@ export default async function TopicPage({ params }: Props) {
   const cfg = getMarketingConfig()
   const path = topicPath(t.slug)
   const lang = t.lang
+  // a guide about one of our areas (today Upper Kharadi) is the page Google keeps for it: the area guide names it canonical, so
+  // the area's photos, landmarks, metro and growth are shown here too, or search would never see them (area-pictures.md)
+  const area = getLocality(t.slug)
+  const [photos, landmarks, stats, pictures] = area
+    ? await Promise.all([getAreaPhotos(area.slug), getAreaLandmarks(area.slug), getAreaStats(area.slug), readAreaPictures(area.slug)])
+    : [[], null, null, []]
+  // its questions are in English, so only an English guide carries them (shown and in the FAQPage data alike)
+  const more = area && lang === 'en'
+    ? areaQuestions(area.name, landmarks, stats?.registered ?? [], stats?.as_of ?? null, t.faq.map((f) => say(f.q, 'en'))) : []
   const ld = [
     { ...articleJsonLd(cfg, { title: t.title.en, summary: t.summary.en, path, updated: t.checked_on ?? '' }), inLanguage: lang === 'en' ? 'en-IN' : `${lang}-IN` },
     breadcrumbJsonLd(cfg.siteUrl, [{ name: 'Home', path: '/' }, { name: t.title.en, path }]),
     {
       '@context': 'https://schema.org', '@type': 'FAQPage',
-      mainEntity: t.faq.map((f) => ({ '@type': 'Question', name: say(f.q, lang), acceptedAnswer: { '@type': 'Answer', text: say(f.a, lang) } })),
+      mainEntity: [...t.faq.map((f) => ({ q: say(f.q, lang), a: say(f.a, lang) })), ...more]
+        .map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
     },
   ]
   return (
@@ -200,7 +217,22 @@ export default async function TopicPage({ params }: Props) {
         <p lang={lang} className="mt-3 text-lg text-slate-700">{say(t.summary, lang)}</p>
         {t.checked_on && <p className="mt-2 text-sm text-slate-500">{say(UI.checked, lang)}: {day(t.checked_on, lang)}</p>}
 
+        {area && <AreaPhotos name={area.name} photos={photos} className="mt-8" />}
+
         <div className="mt-6"><Body t={t} lang={lang} /></div>
+
+        {area && (
+          <>
+            <AreaLandmarks data={landmarks} />
+            <AreaGrowth name={area.name} stats={stats} pictures={pictures} siteUrl={cfg.siteUrl} />
+            {more.length > 0 && (
+              <section className="mt-9" aria-labelledby="area-questions">
+                <h2 id="area-questions" className="text-xl font-bold text-[#0f2340]">More questions about {area.name}</h2>
+                <dl className="mt-3 space-y-4">{more.map((f) => (<div key={f.q}><dt className="font-semibold text-slate-900">{f.q}</dt><dd className="mt-1 leading-relaxed text-slate-800">{f.a}</dd></div>))}</dl>
+              </section>
+            )}
+          </>
+        )}
 
         {t.updates.length > 0 && (
           <section className="mt-10">
