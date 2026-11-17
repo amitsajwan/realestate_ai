@@ -21,4 +21,8 @@ describe('robots.txt never shuts a public page', () => {
     expect(rule.allow).toBe('/')
     expect(r.sitemap).toEqual([expect.stringMatching(/\/sitemap\.xml$/), expect.stringMatching(/\/news-sitemap\.xml$/)])
   })
+
+  it('has no Host line, which Google ignores and Search Console flags (the canonical tags name the domain)', () => {
+    expect(robots().host).toBeUndefined()
+  })
 })
