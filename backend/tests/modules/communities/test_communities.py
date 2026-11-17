@@ -70,12 +70,8 @@ class FakeLLM:
 
 GOOD = {"title": "Kesnand, Wagholi: a neighbourhood guide",
         "paragraphs": [
-            "Kesnand is a neighbourhood in the Wagholi area of Pune, on the northern side of the area. Distances here are measured "
-            "in a straight line on OpenStreetMap, so road distances will be longer.",
-            "Within a short distance there is a school, Kesnand Zilla Parishad School, and Lifeline Hospital. Bank of Maharashtra, a "
-            "D Mart supermarket and the Shiv Mandir temple are also close by, according to OpenStreetMap.",
-            "Two projects registered with MahaRERA carry the name of the neighbourhood, both by Rohan Builders. Their completion dates "
-            "are the ones filed with MahaRERA and can change, so check each project page and the MahaRERA record before deciding.",
+            "Kesnand is a neighbourhood on the northern side of the Wagholi area of Pune, measured from the area's centre in a "
+            "straight line on OpenStreetMap. Two MahaRERA-registered projects are named after Kesnand, both by Rohan Builders.",
         ]}
 
 
@@ -116,9 +112,48 @@ async def test_writes_from_facts_and_publishes_only_a_checked_article():
     out = await write.write_one(store, doc, llm, osm(), NOW)
     assert out == {"id": "wagholi/kesnand", "published": True, "notes": []}
     facts = llm.calls[0]
-    assert "Nearby school: Kesnand Zilla Parishad School" in facts and "Kesnand Heights Phase 2" in facts and "45 of 120 homes booked" in facts
+    # the model gets only the distance and a bare project count: the nearby places and each project's own facts are the
+    # page's own lists, not the model's to restate (and so not its to get wrong)
+    assert "Neighbourhood: Kesnand, in the Wagholi area of Pune" in facts
+    assert "2 MahaRERA-registered projects named after Kesnand, by Rohan Builders" in facts
+    assert "Kesnand Zilla Parishad School" not in facts and "Kesnand Heights Phase 2" not in facts and "45 of 120" not in facts
     saved = await db.get_collection(discover.COLLECTION).find_one({"_id": "wagholi/kesnand"})
     assert saved["published"] and saved["title"] == GOOD["title"] and len(saved["facts"]["projects"]) == 2
+    # but the page's own data keeps every fact in full, each nearby place linked to its OpenStreetMap page
+    nearby = saved["facts"]["nearby"]
+    assert all(n["url"] and n["url"].startswith("https://www.openstreetmap.org/") for n in nearby)
+    assert sorted(n["km"] for n in nearby) == [0.2, 0.3, 0.3, 0.8, 0.8]
+
+
+async def test_a_nearby_metro_station_says_whether_it_is_running():
+    # a neighbourhood page used to just say "station ... nearby"; it now says what app/core/pune_metro has checked,
+    # never claiming a station is open before it is (the one fact here a reader could actually be misled by)
+    db, store = await seeded()
+    await discover.run(store, osm(), NOW)
+    doc = await db.get_collection(discover.COLLECTION).find_one({"_id": "wagholi/kesnand"})
+    stations = NEARBY + [
+        {"type": "node", "id": 20, "lat": 18.5903, "lon": 73.7576, "tags": {"railway": "station", "name": "Wakad Chowk"}},
+        {"type": "node", "id": 21, "lat": 18.5592, "lon": 73.7906, "tags": {"railway": "station", "name": "Baner Gaon Metro Station"}},
+    ]
+    out = await write.write_one(store, doc, FakeLLM(GOOD), osm(nearby=stations), NOW)
+    assert out["published"]
+    saved = await db.get_collection(discover.COLLECTION).find_one({"_id": "wagholi/kesnand"})
+    by_name = {n["name"]: n for n in saved["facts"]["nearby"]}
+    assert by_name["Wakad Chowk"]["transit"] == {"status": "running", "line_short": "Pink Line (Line 3)", "tracker": None}
+    assert by_name["Baner Gaon Metro Station"]["transit"] == {"status": "being built", "line_short": "Pink Line (Line 3)",
+                                                               "tracker": "/news/track/pune-metro-line-3"}
+    # the model was never told any of this, so it could not have said either station was open or being built
+    llm = FakeLLM(GOOD)
+    await write.write_one(store, doc, llm, osm(nearby=stations), NOW)
+    assert "Wakad" not in llm.calls[0] and "Baner" not in llm.calls[0]
+
+
+def test_matching_a_station_needs_every_distinctive_word():
+    # "Wakad" alone must never claim to be "Wakad Chowk" station, and an unrelated name must match nothing
+    assert write.match_station("Wakad Chowk").name == "Wakad Chowk"
+    assert write.match_station("Wakad Chowk Metro Station").name == "Wakad Chowk"
+    assert write.match_station("Wakad") is None
+    assert write.match_station("Shivaji Nagar Bus Stand") is None
 
 
 async def test_a_title_that_misses_the_name_is_replaced_not_refused():
@@ -136,7 +171,7 @@ async def test_invented_numbers_sales_words_or_thin_facts_are_not_published():
     await discover.run(store, osm(), NOW)
     coll = db.get_collection(discover.COLLECTION)
     doc = await coll.find_one({"_id": "wagholi/kesnand"})
-    bad = {**GOOD, "paragraphs": GOOD["paragraphs"][:2] + ["Prices start at 55 lakh in this premium pocket. " + GOOD["paragraphs"][2]]}
+    bad = {**GOOD, "paragraphs": ["Prices start at 55 lakh in this premium pocket. " + GOOD["paragraphs"][0]]}
     out = await write.write_one(store, doc, FakeLLM(bad), osm(), NOW)
     assert not out["published"] and "numbers not in the facts: 55" in out["notes"][0] and "sales words" in out["notes"][0]
     assert (await coll.find_one({"_id": "wagholi/kesnand"}))["published"] is False
@@ -196,5 +231,5 @@ def test_only_published_articles_are_served():
     assert [(i["slug"], i["area_slug"], i["area_name"], i["updated"]) for i in items] == [("kesnand", "wagholi", "Wagholi", "2026-10-12")]
     assert c.get("/public/communities?area=kharadi").json() == [] and c.get("/public/communities?area=nowhere").json() == []
     one = c.get("/public/communities/wagholi/kesnand").json()
-    assert one["title"] == GOOD["title"] and len(one["paragraphs"]) == 3 and one["facts"]["nearby"]
+    assert one["title"] == GOOD["title"] and len(one["paragraphs"]) == 1 and one["facts"]["nearby"]
     assert c.get("/public/communities/wagholi/ubale-nagar").status_code == 404   # found, not written

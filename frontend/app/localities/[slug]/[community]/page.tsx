@@ -65,7 +65,20 @@ export default async function CommunityPage({ params }: Props) {
             <ul className="mt-3 divide-y divide-slate-200 rounded-2xl border border-slate-200">
               {c.facts.nearby.map((n) => (
                 <li key={n.kind + n.name} className="flex items-baseline justify-between gap-3 px-4 py-2">
-                  <span><span className="text-sm text-slate-500">{n.kind}</span><br /><span className="text-slate-900">{n.name}</span></span>
+                  <span>
+                    <span className="text-sm text-slate-500">{n.transit ? 'Metro' : n.kind}</span><br />
+                    {n.url ? (
+                      <a href={n.url} target="_blank" rel="noopener noreferrer" className="text-slate-900 underline underline-offset-2">
+                        {n.name}<span className="sr-only"> (opens in a new tab)</span>
+                      </a>
+                    ) : <span className="text-slate-900">{n.name}</span>}
+                    {n.transit && (
+                      <span className="block text-sm text-slate-600">
+                        {n.transit.line_short}, {n.transit.status === 'running' ? 'running' : 'being built, not open yet'}
+                        {n.transit.tracker && <> · <Link href={n.transit.tracker} className="text-[#0f2340] underline underline-offset-2">follow its progress</Link></>}
+                      </span>
+                    )}
+                  </span>
                   <span className="whitespace-nowrap text-slate-700">about {n.km} km</span>
                 </li>
               ))}
@@ -87,6 +100,18 @@ export default async function CommunityPage({ params }: Props) {
               ))}
             </ul>
           </section>
+        )}
+
+        {c.facts.area_projects > 0 && c.facts.as_of && (
+          // the area's own count and completion-year breakdown lives on one page, the area guide (recordLinks, 2026-11-17):
+          // repeating it here duplicates the same records a second time, so this page says the headline figure and sends
+          // the reader to the full, linked breakdown rather than restating it
+          <p className="mt-6 text-slate-700">
+            {c.area_name} has {c.facts.area_projects.toLocaleString('en-IN')} MahaRERA-registered projects as of {longDate(c.facts.as_of)}.{' '}
+            <Link href={`/localities/${c.area_slug}#records-title`} className="font-semibold text-[#0f2340] underline underline-offset-2">
+              See the completion dates and every project in {c.area_name}
+            </Link>.
+          </p>
         )}
 
         {others.length > 0 && (
