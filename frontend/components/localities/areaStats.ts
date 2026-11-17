@@ -4,6 +4,8 @@
  * malformed body) gives null and the page simply leaves the section out: it must never break or show an error.
  */
 import { fixturesForced, serverApiBase } from '@/lib/site/api'
+import type { FacetLink } from '@/lib/site/facets'
+import { placePath, type RegisterPlace } from '@/lib/site/register'
 
 export interface AreaStatsProject {
   name: string
@@ -93,6 +95,21 @@ export async function getAreaStats(slug: string): Promise<AreaStats | null> {
   } finally {
     clearTimeout(timer)
   }
+}
+
+/** Where an area's counts lead: its project list and, per completion year, its "possession <year>" list. Only pages that
+ *  exist get a link (a possession list lives only once the grow job made it live, so most years stay plain text), and each
+ *  page gives its own count: the register's figure here also counts projects those lists leave out. */
+export interface RecordLinks { all: string | null; years: Record<number, string> }
+
+export function recordLinks(area: { key: string; slug: string }, places: RegisterPlace[], facets: FacetLink[]): RecordLinks {
+  const place = places.find((p) => (p.key === area.key || p.slug === area.slug) && p.projects > 0)
+  const years: Record<number, string> = {}
+  for (const f of facets) {
+    if (f.place === area.key && f.intent === 'all' && f.possession && !f.builder && !f.bhk && !f.budget
+      && /^\/projects\/area\/[a-z0-9-]+\/possession-\d{4}$/.test(f.path)) years[f.possession] = f.path
+  }
+  return { all: place ? placePath(place.slug) : null, years }
 }
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']

@@ -26,7 +26,7 @@ jest.mock('next/navigation', () => ({
 import LocalitiesPage from '@/app/localities/page'
 import LocalityPage, { generateMetadata as localityMetadata } from '@/app/localities/[slug]/page'
 import AreaRecords from '@/components/localities/AreaRecords'
-import { cleanAreaStats, getAreaStats, longDate } from '@/components/localities/areaStats'
+import { cleanAreaStats, getAreaStats, longDate, recordLinks } from '@/components/localities/areaStats'
 
 const STATS = {
   area: { key: 'wagholi', name: 'Wagholi', slug: 'wagholi', tier: 'affordable' },
@@ -104,6 +104,22 @@ describe('the "In the MahaRERA records" section', () => {
     expect(s).toHaveTextContent('listed or updated 28 September 2026')
     expect(s).toHaveTextContent('Source: MahaRERA public records, as of 4 October 2026')
     expect(s.textContent).not.toMatch(/newly registered|new launch/i)
+  })
+
+  it('links the count to the area\'s project list and a year to its possession list, only where those pages exist', () => {
+    const stats = cleanAreaStats(STATS, 'wagholi')!
+    const links = recordLinks(stats.area,
+      [{ key: 'wagholi', slug: 'wagholi', name: 'Wagholi', zone: 'East', projects: 41, indexable: 40 }],
+      [{ key: 'w27', path: '/projects/area/wagholi/possession-2027', place: 'wagholi', place_slug: 'wagholi', intent: 'all', possession: 2027,
+        builder: null, label: '', count: 11, indexable: true, page_updated: null },
+       { key: 'k26', path: '/projects/area/kharadi/possession-2026', place: 'kharadi', place_slug: 'kharadi', intent: 'all', possession: 2026,
+        builder: null, label: '', count: 4, indexable: true, page_updated: null }])
+    render(<AreaRecords name="Wagholi" stats={stats} links={links} />)
+    const s = screen.getByRole('region', { name: 'In the MahaRERA records' })
+    expect(within(s).getByRole('link', { name: 'See the projects in Wagholi' })).toHaveAttribute('href', '/projects/area/wagholi')
+    expect(within(s).getByRole('link', { name: 'Projects in Wagholi with completion filed for 2027' })).toHaveAttribute('href', '/projects/area/wagholi/possession-2027')
+    expect(within(s).queryByRole('link', { name: /filed for 2026/ })).toBeNull()   // another area's 2026 list is not Wagholi's
+    expect(recordLinks(stats.area, [], [])).toEqual({ all: null, years: {} })
   })
 
   it('leaves out homes booked when the totals are not known', () => {
