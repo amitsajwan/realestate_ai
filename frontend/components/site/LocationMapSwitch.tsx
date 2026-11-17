@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import { MapTypeSwitch, mapsEmbedKey, satelliteSrc, sendFeature, type MapMode } from './mapsEmbed'
 
 /** Map / Satellite tab switch shown when the project has a checked position and the Maps Embed key is set.
  *  The satellite frame is never created until the user first taps Satellite, so non-tappers pay no Google cost. */
@@ -13,8 +14,8 @@ export default function LocationMapSwitch({
   osmSrc: string
   osmLink: string
 }) {
-  const embedKey = process.env.NEXT_PUBLIC_MAPS_EMBED_KEY
-  const [mode, setMode] = useState<'map' | 'satellite'>('map')
+  const embedKey = mapsEmbedKey()
+  const [mode, setMode] = useState<MapMode>('map')
   const [satCreated, setSatCreated] = useState(false)
 
   const iframeClass = 'mt-3 h-64 w-full rounded-xl border border-slate-200 sm:h-80'
@@ -31,58 +32,17 @@ export default function LocationMapSwitch({
     )
   }
 
-  const satSrc = `https://www.google.com/maps/embed/v1/view?key=${embedKey}&center=${lat},${lon}&zoom=17&maptype=satellite`
+  const satSrc = satelliteSrc(embedKey, lat, lon, 17)
 
   function switchToSat() {
     if (!satCreated) setSatCreated(true)
     setMode('satellite')
-    try {
-      fetch('/api/v1/t/feature', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ feature: 'satellite_open' }),
-        keepalive: true,
-      }).catch(() => undefined)
-    } catch {
-      // tracking must never break the page
-    }
+    sendFeature('satellite_open')
   }
 
   return (
     <>
-      <div
-        role="group"
-        aria-label="Map type"
-        className="mt-3 flex gap-1"
-        data-testid="map-type-switch"
-      >
-        <button
-          type="button"
-          aria-pressed={mode === 'map'}
-          onClick={() => setMode('map')}
-          className={
-            'min-h-[44px] rounded-full border px-4 text-sm font-semibold ' +
-            (mode === 'map'
-              ? 'border-[var(--site-primary)] bg-[var(--site-primary)] text-[var(--site-on-primary)]'
-              : 'border-slate-300 bg-white text-slate-700')
-          }
-        >
-          Map
-        </button>
-        <button
-          type="button"
-          aria-pressed={mode === 'satellite'}
-          onClick={switchToSat}
-          className={
-            'min-h-[44px] rounded-full border px-4 text-sm font-semibold ' +
-            (mode === 'satellite'
-              ? 'border-[var(--site-primary)] bg-[var(--site-primary)] text-[var(--site-on-primary)]'
-              : 'border-slate-300 bg-white text-slate-700')
-          }
-        >
-          Satellite
-        </button>
-      </div>
+      <MapTypeSwitch mode={mode} onMap={() => setMode('map')} onSatellite={switchToSat} />
       <iframe
         title={`Map around ${shown}`}
         src={osmSrc}
