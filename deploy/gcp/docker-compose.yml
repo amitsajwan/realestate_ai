@@ -80,6 +80,7 @@ services:
       disable: true
     mem_limit: ${EMBEDDER_MEMORY_LIMIT:-1g}
     cpus: ${EMBEDDER_CPU_LIMIT:-1.0}
+    cpu_shares: ${EMBEDDER_CPU_SHARES:-512}   # half the web's weight: see the note on media
 
   # Each role uses the same image and settings. Runner leases keep one copy of every loop running during deploys or rollback.
   conversations:
@@ -102,6 +103,7 @@ services:
     stop_grace_period: 30s
     mem_limit: ${CONVERSATIONS_MEMORY_LIMIT:-512m}
     cpus: ${CONVERSATIONS_CPU_LIMIT:-0.50}
+    cpu_shares: ${CONVERSATIONS_CPU_SHARES:-512}
 
   newsroom:
     build: ../../backend
@@ -123,6 +125,7 @@ services:
     stop_grace_period: 30s
     mem_limit: ${NEWSROOM_MEMORY_LIMIT:-1g}
     cpus: ${NEWSROOM_CPU_LIMIT:-1.00}
+    cpu_shares: ${NEWSROOM_CPU_SHARES:-256}
 
   media:
     build: ../../backend
@@ -146,6 +149,11 @@ services:
     stop_grace_period: 30s
     mem_limit: ${MEDIA_MEMORY_LIMIT:-2g}
     cpus: ${MEDIA_CPU_LIMIT:-2.00}
+    # The site, the API, Mongo and Caddy keep Docker's default weight (1024); background work gets less, so when both want the
+    # CPU the pages win and a render only uses what they leave. A weight never slows a render on an idle machine; a limit
+    # (cpus) would. Why: on this 2-vCPU VM a reel or news video (ffmpeg, 8-10 min) took both CPUs, and every page, even a cached
+    # one, waited 15-40 s or answered 500 to Googlebot reading 4 at a time (2026-11-17, docs/plan/seo-system.md section 11).
+    cpu_shares: ${MEDIA_CPU_SHARES:-128}
 
   frontend:
     image: ${IMAGE_REGISTRY:-asia-south1-docker.pkg.dev/trader-502012/avasetu}/frontend:${IMAGE_TAG:-latest}

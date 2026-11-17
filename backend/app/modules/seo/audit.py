@@ -6,8 +6,10 @@ Reads robots.txt and the sitemap, then up to --max-pages pages from the sitemap 
 spread), and reports:
   errors   (exit 1): a sitemap page that is not a plain 200 (a 5xx or unreadable page is read once more after RETRY_S, so a
            restart during the run is a warning, not a failure), is blocked by robots.txt, says noindex, names another page as
-           canonical, has no <title>, or has structured data (JSON-LD) that does not parse; robots.txt without the sitemap
-  warnings (exit 0): a long or duplicate title, a missing or odd-length description, not exactly one <h1>, images without alt
+           canonical, has no <title>, or has structured data (JSON-LD) that does not parse; robots.txt without the sitemap;
+           more than STRAINED_MAX of the pages read slow (over SLOW_S) or answering 5xx at the first read
+  warnings (exit 0): a long or duplicate title, a missing or odd-length description, not exactly one <h1>, images without alt,
+           each page read slow
 Then AI_SAMPLE of those pages are read again as the AI search fetchers (AI_AGENTS: ChatGPT's search crawler and live reader,
 Perplexity, Bing for ChatGPT and Copilot): an error when robots.txt blocks one, or a page that answered us 200 does not answer
 it 200 with the same <title> and its <h1> in the HTML (a bot shield, a different page, or text that only appears after JS).
@@ -19,6 +21,7 @@ import json
 import os
 import re
 import sys
+import time
 from collections import Counter
 from dataclasses import dataclass, field
 from html.parser import HTMLParser
@@ -44,6 +47,12 @@ TITLE_MAX = 70
 DESC_MIN, DESC_MAX = 50, 170
 CONCURRENCY = 4
 RETRY_S = 30.0       # a page that answered 5xx (or nothing) is read again after this
+# A crawler reads several pages at once, as we do (CONCURRENCY). A server that keeps up answers each in a few seconds; one that
+# stalls makes Google slow its crawl and leave pages unread. 2026-11-17: 4 at a time, 39 of 954 sitemap pages took 8-42 s or
+# answered 500, in bursts that held even cached pages (a render took the VM's CPU); each was fine read alone, and the retry
+# below had turned every one of them into a warning. A few slow pages are a warning each; more than this share is an error.
+SLOW_S = 8.0
+STRAINED_MAX = 0.02
 _NS = "{http://www.sitemaps.org/schemas/sitemap/0.9}"
 
 
@@ -113,6 +122,7 @@ class Report:
     checked: int = 0
     listed: int = 0
     ai_checked: int = 0
+    strained: int = 0    # pages read slow or answering 5xx (or nothing) at the first read
 
 
 def _same(a: str, b: str) -> bool:
@@ -246,20 +256,25 @@ async def audit(site: str, max_pages: int = 300, transport: Optional[httpx.Async
         titles: Counter = Counter()
 
         async def read(u: str):
-            async with gate:
+            async with gate:   # timed inside the gate: our own queue is not the server's
+                start = time.monotonic()
                 try:
                     res = await c.get(u)
-                    return res, None
+                    return res, None, time.monotonic() - start
                 except httpx.HTTPError as e:
-                    return None, type(e).__name__
+                    return None, type(e).__name__, time.monotonic() - start
 
         async def one(u: str):
-            res, err = await read(u)
+            res, err, took = await read(u)
             first = None
+            if res is None or res.status_code >= 500 or took > SLOW_S:
+                rep.strained += 1
+            if took > SLOW_S and res is not None and res.status_code < 500:
+                slow.append(f"`{urlparse(u).path or '/'}` took {took:.1f} s")
             if res is None or res.status_code >= 500:   # a restart or a slow backend: Google retries too, so read once more
                 first = err or str(res.status_code)
                 await asyncio.sleep(RETRY_S)
-                res, err = await read(u)
+                res, err, _ = await read(u)
             if res is None:
                 return [f"`{urlparse(u).path or '/'}` could not be read ({err}, twice)"], [], None
             errs, warns, title = check_page(u, res.status_code, dict(res.headers), res.text, robots)
@@ -270,6 +285,7 @@ async def audit(site: str, max_pages: int = 300, transport: Optional[httpx.Async
             return errs, warns, title
 
         read_ok: Dict[str, str] = {}
+        slow: List[str] = []
         for errs, warns, title in await asyncio.gather(*(one(u) for u in spread(urls, max_pages))):
             rep.errors += errs
             rep.warnings += warns
@@ -277,6 +293,11 @@ async def audit(site: str, max_pages: int = 300, transport: Optional[httpx.Async
             if title:
                 titles[title] += 1
         rep.warnings += [f'{n} pages share the title "{t}"' for t, n in titles.items() if n > 1]
+        rep.warnings += slow
+        if rep.checked and rep.strained / rep.checked > STRAINED_MAX:
+            rep.errors.append(f"{rep.strained} of {rep.checked} pages were slow (over {SLOW_S:.0f} s) or answered 5xx at the first "
+                              f"read, {CONCURRENCY} at a time: the server does not keep up with a crawler, and Google slows its "
+                              f"crawl for a site that stalls (more than {STRAINED_MAX:.0%} is an error)")
 
         # the AI search fetchers: same robots.txt answer, same page, its text in the HTML
         sample = spread(list(read_ok), AI_SAMPLE)

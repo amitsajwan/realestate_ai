@@ -1,4 +1,6 @@
 """The weekly SEO audit fails on what keeps a sitemap page out of Google and only warns on the rest."""
+import asyncio
+
 import httpx
 
 from app.modules.seo import audit
@@ -122,3 +124,36 @@ async def test_robots_txt_blocking_an_ai_fetcher_is_an_error():
     robots = "User-agent: *\nAllow: /\n\nUser-agent: OAI-SearchBot\nDisallow: /\nSitemap: https://avasetu.in/sitemap.xml\n"
     rep = await audit.audit(SITE, transport=ai_site({"/": page("/", title="Avasetu")}, robots=robots))
     assert rep.errors == ["`/`: robots.txt blocks oai-searchbot"]
+
+
+def stalling(pages, slow=(), fail_first=()):
+    """`site` with some pages answering late (`slow`) or 500 at the first read (`fail_first`), as a stalled server does."""
+    inner, failed = site(pages), set()
+
+    async def handler(req):
+        if req.url.path in slow:
+            await asyncio.sleep(0.05)
+        if req.url.path in fail_first and req.url.path not in failed:
+            failed.add(req.url.path)
+            return httpx.Response(500, text="busy")
+        return inner.handle_request(req)
+    return httpx.MockTransport(handler)
+
+
+async def test_a_server_that_stalls_under_a_crawl_fails_the_audit(monkeypatch):
+    monkeypatch.setattr(audit, "SLOW_S", 0.02)
+    monkeypatch.setattr(audit, "RETRY_S", 0.0)
+    pages = {f"/p{i}": page(f"/p{i}", title=f"P{i}") for i in range(10)}
+    rep = await audit.audit(SITE, transport=stalling(pages, slow={"/p1"}, fail_first={"/p2"}))
+    assert rep.strained == 2
+    assert any(e.startswith("2 of 10 pages were slow") for e in rep.errors)
+    assert any(w.startswith("`/p1` took") for w in rep.warnings)
+    assert "`/p2` answered 500, then 200 0 s later" in rep.warnings
+
+
+async def test_one_slow_page_among_many_is_only_a_warning(monkeypatch):
+    monkeypatch.setattr(audit, "SLOW_S", 0.02)
+    pages = {f"/p{i}": page(f"/p{i}", title=f"P{i}") for i in range(60)}
+    rep = await audit.audit(SITE, transport=stalling(pages, slow={"/p7"}))
+    assert (rep.errors, rep.strained) == ([], 1)
+    assert [w for w in rep.warnings if "took" in w] and rep.warnings[0].startswith("`/p7` took")
