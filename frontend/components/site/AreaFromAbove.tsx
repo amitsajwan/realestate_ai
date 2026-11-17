@@ -17,7 +17,7 @@ export default function AreaFromAbove({ slug, name, className = 'mt-9' }: { slug
   function toggle() {
     if (!made) {
       setMade(true)
-      sendFeature('satellite_open', { area: slug })
+      sendFeature('satellite_open')
     }
     setOpen((o) => !o)
   }

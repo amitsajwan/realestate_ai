@@ -70,7 +70,7 @@ export default function AreaMapView({ data, items }: { data: AreaMapData; items:
   function toSatellite() {
     setSatMade(true)
     setMode('satellite')
-    sendFeature('satellite_open', { area: data.area_slug })
+    sendFeature('satellite_open')
   }
   return (
     <div className="mt-4 flex flex-wrap items-start gap-5">

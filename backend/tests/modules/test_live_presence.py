@@ -375,3 +375,14 @@ async def test_google_searches_are_grouped_by_the_page_they_brought_clicks_to():
     await coll.insert_one({"_id": "godrej ivara price", "phrase": "godrej ivara price", "gsc": {"clicks": 5, "impressions": 40, "pages": ["/projects/godrej-ivara-pune"]}})
     await coll.insert_one({"_id": "kharadi flats", "phrase": "kharadi flats", "gsc": {"clicks": 0, "impressions": 500, "pages": ["/projects/godrej-ivara-pune"]}})
     assert await searches_by_page(db) == {"/projects/godrej-ivara-pune": ["godrej ivara price", "ivara kharadi"]}
+
+
+async def test_a_tap_on_the_satellite_view_or_street_view_is_recorded_in_the_story_without_scoring():
+    # the site posted these taps to /t/feature, a route that never existed, so none was kept (found 2026-11-17)
+    svc, _, clock, _ = await make_geo({})
+    await svc.track_event(view("/localities/baner", "viewS0000001"), ANDROID)
+    clock.advance(minutes=1)
+    await svc.track_event(ev("satellite_open", listing=None), ANDROID)
+    await svc.track_event(ev("streetview_open", listing=None), ANDROID)
+    s = (await build_live(svc, "A1"))["today"]["stories"][0]
+    assert [d["what"] for d in s["did"]] == ["Opened the satellite view", "Opened Street View"]

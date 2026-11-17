@@ -1,4 +1,6 @@
 import React from 'react'
+import { HOUSE_AGENT_SLUG } from '@/lib/brand'
+import { trackEvent } from '@/lib/site/tracking'
 
 /** What the Google Maps Embed views share: the project pages' Map / Satellite switch (LocationMapSwitch), the area map's
  *  (AreaMapView), an area's view from above (AreaFromAbove) and Street View on tap (StreetViewOnTap). Plans:
@@ -38,18 +40,11 @@ export function zoomToFit(box: number[], px = 640): number {
   return Math.min(18, Math.max(10, z))
 }
 
-/** A tap on one of these views, for Studio's visit trail (docs/plan/satellite-view.md, "How we judge it"). */
-export function sendFeature(feature: string, extra: Record<string, string> = {}): void {
-  try {
-    fetch('/api/v1/t/feature', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ feature, ...extra }),
-      keepalive: true,
-    }).catch(() => undefined)
-  } catch {
-    // tracking must never break the page
-  }
+/** A tap on one of these views, for Studio's visit trail (docs/plan/satellite-view.md, "How we judge it"): an ordinary site event
+ *  under the house account, so the page it happened on comes with it. (Before 2026-11-17 the taps went to /t/feature, which the
+ *  backend never had, so none was recorded.) */
+export function sendFeature(type: 'satellite_open' | 'streetview_open'): void {
+  trackEvent(type, HOUSE_AGENT_SLUG)
 }
 
 /** The pill look every switch and tap button here shares, 44 px tall for a thumb. The colours fall back to the site's navy where a

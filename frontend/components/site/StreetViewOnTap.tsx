@@ -16,7 +16,7 @@ export default function StreetViewOnTap({ lat, lon, label, heading }: { lat: num
   function toggle() {
     if (!made) {
       setMade(true)
-      sendFeature('streetview_open', { place: label })
+      sendFeature('streetview_open')
     }
     setOpen((o) => !o)
   }

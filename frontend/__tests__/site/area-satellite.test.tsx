@@ -56,7 +56,9 @@ describe('the area map with the embed key', () => {
     expect(container.querySelector('img[src="/maps/upper-kharadi.svg"]')!.parentElement).toHaveClass('hidden')
     // the project list beside the map stays: it is the content
     expect(screen.getByTestId('area-map-list')).toBeInTheDocument()
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ feature: 'satellite_open', area: 'upper-kharadi' })
+    // recorded as a site event on the visit (the page's path comes with it), the route the backend has
+    expect(fetchMock.mock.calls[0][0]).toMatch(/\/api\/v1\/t\/event$/)
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({ type: 'satellite_open', agent_slug: 'avasetu' })
   })
 
   test('back to Map hides the frame without throwing it away', () => {
@@ -102,7 +104,9 @@ describe('<area> from above, for guides without a drawn map', () => {
     expect(src).toContain(`center=${AREA_CENTRES.baner.lat},${AREA_CENTRES.baner.lon}`)
     expect(src).toContain('maptype=satellite')
     expect(screen.getByText('Google’s satellite picture of Baner. It can be months or years old.')).toBeInTheDocument()
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ feature: 'satellite_open', area: 'baner' })
+    // recorded as a site event on the visit (the page's path comes with it), the route the backend has
+    expect(fetchMock.mock.calls[0][0]).toMatch(/\/api\/v1\/t\/event$/)
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({ type: 'satellite_open', agent_slug: 'avasetu' })
   })
 
   test('every guide without a drawn map has a centre inside Pune, and says how it was chosen', () => {

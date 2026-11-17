@@ -7,7 +7,8 @@ from app.platform.text import normalize_indian_mobile
 from .origin import clip
 from .requirement import Financing, Timeline
 
-EventType = Literal["page_view", "listing_view", "share", "call_click", "whatsapp_click", "chat_open"]
+EventType = Literal["page_view", "listing_view", "share", "call_click", "whatsapp_click", "chat_open",
+                    "satellite_open", "streetview_open"]   # a tap on Google's satellite or Street View (satellite-view.md)
 Stage = Literal["new", "contacted", "site_visit", "negotiating", "won", "lost"]
 
 

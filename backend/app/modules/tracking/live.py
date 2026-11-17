@@ -24,7 +24,8 @@ log = logging.getLogger(__name__)
 VIEW_TYPES = ["page_view", "listing_view"]
 # what a visitor did besides reading, shown in their story
 ACTIONS = {"whatsapp_click": "Tapped WhatsApp", "call_click": "Tapped Call", "share": "Shared a page",
-           "inquiry": "Sent an enquiry", "chat_open": "Opened the chat"}
+           "inquiry": "Sent an enquiry", "chat_open": "Opened the chat",
+           "satellite_open": "Opened the satellite view", "streetview_open": "Opened Street View"}
 NOW_WINDOW = timedelta(minutes=5)
 READING_WINDOW = timedelta(seconds=90)  # a ping this recent: the page is open and visible, not just left in a tab
 VISIT_GAP = timedelta(minutes=30)
