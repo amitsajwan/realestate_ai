@@ -18,6 +18,7 @@ import AreaLatest from '@/components/localities/AreaLatest'
 import { AreaTrackers } from '@/components/news/Trackers'
 import { fetchTrackers } from '@/lib/news/trackers'
 import AreaRecords from '@/components/localities/AreaRecords'
+import AreaLandmarks, { getAreaLandmarks } from '@/components/localities/AreaLandmarks'
 import { getAreaNews, getAreaPosts } from '@/components/localities/areaFeed'
 import { getAreaStats } from '@/components/localities/areaStats'
 import { getCommunities } from '@/components/localities/communities'
@@ -138,7 +139,7 @@ export default async function LocalityPage({ params }: Props) {
   const slug = (await params).slug
   if (!validSlug(slug)) notFound()
   const l = pageLocality(slug)
-  const [listings, projects, stats, posts, news, hoods, active, facets, map, listed, trackers] = await Promise.all([
+  const [listings, projects, stats, posts, news, hoods, active, facets, map, listed, trackers, landmarks] = await Promise.all([
     getLocalityListings(l.listingName), getCatalog(l.listingName), l.fallback ? Promise.resolve(null) : getAreaStats(l.slug),
     l.fallback ? Promise.resolve([]) : getAreaPosts(l, 6), l.fallback ? Promise.resolve([]) : getAreaNews(l, 5),
     l.fallback ? Promise.resolve([]) : getCommunities(l.key),
@@ -147,6 +148,7 @@ export default async function LocalityPage({ params }: Props) {
     l.fallback ? Promise.resolve(null) : getAreaMap(l.key),
     l.fallback ? Promise.resolve(new Map<string, ListedProject>()) : getListed(),
     l.fallback ? Promise.resolve([]) : fetchTrackers(l.key),
+    l.fallback ? Promise.resolve(null) : getAreaLandmarks(l.slug),
   ])
   // the block shows when something tracked touches this area; the city-wide rates come along with it, never alone
   const nearby = trackers.some((t) => t.areas.some((a) => a.slug === l.slug)) ? trackers : []
@@ -187,6 +189,7 @@ export default async function LocalityPage({ params }: Props) {
 
         <section className="mt-9"><h2 className="text-xl font-semibold text-slate-900">Getting around</h2>
           {l.gettingAround.map((p) => <p key={p} className="mt-3 leading-relaxed text-slate-800">{p}</p>)}</section>
+        <AreaLandmarks data={landmarks} />
 
         <AreaRecords name={l.name} stats={stats} />
 
