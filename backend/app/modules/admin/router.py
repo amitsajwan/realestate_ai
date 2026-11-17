@@ -73,10 +73,14 @@ async def _seo_rows(svc: AdminService) -> list:
     held = sorted((d for d in hoods if not d.get("published") and d.get("write_notes")), key=lambda d: d.get("written_at"), reverse=True)
     articles = {"found": len(hoods), "published": sum(1 for d in hoods if d.get("published")),
                 "last_note": f"{held[0]['name']}: {held[0]['write_notes'][0]}" if held else None}
+    from app.modules.areastats.pictures import AreaPictures
+    from app.modules.areastats.picturesloop import enabled as pictures_on
+    pictures_summary = await AreaPictures(svc.db).health_summary()
     return health.seo_rows(indexnow_on=indexnow_key() is not None, gsc_on=gsc_key() is not None, indexnow=marks.get("indexnow"),
                            coverage=marks.get("gsc_coverage"), pages=marks.get("gsc_pages"), articles_on=articles_on(),
                            articles=articles) + [r for r in loops if r] + [
-        health.freshness_row(marks.get(freshness.MARK), freshness.WINDOW.days), health.page_check_row(marks.get(review.MARK), now)]
+        health.freshness_row(marks.get(freshness.MARK), freshness.WINDOW.days), health.page_check_row(marks.get(review.MARK), now),
+        health.pictures_row(pictures_on(), pictures_summary)]
 
 
 async def _press_row(svc: AdminService) -> dict:

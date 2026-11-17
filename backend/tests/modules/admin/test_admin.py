@@ -120,8 +120,9 @@ def test_overview_counts_waiting_agents_health_and_controls(monkeypatch):
     assert o["agents"][0]["name"] == "Rahul Sharma" and o["agents"][0]["progress"]["total"] == 8 and o["agents"][0]["mobile"] == "98******10"
     rows = {h["key"]: h for h in o["health"]}
     assert set(rows) == {"facebook", "instagram", "whatsapp", "messenger", "ai", "posting", "comments", "news", "indexnow", "google_index",
-                         "neighbourhoods", "enrich", "freshness", "page_check", "google_search", "press"}
+                         "neighbourhoods", "enrich", "freshness", "page_check", "google_search", "press", "area_pictures"}
     assert rows["press"]["status"] == "warn" and "PRESS_AGENT" in rows["press"]["fix"]   # off by default
+    assert rows["area_pictures"]["status"] == "warn" and "AREA_FROM_ABOVE" in rows["area_pictures"]["fix"]   # off by default
     assert rows["enrich"]["status"] == "warn" and "PROJECT_ENRICH_ENABLED" in rows["enrich"]["fix"]   # off by default
     assert rows["freshness"]["status"] == "ok" and rows["freshness"]["text"] == "First count runs within a day"
     assert rows["messenger"]["status"] == "warn"  # off by default
@@ -318,6 +319,18 @@ def test_neighbourhood_article_row():
     assert row(articles_on=True, articles={"found": 0})["text"].startswith("On, finding")
     r = row(articles_on=True, articles={"found": 9, "published": 4, "last_note": "Ubale Nagar: too few facts"})
     assert r["text"] == "4 published of 9 neighbourhoods found" and r["fix"] == "Last one held back: Ubale Nagar: too few facts"
+
+
+def test_pictures_row_off_missing_or_stale():
+    from app.modules.admin.health import pictures_row
+    off = pictures_row(False, None)
+    assert off["status"] == "warn" and "AREA_FROM_ABOVE" in off["fix"]
+    missing = pictures_row(True, {"areas": 8, "missing": ["Baner", "Wakad"], "worst_days": None, "worst_area": None})
+    assert missing["status"] == "warn" and "2 of 8" in missing["text"] and "Baner" in missing["text"]
+    fresh = pictures_row(True, {"areas": 8, "missing": [], "worst_days": 120, "worst_area": "Kharadi"})
+    assert fresh["status"] == "ok" and "120 days" in fresh["text"]
+    stale = pictures_row(True, {"areas": 8, "missing": [], "worst_days": 500, "worst_area": "Kharadi"})
+    assert stale["status"] == "warn" and "Kharadi" in stale["text"] and "500" in stale["text"]
 
 
 # ---- hot projects banner (areastats/spotlight.py) --------------------------------------------------------------------------

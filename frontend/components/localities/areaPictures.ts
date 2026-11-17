@@ -1,11 +1,14 @@
 /**
- * The area seen from above, then and now: Sentinel-2 pictures backend/scripts/area_from_above.py writes into public/areas/
- * (<slug>-<year>.webp, and <slug>.json listing them). Read on the server from the site's own public folder; a missing or
- * malformed list gives null and the page shows only the chart. Nothing here describes what the pictures show: the caption is
- * the place, the month and the credit, all from the list.
+ * The area seen from above, then and now: Sentinel-2 pictures, judged by Gemini vision and kept live by the owner in Studio
+ * (docs/plan/area-pictures.md step 3; backend `areastats.pictures`, the `area_pictures` background loop). Read server-side
+ * from `GET /api/v1/public/areas/{slug}/pictures` (live pictures only), like `areaStats.ts`: a timeout, and any failure
+ * gives []. The public/areas/<slug>.json file the by-hand script (backend/scripts/area_from_above.py) used to write is kept
+ * as a fallback only, so a server not yet switched on, or an area still carrying only the hand-run pair, keeps its pictures.
  */
 import { promises as fs } from 'fs'
 import path from 'path'
+
+import { fixturesForced, serverApiBase } from '@/lib/site/api'
 
 export interface AreaPicture {
   year: number
@@ -59,10 +62,51 @@ export function areaOgImage(name: string, pictures: AreaPicture[]): { path: stri
 }
 
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+){0,8}$/
+const API_SRC = /^\/uploads\/area_pictures\/[A-Za-z0-9_-]+\.webp$/
 
-/** public/areas/<slug>.json, cleaned; [] when there is none. */
+/** `GET /api/v1/public/areas/{slug}/pictures`'s live pictures, cleaned (areastats.pictures.public_view's shape); only entries
+ *  whose year, day and file all agree. [] for anything unexpected: an outage, a 404, a malformed body. */
+export function cleanApiPictures(raw: unknown, slug: string): AreaPicture[] {
+  if (!raw || typeof raw !== 'object') return []
+  const r = raw as { area?: { slug?: unknown }; pictures?: unknown }
+  if (r.area?.slug !== slug || !Array.isArray(r.pictures)) return []
+  const byYear = new Map<number, AreaPicture>()
+  for (const p of r.pictures as Array<Record<string, unknown>>) {
+    if (!p || typeof p !== 'object') continue
+    const { year, captured_on: day, src, width, height } = p as Record<string, unknown>
+    if (typeof year !== 'number' || !Number.isInteger(year) || typeof day !== 'string' || !monthYear(day) || +day.slice(0, 4) !== year) continue
+    if (typeof src !== 'string' || !API_SRC.test(src) || !size(width) || !size(height)) continue
+    byYear.set(year, { year, src, width, height, day, credit: `Contains modified Copernicus Sentinel data ${year}` })
+  }
+  return [...byYear.values()].sort((a, b) => a.year - b.year)
+}
+
+async function readApiPictures(slug: string): Promise<AreaPicture[]> {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), 5000)
+  try {
+    const res = await fetch(serverApiBase() + '/api/v1/public/areas/' + encodeURIComponent(slug) + '/pictures', {
+      headers: { Accept: 'application/json' },
+      next: { revalidate: 300 },
+      signal: ctrl.signal,
+    })
+    if (!res.ok) return []
+    return cleanApiPictures(await res.json(), slug)
+  } catch {
+    return []
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/** The live pictures from the backend (areastats.pictures), else public/areas/<slug>.json (the by-hand script's file),
+ *  cleaned; [] for an unknown slug or when neither has anything. */
 export async function readAreaPictures(slug: string, dir: string = path.join(process.cwd(), 'public', 'areas')): Promise<AreaPicture[]> {
   if (!SLUG.test(slug)) return []
+  if (!fixturesForced()) {
+    const api = await readApiPictures(slug)
+    if (api.length) return api
+  }
   try {
     return cleanAreaPictures(JSON.parse(await fs.readFile(path.join(dir, `${slug}.json`), 'utf8')), slug)
   } catch {

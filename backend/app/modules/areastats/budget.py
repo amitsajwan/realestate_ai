@@ -60,6 +60,8 @@ def route(tier: str, step: str) -> List[str]:
         return [GEMINI, FREE]
     if tier == PREMIUM and step in ("prices", "text"):
         return [GEMINI, FREE]
+    if step == "area_picture":   # judging a satellite picture: Gemini's vision, lite first (the free tiers do not take images)
+        return [LITE, GEMINI]
     if step == "prices":
         return [LITE, FREE]
     return [FREE, LITE]

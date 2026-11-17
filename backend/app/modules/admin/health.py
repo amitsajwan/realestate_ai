@@ -108,6 +108,29 @@ def seo_rows(*, indexnow_on: bool, gsc_on: bool, indexnow: Optional[dict], cover
     return rows
 
 
+PICTURES_FRESH_DAYS = 400   # a dry season (Feb-Apr) plus slack: a year not refreshed within this is overdue
+
+
+def pictures_row(on: bool, summary: Optional[Dict]) -> Dict:
+    """"Pictures from above" (areastats.pictures, docs/plan/area-pictures.md step 3): on/off, any area with nothing yet,
+    and the most overdue area's newest kept year in days (areastats.pictures.AreaPictures.health_summary)."""
+    label = "Pictures from above"
+    if not on:
+        return _row("area_pictures", label, WARN, "Off: area pages show no satellite then-and-now pair",
+                    "Set AREA_FROM_ABOVE=true and the Copernicus client id and secret in the server settings")
+    s = summary or {}
+    if s.get("missing"):
+        shown = ", ".join(s["missing"][:3])
+        return _row("area_pictures", label, WARN, f"{len(s['missing'])} of {s.get('areas', 8)} areas have no picture yet ({shown})")
+    worst = s.get("worst_days")
+    if worst is None:
+        return _row("area_pictures", label, OK, "On, no picture captured yet")
+    if worst > PICTURES_FRESH_DAYS:
+        return _row("area_pictures", label, WARN, f"{s.get('worst_area')}'s newest year is {worst} days old",
+                    "Read pipeline=area_pictures in the newsroom worker's log")
+    return _row("area_pictures", label, OK, f"Newest year within {worst} days for every area")
+
+
 FRESH_WARN, FRESH_BAD = 0.7, 0.4   # share of our areas' live project pages re-read in the window (to tune on real readings)
 
 

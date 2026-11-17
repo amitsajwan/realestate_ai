@@ -2,16 +2,21 @@
 
 404 for an area we do not cover. Short public caching: the numbers change a few times a day at most."""
 from datetime import datetime
+from typing import Any, Callable, Dict
 
 from fastapi import APIRouter, Depends, HTTPException, Response
+from pydantic import BaseModel, ConfigDict
 
+from app.core.auth_backend import current_active_user
 from app.core.database import get_database
+from app.models.user import User
 from app.modules.newsroom.store import Store
 
 from .pages import date_moves
 from .service import CACHE_SECONDS, IST, SOURCE, all_area_stats, area_stats
 
 public_router = APIRouter()
+router = APIRouter()   # Studio: mounted at /area-pictures, owner-only (approve/refuse the AI judge's picks)
 
 
 def get_db():
@@ -194,3 +199,64 @@ async def public_upcoming(slug: str, response: Response, db=Depends(get_db)) -> 
         raise HTTPException(status_code=404, detail="Upcoming project not found")
     response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
     return {**u, "builder_projects": await upcoming.builder_projects(db, u)}
+
+
+# ---- the area from above (pictures.py), the owner's first-pair review and the public then-and-now pair ---------------------
+from app.core.areas import get as areas_get  # noqa: E402
+
+from . import pictures  # noqa: E402
+
+_hooks: Dict[str, Any] = {"is_operator": lambda user: False}
+
+
+def configure(is_operator: Callable[[User], bool]) -> None:
+    _hooks["is_operator"] = is_operator
+
+
+def is_admin(user: User) -> bool:
+    return bool(getattr(user, "is_superuser", False)) or bool(_hooks["is_operator"](user))
+
+
+async def owner_only(user: User = Depends(current_active_user)) -> User:
+    if is_admin(user):
+        return user
+    raise HTTPException(403, "Only the owner can approve or refuse an area picture")
+
+
+def get_pictures() -> pictures.AreaPictures:
+    return pictures.AreaPictures(get_database())
+
+
+class DecideIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    live: bool
+
+
+@public_router.get("/areas/{slug}/pictures")
+async def public_area_pictures(slug: str, response: Response, svc: pictures.AreaPictures = Depends(get_pictures)) -> dict:
+    """The area's live then-and-now pair (or more): {area, pictures: [{year, captured_on, src, width, height, credit}]}."""
+    out = await svc.public(slug)
+    if out is None:
+        raise HTTPException(status_code=404, detail="Unknown area")
+    response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
+    return out
+
+
+@router.get("")
+async def list_pictures(area: str, user: User = Depends(owner_only), svc: pictures.AreaPictures = Depends(get_pictures)) -> dict:
+    a = areas_get(area)
+    if a is None:
+        raise HTTPException(404, "Unknown area")
+    docs = await svc.list_area(a.key)
+    return {"area": {"key": a.key, "name": a.name, "slug": a.slug}, "trusted": await svc.trusted(),
+            "items": [pictures.studio_view(d) for d in docs]}
+
+
+@router.post("/{pid}/decide")
+async def decide_picture(pid: str, body: DecideIn, user: User = Depends(owner_only),
+                         svc: pictures.AreaPictures = Depends(get_pictures)) -> dict:
+    try:
+        d = await svc.decide(pid, body.live, str(user.id))
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    return pictures.studio_view(d)

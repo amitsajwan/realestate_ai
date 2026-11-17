@@ -56,6 +56,11 @@ def test_premium_prices_and_text_go_to_gemini_first_the_rest_to_the_free_tiers()
     assert budget.route(budget.PLAIN, "prices") == [budget.LITE, budget.FREE]
 
 
+def test_judging_a_picture_goes_to_gemini_never_the_free_tiers_which_do_not_take_images():
+    assert budget.route(budget.PLAIN, "area_picture") == [budget.LITE, budget.GEMINI]
+    assert budget.route(budget.URGENT, "area_picture") == [budget.GEMINI, budget.FREE]  # urgent still wins as ever
+
+
 async def test_the_same_question_again_costs_no_call():
     db = FakeDb()
     free, gemini, lite = models()

@@ -94,7 +94,7 @@ async def test_worker_in_production_refuses_to_start_without_the_database(events
     assert started == []
 
 
-def test_the_worker_runs_the_fourteen_loops_under_the_api_lease_names():
+def test_the_worker_runs_the_fifteen_loops_under_the_api_lease_names():
     from app.modules.calendar.runner import loop as calendar_loop
     from app.modules.calendar.runner import render_loop as calendar_reels_loop
     from app.modules.insights.collector import loop as insights_loop
@@ -104,6 +104,7 @@ def test_the_worker_runs_the_fourteen_loops_under_the_api_lease_names():
     from app.modules.newsroom.runner import loop as newsroom_loop
     from app.modules.propertyfacts.jobs import loop as marketing_loop
     from app.modules.areastats.enrich import loop as enrich_loop
+    from app.modules.areastats.picturesloop import loop as area_pictures_loop
     from app.modules.radar import loop as radar_loop
     from app.modules.seo.runner import loop as seo_loop
     from app.modules.communities.runner import loop as communities_loop
@@ -122,7 +123,8 @@ def test_the_worker_runs_the_fourteen_loops_under_the_api_lease_names():
                               "token_cleanup": token_cleanup_loop, "radar": radar_loop,
                               "seo": seo_loop, "communities": communities_loop,
                               "knowledge_index": knowledge_index_loop, "lead_followups": lead_followups_loop,
-                              "video_cleanup": video_cleanup_loop, "geoip": geoip_loop, "press": press_loop}
+                              "video_cleanup": video_cleanup_loop, "geoip": geoip_loop,
+                              "press": press_loop, "area_pictures": area_pictures_loop}
 
 
 def test_worker_roles_partition_every_loop_once():
