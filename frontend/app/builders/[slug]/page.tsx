@@ -9,7 +9,7 @@ import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/se
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
 import { getBuilder } from '@/lib/site/hubs'
 import type { BuilderPage } from '@/lib/site/hubs'
-import { monthYear } from '@/lib/site/register'
+import { getRegisterPlaces, monthYear, placePath, type RegisterPlace } from '@/lib/site/register'
 import BuilderDateMoves from '@/components/site/BuilderDateMoves'
 
 // One page per builder (docs/plan/rank-loop.md R6): every Pune project of the brand (backend areastats/brands.py), else of the
@@ -70,9 +70,27 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return b.indexable ? meta : { ...meta, robots: { index: false, follow: true } }   // one project only: the project page is enough
 }
 
+/** The builder's areas, each opening the area's project list where we have one (the names are our areas', backend core/areas). */
+function Areas({ names, places }: { names: string[]; places: RegisterPlace[] }) {
+  return (
+    <>
+      {names.map((a, i) => {
+        const place = places.find((p) => p.name.toLowerCase() === a.toLowerCase() && p.projects > 0)
+        return (
+          <React.Fragment key={a}>
+            {i > 0 && ', '}
+            {place ? <Link href={placePath(place.slug)} className="text-[#0f2340] underline underline-offset-2">{a}</Link> : a}
+          </React.Fragment>
+        )
+      })}
+    </>
+  )
+}
+
 export default async function BuilderPageView({ params }: Props) {
   const b = await load((await params).slug)
   if (!b) notFound()
+  const places = b.areas.length ? await getRegisterPlaces() : []
   const cfg = getMarketingConfig()
   const qa = faq(b)
   const rec = recordLine(b)
@@ -102,7 +120,7 @@ export default async function BuilderPageView({ params }: Props) {
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">{b.name} projects in Pune</h1>
         <p className="mt-3 text-lg text-slate-800">
           Our MahaRERA register holds {b.projects_count} Pune project{b.projects_count === 1 ? '' : 's'} by {b.name}
-          {b.areas.length > 0 && <> in {b.areas.join(', ')}</>}; {b.active} still being built or recently finished.
+          {b.areas.length > 0 && <> in <Areas names={b.areas} places={places} /></>}; {b.active} still being built or recently finished.
         </p>
         <dl className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
           <div className="rounded-xl border border-slate-200 bg-white p-3"><dt className="text-xs text-slate-600">Projects</dt><dd className="text-lg font-semibold">{b.projects_count}</dd></div>

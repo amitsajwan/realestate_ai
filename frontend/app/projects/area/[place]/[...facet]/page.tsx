@@ -119,7 +119,9 @@ function SoldOut({ p }: { p: FacetPage }) {
             {rows.map((r) => (
               <tr key={r.slug} className="border-t border-slate-200">
                 <td className="px-3 py-2"><Link href={`/projects/${r.slug}`} className="font-semibold text-[#0f2340] underline underline-offset-2">{r.name}</Link></td>
-                <td className="px-3 py-2 text-slate-700">{builderLine(r).name ?? ''}</td>
+                <td className="px-3 py-2 text-slate-700">{r.builder_slug && builderLine(r).name
+                  ? <Link href={`/builders/${r.builder_slug}`} className="text-[#0f2340] underline underline-offset-2">{builderLine(r).name}</Link>
+                  : builderLine(r).name ?? ''}</td>
                 <td className="px-3 py-2">{r.units_booked != null && r.units_total ? `${n(r.units_booked)} of ${n(r.units_total)}` : ''}</td>
                 <td className="px-3 py-2 text-slate-700">{monthYear(r.completion_now)}</td>
                 <td className="px-3 py-2 text-right"><Link href={`/projects/${r.slug}#enquire`} className="inline-flex min-h-[44px] items-center font-semibold text-[#0f2340] underline underline-offset-2">Ask about resale</Link></td>
