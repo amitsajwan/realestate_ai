@@ -33,6 +33,12 @@ jest.mock('@/lib/site/register', () => ({
   ],
 }))
 
+// each area guide's line carries its dated metro sentence (components/localities/AreaLandmarks.metroAnswer)
+jest.mock('@/components/localities/AreaLandmarks', () => ({
+  getAreaLandmarks: async (slug: string) => (slug === 'kharadi' ? { slug } : null),
+  metroAnswer: (d: { slug: string }) => `The nearest running metro station to ${d.slug} is Ramwadi.`,
+}))
+
 import { GET } from '@/app/llms.txt/route'
 import { getMarketingConfig } from '@/lib/marketing/config'
 
@@ -56,6 +62,9 @@ describe('/llms.txt', () => {
     expect(text).not.toContain('Thin')
     expect(text).toContain('/pune-maharera-tracker')
     expect(text).toContain('/about)')
+    // a guide with landmarks says its nearest metro; one without is listed bare
+    expect(text).toContain(`- [Living in Kharadi, Pune: area guide](${getMarketingConfig().siteUrl}/localities/kharadi): The nearest running metro station to kharadi is Ramwadi.`)
+    expect(text).toContain(`- [Living in Wagholi, Pune: area guide](${getMarketingConfig().siteUrl}/localities/wagholi)\n`)
   })
 
   it('lists our areas\' project pages: agent-listed first, then priced, then newest, never a page out of search', async () => {

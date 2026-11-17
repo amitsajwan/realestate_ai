@@ -76,6 +76,10 @@ $Catalog = @(
   # no Check here: the key is restricted to the server's IP, so it is checked on the VM after saving (keys_check.py, free call)
   @{ Name = "GOOGLE_MAPS_API_KEY"; For = "Each project's own pin on Google Maps, so nearby distances are measured from the project"
      Get = "https://console.cloud.google.com/apis/credentials -> API key restricted to 'Places API (New)' and the server's IP" }
+  # the areas' pictures from above, by hand once a year (backend/scripts/area_from_above.py, docs/plan/area-pictures.md step 3)
+  @{ Name = "COPERNICUS_CLIENT_ID"; For = "Sentinel-2 pictures of each area from above (Copernicus Data Space OAuth client)"
+     Get = "https://dataspace.copernicus.eu -> sign up (free) -> Sentinel Hub dashboard -> User settings -> OAuth clients -> Create" }
+  @{ Name = "COPERNICUS_CLIENT_SECRET"; For = "Sentinel-2 pictures: the OAuth client's secret (shown once)"; Get = "the same client" }
   @{ Name = "GSC_SA_KEY_B64"; For = "Search Console reader (which project pages Google shows)"; File = $true
      Get = "Google Cloud -> IAM -> Service accounts -> Keys -> Add key (JSON); add its email in Search Console as a Restricted user"
      Check = { param($v) $j = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($v)) | ConvertFrom-Json

@@ -29,12 +29,12 @@ LoopTable = Dict[str, Callable[[], Awaitable[Any]]]
 ALL_LOOP_NAMES = (
     "engage", "newsroom", "calendar", "calendar_reels", "listing_reels", "marketing_runs", "project_enrich", "insights",
     "answer_gaps", "inbound_messages", "token_cleanup", "radar", "seo", "communities", "knowledge_index", "lead_followups",
-    "video_cleanup", "geoip",
+    "video_cleanup", "geoip", "press", "area_pictures", "area_photo_scout",
 )   # render_dispatch is not among them: only the `dispatch` role starts it (it calls Cloud Run; development has none)
 ROLE_LOOPS = {
     "conversations": ("engage", "answer_gaps", "inbound_messages", "lead_followups"),
     "newsroom": ("newsroom", "seo", "communities", "project_enrich", "radar", "insights", "calendar", "token_cleanup",
-                 "knowledge_index", "video_cleanup", "geoip"),
+                 "knowledge_index", "video_cleanup", "geoip", "press", "area_pictures", "area_photo_scout"),
     "media": ("calendar_reels", "listing_reels", "marketing_runs"),
     # on the VM in place of media once reels are drawn by the Cloud Run Job (reels.render_job): it only starts that job
     "dispatch": ("render_dispatch",),
@@ -45,6 +45,7 @@ def loops() -> LoopTable:
     """Lease name -> loop. The names are also the heartbeat names."""
     from app.modules.admin.video_cleanup import loop as video_cleanup_loop
     from app.modules.areastats.enrich import loop as enrich_loop
+    from app.modules.areastats.picturesloop import loop as area_pictures_loop
     from app.modules.calendar.runner import loop as calendar_loop
     from app.modules.calendar.runner import render_loop as calendar_reels_loop
     from app.modules.engage.runner import loop as engage_loop
@@ -62,13 +63,17 @@ def loops() -> LoopTable:
     from app.modules.seo.runner import loop as seo_loop
     from app.modules.reels.render_job import dispatch_loop
     from app.modules.tracking.jobs import loop as geoip_loop
+    from app.modules.press import loop as press_loop
+    from app.modules.areaphotos.runner import loop as area_photo_scout_loop
     return {"engage": engage_loop, "newsroom": newsroom_loop, "calendar": calendar_loop,
             "calendar_reels": calendar_reels_loop, "listing_reels": reels_loop,
             "marketing_runs": marketing_loop, "project_enrich": enrich_loop, "insights": insights_loop,
             "answer_gaps": gaps_loop, "inbound_messages": inbound_loop, "token_cleanup": token_cleanup_loop,
             "radar": radar_loop, "seo": seo_loop,
             "communities": communities_loop, "knowledge_index": knowledge_index_loop, "render_dispatch": dispatch_loop,
-            "lead_followups": lead_followups_loop, "video_cleanup": video_cleanup_loop, "geoip": geoip_loop}
+            "lead_followups": lead_followups_loop, "video_cleanup": video_cleanup_loop, "geoip": geoip_loop,
+            "press": press_loop, "area_pictures": area_pictures_loop,
+            "area_photo_scout": area_photo_scout_loop}
 
 
 def requested_loop_names(role: Optional[str] = None, value: Optional[str] = None) -> Tuple[str, ...]:
@@ -131,6 +136,8 @@ def expected_intervals() -> Dict[str, Optional[float]]:
     from app.modules.admin.video_cleanup import INTERVAL_S as VIDEO_CLEANUP_INTERVAL_S
     from app.modules.areastats.enrich import POLL_SECONDS as ENRICH_POLL_S
     from app.modules.areastats.enrich import load as enrich_cfg
+    from app.modules.areastats.picturesloop import POLL_SECONDS as AREA_PICTURES_INTERVAL_S
+    from app.modules.areastats.picturesloop import enabled as area_pictures_on
     from app.modules.calendar.config import load as calendar_cfg
     from app.modules.calendar.runner import PRERENDER_INTERVAL_S
     from app.modules.engage.config import load as engage_cfg
@@ -154,6 +161,10 @@ def expected_intervals() -> Dict[str, Optional[float]]:
     from app.modules.reels.render_job import DISPATCH_EVERY_S
     from app.modules.tracking.jobs import INTERVAL_S as GEOIP_INTERVAL_S
     from app.modules.tracking.jobs import enabled as geoip_on
+    from app.modules.press.runner import INTERVAL_S as PRESS_INTERVAL_S
+    from app.modules.press.runner import enabled as press_on
+    from app.modules.areaphotos.config import load as photo_scout_cfg
+    from app.modules.areaphotos.runner import INTERVAL_S as PHOTO_SCOUT_INTERVAL_S
     e, n, c = engage_cfg(), newsroom_cfg(), calendar_cfg()
     return {
         "engage": float(e.interval_s) if (e.enabled and e.page_id and e.page_token) else None,  # as engage/runner.py
@@ -175,6 +186,9 @@ def expected_intervals() -> Dict[str, Optional[float]]:
         "lead_followups": float(LEAD_FOLLOWUPS_INTERVAL_S),  # always on (waiting alerts); LEAD_AUTO_FOLLOWUP adds the auto template
         "video_cleanup": float(VIDEO_CLEANUP_INTERVAL_S),  # always on (drawn reels older than 2 days)
         "geoip": float(GEOIP_INTERVAL_S) if geoip_on() else None,  # GEOIP_REFRESH (area/network files for the Live panel)
+        "press": float(PRESS_INTERVAL_S) if press_on() else None,  # PRESS_AGENT (the monthly press story and pitch drafts)
+        "area_pictures": float(AREA_PICTURES_INTERVAL_S) if area_pictures_on() else None,  # AREA_FROM_ABOVE + Copernicus creds
+        "area_photo_scout": float(PHOTO_SCOUT_INTERVAL_S) if photo_scout_cfg().enabled else None,  # AREA_PHOTO_SCOUT
     }
 
 

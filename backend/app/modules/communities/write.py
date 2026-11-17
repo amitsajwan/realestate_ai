@@ -1,16 +1,24 @@
 """Write: one facts-only article about a neighbourhood, published only when it passes the checks and has enough facts.
 
-Facts (each with its source): where the neighbourhood is and how far from its area's centre, the nearest named schools,
-hospitals, stations and so on within NEARBY_M (OpenStreetMap), MahaRERA projects in the area named after it, and the area's
-register numbers (areastats). ONE model call writes a title and 3 to 5 short paragraphs from those facts only. `check` refuses
-a number that is not in the facts, sales words, links or phone numbers, and the wrong length; a refused or thin article is kept
-unpublished with the reason, and tried again at the next refresh. Published articles are rewritten every REFRESH_DAYS.
+The page itself lists every nearby place (with its distance) and every named MahaRERA project (with its promoter, filed
+date and bookings) as data, not prose: `facts_for`'s "shown" half feeds those lists. The model's job is only a short
+*introduction* -- it is given none of that detail (the distance from the area's centre, and a bare count of named
+projects, nothing else), so it has nothing to restate and no distance or date it could get wrong (2026-11-17: a
+neighbourhood page used to repeat all of it in one dense paragraph, duplicating the clean list right below it; `check`'s
+"numbers not in the facts" rule now also means it physically cannot invent one, since none but those two are given). A
+railway/station place that matches a line in `app.core.pune_metro` (Pune's hand-checked metro table) is shown as running
+or being built, never just "nearby" -- the one fact on this page a reader actually needs to be current.
+
+ONE model call writes a title and one short paragraph. `check` refuses a number that is not in the facts, sales words,
+links or phone numbers, and the wrong length; a refused or thin article is kept unpublished with the reason, and tried
+again at the next refresh. Published articles are rewritten every REFRESH_DAYS.
 """
 import logging
 import re
 from datetime import datetime
 from typing import List, Optional, Tuple
 
+from app.core import pune_metro
 from app.modules.areastats.enrich import BANNED, _numbers
 from app.modules.areastats.service import area_stats
 from app.modules.newsroom.store import Store
@@ -24,49 +32,78 @@ log = logging.getLogger(__name__)
 
 NEARBY_M = 3000
 MIN_CATEGORIES = 4          # fewer kinds of named places nearby than this: too thin to publish
-MIN_CHARS, MAX_CHARS = 600, 3200
+MIN_CHARS, MAX_CHARS = 120, 650
 MAX_PROJECTS = 8
+RAILWAY_KEY = "railway"     # the CATEGORIES key whose places are checked against pune_metro
 
-SYSTEM = ("You write a short neighbourhood guide for a Pune property website, for people thinking of living there. Use ONLY the "
-          "facts given. Plain, neutral English. Give a title that names the neighbourhood and its area, then 3 to 5 short "
-          "paragraphs (180 to 350 words in all): where it is and how far from the area's centre, what is nearby with distances "
-          "(schools, hospitals, stations, shopping), the MahaRERA projects named after it with their filed completion dates and "
-          "bookings, if any, and what the area's MahaRERA numbers say. Distances are straight-line: say 'about'. No praise, no "
-          "advice to buy, no prices, no predictions, no numbers or places that are not in the facts. "
-          'Answer as JSON: {"title": "...", "paragraphs": ["...", "..."]}')
+SYSTEM = ("You write a one-paragraph introduction to one neighbourhood inside a Pune area, for a property website, for "
+          "people thinking of living there. Use ONLY the facts given: nothing else. Give a title that names the "
+          "neighbourhood and its area, then exactly one short paragraph (30 to 70 words): say where it is and how far "
+          "from the area's centre (straight line, OpenStreetMap), and, only when the facts give a count of "
+          "MahaRERA-registered projects named after it, mention that count and its builder if there is only one. Do NOT "
+          "name, or give the distance to, any school, hospital, station, shop, bank or temple, and do NOT give a "
+          "year-by-year count of projects or any date: none of those are in the facts you were given, because the page "
+          "already lists them separately, so inventing or repeating them would be wrong. Plain, neutral English. No "
+          "praise, no advice to buy, no prices, no predictions. "
+          'Answer as JSON: {"title": "...", "paragraphs": ["..."]}')
+
+_STATION_STOP = {"metro", "railway", "station", "stn"}
+
+
+def _station_tokens(s: str) -> set:
+    return {t for t in re.findall(r"[a-z0-9]+", s.lower()) if t not in _STATION_STOP}
+
+
+def match_station(osm_name: str) -> Optional["pune_metro.Station"]:
+    """The hand-checked station this OpenStreetMap place is, judging by name alone (these facts carry no position): the
+    words that are left once "metro"/"station" are stripped must match exactly, so "Wakad" alone never claims "Wakad
+    Chowk" station, and a same-named bus stop never claims to be the metro stop beside it."""
+    toks = _station_tokens(osm_name)
+    if not toks:
+        return None
+    for s in pune_metro.STATIONS:
+        if _station_tokens(s.name) == toks:
+            return s
+    return None
+
+
+def _transit(name: str) -> Optional[dict]:
+    s = match_station(name)
+    if s is None:
+        return None
+    return {"status": s.status, "line_short": pune_metro.SHORT[s.line],
+            "tracker": None if s.running else pune_metro.TRACKERS.get(s.line)}
 
 
 def facts_for(doc: dict, nearby: dict, named: List[dict], stats: Optional[dict]) -> Tuple[str, dict]:
-    """(facts as labelled lines for the model, the same facts as data for the page)."""
+    """(the model's facts -- deliberately minimal, see module docstring -- and the full facts as data for the page)."""
     area = area_of(doc)
     an = area.name if area else doc.get("area", "")
-    lines = [f"Neighbourhood: {doc['name']}, in the {an} area of Pune",
-             f"Distance from the centre of {an}: {doc.get('km_from_area')} km (straight line, OpenStreetMap)"]
+    ask_lines = [f"Neighbourhood: {doc['name']}, in the {an} area of Pune",
+                 f"Distance from the centre of {an}: {doc.get('km_from_area')} km (straight line, OpenStreetMap)"]
+    if named:
+        builders = sorted({p["promoter"] for p in named if p.get("promoter")})
+        bit = f"{len(named)} MahaRERA-registered project{'s' if len(named) != 1 else ''} named after {doc['name']}"
+        if len(builders) == 1:
+            bit += f", by {builders[0]}"
+        ask_lines.append(bit)
     near = []
     for key, items in nearby.items():
         label = CATEGORIES.get(key, (key,))[0]
         for i in items:
-            lines.append(f"Nearby {label.lower()}: {i['name']}, {i['km']} km (OpenStreetMap)")
-            near.append({"kind": label, "name": i["name"], "km": i["km"]})
+            row = {"kind": label, "name": i["name"], "km": i["km"], "url": i.get("url")}
+            if key == RAILWAY_KEY:
+                t = _transit(i["name"])
+                if t:
+                    row["transit"] = t
+            near.append(row)
     projects = []
     for p in named[:MAX_PROJECTS]:
-        bits = [f"MahaRERA project named after {doc['name']}: {p.get('name')}"]
-        if p.get("promoter"):
-            bits.append(f"promoter {p['promoter']}")
-        if p.get("completion_now"):
-            bits.append(f"completion date filed with MahaRERA {str(p['completion_now'])[:10]}")
-        if isinstance(p.get("units_total"), int) and isinstance(p.get("units_booked"), int) and p["units_total"] > 0:
-            bits.append(f"{p['units_booked']} of {p['units_total']} homes booked")
-        lines.append(", ".join(bits))
         projects.append({"name": p.get("name"), "regno": p.get("regno") or p.get("_id"), "promoter": p.get("promoter"),
                          "completion": str(p.get("completion_now") or "")[:10] or None,
                          "page": f"/projects/{p['page_slug']}" if p.get("page_slug") else None})
-    if stats and stats.get("projects"):
-        lines.append(f"{an} area: {stats['projects']} MahaRERA-registered projects as of {stats['as_of']} (MahaRERA public records)")
-        for c in stats.get("completing") or []:
-            lines.append(f"{an} area: {c['projects']} projects due to complete in {c['year']}")
-    return "\n".join(lines), {"nearby": near, "projects": projects, "area_projects": (stats or {}).get("projects") or 0,
-                              "as_of": (stats or {}).get("as_of")}
+    return "\n".join(ask_lines), {"nearby": near, "projects": projects, "area_projects": (stats or {}).get("projects") or 0,
+                                  "as_of": (stats or {}).get("as_of")}
 
 
 _ROMAN = {"i": "1", "ii": "2", "iii": "3", "iv": "4", "v": "5"}
@@ -85,8 +122,8 @@ def check(title: str, paragraphs: List[str], facts: str, name: str) -> List[str]
     problems = []
     if not names(name, title):
         problems.append("title does not name the neighbourhood")
-    if not 3 <= len(paragraphs) <= 5:
-        problems.append("not 3 to 5 paragraphs")
+    if len(paragraphs) != 1:
+        problems.append("not exactly one paragraph")
     if not MIN_CHARS <= len(text) <= MAX_CHARS:
         problems.append("too short" if len(text) < MIN_CHARS else "too long")
     if BANNED.search(title + " " + text):

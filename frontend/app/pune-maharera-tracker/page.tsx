@@ -3,10 +3,12 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 import AgentStrip from '@/components/marketing/AgentStrip'
 import MarketingShell from '@/components/marketing/MarketingShell'
-import { type AreaStats, type CityStats, type DateMoves, getCityStats, longDate } from '@/components/localities/areaStats'
+import { type AreaStats, type CityStats, type DateMoves, type RecordLinks, getCityStats, longDate, recordLinks } from '@/components/localities/areaStats'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/seo'
 import { fixturesForced } from '@/lib/site/api'
+import { getFacets } from '@/lib/site/facets'
+import { getRegisterPlaces } from '@/lib/site/register'
 
 /** Pune's new-home projects by area, from MahaRERA's public records, kept current by the register refresh. A page others can
  *  cite and link to: facts only, each area linked to its guide, a ready-made citation. Rendered per request (the figures are
@@ -34,6 +36,12 @@ const fmt = (n: number) => n.toLocaleString('en-IN')
 
 function due(a: AreaStats, year: number): number {
   return a.completing.find((c) => c.year === year)?.projects ?? 0
+}
+
+/** A count, linked to the list it counts when that page exists (the list gives its own, current count). */
+function Count({ value, href, label }: { value: number; href?: string | null; label: string }) {
+  if (!href || value === 0) return <>{fmt(value)}</>
+  return <a href={href} aria-label={label} className="text-[#0f2340] underline underline-offset-2">{fmt(value)}</a>
 }
 
 const months = (m: number) => `${m} month${m === 1 ? '' : 's'}`
@@ -116,6 +124,8 @@ function DateMovesReport({ city, asOf }: { city: CityStats; asOf: string }) {
 export default async function TrackerPage() {
   const cfg = getMarketingConfig()
   const city = await figures()
+  const [places, facets] = city ? await Promise.all([getRegisterPlaces(), getFacets()]) : [[], []]
+  const links = new Map<string, RecordLinks>((city?.areas ?? []).map((a) => [a.area.key, recordLinks(a.area, places, facets)]))
   const url = cfg.siteUrl + PATH
   const year = city ? Number(city.asOf.slice(0, 4)) : new Date().getFullYear()
   const asOf = city ? longDate(city.asOf) : ''
@@ -165,10 +175,13 @@ export default async function TrackerPage() {
                   {city.areas.map((a) => (
                     <tr key={a.area.key} className="border-t border-slate-200">
                       <th scope="row" className="p-3 font-medium"><Link href={`/localities/${a.area.slug}`} className="text-[#0f2340] underline underline-offset-2">{a.area.name}</Link></th>
-                      <td className="p-3 text-right">{fmt(a.projects)}</td>
+                      <td className="p-3 text-right"><Count value={a.projects} href={links.get(a.area.key)?.all} label={`${fmt(a.projects)} projects in ${a.area.name}`} /></td>
                       <td className="p-3 text-right">{a.units_total !== null && a.units_booked !== null ? `${fmt(a.units_booked)} of ${fmt(a.units_total)}` : 'n/a'}</td>
-                      <td className="p-3 text-right">{fmt(due(a, year))}</td>
-                      <td className="p-3 text-right">{fmt(due(a, year + 1))}</td>
+                      {[year, year + 1].map((y) => (
+                        <td key={y} className="p-3 text-right">
+                          <Count value={due(a, y)} href={links.get(a.area.key)?.years[y]} label={`${fmt(due(a, y))} projects in ${a.area.name} due ${y}`} />
+                        </td>
+                      ))}
                     </tr>
                   ))}
                 </tbody>

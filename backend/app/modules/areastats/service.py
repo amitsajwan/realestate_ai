@@ -55,6 +55,16 @@ def _recent(d: dict) -> dict:
             "page": f"/projects/{d['page_slug']}" if d.get("page_slug") else None}   # our own page first (docs/plan/project-pages.md)
 
 
+def _registered(docs: List[dict], as_of: date) -> List[dict]:
+    """Projects registered with MahaRERA per year, from the first year with one to the year of `as_of`, the empty years inside
+    the range kept as 0 so a chart of them does not skip a year. A record without a registration date is not counted, and a
+    date after `as_of`'s year (a typo in the register) is left out rather than stretching the range."""
+    years = Counter(int(r[:4]) for r in (_day(d.get("registered_on")) for d in docs) if r and int(r[:4]) <= as_of.year)
+    if not years:
+        return []
+    return [{"year": y, "projects": years.get(y, 0)} for y in range(min(years), as_of.year + 1)]
+
+
 def area_view(area: Area, docs: List[dict], as_of: date) -> dict:
     """The contract dict for one area from its register records."""
     years = Counter(int(c[:4]) for c in (_day(d.get("completion_now")) for d in docs) if c and int(c[:4]) >= as_of.year)
@@ -66,6 +76,7 @@ def area_view(area: Area, docs: List[dict], as_of: date) -> dict:
         "projects": len(docs),
         "completing": [{"year": y, "projects": n} for y, n in sorted(years.items())],
         **_units(docs),
+        "registered": _registered(docs, as_of),
         "recent": [_recent(d) for d in dated[:RECENT]],
         "source": SOURCE,
     }

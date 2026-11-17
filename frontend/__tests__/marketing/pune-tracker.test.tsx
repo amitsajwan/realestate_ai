@@ -5,6 +5,11 @@ import { render, screen, within } from '@testing-library/react'
 const mockFetch = jest.fn()
 jest.mock('@/lib/site/api', () => ({ fixturesForced: () => false, serverApiBase: () => 'http://api' }))
 jest.mock('@/components/marketing/MarketingShell', () => ({ __esModule: true, default: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }))
+// the pages a count can open: the area's project list and its live "possession <year>" lists
+const mockPlaces = jest.fn(async () => [] as unknown[])
+const mockFacets = jest.fn(async () => [] as unknown[])
+jest.mock('@/lib/site/register', () => ({ ...jest.requireActual('@/lib/site/register'), getRegisterPlaces: () => mockPlaces() }))
+jest.mock('@/lib/site/facets', () => ({ ...jest.requireActual('@/lib/site/facets'), getFacets: () => mockFacets() }))
 jest.mock('@/components/marketing/AgentStrip', () => ({ __esModule: true, default: () => null }))
 
 import TrackerPage, { generateMetadata } from '@/app/pune-maharera-tracker/page'
@@ -25,6 +30,8 @@ const BODY = {
 
 beforeEach(() => {
   mockFetch.mockReset()
+  mockPlaces.mockResolvedValue([])
+  mockFacets.mockResolvedValue([])
   global.fetch = mockFetch as unknown as typeof fetch
 })
 
@@ -74,6 +81,25 @@ describe('Pune MahaRERA tracker', () => {
     expect(screen.getByText(/as of 4 October 2026\.$/).textContent).toContain('/pune-maharera-tracker')
     const ld = [...container.querySelectorAll('script[type="application/ld+json"]')].map((s) => JSON.parse(s.textContent || '{}'))
     expect(ld.find((x) => x['@type'] === 'Dataset')).toMatchObject({ dateModified: '2026-10-04', isAccessibleForFree: true })
+  })
+})
+
+describe('the tracker\'s counts', () => {
+  it('open the area\'s project list and its possession-year list, only where those pages exist', async () => {
+    mockFetch.mockResolvedValue({ ok: true, status: 200, json: async () => BODY })
+    mockPlaces.mockResolvedValue([{ key: 'wagholi', slug: 'wagholi', name: 'Wagholi', zone: 'East', projects: 41, indexable: 40 }])
+    mockFacets.mockResolvedValue([
+      { key: 'w27', path: '/projects/area/wagholi/possession-2027', place: 'wagholi', place_slug: 'wagholi', intent: 'all', possession: 2027, builder: null, label: '', count: 11, indexable: true, page_updated: null },
+      { key: 'w27b', path: '/projects/area/wagholi/2-bhk/possession-2026', place: 'wagholi', place_slug: 'wagholi', intent: 'all', possession: 2026, builder: null, bhk: 2, label: '', count: 3, indexable: true, page_updated: null },
+    ])
+    render(await TrackerPage())
+    const rows = screen.getAllByRole('row')
+    const wagholi = rows.find((r) => r.textContent?.startsWith('Wagholi'))!
+    expect(within(wagholi).getByRole('link', { name: '41 projects in Wagholi' })).toHaveAttribute('href', '/projects/area/wagholi')
+    expect(within(wagholi).getByRole('link', { name: '12 projects in Wagholi due 2027' })).toHaveAttribute('href', '/projects/area/wagholi/possession-2027')
+    expect(within(wagholi).queryByRole('link', { name: /due 2026/ })).toBeNull()   // a 2 BHK list is not the year's list
+    const kharadi = rows.find((r) => r.textContent?.startsWith('Kharadi'))!
+    expect(within(kharadi).getAllByRole('link')).toHaveLength(1)   // only its guide: no project list or year list here
   })
 })
 

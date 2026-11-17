@@ -20,7 +20,7 @@ const page = (intent: string, rows: unknown[], more: Record<string, unknown> = {
 })
 const TOP = page('top', Array.from({ length: 12 }, (_, i) => row(i + 1, i === 0 ? {
   price: { bhk: 2, from_inr: 9_500_000, to_inr: 9_630_000 }, photo: { url: '/uploads/p1.webp', alt: 'Towers', source: 'brochure' }, stage: 'possession-soon' } : {})), {
-  sold_out: [row(0, { slug: 'aleria', name: 'Aleria Block B', promoter: 'Kolte-Patil', units_total: 27, units_booked: 27, units_open: 0 })], sold_out_count: 1,
+  sold_out: [row(0, { slug: 'aleria', name: 'Aleria Block B', promoter: 'Kolte-Patil', builder_slug: 'kolte-patil', units_total: 27, units_booked: 27, units_open: 0 })], sold_out_count: 1,
 })
 const LISTS: Record<string, unknown> = {
   top: TOP,
@@ -63,6 +63,7 @@ describe('Top projects page', () => {
     const sold = screen.getByTestId('facet-sold-out')
     expect(sold).toHaveTextContent('Sold out or nearly: 1 project')
     expect(within(sold).getByRole('link', { name: 'Ask about resale' })).toHaveAttribute('href', '/projects/aleria#enquire')
+    expect(within(sold).getByRole('link', { name: 'Kolte-Patil' })).toHaveAttribute('href', '/builders/kolte-patil')   // the builder opens its page
     expect(screen.getByTestId('rail-launches')).toHaveTextContent('See all 3')
     // a row never rolls by itself; on a phone it says to swipe and ends in a card to the whole list
     expect(screen.getByTestId('rail-launches')).toHaveTextContent('Swipe for more')

@@ -4,6 +4,8 @@ import Link from 'next/link'
 import type { AreaMapData, AreaMapItem } from '@/lib/site/hubs'
 import { formatPrice } from '@/lib/site/format'
 import { formatDay } from '@/lib/site/projects'
+import { MapTypeSwitch, boxCentre, mapsEmbedKey, satelliteSrc, sendFeature, zoomToFit, type MapMode } from './mapsEmbed'
+import { MapLandmarkIcons, MapLandmarkLegend } from './AreaMapLandmarks'
 
 /** The interactive part of the area map (AreaMap.tsx): pins on the drawn street map, the picked project's card and the numbered
  *  list. The server renders it with the first project picked, so it reads in full without JavaScript; picking a pin and lighting
@@ -58,13 +60,39 @@ export default function AreaMapView({ data, items }: { data: AreaMapData; items:
   const labels = placeLabels(items)
   const p = items.find((x) => x.n === picked) ?? items[0]
   const share = pct(p)
+  // Map / Satellite (docs/plan/area-pictures.md step 2): only with the embed key, and Google's frame is made on the first tap, so
+  // a reader who never asks costs no request. A view of the whole area is fine here: satellite-view.md's "no view at an area's
+  // centre" is for project pages, where it would show somebody else's land as the project's; an area page claims no plot.
+  const embedKey = mapsEmbedKey()
+  const [mode, setMode] = useState<MapMode>('map')
+  const [satMade, setSatMade] = useState(false)
+  const sat = mode === 'satellite'
+  const centre = boxCentre(data.box)
+  function toSatellite() {
+    setSatMade(true)
+    setMode('satellite')
+    sendFeature('satellite_open')
+  }
   return (
     <div className="mt-4 flex flex-wrap items-start gap-5">
       <div className="min-w-0 flex-[999_1_520px]">
-        <div className="relative w-full overflow-hidden rounded-2xl border border-[#e3d6b5] bg-[#f3eddf]" style={{ aspectRatio: '1 / 1' }}>
+        {embedKey && <MapTypeSwitch mode={mode} onMap={() => setMode('map')} onSatellite={toSatellite} className="mb-3 flex gap-1" />}
+        {embedKey && satMade && (
+          <iframe title={`Satellite view of ${data.name}`} src={satelliteSrc(embedKey, centre.lat, centre.lon, zoomToFit(data.box))}
+            loading="lazy" referrerPolicy="no-referrer-when-downgrade" data-testid="area-satellite-frame"
+            className={`w-full rounded-2xl border border-slate-200 ${sat ? '' : 'hidden'}`} style={{ aspectRatio: '1 / 1' }} />
+        )}
+        {sat && (
+          <p className="mt-2 text-xs text-slate-600" data-testid="area-satellite-note">
+            {`Google\u2019s satellite picture of ${data.name}. It can be months or years old.`}
+          </p>
+        )}
+        <div className={`relative w-full overflow-hidden rounded-2xl border border-[#e3d6b5] bg-[#f3eddf]${sat ? ' hidden' : ''}`} style={{ aspectRatio: '1 / 1' }}>
           {/* the streets are a picture: what it shows is said in the list beside it */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={data.map} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full" />
+          {/* landmarks and metro stations: square icons under the round project pins, named in the legend below */}
+          <MapLandmarkIcons items={data.landmarks ?? []} />
           {items.map((x) => {
             const on = x.n === p.n || x.n === lit
             const side = x.n === p.n ? (labels[x.n] ?? toMiddle(x)) : labels[x.n]
@@ -90,13 +118,14 @@ export default function AreaMapView({ data, items }: { data: AreaMapData; items:
             )
           })}
         </div>
-        <ul className="mt-3 flex list-none flex-wrap gap-x-5 gap-y-2 p-0 text-xs text-slate-700" aria-label="What the pins show">
+        <ul className={`mt-3 flex list-none flex-wrap gap-x-5 gap-y-2 p-0 text-xs text-slate-700${sat ? ' hidden' : ''}`} aria-label="What the pins show">
           <li className="flex items-center gap-1.5"><span aria-hidden="true" className="h-3 w-3 rounded-full border-2 border-white bg-[#f0b440] shadow" />New launch</li>
           <li className="flex items-center gap-1.5"><span aria-hidden="true" className="h-3 w-3 rounded-full border-2 border-white bg-[#2f5fa7] shadow" />Being built</li>
           <li className="flex items-center gap-1.5"><span aria-hidden="true" className="h-3 w-3 rounded-full border-2 border-[#1f6b4f] bg-white" />Nearly ready</li>
           <li className="flex items-center gap-1.5"><span aria-hidden="true" className="h-3 w-3 rounded-full bg-[#2f5fa7] ring-2 ring-[#f0b440]" />Listed by a local agent</li>
           <li className="text-slate-600">{data.attribution}</li>
         </ul>
+        <MapLandmarkLegend items={data.landmarks ?? []} />
       </div>
 
       <div className="min-w-0 flex-[1_1_320px]">

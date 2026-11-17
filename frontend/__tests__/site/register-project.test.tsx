@@ -45,6 +45,21 @@ describe('Avasetu project page from the MahaRERA register', () => {
     expect(within(official.closest('footer')!).getByText(/Source: MahaRERA public records/)).toBeInTheDocument()
   })
 
+  it("the line under the name opens the builder's page and the place's project list", () => {
+    render(<RegisterProjectPage p={{ ...P, builder_slug: 'rohan-builders', pune_place: { key: 'wagholi', name: 'Wagholi' } } as RegisterProject} siteUrl="https://avasetu.in" facts={null} />)
+    const line = screen.getByTestId('hero-line')
+    expect(line).toHaveTextContent('by Rohan Builders · Wagholi, Pune · 412207')
+    expect(within(line).getByRole('link', { name: 'Rohan Builders' })).toHaveAttribute('href', '/builders/rohan-builders')
+    expect(within(line).getByRole('link', { name: 'All projects in Wagholi' })).toHaveAttribute('href', '/projects/area/wagholi')
+  })
+
+  it('the line under the name stays text without a builder page or a place', () => {
+    render(<RegisterProjectPage p={P} siteUrl="https://avasetu.in" facts={null} />)
+    const line = screen.getByTestId('hero-line')
+    expect(line).toHaveTextContent('by Rohan Builders · Wagholi, Pune · 412207')
+    expect(within(line).queryByRole('link')).toBeNull()
+  })
+
   it('a thin page says it is still filling in and shows no empty facts', () => {
     render(<RegisterProjectPage p={{ ...P, completion_now: null, completion_at_registration: null, units_total: null, units_booked: null, indexable: false, same_area: [] }} siteUrl="https://avasetu.in" facts={null} />)
     expect(screen.getByText(/still reading this project/)).toBeInTheDocument()

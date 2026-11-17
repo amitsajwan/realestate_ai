@@ -178,11 +178,24 @@ function Stat({ label, value, sub, testId }: { label: string; value: React.React
   )
 }
 
-/** "by Goyal Properties": the brand buyers know. The company MahaRERA has (often an SPV such as "Manjari Housing Projects LLP")
- *  is in the record's promoter row; in the headline it read as a second builder (design review 2026-10-25). */
-function brandLine(p: RegisterProject): string | null {
+/** "by Goyal Properties · Baner, Pune · 411045" under the name: the builder opens its page and the place its project list, the
+ *  two things a buyer reads there and then wants more of. Plain text on an agent's copy of the page (linkless). The builder is
+ *  the brand buyers know; the company MahaRERA has (often an SPV such as "Manjari Housing Projects LLP") is in the record's
+ *  promoter row, since in the headline it read as a second builder (design review 2026-10-25). */
+function HeroLine({ p, where, linkless }: { p: RegisterProject; where: string; linkless: boolean }) {
   const brand = p.builder?.name || p.promoter
-  return brand ? `by ${brand}` : null
+  const placeHref = p.pune_place && !linkless ? placePath(p.pune_place.key.replace(/_/g, '-')) : null
+  const builderHref = brand && p.builder_slug && !linkless ? `/builders/${p.builder_slug}` : null
+  const link = 'text-white underline decoration-white/50 underline-offset-2 hover:decoration-white'
+  const parts: React.ReactNode[] = []
+  if (brand) parts.push(builderHref ? <>by <Link href={builderHref} className={link}>{brand}</Link></> : `by ${brand}`)
+  if (where) parts.push(placeHref ? <Link href={placeHref} className={link} aria-label={`All projects in ${p.pune_place?.name ?? where}`}>{where}</Link> : where)
+  if (p.pincode) parts.push(p.pincode)
+  return (
+    <p className="mt-2 text-base text-slate-200" data-testid="hero-line">
+      {parts.map((x, i) => <React.Fragment key={i}>{i > 0 && ' · '}{x}</React.Fragment>)}
+    </p>
+  )
 }
 
 /** The page's opening: the builder's first picture, then name (with its phase), builder, area and registration on a dark band,
@@ -289,7 +302,7 @@ function Hero({ p, price, photo, linkless = false, closed = false, callback }: {
             : <Link href={p.group.path} className="inline-flex min-h-[44px] items-center font-semibold text-amber-300 underline underline-offset-2">see all {p.group.towers} towers</Link>}
         </p>
       )}
-      <p className="mt-2 text-base text-slate-200">{[brandLine(p), where, p.pincode].filter(Boolean).join(' · ')}</p>
+      <HeroLine p={p} where={where} linkless={linkless} />
       {stats.length > 0 && (
         <dl className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4">
           {stats.map((s) => <Stat key={s.id} testId={s.id} label={s.label} value={s.value} sub={s.sub} />)}

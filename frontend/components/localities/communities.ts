@@ -17,8 +17,16 @@ export interface CommunityCard {
   updated: string | null
 }
 
+/** Whether a nearby railway place is one of the stations app/core/pune_metro checks (backend communities/write.py
+ *  match_station): a plain "railway station" never claims to be an open metro, so the page says only what is checked. */
+export interface CommunityTransit {
+  status: 'running' | 'being built'
+  line_short: string
+  tracker: string | null
+}
+
 export interface CommunityFacts {
-  nearby: { kind: string; name: string; km: number }[]
+  nearby: { kind: string; name: string; km: number; url?: string | null; transit?: CommunityTransit | null }[]
   projects: { name: string; regno: string; promoter?: string | null; completion?: string | null; page?: string | null }[]
   area_projects: number
   as_of?: string | null
@@ -72,10 +80,19 @@ export async function getCommunity(area: string, slug: string): Promise<Communit
   const paragraphs = Array.isArray(r?.paragraphs) ? r.paragraphs.filter((p: unknown): p is string => typeof p === 'string' && p.trim() !== '') : []
   if (!card || paragraphs.length === 0) return null
   const f = (r.facts || {}) as Partial<CommunityFacts>
+  const OSM = /^https:\/\/www\.openstreetmap\.org\//
+  const cleanTransit = (t: unknown): CommunityTransit | null => {
+    if (!t || typeof t !== 'object') return null
+    const x = t as Record<string, unknown>
+    if (x.status !== 'running' && x.status !== 'being built') return null
+    if (typeof x.line_short !== 'string' || !x.line_short) return null
+    return { status: x.status, line_short: x.line_short, tracker: typeof x.tracker === 'string' && x.tracker ? x.tracker : null }
+  }
   return {
     ...card, paragraphs,
     facts: {
-      nearby: (Array.isArray(f.nearby) ? f.nearby : []).filter((n) => n && typeof n.name === 'string' && typeof n.km === 'number'),
+      nearby: (Array.isArray(f.nearby) ? f.nearby : []).filter((n) => n && typeof n.name === 'string' && typeof n.km === 'number')
+        .map((n) => ({ ...n, url: typeof n.url === 'string' && OSM.test(n.url) ? n.url : null, transit: cleanTransit((n as { transit?: unknown }).transit) })),
       projects: (Array.isArray(f.projects) ? f.projects : []).filter((p) => p && typeof p.name === 'string')
         .map((p) => ({ ...p, page: typeof p.page === 'string' && /^\/projects\/[a-z0-9-]+$/.test(p.page) ? p.page : null })),
       area_projects: typeof f.area_projects === 'number' ? f.area_projects : 0,

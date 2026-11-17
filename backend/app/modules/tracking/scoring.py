@@ -10,6 +10,8 @@ POINTS = {
     "inquiry": 25,
     "site_visit_booked": 30,
     "chat_open": 0,  # a chat is scored by what it leads to (an enquiry), not by opening it
+    "satellite_open": 0,   # looking at the map is interest, not intent: counted in the visit, not the score
+    "streetview_open": 0,
 }
 LISTING_VIEW_CAP = 5  # views of one listing stop adding after this many
 REPEAT_VIEW_BONUS = 2  # extra for coming back to the same listing

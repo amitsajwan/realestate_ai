@@ -53,12 +53,14 @@ from app.modules.admin.router import router as admin_router
 from app.modules.reels.router import router as listing_reels_router
 from app.modules.photoquality.router import router as quality_router
 from app.modules.agentprojects.router import router as agentprojects_router, public_router as agentprojects_public_router
-from app.modules.areastats.router import public_router as areastats_public_router
+from app.modules.areastats.router import public_router as areastats_public_router, router as areastats_router
+from app.modules.areaphotos.router import public_router as area_photos_public_router, router as area_photos_router
 from app.api.v1.endpoints.listing_sellers import router as listing_sellers_router
 from app.modules.seo.router import owner_router as seo_owner_router
 from app.modules.seo.router import public_router as seo_public_router
 from app.modules.communities.router import public_router as communities_public_router
 from app.modules.propertyfacts.router import public_router as propertyfacts_public_router, router as propertyfacts_router
+from app.modules.press.router import public_router as press_public_router, router as press_router
 
 # Create main API router
 api_router = APIRouter()
@@ -100,6 +102,8 @@ api_router.include_router(newsroom_router, prefix="/newsroom", tags=["newsroom"]
 api_router.include_router(owner_system_router, prefix="/newsroom", tags=["newsroom"])
 api_router.include_router(concierge_router, prefix="/concierge", tags=["concierge"])
 api_router.include_router(admin_router, prefix="/admin", tags=["admin"])
+api_router.include_router(press_router, prefix="/press", tags=["press"])
+api_router.include_router(press_public_router, prefix="/public", tags=["public"])
 api_router.include_router(whatsapp_router, prefix="/whatsapp", tags=["whatsapp"])
 api_router.include_router(messenger_router, prefix="/messenger", tags=["messenger"])
 api_router.include_router(notifications_router, prefix="/notifications", tags=["notifications"])
@@ -120,6 +124,9 @@ api_router.include_router(quality_router, prefix="/quality", tags=["quality"])
 api_router.include_router(agentprojects_router, prefix="/agentprojects", tags=["agent-projects"])
 api_router.include_router(agentprojects_public_router, prefix="/public", tags=["public"])
 api_router.include_router(areastats_public_router, prefix="/public", tags=["public"])
+api_router.include_router(areastats_router, prefix="/area-pictures", tags=["area-pictures"])
+api_router.include_router(area_photos_router, prefix="/area-photos", tags=["area-photos"])
+api_router.include_router(area_photos_public_router, prefix="/public", tags=["public"])
 api_router.include_router(seo_public_router, prefix="/public", tags=["public"])
 api_router.include_router(seo_owner_router, prefix="/newsroom", tags=["newsroom"])
 api_router.include_router(communities_public_router, prefix="/public", tags=["public"])

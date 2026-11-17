@@ -4,6 +4,7 @@ import { getToken } from '@shared/session'
 import type { Attribution } from './types'
 
 export type SiteEventType = 'page_view' | 'listing_view' | 'share' | 'call_click' | 'whatsapp_click' | 'chat_open'
+  | 'satellite_open' | 'streetview_open'
 
 const KEY = 'site_anon_id'
 let memoryId: string | null = null

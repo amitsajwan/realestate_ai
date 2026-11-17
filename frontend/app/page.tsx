@@ -137,7 +137,9 @@ export default async function BuyerHome() {
             </p>
             {tracked > 0 && city && (
               <p className="mt-8 border-t border-white/15 pt-4 text-sm text-white/65">
-                {tracked.toLocaleString('en-IN')} projects in our areas, read from MahaRERA on {longDate(city.asOf)}.
+                {/* the count opens the tracker, which breaks it down area by area */}
+                <Link href="/pune-maharera-tracker" className="text-white/80 underline underline-offset-2 hover:text-white">
+                  {tracked.toLocaleString('en-IN')} projects in our areas</Link>, read from MahaRERA on {longDate(city.asOf)}.
               </p>
             )}
           </div>

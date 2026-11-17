@@ -8,7 +8,15 @@ jest.mock('@/components/marketing/MarketingShell', () => ({ __esModule: true, de
 jest.mock('next/navigation', () => ({ notFound: () => { throw new Error('NOT_FOUND') } }))
 jest.mock('@/components/site/PostsGrid', () => ({ __esModule: true, default: () => null }))
 
+// the area's landmarks, counts and photos (an area guide names this page canonical, so they are shown here too)
+const mockLandmarks = jest.fn(async () => null as unknown)
+jest.mock('@/components/localities/AreaLandmarks', () => ({
+  __esModule: true, ...jest.requireActual('@/components/localities/AreaLandmarks'), getAreaLandmarks: () => mockLandmarks() }))
+jest.mock('@/components/localities/areaStats', () => ({ ...jest.requireActual('@/components/localities/areaStats'), getAreaStats: async () => null }))
+jest.mock('@/components/localities/areaPhotoData', () => ({ ...jest.requireActual('@/components/localities/areaPhotoData'), getAreaPhotos: async () => [] }))
+
 import TopicPage from '@/app/guides/[slug]/page'
+import { cleanAreaLandmarks } from '@/components/localities/AreaLandmarks'
 import { OPEN_CHAT_EVENT } from '@/components/site/ChatWidget'
 
 const en = (x: string) => ({ en: x })
@@ -76,4 +84,23 @@ test('the cta button opens the chat with its question', async () => {
   window.addEventListener(OPEN_CHAT_EVENT, (e) => heard((e as CustomEvent).detail))
   fireEvent.click(screen.getByRole('button', { name: 'Chat with us now' }))
   expect(heard).toHaveBeenCalledWith({ message: 'I want the MahaRERA details' })
+})
+
+test("an area's guide shows its landmarks and metro, and asks the area's questions in its FAQ data", async () => {
+  const at = (name: string, km: number, distance: string, extra: Record<string, unknown>) => ({ name, lat: 18.55, lon: 73.95, km, distance,
+    maps: 'https://www.google.com/maps/search/?api=1&query=18.55,73.95', source: 'OpenStreetMap', ...extra })
+  mockLandmarks.mockResolvedValue(cleanAreaLandmarks({
+    area: { key: 'upper_kharadi', name: 'Upper Kharadi', slug: 'upper-kharadi' }, middle: { lat: 18.56, lon: 73.9685 },
+    metro: [at('Ramwadi', 6.5, 'about 6.5 km west of the middle of Upper Kharadi', { kind: 'metro', line: '2', line_short: 'Aqua Line (Line 2)',
+      status: 'running', running: true })],
+    landmarks: [at('EON IT Park', 3, 'about 3 km west of the middle of Upper Kharadi', { kind: 'work', kind_label: 'Work' })],
+    note: 'Straight-line distances.', attribution: 'Positions © OpenStreetMap contributors', checked_on: '2026-11-17',
+  }, 'upper-kharadi'))
+  const { container } = render(await TopicPage({ params: Promise.resolve({ slug: 'upper-kharadi' }) }))
+  expect(screen.getByTestId('metro-answer').textContent).toBe(
+    'The nearest running metro station to Upper Kharadi is Ramwadi (Aqua Line (Line 2)), about 6.5 km west of the middle of Upper Kharadi, as of November 2026.')
+  expect(screen.getByRole('heading', { name: 'More questions about Upper Kharadi' })).toBeInTheDocument()
+  const faq = [...container.querySelectorAll('script[type="application/ld+json"]')].map((x) => JSON.parse(x.textContent || '{}'))
+    .find((x) => x['@type'] === 'FAQPage')
+  expect(faq.mainEntity.map((q: { name: string }) => q.name)).toEqual(['Is there a metro station near Upper Kharadi?', 'Which IT parks and offices are near Upper Kharadi?'])
 })

@@ -157,6 +157,9 @@ class Settings(BaseSettings):
     groq_api_key: Optional[str] = None
     GROQ_API_KEY: Optional[str] = None  # Alternative naming for compatibility
     google_maps_api_key: Optional[str] = None
+    # Copernicus Data Space (Sentinel Hub) OAuth client: the areas' pictures from above (scripts/area_from_above.py, run by hand)
+    copernicus_client_id: Optional[str] = None
+    copernicus_client_secret: Optional[str] = None
     
     # AI Model Configuration
     ai_model_development: str = "llama-3.1-8b-instant"  # Fast, cheap model for development

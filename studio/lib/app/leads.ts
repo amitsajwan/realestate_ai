@@ -11,6 +11,8 @@ const VERBS: Record<string, string> = {
   whatsapp_click: 'Tapped WhatsApp on',
   inquiry: 'Sent an enquiry about',
   chat_open: 'Opened the chat on',
+  satellite_open: 'Opened the satellite view on',
+  streetview_open: 'Opened Street View on',
   call_answered: 'You called: answered',
   call_no_answer: 'You called: no answer',
 }

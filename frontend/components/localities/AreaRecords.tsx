@@ -1,10 +1,10 @@
 import React from 'react'
-import { type AreaStats, longDate } from './areaStats'
+import { type AreaStats, type RecordLinks, longDate } from './areaStats'
 
 const n = (v: number) => v.toLocaleString('en-IN')
 
 /** "In the MahaRERA records": counts from MahaRERA's public register for one area. Renders nothing without data. */
-export default function AreaRecords({ name, stats }: { name: string; stats: AreaStats | null }) {
+export default function AreaRecords({ name, stats, links }: { name: string; stats: AreaStats | null; links?: RecordLinks }) {
   if (!stats || stats.projects <= 0) return null
   const asOf = longDate(stats.as_of)
   return (
@@ -13,18 +13,36 @@ export default function AreaRecords({ name, stats }: { name: string; stats: Area
       <p className="mt-3 leading-relaxed text-slate-800">
         <strong className="text-2xl font-bold text-slate-900">{n(stats.projects)}</strong>{' '}
         {stats.projects === 1 ? 'project' : 'projects'} in {name} on MahaRERA&apos;s public register.
+        {links?.all && (
+          <>{' '}<a href={links.all} className="font-semibold text-[#0f2340] underline underline-offset-2">See the projects in {name}</a></>
+        )}
       </p>
 
       {stats.completing.length > 0 && (
         <div className="mt-4">
           <h3 className="font-semibold text-slate-900">Completion dates filed with MahaRERA</h3>
           <ul className="mt-2 grid list-none grid-cols-2 gap-2 p-0 sm:grid-cols-4">
-            {stats.completing.map((c) => (
-              <li key={c.year} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                <span className="block text-sm text-slate-600">{c.year}</span>
-                <span className="font-semibold text-slate-900">{n(c.projects)} {c.projects === 1 ? 'project' : 'projects'}</span>
-              </li>
-            ))}
+            {stats.completing.map((c) => {
+              const href = links?.years[c.year]
+              const body = (
+                <>
+                  <span className="block text-sm text-slate-600">{c.year}</span>
+                  <span className={href ? 'font-semibold text-[#0f2340] underline underline-offset-2' : 'font-semibold text-slate-900'}>
+                    {n(c.projects)} {c.projects === 1 ? 'project' : 'projects'}
+                  </span>
+                </>
+              )
+              return (
+                <li key={c.year}>
+                  {href ? (
+                    <a href={href} aria-label={`Projects in ${name} with completion filed for ${c.year}`}
+                      className="block h-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 no-underline hover:border-slate-400">{body}</a>
+                  ) : (
+                    <div className="h-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">{body}</div>
+                  )}
+                </li>
+              )
+            })}
           </ul>
         </div>
       )}

@@ -51,7 +51,7 @@ describe('AppShell tabs', () => {
     fireEvent.click(more)
     const sheet = screen.getByRole('dialog', { name: 'More' })
     const rows = within(sheet).getAllByRole('link')
-    expect(rows.map((l) => l.getAttribute('href'))).toEqual(['/studio/seo', '/studio/leads', '/studio/listings', '/studio/results', '/studio/radar', '/studio/agents', '/studio/admin', '/studio/profile'])
+    expect(rows.map((l) => l.getAttribute('href'))).toEqual(['/studio/seo', '/studio/leads', '/studio/listings', '/studio/results', '/studio/radar', '/studio/agents', '/studio/admin', '/studio/press', '/studio/area-photos', '/studio/profile'])
     expect(rows[6]).toHaveAttribute('aria-current', 'page')
     expect(rows[0].className).toContain('min-h-[56px]')
     fireEvent.click(within(sheet).getByRole('button', { name: 'Close' }))
@@ -67,7 +67,7 @@ describe('AppShell tabs', () => {
     await waitFor(() => expect(mockStatus).toHaveBeenCalled())
   })
 
-  it('everyone else gets Home, Inbox, Leads, Listings and More (Results, Content, Buyer radar, My brand); only Inbox and Leads counts', async () => {
+  it('everyone else gets Home, Inbox, Leads, Listings and More (Results, Content, Buyer radar, Area photos, My brand); only Inbox and Leads counts', async () => {
     mockOwner = false
     mockPath = '/studio/listings'
     mockLeads.mockResolvedValue([{ contact: { state: 'not_contacted' } }, { contact: { state: 'waiting_you' } }, { contact: { state: 'in_touch' } }])
@@ -80,7 +80,7 @@ describe('AppShell tabs', () => {
     await waitFor(() => expect(within(nav().getByRole('link', { name: /Leads/ })).getByTestId('nav-badge')).toHaveTextContent('2'))
     fireEvent.click(nav().getByRole('button', { name: 'More' }))
     const rows = within(screen.getByRole('dialog', { name: 'More' })).getAllByRole('link')
-    expect(rows.map((l) => l.getAttribute('href'))).toEqual(['/studio/results', '/studio/content', '/studio/radar', '/studio/profile'])
+    expect(rows.map((l) => l.getAttribute('href'))).toEqual(['/studio/results', '/studio/content', '/studio/radar', '/studio/area-photos', '/studio/profile'])
     expect(mockUpcoming).not.toHaveBeenCalled()
     expect(mockStatus).not.toHaveBeenCalled()
   })

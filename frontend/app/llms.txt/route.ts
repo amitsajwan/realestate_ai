@@ -1,3 +1,4 @@
+import { getAreaLandmarks, metroAnswer } from '@/components/localities/AreaLandmarks'
 import { LOCALITIES } from '@/lib/marketing/localities'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { getCatalog } from '@/lib/site/api'
@@ -18,6 +19,11 @@ export async function GET(): Promise<Response> {
   const site = getMarketingConfig().siteUrl
   const [places, facets, catalog, register] = await Promise.all([getRegisterPlaces().catch(() => []), getFacets().catch(() => []),
     getCatalog().catch(() => []), getRegisterProjects().catch(() => [])])
+  // each guide's dated metro line (nearest running station, a nearer one being built), the fact assistants are asked for most
+  const metro = new Map(await Promise.all(LOCALITIES.map(async (l) => {
+    const d = await getAreaLandmarks(l.slug).catch(() => null)
+    return [l.slug, d ? metroAnswer(d) : null] as const
+  })))
   const ours = new Set(LOCALITIES.map((l) => l.slug))
   const areaKeys = new Set(LOCALITIES.map((l) => l.key))
   const areaName = new Map(LOCALITIES.map((l) => [l.key, l.name]))
@@ -51,7 +57,7 @@ export async function GET(): Promise<Response> {
     '',
     ...(projects.length ? ['## Projects: MahaRERA number, possession date, homes booked, price', ...projects, ''] : []),
     '## Area guides',
-    ...LOCALITIES.map((l) => `- [Living in ${l.name}, Pune: area guide](${site}/localities/${l.slug})`),
+    ...LOCALITIES.map((l) => `- [Living in ${l.name}, Pune: area guide](${site}/localities/${l.slug})${metro.get(l.slug) ? `: ${metro.get(l.slug)}` : ''}`),
     '',
     '## Data',
     `- [Pune MahaRERA tracker](${site}/pune-maharera-tracker): projects registered, completion dates moved and homes booked across Pune`,

@@ -49,7 +49,10 @@ describe("buyers' home", () => {
     render(await BuyerHome())
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/new projects in pune/i)
-    expect(screen.getByText(/66 projects in our areas, read from MahaRERA/i)).toBeInTheDocument()
+    // the count opens the tracker that breaks it down by area
+    const tracked = screen.getByRole('link', { name: '66 projects in our areas' })
+    expect(tracked).toHaveAttribute('href', '/pune-maharera-tracker')
+    expect(tracked.parentElement).toHaveTextContent(/66 projects in our areas, read from MahaRERA/i)
     const ask = screen.getAllByRole('link', { name: /tell us what you need/i })   // the header button and the hero's
     expect(ask.length).toBe(2)
     for (const a of ask) expect(a).toHaveAttribute('href', '/enquire')
