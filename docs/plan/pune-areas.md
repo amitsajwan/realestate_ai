@@ -44,6 +44,9 @@ HTTP (W2 uses this): `GET /api/v1/public/areas/{slug}/stats` → 200 with the di
 - `projects` may be 0. `units_total`/`units_booked` are null when not known for enough projects (never guess).
 - `completing` counts projects by the year of their filed completion date; years before `as_of` are left out.
 - `recent` has at most 5 items, newest `updated` first.
+- `registered` (added 2026-11-17, "How <area> grew" on the area guide): `[{"year": 2019, "projects": 4}, ...]`, projects counted
+  by the year of their MahaRERA registration (`registered_on`), from the first year with one to the year of `as_of`, with the
+  empty years inside the range as 0. A record without a registration date is not counted; `[]` when none has one.
 
 ## The MahaRERA register keeps itself up to date (2026-10-06)
 - **Catch-up is automatic.** `areastats.refresh.step` runs in every newsroom cycle (the worker). While the first pincode sweep is

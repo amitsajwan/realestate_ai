@@ -37,7 +37,7 @@ async def test_empty_area_has_zero_projects_and_no_guesses():
     out = await area_stats(db, "lohegaon", TODAY)
     assert out == {"area": {"key": "lohegaon", "name": "Lohegaon", "slug": "lohegaon", "tier": "affordable"},
                    "as_of": "2026-10-04", "projects": 0, "completing": [], "units_total": None, "units_booked": None,
-                   "recent": [], "source": "MahaRERA public records"}
+                   "registered": [], "recent": [], "source": "MahaRERA public records"}
 
 
 async def test_as_of_is_today_when_the_register_is_empty():
@@ -124,7 +124,7 @@ async def test_endpoint_returns_the_contract_and_404_for_unknown_areas():
     r = c.get("/public/areas/keshav-nagar/stats")
     assert r.status_code == 200 and r.headers["cache-control"] == f"public, max-age={service.CACHE_SECONDS}"
     body = r.json()
-    assert set(body) == {"area", "as_of", "projects", "completing", "units_total", "units_booked", "recent", "source"}
+    assert set(body) == {"area", "as_of", "projects", "completing", "units_total", "units_booked", "registered", "recent", "source"}
     assert body["area"] == {"key": "keshav_nagar", "name": "Keshav Nagar", "slug": "keshav-nagar", "tier": "affordable"}
     assert body["projects"] == 1 and body["units_total"] == 12 and body["units_booked"] == 3
     assert set(body["recent"][0]) == {"name", "regno", "promoter", "completion", "updated", "url", "page"}
@@ -141,3 +141,24 @@ async def test_all_areas_in_menu_order_for_the_city_tracker():
     by = {a["area"]["key"]: a for a in body["areas"]}
     assert (by["wagholi"]["projects"], by["wagholi"]["units_total"], by["kharadi"]["projects"], by["lohegaon"]["projects"]) == (1, 12, 1, 0)
     assert body["as_of"] == "2026-10-04" and body["source"] == service.SOURCE
+
+
+async def test_registered_counts_projects_per_year_with_the_empty_years_inside_the_range():
+    docs = [rec(1), rec(2), rec(3), rec(4), rec(5), rec(6, "kharadi"), rec(7)]
+    for d, day in zip(docs, ["2019-04-02", "2019-11-30", "2022-01-15", "2026-08-01", "", "2018-01-01", "not a date"]):
+        d["registered_on"] = day
+    docs[0]["registered_on"] = datetime(2019, 4, 2)  # the register keeps some dates as datetimes
+    out = await area_stats(await db_with(*docs), "wagholi", TODAY)
+    # 2020, 2021, 2023-2025 had none and are kept as 0; the Kharadi record and the two without a date are not counted
+    assert out["registered"] == [{"year": 2019, "projects": 2}, {"year": 2020, "projects": 0}, {"year": 2021, "projects": 0},
+                                 {"year": 2022, "projects": 1}, {"year": 2023, "projects": 0}, {"year": 2024, "projects": 0},
+                                 {"year": 2025, "projects": 0}, {"year": 2026, "projects": 1}]
+    assert out["projects"] == 6
+
+
+async def test_registered_runs_to_the_year_of_as_of_and_drops_later_dates():
+    a, b = rec(1), rec(2)
+    a["registered_on"], b["registered_on"] = "2025-03-01", "2031-01-01"
+    out = await area_stats(await db_with(a, b), "wagholi", TODAY)
+    assert out["registered"] == [{"year": 2025, "projects": 1}, {"year": 2026, "projects": 0}]
+    assert (await area_stats(await db_with(rec(3)), "wagholi", TODAY))["registered"] == []
