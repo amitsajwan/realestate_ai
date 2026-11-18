@@ -32,6 +32,11 @@ def wire() -> None:
     run_news.configure(owner=_owner_id, tell=_tell_agent)
     calendar_runner.configure(on_posted=run_news.posted, on_cycle=run_news.results_due)
     inbox_service.configure(ask_post=_ask_agent_about_post)
+    # the buyer mind (above the Inbox) thinks about new leads and buyer replies from the lead follow-ups loop
+    # (only with BUYER_MIND on, so the loop does not read every open lead for nothing)
+    from app.modules.buyermind import config as buyer_mind_config
+    from app.modules.inbox import followups as lead_followups
+    lead_followups.configure(think=_brief_lead if buyer_mind_config.load().enabled else None)
     # the quality route: the operator may review any agent's listing cards; calendar and news items are found by their owners
     quality_routes.configure(is_operator=is_operator,
                              resolvers={"calendar": calendar_quality.review_target, "news": news_quality.review_target})
@@ -418,3 +423,9 @@ def _render_news_short(slides, dest, hook):
     """The newsroom's Short: its card images as a vertical slide video opening on the headline (reels.slides)."""
     from app.modules.reels.slides import make_slides_reel
     return make_slides_reel(list(slides), dest, hook=hook)
+
+
+async def _brief_lead(db, agent_id: str, lead_id: str, since):
+    """The buyer mind's background run for one lead (inbox.followups step 5): off|fresh|thought."""
+    from app.modules.buyermind import build
+    return await build(db).think_if_due(agent_id, lead_id, since)

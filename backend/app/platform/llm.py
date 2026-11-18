@@ -261,6 +261,44 @@ class GroqLLM:
         (the creative room's pitches converged on one name at 0)."""
         return await self._chat(system, user, temperature)
 
+    async def step(self, messages: list[dict], tools: Optional[list[dict]] = None, json_mode: bool = False,
+                   effort: Optional[str] = None, timeout: Optional[float] = None) -> Optional[dict[str, Any]]:
+        """One turn of a conversation that may call tools (platform/toolloop.py): the assistant's message as the provider sent it
+        ({"content", "tool_calls", "reasoning"...}), or None on any failure. `effort` asks a reasoning model to think harder
+        ("low" / "medium" / "high"); it is sent only when given, as not every provider takes it."""
+        budget = timeout or max(self.timeout, 30.0)
+        order = model_order(self.model)
+        headers = {"Authorization": f"Bearer {self.api_key}"}
+        sent = {"model": order[0] if order else ""}
+
+        async def send(model: str, t: float) -> httpx.Response:
+            sent["model"] = model
+            body: dict[str, Any] = {"model": model, "temperature": 0, "messages": messages, "max_tokens": JSON_MAX_TOKENS}
+            if tools:
+                body["tools"] = tools
+            if json_mode:
+                body["response_format"] = {"type": "json_object"}
+            if effort:
+                body["reasoning_effort"] = effort
+            if self.url == GEMINI_OPENAI_URL:   # Gemini counts its thinking in max_tokens (see _chat)
+                body.update(max_tokens=GEMINI_MAX_TOKENS, reasoning_effort=effort or "low")
+            if self._client:
+                return await self._client.post(self.url, json=body, headers=headers, timeout=t)
+            async with httpx.AsyncClient(timeout=t) as c:
+                return await c.post(self.url, json=body, headers=headers)
+
+        try:
+            r = await post_with_failover(order, send, per_attempt=budget / 2 if len(set(order)) > 1 else budget, budget=budget,
+                                         health=self.health, url=self.health_key)
+            r.raise_for_status()
+            _report_usage(self.url, sent["model"], r)
+            msg = r.json()["choices"][0]["message"]
+            return msg if isinstance(msg, dict) else None
+        except Exception as e:
+            status = getattr(getattr(e, "response", None), "status_code", None)
+            log.info("LLM step failed at %s: %s%s", self.host, type(e).__name__, f" (HTTP {status})" if status else "")
+            return None
+
 
 class GroqTranscriber:
     def __init__(self, api_key: str, model: str = STT_MODEL, timeout: float = STT_TIMEOUT,
@@ -369,6 +407,12 @@ class FallbackLLM:
 
     async def text(self, system: str, user: str, timeout: Optional[float] = None):
         return await self._first("text", system, user, timeout)
+
+    async def step(self, messages: list[dict], tools: Optional[list[dict]] = None, json_mode: bool = False,
+                   effort: Optional[str] = None, timeout: Optional[float] = None):
+        """One tool-loop turn from the first provider that answers. Messages are plain OpenAI-style, so the next turn may go to
+        another provider without losing the conversation."""
+        return await self._first("step", messages, tools=tools, json_mode=json_mode, effort=effort, timeout=timeout)
 
 
 OPENROUTER_BASE = "https://openrouter.ai/api/v1"

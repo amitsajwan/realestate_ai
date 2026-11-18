@@ -47,6 +47,7 @@ from app.modules.calendar.topics import router as calendar_topics_router
 from app.modules.interest.router import router as interest_router, public_router as interest_public_router
 from app.modules.chat.router import router as chat_router
 from app.modules.inbox.router import board_router as lead_board_router, router as conversations_router
+from app.modules.buyermind.router import router as buyer_mind_router
 from app.modules.report.router import router as report_router
 from app.modules.waitlist.router import router as waitlist_router
 from app.modules.admin.router import router as admin_router
@@ -92,6 +93,7 @@ api_router.include_router(join_router, prefix="/join", tags=["join"])
 api_router.include_router(waitlist_router, prefix="/join", tags=["join"])
 api_router.include_router(track_public_router, prefix="/t", tags=["tracking"])
 api_router.include_router(inbox_router, prefix="/inbox", tags=["lead-inbox"])
+api_router.include_router(buyer_mind_router, prefix="/buyer-mind", tags=["buyer-mind"])
 api_router.include_router(ai_listing_router, prefix="/listings", tags=["listings-ai"])
 api_router.include_router(listings_router, prefix="/listings", tags=["listings"])
 from app.wiring import wire  # noqa: E402

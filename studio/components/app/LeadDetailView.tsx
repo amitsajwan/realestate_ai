@@ -2,6 +2,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import React, { useState } from 'react'
+import { BuyerBrief } from '@/components/app/BuyerBrief'
 import { LeadConversations } from '@/components/app/LeadConversations'
 import { Trail } from '@/components/app/LiveNow'
 import { PassBox } from '@/components/app/PassBox'
@@ -225,6 +226,8 @@ export function LeadDetailView({ id }: { id: string }) {
         onSchedule={() => update('site_visit')}
         onFollowUp={() => setShowDraft(true)}
       />
+
+      <BuyerBrief leadId={lead.id} phone={lead.phone} />
 
       {lead.message && <p className="rounded-xl bg-white p-3 text-gray-800">“{lead.message}”</p>}
 
