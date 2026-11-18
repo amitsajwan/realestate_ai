@@ -55,6 +55,7 @@ class Call:
     arguments: dict[str, Any]
     ok: bool
     preview: str
+    text: str = ""   # what the model was given (clipped to RESULT_CHARS)
 
 
 @dataclass
@@ -66,8 +67,8 @@ class Result:
     reasoning: list[str] = field(default_factory=list)   # what the model thought each round, where the provider sends it
 
     def results_text(self) -> str:
-        """Every tool result's preview in one string, for a caller's check that a figure in the answer came from a lookup."""
-        return "\n".join(c.preview for c in self.calls if c.ok)
+        """Every tool result the model read, in one string, for a caller's check that a figure in the answer came from a lookup."""
+        return "\n".join(c.text for c in self.calls if c.ok)
 
 
 def _clip(value: Any, limit: int) -> str:
@@ -115,7 +116,7 @@ async def _run_call(call: dict[str, Any], tools: dict[str, Tool], timeout: float
         log.info("tool %s failed: %s", name, type(e).__name__)
         return Call(name, args, False, f"failed: {type(e).__name__}"), json.dumps({"error": f"this lookup failed ({type(e).__name__})"})
     text = _clip(value, RESULT_CHARS)
-    return Call(name, args, True, _clip(value, PREVIEW_CHARS)), text
+    return Call(name, args, True, _clip(value, PREVIEW_CHARS), text), text
 
 
 async def run_tools(llm: Any, system: str, user: str, tools: list[Tool], *, pipeline: str = "toolloop", ref: Any = None,

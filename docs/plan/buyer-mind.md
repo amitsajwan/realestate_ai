@@ -79,3 +79,14 @@ Steps 1-3 change nothing a buyer sees. Step 4 is the first live change and start
 
 ## Progress
 - 2026-11-18: plan written (owner's direction). Step 1 started.
+- 2026-11-18: step 1 built: `platform/toolloop.py` (`run_tools`) and `GroqLLM.step` / `FallbackLLM.step`, tests in
+  `tests/platform_layer/test_toolloop.py`.
+- 2026-11-18: steps 2-3 core built, not yet run anywhere: `modules/buyermind` (in the conversations layer of `.importlinter`).
+  `BuyerMind.think(agent_id, lead_id)` reads the lead's handover card (InboxService.handover_for; the phone is never put in a
+  prompt), thinks with two lookups (`project_facts`: the project page, whole-project figures when it stands for several
+  registrations, prices labelled as the buyer reads them; `area_question`: the knowledge search), holds the answer to the facts
+  (`brief.checked`: a draft with a figure, price or builder no lookup gave, or hype, is dropped with the reason; so is a flag or
+  price idea with such a figure, and an alternative never looked up) and keeps the brief in `lead_briefs` and the profile in
+  `buyer_profiles`. No model or no usable answer: the brief from the card alone (`brief.fallback`). Settings: `BUYER_MIND`
+  (off), `BUYER_MIND_EFFORT`, `BUYER_MIND_ROUNDS`. Next: run it from the lead_followups loop on new leads and replies, and a
+  Studio endpoint to read the brief; then matching homes and floor plans as tools.

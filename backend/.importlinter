@@ -38,7 +38,7 @@ containers =
     app.modules
 layers =
     admin : concierge : propertyfacts
-    newsroom : calendar : insights : showcase : marketing : creative : reels : photoquality : areaphotos : engage : chat : whatsapp : knowledge : notifications
+    newsroom : calendar : insights : showcase : marketing : creative : reels : photoquality : areaphotos : buyermind : engage : chat : whatsapp : knowledge : notifications
     social
     tracking : interest : report
     listings : ai_listing
