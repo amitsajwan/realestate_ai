@@ -17,6 +17,11 @@ jest.mock('@/lib/app/client', () => ({
   isFixtureMode: () => false,
 }))
 
+jest.mock('@/lib/app/buyerMind', () => ({
+  ...jest.requireActual('@/lib/app/buyerMind'),
+  buyerMindApi: { brief: async () => jest.requireActual('@/lib/app/buyerMind').EMPTY_VIEW, think: jest.fn() },
+}))
+
 const fresh = () => createFixtureApi({ getItem: () => null, setItem: () => undefined })
 
 beforeEach(() => {

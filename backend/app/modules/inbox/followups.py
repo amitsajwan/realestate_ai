@@ -20,13 +20,17 @@ Every INTERVAL_S:
      a pass uses (InboxService.tell_agent_of_lead), to their office number when the site has one (owner, 2026-10-30: House Deal's
      enquiries reach them on WhatsApp through Avasetu). Tried once per lead (`agent_wa_at`, `agent_wa_status`). The owner follows
      these like passes: `watched_by` puts the lead in their Leads > Passed (read only) and they get one 'agent_site_enquiry' alert.
+  5. Buyer mind (BUYER_MIND=true; docs/plan/buyer-mind.md). A lead that came in, or whose buyer wrote, since the mind last
+     thought about it gets a fresh Lead Brief for its agent: `think`, passed in by app.wiring (the buyer mind sits above the
+     Inbox), decides whether its brief is older than that moment. At most BRIEFS_PER_CYCLE a cycle, and none started after
+     BRIEF_BUDGET, so a slow model never holds up the follow-ups and alerts above (it runs last).
 Each lead is handled on its own: an error is logged and the rest go on.
 """
 import asyncio
 import logging
 import os
 from datetime import datetime, timedelta
-from typing import Callable, Optional
+from typing import Awaitable, Callable, Optional
 
 from app.core.database import get_database
 from app.modules.tracking import contact as contactmod
@@ -44,6 +48,17 @@ PASS_DELAY = timedelta(minutes=4)
 PASSED_KIND = "lead_auto_passed"
 MAX_LEADS = 500
 AGENT_WA_WINDOW = timedelta(hours=1)    # a lead from before this step went live is not sent late
+BRIEFS_PER_CYCLE = 6
+BRIEF_BUDGET = timedelta(minutes=2)     # no new brief is started after this much of a cycle: each one may take 90 s
+
+Think = Callable[[object, str, str, Optional[datetime]], Awaitable[str]]   # (db, agent_id, lead_id, since) -> off|fresh|thought
+_think: Optional[Think] = None
+
+
+def configure(think: Optional[Think] = None) -> None:
+    """app.wiring: the buyer mind's background run (BuyerMind.think_if_due)."""
+    global _think
+    _think = think
 
 
 def auto_on() -> bool:
@@ -178,6 +193,38 @@ async def waiting_alerts(db, now: datetime, notify: Optional[Callable] = None) -
     return told
 
 
+async def fresh_briefs(db, now: datetime, think: Optional[Think] = None, clock: Callable[[], datetime] = datetime.utcnow) -> int:
+    """A new Lead Brief for each open lead that came in or heard from its buyer since its last brief, newest first. Returns
+    how many were thought about."""
+    think = think or _think
+    if think is None:
+        return 0
+    leads = await db.get_collection("contacts").find({
+        "stage": {"$nin": ["won", "lost"]}, "created_at": {"$gte": now - timedelta(days=ALERT_DAYS)}}).to_list(MAX_LEADS)
+    if not leads:
+        return 0
+    convs = await contactmod.conversations_by_lead(db, leads)
+    due = []
+    for c in leads:
+        s = contactmod.state_of(c, convs[c["_id"]])
+        if s["state"] in ("not_contacted", "waiting_you") and s["at"]:
+            due.append((s["at"], c))
+    due.sort(key=lambda x: x[0], reverse=True)
+    start, done = clock(), 0
+    for since, c in due:
+        if done >= BRIEFS_PER_CYCLE or clock() - start > BRIEF_BUDGET:
+            break
+        try:
+            r = await think(db, c["agent_id"], c["_id"], since)
+        except Exception:
+            log.exception("buyer mind failed for lead %s", c.get("_id"))
+            continue
+        if r == "off":
+            return done
+        done += r == "thought"
+    return done
+
+
 async def cycle(db, now: datetime) -> None:
     owner = _owner()
     if owner:
@@ -197,6 +244,9 @@ async def cycle(db, now: datetime) -> None:
     n = await waiting_alerts(db, now)
     if n:
         log.info("lead follow-ups: %d waiting alerts", n)
+    n = await fresh_briefs(db, now)
+    if n:
+        log.info("lead follow-ups: %d leads thought about by the buyer mind", n)
 
 
 async def loop() -> None:

@@ -7,7 +7,7 @@ the latest replacing the one before. What it reads comes through the owners' fun
 knowledge. It sends nothing.
 """
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Awaitable, Callable, Optional
 
 from app.modules.areastats import pages as project_pages
@@ -21,6 +21,7 @@ from . import config, profile, tools
 
 log = logging.getLogger(__name__)
 
+HAND_GAP = timedelta(minutes=2)
 LeadReader = Callable[[str, str], Awaitable[dict]]   # (agent_id, lead_id) -> {"card": handover card, "project": chat_brief or None}
 
 
@@ -53,11 +54,44 @@ class BuyerMind:
             log.info("buyermind lead=%s kept the brief without: %s", lead_id, "; ".join(brief["problems"])[:300])
         return doc
 
-    async def latest(self, agent_id: str, lead_id: str) -> Optional[dict]:
-        return await self.briefs.find_one({"_id": lead_id, "agent_id": agent_id})
+    async def think_if_due(self, agent_id: str, lead_id: str, since: Optional[datetime]) -> str:
+        """The background run (inbox.followups, through app.wiring): think again only when something happened after the last
+        brief (`since`: the lead came in or the buyer wrote). 'off' with BUYER_MIND unset, 'fresh' when the brief is newer,
+        'thought' when it thought."""
+        if not self.settings.enabled:
+            return "off"
+        last = await self.briefs.find_one({"_id": lead_id})
+        if last and since and last.get("at") and last["at"] >= since:
+            return "fresh"
+        await self.think(agent_id, lead_id)
+        return "thought"
 
-    async def profile_of(self, agent_id: str, lead_id: str) -> Optional[dict]:
-        return await self.profiles.find_one({"_id": lead_id, "agent_id": agent_id})
+    async def think_by_hand(self, agent_id: str, lead_id: str) -> dict:
+        """'Think about this lead' in Studio: works with BUYER_MIND off, so the owner can try it on real leads first. Once per
+        HAND_GAP a lead, since each run is several model calls."""
+        last = await self.briefs.find_one({"_id": lead_id, "agent_id": agent_id})
+        if last and last.get("at") and self.now() - last["at"] < HAND_GAP:
+            raise TooSoon(int((HAND_GAP - (self.now() - last["at"])).total_seconds()) + 1)
+        await self.think(agent_id, lead_id)
+        return await self.view(agent_id, lead_id)
+
+    async def view(self, agent_id: str, lead_id: str) -> dict:
+        """The brief and the profile as Studio shows them; nulls when the mind has not thought about this lead yet."""
+        doc = await self.briefs.find_one({"_id": lead_id, "agent_id": agent_id})
+        prof = await self.profiles.find_one({"_id": lead_id, "agent_id": agent_id})
+        return {"brief": (doc or {}).get("brief"), "at": _iso((doc or {}).get("at")), "outcome": (doc or {}).get("outcome"),
+                "lookups": [x["tool"] for x in (doc or {}).get("lookups") or [] if x.get("ok")],
+                "profile": {k: prof.get(k) for k in ("said", "implied", "unknown")} if prof else None}
+
+
+class TooSoon(Exception):
+    def __init__(self, wait_s: int):
+        super().__init__(f"Thought about this lead a moment ago; try again in {wait_s} s")
+        self.wait_s = wait_s
+
+
+def _iso(dt: Any) -> Optional[str]:
+    return dt.isoformat() + "Z" if isinstance(dt, datetime) else None
 
 
 async def _area_search(question: str) -> list:

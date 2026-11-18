@@ -90,3 +90,10 @@ Steps 1-3 change nothing a buyer sees. Step 4 is the first live change and start
   `buyer_profiles`. No model or no usable answer: the brief from the card alone (`brief.fallback`). Settings: `BUYER_MIND`
   (off), `BUYER_MIND_EFFORT`, `BUYER_MIND_ROUNDS`. Next: run it from the lead_followups loop on new leads and replies, and a
   Studio endpoint to read the brief; then matching homes and floor plans as tools.
+- 2026-11-18: step 3 runs and step 6 started. In the background: `inbox.followups` step 5 (`fresh_briefs`) gives each open lead
+  that came in or heard from its buyer since its last brief a new one, newest first, at most 6 a cycle and none started after
+  2 minutes of it, through `app.wiring._brief_lead`, connected only with `BUYER_MIND=true`. By hand: `GET /buyer-mind/leads/{id}`
+  and `POST /buyer-mind/leads/{id}/think` (works with the switch off, once per 2 minutes a lead). Studio: the "Buyer brief"
+  panel on the lead page (`studio/components/app/BuyerBrief.tsx`): who they are, "Tell them" flags, the price idea, what to
+  ask, projects to also show, the next step, and the draft in a box the agent edits and sends from their own WhatsApp.
+  Still to do: try it on real leads with the switch off (the button), keep the agent's edits, then the chat's fast mind (step 4).
