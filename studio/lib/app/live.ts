@@ -100,6 +100,31 @@ export async function getLive(): Promise<Live> {
   return (await request<Live>('/inbox/live')) ?? empty
 }
 
+/** A robot that read the site today (backend seo/aivisits.robots_today): owner only. */
+export interface RobotRead {
+  agent: string
+  group: 'answer' | 'search' | 'training' | 'engine' | 'seo' | 'preview' | 'script' | 'other'
+  reads: number
+  last_at: string
+  last_path: string | null
+}
+export interface RobotsToday { day: string; reads: number; robots: RobotRead[] }
+
+export const ROBOT_GROUP: Record<RobotRead['group'], string> = {
+  answer: 'AI answering a question', search: 'Search crawler', training: 'AI training crawler', engine: 'Other search engine',
+  seo: 'SEO tool', preview: 'Link preview', script: 'Script or test browser', other: 'Other robot',
+}
+
+/** The robots that read the site today; null for anyone but the owner (403) or on any failure, so the list just does not show. */
+export async function getRobots(): Promise<RobotsToday | null> {
+  if (isFixtureMode()) return null
+  try {
+    return await request<RobotsToday>('/newsroom/robots')
+  } catch {
+    return null
+  }
+}
+
 const words = (slug: string) => {
   const s = decodeURIComponent(slug).replace(/[-_]+/g, ' ').trim()
   return s.charAt(0).toUpperCase() + s.slice(1)

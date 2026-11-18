@@ -200,7 +200,7 @@ export interface PageCheck {
 export interface AiVisits {
   days: number
   since: string
-  agents: { group: 'answer' | 'referral' | 'search' | 'training'; agent: string; week: number; total: number; kinds: Record<string, number> }[]
+  agents: { group: 'answer' | 'referral' | 'search' | 'training' | 'engine' | 'seo' | 'preview' | 'script' | 'other'; agent: string; week: number; total: number; kinds: Record<string, number> }[]
   answer_pages: { path: string; count: number }[]
   referral_pages: { path: string; count: number }[]
   totals: Record<string, number>

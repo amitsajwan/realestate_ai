@@ -333,14 +333,15 @@ function PageChecks({ c }: { c: PageCheck }) {
 
 const AI_GROUP: Record<string, string> = {
   answer: 'Read to answer a question', referral: 'Visitors from an AI answer', search: 'Search crawlers', training: 'Training crawlers',
+  engine: 'Other search engines', seo: 'SEO tools', preview: 'Link previews', script: 'Scripts and test browsers', other: 'Other robots',
 }
 
-/** AI search (seo/aivisits.py): which assistants read our pages, which pages AI answers use, and visits they send us. */
+/** AI search and robots (seo/aivisits.py): which assistants and other robots read our pages, which pages AI answers use, and visits they send us. */
 function AiSearch({ a }: { a: AiVisits }) {
   return (
     <div className={card}>
-      <p className="font-semibold text-gray-900">AI search</p>
-      <p className="text-xs text-gray-600">From our request log, by user agent and referring site: 7 days, then {a.days} days. &quot;Read to answer&quot; is an assistant (ChatGPT, Perplexity, Claude) fetching a page while answering someone.</p>
+      <p className="font-semibold text-gray-900">AI search and robots</p>
+      <p className="text-xs text-gray-600">From our request log, by user agent and referring site: 7 days, then {a.days} days. &quot;Read to answer&quot; is an assistant (ChatGPT, Perplexity, Claude) fetching a page while answering someone. Every robot that reads the site is here by the name it gives (not checked against its address), and never in visitor counts.</p>
       {a.agents.length === 0 ? <p className="mt-1 text-sm text-gray-600">Nothing yet: counting starts with the deploy.</p> : (
         <ul className="mt-1 space-y-1 p-0">
           {a.agents.map((r) => (

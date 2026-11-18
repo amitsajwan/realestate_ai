@@ -125,7 +125,7 @@ from app.models.user import User  # noqa: E402
 from app.modules.newsroom.config import load as newsroom_config  # noqa: E402
 from app.modules.newsroom.store import Store  # noqa: E402
 
-from . import splits  # noqa: E402
+from . import aivisits, splits  # noqa: E402
 
 owner_router = APIRouter()
 
@@ -134,6 +134,12 @@ async def owner_only(user: User = Depends(current_active_user)) -> User:
     if getattr(user, "is_superuser", False) or str(user.id) in newsroom_config().owner_ids:
         return user
     raise HTTPException(403, f"Only the {brand.NAME} owner can use this")
+
+
+@owner_router.get("/robots")
+async def robots_today(user: User = Depends(owner_only), db=Depends(get_db)) -> dict:
+    """The robots that read the site today, for Studio → Results under the visitors (aivisits.robots_today)."""
+    return await aivisits.robots_today(db)
 
 
 class SplitDecision(BaseModel):

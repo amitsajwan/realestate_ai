@@ -2,7 +2,8 @@
 import React from 'react'
 import Link from 'next/link'
 import { sourceLabel } from '@/lib/app/leads'
-import { aboutLine, getLive, howReached, pageLabel, readTime, startLine, type Live, type LiveStep, type LiveStory, type LiveVisitor } from '@/lib/app/live'
+import { timeAgo } from '@/lib/app/format'
+import { aboutLine, getLive, getRobots, howReached, pageLabel, readTime, ROBOT_GROUP, startLine, type Live, type LiveStep, type LiveStory, type LiveVisitor, type RobotsToday } from '@/lib/app/live'
 
 /**
  * Studio > Results, top: who is on the site right now, today's reading so far and the story of each of today's visits
@@ -194,6 +195,41 @@ function Stories({ stories }: { stories: LiveStory[] }) {
   )
 }
 
+/**
+ * The robots that read the site today (owner only; backend seo/aivisits.robots_today): Google and the other search engines, AI
+ * fetchers, SEO tools, link previews, scripts. Never in the visitor numbers above. Names are as each robot gives them.
+ */
+export function RobotsTodayList() {
+  const [r, setR] = React.useState<RobotsToday | null>(null)
+  React.useEffect(() => {
+    let alive = true
+    const load = () => { if (document.visibilityState !== 'hidden') getRobots().then((d) => { if (alive && d) setR(d) }) }
+    load()
+    const timer = window.setInterval(load, REFRESH_MS)
+    return () => { alive = false; window.clearInterval(timer) }
+  }, [])
+  if (!r) return null
+  return (
+    <section aria-label="Robots today" className="space-y-2">
+      <h2 className="text-sm font-semibold text-gray-600">Robots reading the site today ({r.reads.toLocaleString('en-IN')} pages)</h2>
+      {r.robots.length === 0 ? <p className="rounded-2xl border border-gray-200 bg-white p-3 text-sm text-gray-600">No robot has read the site yet today.</p> : (
+        <ul className="divide-y divide-gray-100 rounded-2xl border border-gray-200 bg-white">
+          {r.robots.map((b) => (
+            <li key={b.group + b.agent} className="px-3 py-2 text-sm">
+              <div className="flex justify-between gap-2">
+                <span className="font-semibold text-gray-900">{b.agent} <span className="font-normal text-gray-500">· {ROBOT_GROUP[b.group] ?? b.group}</span></span>
+                <span className="tabular-nums text-gray-700">{b.reads.toLocaleString('en-IN')}</span>
+              </div>
+              <p className="truncate text-xs text-gray-500">{timeAgo(b.last_at)}{b.last_path ? ` · ${pageLabel(b.last_path)}` : ''}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="text-xs text-gray-500">From the site&apos;s request log, by the name each robot gives (not checked). The day starts at 5:30 am. Not counted as visitors.</p>
+    </section>
+  )
+}
+
 export default function LiveNow() {
   const { live, failed } = useLive()
   if (!live) return failed ? <p className="text-sm text-gray-500">Could not load who is on the site. Trying again…</p> : null
@@ -247,6 +283,7 @@ export default function LiveNow() {
         )}
       </section>
       <Stories stories={today.stories ?? []} />
+      <RobotsTodayList />
     </>
   )
 }
