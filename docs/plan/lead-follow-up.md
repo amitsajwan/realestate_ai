@@ -164,3 +164,12 @@ App Review is approved and a non-role test DM reaches the webhook, put them back
 
 - Meta App Review: check Messenger status (App Review > Requests); submit Instagram (instagram_manage_messages, instagram_basic).
   After approval, test from an account with no app role.
+
+## Chat leads get the follow-up too (2026-11-18)
+
+A buyer asked Sai Hemant's prices in the website chat, left their number, and was told the team would WhatsApp the price sheet;
+nothing went, because the automatic follow-up took form leads only. Website chat leads now get it on the same terms
+(`followups.AUTO_CHANNELS`: form and chat; WhatsApp and DM leads are already in a chat). A chat on a project page gets the project
+template. A lead with no name (the chat saves "Website visitor") is greeted "Sir", never "Website ji" (`inbox.service._first_name`).
+The same day the chat also learned to take a mobile typed with the leading 0 ("09767971656"), which it had refused.
+

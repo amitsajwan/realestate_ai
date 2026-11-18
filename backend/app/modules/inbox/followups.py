@@ -1,8 +1,9 @@
 """Lead follow-ups that do not wait for a person (owner, 2026-10-23: two website leads sat unanswered for 10 hours and 3 days).
 
 Every INTERVAL_S:
-  1. Auto follow-up (LEAD_AUTO_FOLLOWUP=true; off by default: each one is a paid WhatsApp template). A website form lead of the
-     owner's own agent (WHATSAPP_OWNER_AGENT_ID) that is still New, has consent and an Indian mobile, came in AUTO_DELAY to
+  1. Auto follow-up (LEAD_AUTO_FOLLOWUP=true; off by default: each one is a paid WhatsApp template). A website form lead, or a
+     website chat lead (owner, 2026-11-18: a buyer left their number in the chat on Sai Hemant's page, was told the team would
+     WhatsApp the price sheet, and nothing came), of the owner's own agent (WHATSAPP_OWNER_AGENT_ID) that is still New, has consent and an Indian mobile, came in AUTO_DELAY to
      AUTO_WINDOW ago and nobody has contacted, gets the approved follow-up template, the same path as the Studio button
      (InboxService.start: once per 24 h, STOP respected, lead moves to Contacted, the bot answers their reply). Tried once per lead:
      `auto_followup_at` (+ `auto_followup_error`) is set before anything else, so a crash or a refusal never sends twice.
@@ -39,6 +40,7 @@ from app.platform.heartbeats import heartbeat
 log = logging.getLogger(__name__)
 
 INTERVAL_S = 300
+AUTO_CHANNELS = ("form", "chat")      # leads that left a number on our website; WhatsApp and DM leads are already in a chat
 AUTO_DELAY = timedelta(minutes=2)       # a person who is at the desk may call first
 AUTO_WINDOW = timedelta(hours=24)       # older leads are not messaged out of the blue by the machine
 ALERT_AFTER = timedelta(hours=2)
@@ -71,9 +73,9 @@ def _owner() -> str:
 
 
 async def auto_followups(db, inbox, owner: str, now: datetime) -> int:
-    """Send the follow-up template to fresh, uncontacted form leads of `owner`. Returns how many went out."""
+    """Send the follow-up template to fresh, uncontacted form and chat leads of `owner`. Returns how many went out."""
     leads = await db.get_collection("contacts").find({
-        "agent_id": owner, "channel": "form", "stage": "new", "created_at": {"$gte": now - AUTO_WINDOW},
+        "agent_id": owner, "channel": {"$in": list(AUTO_CHANNELS)}, "stage": "new", "created_at": {"$gte": now - AUTO_WINDOW},
         "auto_followup_at": {"$exists": False}}).to_list(MAX_LEADS)
     leads = [c for c in leads if c["created_at"] <= now - AUTO_DELAY and c.get("consent") and contactmod.wa_digits(c.get("phone"))]
     if not leads:
