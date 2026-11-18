@@ -150,3 +150,13 @@ Views before this date have no `via`/`prev` and show only the page.
   per day (the weekly report reads the newest 20,000 events, so more page views shorten its window) and Core Web Vitals.
 - 2026-10-27: D6 built (work/visitor-story): device, area/network (DB-IP, IP dropped), robots, "You", chat_open, Today's visitors.
 - 2026-11-16: D7 built: prev/via/link on page views, the trail in Today's visitors and Right now, Google searches per landing page.
+
+## Robots under the visitors (2026-11-18)
+
+Owner: "if we see in visitor it will be good", after asking to see whether Google or something else reads the site. Robots stay out
+of every visitor number (bots and headless browsers are dropped, data-centre visits marked `robot`). Under today's stories the owner
+now sees "Robots reading the site today": each robot by the name it gives (Google, Bing, ChatGPT, Ahrefs, WhatsApp preview, Headless
+browser ...), what kind it is, its reads, when it last came and the last page it read. From the server's request log
+(`seo/aivisits.robots_today`, `GET /newsroom/robots`, owner only; the log's day starts at 5:30 IST), not from browser events:
+most robots never run the page's tracking script. `studio/components/app/LiveNow.tsx` `RobotsTodayList`.
+

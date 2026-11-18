@@ -102,3 +102,40 @@ async def test_robots_come_after_the_ai_groups_in_the_summary():
     s = await aivisits.summary(db, NOW)
     assert [(a["group"], a["agent"]) for a in s["agents"]] == [("training", "OpenAI training"), ("seo", "Ahrefs"), ("script", "curl")]
     assert "seo" in s["totals"] and aivisits.week_line(s).endswith("0 search-crawler reads.")   # the weekly AI line is unchanged
+
+
+async def test_robots_today_lists_each_robot_with_its_reads_last_visit_and_page_never_people():
+    """Studio → Results shows them under the visitors (owner, 2026-11-18: "if we see in visitor it will be good")."""
+    db = FakeDb()
+    googlebot = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+    await aivisits.record(db, googlebot, None, "/projects/sky-one", None, NOW - timedelta(hours=3))
+    await aivisits.record(db, googlebot, None, "/projects/area/kharadi?x=1", None, NOW - timedelta(minutes=5))
+    await aivisits.record(db, "curl/8.5.0", None, "/", None, NOW - timedelta(minutes=1))
+    await aivisits.record(db, CHROME, None, "/projects/sky-one", "chatgpt.com", NOW)                     # a person from ChatGPT
+    await aivisits.record(db, googlebot, None, "/old", None, NOW - timedelta(days=1))                  # yesterday
+    r = await aivisits.robots_today(db, NOW)
+    assert r["day"] == "2026-10-21" and r["reads"] == 3
+    assert r["robots"] == [
+        {"agent": "curl", "group": "script", "reads": 1, "last_at": "2026-10-21T08:59:00Z", "last_path": "/"},
+        {"agent": "Google", "group": "search", "reads": 2, "last_at": "2026-10-21T08:55:00Z", "last_path": "/projects/area/kharadi"}]
+
+
+def test_the_robots_route_is_the_owners_only(monkeypatch):
+    from types import SimpleNamespace
+
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from app.core.auth_backend import current_active_user
+    from app.modules.seo import router as seo_routes
+
+    db = FakeDb()
+    app = FastAPI()
+    app.include_router(seo_routes.owner_router, prefix="/newsroom")
+    app.dependency_overrides[seo_routes.get_db] = lambda: db
+    monkeypatch.setenv("NEWSROOM_OWNER_IDS", "owner1")
+    app.dependency_overrides[current_active_user] = lambda: SimpleNamespace(id="agent7", is_superuser=False)
+    assert TestClient(app).get("/newsroom/robots").status_code == 403
+    app.dependency_overrides[current_active_user] = lambda: SimpleNamespace(id="owner1", is_superuser=False)
+    r = TestClient(app).get("/newsroom/robots")
+    assert r.status_code == 200 and r.json()["robots"] == []

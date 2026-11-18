@@ -127,7 +127,8 @@ async def record(db, ua: Optional[str], referer: Optional[str], path: Optional[s
         inc[f"paths.{_key(path)}"] = 1
     await db.get_collection(COLLECTION).update_one(
         {"_id": f"{day}|{hit['group']}|{hit['agent']}"},
-        {"$inc": inc, "$set": {"day": day, "group": hit["group"], "agent": hit["agent"], "last_at": now}}, upsert=True)
+        {"$inc": inc, "$set": {"day": day, "group": hit["group"], "agent": hit["agent"], "last_at": now,
+                               **({"last_path": path} if hit["group"] != "referral" else {})}}, upsert=True)
     return hit
 
 
@@ -156,6 +157,26 @@ async def summary(db, now: Optional[datetime] = None, days: int = 28, top: int =
     return {"days": days, "since": since, "agents": out, "answer_pages": best(pages["answer"]),
             "referral_pages": best(pages["referral"]),
             "totals": {g: sum(a["week"] for a in out if a["group"] == g) for g in order}}
+
+
+ROBOT_GROUPS = ("answer", "search", "training", "engine", "seo", "preview", "script", "other")   # every group but people (referral)
+MAX_ROBOTS = 40
+
+
+async def robots_today(db, now: Optional[datetime] = None) -> dict:
+    """Studio → Results, under the visitors (owner, 2026-11-18: "if we see in visitor it will be good"): every robot that read the
+    site today (the log's day, UTC, which starts at 5:30 IST), most recent first, with its reads, when it last came and the last
+    page it read. People who came from an AI answer are visitors, not robots, so they are not here."""
+    now = now or datetime.now(timezone.utc)
+    day = now.date().isoformat()
+    rows = await db.get_collection(COLLECTION).find({"day": day, "group": {"$in": list(ROBOT_GROUPS)}}).to_list(None)
+    def at(r: dict) -> datetime:
+        t = r.get("last_at") or datetime.min.replace(tzinfo=timezone.utc)
+        return t if t.tzinfo else t.replace(tzinfo=timezone.utc)
+    rows.sort(key=at, reverse=True)
+    out = [{"agent": r["agent"], "group": r["group"], "reads": int(r.get("count") or 0),
+            "last_at": at(r).isoformat().replace("+00:00", "Z"), "last_path": r.get("last_path")} for r in rows[:MAX_ROBOTS]]
+    return {"day": day, "reads": sum(int(r.get("count") or 0) for r in rows), "robots": out}
 
 
 def week_line(s: dict, leads: Optional[Dict[str, int]] = None) -> str:
