@@ -57,6 +57,50 @@ export function placeStats(building: RegisterListItem[], soldOut: RegisterListIt
   return out
 }
 
+/** Projects whose builder moved the filed possession date by 3 months or more (net of MahaRERA's 2026 order for all projects),
+ *  out of those whose dates we have read, and the middle move in months. Null with fewer than 5 to count: too few to say a
+ *  place's builders do anything. */
+function movedDates(rows: RegisterListItem[]): { moved: number; of: number; usual: number } | null {
+  const known = rows.filter((r) => r.months_later != null)
+  if (known.length < 5) return null
+  const moves = known.map((r) => r.months_later as number).filter((m) => m >= 3).sort((a, b) => a - b)
+  return { moved: moves.length, of: known.length, usual: moves.length ? moves[Math.floor((moves.length - 1) / 2)] : 0 }
+}
+
+/** At most this share of projects moving their date and the place's builders "mostly keep their dates". */
+const KEPT_SHARE = 0.15
+
+/** "The good and what to check" for a place, from its own lists only: whether builders keep their dates, how fast homes are
+ *  booked, what is ready soon, what is past its date. A balanced pair is what buyers trust and AI answers quote (a portal's
+ *  "what's great / what needs attention" block, 2026-11-18); every line here is a count the page's lists show, never a claim
+ *  about roads or air we cannot check. */
+export function placeGoodToKnow(place: RegisterPlace, building: RegisterListItem[], soldOut: RegisterListItem[], asOf: string,
+  prices: PlacePrices | null): { good: string[]; check: string[] } {
+  const good: string[] = []
+  const check: string[] = []
+  const active = [...building, ...soldOut]
+  const m = movedDates(active)
+  if (m && m.moved / m.of <= KEPT_SHARE) {
+    good.push(`Builders here mostly keep their dates: ${m.moved} of ${m.of} projects have moved their possession date by 3 months or more.`)
+  } else if (m) {
+    check.push(`${m.moved} of ${m.of} projects have moved their possession date by 3 months or more, usually by ${plural(m.usual, 'month')} `
+      + `(not counting MahaRERA's 2026 extension for all projects). See the date history on a project's page before you book.`)
+  }
+  const h = homes(active)
+  if (h && h.total > 0) {
+    const pct = Math.round((100 * h.booked) / h.total)
+    good.push(pct >= 50 ? `Buyers are booking here: ${pct}% of the homes in projects being built are already booked.`
+      : `Room to choose: ${(h.total - h.booked).toLocaleString('en-IN')} of ${h.total.toLocaleString('en-IN')} homes in projects being built are still open.`)
+  }
+  const year = new Date(new Date(asOf).getTime() + 365 * 86400000).toISOString().slice(0, 10)
+  const soon = building.filter((r) => r.stage !== 'passed' && r.completion_now && r.completion_now > asOf && r.completion_now <= year)
+  if (soon.length) good.push(`${plural(soon.length, 'project')} ${soon.length === 1 ? 'has' : 'have'} possession filed within the next 12 months.`)
+  const passed = building.filter((r) => r.stage === 'passed').length
+  if (passed) check.push(`${plural(passed, 'project')} ${passed === 1 ? 'is' : 'are'} past the completion date filed with MahaRERA: ask for the occupancy certificate (OC) before you pay.`)
+  if (prices?.sizes.length) check.push(`Starting prices are for the smallest home of each size and usually leave out parking, stamp duty, registration and GST: ask for the full cost sheet.`)
+  return { good, check }
+}
+
 /** Questions buyers ask about the place, answered only from the page's lists. */
 export function placeFaq(place: RegisterPlace, building: RegisterListItem[], soldOut: RegisterListItem[], asOf: string,
   prices: PlacePrices | null): { q: string; a: string }[] {
@@ -72,6 +116,11 @@ export function placeFaq(place: RegisterPlace, building: RegisterListItem[], sol
   if (soon.length) {
     out.push({ q: `Which projects in ${place.name} have the earliest possession?`,
       a: `By the completion date the builder filed with MahaRERA: ${soon.map((r) => `${displayName(r)} (${monthYear(r.completion_now)})`).join(', ')}. A filed date can move; each project's page shows whether it has.` })
+  }
+  const m = movedDates([...building, ...soldOut])
+  if (m) {
+    out.push({ q: `Do builders in ${place.name} keep their possession dates?`,
+      a: `${m.moved} of the ${m.of} projects being built in ${place.name} whose dates we have read have moved their MahaRERA possession date by 3 months or more${m.moved ? `, usually by ${plural(m.usual, 'month')}` : ''}, not counting MahaRERA's 2026 extension for all projects. Each project's page shows its own date history.` })
   }
   const top = builders([...building, ...soldOut])
   if (top.length) {

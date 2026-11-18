@@ -45,6 +45,23 @@ describe('Avasetu project page from the MahaRERA register', () => {
     expect(within(official.closest('footer')!).getByText(/Source: MahaRERA public records/)).toBeInTheDocument()
   })
 
+  it('the hero links the MahaRERA number to the record, says an example EMI, and neighbours say their price gap', () => {
+    const prices = { read_at: '2026-11-07', rows: [{ bhk: '2 BHK', from_inr: 12000000, to_inr: null, official: true, sources: [] }] }
+    const same_area = [{ name: 'Kesnand Greens', slug: 'kesnand-greens-wagholi', completion_now: '2029-03-31', price_from: 9800000 }]
+    render(<RegisterProjectPage p={{ ...P, prices, same_area } as RegisterProject} siteUrl="https://avasetu.in" facts={null} />)
+    expect(screen.getByTestId('verify-rera')).toHaveAttribute('href', P.maharera_url)
+    // ₹1.2 Cr: an 80% loan at 8.5% for 20 years
+    expect(screen.getByTestId('hero-emi')).toHaveTextContent('EMI about ₹83,311 a month')
+    expect(screen.getByTestId('price-gap')).toHaveTextContent('Starts ₹22 L lower than Rohan Abhilasha 4')
+  })
+
+  it('the hero says no EMI without a price, and no Verify link without the record', () => {
+    render(<RegisterProjectPage p={{ ...P, maharera_url: null }} siteUrl="https://avasetu.in" facts={null} />)
+    expect(screen.queryByTestId('verify-rera')).toBeNull()
+    expect(screen.queryByTestId('hero-emi')).toBeNull()
+    expect(screen.queryByTestId('price-gap')).toBeNull()
+  })
+
   it("the line under the name opens the builder's page and the place's project list", () => {
     render(<RegisterProjectPage p={{ ...P, builder_slug: 'rohan-builders', pune_place: { key: 'wagholi', name: 'Wagholi' } } as RegisterProject} siteUrl="https://avasetu.in" facts={null} />)
     const line = screen.getByTestId('hero-line')
