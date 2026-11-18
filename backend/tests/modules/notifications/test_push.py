@@ -160,3 +160,8 @@ def test_a_phone_turns_alerts_on_and_off_through_the_api(monkeypatch):
     assert c.put("/notifications/push/subscription", json={**phone(1), "endpoint": "https://backend:8000/x"}).status_code == 400
     assert c.request("DELETE", "/notifications/push/subscription", json={"endpoint": phone(1)["endpoint"]}).json() == {"on": False, "removed": True}
     assert _client(db, monkeypatch, PushConfig()).put("/notifications/push/subscription", json=phone(1)).status_code == 409
+
+
+def test_a_number_written_with_the_leading_zero_is_hidden_from_the_lock_screen_too():
+    from app.modules.notifications import push
+    assert push.PHONE.sub("[number]", "Ravi wrote 09767971656 and 097679-71656") == "Ravi wrote [number] and [number]"

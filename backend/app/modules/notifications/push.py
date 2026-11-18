@@ -51,7 +51,7 @@ TITLES = {
 }
 
 # a buyer's number never shows on a lock screen (notify() keeps them out of summaries; this also catches one in a quoted message)
-PHONE = re.compile(r"(?<!\d)(?:\+?91[\s-]?)?[6-9]\d{4}[\s-]?\d{5}(?!\d)")
+PHONE = re.compile(r"(?<!\d)(?:\+?91[\s-]?|0)?[6-9]\d{4}[\s-]?\d{5}(?!\d)")   # "09767971656" too
 
 Post = Callable[[str, dict, bytes], Awaitable[int]]
 
