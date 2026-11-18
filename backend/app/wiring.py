@@ -37,6 +37,10 @@ def wire() -> None:
     from app.modules.buyermind import config as buyer_mind_config
     from app.modules.inbox import followups as lead_followups
     lead_followups.configure(think=_brief_lead if buyer_mind_config.load().enabled else None)
+    # WhatsApp and DM replies may say what the buyer mind checked for the lead (its price range, what to tell them)
+    from app.modules.buyermind import chat_facts as buyer_mind_facts
+    from app.modules.whatsapp import adapters as whatsapp_adapters
+    whatsapp_adapters.configure(brief_facts=buyer_mind_facts)
     # the quality route: the operator may review any agent's listing cards; calendar and news items are found by their owners
     quality_routes.configure(is_operator=is_operator,
                              resolvers={"calendar": calendar_quality.review_target, "news": news_quality.review_target})

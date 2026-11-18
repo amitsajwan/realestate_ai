@@ -32,6 +32,26 @@ def new_chat_state(phone: str, name: Optional[str]) -> dict:
     return d
 
 
+_brief_facts = None   # app.wiring: buyermind.chat_facts (db, lead_id) -> lines; the buyer mind sits above this module
+
+
+def configure(brief_facts=None) -> None:
+    global _brief_facts
+    _brief_facts = brief_facts
+
+
+async def brief_facts(db, lead_id: Optional[str]) -> list:
+    """What the buyer mind checked for this lead and the chat may tell them (docs/plan/buyer-mind.md step 4); [] when there is none
+    or on any failure: a reply never waits on it."""
+    if _brief_facts is None or not lead_id:
+        return []
+    try:
+        return list(await _brief_facts(db, lead_id))
+    except Exception:
+        log.exception("buyer mind facts not read for lead %s", lead_id)
+        return []
+
+
 async def chat_turn(data: dict, text: str, llm, grounding, finder=None, history=None):
     """The website chat's brain (2026-10-18): the LLM leads (chat/agent.py) with the rules engine as its fallback; CHAT_AGENT=off on the
     server goes back to the rules alone, for every channel at once. `history` is the chat so far (role user/bot, text), oldest first."""

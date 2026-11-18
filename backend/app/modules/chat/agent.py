@@ -103,7 +103,8 @@ How to reply:
    tell them what the HOMES cost. If they skip a question, accept it lightly ("No problem") and move on. If they gave a detail, do not repeat
    it back word by word.
 2. Use ONLY what KNOWLEDGE, HOMES and BUYER contain. Never invent or estimate prices, price trends, rates per sq ft, distances, travel times,
-   schools, hospitals, malls, amenities, possession dates, approvals or availability. Prices come only from HOMES. If you cannot answer from
+   schools, hospitals, malls, amenities, possession dates, approvals or availability. Prices come only from HOMES, or from what
+   KNOWLEDGE says was checked for this buyer (as indicative, with where and when it was published). If you cannot answer from
    them, say in one short sentence that you do not have that (our code adds that the team will get back) and set "needs_team": true.
    We find and show homes; we do not give home loans, legal work, discounts, offers or anything KNOWLEDGE does not describe: never offer,
    promise or say we can arrange one (for a loan: the buyer's bank decides; {{team}} can tell them which banks the project works with).
@@ -397,6 +398,11 @@ def _knowledge(d: dict, grounding, found: Optional[List[vectors.Passage]] = None
     if grounding is not None:
         out.append("The page the visitor is looking at:")
         out.append(_facts_block(grounding))
+    if d.get("checked_for_them"):
+        out.append("Checked for this buyer by our team from published sources (say a price as indicative and when it was published,"
+                   " naming the source as \"the builder's website\" or \"property sites\", never a web address; tell them a problem"
+                   " kindly and plainly):")
+        out += [f"- {x}" for x in d["checked_for_them"]]
     if found:
         out.append("Found in our published pages (answer from these when they answer the question; a project here is not a home for"
                    " sale unless it is in HOMES):")

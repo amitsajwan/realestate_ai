@@ -97,3 +97,12 @@ Steps 1-3 change nothing a buyer sees. Step 4 is the first live change and start
   panel on the lead page (`studio/components/app/BuyerBrief.tsx`): who they are, "Tell them" flags, the price idea, what to
   ask, projects to also show, the next step, and the draft in a box the agent edits and sends from their own WhatsApp.
   Still to do: try it on real leads with the switch off (the button), keep the agent's edits, then the chat's fast mind (step 4).
+- 2026-11-18: step 4 begun on WhatsApp and DMs (owner: "handle as much as we can with our agents"). When a conversation belongs to
+  a lead, the reply reads `buyermind.chat_facts` (through `whatsapp.adapters.configure`, app.wiring): the brief's "tell them"
+  flags, its published price range and the names of the projects it looked up, dates written as a buyer reads them. They go
+  into the chat agent's KNOWLEDGE as "Checked for this buyer", so its reply checks accept those figures and refuse any other;
+  the price rule now allows a price from there, said as indicative with when it was published and the source named without a
+  web address. Never sent: what the mind read into the buyer, the agent's draft, an alternative's unchecked reason, or a brief
+  from the rules, marked low confidence or older than 7 days. Briefs exist only with `BUYER_MIND=true` or after "Think about
+  this lead". The website chat does not read them yet (it has no lead until the number is given).
+
