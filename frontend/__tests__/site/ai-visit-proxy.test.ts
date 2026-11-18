@@ -21,6 +21,15 @@ describe('which requests the AI visit log sees', () => {
     expect(shouldLog(CHROME, 'https://avasetu.in/projects', 'avasetu.in', null)).toBe(false)
   })
 
+  it('sends every other robot too, so we can see who reads the site', () => {
+    for (const ua of ['Mozilla/5.0 (compatible; Google-InspectionTool/1.0;)', 'Mozilla/5.0 (compatible; AhrefsBot/7.0)', 'facebookexternalhit/1.1',
+      'WhatsApp/2.23.20.0', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0 Safari/537.36',
+      'python-requests/2.31', 'curl/8.5.0', 'Mozilla/5.0 (Linux; Android 11; moto g power) Chrome-Lighthouse']) {
+      expect(shouldLog(ua, '', 'avasetu.in', null)).toBe(true)
+    }
+    expect(shouldLog('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Instagram 300.0', '', 'avasetu.in', null)).toBe(false)
+  })
+
   it('posts to the internal endpoint after the response and never on prefetches', async () => {
     const calls: [string, RequestInit][] = []
     global.fetch = jest.fn(async (url: string, init: RequestInit) => { calls.push([url, init]); return { ok: true, status: 204 } }) as unknown as typeof fetch

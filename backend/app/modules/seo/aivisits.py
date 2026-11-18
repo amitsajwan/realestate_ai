@@ -1,4 +1,6 @@
-"""Who reads our pages for AI search, and who comes to us from an AI answer (docs/plan/seo-system.md, "AI search").
+"""Who reads our pages for AI search, and who comes to us from an AI answer (docs/plan/seo-system.md, "AI search"); since
+2026-11-18 every other robot too, by name (`ROBOTS`, then any user agent that calls itself a bot, crawler or spider), so the owner
+can see whether Google or something else is reading the site.
 
 Search Console shows Google's clicks only. AI answers (ChatGPT, Perplexity, Copilot, Gemini, Claude) leave two traces we can see:
 1. their fetchers in our request log, by user agent (`AGENTS`), in three groups:
@@ -6,7 +8,9 @@ Search Console shows Google's clicks only. AI answers (ChatGPT, Perplexity, Copi
                  the nearest thing to "we were used in an answer" without paying for their APIs;
    - "search":   crawlers that build the AI search indexes (OAI-SearchBot, PerplexityBot, Claude-SearchBot) and the classic
                  engines they lean on (Bingbot for ChatGPT and Copilot, Googlebot for AI Overviews, Applebot);
-   - "training": crawlers that collect text for model training (GPTBot, ClaudeBot, CCBot ...).
+   - "training": crawlers that collect text for model training (GPTBot, ClaudeBot, CCBot ...);
+   - other robots: "engine" (Yandex, Baidu, DuckDuckGo ...), "seo" (Ahrefs, Semrush ...), "preview" (WhatsApp, Facebook link
+     previews), "script" (headless browsers, Lighthouse, python, curl) and "other" (anything else that calls itself a bot).
 2. people who click a link in an AI answer: the referring site (`REFERRERS`) or the utm_source the assistant adds
    (ChatGPT adds utm_source=chatgpt.com).
 The frontend proxy (frontend/proxy.ts) forwards page requests that may be one of these to POST /internal/seo/visit, a path the
@@ -36,6 +40,29 @@ AGENTS = (
     ("google-extended", "Google training", "training"), ("bytespider", "ByteDance", "training"),
     ("meta-externalagent", "Meta", "training"), ("amazonbot", "Amazon", "training"), ("cohere-ai", "Cohere", "training"),
 )
+# Every other robot, by name, so we can see who reads the site (owner, 2026-11-18: "we need such visits to understand if google
+# crawler or something else is reading our site"). Visitor counts still leave them out (tracking.service drops bots and headless
+# browsers); this log is where they show. Google's other readers come first: the URL Inspection tool is Search Console's
+# "Test live URL" and "Request indexing".
+ROBOTS = (
+    ("google-inspectiontool", "Google URL inspection", "search"), ("googleother", "Google (other)", "search"),
+    ("storebot-google", "Google Shopping", "search"), ("adsbot-google", "Google Ads", "search"),
+    ("yandex", "Yandex", "engine"), ("baiduspider", "Baidu", "engine"), ("duckduckbot", "DuckDuckGo", "engine"),
+    ("slurp", "Yahoo", "engine"), ("petalbot", "Petal (Huawei)", "engine"), ("seznambot", "Seznam", "engine"),
+    ("ahrefs", "Ahrefs", "seo"), ("semrush", "Semrush", "seo"), ("mj12bot", "Majestic", "seo"), ("dotbot", "Moz", "seo"),
+    ("rogerbot", "Moz", "seo"), ("dataforseo", "DataForSEO", "seo"), ("screaming frog", "Screaming Frog", "seo"),
+    ("serpstatbot", "Serpstat", "seo"), ("barkrowler", "Babbar", "seo"),
+    ("facebookexternalhit", "Facebook / Instagram preview", "preview"), ("whatsapp", "WhatsApp preview", "preview"),
+    ("twitterbot", "X preview", "preview"), ("linkedinbot", "LinkedIn preview", "preview"), ("telegrambot", "Telegram preview", "preview"),
+    ("slackbot", "Slack preview", "preview"), ("discordbot", "Discord preview", "preview"), ("pinterestbot", "Pinterest preview", "preview"),
+    ("chrome-lighthouse", "Lighthouse / PageSpeed", "script"), ("headlesschrome", "Headless browser", "script"),
+    ("python", "Python script", "script"), ("curl/", "curl", "script"), ("wget", "wget", "script"), ("scrapy", "Scrapy", "script"),
+    ("go-http-client", "Go script", "script"), ("okhttp", "OkHttp script", "script"), ("axios", "Node script", "script"),
+    ("node-fetch", "Node script", "script"), ("java/", "Java script", "script"),
+)
+# an unknown robot that says so ("FooBot/2.1", "some-crawler"): counted under the word it uses
+UNKNOWN_ROBOT = re.compile(r"[a-z0-9_.\-]*(?:bot|crawler|spider)[a-z0-9_.\-]*")
+MAX_ROBOT_NAME = 30
 # referring host (or a parent domain of it) -> assistant, and the utm_source values assistants add to their links: the lead
 # sources' list (tracking.origin), so a visit and a lead from one assistant carry the same name
 REFERRERS = tuple((host, name) for host, name, _ in origin.AI_REFERRERS)
@@ -43,13 +70,16 @@ UTM = {value: origin.AI_NAMES[key] for value, key in origin.AI_UTM.items()}
 
 
 def classify(ua: Optional[str], referer: Optional[str], utm_source: Optional[str]) -> Optional[dict]:
-    """{group, agent} for a request we count, else None (an ordinary visitor or a bot we do not track)."""
+    """{group, agent} for a request we count, else None (an ordinary visitor)."""
     low = (ua or "").lower()
     if "avasetuseoaudit" in low:
         return None   # our own weekly audit reading pages as the AI fetchers (seo/audit.py)
-    for token, name, group in AGENTS:
+    for token, name, group in AGENTS + ROBOTS:
         if token in low:
             return {"group": group, "agent": name}
+    m = UNKNOWN_ROBOT.search(low)
+    if m and not m.group(0).startswith(("cubot", "robotics")):   # a phone model or a word, not a robot
+        return {"group": "other", "agent": m.group(0).split("/")[0].strip(".-_")[:MAX_ROBOT_NAME] or "robot"}
     src = UTM.get((utm_source or "").strip().lower())
     if src:
         return {"group": "referral", "agent": src}
@@ -120,7 +150,7 @@ async def summary(db, now: Optional[datetime] = None, days: int = 28, top: int =
         for p, n in (r.get("paths") or {}).items():
             if r["group"] in pages:
                 pages[r["group"]][_unkey(p)] = pages[r["group"]].get(_unkey(p), 0) + int(n)
-    order = {"answer": 0, "referral": 1, "search": 2, "training": 3}
+    order = {"answer": 0, "referral": 1, "search": 2, "training": 3, "engine": 4, "seo": 5, "preview": 6, "script": 7, "other": 8}
     out = sorted(agents.values(), key=lambda a: (order.get(a["group"], 9), -a["total"]))
     best = lambda d: [{"path": p, "count": n} for p, n in sorted(d.items(), key=lambda x: (-x[1], x[0]))[:top]]  # noqa: E731
     return {"days": days, "since": since, "agents": out, "answer_pages": best(pages["answer"]),

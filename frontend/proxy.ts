@@ -4,10 +4,14 @@ import type { NextFetchEvent, NextRequest } from 'next/server'
 /**
  * AI search visit log (backend app/modules/seo/aivisits.py, docs/plan/seo-system.md "AI search"): a page request that may be an AI
  * fetcher (ChatGPT-User, OAI-SearchBot, PerplexityBot, Bingbot ...) or a visitor from an AI answer (chatgpt.com, perplexity.ai,
- * utm_source=chatgpt.com) is sent to the backend's /internal/seo/visit after the response, which keeps only what it recognises.
+ * utm_source=chatgpt.com), and from 2026-11-18 any other robot (Google's URL inspection, link previews, SEO tools, headless browsers,
+ * scripts), is sent to the backend's /internal/seo/visit after the response, which keeps only what it recognises.
  * Never delays or changes the page; any failure is dropped. Ordinary visitors from Google or typed URLs are not sent at all.
  */
 const MAYBE_AI_UA = /bot|gpt|perplexity|claude|crawler|spider|google-extended|meta-externalagent|cohere|mistral|duckassist/i
+// robots that do not call themselves bots (owner, 2026-11-18: "we need such visits to understand if google crawler or something
+// else is reading our site"): Google's URL inspection and other readers, link previews, headless browsers and scripts
+const OTHER_ROBOT_UA = /inspectiontool|googleother|slurp|facebookexternalhit|whatsapp|lighthouse|headless|python|curl\/|wget|scrapy|go-http-client|okhttp|axios|node-fetch|java\//i
 
 function ownHost(host: string | null, referer: string): boolean {
   try {
@@ -18,7 +22,7 @@ function ownHost(host: string | null, referer: string): boolean {
 }
 
 export function shouldLog(ua: string, referer: string, host: string | null, utmSource: string | null): boolean {
-  return MAYBE_AI_UA.test(ua) || !!utmSource || (!!referer && !ownHost(host, referer))
+  return MAYBE_AI_UA.test(ua) || OTHER_ROBOT_UA.test(ua) || !!utmSource || (!!referer && !ownHost(host, referer))
 }
 
 export function proxy(request: NextRequest, event: NextFetchEvent) {
