@@ -49,7 +49,9 @@ GREETING = re.compile(r"^\W*(hi+|hello+|hey+|namaste|namaskar|hii+|good (morning
 YES = re.compile(r"^\W*(yes|y|yeah|yep|ok|okay|sure|haan|ha|ho|confirm|please do)\W*$", re.I)
 NO = re.compile(r"^\W*(no|nope|not now|later|skip|nahi|nako|no thanks|na|maybe later|abhi nahi|baad mein|aata nako|nantar|अभी नहीं|आता नको)\W*$", re.I)
 HUMAN = re.compile(r"\b(talk|speak|connect|call)\b.*\b(human|person|agent|someone|team|me)\b|\bcall me\b|\breal person\b", re.I)
-PHONE_RX = re.compile(r"(?<!\d)(?:\+?91[\s-]?)?[6-9]\d{4}[\s-]?\d{5}(?!\d)")
+# a mobile as buyers type it: with +91 or 91, or with the 0 dialled before a mobile ("09767971656", 2026-11-18: refused as
+# "not a number" on Sai Hemant's page)
+PHONE_RX = re.compile(r"(?<!\d)(?:\+?91[\s-]?|0)?[6-9]\d{4}[\s-]?\d{5}(?!\d)")
 QUESTION = re.compile(r"\?|^\s*(what|how|why|when|where|which|who|is|are|can|could|do|does|will|should|kya|kaise|kitna|kitni|kab|kaun|kahan)\b", re.I)
 RENT_WORDS = re.compile(r"\b(rent|rental|renting|kiraya|kiraye|kirae|lease|per month|a month|monthly|deposit|bhade|bhadyane|bhada)\b|/\s*month|\bpm\b|किराए|किराया|भाड्याने", re.I)
 BUY_WORDS = re.compile(r"\b(buy|buying|purchase|kharid\w*|ghar lena|invest\w*|vikat|own a)\b|खरीद|विकत", re.I)

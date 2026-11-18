@@ -361,3 +361,12 @@ async def test_the_greeting_is_for_buyers_and_an_agent_who_says_so_still_gets_th
     t = await say(d, "I am an agent")
     assert "/trial" in t.reply or "first month is free" in t.reply
     assert "home buyers" not in site.best("what is avasetu").answer and "find a new home in Pune" in site.best("what is avasetu").answer
+
+
+def test_a_mobile_typed_with_the_leading_zero_is_taken():
+    """2026-11-18: a buyer on Sai Hemant's page typed 09767971656 and the bot answered that it could reach them only on their
+    mobile number. The 0 Indians dial before a mobile is part of how they write it."""
+    for typed in ("09767971656", "097679-71656", "097679 71656", "my number is 09767971656"):
+        assert engine._phone_in(typed) == "+919767971656", typed
+    assert engine._phone_in("0019767971656") is None     # an 00 international prefix is not an Indian trunk 0
+    assert engine.PHONE_RX.sub("[number]", "call 09767971656 today") == "call [number] today"
