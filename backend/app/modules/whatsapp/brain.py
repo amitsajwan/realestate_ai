@@ -341,6 +341,12 @@ class ChatBrain:
         grounding = await adapters.grounding_for(self.db, conv.get("context"), data.get("locality"))
         if grounding is not None and getattr(grounding, "locality", None) and not data.get("locality") and ctx.get("kind") == "project":
             data["locality"], data["locality_src"] = grounding.locality, "project"
+        # what the buyer mind looked up and checked for this lead (price range, what to tell them): the reply may say it
+        found = await adapters.brief_facts(self.db, conv.get("lead_id"))
+        if found:
+            data["checked_for_them"] = found
+        else:
+            data.pop("checked_for_them", None)
         t = await adapters.chat_turn(data, text, self.llm, grounding, finder=await adapters.homes_finder(self.db, conv.get("agent_id")),
                                     history=conv.get("messages") or [])
         # the homes sit between what we found and what we ask next, as on the website; the links are never translated

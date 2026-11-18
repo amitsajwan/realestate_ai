@@ -7,6 +7,7 @@ the latest replacing the one before. What it reads comes through the owners' fun
 knowledge. It sends nothing.
 """
 import logging
+import re
 from datetime import datetime, timedelta
 from typing import Any, Awaitable, Callable, Optional
 
@@ -82,6 +83,41 @@ class BuyerMind:
         return {"brief": (doc or {}).get("brief"), "at": _iso((doc or {}).get("at")), "outcome": (doc or {}).get("outcome"),
                 "lookups": [x["tool"] for x in (doc or {}).get("lookups") or [] if x.get("ok")],
                 "profile": {k: prof.get(k) for k in ("said", "implied", "unknown")} if prof else None}
+
+
+# what a chat may tell the buyer from the mind's brief (docs/plan/buyer-mind.md step 4): only what the checks held to a lookup
+BRIEF_FRESH = timedelta(days=7)        # prices and dates move; an older brief is not said to a buyer
+MAX_CHAT_FACTS = 6
+
+
+async def chat_facts(db, lead_id: Optional[str], now: Optional[datetime] = None) -> list[str]:
+    """The lead's latest brief as facts the chat may say to the buyer, for WhatsApp and DMs (through app.wiring): the problems to
+    tell them, the published price range and the other projects it looked up. Nothing when there is no lead, the brief came from
+    the rules (no model), the mind was not sure, or the brief is older than BRIEF_FRESH. What it read into the buyer ("implied")
+    and the agent's draft never go to the buyer."""
+    if not lead_id:
+        return []
+    doc = await db.get_collection("lead_briefs").find_one({"_id": lead_id})
+    b = (doc or {}).get("brief") or {}
+    at = (doc or {}).get("at")
+    if b.get("by") != "mind" or b.get("confidence") == "low" or not isinstance(at, datetime) or (now or datetime.utcnow()) - at > BRIEF_FRESH:
+        return []
+    out = [f"To tell them: {f}" for f in b.get("flags") or []]
+    if b.get("price_idea"):
+        out.append(f"Published prices (indicative, not a quote): {b['price_idea']}")
+    names = [a.get("name") or a.get("slug") for a in b.get("alternatives") or [] if a.get("slug")]
+    if names:
+        out.append("Other projects in the area our team looked up for them: " + ", ".join(n for n in names if n))
+    return [ISO_DAY.sub(_spoken_day, x) for x in out[:MAX_CHAT_FACTS]]
+
+
+ISO_DAY = re.compile(r"\b(20\d\d)-(0[1-9]|1[0-2])-([0-3]\d)\b")
+MONTHS = ("January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December")
+
+
+def _spoken_day(m: "re.Match") -> str:
+    """2026-10-20 -> 20 October 2026: how a buyer reads a date, and the month's name lets the chat's checks accept "20 Oct"."""
+    return f"{int(m.group(3))} {MONTHS[int(m.group(2)) - 1]} {m.group(1)}"
 
 
 class TooSoon(Exception):
