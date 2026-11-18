@@ -683,8 +683,13 @@ def _money(inr) -> str:
     return f"Rs {inr / 1e7:.2f}".rstrip("0").rstrip(".") + " Cr" if inr >= 1e7 else f"Rs {inr / 1e5:.0f} L"
 
 
+# names a lead gets when the buyer gave none: the website chat's placeholder must not become "Namaste Website ji"
+PLACEHOLDER_NAMES = ("website visitor", "a website visitor")
+
+
 def _first_name(lead: dict) -> str:
-    name = (lead.get("name") or "").split()
+    raw = (lead.get("name") or "").strip()
+    name = [] if raw.lower() in PLACEHOLDER_NAMES else raw.split()
     return name[0][:40] if name else "Sir"
 
 
