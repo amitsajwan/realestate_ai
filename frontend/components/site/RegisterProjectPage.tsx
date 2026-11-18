@@ -22,7 +22,7 @@ import LocationMapSwitch from '@/components/site/LocationMapSwitch'
 import ProjectHistory from '@/components/site/ProjectHistory'
 import { isCommercial, type Stage } from '@/lib/site/allin'
 import { areaCompareOf, areaName, askedPrices, bhkRange, completionChange, completionPassedOf, displayName, extensionSentence, headingName,
-  homesOf, longDay, mainRegistration, monthYear, offerPrice, otherNames, possessionLabel, possessionOf, projectFaq, placePath, soldOutOf,
+  homesOf, longDay, lowestPriceInr, mainRegistration, monthYear, offerPrice, otherNames, possessionLabel, possessionOf, priceGap, projectFaq, placePath, soldOutOf,
   STAGE_LABEL, STAGE_NOTE, stageOf, unitWord, wholeProject as projectScope } from '@/lib/site/register'
 import type { EnrichCheck, Faq, Offer } from '@/lib/site/register'
 import type { ProfilePicture } from '@/lib/site/profile'
@@ -204,14 +204,17 @@ function HeroLine({ p, where, linkless }: { p: RegisterProject; where: string; l
  *  the builder's own picture, never an AI illustration standing in for a real one. With no picture (most projects, 2026-10-31),
  *  a street map around the project's pin takes its place with the builder's logo over it (backend areastats/locmap.py,
  *  logos.py), else the logo alone. Over a photo the builder's logo sits in a white badge (owner 2026-11-03). */
-function Hero({ p, price, photo, linkless = false, closed = false, callback }: { p: RegisterProject; price: { from: string; bhks: string } | null; photo: ProfilePicture | null; linkless?: boolean; closed?: boolean
+function Hero({ p, price, photo, linkless = false, closed = false, callback, emi }: { p: RegisterProject; price: { from: string; bhks: string } | null; photo: ProfilePicture | null; linkless?: boolean; closed?: boolean
+  /** the example EMI on the price the chip quotes (homes only): buyers weigh a flat by the monthly payment first */
+  emi?: { emi: number; rate: number; years: number } | null
   /** who the "Call me back" button's lead goes to, and what about: the same as the page's enquiry form */
   callback?: { agentSlug: string; agentName: string; topic: string } }) {
   const stats: { label: string; value: React.ReactNode; sub?: React.ReactNode; id: string }[] = []
   // the agent's live sheet when there is one, else the portals' prices: one price on the page, never both
   const asked = price ?? askedPrices(p)
   if (asked?.bhks) stats.push({ id: 'chip-bhk', label: 'Homes', value: asked.bhks })
-  if (asked) stats.push({ id: 'chip-price', label: 'Price', value: `from ${asked.from}` })
+  if (asked) stats.push({ id: 'chip-price', label: 'Price', value: `from ${asked.from}`,
+    sub: emi ? <span title={`80% loan at ${emi.rate}% for ${emi.years} years; ask your bank for its rate`} data-testid="hero-emi">EMI about {formatPrice(emi.emi)} a month</span> : undefined })
   // the whole project's possession and homes (one registration's only when the page is one registration's)
   const possession = possessionOf(p)
   if (possession.date || possession.from) {
@@ -286,6 +289,13 @@ function Hero({ p, price, photo, linkless = false, closed = false, callback }: {
         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/15 px-3 py-1 text-xs font-semibold text-emerald-200 ring-1 ring-inset ring-emerald-300/30" data-testid="regno">
           <span aria-hidden>✓</span> MahaRERA registered <span className="font-mono font-normal text-slate-200">{p.regno}</span>
         </span>
+        {/* the regulator's own record one tap from the claim (an outside link, so agents' copies keep it too) */}
+        {p.maharera_url && (
+          <a href={p.maharera_url} target="_blank" rel="noopener noreferrer" data-testid="verify-rera"
+            className="inline-flex min-h-[32px] items-center rounded-full px-2 text-xs font-semibold text-emerald-200 underline underline-offset-2 hover:text-white">
+            Verify on MahaRERA<span aria-hidden>&nbsp;↗</span><span className="sr-only"> (opens in a new tab)</span>
+          </a>
+        )}
         {completionPassedOf(p) && <span className="rounded-full bg-amber-400/20 px-3 py-1 text-xs font-semibold text-amber-200">Completion date passed</span>}
         {/* plain words on the badge; how the stage is worked out (by dates, not a site check) is its title */}
         {stage && stage !== 'passed' && <span className="rounded-full bg-sky-400/20 px-3 py-1 text-xs font-semibold text-sky-100" title={STAGE_NOTE} data-testid="stage">{STAGE_LABEL[stage]}</span>}
@@ -901,6 +911,9 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
   const nearby = (facts as unknown as { nearby?: Near[] } | null)?.nearby ?? []
   // the agent's live price sheet is the page's one price: the hero quotes it and the portals' prices are not shown beside it
   const price = offerPrice(offer)
+  // the lowest price the page quotes: the hero's example EMI and the neighbours' "starts ₹20 L lower" are both from it
+  const myLow = lowestPriceInr(p, price)
+  const heroEmi = p.homes !== false && !isCommercial(offer?.property_type) && !/plot/i.test(offer?.property_type || '') ? emiFor(myLow) : null
   const faq = projectFaq(p, nearby, offer?.price_inr ? `${offer.homes && offer.homes.length > 1 ? 'from ' : ''}${formatPrice(offer.price_inr)}` : null)
   // the dated answer AI answers and snippets quote, first in the page's text; only once the record's dates or homes are read
   const answer = filed.date || filed.from || homesOf(p).total ? registerAnswer(p, price) : null
@@ -928,6 +941,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
               {p.same_area.length > 0 && (
               <ul className="mt-3 grid list-none gap-2 p-0 sm:grid-cols-2">
                 {p.same_area.map((s) => {
+                  const gap = closed ? null : priceGap(myLow, s.price_from, shown)
                   const line = [s.bhk || null, s.price_from ? `from ${formatPrice(s.price_from)}` : null,
                     s.completion_now ? `possession ${monthYear(s.completion_now)}` : null].filter(Boolean).join(' · ')
                   return (
@@ -935,6 +949,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
                       <Link href={`/projects/${s.slug}`} className="block min-h-[44px] rounded-xl border border-slate-200 bg-white px-3 py-2 no-underline hover:border-[#0f2340]">
                         <span className="block font-semibold text-[#0f2340]">{s.name}</span>
                         {line && <span className="text-sm text-slate-600">{line}</span>}
+                        {gap && <span className="block text-xs font-semibold text-slate-700" data-testid="price-gap">{gap}</span>}
                       </Link>
                     </li>
                   )
@@ -974,7 +989,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
       </nav>
       )}
 
-      <Hero p={p} price={price} photo={heroPhoto} linkless={!!seller} closed={closed} callback={{ agentSlug: leadSlug, agentName: leadName, topic: enquiryTopic }} />
+      <Hero p={p} price={price} photo={heroPhoto} linkless={!!seller} closed={closed} emi={closed ? null : heroEmi} callback={{ agentSlug: leadSlug, agentName: leadName, topic: enquiryTopic }} />
 
       {/* a partner agent's listing names them at the top and opens their own page for it (owner 2026-10-30); on that page itself
           (seller) it would link to itself, and Avasetu's own listings need no line */}

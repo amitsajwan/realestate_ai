@@ -18,7 +18,7 @@ import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
 import { getCatalog } from '@/lib/site/api'
 import { getFacetQuiet, getFacets, getPlacePrices, placeChips } from '@/lib/site/facets'
 import type { PlacePrices } from '@/lib/site/facets'
-import { placeAnswer, placeFaq, placeStats, placeUpdated } from '@/lib/site/placeFacts'
+import { placeAnswer, placeFaq, placeGoodToKnow, placeStats, placeUpdated } from '@/lib/site/placeFacts'
 import { livePages } from '@/lib/site/filters'
 import { fitDescription, fitTitle, formatPrice } from '@/lib/site/format'
 import { getActive, getAreaMap, getListed } from '@/lib/site/hubs'
@@ -117,6 +117,29 @@ function Prices({ place, prices }: { place: RegisterPlace; prices: PlacePrices }
   )
 }
 
+/** "<place>: the good and what to check": both sides from the place's own MahaRERA counts (lib/site/placeFacts placeGoodToKnow). */
+function GoodToKnow({ place, good, check }: { place: RegisterPlace; good: string[]; check: string[] }) {
+  if (!good.length && !check.length) return null
+  const col = (title: string, items: string[], tone: string, mark: string, id: string) => items.length > 0 && (
+    <div className={`rounded-2xl p-4 ring-1 ring-inset ${tone}`} data-testid={id}>
+      <h3 className="text-base font-semibold text-slate-900">{title}</h3>
+      <ul className="mt-2 list-none space-y-2 p-0">
+        {items.map((x) => <li key={x} className="flex gap-2 text-slate-800"><span aria-hidden className="font-bold">{mark}</span><span>{x}</span></li>)}
+      </ul>
+    </div>
+  )
+  return (
+    <section aria-labelledby="know-title" className="mt-10" data-testid="place-good-to-know">
+      <h2 id="know-title" className="text-2xl font-bold text-slate-900">{place.name}: the good and what to check</h2>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        {col("What's going for it", good, 'bg-emerald-50 ring-emerald-200', '✓', 'place-good')}
+        {col('Check before you book', check, 'bg-amber-50 ring-amber-200', '!', 'place-check')}
+      </div>
+      <p className="mt-2 text-xs text-slate-600">Counted from MahaRERA records of the projects on this page.</p>
+    </section>
+  )
+}
+
 function Row({ r }: { r: RegisterListItem }) {
   return (
     <li className="break-inside-avoid py-1.5">
@@ -153,6 +176,7 @@ export default async function PlaceProjectsPage({ params }: Props) {
   const answer = placeAnswer(place, building, soldOut, asOf, prices)
   const faq = placeFaq(place, building, soldOut, asOf, prices)
   const stats = placeStats(building, soldOut, prices)
+  const know = placeGoodToKnow(place, building, soldOut, asOf, prices)
   const updated = placeUpdated(projects)
   return (
     <MarketingShell hot={{ area: place.slug }}>
@@ -212,6 +236,8 @@ export default async function PlaceProjectsPage({ params }: Props) {
         {readyList && <ProjectRail id="ready" title={READY_TITLE} sub={READY_SUB} href={readyList.path} count={readyList.count} rows={readyList.rows} />}
 
         {prices && (prices.sizes.length > 0 || (prices.usual ?? []).length > 0) && <Prices place={place} prices={prices} />}
+
+        <GoodToKnow place={place} good={know.good} check={know.check} />
 
         {showsMap(map)
           ? <AreaMap data={map} listed={listed} className="mt-10" />

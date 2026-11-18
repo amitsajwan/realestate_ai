@@ -758,6 +758,24 @@ export function bhkRange(homes: { label: string }[]): string {
 /** The page's price when an agent's live sheet has one: the sheet is what the agent sells at today, so the portal prices are not
  *  shown beside it (a design review 2026-10-25 found ₹1.29 Cr in the hero and ₹1.2 Cr in the offer on one page). `from` is the
  *  offer's headline price, the one its all-in cost is worked out on. A rent is not a sale price: null, and the page keeps the portals'. */
+/** The lowest price the page quotes, in rupees: the agent's offer when there is one (the page's one price), else the lowest
+ *  published size price; null with neither. What the hero's EMI and the neighbours' price gaps are worked out from. */
+export function lowestPriceInr(p: Pick<RegisterProject, 'prices'>, offer?: { inr: number } | null): number | null {
+  if (offer?.inr && offer.inr > 0) return offer.inr
+  const lows = (p.prices?.rows ?? []).map((r) => r.from_inr).filter((v) => v > 0)
+  return lows.length ? Math.min(...lows) : null
+}
+
+/** How a neighbour's starting price stands against this project's: "Starts ₹20 L lower than Godrej Ivara", "About the same
+ *  starting price as Godrej Ivara" (within 5%). Starting prices only, so a project whose cheapest home is a bigger size reads
+ *  higher; the card says "starts". */
+export function priceGap(mine: number | null | undefined, theirs: number | null | undefined, name: string): string | null {
+  if (!mine || !theirs || mine <= 0 || theirs <= 0) return null
+  const d = theirs - mine
+  if (Math.abs(d) < mine * 0.05) return `About the same starting price as ${name}`
+  return `Starts ${formatPrice(Math.round(Math.abs(d) / 100000) * 100000)} ${d < 0 ? 'lower' : 'higher'} than ${name}`
+}
+
 export function offerPrice(o: Offer | null | undefined): { from: string; bhks: string; inr: number } | null {
   if (!o?.price_inr || o.price_inr <= 0 || o.transaction === 'rent') return null
   const sheet = o.homes && o.homes.length > 1 ? o.homes : null
