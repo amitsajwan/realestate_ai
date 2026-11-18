@@ -224,6 +224,13 @@ All in the `newsroom` worker role (seo loop every 30 minutes; each step runs onl
 - **Resubmit `/sitemap.xml`** after a deploy that adds a page type.
 - **Outside links** (the biggest lever): Google Business Profile for Avasetu; Pune property directories; agents' own sites
   linking to their project pages; offer the MahaRERA tracker to journalists and bloggers.
+- **Guest articles, a few and real** (2026-11-18): at most one every month or two, on Pune property sites that edit what
+  they publish (PropertyProIndia, India Realty Review, Pune.Broker), each built on our own MahaRERA figures, with one link to
+  the page that holds them, named by the brand or the page's own title, never a keyword anchor. A site whose main offer is
+  "dofollow links" is a link seller and is skipped; one that asks for money marks the link `sponsored`. Google's link-spam
+  policy names "large-scale guest posting campaigns with keyword-rich anchor text", so we write for the readers and the
+  referral visits, not the link count. Directories (Justdial, Sulekha, Bing Places) give the same name, address and phone
+  as the Google Business Profile, and count for being found, not for links.
 - **Social → site**: Instagram website + WhatsApp button, captions link the project or area page (visits bring crawls).
 - **Validate fix** in Search Console when it reports an error group we fixed.
 - **Bing Webmaster Tools, once** (ChatGPT search and Copilot lean on Bing): bing.com/webmasters → add avasetu.in → "Import from
@@ -629,6 +636,7 @@ measure (Search Console, Serper, URL Inspection) → choose (near page one, Magi
 | 2026-11-17 | this | Owner inspected `/projects/area/wakad/top`: "noindex detected". Right for the page: the list has 2 projects, under the bar for a list in search (`facets.in_search`), so it is `noindex, follow` and out of the sitemap. Bug behind it: Rankings → "Ask Google to index" read every inspected page Google had not indexed, including pages that had left the sitemap since (lists that fell under their bar, merged towers). Coverage now marks each inspected page `in_sitemap` true or false at its daily read (`coverage.mark_listed`), and the list leaves out a page marked false (`note.request_list`). Pages inspected before the deploy are marked at the next daily read. | `seo/coverage.py`, `seo/note.py` |
 | 2026-11-17 | this | Owner sent Search Console's robots.txt report: fetched 15 Nov, one warning, "Rule ignored by Googlebot" on `Host: https://avasetu.in`. Harmless (Google never read it; canonicals name the domain), removed so the report is clean (`app/robots.ts`, guard test). Also asked: `Disallow: /properties` blocks only the old signed-in property manager (`app/properties`, a client page of the agent's own listings), none of the 954 sitemap pages is under it; public projects are `/projects/...`. Nothing in robots.txt blocks a public page (`robots-guard.test.ts` checks every page family). | `frontend/app/robots.ts` |
 | 2026-11-18 | this | Owner's aged-domain research (realhome.co: 1 year old; moxpackersandmovers.com: auction ended, packers and movers, not property; inhomes.org: unverified): no purchase. Aged domains bought to link to us are DROPPED (section 8b) and a rule (section 9): Google calls it expired domain abuse and a link scheme. Links stay earned: badge, `/check` embed, the planned open CSV. | this page |
+| 2026-11-18 | this | Owner's outreach research (forums, guest posts, directories): most is already section 7 (Reddit, Business Profile, directories). New: a guest-article rule in section 7, a few real articles built on our MahaRERA figures, brand or title anchors, link sellers skipped, since Google lists guest-post campaigns with keyword anchors as link spam. | this page |
 
 ## 12. Detail and history
 
