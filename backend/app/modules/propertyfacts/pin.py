@@ -11,6 +11,13 @@ may also carry a name the project is sold under: the ones the caller knows (`nam
 wing or phase labels at its end (`sold_as`). The first search's candidates are judged against all of them; if none passes, Google
 is asked once more under the first such name. A tower's page then stands on its project's pin, which is the same site.
 
+A name Google spells a little differently is the same name (2026-11-19: 278 of the 469 pages in search with no pin were refused
+on the name, "Savannah Hills" for SAVANNA HILLS, "Aapla Ghar Wagholi Annexe" for Annex, "Shri Sai Hills" for Shree, "Guru Vista"
+for Guruvista): a word of five letters or more may differ by one letter, and Shri, Shree and Sri are one word. A candidate in the
+next pincode is the project when its name matches word for word and it stands within NEIGHBOUR_KM of the locality's centre:
+MahaRERA's pincode is the survey village's, Google's the street's (87 more were refused only on that). Answers kept under the
+older rules (`rule` below RULE) are asked again once.
+
 Google's terms: the place id may be kept for good, the position only for 30 days, so a found pin is re-read by id (Place Details,
 location only) once it is REFRESH_DAYS old; a project not found is searched again after REFRESH_DAYS. Answers are kept in
 `project_pins`, one document per project key (the MahaRERA number when known). No key configured: nothing is asked."""
@@ -46,8 +53,11 @@ NOT_A_SITE = re.compile(r"store|shop|mall|restaurant|food|cafe|bakery|bar$|hospi
 
 
 # what ends a registered name without being part of the project's: "Building C", "T9 A1", "G2", "2.O", "Phase II"
-PART_LABEL = frozenset({"tower", "towers", "wing", "wings", "building", "buildings", "bldg", "phase", "ph", "block"})
+PART_LABEL = frozenset({"tower", "towers", "wing", "wings", "building", "buildings", "bldg", "build", "phase", "ph", "block"})
 PART_CODE = re.compile(r"^(?:[a-z]|[a-z]\d{1,2}|\d{1,2}[a-z]?|[ivx]{1,4})$")
+NEIGHBOUR_KM = 3.0                             # a word-for-word name in another pincode this near the locality's centre is the site
+RULE = 2                                       # the matching rules' version: a "not found" kept under an older one is asked again
+SAME_WORDS = ({"shri", "shree", "sri", "shre"},)   # spellings of one word
 NAMES_SEARCHED = 2                             # Text Searches for one project: its registered name, then one sold-under name
 
 
@@ -65,17 +75,61 @@ def _words(s: str) -> List[str]:
     return re.findall(r"[a-z0-9]+", (s or "").lower())
 
 
-def name_matches(project: str, candidate: str, locality: str = "") -> bool:
+def _one_apart(a: str, b: str) -> bool:
+    """One letter added, dropped or changed: "savanna"/"savannah", "medows"/"meadows"."""
+    if abs(len(a) - len(b)) > 1:
+        return False
+    if len(a) > len(b):
+        a, b = b, a
+    i = 0
+    while i < len(a) and a[i] == b[i]:
+        i += 1
+    return a[i + (len(a) == len(b)):] == b[i + 1:]
+
+
+def same_word(a: str, b: str) -> bool:
+    """The same word as a name is spelt: equal, one spelling of Shri, or one letter apart in a word of five letters or more
+    (a short word is too easily another: East is not West)."""
+    if a == b:
+        return True
+    if any(a in s and b in s for s in SAME_WORDS):
+        return True
+    return min(len(a), len(b)) >= 5 and not a.isdigit() and not b.isdigit() and _one_apart(a, b)
+
+
+def name_matches(project: str, candidate: str, locality: str = "", loose: bool = True) -> bool:
     """The candidate's name carries every distinctive word of the project's name ("EAST STREET" -> "East Street Kharadi"),
-    or the same letters with the spaces removed ("Gulmohar City" / "GulmoharCity")."""
+    or the same letters with the spaces removed ("Gulmohar City" / "GulmoharCity", "Guruvista Phase II" / "Guru Vista Phase II").
+    `loose`: a word may be spelt a little differently (`same_word`); without it, word for word."""
     skip = GENERIC | set(_words(locality))
     want = [w for w in _words(project) if w not in skip and not w.isdigit()]
-    if not want:
+    # single letters alone ("Kharadi Pune Phase I" is "i" here) name nothing, and as joined letters they were found inside any
+    # name ("Kharadi Bypass"); they stay in a longer name, so "A S Corner" is not "Cafe Corner"
+    if all(len(w) == 1 for w in want):
         return False
     have = _words(candidate)
     if all(w in have for w in want):
         return True
-    return "".join(want) in "".join(have)
+    joined = "".join(want)
+    if len(joined) >= 5 and (joined in "".join(have) or joined in "".join(w for w in have if w not in skip and not w.isdigit())):
+        return True
+    return loose and _in_order(want, have)
+
+
+def _in_order(want: List[str], have: List[str]) -> bool:
+    """Every word found in the candidate's name in the same order, at most one of them spelt differently, and two words at
+    least: one word spelt differently is another name ("VEDANTA" / "VEDANT INFRA PUNE"), and words out of order are another
+    place ("Viman Imperia" / "Imperial Packers And Movers Viman Nagar")."""
+    if len(want) < 2:
+        return False
+    at, spelt = 0, 0
+    for w in want:
+        i = next((j for j in range(at, len(have)) if same_word(w, have[j])), None)
+        if i is None:
+            return False
+        spelt += have[i] != w
+        at = i + 1
+    return spelt <= 1
 
 
 def sold_as(project: str) -> str:
@@ -85,8 +139,8 @@ def sold_as(project: str) -> str:
     words = (project or "").split()
     n = len(words)
     while n > 2:
-        w = "".join(_words(words[n - 1]))
-        if w and w not in PART_LABEL and not PART_CODE.match(w):
+        parts = _words(words[n - 1])   # "T9-A1" is two codes
+        if parts and not all(w in PART_LABEL or PART_CODE.match(w) for w in parts):
             break
         n -= 1
     return " ".join(words[:n]).strip(" -,&") if n < len(words) else ""
@@ -116,12 +170,15 @@ def check(c: dict, project: str, locality: str, pincode: str, centre: Optional[t
         return "no position"
     if not any(name_matches(n, name, locality) for n in (project, *names)):
         return f"name {name!r} is not {project!r}"
+    exact = any(name_matches(n, name, locality, loose=False) for n in (project, *names))
     business = [t for t in c.get("types") or [] if NOT_A_SITE.search(t)]
     if business:
         return f"{name!r} is a {business[0].replace('_', ' ')}, not the site"
     pins = PINCODE.findall(c.get("formattedAddress") or "")
     if pincode and pins and pincode not in pins:
-        return f"pincode {pins[-1]}, MahaRERA says {pincode}"
+        near = centre is not None and km(centre[0], centre[1], loc["latitude"], loc["longitude"]) <= NEIGHBOUR_KM
+        if not (exact and near):
+            return f"pincode {pins[-1]}, MahaRERA says {pincode}"
     if centre:
         d = km(centre[0], centre[1], loc["latitude"], loc["longitude"])
         if d > MAX_KM:
@@ -217,6 +274,8 @@ class Pins:
         fresh = kept and isinstance(at, datetime) and ref - at < timedelta(days=REFRESH_DAYS)
         others = also_known(project, names, locality)
         tried = [" ".join(_words(n)) for n in (project, *others)]
+        if fresh and not kept.get("place_id") and int(kept.get("rule") or 1) < RULE:
+            fresh = False                           # refused under older, stricter rules
         if fresh and not kept.get("place_id") and set(tried) - set(kept.get("names") or [" ".join(_words(kept.get("project") or ""))]):
             fresh = False                           # refused under fewer names than we know now
         if fresh:
@@ -244,7 +303,7 @@ class Pins:
                 break
         if best is None:
             note = "not found on Google Maps" + (f" ({'; '.join(refused[:3])})" if refused else "")
-            await self.col.update_one({"_id": key}, {"$set": {"at": now, "place_id": None, "checked": note, "names": tried,
+            await self.col.update_one({"_id": key}, {"$set": {"at": now, "place_id": None, "checked": note, "names": tried, "rule": RULE,
                                                               "project": project, "locality": locality}}, upsert=True)
             return None, note
         loc = best["location"]
