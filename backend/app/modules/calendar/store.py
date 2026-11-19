@@ -128,12 +128,13 @@ class Store:
         await self.items.update_one({"_id": id, "status": "planned"}, {"$set": fields})
         return True
 
-    async def approve(self, id: str, due_at: Optional[datetime] = None) -> bool:
-        """Approve a planned row; `due_at` moves it (the testing pace), else it keeps its planned time."""
+    async def approve(self, id: str, due_at: Optional[datetime] = None, by: str = "owner") -> bool:
+        """Approve a planned row; `due_at` moves it (the testing pace), else it keeps its planned time. `by` names who approved:
+        the owner in Studio, or the daily listing pick (propertyfacts.daily), which the owner switched on."""
         doc = await self.get(id)
         if not doc or doc["status"] != "planned":
             return False
-        await self._move(id, "approved", "approved by owner" + (" (testing pace)" if due_at else ""), **({"due_at": due_at} if due_at else {}))
+        await self._move(id, "approved", f"approved by {by}" + (" (testing pace)" if due_at else ""), **({"due_at": due_at} if due_at else {}))
         return True
 
     async def next_slot(self, channel: str, after: datetime, gap: timedelta, exclude: Optional[str] = None) -> datetime:
