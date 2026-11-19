@@ -6,7 +6,8 @@
   "text": "Pune: Wakad-Tathawade Residents Demand Garden On Reserved Land Near EON IT Park",
   "published_at": "2026-09-28T06:00:00+00:00",
   "expect": {
-    "keep": false,
-    "reason": "off-topic: area only mentioned in passing"
+    "keep": true,
+    "pillar": "locality_life",
+    "areas": []
   }
 }

@@ -33,12 +33,14 @@ def test_area_in_first_sentence_counts_as_subject():
 
 
 def test_area_only_deep_in_body_is_not_the_subject():
+    # Hinjewadi's story is a Pune story (the site covers all of Pune since 2026-10-04), but it is not Kharadi's
     r = assess(it("Hinjewadi flyover work begins", "Work on the Hinjewadi road flyover has begun. Officials also toured Kharadi."), NOW)
-    assert not r.keep and "in passing" in r.reason
+    assert r.keep and "kharadi" not in r.areas and r.reason.startswith("Pune story")
 
 
 def test_landmark_in_another_locality_story_is_dropped_but_landmark_alone_is_kept():
-    assert not assess(it("Baner residents want a new road near EON IT Park"), NOW).keep
+    baner = assess(it("Baner residents want a new road near EON IT Park"), NOW)
+    assert "kharadi" not in baner.areas   # Baner's story, not Kharadi's, though it names a Kharadi landmark
     r = assess(it("New metro road planned near EON IT Park"), NOW)
     assert r.keep and "kharadi" in r.areas
 

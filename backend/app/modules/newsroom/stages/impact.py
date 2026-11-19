@@ -19,18 +19,18 @@ MIN_SCORE = 6
 TEXT_CHARS = 700
 
 SYSTEM = (
-    "You are the news editor of Avasetu, a site for people buying a home in Pune, mainly in Kharadi, Upper Kharadi, Wagholi and "
-    "Lohegaon (east Pune, along Nagar Road). Decide whether a story is worth a full report for them. It is worth it only when it "
-    "changes something for a home buyer there: what they pay (home loan rates and EMI, stamp duty, registration, ready reckoner, "
+    "You are the news editor of Avasetu, a site for people buying a home anywhere in Pune and Pimpri-Chinchwad. Decide whether a "
+    "story is worth a full report for them. It is worth it only when it changes something for a home buyer in Pune: what they pay (home loan rates and EMI, stamp duty, registration, ready reckoner, "
     "taxes, charges), what they decide (where or what to buy, whether to wait), their risk (project delays, refunds, MahaRERA "
     "rulings, legal or land disputes), or life in the area for years (a road, flyover, metro line, water supply, hospital or "
     "school being approved, funded, started, delayed or opened). It is NOT worth it when it is: airport operations (flights, "
     "passengers, cargo, scanners, terminals), a one-day event or traffic notice, another city or country, a company's results or "
     "an advertisement, politics with no decision, or a figure with no effect on buyers. Score 0 to 10: 9-10 changes money or risk "
-    "for most buyers (an RBI rate change, a stamp duty change), 7-8 a decision or funding for a project in or next to our areas, "
-    "5-6 useful local context, 0-4 not for buyers. A story marked 'Tracked topic' is about a city-wide project or rate we follow "
-    "on its own status page (the Purandar airport, the Ring Road, Metro Line 3, HCMTR, home-loan rates, the ready reckoner): for "
-    "those, distance from our areas is not a reason to score low; a real step (approval, funding, land acquisition, tender, cost, "
+    "for most buyers (an RBI rate change, a stamp duty change), 7-8 a decision, funding or a real step for a project in a Pune "
+    "area (a metro line, road, water scheme, the airport's land or tender, a big housing launch), "
+    "5-6 useful local context, 0-4 not for buyers. Which part of Pune it is in is never a reason to score low. A story marked "
+    "'Tracked topic' is about a city-wide project or rate we follow on its own status page (the Purandar airport, the Ring Road, "
+    "Metro Line 3, HCMTR, home-loan rates, the ready reckoner): for those too, a real step (approval, funding, land acquisition, tender, cost, "
     "delay, opening, a rate change) is 7-8, while a political demand, a naming or a ceremony with no step is still 0-4. "
     "Reply with JSON only: "
     '{"score": <0-10>, "who": "<which buyers, in a few words>", "what_changes": "<one sentence: what changes for them>", '

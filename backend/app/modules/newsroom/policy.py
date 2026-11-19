@@ -66,7 +66,7 @@ CORRIDOR_KEYWORDS = [
 PUNE_HINT = ("pune", "pimpri", "pmc", "pmrda", "maharera")
 # City-wide buyer news: rules, money and market items apply to every buyer in Pune, so they need no area. They pass on a Pune or
 # Maharashtra mention (stamp duty and ready reckoner rates are set by the state), or, for national money news (repo rate, home-loan
-# rates), on the topic alone. Other pillars still need one of our areas or a corridor: a launch in Hinjewadi is not our story.
+# rates), on the topic alone. Other pillars need a Pune place in the headline (stages/filter.py, since 2026-11-19), an area or a corridor.
 CITYWIDE_PILLARS = ("rules_money", "market")
 CITYWIDE_HINT = PUNE_HINT + ("pcmc", "maharashtra")
 NATIONAL_MONEY = ("repo rate", "home loan", "home loans", "home-loan", "rbi", "reserve bank", "emi", "emis", "lending rate")
