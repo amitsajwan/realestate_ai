@@ -7,7 +7,8 @@ parse(phrase, builders) -> {
   existing:    the path of an existing page type that answers it (seo.gaps.template: 2/3 BHK, budget pages), or None;
   place:       the Pune place key it names, or None;
   unanswerable: words naming something our records do not hold ("gated community", "plots");
-  unknown:     the other words we did not understand (the weekly unknown-words list).
+  unknown:     the other words we did not understand (the weekly unknown-words list), Devanagari ones as typed;
+  lang:        "en", "mr", "hi", "deva" or "mr-latn" (seo.marathi.language): a Devanagari search is read into English first.
 }
 """
 import json
@@ -18,7 +19,7 @@ from typing import Dict, List, Optional, Tuple
 
 from app.core import pune_places
 
-from . import gaps
+from . import gaps, marathi
 from .facets import BHKS, BUDGETS, FIRST_YEAR, LAST_YEAR, Facet
 
 VOCAB = Path(__file__).with_name("vocabulary.json")
@@ -103,6 +104,16 @@ def builder_names(builders: List[dict]) -> Dict[str, str]:
 
 def parse(phrase: str, builders: Optional[Dict[str, str]] = None) -> dict:
     v = vocabulary()
+    lang, unread = marathi.language(phrase, v), []
+    if marathi.has_devanagari(phrase):
+        phrase, unread = marathi.to_english(phrase, v)
+    out = _parse(phrase, builders, v)
+    out["lang"] = lang
+    out["unknown"] = out["unknown"] + unread
+    return out
+
+
+def _parse(phrase: str, builders: Optional[Dict[str, str]], v: dict) -> dict:
     text = _norm(phrase)
     out: dict = {"facet": None, "existing": None, "place": None, "unanswerable": [], "unknown": []}
     for w in sorted(v["unanswerable"], key=len, reverse=True):

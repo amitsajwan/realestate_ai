@@ -26,6 +26,7 @@ from app.modules.areastats import demand, websearch
 from app.modules.areastats.hubs import _primaries, builders
 from app.modules.areastats.pages import cluster_stamps, cluster_updated
 from app.modules.newsroom.store import Store
+from app.modules.reels.spoken_names import SPOKEN
 
 from . import facets, phrases
 from .facets import FOCUS, Facet
@@ -44,6 +45,9 @@ RAISE_AFTER = timedelta(days=14)
 KEEP_LISTS = 60
 AUTOCOMPLETE_PER_WEEK = 8
 AUTOCOMPLETE_SEEDS = ("new projects in {area}", "flats in {area}", "2 bhk flats in {area}", "property in {area}")
+# the same weekly probe in Marathi (hl=mr), so Marathi demand is seen even where our English pages never show for it in
+# Search Console; autocomplete says a search exists, not how often, so it counts as a source and never as impressions
+MARATHI_SEEDS = ("{area} मध्ये फ्लॅट", "{area} मध्ये नवीन प्रोजेक्ट")
 SOURCES = ("search_console", "related", "question", "autocomplete")
 STATUSES = ("candidate", "live", "held", "never")
 # no new budget lists while Google holds the site back (the 2026-11-11 drop, docs/plan/visibility-base.md step 0): a young site
@@ -63,10 +67,10 @@ def _aware(d) -> Optional[datetime]:
 
 # ---- 1. discover ---------------------------------------------------------------------------------------------------------------
 
-async def autocomplete(q: str, key: str, transport: Optional[httpx.AsyncBaseTransport] = None) -> List[str]:
-    """Google's suggestions for a search as people start typing it, for India in English (Serper /autocomplete)."""
+async def autocomplete(q: str, key: str, transport: Optional[httpx.AsyncBaseTransport] = None, hl: str = "en") -> List[str]:
+    """Google's suggestions for a search as people start typing it, for India in `hl` (Serper /autocomplete)."""
     async with httpx.AsyncClient(timeout=20, transport=transport) as c:
-        r = await c.post("https://google.serper.dev/autocomplete", json={"q": q, "gl": "in", "hl": "en"}, headers={"X-API-KEY": key})
+        r = await c.post("https://google.serper.dev/autocomplete", json={"q": q, "gl": "in", "hl": hl}, headers={"X-API-KEY": key})
         r.raise_for_status()
         body = r.json()
     return [str(s.get("value") or "").strip() for s in body.get("suggestions") or [] if s.get("value")]
@@ -74,22 +78,25 @@ async def autocomplete(q: str, key: str, transport: Optional[httpx.AsyncBaseTran
 
 async def discover(store: Store, now: datetime, docs: List[dict], week: int,
                    transport: Optional[httpx.AsyncBaseTransport] = None) -> int:
-    """This week's autocomplete searches (one seed per focus area, the seeds taking turns by week) into search_demand."""
+    """This week's autocomplete searches (one seed per focus area, the seeds taking turns by week, in English and in Marathi)
+    into search_demand."""
     key = (os.environ.get("SERPER_API_KEY") or "").strip()
     if not key:
         return 0
     from app.core.areas import AREAS
-    seed, n = AUTOCOMPLETE_SEEDS[week % len(AUTOCOMPLETE_SEEDS)], 0
-    for a in AREAS[:AUTOCOMPLETE_PER_WEEK]:
+    seed, mr_seed, n = AUTOCOMPLETE_SEEDS[week % len(AUTOCOMPLETE_SEEDS)], MARATHI_SEEDS[week % len(MARATHI_SEEDS)], 0
+    asks = [(seed.format(area=a.name.lower()), "en") for a in AREAS[:AUTOCOMPLETE_PER_WEEK]]
+    asks += [(mr_seed.format(area=SPOKEN[a.name]), "mr") for a in AREAS[:AUTOCOMPLETE_PER_WEEK] if a.name in SPOKEN]
+    for q, hl in asks:
         try:
-            got = await autocomplete(seed.format(area=a.name.lower()), key, transport)
+            got = await autocomplete(q, key, transport, hl)
         except httpx.HTTPStatusError as e:
             if e.response.status_code in (401, 402, 403, 429):
                 log.warning("grow: autocomplete refused (%s), stopping for this week", e.response.status_code)
                 break
             continue
         except Exception:
-            log.exception("grow: autocomplete failed for %s", a.name)
+            log.exception("grow: autocomplete failed for %s", q)
             continue
         for s in got:
             await demand._upsert(store, s, now, docs, "autocomplete", {})
@@ -103,15 +110,32 @@ def _impressions(d: dict) -> int:
     return int((d.get("gsc") or {}).get("impressions") or 0)
 
 
+def _count_language(out: dict, p: dict, phrase: str, imp: int, src: set) -> None:
+    """Searches not in plain English, by language: how many, their impressions, the places they name and the top phrases. The
+    count we decide Marathi pages from (docs/plan/seo-system.md, "Marathi searches")."""
+    if p["lang"] == "en":
+        return
+    g = out["languages"].setdefault(p["lang"], {"lang": p["lang"], "phrases": 0, "impressions": 0, "autocomplete": 0,
+                                                "places": {}, "top": []})
+    g["phrases"] += 1
+    g["impressions"] += imp
+    g["autocomplete"] += int("autocomplete" in src)
+    if p["place"]:
+        g["places"][p["place"]] = g["places"].get(p["place"], 0) + 1
+    g["top"] = sorted(g["top"] + [{"phrase": phrase, "impressions": imp, "facet": p["facet"].key if p["facet"] else None}],
+                      key=lambda x: -x["impressions"])[:10]
+
+
 def collect(rows: List[dict], names: Dict[str, str]) -> dict:
-    """search_demand rows -> {facets: {key: {facet, phrases, impressions, sources}}, existing, unknown, gaps}."""
-    out: dict = {"facets": {}, "existing": {}, "unknown": {}, "gaps": {}}
+    """search_demand rows -> {facets: {key: {facet, phrases, impressions, sources}}, existing, unknown, gaps, languages}."""
+    out: dict = {"facets": {}, "existing": {}, "unknown": {}, "gaps": {}, "languages": {}}
     for d in rows:
         if d.get("kind") == "project":
             continue
         phrase = d.get("phrase") or d["_id"]
         p = phrases.parse(phrase, names)
         imp, src = _impressions(d), set(d.get("sources") or []) & set(SOURCES)
+        _count_language(out, p, phrase, imp, set(d.get("sources") or []))
         for w in p["unanswerable"]:
             g = out["gaps"].setdefault(w, {"word": w, "impressions": 0, "phrases": []})
             g["impressions"] += imp
@@ -273,7 +297,7 @@ async def run_once(store: Store, now: datetime, force: bool = False,
     top = lambda d: sorted(d.values(), key=lambda x: -x["impressions"])[:KEEP_LISTS]  # noqa: E731
     await store.set_mark(MARK, at=now, week=week + 1, made=made + made_focus, waiting=waiting, attached=attached,
                          autocomplete=found, budget=allowed, unknown=top(got["unknown"]), gaps=top(got["gaps"]),
-                         existing=top(got["existing"]))
+                         existing=top(got["existing"]), languages=sorted(got["languages"].values(), key=lambda x: -x["phrases"]))
     return {"made": made + made_focus, "waiting": waiting, "attached": attached, "autocomplete": found, "budget": allowed}
 
 
@@ -348,7 +372,8 @@ async def owner_view(store: Store) -> dict:
             "last": {k: mark.get(k) for k in ("made", "waiting", "attached", "autocomplete", "budget")},
             "counts": {s: sum(1 for p in rows if p.get("status") == s) for s in STATUSES},
             "live": live, "waiting": waiting, "never": never,
-            "unknown": mark.get("unknown") or [], "gaps": mark.get("gaps") or [], "existing": mark.get("existing") or []}
+            "unknown": mark.get("unknown") or [], "gaps": mark.get("gaps") or [], "existing": mark.get("existing") or [],
+            "languages": mark.get("languages") or []}
 
 
 async def set_status(store: Store, key: str, to: str) -> bool:

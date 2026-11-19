@@ -307,8 +307,15 @@ AI search, next (TARGET):
   our share of citations beside MagicBricks/99acres/Housing on the scoreboard. ~80 calls a month.
 - **Bing Webmaster API** (needs the API key from Bing Webmaster Tools; section 8a step 4): Bing's searches and positions for our pages into
   `search_demand` like Search Console (source "bing"), so the doctor and the gaps report see Bing too.
-- **Marathi searches**: the phrase parser drops Devanagari ("लोहगाव मध्ये फ्लॅट"); read it with the Marathi place names we hold
-  (`reels/spoken_names.py`) and a Marathi vocabulary, then decide Marathi place pages from the counts.
+- **Marathi searches**: step 1 LIVE 2026-11-19. The phrase parser reads Devanagari (`seo/marathi.py`): place names from
+  `reels/spoken_names.py`, search words from `vocabulary.json` "devanagari", Marathi endings taken off ("वाघोलीत",
+  "खराडीमध्ये"), so "लोहगाव मध्ये फ्लॅट" counts for the same page as "flats in lohegaon". Every phrase gets a language
+  (`mr`, `hi`, `deva`, `mr-latn` for "kharadi madhe flat", `en`). The weekly grow round counts the non-English ones (phrases,
+  Search Console impressions, places, top 10) into the `seo_grow` mark as `languages` (owner API `/insights/pages` → `languages`),
+  and asks Google autocomplete in Marathi too (`MARATHI_SEEDS`, hl=mr, 8 more Serper calls a week), because our English pages
+  rarely show for a Marathi search, so Search Console alone would undercount it. Step 2 (TARGET, read ~1 Dec 2026 with the
+  core-update recheck): decide from those counts whether 5 pages written in Marathi (not translations) are worth it; no `/mr/`
+  pages and no hreflang until then.
 - **Verified bots**: reverse-DNS check for Googlebot, Bingbot and OAI-SearchBot before counting, if spoofed names ever skew the log.
 
 ## 8a. Keeping the lead (TARGET, 2026-10-26)
