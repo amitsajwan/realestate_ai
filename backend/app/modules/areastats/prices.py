@@ -235,6 +235,8 @@ async def read_prices(llm, src: dict, name: str, text: str) -> tuple:
     except Exception as e:
         log.exception("prices: model call failed for %s", src["url"])
         return [], f"model call failed ({type(e).__name__})"
+    if not isinstance(out, dict):
+        return [], webfacts.NO_ANSWER
     readings, refused = [], 0
     for r in (out or {}).get("prices") or []:
         got = row_ok(r if isinstance(r, dict) else {}, text)
@@ -337,7 +339,7 @@ async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[webfacts.
         seen = seen or old.get("seen") or []
     else:
         at = now
-    checked = f"{len(rows)} prices from {sum(1 for r in read if r['ok'])} of {len(read)} sites"
+    checked = f"{len(rows)} prices from {sum(1 for r in read if r['ok'])} of {len(read)} sites" + webfacts.no_answer_note(read)
     fields = {"prices": {"at": at, "name": name, "rows": rows, "read": read, "seen": seen}}
     if at == now:   # read this round, not the last good prices kept while a site is down
         fields.update(history(doc, rows, now))

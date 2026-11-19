@@ -2,7 +2,7 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
 
-from app.modules.areastats import prices
+from app.modules.areastats import enrich, prices
 
 NOW = datetime(2026, 10, 24, 9, 0, tzinfo=timezone.utc)
 
@@ -261,3 +261,19 @@ def test_web_facts_refuse_a_page_with_the_shorter_name_elsewhere(monkeypatch):
     assert not st["ok"] and llm.asked == []
     assert fields["web_facts"]["read"][0]["why"] == "page names another project of that name"
 
+
+
+def test_no_answer_from_the_model_is_not_a_page_with_nothing_on_it(monkeypatch):
+    # 2026-11-08 to 11-10: every model call came back empty, the reads were saved as "0 facts" and never tried again
+    page = f"<html><body>Pristine O2 World in Wagholi, Pune. RERA registered.\n{TOWERS}\n{TWO_BHK}</body></html>"
+    urls = {"https://a.example/p": page, "https://b.example/p": page}
+    results = [_result("https://a.example/p", "Pristine O2 World, Wagholi"), _result("https://b.example/p", "Pristine O2 World Pune")]
+    doc = _project("Pristine O2 World Part 3")
+    web, wf = _web(monkeypatch, doc, urls, results, _Llm(None))
+    price, pf = _gather(monkeypatch, doc, urls, results, _Llm(None))
+    assert [r["why"] for r in wf["web_facts"]["read"]] == [prices.webfacts.NO_ANSWER] * 2
+    assert [r["why"] for r in pf["prices"]["read"]] == [prices.webfacts.NO_ANSWER] * 2
+    for st, key in ((web, "web"), (price, "prices")):
+        assert enrich.unanswered({"enrichment": {"steps": {key: st}}})      # tried again after RETRY_DAYS
+    assert "0 facts" in _web(monkeypatch, doc, urls, results, _Llm({"facts": []}))[1]["web_facts"]["read"][0]["why"]
+    assert not enrich.unanswered({"enrichment": {"steps": {"web": _web(monkeypatch, doc, urls, results, _Llm({"facts": []}))[0]}}})

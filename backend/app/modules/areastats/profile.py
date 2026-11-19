@@ -147,6 +147,8 @@ async def read_highlights(llm, src: dict, name: str, text: str, regno: str = "")
     except Exception as e:
         log.exception("profile: model call failed for %s", src["url"])
         return [], f"model call failed ({type(e).__name__})"
+    if not isinstance(out, dict):
+        return [], webfacts.NO_ANSWER
     readings, refused = [], 0
     for h in (out or {}).get("highlights") or []:
         topic, bullet, quote = str(h.get("topic") or ""), " ".join(str(h.get("text") or "").split()), str(h.get("quote") or "")
@@ -614,7 +616,7 @@ async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[webfacts.
                # a round that finds nothing keeps the last good ones (a builder's site that is down for a day)
                "highlights": highlights or old.get("highlights") or [],
                "photos": distinct_photos(photos or kept(old.get("photos"))), "plans": plans or kept(old.get("plans"))}
-    checked = f"{len(highlights)} highlights from {sum(1 for r in read if r['ok'])} of {len(read)} sites; {why}"
+    checked = f"{len(highlights)} highlights from {sum(1 for r in read if r['ok'])} of {len(read)} sites; {why}" + webfacts.no_answer_note(read)
     if put_off:
         checked += "; highlights not read: " + ("no LLM key" if llm is None else "the model budget is spent")
     return {"ok": bool(highlights or photos or plans or put_off and profile["highlights"]), "at": now, "checked": checked}, {"profile": profile}

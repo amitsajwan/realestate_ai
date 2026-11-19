@@ -409,6 +409,18 @@ def about_whole_project(doc: dict, name: str, text: str, src: Optional[dict] = N
     return ok, why
 
 
+# what a page read says when the model gave no answer at all (every pool failed, or none had room): one of enrich._UNANSWERED, so
+# the round is tried again. It used to read "0 facts", the same as a page with nothing on it, and 251 pages outside our areas
+# read on 2026-11-08 to 11-10 were kept as empty for good; one read again on 11-19 came out with all four kinds of fact.
+NO_ANSWER = "no model answer"
+
+
+def no_answer_note(read: List[dict]) -> str:
+    """The part of a step's `checked` that marks pages the model did not answer for, so `enrich.unanswered` sees it."""
+    n = sum(1 for r in read if r.get("why") == NO_ANSWER)
+    return f"; {NO_ANSWER} on {n} of {len(read)} pages" if n else ""
+
+
 async def read_source(llm, src: dict, name: str, fetch: Fetch, doc: Optional[dict] = None) -> tuple:
     """(readings, why): readings are [{key, value, quote, site, url, official}] that passed the page checks."""
     raw = await fetch(src["url"])
@@ -426,6 +438,8 @@ async def read_source(llm, src: dict, name: str, fetch: Fetch, doc: Optional[dic
     except Exception as e:
         log.exception("webfacts: model call failed for %s", src["url"])
         return [], f"model call failed ({type(e).__name__})"
+    if not isinstance(out, dict):
+        return [], NO_ANSWER
     readings, refused = [], 0
     for f in (out or {}).get("facts") or []:
         key, quote, value = str(f.get("key") or ""), str(f.get("quote") or ""), f.get("value")
@@ -602,8 +616,12 @@ async def builder_results(store, doc: dict, name: str, search: Optional[websearc
 async def named_results(store, doc: dict, name: str, search: Optional[websearch.Search], now: datetime) -> List[dict]:
     coll = store.db.get_collection(websearch.RESULTS)
     regno = doc.get("regno") or doc["_id"]
-    docs = [d for d in await coll.find({"kind": "project"}).sort("at", -1).to_list(500)
-            if websearch.mentions(name, d["_id"]) and d.get("regno") in (regno, None)][:3]
+    # this project's own stored searches first: the newest 500 alone left out 1,151 of 1,651 by 2026-11-19, so reading a page
+    # again paid for a search Google had already answered
+    docs = [d for d in await coll.find({"kind": "project", "regno": regno}).sort("at", -1).to_list(3)
+            if websearch.mentions(name, d["_id"])]
+    docs = docs or [d for d in await coll.find({"kind": "project"}).sort("at", -1).to_list(500)
+                    if websearch.mentions(name, d["_id"]) and d.get("regno") in (regno, None)][:3]
     if docs:
         return [r for d in docs for r in d.get("results") or []]
     if search is None:
@@ -647,7 +665,7 @@ async def gather(store, doc: dict, llm, now: datetime, fetch: Optional[Fetch] = 
     facts, disagree = agree(readings)
     web = {"at": now, "name": name, "facts": facts, "disagree": disagree, "read": read}
     checked = f"{len(facts)} facts from {sum(1 for r in read if r['ok'])} of {len(read)} sites" + \
-              (f", {len(disagree)} where sites disagree" if disagree else "")
+              (f", {len(disagree)} where sites disagree" if disagree else "") + no_answer_note(read)
     return {"ok": bool(facts), "at": now, "checked": checked}, {"web_facts": web}
 
 
