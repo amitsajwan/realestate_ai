@@ -10,6 +10,7 @@ import { fetchTopics, topicPath } from '@/lib/site/topics'
 import { livePages } from '@/lib/site/filters'
 import { getBuilders } from '@/lib/site/hubs'
 import { getRegisterProjects, getRegisterPlaces, placePath, projectPageOfListing, regnoKey } from '@/lib/site/register'
+import { DETAILS_COMING_PATH } from '@/lib/site/detailsComing'
 import { agentPath } from '@/lib/site/slug'
 import { projectForListing } from '@/lib/site/listingProject'
 import { isHouseAgent } from '@/lib/brand'
@@ -111,6 +112,8 @@ export async function buildSitemap(): Promise<Grouped> {
     core(at('/projects', 0.9)),
     // the East Pune home plan's questions and office counts (docs/plan/home-plan.md); each family's plan is noindex and left out
     core(at('/home-plan', 0.7)),
+    // our areas' newly registered projects not yet in search, on one list that is (lib/site/detailsComing, owner 2026-11-19)
+    core(at(DETAILS_COMING_PATH, 0.6)),
     ...projects.map((p) => ({ group: areaOfLocality(p.locality), entry: at('/projects/' + p.slug, 0.9, [p.rera?.checked_at, p.updated_at].filter(Boolean).sort().pop()) })),
     ...withoutMovedSizePages(livePages(projects), facets).map((f) => core(at(f.path, 0.7))),
     // Avasetu's own page for each MahaRERA project with real facts (thin ones are noindex and left out)

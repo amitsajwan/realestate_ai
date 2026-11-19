@@ -57,3 +57,13 @@ describe('a project page not in search yet', () => {
     expect(sayList(['prices'])).toBe('prices')
   })
 })
+
+describe('the details-coming page itself', () => {
+  it('is in search, under a title that does not compete with /projects (owner 2026-11-19)', async () => {
+    const { generateMetadata } = await import('@/app/projects/details-coming/page')
+    const meta = generateMetadata()
+    expect(meta.robots).toBeUndefined()
+    expect(String(meta.title)).toMatch(/^Newly Registered MahaRERA Projects in Pune/)
+    expect(require('fs').readFileSync(require('path').join(__dirname, '../../lib/site/sitemap.ts'), 'utf8')).toMatch(/core\(at\(DETAILS_COMING_PATH/)
+  })
+})
