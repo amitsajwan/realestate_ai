@@ -29,7 +29,8 @@ jest.mock('@/lib/app/inbox', () => ({ inboxApi: { threads: () => threads() } }))
 jest.mock('@/lib/app/whatsapp', () => ({ getNotifications: () => getNotifications() }))
 jest.mock('@/lib/app/content', () => ({ contentApi: { getUpcoming: () => getUpcoming() } }))
 jest.mock('@/lib/app/branding', () => ({ brandingApi: { load: () => loadBrand() }, assetUrl: (u: string) => u }))
-jest.mock('@/lib/app/session', () => ({ getSiteUrl: () => 'https://example.test/agent/amit' }))
+let mockSite: string | null = 'https://example.test/agent/amit'
+jest.mock('@/lib/app/session', () => ({ getSiteUrl: () => mockSite }))
 jest.mock('@/components/app/agents/useIsOwner', () => ({ useIsOwner: () => mockOwner }))
 jest.mock('@/components/app/AppShell', () => ({ countWaitingPosts: (x: unknown[]) => x.length }))
 
@@ -41,6 +42,7 @@ const note = (kind: string) => ({ id: kind + Math.random(), kind, summary: '', r
 beforeEach(() => {
   fx = createFixtureApi({ getItem: () => null, setItem: () => undefined })
   mockOwner = false
+  mockSite = 'https://example.test/agent/amit'
   getToday.mockReset().mockImplementation(() => fx.getToday())
   listListings.mockReset().mockImplementation(() => fx.listListings())
   threads.mockReset().mockResolvedValue([])
@@ -69,6 +71,19 @@ describe('Studio home', () => {
     expect(within(list).getByRole('link', { name: 'Call Priya Nair' })).toHaveAttribute('href', 'tel:+919811223344')
     expect(within(list).getByRole('link', { name: 'WhatsApp Rohit Deshmukh' }).getAttribute('href')).toMatch(/^https:\/\/wa\.me\/919822012345\?text=Hi%20Rohit/)
     expect(within(list).getAllByTestId('call-row')[0]).toHaveTextContent('Overdue')
+  })
+
+  it('says All leads once: in the call list, or on top when there is no website to share yet', async () => {
+    const { unmount } = render(<TodayScreen />)
+    const list = await screen.findByRole('region', { name: 'Call today' })
+    expect(screen.getAllByRole('link', { name: 'All leads' })).toHaveLength(1)
+    expect(within(list).getByRole('link', { name: 'All leads' })).toHaveAttribute('href', '/studio/leads')
+    unmount()
+    mockSite = null
+    render(<TodayScreen />)
+    const again = await screen.findByRole('region', { name: 'Call today' })
+    expect(screen.getAllByRole('link', { name: 'All leads' })).toHaveLength(1)
+    expect(within(again).queryByRole('link', { name: 'All leads' })).toBeNull()
   })
 
   it('after Call, home asks how it went and logs it on the lead', async () => {

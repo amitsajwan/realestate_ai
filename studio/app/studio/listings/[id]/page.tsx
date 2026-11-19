@@ -16,7 +16,7 @@ import { SellingPoints } from '@/components/app/SellingPoints'
 import { ShareBar } from '@/components/app/ShareBar'
 import { SellersCard } from '@/components/app/SellersCard'
 import { ConfirmSheet } from '@/components/app/list'
-import { Btn, ErrorBox, Spinner, StatusChip, listingStatusWord } from '@/components/app/ui'
+import { ABOVE_TAB_BAR, Btn, ErrorBox, Spinner, StatusChip, listingStatusWord } from '@/components/app/ui'
 import { ApiError } from '@/lib/app/api'
 import { api, errorMessage } from '@/lib/app/client'
 import { formatPrice } from '@/lib/app/format'
@@ -41,8 +41,8 @@ const ACTIVE_RUN: readonly string[] = ['queued', 'facts', 'asking', 'posts']
 const TABS = [
   { id: 'overview', label: 'Overview' },
   { id: 'details', label: 'Edit' },
-  { id: 'files', label: 'Photos & files' },
-  { id: 'facts', label: 'Checked facts' },
+  { id: 'files', label: 'Photos' },   // short labels: all five fit a 360 px phone, so Ask AI is never off the edge (2026-11-19)
+  { id: 'facts', label: 'Facts' },
   { id: 'ai', label: 'Ask AI' },
 ] as const
 type Tab = (typeof TABS)[number]['id']
@@ -362,7 +362,7 @@ export default function ListingDetailPage() {
         <>
           <ReviewForm value={{ ...editable, media: listing.media }} onChange={({ media, ...rest }) => setForm(rest)} missing={missing} errors={errors} />
           {/* Save stays in reach on a long form, just above the tab bar */}
-          <div className="sticky z-10 -mx-4 border-t border-gray-200 bg-gray-50/95 px-4 py-2 backdrop-blur" style={{ bottom: 'calc(60px + env(safe-area-inset-bottom, 0px))' }}>
+          <div className="sticky z-10 -mx-4 border-t border-gray-200 bg-gray-50/95 px-4 py-2 backdrop-blur" style={ABOVE_TAB_BAR}>
             <Btn disabled={busy} onClick={() => run(() => api.updateListing(listing.id, cleanInput(editable)), 'Saved')}>{busy ? 'Saving…' : t('save')}</Btn>
           </div>
           {(form.selling_points?.length ?? 0) > 0 && (

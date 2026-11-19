@@ -5,7 +5,7 @@ import { errorMessage } from '@/lib/app/client'
 import { PRESETS, PRESET_IDS, BANNER_OVERLAY, type PresetId } from '@shared/site/presets'
 import { monogram, resolveTheme, safeCustomPrimary, themeVars } from '@shared/site/theme'
 import type { AgentBranding } from '@shared/site/types'
-import { Btn, ErrorBox, Field, Spinner, inputCls } from './ui'
+import { ABOVE_TAB_BAR, Btn, ErrorBox, Field, Spinner, inputCls } from './ui'
 import { EnhanceToggle, QualityBadge, QualityTip } from './quality/QualityBadge'
 import { analyzeFile } from '@/lib/app/quality'
 import type { PhotoQuality } from '@/lib/app/quality'
@@ -305,9 +305,13 @@ export function BrandEditor({ agentId, loadBranding, saveBranding, uploadImage, 
         <p className="text-xs text-gray-500">Shown on your page as stated by you. {BRAND_NAME} does not verify it and does not call you &quot;verified&quot;.</p>
       </section>
 
-      {error && <ErrorBox message={error} />}
-      {saved && <p role="status" className="rounded-xl bg-green-50 p-3 text-sm font-medium text-green-800">Saved. Your site now shows this look.</p>}
-      <Btn onClick={save} disabled={busy !== null || !customOk}>{busy === 'save' ? 'Saving...' : 'Save my brand'}</Btn>
+      {/* Save stays in reach just above the tab bar: the form is three screens long, and the button at its foot was missed
+          (2026-11-19). Its answer shows beside it, where the eye is. */}
+      <div data-testid="brand-save-bar" className="sticky z-10 -mx-4 space-y-2 border-t border-gray-200 bg-gray-50/95 px-4 py-2 backdrop-blur" style={ABOVE_TAB_BAR}>
+        {error && <ErrorBox message={error} />}
+        {saved && <p role="status" className="rounded-xl bg-green-50 p-3 text-sm font-medium text-green-800">Saved. Your site now shows this look.</p>}
+        <Btn onClick={save} disabled={busy !== null || !customOk}>{busy === 'save' ? 'Saving...' : 'Save my brand'}</Btn>
+      </div>
     </div>
   )
 }

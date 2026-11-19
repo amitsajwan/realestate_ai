@@ -14,6 +14,11 @@ changes keep to it. Studio is its own Next.js app since 2026-11-03 (`studio/`, A
 - **Navy and gold.** Primary buttons, selected chips, tab bars and the spinner use navy `#0f2340`; counts that need you are gold
   `#f0b440`. WhatsApp actions stay green. Links stay blue.
 - **A failing source is left out, never an error on the screen**, except the server's day summary on Home, which shows a retry.
+- **Tab rows are one line** that scrolls sideways (`TabBar`); a wrapped second row read as another set of tabs (2026-11-19).
+- **Save stays in reach.** A long form keeps its Save in a sticky bar right on the tab bar (`ABOVE_TAB_BAR` in `ui.tsx`), with
+  its answer (saved, or the error) in the same bar: listing Edit, My brand.
+- **Full width on a phone.** An old modal rule in `styles/mobile.css` padded every `fixed inset-0` element by 16 px, the whole
+  Studio frame and its bottom sheets included, until 2026-11-19; Studio's frame (`data-surface="v2"`) is left out of it now.
 
 ## Tab bar
 
@@ -48,11 +53,15 @@ answer sets the follow-up to tomorrow; a date sent with the call wins (`tracking
 
 ## Listing (`app/studio/listings/[id]/page.tsx`)
 
-Tabs: **Overview** (first), Edit, Photos & files, Checked facts, Ask AI. `?tab=status` from older links opens Overview.
+Tabs: **Overview** (first), Edit, Photos, Facts, Ask AI (short labels from 2026-11-19, so all five fit a 360 px phone). `?tab=status` from older links opens Overview.
 Overview: "still available?" card when due; cover photo (or a nudge to add photos); price and facts; views, enquiries and site
 visits; for a draft, a publish box that names what is missing and opens the tab to fix it; Start marketing and share for a live
 listing; the status buttons (Under offer, Mark sold or rented, Pause, Make live), each that hides the listing asking first; Delete.
 Edit keeps Save in reach above the tab bar.
+
+Activity (`/studio/listings/[id]/activity`): totals, the 14-day chart, sources, interested people (each opens the lead), then
+recent activity with views by anonymous visitors folded into one line ("7 views by visitors (WhatsApp 2, ...)", Show each view);
+what people did (enquiries, taps, shares, a named lead's views) stays in the list (`quietFeed`, 2026-11-19).
 
 ## Add listing (`components/app/NewListingFlow.tsx`)
 
@@ -84,6 +93,14 @@ Nothing is cached, so Studio never shows old leads.
 
 `localStorage.app_fixtures = 1` runs Studio on fake data (as the owner). Add `localStorage.app_fixture_agent = 1` to see it as an
 agent sees it (agent tab bar, no posts or join requests).
+
+## Lead (`components/app/LeadDetailView.tsx`, 2026-11-19)
+
+Top to bottom: name, phone, how they reached us; **Call and WhatsApp in a bar that stays at the top** while scrolling; "Called
+them? Answered / No answer"; their message; **Stage**; **Follow-up** (Tomorrow, In 3 days, Next week), Draft follow-up and the
+message from Avasetu's WhatsApp; then the AI summary and the buyer brief, chats, what they want, matching listings, site visits,
+add a note, notes, timeline. The AI summary names a call or WhatsApp step without a second button (the bar has it); a visit or
+follow-up step keeps its button. It used to offer five ways to reach the buyer in five places, with the stage two screens down.
 
 ## Leads
 

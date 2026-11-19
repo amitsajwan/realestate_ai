@@ -22,17 +22,20 @@ export function AiSummaryCard({
   busy,
   onSchedule,
   onFollowUp,
+  contactShown = false,
 }: {
   lead: LeadDetail
   busy?: boolean
   onSchedule: () => void
   onFollowUp: () => void
+  /** The page already shows Call and WhatsApp at the top: a call or WhatsApp step is named, not given a second button. */
+  contactShown?: boolean
 }) {
   const action = lead.next_action
   if (!lead.ai_summary && !action) return null
   const firstName = lead.name.split(' ')[0]
   let button: React.ReactNode = null
-  if (action) {
+  if (action && !(contactShown && (action.type === 'call' || action.type === 'whatsapp'))) {
     const label = t(NEXT_ACTION_LABEL[action.type])
     if (action.type === 'call') {
       button = <LinkBtn href={`tel:${lead.phone}`} className="!min-h-[60px] text-lg">{label}</LinkBtn>

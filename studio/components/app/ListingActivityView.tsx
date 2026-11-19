@@ -1,6 +1,6 @@
 'use client'
 import Link from 'next/link'
-import React from 'react'
+import React, { useState } from 'react'
 import {
   activityIsEmpty,
   activityTime,
@@ -9,6 +9,7 @@ import {
   chartSummary,
   dayLabel,
   FEED_DOT,
+  quietFeed,
   sourceRows,
 } from '@/lib/app/activity'
 import { api } from '@/lib/app/client'
@@ -198,17 +199,36 @@ function FeedRow({ item }: { item: ActivityFeedItem }) {
 }
 
 export function FeedList({ feed }: { feed: ListingActivity['feed'] }) {
+  const [all, setAll] = useState(false)
+  const quiet = quietFeed(feed)
+  const rows = all ? feed : quiet.rows
+  const where = quiet.bySource.map((s) => `${sourceLabel(s.source)} ${s.count}`).join(', ')
   return (
     <section className="space-y-2" aria-label={t('actRecent')}>
       <h2 className="font-bold text-gray-900">{t('actRecent')}</h2>
       {feed.length === 0 ? (
         <p className="text-sm text-gray-500">{t('actRecentEmpty')}</p>
       ) : (
-        <ul className="space-y-1 rounded-2xl border border-gray-200 bg-gray-50 p-1">
-          {feed.map((f, i) => (
-            <FeedRow key={`${f.ts}-${i}`} item={f} />
-          ))}
-        </ul>
+        <>
+          {rows.length > 0 && (
+            <ul className="space-y-1 rounded-2xl border border-gray-200 bg-gray-50 p-1">
+              {rows.map((f, i) => (
+                <FeedRow key={`${f.ts}-${i}`} item={f} />
+              ))}
+            </ul>
+          )}
+          {!all && quiet.views > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-white px-3 py-2" data-testid="quiet-views">
+              <p className="text-sm text-gray-700">
+                {quiet.views} {quiet.views === 1 ? 'view' : 'views'} by visitors{where ? ` (${where})` : ''}
+              </p>
+              <button type="button" onClick={() => setAll(true)}
+                className="min-h-[44px] text-sm font-semibold text-[#0f2340] underline">
+                Show each view
+              </button>
+            </div>
+          )}
+        </>
       )}
     </section>
   )

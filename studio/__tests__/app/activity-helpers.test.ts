@@ -1,6 +1,7 @@
 import {
   activityIsEmpty,
   activityTime,
+  quietFeed,
   axisLabels,
   chartScale,
   chartSummary,
@@ -198,5 +199,22 @@ describe('freshness helpers', () => {
   it('a confirm_listing action leads to the listing, or to the Listings screen card', () => {
     expect(actionHref({ type: 'confirm_listing', title: '', detail: '', priority: 2, listing_id: 'l3' })).toBe('/studio/listings/l3')
     expect(actionHref({ type: 'confirm_listing', title: '', detail: '', priority: 2 })).toBe('/studio/listings#confirm')
+  })
+})
+
+describe('quietFeed', () => {
+  const view = (source: string | null, kind: 'visitor' | 'lead' = 'visitor') =>
+    ({ ts: '2026-11-19T09:00:00Z', type: 'view' as const, who: { kind, label: kind === 'lead' ? 'Asha' : 'Visitor 1', lead_id: kind === 'lead' ? 'c1' : undefined }, source, text: 'viewed' })
+
+  it('keeps what people did and counts anonymous views by source, most first', () => {
+    const tap = { ...view('whatsapp'), type: 'whatsapp_click' as const }
+    const q = quietFeed([view('instagram'), tap, view('whatsapp'), view('whatsapp'), view(null), view('instagram', 'lead')])
+    expect(q.rows.map((r) => r.type + ':' + r.who.kind)).toEqual(['whatsapp_click:visitor', 'view:lead'])
+    expect(q.views).toBe(4)
+    expect(q.bySource).toEqual([{ source: 'whatsapp', count: 2 }, { source: 'direct', count: 1 }, { source: 'instagram', count: 1 }])
+  })
+
+  it('is empty for no feed', () => {
+    expect(quietFeed(undefined)).toEqual({ rows: [], views: 0, bySource: [] })
   })
 })

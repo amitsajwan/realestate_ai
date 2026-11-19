@@ -9,7 +9,7 @@ import { PassBox } from '@/components/app/PassBox'
 import { useIsOwner } from '@/components/app/agents/useIsOwner'
 import { AiSummaryCard, DraftPanel, FollowUpDue, MatchesList, RequirementChips } from '@/components/app/LeadPanels'
 import { DealClosedSheet, LostReasonSheet, MarkSoldPrompt, OutcomeSummary } from '@/components/app/OutcomeSheets'
-import { Btn, ErrorBox, LinkBtn, STAGES, Spinner, TempChip, inputCls } from '@/components/app/ui'
+import { ABOVE_TAB_BAR, Btn, ErrorBox, LinkBtn, STAGES, Spinner, TempChip, inputCls } from '@/components/app/ui'
 import { api, errorMessage } from '@/lib/app/client'
 import { displayPhone, timeAgo, waDigits } from '@/lib/app/format'
 import { aboutLine } from '@/lib/app/live'
@@ -198,6 +198,9 @@ export function LeadDetailView({ id }: { id: string }) {
       </div>
     )
   }
+  // Top to bottom (2026-11-19): who they are; Call and WhatsApp, kept in reach while scrolling; how the call went; what they
+  // said; the stage and the next follow-up, which change most; then the assistant and the rest. The page used to give five ways
+  // to reach the buyer in five places and put the stage below two screens of cards.
   return (
     <div className="space-y-4 pb-4">
       <div className="flex items-center gap-2">
@@ -209,7 +212,23 @@ export function LeadDetailView({ id }: { id: string }) {
       {contact && <p className={`rounded-xl px-3 py-2 text-sm font-semibold ${CONTACT_TONE[contact.tone]}`}>{contact.text}</p>}
       {cameFromLine(lead) && <p className="break-words text-sm text-gray-600"><PageLinks text={cameFromLine(lead)} /></p>}
       {pagesReadLine(lead) && <p data-testid="pages-read" className="break-words text-sm text-gray-600">{pagesReadLine(lead)}</p>}
-      {lead.visits && lead.visits.length > 0 && <VisitTrails visits={lead.visits} />}
+
+      <div data-testid="contact-bar" className="sticky top-0 z-10 -mx-4 grid grid-cols-2 gap-3 border-b border-gray-200 bg-gray-50/95 px-4 py-2 backdrop-blur">
+        <LinkBtn href={`tel:${lead.phone}`}>📞 {t('call')}</LinkBtn>
+        <LinkBtn variant="whatsapp" href={whatsappChatUrl(waDigits(lead.phone), `Hi ${firstName}, this is regarding your property enquiry.`)} target="_blank" rel="noopener noreferrer">
+          {t('whatsappMyPhone')}
+        </LinkBtn>
+      </div>
+      <section aria-label="Log the call" className="space-y-1">
+        <p className="text-sm font-semibold text-gray-800">Called them? Log it</p>
+        <div className="grid grid-cols-2 gap-3">
+          <Btn variant="secondary" disabled={busy} onClick={() => patch({ call: 'answered' })}>Answered</Btn>
+          <Btn variant="secondary" disabled={busy} onClick={() => patch({ call: 'no_answer' })}>No answer</Btn>
+        </div>
+        <p className="text-xs text-gray-500">No answer sets a follow-up for tomorrow.</p>
+      </section>
+
+      {lead.message && <p className="rounded-xl bg-white p-3 text-gray-800">“{lead.message}”</p>}
 
       {lead.outcome && (lead.stage === 'won' || lead.stage === 'lost') && (
         <OutcomeSummary
@@ -218,58 +237,6 @@ export function LeadDetailView({ id }: { id: string }) {
           busy={busy}
           onReopen={() => update('contacted')}
         />
-      )}
-
-      <AiSummaryCard
-        lead={lead}
-        busy={busy}
-        onSchedule={() => update('site_visit')}
-        onFollowUp={() => setShowDraft(true)}
-      />
-
-      <BuyerBrief leadId={lead.id} phone={lead.phone} />
-
-      {lead.message && <p className="rounded-xl bg-white p-3 text-gray-800">“{lead.message}”</p>}
-
-      <div className="grid grid-cols-2 gap-3">
-        <LinkBtn href={`tel:${lead.phone}`}>📞 {t('call')}</LinkBtn>
-        <LinkBtn variant="whatsapp" href={whatsappChatUrl(waDigits(lead.phone), `Hi ${firstName}, this is regarding your property enquiry.`)} target="_blank" rel="noopener noreferrer">
-          {t('whatsappMyPhone')}
-        </LinkBtn>
-      </div>
-      <div className="space-y-1">
-        <p className="text-sm font-semibold text-gray-800">Called them? Log it</p>
-        <div className="grid grid-cols-2 gap-3">
-          <Btn variant="secondary" disabled={busy} onClick={() => patch({ call: 'answered' })}>Answered</Btn>
-          <Btn variant="secondary" disabled={busy} onClick={() => patch({ call: 'no_answer' })}>No answer</Btn>
-        </div>
-        <p className="text-xs text-gray-500">No answer sets a follow-up for tomorrow. A note about the call goes in Add note below.</p>
-      </div>
-      {waDigits(lead.phone) && (
-        <div className="space-y-1">
-          <Btn variant="whatsapp" disabled={busy} onClick={messageFromBrand}>{busy ? t('sending') : t('whatsappFromBrand')}</Btn>
-          <p className="text-xs text-gray-500">{t('whatsappFromBrandHint')}</p>
-        </div>
-      )}
-
-      <LeadConversations threads={threads} />
-
-      {lead.handover && (
-        <section aria-label="Passed to you" className="space-y-1 rounded-2xl border border-sky-200 bg-sky-50 p-3">
-          <h2 className="font-semibold text-sky-900">Passed to you{lead.handover.at ? ` ${timeAgo(lead.handover.at)}` : ''}</h2>
-          <p className="whitespace-pre-line break-words text-sm text-gray-900">{lead.handover.text}</p>
-        </section>
-      )}
-      {owner && !lead.handover && <PassBox leadId={lead.id} />}
-
-      <RequirementChips requirement={lead.requirement} />
-      <MatchesList matches={lead.matches} />
-      <FollowUpDue followUp={lead.follow_up} busy={busy} onSet={(iso) => patch({ follow_up_at: iso })} />
-
-      {showDraft ? (
-        <DraftPanel leadId={lead.id} phone={lead.phone} />
-      ) : (
-        <Btn variant="secondary" onClick={() => setShowDraft(true)}>{t('draftFollowUp')}</Btn>
       )}
 
       <section>
@@ -290,12 +257,48 @@ export function LeadDetailView({ id }: { id: string }) {
         </div>
       </section>
 
+      <FollowUpDue followUp={lead.follow_up} busy={busy} onSet={(iso) => patch({ follow_up_at: iso })} />
+      {showDraft ? (
+        <DraftPanel leadId={lead.id} phone={lead.phone} />
+      ) : (
+        <Btn variant="secondary" onClick={() => setShowDraft(true)}>{t('draftFollowUp')}</Btn>
+      )}
+      {waDigits(lead.phone) && (
+        <div className="space-y-1">
+          <Btn variant="whatsapp" disabled={busy} onClick={messageFromBrand}>{busy ? t('sending') : t('whatsappFromBrand')}</Btn>
+          <p className="text-xs text-gray-500">{t('whatsappFromBrandHint')}</p>
+        </div>
+      )}
+
+      <AiSummaryCard
+        lead={lead}
+        busy={busy}
+        contactShown
+        onSchedule={() => update('site_visit')}
+        onFollowUp={() => setShowDraft(true)}
+      />
+      <BuyerBrief leadId={lead.id} phone={lead.phone} />
+
+      <LeadConversations threads={threads} />
+
+      {lead.handover && (
+        <section aria-label="Passed to you" className="space-y-1 rounded-2xl border border-sky-200 bg-sky-50 p-3">
+          <h2 className="font-semibold text-sky-900">Passed to you{lead.handover.at ? ` ${timeAgo(lead.handover.at)}` : ''}</h2>
+          <p className="whitespace-pre-line break-words text-sm text-gray-900">{lead.handover.text}</p>
+        </section>
+      )}
+      {owner && !lead.handover && <PassBox leadId={lead.id} />}
+
+      <RequirementChips requirement={lead.requirement} />
+      <MatchesList matches={lead.matches} />
+      {lead.visits && lead.visits.length > 0 && <VisitTrails visits={lead.visits} />}
+
       <section className="space-y-2">
         <h2 className="font-semibold">{t('addNote')}</h2>
         <textarea aria-label={t('addNote')} className={`${inputCls} min-h-[80px] py-3`} placeholder={t('notePlaceholder')} value={note} onChange={(e) => setNote(e.target.value)} />
         <Btn variant="secondary" disabled={busy || !note.trim()} onClick={addNote}>{t('save')}</Btn>
-        {err && !sheet && !suggest && <ErrorBox message={err} />}
       </section>
+      {err && !sheet && !suggest && <div className="sticky z-10" style={ABOVE_TAB_BAR}><ErrorBox message={err} /></div>}
 
       {lead.notes.length > 0 && (
         <section>

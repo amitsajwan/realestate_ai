@@ -120,6 +120,13 @@ describe('Listing activity screen', () => {
     getListingActivity.mockResolvedValue(sample())
     render(<ListingActivityView id="l1" />)
     const region = within(await screen.findByRole('region', { name: 'Recent activity' }))
+    // anonymous views are one line, so what people did stays in sight
+    const first = region.getAllByTestId('feed-item')
+    expect(first).toHaveLength(2)
+    expect(first[0]).toHaveTextContent('Priya Sharma sent an enquiry')
+    expect(first[1]).toHaveTextContent('Visitor 1 tapped WhatsApp')
+    expect(region.getByTestId('quiet-views')).toHaveTextContent('1 view by visitors (Instagram 1)')
+    fireEvent.click(region.getByRole('button', { name: 'Show each view' }))
     const items = region.getAllByTestId('feed-item')
     expect(items).toHaveLength(3)
     expect(items[0]).toHaveTextContent('Priya Sharma sent an enquiry')
@@ -132,6 +139,7 @@ describe('Listing activity screen', () => {
     expect(within(items[0]).getByRole('link')).toHaveAttribute('href', '/studio/leads/c9')
     expect(within(items[1]).queryByRole('link')).toBeNull()
     expect(items[1]).toHaveAttribute('data-type', 'view')
+    expect(region.queryByTestId('quiet-views')).toBeNull()
   })
 
   it('an empty listing leads with "share the link" and friendly notes instead of blank lists', async () => {
