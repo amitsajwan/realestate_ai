@@ -124,13 +124,16 @@ case "$TOK" in
   *)        bad facebook-token "could not run the check in the backend container" ;;
 esac
 
-# Each worker role checks only the heartbeats it owns.
-for role in conversations newsroom media; do
-  HB="$($DC exec -T "$role" python -m app.worker --check --role "$role" 2>/dev/null)"; HB_RC=$?
+# Each worker role checks only the heartbeats it owns. The media container runs MEDIA_ROLE ("dispatch" once reels are drawn by
+# Cloud Run): checking it as "media" reported its three drawing loops stopped for weeks, loops that by design run elsewhere.
+MEDIA_ROLE_NOW="$(envval MEDIA_ROLE)"; MEDIA_ROLE_NOW="${MEDIA_ROLE_NOW:-media}"
+for svc in conversations newsroom media; do
+  role="$svc"; [ "$svc" = media ] && role="$MEDIA_ROLE_NOW"
+  HB="$($DC exec -T "$svc" python -m app.worker --check --role "$role" 2>/dev/null)"; HB_RC=$?
   if [ "$HB_RC" -eq 0 ]; then
     ok "loops $role" "$(printf '%s\n' "$HB" | grep -E '^(OK|OFF)' | awk '{print $1, $2}' | tr -d ':' | paste -sd, -)"
   elif [ "$HB_RC" -eq 1 ] && printf '%s\n' "$HB" | grep -q '^STALE'; then
-    bad "loops $role" "$(printf '%s\n' "$HB" | grep '^STALE' | sed 's/^STALE *//' | paste -sd ';' -) (see: docker compose logs --tail 80 "$role")"
+    bad "loops $role" "$(printf '%s\n' "$HB" | grep '^STALE' | sed 's/^STALE *//' | paste -sd ';' -) (see: docker compose logs --tail 80 "$svc")"
   else
     bad "loops $role" "could not check heartbeats ($(printf '%s' "$HB" | tail -n1 | cut -c1-120))"
   fi

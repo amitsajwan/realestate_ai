@@ -196,10 +196,14 @@ swapping), and a deploy that touched the frontend took ~20 minutes building Next
    4. **Main VM back to e2-standard-2 (8 GB): LIVE 2026-10-16** (owner chose to shrink before the renderer moves: reels draw
       on it meanwhile, ~8-10 min each). Then e2-medium (4 GB) once the renderer is on Cloud Run, if memory allows: on the
       idle e2-standard-4 everything used ~1.7 GB, and 1.8 GB on the e2-standard-2.
+   5. **Main VM back up to e2-standard-2 (8 GB): LIVE 2026-11-19.** On the e2-medium CPU was fine (12-14% a day, 82-85%
+      idle), but memory was ~70% used with ~680 MB in swap, and the newsroom role was killed at its 1 GB limit about once a
+      day (8 times Nov 15-19). The VM's `.env` now has `NEWSROOM_MEMORY_LIMIT=2g`. The resize took ~2 min of downtime and
+      the reserved IP stayed. After it, 12 pages at once answered 200 in ~0.85 s on average (1.6 s at most).
 - **Done when:** the main VM never builds an image or draws a reel.
 - **Cost a month (Mumbai, third-party rates, recheck before buying),** each with ~$8 of fixed items (30 GB pd-balanced disk
   $3.3, the reserved IP in use $3.7, snapshots ~$1): e2-medium until 2026-10-16 ~$37; e2-standard-4 (midday) ~$126;
-  **e2-standard-2 now ~$67 (~₹5,800)**; target e2-medium + Cloud Run Jobs (~$5 for 5 reels a day) + registry (~$0.4)
+  **e2-standard-2 ~$67 (~₹5,800), again from 2026-11-19**; target e2-medium + Cloud Run Jobs (~$5 for 5 reels a day) + registry (~$0.4)
   **~$43 (~₹3,700)**. GitHub builds are free (public repository). Uploads stay on the VM disk (no Cloud Storage: the renderer
   fetches inputs by URL and posts reels back); the disk had 7.3 GB of old build cache cleared the same day.
 

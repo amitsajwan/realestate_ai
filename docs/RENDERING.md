@@ -16,7 +16,7 @@ Owner's decisions, 2026-10-16: hybrid (small VM for the always-on parts, Cloud R
 | Renderer job `renderer` (Cloud Run, asia-south1, 4 vCPU / 8 GB, 60 min limit, image = the deployed backend image) | **LIVE** 2026-10-16 |
 | `python -m app.worker --drain` (`reels/render_job.py`): drains the three existing media queues, exits after a minute idle | **LIVE** |
 | VM worker role `dispatch` (`MEDIA_ROLE=dispatch` in the VM's .env): starts the job when work waits and none runs | **LIVE** |
-| VM e2-medium with its own service account `pune-vm` (pull images, run/view this job, write logs only) | **LIVE** |
+| VM (e2-standard-2 since 2026-11-19, for memory) with its own service account `pune-vm` (pull images, run/view this job, write logs only) | **LIVE** |
 | `render_tasks` queue, one task per reel, leases, parallel copies, budget guard | TARGET (P2) |
 | Walkthrough, calendar pre-render, boost and video voice-over in the same queue; old claims deleted | TARGET (P3) |
 | One reel drawn in chunks on 8 vCPUs; Cloud Storage instead of NFS | TARGET (P4, optional) |

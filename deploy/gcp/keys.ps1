@@ -58,6 +58,10 @@ $Catalog = @(
      Get = "cd backend; python scripts/youtube_token.py --client-id ... --client-secret ... (approve in the browser)" }
   @{ Name = "YOUTUBE_PRIVACY"; For = "YouTube upload: private until Google's API audit passes, then public"
      Get = "private or public (docs/plan/visibility-base.md, YouTube set up, step 5)" }
+  @{ Name = "VAPID_PUBLIC_KEY"; For = "Phone alerts from Studio (Web Push): the public half of the signing pair"
+     Get = "backend: python scripts/vapid_keys.py (set both halves together; a new pair signs every phone out of alerts)" }
+  @{ Name = "VAPID_PRIVATE_KEY"; For = "Phone alerts from Studio (Web Push): the private half, kept secret"
+     Get = "backend: python scripts/vapid_keys.py (set both halves together)" }
   @{ Name = "GOOGLE_TTS_API_KEY"; For = "Reel voice-overs (Google Cloud Text-to-Speech)"
      Get = "https://console.cloud.google.com/apis/credentials -> API key restricted to 'Cloud Text-to-Speech API'"
      Check = { param($v) $null = Invoke-RestMethod -Uri "https://texttospeech.googleapis.com/v1/voices?languageCode=hi-IN&key=$v" -TimeoutSec 30 } }
