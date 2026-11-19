@@ -34,24 +34,31 @@ function remember(v: boolean) {
 }
 
 /**
- * True when the signed-in user may use the concierge (the server decides: 403 for everyone else). Asked once per page load; the
- * last answer in this browser session is used meanwhile, so screens draw right the first time.
+ * 'owner' or 'agent' once known; null while the first answer of this page load is still on its way and nothing is remembered.
+ * The server decides (the concierge list answers 403 to everyone but the owner). Asked once per page load; the last answer in
+ * this browser session is used meanwhile, so screens draw right the first time.
  */
-export function useIsOwner(): boolean {
-  const [owner, setOwner] = useState<boolean>(known === true)
+export function useOwnerState(): 'owner' | 'agent' | null {
+  const [state, setState] = useState<'owner' | 'agent' | null>(known === null ? null : known ? 'owner' : 'agent')
   useEffect(() => {
-    if (isFixtureMode()) return setOwner(!fixtureAsAgent())
-    if (known !== null) return setOwner(known)
+    const put = (v: boolean) => setState(v ? 'owner' : 'agent')
+    if (isFixtureMode()) return put(!fixtureAsAgent())
+    if (known !== null) return put(known)
     const before = remembered()
-    if (before !== null) setOwner(before)
+    if (before !== null) put(before)
     let alive = true
     conciergeApi.list().then(() => (known = true), () => (known = false)).then(() => {
       remember(known === true)
-      if (alive) setOwner(known === true)
+      if (alive) put(known === true)
     })
     return () => {
       alive = false
     }
   }, [])
-  return owner
+  return state
+}
+
+/** True when the signed-in user is the owner (false while not known yet). */
+export function useIsOwner(): boolean {
+  return useOwnerState() === 'owner'
 }

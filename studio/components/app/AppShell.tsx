@@ -7,7 +7,9 @@ import { contentApi } from '@/lib/app/content'
 import { inboxApi } from '@/lib/app/inbox'
 import { newsroomApi } from '@/lib/app/newsroom'
 import { t, type StringKey } from '@shared/strings'
-import { useIsOwner } from './agents/useIsOwner'
+import { ownerOnlyPath } from '@/lib/app/owner'
+import { useOwnerState } from './agents/useIsOwner'
+import { Spinner } from './ui'
 
 interface Tab { href: string; label: StringKey; icon: string }
 
@@ -163,6 +165,17 @@ function MoreSheet({ items, active, badges, onClose }: { items: Tab[]; active: (
   )
 }
 
+/** An agent on an owner's screen: what it is and the way back, instead of the server's refusal. */
+function OwnerOnlyNote() {
+  return (
+    <div className="space-y-3 rounded-2xl bg-white p-5 text-center" data-testid="owner-only">
+      <h1 className="text-lg font-bold text-gray-900">This screen is for the owner</h1>
+      <p className="text-sm text-gray-600">It runs the whole site, so only the owner's account opens it. Everything for your own leads and listings is on your Home.</p>
+      <Link href="/studio" className="inline-flex min-h-[48px] items-center justify-center rounded-xl bg-[#0f2340] px-5 font-semibold text-white">Back to Home</Link>
+    </div>
+  )
+}
+
 /**
  * Full-screen phone shell. The root layout renders the legacy Navigation, so the shell is a fixed overlay
  * (z-50) that owns the whole viewport: scrollable content + bottom tab bar.
@@ -170,7 +183,9 @@ function MoreSheet({ items, active, badges, onClose }: { items: Tab[]; active: (
  */
 export function AppShell({ children, hideTabs = false }: { children: React.ReactNode; hideTabs?: boolean }) {
   const path = usePathname() || ''
-  const owner = useIsOwner()
+  const who = useOwnerState()
+  const owner = who === 'owner'
+  const gated = ownerOnlyPath(path)
   const badges = useNavBadges(!hideTabs, owner)
   const [moreOpen, setMoreOpen] = useState(false)
   const closeMore = useCallback(() => setMoreOpen(false), [])
@@ -184,7 +199,7 @@ export function AppShell({ children, hideTabs = false }: { children: React.React
     <div data-surface="v2" className="fixed inset-0 z-50 flex flex-col bg-gray-50 text-gray-900">
       <FixtureBanner />
       {/* pb-28 leaves room for the tab bar; without tabs a sticky action bar must sit at the very bottom */}
-      <main className={`mx-auto w-full max-w-md flex-1 overflow-y-auto px-4 pt-4 ${hideTabs ? 'pb-0' : 'pb-28'}`}>{children}</main>
+      <main className={`mx-auto w-full max-w-md flex-1 overflow-y-auto px-4 pt-4 ${hideTabs ? 'pb-0' : 'pb-28'}`}>{gated && who === 'agent' ? <OwnerOnlyNote /> : gated && who === null ? <Spinner /> : children}</main>
       {!hideTabs && (
         <nav
           aria-label="Main"

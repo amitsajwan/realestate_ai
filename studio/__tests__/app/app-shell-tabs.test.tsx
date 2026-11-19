@@ -3,13 +3,17 @@ import React from 'react'
 import { AppShell, countWaitingPosts } from '@/components/app/AppShell'
 
 let mockOwner = true
+let mockUnknown = false
 let mockPath = '/studio/admin'
 const mockUpcoming = jest.fn()
 const mockStatus = jest.fn()
 jest.mock('next/navigation', () => ({ usePathname: () => mockPath }))
 const mockLeads = jest.fn()
 jest.mock('@/lib/app/client', () => ({ isFixtureMode: () => false, api: { listLeads: () => mockLeads() } }))
-jest.mock('@/components/app/agents/useIsOwner', () => ({ useIsOwner: () => mockOwner }))
+jest.mock('@/components/app/agents/useIsOwner', () => ({
+  useIsOwner: () => mockOwner,
+  useOwnerState: () => (mockUnknown ? null : mockOwner ? 'owner' : 'agent'),
+}))
 jest.mock('@/lib/app/content', () => ({ contentApi: { getUpcoming: (...a: unknown[]) => mockUpcoming(...a) } }))
 jest.mock('@/lib/app/newsroom', () => ({ newsroomApi: { getStatus: (...a: unknown[]) => mockStatus(...a) } }))
 jest.mock('@/lib/app/inbox', () => ({ inboxApi: { threads: async () => [] } }))
@@ -21,6 +25,7 @@ const newsroomLink = () => nav().getByRole('link', { name: /Newsroom/ })
 
 beforeEach(() => {
   mockOwner = true
+  mockUnknown = false
   mockPath = '/studio/admin'
   mockUpcoming.mockReset().mockResolvedValue([])
   mockLeads.mockReset().mockResolvedValue([])
@@ -142,5 +147,35 @@ describe('AppShell badges', () => {
   it('countWaitingPosts counts distinct planned slugs', () => {
     expect(countWaitingPosts([planned('a'), planned('a', 'facebook_page'), { ...planned('b'), status: 'published' }])).toBe(1)
     expect(countWaitingPosts([])).toBe(0)
+  })
+})
+
+describe('owner-only screens', () => {
+  it('tell an agent the screen is the owner\'s, with the way back, instead of a server error', () => {
+    mockOwner = false
+    for (const path of ['/studio/admin', '/studio/seo', '/studio/newsroom/projects', '/studio/site', '/studio/agents/a1', '/studio/press']) {
+      mockPath = path
+      const { unmount } = render(<AppShell><p>owner screen</p></AppShell>)
+      expect(screen.getByTestId('owner-only')).toHaveTextContent('This screen is for the owner')
+      expect(screen.getByRole('link', { name: 'Back to Home' })).toHaveAttribute('href', '/studio')
+      expect(screen.queryByText('owner screen')).toBeNull()
+      unmount()
+    }
+  })
+
+  it('show the owner the screen, and an agent every screen that is theirs', () => {
+    render(<AppShell><p>owner screen</p></AppShell>)
+    expect(screen.getByText('owner screen')).toBeInTheDocument()
+    mockOwner = false
+    mockPath = '/studio/leads'
+    render(<AppShell><p>agent screen</p></AppShell>)
+    expect(screen.getByText('agent screen')).toBeInTheDocument()
+  })
+
+  it('wait without a flash of the note while it is not yet known who is signed in', () => {
+    mockUnknown = true
+    render(<AppShell><p>owner screen</p></AppShell>)
+    expect(screen.queryByTestId('owner-only')).toBeNull()
+    expect(screen.queryByText('owner screen')).toBeNull()
   })
 })

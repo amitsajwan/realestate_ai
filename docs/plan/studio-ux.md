@@ -109,7 +109,16 @@ Nothing is cached, so Studio never shows old leads.
 ## Demo mode
 
 `localStorage.app_fixtures = 1` runs Studio on fake data (as the owner). Add `localStorage.app_fixture_agent = 1` to see it as an
-agent sees it (agent tab bar, no posts or join requests).
+agent sees it (agent tab bar, no posts or join requests). Since 2026-11-19 every owner screen has demo data too: SEO (all tabs),
+project pages, buyer radar, press and the lead board (`lib/app/fixtures-owner.ts`, made-up projects and numbers in the server's
+shapes; `__tests__/app/fixtures-owner.test.ts` checks none of them calls the network).
+
+## Owner-only screens (2026-11-19)
+
+Admin, SEO, Newsroom, Press, Site and Agents (`lib/app/owner.ts`) are the owner's: the server refuses their data to anyone else.
+An agent who opens one by a link or an old bookmark gets "This screen is for the owner" and Back to Home from the Studio frame
+(`AppShell`), not a server error. While Studio does not yet know who is signed in, it shows a spinner, so the owner never sees
+the note flash. Buyer radar and the lead board are open to agents (the server scopes them).
 
 ## Lead (`components/app/LeadDetailView.tsx`, 2026-11-19)
 

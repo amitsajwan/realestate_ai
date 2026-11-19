@@ -2,6 +2,8 @@
 import { API_BASE_URL } from '@shared/config/api'
 import { ApiError, parseErrorBody } from './api'
 import { getToken } from './session'
+import { isFixtureMode } from './client'
+import { insightsFixture } from './fixtures-owner'
 
 export interface HotReason { signal: string; evidence: string; source: string }
 
@@ -54,6 +56,7 @@ export interface SystemView {
 }
 
 async function call<T>(path: string, body?: unknown): Promise<T> {
+  if (isFixtureMode()) return insightsFixture(path, body) as T   // demo mode: made-up SEO numbers (fixtures-owner.ts)
   const headers: Record<string, string> = { Accept: 'application/json' }
   const token = getToken()
   if (token) headers.Authorization = `Bearer ${token}`
