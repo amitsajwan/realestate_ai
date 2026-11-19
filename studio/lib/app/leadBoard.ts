@@ -3,6 +3,8 @@ import { API_BASE_URL } from '@shared/config/api'
 import { ApiError, fetchOnceMore, parseErrorBody } from './api'
 import type { PassResult } from './inbox'
 import { getToken } from './session'
+import { isFixtureMode } from './client'
+import { boardFixture } from './fixtures-owner'
 
 export type OfferKind = 'none' | 'fee' | 'share'
 
@@ -96,7 +98,13 @@ export interface Board { items: BoardCard[]; owner: boolean; /** "View as an age
 /** The link the owner sends to agents. */
 export const BOARD_PATH = '/studio/lead-board'
 
+/** Demo mode as an agent (localStorage app_fixture_agent=1) sees the board as agents do. */
+function fixtureAsAgent(): boolean {
+  try { return window.localStorage.getItem('app_fixture_agent') === '1' } catch { return false }
+}
+
 async function call<T>(path: string, init: { method?: string; json?: unknown } = {}): Promise<T> {
+  if (isFixtureMode()) return boardFixture(path, init.method, !fixtureAsAgent()) as T
   const headers: Record<string, string> = { Accept: 'application/json' }
   const token = getToken()
   if (token) headers.Authorization = `Bearer ${token}`

@@ -3,6 +3,8 @@
 import { API_BASE_URL } from '@shared/config/api'
 import { ApiError, parseErrorBody } from './api'
 import { getToken } from './session'
+import { isFixtureMode } from './client'
+import { pressFixture } from './fixtures-owner'
 
 export interface PressFact {
   text: string
@@ -62,6 +64,7 @@ export interface PressPitchPatch {
 }
 
 async function request<T>(path: string, init: { method?: string; json?: unknown } = {}): Promise<T> {
+  if (isFixtureMode()) return pressFixture(path, init.method, init.json) as T
   const headers: Record<string, string> = { Accept: 'application/json' }
   const token = getToken()
   if (token) headers.Authorization = `Bearer ${token}`

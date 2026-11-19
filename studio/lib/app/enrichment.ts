@@ -2,6 +2,8 @@
 import { API_BASE_URL } from '@shared/config/api'
 import { ApiError, parseErrorBody } from './api'
 import { getToken } from './session'
+import { isFixtureMode } from './client'
+import { enrichmentFixture } from './fixtures-owner'
 
 export type EnrichStatus = 'ok' | 'partial' | 'failed' | 'parked' | 'waiting' | 'finished'
 
@@ -29,6 +31,7 @@ export interface EnrichList {
 }
 
 export async function getEnrichment(status?: EnrichStatus): Promise<EnrichList> {
+  if (isFixtureMode()) return enrichmentFixture(status)
   const headers: Record<string, string> = { Accept: 'application/json' }
   const token = getToken()
   if (token) headers.Authorization = `Bearer ${token}`

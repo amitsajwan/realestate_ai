@@ -7,7 +7,9 @@ import { contentApi } from '@/lib/app/content'
 import { inboxApi } from '@/lib/app/inbox'
 import { newsroomApi } from '@/lib/app/newsroom'
 import { t, type StringKey } from '@shared/strings'
-import { useIsOwner } from './agents/useIsOwner'
+import { ownerOnlyPath } from '@/lib/app/owner'
+import { useOwnerState } from './agents/useIsOwner'
+import { Spinner } from './ui'
 
 interface Tab { href: string; label: StringKey; icon: string }
 
@@ -28,6 +30,8 @@ const PRESS_TAB: Tab = { href: '/studio/press', label: 'press', icon: 'M4 4h16v1
 const RADAR_TAB: Tab = { href: '/studio/radar', label: 'radar', icon: 'M12 12m-9 0a9 9 0 1018 0 9 9 0 10-18 0M12 12m-5 0a5 5 0 1010 0 5 5 0 10-10 0M12 12l6-6' }
 /** Everyone: agents send photos of their areas, the owner publishes them on the area guides (docs/plan/area-pictures.md step 4). */
 const AREA_PHOTOS_TAB: Tab = { href: '/studio/area-photos', label: 'areaPhotos', icon: 'M3 7h4l2-3h6l2 3h4v13H3zM12 17a4 4 0 100-8 4 4 0 000 8z' }
+/** Owner: what he edits on the public site (hot banner, map pins, pictures from above, area photos), out of Admin 2026-11-19. */
+const SITE_TAB: Tab = { href: '/studio/site', label: 'site', icon: 'M3 12a9 9 0 1018 0 9 9 0 10-18 0M3 12h18M12 3a14 14 0 010 18M12 3a14 14 0 000 18' }
 const PROFILE_TAB: Tab = { href: '/studio/profile', label: 'profile', icon: 'M20 21a8 8 0 00-16 0M12 13a4 4 0 100-8 4 4 0 000 8z' }
 const MORE_TAB: Tab = { href: '#more', label: 'more', icon: 'M5 12h.01M12 12h.01M19 12h.01' }
 
@@ -42,7 +46,7 @@ const AGENT_MORE: Tab[] = [RESULTS_TAB, CONTENT_TAB, RADAR_TAB, AREA_PHOTOS_TAB,
  * a bottom sheet with the rest.
  */
 const OWNER_BAR: Tab[] = [HOME_TAB, INBOX_TAB, CONTENT_TAB, NEWSROOM_TAB]
-const OWNER_MORE: Tab[] = [SEO_TAB, LEADS_TAB, LISTINGS_TAB, RESULTS_TAB, RADAR_TAB, AGENTS_TAB, ADMIN_TAB, PRESS_TAB, AREA_PHOTOS_TAB, PROFILE_TAB]
+const OWNER_MORE: Tab[] = [SEO_TAB, LEADS_TAB, LISTINGS_TAB, RESULTS_TAB, RADAR_TAB, AGENTS_TAB, SITE_TAB, ADMIN_TAB, PRESS_TAB, PROFILE_TAB]
 
 export function FixtureBanner() {
   const [on, setOn] = useState(false)
@@ -161,6 +165,17 @@ function MoreSheet({ items, active, badges, onClose }: { items: Tab[]; active: (
   )
 }
 
+/** An agent on an owner's screen: what it is and the way back, instead of the server's refusal. */
+function OwnerOnlyNote() {
+  return (
+    <div className="space-y-3 rounded-2xl bg-white p-5 text-center" data-testid="owner-only">
+      <h1 className="text-lg font-bold text-gray-900">This screen is for the owner</h1>
+      <p className="text-sm text-gray-600">It runs the whole site, so only the owner's account opens it. Everything for your own leads and listings is on your Home.</p>
+      <Link href="/studio" className="inline-flex min-h-[48px] items-center justify-center rounded-xl bg-[#0f2340] px-5 font-semibold text-white">Back to Home</Link>
+    </div>
+  )
+}
+
 /**
  * Full-screen phone shell. The root layout renders the legacy Navigation, so the shell is a fixed overlay
  * (z-50) that owns the whole viewport: scrollable content + bottom tab bar.
@@ -168,7 +183,9 @@ function MoreSheet({ items, active, badges, onClose }: { items: Tab[]; active: (
  */
 export function AppShell({ children, hideTabs = false }: { children: React.ReactNode; hideTabs?: boolean }) {
   const path = usePathname() || ''
-  const owner = useIsOwner()
+  const who = useOwnerState()
+  const owner = who === 'owner'
+  const gated = ownerOnlyPath(path)
   const badges = useNavBadges(!hideTabs, owner)
   const [moreOpen, setMoreOpen] = useState(false)
   const closeMore = useCallback(() => setMoreOpen(false), [])
@@ -182,7 +199,7 @@ export function AppShell({ children, hideTabs = false }: { children: React.React
     <div data-surface="v2" className="fixed inset-0 z-50 flex flex-col bg-gray-50 text-gray-900">
       <FixtureBanner />
       {/* pb-28 leaves room for the tab bar; without tabs a sticky action bar must sit at the very bottom */}
-      <main className={`mx-auto w-full max-w-md flex-1 overflow-y-auto px-4 pt-4 ${hideTabs ? 'pb-0' : 'pb-28'}`}>{children}</main>
+      <main className={`mx-auto w-full max-w-md flex-1 overflow-y-auto px-4 pt-4 ${hideTabs ? 'pb-0' : 'pb-28'}`}>{gated && who === 'agent' ? <OwnerOnlyNote /> : gated && who === null ? <Spinner /> : children}</main>
       {!hideTabs && (
         <nav
           aria-label="Main"

@@ -58,12 +58,28 @@ describe('LeadDetailView', () => {
     expect(await screen.findByRole('button', { name: 'Site visit', pressed: true })).toBeInTheDocument()
   })
 
-  it('a call next action is a tel: link, and empty requirement/matches show plain messages', async () => {
+  it('a call next action is named in the summary and called from the bar on top, and empty requirement/matches show plain messages', async () => {
     render(<LeadDetailView id="c3" />)
     const summary = await screen.findByRole('region', { name: 'AI summary' })
-    expect(within(summary).getByRole('link', { name: 'Call now' })).toHaveAttribute('href', 'tel:+919767654321')
+    expect(summary).toHaveTextContent('Best next step')
+    expect(within(summary).queryByRole('link', { name: 'Call now' })).toBeNull()
+    expect(within(screen.getByTestId('contact-bar')).getByRole('link', { name: /Call/ })).toHaveAttribute('href', 'tel:+919767654321')
     expect(screen.getByText('They have not shared what they want yet.')).toBeInTheDocument()
     expect(screen.getByText('No matching listings yet.')).toBeInTheDocument()
+  })
+
+  it('puts Call and WhatsApp first, then the stage and follow-up, then the assistant', async () => {
+    render(<LeadDetailView id="c1" />)
+    const bar = await screen.findByTestId('contact-bar')
+    expect(bar.className).toContain('sticky')
+    const stage = screen.getByRole('heading', { name: 'Stage' })
+    const follow = screen.getByRole('region', { name: 'Follow-up' })
+    const later = (a: Element, b: Element) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(later(bar, stage)).toBe(true)
+    expect(later(stage, follow)).toBe(true)
+    const summary = screen.queryByRole('region', { name: 'AI summary' })
+    if (summary) expect(later(follow, summary)).toBe(true)
+    expect(later(follow, screen.getByRole('region', { name: 'Buyer brief' }))).toBe(true)
   })
 
   it('quick follow-up buttons PATCH follow_up_at', async () => {

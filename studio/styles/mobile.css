@@ -524,12 +524,13 @@
     margin-top: 1rem;
   }
 
-  /* Mobile Image Modal Improvements */
-  .fixed.inset-0 {
+  /* Mobile Image Modal Improvements. Not Studio's own frame or its bottom sheets ([data-surface="v2"], like the rules above):
+     the padding put a 16 px border round the whole app on phones and lifted every sheet off the bottom edge (2026-11-19). */
+  .fixed.inset-0:not([data-surface="v2"]):not([data-surface="v2"] *) {
     padding: 1rem;
   }
 
-  .fixed.inset-0 img {
+  .fixed.inset-0:not([data-surface="v2"]):not([data-surface="v2"] *) img {
     max-height: 80vh;
     max-width: 100%;
     object-fit: contain;

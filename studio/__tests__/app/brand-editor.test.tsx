@@ -1,5 +1,5 @@
 import React from 'react'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { BrandEditor } from '@/components/app/BrandEditor'
 import type { BrandingDoc } from '@/lib/app/branding'
 
@@ -75,5 +75,15 @@ describe('BrandEditor', () => {
     expect(patch.rera_agent_no).toBe('A52100012345')
     expect(patch.years_experience).toBe(9)
     expect(save.mock.calls[1][1]).toBe('a1')
+  })
+
+  it('keeps Save and its answer in the bar that stays above the tab bar', async () => {
+    const { save } = setup()
+    await screen.findByTestId('brand-editor')
+    const bar = screen.getByTestId('brand-save-bar')
+    expect(bar.className).toContain('sticky')
+    save.mockRejectedValueOnce(new Error('Please do not put phone numbers in tagline'))
+    fireEvent.click(within(bar).getByRole('button', { name: /save my brand/i }))
+    expect(await within(bar).findByText(/phone numbers/i)).toBeInTheDocument()
   })
 })

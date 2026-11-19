@@ -156,3 +156,10 @@ export function PageTitle({ children, action }: { children: React.ReactNode; act
     </div>
   )
 }
+
+/**
+ * Style for a sticky action bar that sits right on top of the tab bar. A sticky element stops at the scroll area's padding, and
+ * AppShell's <main> keeps pb-28 (112 px) for the fixed tab bar, which is 61 px tall plus the phone's safe area. So the bar goes
+ * 51 px into that padding. `bottom: 60px` (the old value) left a 70 px gap with the form showing through under the button.
+ */
+export const ABOVE_TAB_BAR: React.CSSProperties = { bottom: 'calc(env(safe-area-inset-bottom, 0px) - 51px)' }

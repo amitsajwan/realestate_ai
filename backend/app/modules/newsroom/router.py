@@ -320,6 +320,14 @@ async def insights_rankings_revert(body: RevertBody, user: User = Depends(owner_
     return {"path": body.path, "reverted": await doctor.revert(store, body.path)}
 
 
+@router.get("/insights/audit")
+async def insights_audit(fresh: bool = False, user: User = Depends(owner_only), store: Store = Depends(get_store)) -> dict:
+    """Every page Google knows of ours with its clicks, rank, index state, top search and one action (seo.pageaudit); the last
+    day's audit unless `fresh`."""
+    from app.modules.seo import pageaudit
+    return await pageaudit.view(store, datetime.now(timezone.utc), fresh=fresh)
+
+
 class PageStatusBody(BaseModel):
     key: str
     status: str

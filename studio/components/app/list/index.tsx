@@ -27,8 +27,9 @@ export interface TabDef {
 export function TabBar({ tabs, value, onChange, label }: { tabs: TabDef[]; value: string; onChange: (key: string) => void; label: string }) {
   const shown = tabs.filter((t) => !(t.hideWhenEmpty && !t.count))
   return (
+    // One line that scrolls sideways: a wrapped second row read as a different set of tabs on a phone (Content, Listings, 2026-11-19)
     <div role="tablist" aria-label={label}
-      className="sticky top-0 z-10 -mx-4 mb-3 flex-wrap gap-1 border-b border-gray-200 bg-gray-50/95 px-2 backdrop-blur [display:flex]">
+      className="sticky top-0 z-10 -mx-4 mb-3 flex-nowrap gap-1 overflow-x-auto border-b border-gray-200 bg-gray-50/95 px-2 backdrop-blur [display:flex] [scrollbar-width:none]">
       {shown.map((t) => {
         const on = t.key === value
         const badge = t.count == null ? null : (

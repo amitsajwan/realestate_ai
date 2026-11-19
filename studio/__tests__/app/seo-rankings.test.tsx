@@ -1,8 +1,9 @@
 /** SEO → Rankings: each number says what it counts, the MagicBricks board shows head to head with our pages, and Google's
  * reasons a page is not indexed come with what they mean. */
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import RankingsTab from '@/app/studio/seo/RankingsTab'
+import RivalsTab from '@/app/studio/seo/RivalsTab'
 import type { BoardRow } from '@/lib/app/insights'
 
 const mockRankings = jest.fn()
@@ -58,8 +59,8 @@ it('leads with the last 7 days and how much of them is pages in search now', asy
   expect(screen.queryByText('Clicks (28 days)')).toBeNull()
 })
 
-it('counts MagicBricks head to head and names our page for each search', async () => {
-  render(<RankingsTab />)
+it('counts MagicBricks head to head and names our page for each search, on the Rivals tab', async () => {
+  render(<RivalsTab />)
   expect(await screen.findByTestId('head-to-head')).toHaveTextContent(/^Above them in 30 of 60$/)   // no diff against a week that counted lookups
   expect(screen.getByText('Where we beat MagicBricks')).toBeInTheDocument()
   expect(screen.getByRole('link', { name: /\/projects\/area\/kharadi/ })).toBeInTheDocument()
@@ -68,7 +69,7 @@ it('counts MagicBricks head to head and names our page for each search', async (
 })
 
 it('says where we stand before naming the sites above us, overall and per area', async () => {
-  render(<RankingsTab />)
+  render(<RivalsTab />)
   const us = await screen.findByTestId('board-us')
   expect(us).toHaveTextContent('We show in 225 of 1157 searches')
   expect(us).toHaveTextContent('Top 3 in 61, first in 17. No. 13 of the 1011 sites seen')
@@ -77,6 +78,25 @@ it('says where we stand before naming the sites above us, overall and per area',
 
 it("explains Google's reasons a project page is not indexed", async () => {
   render(<RankingsTab />)
+  fireEvent.click(within(await screen.findByRole('region', { name: 'Project pages in Google' })).getByRole('button'))
   expect(await screen.findByText(/Google knows the address but has not read the page yet/)).toBeInTheDocument()
   expect(screen.getByText(/last read found the page closed to search/)).toBeInTheDocument()
+})
+
+it('opens on this week, with every other section closed to its title and one number, and no rival board', async () => {
+  render(<RankingsTab />)
+  await screen.findByTestId('page-one-listed')
+  const pages = screen.getByRole('region', { name: 'Project pages in Google' })
+  expect(within(pages).getByRole('button')).toHaveAttribute('aria-expanded', 'false')
+  expect(pages).toHaveTextContent(/checked are indexed/)
+  expect(screen.queryByTestId('project-pages')).toBeNull()
+  expect(screen.queryByTestId('board')).toBeNull()
+  fireEvent.click(within(pages).getByRole('button'))
+  expect(screen.getByTestId('project-pages')).toBeInTheDocument()
+})
+
+it('says so on Rivals before the first weekly count', async () => {
+  mockRankings.mockResolvedValue({ ...data, scoreboard: { ...data.scoreboard, at: null } })
+  render(<RivalsTab />)
+  expect(await screen.findByText(/No weekly count yet/)).toBeInTheDocument()
 })
