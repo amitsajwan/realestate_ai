@@ -2,7 +2,7 @@
 rewritten only when its own facts change."""
 from datetime import timedelta
 
-from app.modules.areastats import enrich, pages
+from app.modules.areastats import enrich, entry, pages
 
 from .test_enrich import FULL as WITH_PRICE, FakeLLM, GOOD, NOW, POINTS_TEXT, ready
 from .test_pages import FULL
@@ -13,10 +13,17 @@ IN = {"in": True, "at": NOW - timedelta(days=5)}
 OUT = {"in": False, "at": NOW - timedelta(days=5)}
 
 
-def test_a_page_never_in_search_goes_in_once_ready():
+def test_a_page_never_in_search_waits_its_turn_once_ready():
     assert pages.searchable(READY, NOW) and not pages.searchable(THIN, NOW)
-    assert pages.search_state(READY, NOW) == {"in": True, "at": NOW}
+    assert pages.search_state(READY, NOW) == {"wait": True, "at": NOW}
     assert pages.search_state(THIN, NOW) is None             # no hold to wait out when it is filled
+
+
+def test_a_waiting_page_is_out_of_search_until_let_in():
+    waiting = {**READY, "search_state": {"wait": True, "at": NOW}}
+    assert not pages.searchable(waiting, NOW) and pages.waiting(waiting)
+    assert pages.search_state(waiting, NOW) is None          # only areastats.entry lets it in
+    assert pages.searchable({**READY, "search_state": {"in": True, "at": NOW}}, NOW)
 
 
 def test_a_page_in_search_stays_in_when_it_loses_a_fact():
@@ -40,6 +47,7 @@ def test_after_the_hold_the_rule_decides_again():
     assert not pages.searchable({**THIN, "search_state": IN}, later)
     assert pages.search_state({**THIN, "search_state": IN}, later) == {"in": False, "at": later}
     assert pages.searchable({**READY, "search_state": OUT}, later)
+    assert pages.search_state({**READY, "search_state": OUT}, later) == {"wait": True, "at": later}   # back in by its turn
 
 
 def test_only_the_projects_own_lines_decide_a_rewrite():
@@ -65,7 +73,9 @@ async def test_a_page_in_search_is_not_rewritten_while_its_facts_stand():
     await enrich.step(store, FakeLLM(GOOD), NOW, None, timedelta(minutes=30))
     doc = await store.project("P1")
     assert doc["page_text"] == POINTS_TEXT and doc["page_text_by"] == "model" and doc["page_facts_key"]
-    assert doc["search_state"] == {"in": True, "at": NOW}
+    assert doc["search_state"] == {"wait": True, "at": NOW}
+    await entry.admit(store, NOW)
+    assert (await store.project("P1"))["search_state"] == {"in": True, "at": NOW}
 
     await store.set_project("P1", enriched_at=None)
     llm = FakeLLM("Another text. With other words.")
