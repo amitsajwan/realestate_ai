@@ -289,3 +289,13 @@ def test_ground_a_site_can_hold_and_built_space_stay():
         assert not profile.contradicts(text, IVARA_LAND), text
     # with no land figure there is nothing to measure against
     assert not profile.contradicts("53,171 square meters of green areas", {})
+
+
+def test_a_home_societys_amenities_from_a_property_site_are_not_shown_on_offices():
+    offices = {"project_type": "Commercial", "buildings": [{"floors": 6, "units_residential": 0, "units_other": 28}]}
+    homes = {"project_type": "Residential / Group Housing", "buildings": [{"floors": 12, "units_residential": 80, "units_other": 0}]}
+    line = "Swimming pool, gym, children's play area, clubhouse"
+    assert profile.contradicts(line, offices)                       # Aastha Business Bay, 2026-11-19
+    assert not profile.contradicts(line, homes)
+    assert not profile.contradicts(line, offices, official=True)    # the builder's own word stands
+    assert not profile.contradicts("Food court and business lounge", offices)

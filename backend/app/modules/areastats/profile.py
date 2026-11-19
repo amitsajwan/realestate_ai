@@ -671,6 +671,10 @@ _AREA = re.compile(r"(\d[\d,]*(?:\.\d+)?)\s*(lakh\s+|lac\s+)?(sq\.?\s*m(?:t|tr|e
 SQFT_PER = {"m": 10.7639, "f": 1.0, "a": 43560.0}   # by the unit's first letter after "sq"/"square", or acre
 LAND_SLACK = 1.05    # the land figure is a site's too, so a bullet must be clearly larger to be called wrong
 GREEN_SHARE = 0.75   # gardens, open or green space said to take more of the land than this is the site's size misread as theirs
+# what a home buyer's society has: on a building of offices or shops a property site's list of them is another listing's
+# (Aastha Business Bay, 28 offices: "Swimming pool, gym, children's play area, clubhouse" from one portal, 2026-11-19)
+_HOME_AMENITY = re.compile(r"(?i)\b(?:swimming pool|children'?s? play|kids'? play|play area|clubhouse|club house|jogging track|"
+                           r"senior citizen|party lawn|yoga|pet park)\b")
 _GREEN = re.compile(r"(?i)\b(?:green|open|landscaped?|gardens?|park|recreation(?:al)?|lawns?)\b")
 BACKED_SHARE = 0.5   # of the bullet's words the second site's sentence must hold, as well as every number
 
@@ -735,8 +739,11 @@ def contradicts(text: str, doc: Optional[dict], official: bool = False) -> bool:
     """A bullet MahaRERA's buildings prove wrong: fewer towers than this one registration files, "a single tower" included (more may be the whole project's), or
     one floor count for each tower where the filed towers differ (Godrej Ivara: "each with 43 floors", filed 37 to 43), or taller than
     any filed tower (Kohinoor Riverdale: "6 towers with 30 floors each", filed 28). Not those two on the builder's own site: it counts
-    habitable floors where MahaRERA files sanctioned ones (Neco Park Central: "18 habitable"). Or a bullet in another area (`elsewhere`)."""
+    habitable floors where MahaRERA files sanctioned ones (Neco Park Central: "18 habitable"). Or a bullet in another area (`elsewhere`),
+    or a home society's amenities (pool, play area, clubhouse) on offices or shops from a property site, not the builder's."""
     if elsewhere(text, doc) or larger_than_land(text, doc):
+        return True
+    if not official and doc and not pages.homes(doc) and _HOME_AMENITY.search(text or ""):
         return True
     built = (doc or {}).get("buildings") or []
     plain = _digits(text)

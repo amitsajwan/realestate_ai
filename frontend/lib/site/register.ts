@@ -250,6 +250,18 @@ export function possessionOf(p: RegisterProject): { date: string | null; from: s
 }
 
 /** A card's possession: "Apr 2031", or "Aug 2030 to Jan 2033" for a project whose parts finish at different times. */
+/** Every building 3 floors or fewer (villas, row houses): "towers" and "the tallest has 2 floors" read wrong for them (Panchshil V3
+ *  Villa Phase II: "Towers 30 ... The tallest has 2 floors", 2026-11-19). */
+export function lowRise(p: Pick<RegisterProject, 'buildings'>): boolean {
+  const floors = (p.buildings ?? []).map((b) => b.floors).filter((f): f is number => typeof f === 'number' && f > 0)
+  return floors.length >= 2 && Math.max(...floors) <= 3
+}
+
+/** MahaRERA filed a unit count for some building: without one, each row's "0 homes" says nothing (villas are filed so). */
+export function unitsFiledPerBuilding(p: Pick<RegisterProject, 'buildings'>): boolean {
+  return (p.buildings ?? []).some((b) => (b.units_residential ?? 0) > 0 || (b.units_other ?? 0) > 0)
+}
+
 export function cardPossession(r: { completion_now?: string | null; possession_to?: string | null }): string {
   return r.possession_to && r.completion_now ? `${monthYear(r.completion_now)} to ${monthYear(r.possession_to)}` : monthYear(r.completion_now)
 }
@@ -332,9 +344,10 @@ function ownFaq(p: RegisterProject, nearby: { label?: string | null; name?: stri
     a: whole ? `${shown} is registered with MahaRERA in ${whole.registrations} parts (towers or phases): ${whole.regnos.join(', ')}.`
       : `${shown} is registered with MahaRERA as ${p.regno}.` })
   if (d?.towers) {
-    out.push({ topic: 'size', q: `How many towers and floors does ${shown} have?`,
+    const low = lowRise(p)
+    out.push({ topic: 'size', q: low ? `How many buildings does ${shown} have?` : `How many towers and floors does ${shown} have?`,
       a: `MahaRERA lists ${d.towers} building${d.towers === 1 ? '' : 's'}` + (whole ? ` in registration ${p.regno}, one of the project's ${whole.registrations}` : '')
-        + (d.max_floors ? `, the tallest with ${d.max_floors} floors.` : '.') })
+        + (d.max_floors ? (low ? `, none taller than ${d.max_floors} floor${d.max_floors === 1 ? '' : 's'}.` : `, the tallest with ${d.max_floors} floors.`) : '.') })
   }
   const units = d?.units_total ?? p.units_total
   const what = unitWord(p)

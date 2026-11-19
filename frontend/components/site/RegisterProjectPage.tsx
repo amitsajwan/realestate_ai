@@ -22,7 +22,7 @@ import LocationMapSwitch from '@/components/site/LocationMapSwitch'
 import ProjectHistory from '@/components/site/ProjectHistory'
 import { isCommercial, type Stage } from '@/lib/site/allin'
 import { areaCompareOf, areaName, askedPrices, bhkRange, completionChange, completionPassedOf, displayName, extensionSentence, headingName,
-  homesOf, longDay, lowestPriceInr, mainRegistration, monthYear, offerPrice, otherNames, possessionLabel, possessionOf, priceGap, projectFaq, placePath, soldOutOf,
+  homesOf, longDay, lowestPriceInr, mainRegistration, monthYear, offerPrice, otherNames, possessionLabel, possessionOf, priceGap, projectFaq, placePath, soldOutOf, lowRise, unitsFiledPerBuilding,
   STAGE_LABEL, STAGE_NOTE, stageOf, unitWord, wholeProject as projectScope } from '@/lib/site/register'
 import type { EnrichCheck, Faq, Offer } from '@/lib/site/register'
 import type { ProfilePicture } from '@/lib/site/profile'
@@ -563,27 +563,29 @@ function Cautions({ p }: { p: RegisterProject }) {
 function BuildingsTable({ p }: { p: RegisterProject }) {
   const rows = p.buildings ?? []
   if (!rows.length) return null
+  const units = unitsFiledPerBuilding(p)   // villas are filed with no units per building: a column of zeros says nothing
   return (
     <div role="group" aria-labelledby="buildings-title">
       <SectionHead id="buildings-title" title="Buildings" kind="rera" level={4} />
       <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200">
         <table className="w-full text-left text-sm">
           <thead className="bg-slate-50 text-slate-600">
-            <tr><th className="px-3 py-2 font-semibold">Building</th><th className="px-3 py-2 font-semibold">Floors</th><th className="px-3 py-2 font-semibold">Homes</th><th className="px-3 py-2 font-semibold">Other</th></tr>
+            <tr><th className="px-3 py-2 font-semibold">Building</th><th className="px-3 py-2 font-semibold">Floors</th>
+              {units && <><th className="px-3 py-2 font-semibold">Homes</th><th className="px-3 py-2 font-semibold">Other</th></>}</tr>
           </thead>
           <tbody>
             {rows.map((b, i) => (
               <tr key={i} className="border-t border-slate-200">
                 <td className="px-3 py-2 font-semibold text-slate-900">{[b.name, b.wing].filter(Boolean).join(', ') || `Building ${i + 1}`}</td>
                 <td className="px-3 py-2">{n(b.floors) ?? '-'}</td>
-                <td className="px-3 py-2">{n(b.units_residential) ?? '-'}</td>
-                <td className="px-3 py-2">{n(b.units_other) ?? '-'}</td>
+                {units && <><td className="px-3 py-2">{n(b.units_residential) ?? '-'}</td>
+                <td className="px-3 py-2">{n(b.units_other) ?? '-'}</td></>}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <p className="mt-2 text-xs text-slate-500">As filed with MahaRERA (sanctioned floors).</p>
+      <p className="mt-2 text-xs text-slate-500">As filed with MahaRERA (sanctioned floors){units ? '' : '; no unit count is filed per building'}.</p>
     </div>
   )
 }
@@ -637,7 +639,7 @@ function TowerByTower({ p }: { p: RegisterProject }) {
   return (
     <details className="group rounded-2xl border border-slate-200 bg-white p-4 sm:p-5" data-testid="tower-by-tower">
       <summary className="flex min-h-[44px] cursor-pointer items-center justify-between gap-2 text-lg font-semibold text-slate-900">
-        <h3 className="m-0 text-lg font-semibold">Tower by tower</h3>
+        <h3 className="m-0 text-lg font-semibold">{lowRise(p) ? 'Building by building' : 'Tower by tower'}</h3>
         <span className="text-sm font-normal text-slate-600">
           {[towers ? `${p.towers!.length} registrations` : null, buildings ? `${p.buildings!.length} building${p.buildings!.length === 1 ? '' : 's'}` : null].filter(Boolean).join(', ')}
         </span>
@@ -806,8 +808,9 @@ function RecordSection({ p, shown, facts, linkless = false }: { p: RegisterProje
               note={[whole && homes.across ? `${homes.across.charAt(0).toUpperCase()}${homes.across.slice(1)}.` : null,
                 whole && main.units_total ? `${p.regno} alone: ${main.units_booked != null ? `${n(main.units_booked)} of ` : ''}${n(main.units_total)}.` : null,
                 !unitsRow && homesNote ? `${homesNote}.` : null].filter(Boolean).join(' ') || undefined} /> : null}
-            {d?.towers ? <Row label="Towers" value={`${n(d.towers)} in this registration`}
-              note={[d.max_floors ? `The tallest has ${d.max_floors} floors.` : null, towersNote ? `${towersNote}.` : null].filter(Boolean).join(' ') || undefined} /> : null}
+            {d?.towers ? <Row label={lowRise(p) ? 'Buildings' : 'Towers'} value={`${n(d.towers)} in this registration`}
+              note={[d.max_floors ? (lowRise(p) ? `Low-rise: none taller than ${d.max_floors} floor${d.max_floors === 1 ? '' : 's'}.` : `The tallest has ${d.max_floors} floors.`) : null,
+                towersNote ? `${towersNote}.` : null].filter(Boolean).join(' ') || undefined} /> : null}
             {/* the total is in "Homes booked" already: a row of its own only for the split, or when bookings are not there */}
             {unitsRow && d?.units_total ? <Row label="Units" value={n(d.units_total)}
               note={[d.units_other ? `${n(d.units_residential ?? d.units_total - d.units_other)} homes, ${n(d.units_other)} shops or offices.` : null,
