@@ -58,7 +58,9 @@ for the registered name and refused a place whose name lacked the tower's code (
 
 ### 2. "Map / Satellite" on the location section (BUILT 2026-11-16)
 
-Owner still needs to do their part before the switch appears on the live site (see "What the owner does" below).
+Owner's part done 2026-11-16 (key `avasetu-maps-embed`, GitHub variable `NEXT_PUBLIC_MAPS_EMBED_KEY`). The switch still did not
+show until 2026-11-19: `frontend/Dockerfile` had no `ARG` for the key, so the build dropped it. Any new `NEXT_PUBLIC_*` setting
+needs its `ARG` and `ENV` there as well as in images.yml.
 
 | Part | What | Where |
 |---|---|---|
