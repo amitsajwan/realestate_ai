@@ -85,7 +85,7 @@ describe('a project page in the seller voice', () => {
 
   it("does not promise a price sheet outside the partner's areas", () => {
     page({ ...P, area: { key: 'baner', slug: 'baner', name: 'Baner' } } as RegisterProject)
-    expect(screen.getByTestId('price-help')).toHaveTextContent('outside our main East Pune areas')
+    expect(screen.getByTestId('price-help')).toHaveTextContent('Outside our main East Pune areas')
     expect(screen.getByTestId('ask-offer')).toHaveTextContent('Send your question')
     expect(within(screen.getByTestId('sizes-note')).queryByRole('link')).toBeNull()
   })

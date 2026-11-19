@@ -436,7 +436,7 @@ function LocationSection({ p, shown, nearby, sources }: { p: RegisterProject; sh
       <p className="mt-2 text-xs text-slate-500">
         {m && p.map_from === 'google' ? "The project's pin on Google Maps, checked against its MahaRERA name and pincode."
           : m ? "Approximate area from OpenStreetMap, checked to be near the project's pincode; not the exact plot."
-          : "A map search for the project's name and area; we have not checked this position yet."}{' '}
+          : 'A map search by name.'}{' '}
         <a href={link} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2">Open the map<span className="sr-only"> (opens in a new tab)</span></a>
       </p>
       {(commute.length > 0 || nearby.length > 0) && (
@@ -471,7 +471,7 @@ function LocationSection({ p, shown, nearby, sources }: { p: RegisterProject; sh
       )}
       {(commute.length > 0 || nearby.length > 0) && (
         <p className="mt-2 text-xs text-slate-500" data-testid="distance-note">
-          Straight-line distances from the map position; the drive is longer.
+          Straight-line distances; the drive is longer.
           {nearby.length > 0 && sources.length > 0 && <> Places:{' '}
             {sources.map((s, i) => (
               <React.Fragment key={s.url}>
@@ -513,9 +513,11 @@ function Checks({ p, offer }: { p: RegisterProject; offer: Offer | null }) {
     const c = byKey[key]
     const label = key === 'maharera_general' && unitWord(p) === 'units' ? 'Dates and units booked' : CHECK_NAMES[key]
     const fromRera = key === 'maharera_general' || key === 'buildings'
-    if (!c) rows.push({ label, kind: 'unchecked', note: 'We are still checking this' })
+    // the date only: the check's own note ("regno matches", "within 15 km of the pincode") is our working, the same words on
+    // every page, and told a buyer nothing (own-text measure 2026-11-19)
+    if (!c) rows.push({ label, kind: 'unchecked', note: 'Still checking' })
     else rows.push({ label, kind: c.ok ? (fromRera ? 'rera' : 'checked') : 'unchecked',
-      note: (c.ok ? c.note : 'We are still checking this') + (c.at ? ` (${longDay(c.at)})` : '') })
+      note: c.ok ? (c.at ? `Checked ${longDay(c.at)}` : 'Checked') : 'Still checking' })
   }
   rows.push(...readSources(p, offer))
   return (
@@ -532,10 +534,6 @@ function Checks({ p, offer }: { p: RegisterProject; offer: Offer | null }) {
           </li>
         ))}
       </ul>
-      <p className="mt-3 border-t border-slate-100 pt-3 text-xs text-slate-600">
-        <strong>From MahaRERA</strong>: the regulator&apos;s own record. <strong>Gathered and checked</strong>: found in other public
-        sources and checked by us against MahaRERA and the map. <strong>Not checked yet</strong>: still waiting, or could not be confirmed.
-      </p>
     </details>
   )
 }
@@ -556,7 +554,7 @@ function Cautions({ p }: { p: RegisterProject }) {
           </li>
         ))}
       </ul>
-      <p className="mt-2 text-xs text-slate-600">Worked out from the facts on this page, not an opinion of the project. Every project has some; these are the ones its record shows.</p>
+      <p className="mt-2 text-xs text-slate-600">From the record, not an opinion of the project.</p>
     </div>
   )
 }
@@ -668,10 +666,9 @@ function AreaCompare({ p, shown }: { p: RegisterProject; shown: string }) {
           note={`${n(c.moved.area_moved)} of ${n(c.moved.area_with_dates)} ${c.place} projects being built moved theirs 3 months or more.`} />}
       </dl>
       <p className="mt-2 text-xs text-slate-500" data-testid="area-compare-note">
-        Compared with the other projects still being built in {c.place}, each counted once, from MahaRERA records
-        {p.details_read_at ? ` read ${longDay(p.details_read_at)}` : ''}.
-        {c.booked ? ' Homes booked are the builders\' own counts, which they file on MahaRERA each quarter, so some are a few months old.' : ''}
-        {c.moved ? ' Dates are net of MahaRERA\'s August 2026 order.' : ''}
+        From MahaRERA records{p.details_read_at ? ` read ${longDay(p.details_read_at)}` : ''}.
+        {c.booked ? " Homes booked are the builders' own quarterly counts." : ''}
+        {c.moved ? " Dates net of MahaRERA's August 2026 order." : ''}
       </p>
     </div>
   )
@@ -707,7 +704,6 @@ function BuilderRecord({ p, linkless = false }: { p: RegisterProject; linkless?:
       {p.builder_slug && b.count > 1 && !linkless && (
         <p className="mt-2"><Link href={`/builders/${p.builder_slug}`} className={LINK}>All {b.count} projects by {b.name} in Pune</Link></p>
       )}
-      <p className="mt-2 text-xs text-slate-500">Counted from MahaRERA records we hold; projects outside Pune are not included.</p>
     </div>
   )
 }
@@ -767,7 +763,8 @@ function Possession({ p, shown }: { p: RegisterProject; shown: string }) {
           : <>Completion date filed with MahaRERA.</>}
       </p>
       {completionPassedOf(p) && <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">The filed completion date has passed. Ask for the occupancy certificate (OC) before you book.</p>}
-      <p className="mt-2 text-xs text-slate-500">The builder&apos;s possession date is the one in your agreement for sale: ask for it in writing.</p>
+      {/* said where the filed date moved or passed, where it matters; on every page it was the same line 700 times */}
+      {(change.kind === 'moved' || completionPassedOf(p)) && <p className="mt-2 text-xs text-slate-500">Ask for the possession date in writing in your agreement for sale.</p>}
     </div>
   )
 }
@@ -838,10 +835,7 @@ function RecordSection({ p, shown, facts, linkless = false }: { p: RegisterProje
                 </div>
               ))}
             </dl>
-            <p className="mt-2 text-xs text-slate-600">
-              {p.web_facts?.read_at ? `Last checked ${longDay(p.web_facts.read_at)}. ` : ''}Each is on the builder&apos;s own site or on two sites
-              that agree. Where these differ from MahaRERA, MahaRERA&apos;s record is the one that counts.
-            </p>
+            {p.web_facts?.read_at && <p className="mt-2 text-xs text-slate-600">Last checked {longDay(p.web_facts.read_at)}. MahaRERA counts where they differ.</p>}
           </div>
         )}
         <BuilderRecord p={p} linkless={linkless} />
@@ -1047,7 +1041,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
 
           <RecordSection p={p} shown={shown} facts={facts} linkless={!!seller} />
 
-          {!closed && <AskPrompt name={shown} note={askNote} whatsappUrl={whatsappUrl} label={PROJECT_CTA.today} />}
+          {!closed && <AskPrompt name={shown} whatsappUrl={whatsappUrl} label={PROJECT_CTA.today} />}
 
           {seller && (seller.others ?? []).length > 0 && (
             <section aria-labelledby="more-title" data-testid="more-from-agent">
@@ -1090,7 +1084,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
 
         <aside className="min-w-0 space-y-6 lg:sticky lg:top-20 lg:self-start">
           {/* the side column stays in view on desktop, so the ask does too; phones get the bottom bar instead */}
-          {!closed && <div className="hidden lg:block"><AskPrompt name={shown} note={askNote} whatsappUrl={whatsappUrl} label={PROJECT_CTA.today} compact /></div>}
+          {!closed && <div className="hidden lg:block"><AskPrompt name={shown} whatsappUrl={whatsappUrl} label={PROJECT_CTA.today} compact /></div>}
         </aside>
       </div>
 

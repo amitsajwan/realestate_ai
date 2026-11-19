@@ -10,7 +10,8 @@ const P = {
   area: { key: 'wagholi', slug: 'wagholi', name: 'Wagholi' }, completion_now: '2029-03-31', completion_at_registration: '2029-03-31',
   units_total: 100, units_booked: 10, details_read_at: '2026-10-03', listed_or_updated: '2026-01-02', completion_passed: false,
   maharera_url: null, paragraph: 'Rose Court is a project in Wagholi.', indexable: true, finished: false, source: 'MahaRERA', same_area: [],
-  checks: [{ key: 'places', label: 'Location', ok: false, at: '2026-11-04', note: 'no pincode centre to check against' }],
+  checks: [{ key: 'places', label: 'Location', ok: false, at: '2026-11-04', note: 'no pincode centre to check against' },
+    { key: 'maharera_general', label: 'MahaRERA', ok: true, at: '2026-11-05', note: "regno matches (the register's read of 05-11-2026)" }],
 } as unknown as RegisterProject
 
 describe('how we checked the page', () => {
@@ -21,6 +22,14 @@ describe('how we checked the page', () => {
     expect(box).not.toHaveAttribute('open')
     expect(screen.getByText('Sources')).toBeInTheDocument()
     expect(box.textContent).not.toContain('no pincode centre')
-    expect(box.textContent).toContain('We are still checking this')
+    expect(box.textContent).toContain('Still checking')
+  })
+
+  it('says when a passed check was made, not how we matched it: the same working on every page told a buyer nothing', () => {
+    render(<RegisterProjectPage p={P} siteUrl="https://avasetu.in" facts={null} />)
+    const box = screen.getByTestId('checks')
+    expect(box.textContent).toContain('Checked 5 Nov 2026')
+    expect(box.textContent).not.toContain('regno matches')
+    expect(box.textContent).not.toContain("the regulator's own record")
   })
 })

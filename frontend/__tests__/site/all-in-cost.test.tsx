@@ -57,7 +57,10 @@ describe('prices on a project page fold out their all-in cost', () => {
     expect(two).toHaveTextContent('All-in cost of the 2 BHK at ₹96 L: about ₹1.08 Cr')
     expect(within(two).getByText('GST (5%)')).toBeInTheDocument()
     expect(within(two).getByTestId('all-in-total')).toHaveTextContent('₹1.08 Cr')
-    expect(two).toHaveTextContent(/Not included: parking, club house, maintenance deposit/)
+    // the builder's charges are said once under the list, not in every row's fold-out
+    expect(two).not.toHaveTextContent(/Not included/)
+    expect(screen.getAllByText(/Not included: parking, club house, maintenance deposit/)).toHaveLength(1)
+    expect(within(two).queryByText(/6% if a woman buys/)).toBeNull()
     expect(one).toHaveTextContent('All-in cost of the 1 BHK at ₹40 L: about ₹43.5 L')
     expect(within(one).getByText('GST (1%)')).toBeInTheDocument()
   })
