@@ -13,6 +13,7 @@ import { parseQuery } from '@/lib/site/finder'
 import { fromRegister } from '@/lib/site/finderItems'
 import { agentOffers } from '@/lib/site/offers'
 import { getAreaMap } from '@/lib/site/hubs'
+import { DETAILS_COMING_PATH, detailsComing } from '@/lib/site/detailsComing'
 import { getRegisterPlaces, getRegisterProjects, placePath, searchPlace, searchRegister } from '@/lib/site/register'
 import type { RegisterPlace } from '@/lib/site/register'
 
@@ -47,6 +48,8 @@ export default async function ProjectsPage({ searchParams }: Props) {
   const ours = all.filter((r) => r.area && ((r.indexable && r.active !== false) || offers.has(r.regno.toUpperCase())))
   const finished = all.filter((r) => r.area && r.active === false).length
   const items = fromRegister(ours, offers)
+  // the new projects left out above are not hidden: one page shows what we have of them (owner 2026-11-19)
+  const coming = detailsComing(all, new Set(offers.keys())).reduce((n, g) => n + g.items.length, 0)
   const mapData = fq.area ? await getAreaMap(fq.area.replace(/-/g, '_')).catch(() => null) : null
   const maps = mapData && fq.area ? { [fq.area]: { name: mapData.name, map: mapData.map, box: mapData.box, attribution: mapData.attribution } } : {}
   return (
@@ -78,6 +81,12 @@ export default async function ProjectsPage({ searchParams }: Props) {
             {items.length} projects being built or just finished in our areas, each with its MahaRERA record and the date we read it.
             {finished > 0 && <> {finished} older, finished projects are left out; search finds them.</>}
           </p>
+          {coming > 0 && (
+            <p className="mt-2 max-w-3xl text-slate-800" data-testid="details-coming-link">
+              Our team is still collecting prices and pictures for {coming} more new projects in these areas.{' '}
+              <Link href={DETAILS_COMING_PATH} className="inline-flex min-h-[44px] items-center font-semibold text-[#0f2340] underline underline-offset-2">See what we have on them now</Link>
+            </p>
+          )}
         </div>
 
         {zones.length > 0 && (

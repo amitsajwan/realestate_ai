@@ -32,6 +32,7 @@ import { formatPrice, groupIndian } from '@/lib/site/format'
 import { agentPath } from '@/lib/site/slug'
 import { emiFor, OWN_CASH_NOTE, ownCash } from '@/lib/site/upfront'
 import { projectUpdated, registerAnswer } from '@/lib/site/projectFacts'
+import { DETAILS_COMING_PATH, missingDetails, sayList } from '@/lib/site/detailsComing'
 import ProjectPoints, { HomeSizes } from '@/components/site/ProjectPoints'
 import { backing, priceHelp, sizeHelp, type Backing, type PriceHelpText } from '@/lib/site/sellerHelp'
 
@@ -922,6 +923,8 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
   // form, ask box or phone bar, and the projects still being built nearby come straight after the answer; an agent's listing of
   // one (a resale flat) keeps its form
   const closed = !!p.finished && !seller && !offer
+  // only Avasetu's own page of a project still being built, out of search, and an agent not selling it (their sheet is the details)
+  const gaps = !p.indexable && !closed && !seller && !offer && !soldOutOf(p) ? missingDetails(p) : []
   const backs: Backing = backing(p, { closed, offer: !!liveOffer(facts)?.price_inr, seller: !!seller })
   const others = !seller && (p.same_area.length > 0 || closed) && (p.area || placeName) ? (
             <section aria-labelledby="same-title" data-testid="compare">
@@ -1005,6 +1008,22 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
         <div className="mt-6 max-w-4xl">
           <p className="text-lg font-medium leading-relaxed text-slate-900" data-testid="project-answer">{answer}</p>
           {updated && <p className="mt-1 text-sm text-slate-600" data-testid="updated">Updated {longDay(updated)}</p>}
+        </div>
+      )}
+
+      {/* a page not in search yet says what it lacks instead of passing for a finished page (owner 2026-11-19): our team is
+          reading it, this is what we have now */}
+      {gaps.length > 0 && (
+        <div className="mt-6 max-w-4xl rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3" data-testid="details-coming">
+          <p className="font-semibold text-slate-900">Our team is still collecting details on {shown}.</p>
+          <p className="mt-1 text-slate-800">
+            We do not have {sayList(gaps)} yet. What you see here is what we have now: MahaRERA&apos;s record, read on the date shown.
+            Ask us and we send you what we find first.
+          </p>
+          <p className="mt-1 flex flex-wrap gap-x-5">
+            <a href="#enquire" className="inline-flex min-h-[44px] items-center font-semibold text-[#0f2340] underline underline-offset-2">Ask for the details</a>
+            <Link href={DETAILS_COMING_PATH} className="inline-flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2">Other new projects we are reading</Link>
+          </p>
         </div>
       )}
 
