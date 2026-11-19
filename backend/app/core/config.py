@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     # RUN_BACKGROUND_LOOPS: the API process starts the background loops (engage, newsroom, calendar, listing reels).
     # Set false where `python -m app.worker` runs them (deploy/gcp/docker-compose.yml). Leases keep it safe if both run.
     run_background_loops: bool = True
+    # the media container's worker role (deploy/gcp/docker-compose.yml): "media" draws reels on the VM, "dispatch" only starts
+    # the Cloud Run renderer. The system watch expects the loops of the roles that run (app.worker.deployed_intervals).
+    media_role: str = "media"
 
     # Demo/Sample data settings
     enable_sample_data: bool = False

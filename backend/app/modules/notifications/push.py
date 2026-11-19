@@ -48,6 +48,8 @@ TITLES = {
     "lead_asked": "An agent asked for a lead",
     "trial_claimed": "New trial claimed",
     "invite_request": "New invite request",
+    "system_alert": "Avasetu needs a fix",       # admin.watch: a loop stopped, credits low, reads empty
+    "system_daily": "Avasetu daily check",       # admin.watch: every morning, so its absence is noticed
 }
 
 # a buyer's number never shows on a lock screen (notify() keeps them out of summaries; this also catches one in a quoted message)
