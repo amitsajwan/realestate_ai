@@ -216,9 +216,13 @@ def searchable(doc: dict, now: Optional[datetime] = None) -> bool:
     SEARCH_HOLD_DAYS from that decision (`search_state` on the record, kept by areastats.enrich). Between 2026-10-26 and 11-05
     the sitemap went from about 13,000 project pages to 243 to 343 and pages went in and out as rounds filled or emptied them;
     a site that keeps changing its mind reads as one not yet settled (search-recovery.md). A page never in search has no
-    hold: it goes in once ready. A page held in still leaves at once when it breaks (`must_leave`)."""
-    ready = ready_for_search(doc)
+    hold: it goes in once ready. A page held in still leaves at once when it breaks (`must_leave`). A page waiting its turn
+    (`search_state` {wait}, from 2026-11-19) is out until `areastats.entry` lets it in: no more than a set number of new pages a
+    day, so the site grows steadily instead of doubling during a Google core update."""
     held = doc.get("search_state") or {}
+    if held.get("wait"):
+        return False
+    ready = ready_for_search(doc)
     at = held.get("at")
     if not isinstance(held.get("in"), bool) or not isinstance(at, datetime) or held["in"] == ready:
         return ready
@@ -226,6 +230,11 @@ def searchable(doc: dict, now: Optional[datetime] = None) -> bool:
         return False
     at = at if at.tzinfo else at.replace(tzinfo=timezone.utc)
     return held["in"] if (now or datetime.now(timezone.utc)) - at < timedelta(days=SEARCH_HOLD_DAYS) else ready
+
+
+def waiting(doc: dict) -> bool:
+    """Ready for search and waiting its turn (`areastats.entry`): not thin, so not read again sooner than a page in search."""
+    return bool((doc.get("search_state") or {}).get("wait"))
 
 
 def must_leave(doc: dict) -> bool:
@@ -236,12 +245,15 @@ def must_leave(doc: dict) -> bool:
 
 def search_state(doc: dict, now: datetime) -> Optional[dict]:
     """The `search_state` to store after a round, or None when it stands: {in, at} when the decision changed. A page never in
-    search and not ready gets none, so it has no hold to wait out."""
+    search and not ready gets none, so it has no hold to wait out. A page that would go in (new, or back after its hold) waits
+    its turn instead ({wait, at}): `areastats.entry` lets the day's few in, the richest first. One already waiting stays so."""
     held = doc.get("search_state") or {}
+    if held.get("wait"):
+        return None
     decided = searchable(doc, now)
     if held.get("in") == decided or (not decided and not isinstance(held.get("in"), bool)):
         return None
-    return {"in": decided, "at": now}
+    return {"wait": True, "at": now} if decided else {"in": False, "at": now}
 
 
 _HOME_WORDS = re.compile(r"\b(?:homes?|flats?|apartments?|bhk|residential|residents?)\b", re.I)
