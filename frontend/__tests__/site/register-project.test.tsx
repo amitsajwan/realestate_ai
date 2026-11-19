@@ -625,3 +625,17 @@ describe('a page for offices or shops', () => {
     expect(projectFaq(P).map((f) => f.q)).toContain('How many homes in Rohan Abhilasha 4 are booked?')
   })
 })
+
+describe('chatWhatsAppUrl', () => {
+  const before = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER
+  afterEach(() => { process.env.NEXT_PUBLIC_WHATSAPP_NUMBER = before })
+
+  it("is the WhatsApp assistant's number, not the legal pages' contact", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { chatWhatsAppUrl } = require('@/lib/site/links')
+    process.env.NEXT_PUBLIC_WHATSAPP_NUMBER = '919834256406'
+    expect(chatWhatsAppUrl()).toBe('https://wa.me/919834256406')
+    process.env.NEXT_PUBLIC_WHATSAPP_NUMBER = ''
+    expect(chatWhatsAppUrl()).toBeNull()
+  })
+})

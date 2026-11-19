@@ -28,7 +28,7 @@ import { registerDescription, registerTitle } from '@/lib/site/projectSeo'
 import type { Offer } from '@/lib/site/register'
 import { bhkRange, mainAgent, priceRange, projectLead, projectWhatsAppMessage } from '@/lib/site/projects'
 import { catalogProjectMetadata, projectJsonLd } from '@/lib/site/seo'
-import { showDirectContact, whatsappLink } from '@/lib/site/links'
+import { chatWhatsAppUrl, showDirectContact, whatsappLink } from '@/lib/site/links'
 import { agentPath } from '@/lib/site/slug'
 import { PROJECT_CTA } from '@/lib/site/strings'
 import { catalogFaq, getWebFacts } from '@/lib/site/webfacts'
@@ -112,7 +112,7 @@ export default async function SharedProjectPage({ params }: Props) {
     const facts = await getPropertyFacts({ rera: r.regno, project: r.name, locality: r.area?.name }).catch(() => null)
     return (
       <MarketingShell hot={{ area: r.area?.slug, exclude: r.slug }} stickyBar>
-        <RegisterProjectPage p={r} siteUrl={getMarketingConfig().siteUrl} facts={facts} whatsappUrl={getMarketingConfig().whatsappUrl}
+        <RegisterProjectPage p={r} siteUrl={getMarketingConfig().siteUrl} facts={facts} whatsappUrl={chatWhatsAppUrl()}
           lists={r.pune_place ? (await getFacets()).filter((f) => f.place === r.pune_place?.key && f.indexable && !f.builder) : []} />
         <ComingSoonDock items={await comingSoonFor(r.pune_place?.key)} bottomBar />
       </MarketingShell>
