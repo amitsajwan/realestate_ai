@@ -2,10 +2,11 @@
 
 Closed by default, like the concierge: only superusers and ids in CONCIERGE_OWNER_IDS get in (403 otherwise).
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict
 
 from app.core import brand
@@ -21,6 +22,15 @@ from . import health, watch
 from .service import AdminError, AdminService
 
 router = APIRouter()
+# no auth: GET /public/alive, for the outside check (.github/workflows/watchdog.yml). It names the failing rows' keys, nothing more
+public_router = APIRouter()
+
+
+@public_router.get("/alive")
+async def alive() -> JSONResponse:
+    """200 while the system watch runs and no Health row is red; 503 otherwise, so a scheduled check fails and GitHub emails."""
+    out = await watch.alive(get_database(), datetime.now(timezone.utc))
+    return JSONResponse(out, status_code=200 if out["ok"] else 503, headers={"Cache-Control": "no-store"})
 
 
 async def owner_only(user: User = Depends(current_active_user)) -> User:

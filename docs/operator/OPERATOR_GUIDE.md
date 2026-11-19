@@ -452,7 +452,8 @@ lead alerts**. Their phone then rings for a new lead, a buyer waiting on WhatsAp
 
 | Variable | Default | What it does |
 |---|---|---|
-| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | empty (alerts off) | The key pair that signs our alerts. Make it once (below); keep the private key secret. Changing it turns alerts off on every phone until Studio is opened there again. |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | empty (alerts off) | The key pair that signs our alerts (set on the VM 2026-11-19; `keys.ps1` sets them). Make it once (below); keep the private key secret. Changing it turns alerts off on every phone until Studio is opened there again. |
+| `MEDIA_ROLE` | `media` | The media container's role: `dispatch` once reels are drawn by the Cloud Run renderer. The system watch and `health_check.sh` expect that role's loops. |
 | `VAPID_SUBJECT` | `mailto:hello@avasetu.in` | Who the push services (Google, Apple, Mozilla) write to about our alerts. |
 
 Turn them on once:
@@ -592,6 +593,19 @@ sending it; `--test-alert` sends one test alert).
 Not failures: Meta unreachable for a moment, and no Page token configured. Alerts go out when the set of failures changes, every 6 hours
 while it lasts, and once on recovery. In the app, **Admin → Health** shows the same picture for Facebook, Instagram, WhatsApp, AI
 (pinged at most every 10 minutes), Posting, Comments and News, with the fix in plain words.
+
+**The system watch (LIVE 2026-11-19)** tells the owner without anyone opening a screen (`backend/app/modules/admin/watch.py`, a
+loop in the conversations worker). Every 15 minutes it reads the same rows as **Admin → Health**, plus three of its own:
+**Background loops** (every loop of the roles that run, `app.worker.deployed_intervals`; `MEDIA_ROLE=dispatch` leaves out the
+three reel-drawing loops), **Project reading** (reads in 24 hours, how many the AI gave no answer for, pages that went into
+search) and **System watch** (itself). A red row, or low Serper credits, or reads coming back empty, is told once on the Studio
+badge and the owner's phones ("Avasetu needs a fix"), again once a day while it lasts, and "working again" when it clears. Every
+morning after 09:00 IST comes "Avasetu daily check", problems or not: **no morning check means something is down.**
+Phone alerts need `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` (set 2026-11-19 with `keys.ps1`) and the owner turning on alerts once in
+Studio on the phone. From outside, `.github/workflows/watchdog.yml` reads `/api/v1/public/alive` every 3 hours (503 when the watch
+stopped or a row is red) and the home page; a failure is a failed GitHub run, which GitHub emails to the repo owner, so a dead
+server or a dead conversations worker is still heard. `health_check.sh` below only writes `~/health.log` until `ALERT_WEBHOOK_URL`
+or `ALERT_EMAIL` is set (neither was, 2026-11-19).
 
 ### 6.2 Backups and the restore test ✅
 - `backup.sh` (cron, nightly 21:30 UTC = 03:00 IST) dumps the database with `mongodump --archive --gzip` into

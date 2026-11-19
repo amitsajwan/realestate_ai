@@ -29,10 +29,11 @@ LoopTable = Dict[str, Callable[[], Awaitable[Any]]]
 ALL_LOOP_NAMES = (
     "engage", "newsroom", "calendar", "calendar_reels", "listing_reels", "marketing_runs", "project_enrich", "insights",
     "answer_gaps", "inbound_messages", "token_cleanup", "radar", "seo", "communities", "knowledge_index", "lead_followups",
+    "system_watch",
     "video_cleanup", "geoip", "press", "area_pictures", "area_photo_scout",
 )   # render_dispatch is not among them: only the `dispatch` role starts it (it calls Cloud Run; development has none)
 ROLE_LOOPS = {
-    "conversations": ("engage", "answer_gaps", "inbound_messages", "lead_followups"),
+    "conversations": ("engage", "answer_gaps", "inbound_messages", "lead_followups", "system_watch"),
     "newsroom": ("newsroom", "seo", "communities", "project_enrich", "radar", "insights", "calendar", "token_cleanup",
                  "knowledge_index", "video_cleanup", "geoip", "press", "area_pictures", "area_photo_scout"),
     "media": ("calendar_reels", "listing_reels", "marketing_runs"),
@@ -44,6 +45,7 @@ ROLE_LOOPS = {
 def loops() -> LoopTable:
     """Lease name -> loop. The names are also the heartbeat names."""
     from app.modules.admin.video_cleanup import loop as video_cleanup_loop
+    from app.modules.admin.watch import loop_with as system_watch_loop
     from app.modules.areastats.enrich import loop as enrich_loop
     from app.modules.areastats.picturesloop import loop as area_pictures_loop
     from app.modules.calendar.runner import loop as calendar_loop
@@ -73,7 +75,9 @@ def loops() -> LoopTable:
             "communities": communities_loop, "knowledge_index": knowledge_index_loop, "render_dispatch": dispatch_loop,
             "lead_followups": lead_followups_loop, "video_cleanup": video_cleanup_loop, "geoip": geoip_loop,
             "press": press_loop, "area_pictures": area_pictures_loop,
-            "area_photo_scout": area_photo_scout_loop}
+            "area_photo_scout": area_photo_scout_loop,
+            # in the conversations worker, apart from the newsroom loops it watches; given this table's intervals
+            "system_watch": system_watch_loop(deployed_intervals)}
 
 
 def requested_loop_names(role: Optional[str] = None, value: Optional[str] = None) -> Tuple[str, ...]:
@@ -134,6 +138,7 @@ async def run(stop: asyncio.Event, table: Optional[LoopTable] = None, get_db: Ca
 def expected_intervals() -> Dict[str, Optional[float]]:
     """Loop name -> seconds between cycles, or None when the loop is switched off by config (it is not checked then)."""
     from app.modules.admin.video_cleanup import INTERVAL_S as VIDEO_CLEANUP_INTERVAL_S
+    from app.modules.admin.watch import INTERVAL_S as SYSTEM_WATCH_INTERVAL_S
     from app.modules.areastats.enrich import POLL_SECONDS as ENRICH_POLL_S
     from app.modules.areastats.enrich import load as enrich_cfg
     from app.modules.areastats.picturesloop import POLL_SECONDS as AREA_PICTURES_INTERVAL_S
@@ -189,7 +194,21 @@ def expected_intervals() -> Dict[str, Optional[float]]:
         "press": float(PRESS_INTERVAL_S) if press_on() else None,  # PRESS_AGENT (the monthly press story and pitch drafts)
         "area_pictures": float(AREA_PICTURES_INTERVAL_S) if area_pictures_on() else None,  # AREA_FROM_ABOVE + Copernicus creds
         "area_photo_scout": float(PHOTO_SCOUT_INTERVAL_S) if photo_scout_cfg().enabled else None,  # AREA_PHOTO_SCOUT
+        "system_watch": float(SYSTEM_WATCH_INTERVAL_S),  # always on: tells the owner when any loop here stops
     }
+
+
+def deployed_roles() -> Tuple[str, ...]:
+    """The roles the deploy runs (deploy/gcp/docker-compose.yml): conversations, newsroom, and the media container's role
+    (MEDIA_ROLE: "dispatch" since reels are drawn by Cloud Run, so calendar_reels, listing_reels and marketing_runs do not run)."""
+    media = settings.media_role if settings.media_role in ROLE_LOOPS else "media"
+    return ("conversations", "newsroom", media)
+
+
+def deployed_intervals() -> Dict[str, Optional[float]]:
+    """`expected_intervals` for the loops of the deployed roles only: what the system watch expects to see running."""
+    names = {n for role in deployed_roles() for n in ROLE_LOOPS[role]}
+    return {k: v for k, v in expected_intervals().items() if k in names}
 
 
 def evaluate(docs: Dict[str, dict], intervals: Dict[str, Optional[float]], now: datetime) -> Tuple[List[str], List[str]]:
