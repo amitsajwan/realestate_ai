@@ -19,7 +19,7 @@ export interface RegisterProject {
   /** newest date this page's facts changed (our crawler or MahaRERA); null when unknown */
   page_updated?: string | null
   /** the promoter's other projects in our register */
-  same_promoter?: { name: string; marketed_name?: string | null; search_name?: string | null; slug: string; completion_now: string | null
+  same_promoter?: { name: string; marketed_name?: string | null; search_name?: string | null; market_name?: string | null; slug: string; completion_now: string | null
     /** its lowest published size price and the sizes priced (backend pages.project_page), like same_area */
     price_from?: number | null; bhk?: string | null }[]
   regno: string
@@ -73,6 +73,12 @@ export interface RegisterProject {
   sold_out?: boolean
   /** how people search for the project (backend seo/targets.py, docs/plan/rank-loop.md R1): leads the title and H1 */
   search_name?: string | null
+  /** the name the sites printing its MahaRERA number sell it under ("VTP Altamira"; backend seo/marketname.py): after search_name */
+  market_name?: string | null
+  /** the place those sites put it in when it is not ours ("Kharadi" for a Wagholi pincode): the title names both, the page which is which */
+  market_place?: string | null
+  /** how many of those sites name that place */
+  market_sites?: number | null
   /** the name with the builder's brand in front when MahaRERA's lacks it ("Kolte Patil Life Republic"; backend pages.branded_name) */
   branded_name?: string | null
   /** Google's "People also ask" questions about it, answered from our facts (backend seo/questions.py, R4) */
@@ -454,6 +460,7 @@ export interface RegisterListItem {
   name: string
   marketed_name?: string | null
   search_name?: string | null
+  market_name?: string | null
   aliases?: string[]
   units_total?: number | null
   units_booked?: number | null
@@ -619,10 +626,13 @@ export function sizePriceLine(rows: { bhk: string | number; from_inr: number }[]
   return [...best.entries()].sort((a, b) => a[0] - b[0]).slice(0, most).map(([n, inr]) => `${n} BHK ${formatPrice(inr)}`).join(' · ')
 }
 
-/** The name buyers know the project by: how they search for it (search_name), else with its builder's brand in front when the
- *  name lacks it (branded_name, docs/plan/rival-housiey-ravet.md L4), else the marketed name, else MahaRERA's. */
-export function displayName(p: { name: string; marketed_name?: string | null; search_name?: string | null; branded_name?: string | null }): string {
-  return (p.search_name || '').trim() || (p.branded_name || '').trim() || (p.marketed_name || '').trim() || p.name
+/** The name buyers know the project by: how they search for it (search_name), else the name the sites printing its MahaRERA
+ *  number sell it under (market_name, backend seo/marketname.py), else with its builder's brand in front when the name lacks it
+ *  (branded_name, docs/plan/rival-housiey-ravet.md L4), else the marketed name, else MahaRERA's. Backend pages.shown_name is the
+ *  same order. */
+export function displayName(p: { name: string; marketed_name?: string | null; search_name?: string | null; market_name?: string | null;
+  branded_name?: string | null }): string {
+  return (p.search_name || '').trim() || (p.market_name || '').trim() || (p.branded_name || '').trim() || (p.marketed_name || '').trim() || p.name
 }
 
 /** Other names worth showing ("Also known as"): aliases and the legal name, minus the ones already displayed. */
@@ -730,7 +740,7 @@ export function completionChange(p: Pick<RegisterProject, 'completion_now' | 'co
 /** The page heading's name: the one buyers know, with the phase when MahaRERA's name carries one and that name does not ("Park
  *  Eden" filed as "PARK EDEN PHASE I" is "Park Eden Phase I"), so two phases' pages do not read as one project. A page that stands
  *  for several registrations (`project`) is the whole project's and carries no phase. */
-export function headingName(p: { name: string; marketed_name?: string | null; search_name?: string | null; branded_name?: string | null;
+export function headingName(p: { name: string; marketed_name?: string | null; search_name?: string | null; market_name?: string | null; branded_name?: string | null;
   project?: ProjectScope | null }): string {
   const shown = displayName(p)
   // a page for every phase of a project names the project: its main registration's phase would make it read as one phase

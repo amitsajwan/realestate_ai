@@ -851,7 +851,12 @@ def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None, ix
         "marketed_name": names(doc)[0], "aliases": names(doc)[1], "page_updated": page_updated(doc),
         # how people search for the page (seo.targets, rank-loop R1): leads the title and H1; the legal name stays in the body
         "search_name": doc.get("search_name") or None,
-        # the name with the builder's brand in front when the name lacks it (L4): after search_name, before the marketed name
+        # the name the sites printing its MahaRERA number sell it under (seo.marketname): after search_name, before branded_name
+        "market_name": doc.get("market_name") or None,
+        # the place those sites put it in when it is not ours ("Kharadi" for a Wagholi pincode): the title says both, the page which is which
+        "market_place": doc.get("market_place") or None,
+        "market_sites": (doc.get("market_read") or {}).get("place_sites") or None,
+        # the name with the builder's brand in front when the name lacks it (L4): after the market name, before the marketed name
         "branded_name": branded_name(doc),
         # "People also ask" questions answered from our facts (seo.questions, R4), each with its source and its topic:
         # the topic is what lets the page drop its own question on a topic a real one already covers
@@ -882,7 +887,7 @@ SAME_PROMOTER = 8
 
 def same_promoter(doc: dict, docs: List[dict], ix: Optional["LoadIndex"] = None) -> List[dict]:
     """Up to 8 other pages by the same promoter, active (not finished) first: {name, marketed_name, slug, completion_now}."""
-    return [{"name": d.get("name", ""), "marketed_name": names(d)[0], "search_name": d.get("search_name") or None, "branded_name": branded_name(d), "slug": d["page_slug"],
+    return [{"name": d.get("name", ""), "marketed_name": names(d)[0], "search_name": d.get("search_name") or None, "market_name": d.get("market_name") or None, "branded_name": branded_name(d), "slug": d["page_slug"],
              "completion_now": _day(d.get("completion_now"))} for d in promoter_pages(doc, docs, ix)]
 
 
@@ -905,9 +910,16 @@ def promoter_pages(doc: dict, docs: List[dict], ix: Optional["LoadIndex"] = None
     return mine[:SAME_PROMOTER]
 
 
+def shown_name(d: dict) -> str:
+    """The name a project's page leads with, and every link and card into it: how people search for it (seo.targets), else the
+    name the sites printing its number sell it under (seo.marketname), else with its brand in front, else its marketed name.
+    The site's lib/site/register.ts displayName is the same order."""
+    return d.get("search_name") or d.get("market_name") or branded_name(d) or names(d)[0]
+
+
 def card_name(d: dict) -> str:
     """The name a project's card in another page's list shows."""
-    return d.get("search_name") or branded_name(d) or names(d)[0]
+    return shown_name(d)
 
 
 def _one_per_name(docs: List[dict], doc: dict) -> List[dict]:
@@ -1302,6 +1314,7 @@ def _listing(every: List[dict], area: Optional[str], only_indexable: bool, limit
 
     return [{**finder(d), "slug": d["page_slug"], "regno": d.get("regno") or d["_id"], "name": d.get("name", ""), "marketed_name": names(d)[0],
              "search_name": d.get("search_name") or None,
+             "market_name": d.get("market_name") or None,
              "branded_name": branded_name(d),
              "area": d.get("locality"), "units_total": _count(d.get("units_total")), "units_booked": booked(d),
              "place": d.get("pune_place"), "place_name": d.get("pune_place_name"),

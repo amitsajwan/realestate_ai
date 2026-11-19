@@ -10,7 +10,7 @@ import StickyJoinBar from '@/components/marketing/StickyJoinBar'
 import { PROJECT_CTA } from '@/lib/site/strings'
 import { pageWhatsApp } from '@/lib/site/links'
 import { jsonLdString } from '@/lib/marketing/seo'
-import { registerProjectJsonLd } from '@/lib/site/projectSeo'
+import { registerProjectJsonLd, soldAsLine } from '@/lib/site/projectSeo'
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
 import type { RegisterProject } from '@/lib/site/register'
 import type { FacetLink } from '@/lib/site/facets'
@@ -239,6 +239,7 @@ function Hero({ p, price, photo, linkless = false, closed = false, callback, emi
   const area = areaName(p)
   const aka = otherNames(p, [p.name, heading])   // the legal name has its own line
   const legal = p.name.trim().toLowerCase() !== heading.trim().toLowerCase()
+  const soldAs = soldAsLine(p)
   const logo = p.builder?.logo ?? null
   const whereMap = photo ? null : p.location_picture ?? null
   return (
@@ -309,6 +310,7 @@ function Hero({ p, price, photo, linkless = false, closed = false, callback, emi
       <ListThisProject regno={p.regno} />
       {legal && <p className="mt-2 text-sm text-slate-300" data-testid="legal-name">Filed on MahaRERA as {p.name}</p>}
       {aka.length > 0 && <p className="mt-1 text-sm text-slate-300" data-testid="aka">Also known as: {aka.join(', ')}</p>}
+      {soldAs && <p className="mt-1 text-sm text-slate-300" data-testid="sold-as">{soldAs}</p>}
       {p.group && (
         <p className="mt-2 text-base text-white" data-testid="group">
           Sold as <span className="font-semibold">{p.group.name}</span>{p.group.tower ? ` (${p.group.tower})` : ''} —{' '}
