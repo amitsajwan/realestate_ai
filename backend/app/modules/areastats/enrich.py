@@ -73,7 +73,7 @@ from app.modules.newsroom.policy import AREA_PINCODES, SHARED_PINCODES, UPPER_KH
 from app.modules.newsroom.store import Store
 from app.platform import trace
 
-from . import brands, budget, hot, launches, pagefacts, pages, prices, pricing, profile, readings, searchconsole, webfacts, websearch
+from . import brands, budget, entry, hot, launches, pagefacts, pages, prices, pricing, profile, readings, searchconsole, webfacts, websearch
 from .websearch import mentions as websearch_mentions
 from .service import _day
 
@@ -252,6 +252,7 @@ def wider_again(d: dict, now: datetime) -> bool:
     are stored, so it costs model calls and next to no Serper credit."""
     done = d.get("enriched_at")
     return (isinstance(done, datetime) and now - _aware(done) >= timedelta(days=RETRY_DAYS) and not pages.searchable(d, now)
+            and not pages.waiting(d)
             and (unanswered(d) or read_without_answers(d)))
 
 
@@ -347,7 +348,7 @@ def priority(d: dict, urgent: set, now: datetime, shown: frozenset = frozenset()
 def launch_due(d: dict, now: datetime) -> bool:
     """A new launch anywhere in Pune (areastats.launches) not yet in search, unread or not read in LAUNCH_RETRY_DAYS. Once in
     search it goes back to the common order."""
-    if not launches.fresh(d, now) or not worth_model(d) or parked(d, now) or pages.searchable(d, now):
+    if not launches.fresh(d, now) or not worth_model(d) or parked(d, now) or pages.searchable(d, now) or pages.waiting(d):
         return False
     done = d.get("enriched_at")
     return not isinstance(done, datetime) or now - _aware(done) >= timedelta(days=LAUNCH_RETRY_DAYS)
@@ -453,7 +454,7 @@ def _priority(d: dict, now: datetime, shown: frozenset = frozenset()) -> Optiona
     # when a service did not answer (no builder's site found today is not found tomorrow either, and a round costs model calls)
     days = RETRY_DAYS if unanswered(d) else (HOT_REFRESH_DAYS if complete(d) else TOP_RETRY_DAYS) if is_hot else \
         (HOT_REFRESH_DAYS if complete(d) else TOP_RETRY_DAYS) if top else \
-        THIN_RETRY_DAYS if pages.indexable(d) and not pages.searchable(d) else REFRESH_DAYS
+        THIN_RETRY_DAYS if pages.indexable(d) and not pages.searchable(d) and not pages.waiting(d) else REFRESH_DAYS
     if isinstance(done, datetime) and unread_by_family(d):
         return (2, 0, -seen)                                    # with the pages Google shows: it decides whether this page may join them
     if not legacy and not old_writer and isinstance(done, datetime) and now - _aware(done) < timedelta(days=days):
@@ -1649,6 +1650,7 @@ async def loop() -> None:
     last_backfill: Optional[datetime] = None
     last_read: Optional[datetime] = None
     last_prices: Optional[datetime] = None
+    last_entry: Optional[datetime] = None
     pruned_day: Optional[str] = None
     while True:
         cfg = load()
@@ -1697,6 +1699,11 @@ async def loop() -> None:
                             last_prices = now
                     except Exception:
                         log.exception("enrich: prices round failed")
+                    try:   # new pages into search a few a day, the richest first (areastats.entry)
+                        if await entry.admit(Store(get_database()), datetime.now(timezone.utc), last_entry):
+                            last_entry = now
+                    except Exception:
+                        log.exception("enrich: search entry failed")
         except asyncio.CancelledError:
             raise
         except Exception:
