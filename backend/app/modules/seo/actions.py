@@ -17,7 +17,8 @@ from app.modules.newsroom.store import Store
 
 ACTIONS = "seo_actions"
 REST_DAYS = 28                   # a page gets one fix per window, so a position move can be put down to one change
-FIELD = {"title": "search_name", "description": "seo_description", "rival": "seo_description"}   # the fix types that write a value we can put back
+# the fix types that write a value we can put back; "name" is the market name (marketname.py), which the title leads with too
+FIELD = {"title": "search_name", "description": "seo_description", "rival": "seo_description", "name": "market_name"}
 
 
 # No new title or description fixes until then: after the site-wide drop of 2026-10-26 Google should see a still site while

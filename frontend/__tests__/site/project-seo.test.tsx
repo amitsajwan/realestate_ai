@@ -162,3 +162,39 @@ describe('offices and shops', () => {
     expect(ld['@type']).toBe('ApartmentComplex')
   })
 })
+
+// The name and place the sites printing the MahaRERA number sell a project under (backend seo/marketname.py): "Altamira By VTP
+// Luxe", pincode 412207 (Wagholi), is sold everywhere as "VTP Altamira" in Kharadi.
+describe('a project sold under another name and place', () => {
+  const ALTAMIRA: RegisterProject = {
+    ...BARE, slug: 'altamira-by-vtp-luxe-phase-1-wagholi', name: 'ALTAMIRA BY VTP LUXE PHASE 1', marketed_name: 'Altamira By VTP Luxe',
+    regno: 'P52100079807', pincode: '412207', completion_now: '2030-11-30',
+    market_name: 'VTP Altamira', market_place: 'Kharadi', market_sites: 6,
+    prices: { read_at: '2026-10-30', rows: [{ bhk: '3 BHK', from_inr: 14_000_000, to_inr: null, official: false, sqft: 989, sources: src }] },
+  }
+
+  it('leads the title with the market name and both places, theirs first', () => {
+    expect(registerTitle(ALTAMIRA)).toBe('VTP Altamira Kharadi, Wagholi: from ₹1.4 Cr, possession Nov 2030')   // the sizes go first to fit 65
+  })
+
+  it('a name measured on our own searches still leads', () => {
+    expect(registerTitle({ ...ALTAMIRA, search_name: 'Altamira Wagholi' })).toMatch(/^Altamira Wagholi Kharadi, Wagholi: |^Altamira Wagholi: /)
+  })
+
+  it('keeps the legal name and says where it is sold as in the description', () => {
+    const d = registerDescription(ALTAMIRA)
+    expect(d).toContain('VTP Altamira')
+    expect(d).toContain('Wagholi (sold as Kharadi)')
+  })
+
+  it('says on the page which place is which', () => {
+    const { getByTestId } = render(<RegisterProjectPage p={ALTAMIRA} siteUrl={SITE} facts={null} />)
+    expect(getByTestId('sold-as').textContent).toBe('Sold as Kharadi by 6 property sites; we list it under Wagholi (pincode 412207).')
+  })
+
+  it('says nothing of it when the sites agree with us', () => {
+    const { queryByTestId } = render(<RegisterProjectPage p={{ ...ALTAMIRA, market_place: null }} siteUrl={SITE} facts={null} />)
+    expect(queryByTestId('sold-as')).toBeNull()
+    expect(registerTitle({ ...ALTAMIRA, market_place: null })).toBe('VTP Altamira Wagholi: 3 BHK from ₹1.4 Cr, possession Nov 2030')
+  })
+})

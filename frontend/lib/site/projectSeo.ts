@@ -37,11 +37,28 @@ function quoted(p: RegisterProject, price: QuotedPrice): { from: string; bhks: s
   return asked ? { from: asked.from, bhks: priceRowBhks(p) } : null
 }
 
-/** "Park Eden Kharadi": the searched name with the area after it, unless the name already says the area. */
-function nameAt(p: RegisterProject): { shown: string; at: string } {
+/** "Park Eden Kharadi": the searched name with the area after it, unless the name already says the area. A project the sites sell
+ *  under another place than its MahaRERA pincode's names both, theirs with the name as buyers search it and ours after it ("VTP
+ *  Altamira Kharadi, Wagholi"); `sold` is that title, tried first. */
+function nameAt(p: RegisterProject): { shown: string; at: string; sold: string | null } {
   const shown = displayName(p)
   const area = areaName(p)
-  return { shown, at: area && !shown.toLowerCase().includes(area.toLowerCase()) ? `${shown} ${area}` : shown }
+  const has = (x: string) => shown.toLowerCase().includes(x.toLowerCase())
+  const at = area && !has(area) ? `${shown} ${area}` : shown
+  const market = (p.market_place || '').trim()
+  const sold = market && area && !has(market) && market.toLowerCase() !== area.toLowerCase() ? `${shown} ${market}, ${area}` : null
+  return { shown, at, sold }
+}
+
+/** The page's one line on where the project is sold as, when the sites printing its MahaRERA number put it in another place than
+ *  ours: "Sold as Kharadi by 6 property sites; we list it under Wagholi (pincode 412207)." Both are true, so the page says which is which
+ *  instead of choosing; null when the sites agree with us. */
+export function soldAsLine(p: RegisterProject): string | null {
+  const area = areaName(p)
+  const market = (p.market_place || '').trim()
+  if (!market || !area || market.toLowerCase() === area.toLowerCase()) return null
+  const by = p.market_sites && p.market_sites > 1 ? ` by ${p.market_sites} property sites` : ''
+  return `Sold as ${market}${by}; we list it under ${area}${p.pincode ? ` (pincode ${p.pincode})` : ''}.`
 }
 
 /** Search result title: "<name> <area>: 3 & 4 BHK from ₹1.99 Cr, possession Feb 2031". Without a price it is the MahaRERA number
@@ -49,7 +66,7 @@ function nameAt(p: RegisterProject): { shown: string; at: string } {
  *  then the possession date, then the area; the price stays while any title with it fits. `price`: offerPrice of the agent's
  *  sheet, so the title quotes the price the page shows. */
 export function registerTitle(p: RegisterProject, price?: QuotedPrice): string {
-  const { shown, at } = nameAt(p)
+  const { shown, at, sold } = nameAt(p)
   // the project's possession: for one in several registrations the earliest of theirs ("from Aug 2030"), never the main one's alone
   const when = possessionLabel(p)
   const q = quoted(p, price)
@@ -57,12 +74,12 @@ export function registerTitle(p: RegisterProject, price?: QuotedPrice): string {
   if (q) {
     const sized = q.bhks ? `${q.bhks} from ${q.from}` : `from ${q.from}`
     const bare = `from ${q.from}`
-    for (const name of [at, shown]) {
+    for (const name of [...(sold ? [sold] : []), at, shown]) {
       if (when) options.push(`${name}: ${sized}, possession ${when}`, `${name}: ${bare}, possession ${when}`)
       options.push(`${name}: ${sized}`, `${name}: ${bare}`)
     }
   }
-  for (const name of [at, shown]) {
+  for (const name of [...(sold ? [sold] : []), at, shown]) {
     if (when) options.push(`${name}: MahaRERA ${p.regno}, possession ${when}`, `${name}: possession ${when}, MahaRERA`, `${name}: possession ${when}`)
     else options.push(`${name}: MahaRERA ${p.regno}`, `${name}: MahaRERA`)
   }
@@ -97,7 +114,8 @@ export function registerDescription(p: RegisterProject, price?: QuotedPrice): st
   // the project's possession: for one in several registrations the earliest of theirs ("from Aug 2030"), never the main one's alone
   const when = possessionLabel(p)
   return fitDescription((has) => {
-    const head = `${shown}${has(1) ? legal : ''}${by && has(2) ? ` by ${by}` : ''}${area ? `, ${area}` : ''}, Pune`
+    const market = p.market_place && area && p.market_place.toLowerCase() !== area.toLowerCase() ? ` (sold as ${p.market_place})` : ''
+    const head = `${shown}${has(1) ? legal : ''}${by && has(2) ? ` by ${by}` : ''}${area ? `, ${area}${market}` : ''}, Pune`
     const sizes = [q?.bhks, has(3) ? sqft : ''].filter(Boolean)
     // "3 & 4 BHK from ₹1.99 Cr", or with the sizes "3 & 4 BHK, 1,310–1,720 sq ft, from ₹1.99 Cr"
     const offer = q ? `${sizes.join(', ')}${sizes.length > 1 || (sizes.length && !q.bhks) ? ',' : ''} from ${q.from}`.trim() : ''
