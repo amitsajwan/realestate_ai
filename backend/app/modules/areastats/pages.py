@@ -304,8 +304,13 @@ def page_updated(doc: dict) -> Optional[str]:
     MahaRERA's dates. The sitemap's lastmod. Not `enriched_at`: a round that finds the same facts changes nothing a reader sees
     (2026-10-27). Not `details_checked_at` either once `details_changed_at` is kept: every re-read moved it, so 59 of 64 Kharadi
     pages said "changed today" on 2026-11-05 with nothing changed, and Google stops trusting a lastmod that always moves. A
-    record read before `details_changed_at` existed keeps the old rule until its next read sets it."""
+    record read before `details_changed_at` existed keeps the old rule until its next read sets it. Going into search counts
+    (`search_state` in, at): the page's noindex came off, a change Google must read again, and IndexNow sends only pages dated
+    after its last send, so 262 pages let in by a rule change on 2026-11-19 would otherwise never have been sent."""
     stamps = [doc.get("page_text_at")]
+    held = doc.get("search_state") or {}
+    if held.get("in") is True and isinstance(held.get("at"), datetime):
+        stamps.append(held["at"])
     if isinstance(doc.get("details_changed_at"), datetime):
         stamps.append(doc["details_changed_at"])
     elif doc.get("details_ok", True):   # a failed details read changed nothing on the page

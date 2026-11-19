@@ -91,6 +91,12 @@ async def test_page_updated_is_our_own_change_never_maharera():
     assert pages.page_updated({**FULL, "enriched_at": datetime(2026, 10, 5, tzinfo=timezone.utc)}) == "2026-10-03T09:00:00+00:00"
 
 
+def test_going_into_search_dates_the_page_and_leaving_does_not():
+    went_in = datetime(2026, 11, 19, 7, tzinfo=timezone.utc)
+    assert pages.page_updated({**FULL, "search_state": {"in": True, "at": went_in}}) == "2026-11-19T07:00:00+00:00"
+    assert pages.page_updated({**FULL, "search_state": {"in": False, "at": went_in}}) == "2026-10-03T09:00:00+00:00"
+
+
 async def test_an_ai_illustration_is_not_content_of_the_projects_own():
     drawn = {"photos": [{"path": "a.webp", "source": "ai"}]}
     written = {**FULL, "page_text": "About the project."}
