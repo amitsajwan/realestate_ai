@@ -144,7 +144,8 @@ AI_FROM = "2027-01-01"                # a filed completion date before this gets
 # not a reason to change a page Google shows; its own facts changing is, `settled`). Was 20.
 WIDER_PER_DAY = 60                    # pages outside our areas read a day (owner 2026-11-08), a limit set by Serper: a read takes ~3
 WIDER_KEEP_CREDITS = 500              # Serper searches kept back: a spent account reads as "no site mentions this project"
-WIDER = "enrich_wider"                # mark: {day, done, credits}
+SEARCHES_PER_READ = 5                 # a first read used ~4 searches (2026-11-08); one more covers the day's rank checks and prices
+WIDER = "enrich_wider"                # mark: {day, done, credits, allowed}
 BIG_PROJECT = 100                     # homes, for the wider read's order
 REWRITES_PER_DAY = 0
 REWRITES = "enrich_rewrites"          # mark: {day, done}
@@ -247,18 +248,28 @@ def wider_key(d: dict) -> tuple:
     return (5, kind, -int(day.replace("-", "") or 0), d.get("_id") or "")
 
 
+def wider_allowed(left: int, per_day: int) -> int:
+    """Today's first reads outside our areas: the daily limit, or as many as the balance above WIDER_KEEP_CREDITS pays for,
+    whichever is fewer. The limit alone let 200 reads (~800 searches) start on any balance above the floor, so a 765 balance
+    would have run the account dry by noon (2026-11-19)."""
+    return max(0, min(per_day, (left - WIDER_KEEP_CREDITS) // SEARCHES_PER_READ))
+
+
 async def wider_left(store: Store, now: datetime) -> int:
-    """First reads of pages outside our areas left today. Serper's balance is read once a day; at WIDER_KEEP_CREDITS they stop, so
-    the daily rank checks and our own areas keep their searches. An unknown balance stops them too: a spent account looks the same."""
+    """First reads of pages outside our areas left today. Serper's balance is read once a day and the day's reads are fitted to it
+    (`wider_allowed`), so the daily rank checks and our own areas keep their searches. An unknown balance stops them too: a spent
+    account looks the same."""
     mark, day = await store.get_mark(WIDER), budget.day_of(now)
     if mark.get("day") == day:
-        return 0 if mark.get("stopped") else load().wider_per_day - int(mark.get("done") or 0)
+        allowed = mark.get("allowed", load().wider_per_day)
+        return 0 if mark.get("stopped") else max(0, allowed - int(mark.get("done") or 0))
     left = await websearch.credits()
-    stopped = left is None or left <= WIDER_KEEP_CREDITS
-    await store.set_mark(WIDER, day=day, done=0, credits=left, stopped=stopped)
+    allowed = 0 if left is None else wider_allowed(left, load().wider_per_day)
+    stopped = allowed == 0
+    await store.set_mark(WIDER, day=day, done=0, credits=left, allowed=allowed, stopped=stopped)
     if stopped:
         log.warning("enrich: wider reads stopped, Serper balance %s", left)
-    return 0 if stopped else load().wider_per_day
+    return allowed
 
 
 async def count_wider(store: Store, now: datetime) -> None:
