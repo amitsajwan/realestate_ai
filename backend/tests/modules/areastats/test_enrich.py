@@ -1107,6 +1107,19 @@ async def test_the_daily_limit_and_the_serper_floor_stop_the_wider_reads(monkeyp
     assert await enrich.wider_left(store, NOW + timedelta(days=1, hours=1)) == 0
 
 
+async def test_a_days_wider_reads_fit_the_balance_above_the_floor(monkeypatch):
+    store = Store(FakeDb())
+
+    async def credits(*a):
+        return 765                                     # two days into a 2,500 account at 200 reads a day
+    monkeypatch.setattr(enrich.websearch, "credits", credits)
+    allowed = (765 - enrich.WIDER_KEEP_CREDITS) // enrich.SEARCHES_PER_READ
+    assert await enrich.wider_left(store, NOW) == allowed < enrich.WIDER_PER_DAY
+    await enrich.count_wider(store, NOW)
+    assert await enrich.wider_left(store, NOW + timedelta(hours=1)) == allowed - 1
+    assert enrich.wider_allowed(enrich.WIDER_KEEP_CREDITS + enrich.SEARCHES_PER_READ - 1, 200) == 0
+
+
 async def test_an_unknown_serper_balance_stops_them_too(monkeypatch):
     async def unknown(*a):
         return None
