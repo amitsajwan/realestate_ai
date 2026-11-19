@@ -3,8 +3,10 @@ import { allInCost, BUILDER_CHARGES_NOTE, type Stage } from '@/lib/site/allin'
 import { formatPrice } from '@/lib/site/format'
 
 /** The all-in cost of one price, folded under it: price, GST, stamp duty, registration, then what only the builder's cost sheet
- *  has (lib/site/allin.ts). `what` names the home ("the 2 BHK") so a page with several prices says which one this is. */
-export default function CostBreakdown({ price, stage, sqft, what, commercial }: { price: number; stage: Stage; sqft?: number | null; what: string; commercial?: boolean }) {
+ *  has (lib/site/allin.ts). `what` names the home ("the 2 BHK") so a page with several prices says which one this is. `brief`
+ *  leaves out the explaining notes, for a list of prices that says them once under the list: on every row they were the same
+ *  80 words up to five times a page (own-text measure 2026-11-19). */
+export default function CostBreakdown({ price, stage, sqft, what, commercial, brief = false }: { price: number; stage: Stage; sqft?: number | null; what: string; commercial?: boolean; brief?: boolean }) {
   const c = allInCost(price, stage, sqft, commercial)
   return (
     <details className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm" data-testid="all-in">
@@ -17,7 +19,7 @@ export default function CostBreakdown({ price, stage, sqft, what, commercial }: 
             <tr key={l.key} className="border-b border-slate-200 align-top last:border-0">
               <th scope="row" className="py-1.5 pr-3 font-medium text-slate-800">
                 {l.label}
-                {l.note && <span className="block text-xs font-normal text-slate-600">{l.note}</span>}
+                {l.note && !brief && <span className="block text-xs font-normal text-slate-600">{l.note}</span>}
               </th>
               <td className="whitespace-nowrap py-1.5 text-right font-semibold text-slate-900">{l.amount != null ? formatPrice(l.amount) : 'Ask'}</td>
             </tr>
@@ -28,7 +30,7 @@ export default function CostBreakdown({ price, stage, sqft, what, commercial }: 
           </tr>
         </tbody>
       </table>
-      <p className="mt-2 text-xs text-slate-600">{BUILDER_CHARGES_NOTE}</p>
+      {!brief && <p className="mt-2 text-xs text-slate-600">{BUILDER_CHARGES_NOTE}</p>}
     </details>
   )
 }

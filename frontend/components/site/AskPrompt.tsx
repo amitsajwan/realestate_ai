@@ -8,7 +8,8 @@ import { PROJECT_CTA } from '@/lib/site/strings'
  * `compact` is the desktop version at the top of the sticky side column.
  */
 export default function AskPrompt({ name, note, whatsappUrl, compact = false, label = PROJECT_CTA.full }: {
-  name: string; note: string; whatsappUrl?: string | null; compact?: boolean
+  /** the "who calls you back" line; a page with its enquiry form below leaves it to the form, so it is said once */
+  name: string; note?: string; whatsappUrl?: string | null; compact?: boolean
   /** the page's one action label, when it words it its own way (the register page's PROJECT_CTA.today) */
   label?: string
 }) {
@@ -16,7 +17,7 @@ export default function AskPrompt({ name, note, whatsappUrl, compact = false, la
     <section aria-label={`Ask about ${name}`} data-print="hide" data-testid={compact ? 'ask-prompt-side' : 'ask-prompt'}
       className={'rounded-2xl border border-amber-200 bg-amber-50 ' + (compact ? 'p-4' : 'p-4 sm:p-5')}>
       <p className={'font-bold text-slate-900 ' + (compact ? 'text-base' : 'text-lg')}>Planning to buy here?</p>
-      <p className="mt-1 text-sm text-slate-700">Ask about prices, floor plans, offers or a site visit. {note}</p>
+      {!compact && <p className="mt-1 text-sm text-slate-700">Ask about prices, floor plans, offers or a site visit.{note ? ` ${note}` : ''}</p>}
       <div className={'mt-3 flex gap-2 ' + (compact ? 'flex-col' : 'flex-wrap')}>
         <a href="#enquire" className="inline-flex min-h-[48px] items-center justify-center rounded-full bg-[#0f2340] px-6 font-bold text-white no-underline">
           {label}

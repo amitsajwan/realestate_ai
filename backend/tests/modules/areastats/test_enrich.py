@@ -1243,3 +1243,39 @@ def test_the_read_s_pace_line_says_it_is_one_registration_s_on_a_page_of_several
     lines = {f["key"]: f["text"] for f in enrich.read_lines(doc, enrich.fact_sheet(doc, None, None, None, False, docs=docs))}
     assert lines["read_pace"].startswith("2 more homes booked in this registration between")
     assert "project_homes" in lines
+
+
+def _pin_sheet(lat: float, lon: float, at: str = "project") -> dict:
+    return {"facts": [{"key": "lat", "value": lat, "usable": True}, {"key": "lon", "value": lon, "usable": True},
+                      {"key": "located_at", "value": at, "usable": True}]}
+
+
+async def test_a_google_pin_near_its_pincode_counts_outside_our_named_areas(monkeypatch):
+    """336 pages in search outside our 8 areas had their own Google pin 0.2-5.5 km from the pincode's centre and still showed
+    "Position not checked": the check also asked for a named locality, a rule from when pages were only in our areas
+    (2026-11-19). The project's own pin near its own pincode is the check; a locality adds nothing to it."""
+    async def centre(db, pin):
+        return (18.5600, 73.7800)
+    monkeypatch.setitem(enrich._deps, "pincode_centre", centre)
+    doc = {"_id": "P52100000001", "name": "Sovrano", "pincode": "411045"}
+    step, fields = await enrich.check_places(Store(FakeDb()), doc, _pin_sheet(18.5610, 73.7810), "pincode", NOW)
+    assert step["ok"] is True and fields["geo"]["located_from"] == "google"
+    assert pages.own_position({**doc, **fields, "enrichment": {"steps": {"places": step}}})
+
+
+async def test_a_pincode_centre_outside_our_areas_still_does_not_count_as_a_position(monkeypatch):
+    async def centre(db, pin):
+        return (18.5600, 73.7800)
+    monkeypatch.setitem(enrich._deps, "pincode_centre", centre)
+    doc = {"_id": "P52100000002", "name": "Somewhere", "pincode": "411045"}
+    step, _ = await enrich.check_places(Store(FakeDb()), doc, _pin_sheet(18.5600, 73.7800, at="pincode"), "pincode", NOW)
+    assert step["ok"] is False and "locality missing" in step["checked"]
+
+
+async def test_a_google_pin_far_from_its_pincode_is_still_refused(monkeypatch):
+    async def centre(db, pin):
+        return (18.5600, 73.7800)
+    monkeypatch.setitem(enrich._deps, "pincode_centre", centre)
+    doc = {"_id": "P52100000003", "name": "Far Away", "pincode": "411045"}
+    step, _ = await enrich.check_places(Store(FakeDb()), doc, _pin_sheet(18.9000, 73.7800), "pincode", NOW)
+    assert step["ok"] is False and "more than" in step["checked"]

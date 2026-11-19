@@ -41,7 +41,7 @@ export function HomeSizes({ sizes, name, help }: { sizes?: RegisterProject['home
         ))}
       </ul>
       <p className="mt-2 text-sm text-slate-600" data-testid="sizes-note">
-        The final carpet area depends on the tower and floor, and your agreement for sale states it.
+        Your agreement for sale states the final carpet area.
         {help && <> <a href="#enquire" className="font-semibold text-[#0f2340] underline underline-offset-2">{help}</a></>}
       </p>
     </section>

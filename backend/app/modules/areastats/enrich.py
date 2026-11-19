@@ -1200,9 +1200,13 @@ async def check_places(store: Store, doc: dict, sheet: Optional[dict], located_f
     if not centre:
         return _step(False, now, located_from=located_from, checked="no pincode centre to check against"), fields
     km = round(km_between((float(lat), float(lon)), centre), 1)
-    ok = km <= NEAR_KM and bool(doc.get("locality") or doc.get("place_locality"))
+    # the project's own Google pin near its own pincode is the check; a named locality is asked only of a position that is not
+    # the project's (an area's or a pincode's centre). Asking it of every pin left 336 pages in search outside our 8 areas
+    # "Position not checked" with their pin 0.2-5.5 km from the pincode (2026-11-19).
+    named = bool(doc.get("locality") or doc.get("place_locality"))
+    ok = km <= NEAR_KM and (named or located_from == "google")
     why = f"{km} km from pincode {pin}'s centre" + ("" if km <= NEAR_KM else f" (more than {NEAR_KM:g} km)")
-    if not (doc.get("locality") or doc.get("place_locality")):
+    if not named and located_from != "google":
         why += "; locality missing"
     fields["geo"]["km_from_pincode"] = km
     return _step(ok, now, located_from=located_from, checked=f"within {NEAR_KM:g} km of the project's pincode area: {why}"), fields
