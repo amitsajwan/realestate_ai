@@ -22,12 +22,15 @@ jest.mock('@/lib/site/facets', () => ({
   getPlacePrices: async () => PRICES,
   getFacet: async () => FACET,
 }))
-jest.mock('@/lib/site/register', () => ({
-  ...jest.requireActual('@/lib/site/register'),
-  getRegisterPlaces: async () => [
+// the place page reads them through getRegisterPlacesOrThrow, the other pages through getRegisterPlaces
+const mockPlaces = () => [
     { key: 'wagholi', slug: 'wagholi', name: 'Wagholi', zone: 'East Pune', projects: 343, indexable: 200 },
     { key: 'kothrud', slug: 'kothrud', name: 'Kothrud', zone: 'West Pune', projects: 431, indexable: 200 },
-    { key: 'upper-kharadi', slug: 'upper-kharadi', name: 'Upper Kharadi', zone: 'East Pune', projects: 23, indexable: 23 }],
+    { key: 'upper-kharadi', slug: 'upper-kharadi', name: 'Upper Kharadi', zone: 'East Pune', projects: 23, indexable: 23 }]
+jest.mock('@/lib/site/register', () => ({
+  ...jest.requireActual('@/lib/site/register'),
+  getRegisterPlaces: async () => mockPlaces(),
+  getRegisterPlacesOrThrow: async () => mockPlaces(),
   getRegisterProjects: async () => [],
 }))
 

@@ -581,8 +581,16 @@ export interface RegisterPlace {
 }
 
 export async function getRegisterPlaces(): Promise<RegisterPlace[]> {
+  return getRegisterPlacesOrThrow().catch(() => [])
+}
+
+/** The places for a page that 404s on an unknown place: an outage throws, so a real place page is never served (or cached
+ *  for its 5 minutes) as a 404. Search Console reported area pages from the sitemap as "Not found" when a slow backend under a
+ *  crawl gave the empty list. */
+export async function getRegisterPlacesOrThrow(): Promise<RegisterPlace[]> {
   const r = await get<RegisterPlace[]>('/api/v1/public/register/places')
-  return r.ok && Array.isArray(r.data) ? r.data : []
+  if (r.ok && Array.isArray(r.data) && r.data.length) return r.data
+  throw new Error('Place data is temporarily unavailable')
 }
 
 export function placePath(slug: string): string {
