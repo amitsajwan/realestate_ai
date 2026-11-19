@@ -1,7 +1,7 @@
 """The page-by-page audit: one bucket and one action per page, from Search Console's counts and the stored index checks."""
 import base64
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import httpx
 
@@ -134,3 +134,64 @@ async def test_read_joins_search_console_with_the_stored_index_checks(monkeypatc
 async def test_read_does_nothing_without_search_console(monkeypatch):
     monkeypatch.delenv("GSC_SA_KEY_B64", raising=False)
     assert await pageaudit.read(Store(FakeDb()), NOW) is None
+
+
+def search_console(calls, fail=False):
+    def handler(req):
+        if req.url.host == "oauth2.test":
+            return httpx.Response(200, json={"access_token": "abc"})
+        calls.append(1)
+        if fail:
+            return httpx.Response(503)
+        body = json.loads(req.content)
+        if body["dimensions"] == ["query", "page"]:
+            return httpx.Response(200, json={"rows": []})
+        return httpx.Response(200, json={"rows": [{"keys": [SITE + "/projects/a"], "impressions": 300, "clicks": 9, "position": 4.0}]})
+    return httpx.MockTransport(handler)
+
+
+def keyed(monkeypatch):
+    monkeypatch.setenv("GSC_SA_KEY_B64", base64.b64encode(json.dumps(fake_key()).encode()).decode())
+    monkeypatch.delenv("GSC_SITE", raising=False)
+
+
+async def test_studio_reads_google_once_a_day_unless_asked_for_a_fresh_audit(monkeypatch):
+    keyed(monkeypatch)
+    store, calls = Store(FakeDb()), []
+    first = await pageaudit.view(store, NOW, transport=search_console(calls))
+    assert first["configured"] and first["pages"] == 1 and first["at"] == NOW.isoformat() and len(calls) == 3
+    assert {b["key"]: b["pages"] for b in first["buckets"]}["earning"] == 1 and first["buckets"][1]["label"] == "Earning clicks"
+    again = await pageaudit.view(store, NOW + timedelta(hours=5), transport=search_console(calls))
+    assert again["at"] == NOW.isoformat() and len(calls) == 3
+    fresh = await pageaudit.view(store, NOW + timedelta(hours=5), fresh=True, transport=search_console(calls))
+    assert fresh["at"] == (NOW + timedelta(hours=5)).isoformat() and len(calls) == 6
+    await pageaudit.view(store, NOW + timedelta(hours=30), transport=search_console(calls))
+    assert len(calls) == 9
+
+
+async def test_a_failed_read_keeps_the_last_audit_and_says_why(monkeypatch):
+    keyed(monkeypatch)
+    store = Store(FakeDb())
+    await pageaudit.view(store, NOW, transport=search_console([]))
+    out = await pageaudit.view(store, NOW, fresh=True, transport=search_console([], fail=True))
+    assert out["pages"] == 1 and out["at"] == NOW.isoformat() and "Could not read Search Console" in out["error"]
+
+
+async def test_without_the_key_studio_is_told_the_audit_is_not_set_up(monkeypatch):
+    monkeypatch.delenv("GSC_SA_KEY_B64", raising=False)
+    out = await pageaudit.view(Store(FakeDb()), NOW)
+    assert out["configured"] is False and out["rows"] == []
+
+
+async def test_the_audit_endpoint_is_owner_only(monkeypatch):
+    from types import SimpleNamespace
+
+    from app.core.auth_backend import current_active_user
+
+    from ..newsroom.test_router import setup
+    monkeypatch.delenv("GSC_SA_KEY_B64", raising=False)
+    monkeypatch.setenv("NEWSROOM_OWNER_IDS", "OWNER")
+    c, _ = setup()
+    assert c.get("/newsroom/insights/audit").json()["configured"] is False
+    c.app.dependency_overrides[current_active_user] = lambda: SimpleNamespace(id="SOMEONE", is_superuser=False)
+    assert c.get("/newsroom/insights/audit").status_code == 403

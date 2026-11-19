@@ -248,3 +248,35 @@ export interface GrownPages {
 
 export const getGrownPages = () => call<GrownPages>('pages')
 export const setPageStatus = (key: string, status: 'live' | 'held' | 'never') => call<{ status: string }>('pages/status', { key, status })
+
+// ---- Page audit (docs/plan/publishing-blueprint.md; backend app/modules/seo/pageaudit.py) ------------------------------------
+/** One page Google knows of ours: its 28-day numbers, index state, the search that shows it most, and one action. */
+export interface AuditRow {
+  path: string
+  kind: string
+  bucket: string
+  action: string
+  clicks: number
+  impressions: number
+  ctr: number | null
+  position: number | null
+  impressions_before: number
+  trend: '' | 'new' | 'rising' | 'falling' | 'steady'
+  index_state: string
+  in_sitemap: boolean | null
+  top_search: string
+  top_search_impressions: number
+}
+
+export interface AuditView {
+  configured: boolean
+  at: string | null
+  error: string | null
+  pages: number
+  buckets: { key: string; label: string; pages: number }[]
+  by_kind: Record<string, Record<string, number>>
+  rows: AuditRow[]
+}
+
+/** The last day's audit; `fresh` reads Search Console again. */
+export const getAudit = (fresh = false) => call<AuditView>(fresh ? 'audit?fresh=true' : 'audit')

@@ -10,7 +10,7 @@ another is merged with a 301 to the one that earns; a thin one is improved or ke
 """
 import logging
 from collections import Counter, defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Iterable, List, Optional, Tuple
 from urllib.parse import urlparse
 
@@ -156,3 +156,42 @@ async def read(store: Store, now: datetime, transport: Optional[httpx.AsyncBaseT
     queries = await searchconsole.query_rows(sa, today, transport)
     docs = await store.db.get_collection(coverage.COLLECTION).find({}).to_list(None)
     return audit(now_counts, before_counts, queries, docs, now)
+
+
+MARK = "page_audit"              # newsroom_status document: the last audit, so opening Studio does not call Google every time
+KEEP = timedelta(hours=24)       # Search Console's numbers move once a day
+LABELS = {
+    "low_ctr": "Page one, rarely clicked", "earning": "Earning clicks", "near_page_one": "Just off page one",
+    "seen_far": "Seen, ranked far", "too_few": "Shown a little", "outside_sitemap": "Out of the sitemap",
+    "indexed_silent": "Indexed, never shown", "not_indexed": "Not indexed", "unchecked": "Not checked yet",
+}
+
+
+def _aware(d) -> Optional[datetime]:
+    if not isinstance(d, datetime):
+        return None
+    return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
+
+
+async def view(store: Store, now: datetime, fresh: bool = False,
+               transport: Optional[httpx.AsyncBaseTransport] = None) -> dict:
+    """Studio → SEO → Audit: the last audit while it is under KEEP old, else a new one (fresh=True always reads again).
+    When Google cannot be read, the last stored audit is shown with the error, never an empty screen."""
+    mark = await store.get_mark(MARK)
+    at, rows, error = _aware(mark.get("at")), mark.get("rows"), None
+    if fresh or rows is None or at is None or now - at >= KEEP:
+        try:
+            got = await read(store, now, transport)
+        except Exception as e:   # Search Console down or the key refused: keep what we have
+            log.exception("pageaudit: reading Search Console failed")
+            got, error = None, f"Could not read Search Console: {type(e).__name__}"
+        if got is not None:
+            rows, at = got, now
+            await store.set_mark(MARK, at=now, rows=rows)
+        elif error is None and rows is None:
+            return {"configured": False, "at": None, "error": None, "buckets": [], "rows": [], "pages": 0, "by_kind": {}}
+    rows = rows or []
+    s = summary(rows)
+    return {"configured": True, "at": at.isoformat() if at else None, "error": error, "pages": s["pages"],
+            "buckets": [{"key": b, "label": LABELS[b], "pages": s["by_bucket"][b]} for b in BUCKETS],
+            "by_kind": s["by_kind"], "rows": rows}

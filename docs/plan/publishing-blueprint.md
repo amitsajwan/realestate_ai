@@ -24,7 +24,7 @@ the sitemap, the search that shows it most, and one bucket and action. It answer
 | Which to merge, improve or remove | `not_indexed` by state, `outside_sitemap` | Crawled: add facts or keep out of search; Discovered: Request indexing and link it; taken out: check the 301 or noindex. **Never "delete"** (section 9) |
 | Which new pages have the best opportunity | not here: the weekly search gaps report and `demand_report.py` already list searches with no page | |
 
-Run on the VM (the Search Console key lives in the newsroom container):
+Open **Studio → SEO → Audit**: groups to filter, "Read again now" and "Download CSV"; the audit is kept a day. Or on the VM:
 `sudo docker exec gcp-newsroom-1 sh -c "PYTHONPATH=. python scripts/page_audit.py --csv /tmp/audit.csv"`, then
 `sudo docker cp gcp-newsroom-1:/tmp/audit.csv .`. The printed "Most seen 20" is the blueprint's week-one "top 20 pages by
 impressions"; the `top_search` column is its keyword-to-URL map. Not yet run against production (2026-11-19): the owner runs it.
@@ -50,7 +50,7 @@ impressions"; the `top_search` column is its keyword-to-URL map. Not yet run aga
 
 ## What to build or do from it (TARGET, waiting for the owner)
 
-- **B0. Run the audit** (owner, 10 minutes): the command above, monthly. Its counts per bucket go on the scorecard.
+- **B0. Read the audit** (owner, 10 minutes): Studio → SEO → Audit, monthly. Its counts per bucket go on the scorecard.
 - **B1. Hand layer on the 8 locality guides** (owner + ₹1,000/month photos): a dated photo set per area (who took it, when), schools
   and hospitals named with distances measured from the map, one "verified on <date>" line. Code: a hand-facts file per area beside
   `pune_places.VERIFIED`, shown on `/localities/<area>`.

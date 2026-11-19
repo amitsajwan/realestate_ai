@@ -58,7 +58,7 @@ the place. Measuring it every week is section 8a, step 2.
 | Weekly SEO note | Studio **Home** → "To do" (once a week; opening Rankings clears it) |
 | Google's own view | Search Console, property `sc-domain:avasetu.in` (owner's Google account) |
 | Weekly site audit | GitHub → Actions → "SEO audit (live site)" |
-| Every page: clicks, rank, index state, top search, one action (BUILT 2026-11-19) | VM: `sudo docker exec gcp-newsroom-1 sh -c "PYTHONPATH=. python scripts/page_audit.py --csv /tmp/audit.csv"` (`seo/pageaudit.py`, read-only) |
+| Every page: clicks, rank, index state, top search, one action (BUILT 2026-11-19) | Studio → SEO → **Audit** (`/studio/seo?tab=audit`): groups to filter, "Read again now", Download CSV; kept a day (`seo/pageaudit.view`, mark `page_audit`). Also on the VM: `sudo docker exec gcp-newsroom-1 sh -c "PYTHONPATH=. python scripts/page_audit.py --csv /tmp/audit.csv"` |
 | AI search: assistants that read us, pages they use, visits from AI answers | Studio → SEO → **Rankings** → "AI search"; one line in the weekly note |
 | Loops stopped, pages going old | Studio → Admin → **Health**: "SEO loop", "Project page refresh", "Project pages up to date" |
 | Raw loop log | VM: `docker compose logs newsroom \| grep pipeline=seo` (one line per step per round) |
@@ -249,7 +249,7 @@ What keeps the lead (section 8a). About 1–2 hours a week, no money.
 | Every month | Send the "Pune MahaRERA report" from `/pune-maharera-tracker` to local journalists and property bloggers | e-mail |
 | Every month | Google Business Profile: a post, answer reviews, check the links to the area pages | Google Business Profile |
 | Every month | Bing Webmaster Tools: the Index and Search Performance reports | bing.com/webmasters |
-| Every month | Run the page audit; work its buckets in order (low CTR, earning, near page one, seen far, indexed silent, not indexed) | `scripts/page_audit.py` (section 2) |
+| Every month | Open the page audit; work its groups in order (low CTR, earning, near page one, seen far, indexed silent, not indexed) | Studio → SEO → Audit |
 | Every month | Check Serper credits and the Gemini bill; read the price lines in 8a again if a provider changed its pricing | Insights → System, provider consoles |
 | Once, then for each new agent | Search Console → URL Inspection → Request indexing for the agent's site (`/agent/house-deal`, `/agent/kausar-patanwala`): 2026-11-07 both were found by Google and never read | owner |
 | Every quarter | Ask agents to link their own agent page from their WhatsApp Business and Instagram bios, and their posts to `/projects/<slug>`, never a portal | agents |
@@ -629,6 +629,7 @@ measure (Search Console, Serper, URL Inspection) → choose (near page one, Magi
 | 2026-11-17 | this | Owner inspected `/projects/area/wakad/top`: "noindex detected". Right for the page: the list has 2 projects, under the bar for a list in search (`facets.in_search`), so it is `noindex, follow` and out of the sitemap. Bug behind it: Rankings → "Ask Google to index" read every inspected page Google had not indexed, including pages that had left the sitemap since (lists that fell under their bar, merged towers). Coverage now marks each inspected page `in_sitemap` true or false at its daily read (`coverage.mark_listed`), and the list leaves out a page marked false (`note.request_list`). Pages inspected before the deploy are marked at the next daily read. | `seo/coverage.py`, `seo/note.py` |
 | 2026-11-17 | this | Owner sent Search Console's robots.txt report: fetched 15 Nov, one warning, "Rule ignored by Googlebot" on `Host: https://avasetu.in`. Harmless (Google never read it; canonicals name the domain), removed so the report is clean (`app/robots.ts`, guard test). Also asked: `Disallow: /properties` blocks only the old signed-in property manager (`app/properties`, a client page of the agent's own listings), none of the 954 sitemap pages is under it; public projects are `/projects/...`. Nothing in robots.txt blocks a public page (`robots-guard.test.ts` checks every page family). | `frontend/app/robots.ts` |
 | 2026-11-19 | this | Owner pasted an outside 12-month SEO and publishing blueprint. Read against this page in [publishing-blueprint.md](publishing-blueprint.md) (PROPOSED: what it adds, what it would undo). Its first deliverable BUILT: `seo/pageaudit.py` + `scripts/page_audit.py`, one row per page from Search Console (28 days and the 28 before, top search) and the stored index checks, bucketed earning / low CTR / near page one / seen far / indexed silent / not indexed, never "delete" (tests `tests/modules/seo/test_pageaudit.py`). Not yet run against production. |
+| 2026-11-19 | this | Owner: "where we run and get report studio?" The page audit is a Studio tab, SEO → **Audit**: `GET /api/v1/newsroom/insights/audit` (owner only) returns the last audit while under 24 hours old (`?fresh=true` reads Search Console again, 3 calls), kept on the `page_audit` mark; a failed read shows the last audit with the error. Filter by group and kind of page, Download CSV in the browser. |
 
 ## 12. Detail and history
 
