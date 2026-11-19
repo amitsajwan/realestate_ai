@@ -1,7 +1,7 @@
 import React from 'react'
 import SourceKind from './SourceKind'
 import CostBreakdown from '@/components/site/CostBreakdown'
-import type { Stage } from '@/lib/site/allin'
+import { BUILDER_CHARGES_NOTE, type Stage } from '@/lib/site/allin'
 import { formatPrice } from '@/lib/site/format'
 import { formatDay } from '@/lib/site/projects'
 import { priceRowLabel, type ProjectPrices } from '@/lib/site/register'
@@ -37,7 +37,7 @@ export default function PriceBox({ prices, stage }: { prices: ProjectPrices | nu
               <p className="mt-1 text-xs text-slate-600">As listed on <SourceKind sources={[builder]} />{read ? `, ${read}` : ''}</p>
             ) : read ? <p className="mt-1 text-xs text-slate-600">Last checked {read}</p> : null}
             {r.bhk !== 'Plot' && (
-              <CostBreakdown price={r.from_inr} stage={stage} sqft={r.sqft}
+              <CostBreakdown brief price={r.from_inr} stage={stage} sqft={r.sqft}
                 what={`${/^all homes$/i.test(r.bhk) ? 'a home' : `the ${r.bhk}`} at ${formatPrice(r.from_inr)}`} />
             )}
           </li>
@@ -45,8 +45,7 @@ export default function PriceBox({ prices, stage }: { prices: ProjectPrices | nu
         })}
       </ul>
       <p className="mt-2 text-xs text-slate-600">
-        Starting asking prices: the final price depends on the tower and floor, and parking, floor-rise and other charges can be extra.
-        ₹ per sq ft is the lowest price over that size, which may be carpet or saleable area.
+        Starting prices; tower, floor, parking and floor-rise change the final price. {BUILDER_CHARGES_NOTE}
       </p>
     </div>
   )

@@ -29,7 +29,7 @@ export function priceHelp(b: Backing, agentName: string): PriceHelpText | null {
   const who = contactName(agentName)
   if (b === 'sheet') return { title: "Want this at today's price?", body: `Prices change. ${opening(who)} confirms today's price, what is still available and the full cost.`, action: PROJECT_CTA.offer }
   if (b === 'covered') return { title: 'Get the exact price for your home', body: `${opening(who)} gets you the current price sheet for the size you want, with parking and all other charges.`, action: PROJECT_CTA.offer }
-  if (b === 'ask') return { title: 'Ask about this project', body: `This project is outside our main East Pune areas. Send your question and ${who} tells you what we can find out.`, action: PROJECT_CTA.question }
+  if (b === 'ask') return { title: 'Ask about this project', body: `Outside our main East Pune areas: ${who} finds out what it can.`, action: PROJECT_CTA.question }
   return null
 }
 

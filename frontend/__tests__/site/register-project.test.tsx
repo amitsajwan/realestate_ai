@@ -127,7 +127,9 @@ describe('asking about a project without scrolling to the end', () => {
     expect(record.compareDocumentPosition(ask) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(ask.compareDocumentPosition(faq) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(within(ask).getByRole('link', { name: "Get today's price sheet & floor plans" })).toHaveAttribute('href', '#enquire')
-    expect(within(ask).getByText(/never share your number without your OK/)).toBeInTheDocument()
+    // who calls back is said once, on the form, not again in each ask box (own-text measure 2026-11-19)
+    expect(within(ask).queryByText(/never share your number without your OK/)).toBeNull()
+    expect(screen.getAllByText(/never share your number without your OK/)).toHaveLength(1)
   })
 
   it('keeps the ask in the desktop side column and gives phones a bottom bar to the form', () => {
@@ -574,8 +576,8 @@ describe('the project against its area', () => {
     expect(box).toHaveTextContent('Rohan Abhilasha 4 against Wagholi')
     expect(box).toHaveTextContent('59%The middle of 12 Wagholi projects registered within a year of it: 41%.')
     expect(box).toHaveTextContent('Moved 14 months later9 of 31 Wagholi projects being built moved theirs 3 months or more.')
-    expect(screen.getByTestId('area-compare-note')).toHaveTextContent('from MahaRERA records read 3 Oct 2026.')
-    expect(screen.getByTestId('area-compare-note')).toHaveTextContent("Homes booked are the builders' own counts, which they file on MahaRERA each quarter")
+    expect(screen.getByTestId('area-compare-note')).toHaveTextContent('From MahaRERA records read 3 Oct 2026.')
+    expect(screen.getByTestId('area-compare-note')).toHaveTextContent("Homes booked are the builders' own quarterly counts.")
     expect(box).not.toHaveTextContent('/sq ft')
   })
 
