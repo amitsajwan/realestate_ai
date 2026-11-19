@@ -46,6 +46,11 @@ PRICES: Dict[str, Tuple[float, float]] = {
 }
 UNKNOWN_GEMINI = (1.50, 7.50)
 GUESS_TOKENS = (3500, 1900)           # one call's tokens (in, out) before it is made: is there room for it
+# a paid pool that gave no answer this many times in a row is not asked again for REFUSED_REST: on 2026-11-19 Google refused every
+# Gemini call ("exceeded its monthly spending cap") and each read after the free tiers' day was spent got nothing, after paying
+# Serper for its searches. Treated as no room, the read waits (`can_read`) and costs nothing.
+REFUSED_AFTER = 5
+REFUSED_REST = timedelta(hours=1)
 
 URGENT, PREMIUM, PLAIN = "urgent", "premium", "plain"
 GEMINI, LITE, FREE = "gemini", "lite", "free"
@@ -131,13 +136,24 @@ class Reader:
         self.gemini_calls = 0
         self.free_calls = 0
         self.deferred = 0
+        self.pools: Dict[str, dict] = {}   # today's {streak, failed_at} per paid pool (`refusing`)
 
     async def start(self) -> "Reader":
         doc = await self.db.get_collection(USAGE).find_one({"_id": self.day}) or {}
         self.gemini_inr = float(doc.get("gemini_inr") or 0.0)
         self.gemini_calls = int(doc.get("gemini_calls") or 0)
         self.free_calls = int(doc.get("free_calls") or 0)
+        self.pools = {k: dict(v) for k, v in (doc.get("pools") or {}).items() if isinstance(v, dict)}
         return self
+
+    def refusing(self, pool: str) -> bool:
+        """The pool gave no answer REFUSED_AFTER times in a row, the last within REFUSED_REST."""
+        p = self.pools.get(pool) or {}
+        at = p.get("failed_at")
+        if not isinstance(at, datetime) or int(p.get("streak") or 0) < REFUSED_AFTER:
+            return False
+        now = self.now if self.now.tzinfo else self.now.replace(tzinfo=timezone.utc)
+        return now - (at if at.tzinfo else at.replace(tzinfo=timezone.utc)) < REFUSED_REST
 
     def ask(self, tier: str, step: str) -> "Ask":
         return Ask(self, tier, step)
@@ -149,6 +165,8 @@ class Reader:
             return False
         if pool == FREE:
             return self.free_calls < self.cfg.free_calls and not busy(client)
+        if self.refusing(pool):
+            return False
         cap = self.cfg.gemini_inr * (1.0 if tier in (URGENT, PREMIUM) else max(0.0, 1.0 - self.cfg.reserve))
         model = gateway.model_order(getattr(client, "model", "") or "")
         guess = cost_inr(model[0] if model else "", *GUESS_TOKENS, self.cfg.usd_inr)
@@ -206,6 +224,7 @@ class Reader:
             self.free_calls += 1
             inc["free_calls"] = 1
         else:
+            await self._answered(pool, out is not None)
             if seen:
                 inr = sum(cost_inr(u["model"], u["prompt_tokens"], u["output_tokens"], self.cfg.usd_inr) for u in seen)
             else:   # no usage reported (an error before the answer, a provider that does not say): charge the guess
@@ -216,6 +235,20 @@ class Reader:
             inc.update({"gemini_inr": round(inr, 4), "gemini_calls": 1, f"steps.{step}.gemini_inr": round(inr, 4)})
         await self._count(inc)
         return out
+
+    async def _answered(self, pool: str, ok: bool) -> None:
+        """Keep a paid pool's run of calls with no answer (`refusing`): a success ends it."""
+        p = self.pools.setdefault(pool, {})
+        now = self.now if self.now.tzinfo else self.now.replace(tzinfo=timezone.utc)
+        if ok:
+            p.update(streak=0, ok_at=now)
+            fields = {f"pools.{pool}.streak": 0, f"pools.{pool}.ok_at": now}
+        else:
+            p.update(streak=int(p.get("streak") or 0) + 1, failed_at=now)
+            fields = {f"pools.{pool}.streak": p["streak"], f"pools.{pool}.failed_at": now}
+            if p["streak"] == REFUSED_AFTER:
+                log.warning("budget: %s gave no answer %d times in a row; not asked for %s", pool, REFUSED_AFTER, REFUSED_REST)
+        await self.db.get_collection(USAGE).update_one({"_id": self.day}, {"$set": fields}, upsert=True)
 
     async def _count(self, inc: Dict[str, Any]) -> None:
         await self.db.get_collection(USAGE).update_one({"_id": self.day}, {"$inc": inc, "$set": {"at": self.now}}, upsert=True)

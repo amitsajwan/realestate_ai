@@ -116,7 +116,10 @@ def test_the_worker_runs_the_fifteen_loops_under_the_api_lease_names():
     from app.modules.tracking.jobs import loop as geoip_loop
     from app.modules.press import loop as press_loop
     from app.modules.areaphotos.runner import loop as area_photo_scout_loop
-    assert worker.loops() == {"render_dispatch": dispatch_loop, "engage": engage_loop, "newsroom": newsroom_loop, "calendar": calendar_loop,
+    table = worker.loops()
+    watch = table.pop("system_watch")         # made with the worker's own intervals, so a new function each time
+    assert callable(watch) and watch.__qualname__.startswith("loop_with")
+    assert table == {"render_dispatch": dispatch_loop, "engage": engage_loop, "newsroom": newsroom_loop, "calendar": calendar_loop,
                               "calendar_reels": calendar_reels_loop, "listing_reels": listing_reel.loop,
                               "marketing_runs": marketing_loop,
                               "project_enrich": enrich_loop, "insights": insights_loop,
@@ -134,7 +137,7 @@ def test_worker_roles_partition_every_loop_once():
     assigned = [name for role, names in worker.ROLE_LOOPS.items() if role != "dispatch" for name in names]
     assert sorted(assigned) == sorted(worker.ALL_LOOP_NAMES)
     assert len(assigned) == len(set(assigned))
-    assert worker.requested_loop_names("conversations") == ("engage", "answer_gaps", "inbound_messages", "lead_followups")
+    assert worker.requested_loop_names("conversations") == ("engage", "answer_gaps", "inbound_messages", "lead_followups", "system_watch")
     assert worker.requested_loop_names("dispatch") == ("render_dispatch",)
     assert "render_dispatch" not in worker.ALL_LOOP_NAMES
 
@@ -410,3 +413,16 @@ async def test_worker_applies_the_startup_wiring_before_its_loops_run(events, mo
     from app.modules.marketing.facts import Facts
     assert seen["listing_facts"] == Facts.from_docs
     assert seen["evergreen_post"] == BY_SLUG.get
+
+
+def test_the_watch_expects_only_the_loops_of_the_roles_that_run(monkeypatch):
+    # since reels are drawn by Cloud Run the media container runs `dispatch`: its three drawing loops are not missing, just elsewhere
+    monkeypatch.setattr(worker.settings, "media_role", "dispatch")
+    names = set(worker.deployed_intervals())
+    assert "render_dispatch" in names and "system_watch" in names and "project_enrich" in names
+    assert not names & {"calendar_reels", "listing_reels", "marketing_runs"}
+    monkeypatch.setattr(worker.settings, "media_role", "media")
+    assert {"calendar_reels", "listing_reels", "marketing_runs"} <= set(worker.deployed_intervals())
+    monkeypatch.setattr(worker.settings, "media_role", "nonsense")
+    assert worker.deployed_roles()[-1] == "media"
+

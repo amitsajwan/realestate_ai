@@ -50,7 +50,7 @@ from app.modules.inbox.router import board_router as lead_board_router, router a
 from app.modules.buyermind.router import router as buyer_mind_router
 from app.modules.report.router import router as report_router
 from app.modules.waitlist.router import router as waitlist_router
-from app.modules.admin.router import router as admin_router
+from app.modules.admin.router import public_router as admin_public_router, router as admin_router
 from app.modules.reels.router import router as listing_reels_router
 from app.modules.photoquality.router import router as quality_router
 from app.modules.agentprojects.router import router as agentprojects_router, public_router as agentprojects_public_router
@@ -130,6 +130,7 @@ api_router.include_router(areastats_router, prefix="/area-pictures", tags=["area
 api_router.include_router(area_photos_router, prefix="/area-photos", tags=["area-photos"])
 api_router.include_router(area_photos_public_router, prefix="/public", tags=["public"])
 api_router.include_router(seo_public_router, prefix="/public", tags=["public"])
+api_router.include_router(admin_public_router, prefix="/public", tags=["public"])
 api_router.include_router(seo_owner_router, prefix="/newsroom", tags=["newsroom"])
 api_router.include_router(communities_public_router, prefix="/public", tags=["public"])
 api_router.include_router(propertyfacts_public_router, prefix="/public", tags=["public"])

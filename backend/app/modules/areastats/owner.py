@@ -13,7 +13,7 @@ import httpx
 
 from app.modules.newsroom.store import Store
 
-from . import discover, enrich, hot as hotmod, pricing, websearch
+from . import budget, discover, enrich, hot as hotmod, pricing, webfacts, websearch
 
 HOT_LIMIT = 60
 
@@ -118,3 +118,34 @@ async def system(store: Store, now: datetime, intervals: Dict[str, Optional[floa
     split = serper_split()
     return {"loops": loops, "register": register, "marks": marks, "serper_credits": await serper_credits(),
             "serper_per_day": sum(s["per_day"] for s in split), "serper_split": split}
+
+
+async def reading(db, now: datetime) -> dict:
+    """The last 24 hours of project reading, for Admin -> Health and the system watch: projects read, those whose web read found
+    sites, those where the model gave no answer (webfacts.NO_ANSWER: tried again tomorrow), pages that went into search, and the
+    reads outside our areas still allowed today (enrich.wider_left's mark), and the paid models giving no answer to every call
+    (budget.Reader.refusing: Gemini over its monthly spending cap, 2026-11-19)."""
+    since = now - timedelta(hours=24)
+    reads = with_sites = no_answer = 0
+    cursor = db.get_collection("projects").find(
+        {"enriched_at": {"$gte": since}}, {"cluster_primary": 1, "web_facts.read": 1, "web_facts.at": 1, "enrichment.steps.web.checked": 1})
+    async for d in cursor:
+        if d.get("cluster_primary"):   # a tower is read on its group's primary
+            continue
+        reads += 1
+        web = d.get("web_facts") or {}
+        if web.get("read") and isinstance(web.get("at"), datetime) and _aware(web["at"]) >= since:
+            with_sites += 1
+            checked = str((((d.get("enrichment") or {}).get("steps") or {}).get("web") or {}).get("checked") or "")
+            no_answer += webfacts.NO_ANSWER in checked
+    into_search = await db.get_collection("projects").count_documents({"search_state.in": True, "search_state.at": {"$gte": since}})
+    mark = await db.get_collection("newsroom_status").find_one({"_id": enrich.WIDER}) or {}
+    left = None
+    if mark.get("day") == budget.day_of(now) and not mark.get("stopped"):
+        left = max(0, int(mark.get("allowed", enrich.load().wider_per_day)) - int(mark.get("done") or 0))
+    usage = await db.get_collection(budget.USAGE).find_one({"_id": budget.day_of(now)}) or {}
+    refusing = sorted(pool for pool, p in (usage.get("pools") or {}).items()
+                      if isinstance(p, dict) and int(p.get("streak") or 0) >= budget.REFUSED_AFTER
+                      and isinstance(p.get("failed_at"), datetime) and now - _aware(p["failed_at"]) < 2 * budget.REFUSED_REST)
+    return {"reads": reads, "with_sites": with_sites, "no_answer": no_answer, "into_search": into_search, "wider_left": left,
+            "paid_refusing": refusing, "free_calls": int(usage.get("free_calls") or 0)}

@@ -140,3 +140,31 @@ def test_the_caps_come_from_the_environment(monkeypatch):
     monkeypatch.setenv("ENRICH_FREE_CALLS_PER_DAY", "250")
     cfg = budget.load()
     assert cfg.gemini_inr == 20.0 and cfg.free_calls == 250
+
+
+async def test_a_paid_model_refusing_every_call_counts_as_no_room_for_an_hour():
+    # 2026-11-19: Google refused every Gemini call (monthly spending cap); once the free tiers' day was spent each read paid
+    # Serper for its searches and got nothing
+    db = FakeDb()
+    free, gemini, lite = Model("free"), Model("gemini", "gemini-3-flash-preview"), Model("lite", "gemini-flash-lite-latest", answer=False)
+    r = await reader(db, free, gemini, lite, cfg=budget.Config(gemini_inr=50.0, free_calls=0, usd_inr=88.0, reserve=0.5))
+    for i in range(budget.REFUSED_AFTER):
+        assert await r.json(budget.PLAIN, "web", "s", f"q{i}") is None
+    assert lite.calls == budget.REFUSED_AFTER
+    assert not r.can_read(budget.PLAIN)                      # the read waits instead of searching for nothing
+    again = await reader(db, free, gemini, lite, cfg=budget.Config(gemini_inr=50.0, free_calls=0, usd_inr=88.0, reserve=0.5))
+    assert again.refusing(budget.LITE)                       # kept on the day's record: the next round knows too
+    later = await reader(db, free, gemini, lite, now=NOW + budget.REFUSED_REST, cfg=budget.Config(gemini_inr=50.0, free_calls=0, usd_inr=88.0, reserve=0.5))
+    assert not later.refusing(budget.LITE)                   # asked again after the rest
+
+
+async def test_an_answer_ends_a_paid_models_run_of_refusals():
+    db = FakeDb()
+    lite = Model("lite", "gemini-flash-lite-latest", answer=False)
+    r = await reader(db, Model("free"), Model("gemini", "gemini-3-flash-preview"), lite,
+                     cfg=budget.Config(gemini_inr=50.0, free_calls=0, usd_inr=88.0, reserve=0.5))
+    for i in range(budget.REFUSED_AFTER - 1):
+        await r.json(budget.PLAIN, "web", "s", f"q{i}")
+    lite.answer = True
+    assert await r.json(budget.PLAIN, "web", "s", "ok") == {"by": "lite"}
+    assert r.pools[budget.LITE]["streak"] == 0 and not r.refusing(budget.LITE)

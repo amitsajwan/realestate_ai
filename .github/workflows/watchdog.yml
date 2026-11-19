@@ -1,0 +1,36 @@
+name: Watchdog (live site)
+
+# Every 3 hours, from outside our server: the home page answers, and /api/v1/public/alive says the system watch
+# (backend/app/modules/admin/watch.py) is running with no red row on Studio's Admin -> Health. Fails, and GitHub emails the repo
+# owner, when the site is down, the watch has stopped, or a loop, the Serper credits or the project reading is red: the case
+# the watch cannot report itself (a dead server, a dead conversations worker). Three tries over two minutes first, so a deploy
+# restarting the containers does not count. Reads two URLs; free.
+on:
+  schedule:
+    - cron: '23 */3 * * *'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Site and system watch
+        env:
+          SITE: ${{ vars.SEO_SITE_URL || 'https://avasetu.in' }}
+        run: |
+          for try in 1 2 3; do
+            home=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$SITE/" || echo 000)
+            alive=$(curl -s --max-time 30 -w '\n%{http_code}' "$SITE/api/v1/public/alive" || printf '\n000')
+            code=$(printf '%s' "$alive" | tail -n1)
+            body=$(printf '%s' "$alive" | head -n -1)
+            echo "try $try: home $home, alive $code $body"
+            if [ "$home" = "200" ] && [ "$code" = "200" ]; then exit 0; fi
+            [ "$try" -lt 3 ] && sleep 60
+          done
+          {
+            echo "### Avasetu needs a look"
+            echo "Home page: $home. System watch: $code $body"
+            echo "Open Studio -> Admin -> Health. failing names the red rows; system_watch means the watch itself stopped."
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 1

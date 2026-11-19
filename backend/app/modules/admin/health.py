@@ -158,6 +158,60 @@ def loop_row(key: str, label: str, beat: Optional[dict], interval_s: Optional[fl
     return {**_row(key, label, OK, "Running"), "last_run_at": _iso(ok_at)}
 
 
+LOOP_GRACE_S = 30 * 60   # a loop is late only past twice its interval AND this: a reading round runs up to 15 minutes, a deploy
+                         # restarts every container, and an alarm that cries wolf is one nobody reads
+
+
+def loops_row(beats: Dict[str, dict], intervals: Dict[str, Optional[float]], now: datetime) -> Dict:
+    """Every background loop the worker runs (`app.worker.expected_intervals`, passed in: no module imports the worker): BAD when
+    one has stopped or has failed every round for an hour. A stopped loop fails quietly, so this is the row that says so."""
+    stopped, failing = [], []
+    for name, interval in sorted(intervals.items()):
+        if interval is None:
+            continue
+        beat, age = beats.get(name), heartbeats.age_s(beats.get(name), now)
+        if age is None or age > max(2 * interval, LOOP_GRACE_S):
+            stopped.append(f"{name} ({_ago(age)})" if age is not None else f"{name} (never ran)")
+            continue
+        err_at, ok_at = heartbeats._aware((beat or {}).get("last_error_at")), heartbeats._aware((beat or {}).get("last_ok_at"))
+        if err_at and (not ok_at or (err_at > ok_at and (now - ok_at).total_seconds() > LOOP_GRACE_S * 2)):
+            failing.append(f"{name}: {str(beat.get('last_error') or '')[:60]}")
+    on = sum(1 for v in intervals.values() if v is not None)
+    if stopped or failing:
+        text = "; ".join(filter(None, [("Stopped: " + ", ".join(stopped)) if stopped else "",
+                                       ("Failing: " + "; ".join(failing)) if failing else ""]))
+        return _row("loops", "Background loops", BAD, text,
+                    "On the VM: sudo docker ps (is the container up?), then sudo docker logs <container> --since 2h")
+    return _row("loops", "Background loops", OK, f"All {on} running")
+
+
+READ_NO_ANSWER_WARN, READ_NO_ANSWER_BAD = 0.2, 0.5   # share of reads with sites found where the model gave no answer
+READ_MIN = 10                                        # reads in a day before a share means anything
+
+
+def reading_row(on: bool, r: Optional[Dict]) -> Optional[Dict]:
+    """Project reading, from areastats.owner.reading: the loop can run every round and still read nothing useful (no model
+    room, a model that answers nothing). 2026-11-08 to 11-10, 251 reads in a row came out empty and nobody knew."""
+    if not on or r is None:
+        return None
+    label, fix = "Project reading", "Read pipeline=enrich in the newsroom worker's log; the AI keys: deploy/gcp/ai_connect.ps1"
+    reads, sites, none = r.get("reads", 0), r.get("with_sites", 0), r.get("no_answer", 0)
+    went_in, left = r.get("into_search", 0), r.get("wider_left")
+    tail = f"; {went_in} pages went into search" + (f"; {left} more can be read today outside our areas" if left is not None else "")
+    if r.get("paid_refusing"):
+        return _row("reading", label, BAD,
+                    f"Gemini ({', '.join(r['paid_refusing'])}) refuses every call: once the free AI's {r.get('free_calls', 0)} calls "
+                    f"are used, projects wait until tomorrow{tail}",
+                    "Google may have hit its spending cap: https://ai.studio/spend; else check GEMINI_API_KEY")
+    if reads == 0:
+        return _row("reading", label, BAD, "No project read in 24 hours", fix)
+    share = none / sites if sites >= READ_MIN else 0
+    if share >= READ_NO_ANSWER_WARN:
+        status = BAD if share >= READ_NO_ANSWER_BAD else WARN
+        return _row("reading", label, status, f"The AI gave no answer on {none} of {sites} reads in 24 hours (retried tomorrow){tail}", fix)
+    return _row("reading", label, OK, f"{reads} read in 24 hours{tail}")
+
+
 SEARCH_LOW = 500                      # searches left: about a batch of 150 projects
 
 
