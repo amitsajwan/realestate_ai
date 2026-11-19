@@ -235,15 +235,38 @@ def _ours(d: dict) -> bool:
     return bool(d.get("watched_by")) and (d.get("search_state") or {}).get("in") is True
 
 
+NO_ANSWER_FIXED = datetime(2026, 11, 19, 12, tzinfo=timezone.utc)   # before this a model that gave no answer read as "0 facts"
+
+
+def read_without_answers(d: dict) -> bool:
+    """A page out of search whose last web read found pages naming the project and got nothing from any of them, read before
+    NO_ANSWER_FIXED: then the model giving no answer was saved as "0 facts". Read once more; a read after the fix says which it was."""
+    web = d.get("web_facts") or {}
+    at = web.get("at")
+    return (isinstance(at, datetime) and _aware(at) < NO_ANSWER_FIXED and not web.get("facts") and not d.get("page_text")
+            and not pages.own_facts(d) and sum(1 for r in web.get("read") or [] if r.get("why") == "0 facts") >= 2)
+
+
+def wider_again(d: dict, now: datetime) -> bool:
+    """A page outside our areas, read before, whose read the model did not answer: read again after RETRY_DAYS. Its searches
+    are stored, so it costs model calls and next to no Serper credit."""
+    done = d.get("enriched_at")
+    return (isinstance(done, datetime) and now - _aware(done) >= timedelta(days=RETRY_DAYS) and not pages.searchable(d, now)
+            and (unanswered(d) or read_without_answers(d)))
+
+
 def wider(d: dict, now: datetime) -> bool:
-    """A page outside our areas worth its first read (owner 2026-11-08): filed for 2027 or later, never read, and listable."""
-    return (not _ours(d) and bool(d.get("page_slug")) and not d.get("enriched_at") and bool(_day(d.get("completion_now")))
-            and worth_model(d) and pages.indexable(d) and not pages.is_old(d) and not parked(d, now))
+    """A page outside our areas worth a read (owner 2026-11-08): filed for 2027 or later, listable, and never read or read
+    without the model's answers (`wider_again`)."""
+    return (not _ours(d) and bool(d.get("page_slug")) and (not d.get("enriched_at") or wider_again(d, now))
+            and bool(_day(d.get("completion_now"))) and worth_model(d) and pages.indexable(d) and not pages.is_old(d)
+            and not parked(d, now))
 
 
 def wider_key(d: dict) -> tuple:
-    """After everything in our areas: big projects before small, homes before offices and shops, the newest registered first."""
-    kind = (0 if launches.home_count(d) >= BIG_PROJECT else 1) if pages.homes(d) else 2
+    """After everything in our areas: pages read again first (their searches are stored), then big projects before small, homes
+    before offices and shops, the newest registered first."""
+    kind = -1 if d.get("enriched_at") else (0 if launches.home_count(d) >= BIG_PROJECT else 1) if pages.homes(d) else 2
     day = pages._day(d.get("registered_on")) or ""
     return (5, kind, -int(day.replace("-", "") or 0), d.get("_id") or "")
 

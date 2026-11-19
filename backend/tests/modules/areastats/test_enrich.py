@@ -1077,6 +1077,28 @@ def test_a_page_outside_our_areas_is_read_once_if_it_is_filed_for_2027_or_later(
     assert not enrich.wider({**WIDE, "locality": "kharadi"}, NOW)
 
 
+def test_a_page_outside_our_areas_the_model_did_not_answer_is_read_again():
+    no_answer = {"enrichment": {"steps": {"web": {"ok": False, "checked": "0 facts from 0 of 4 sites; no model answer on 4 of 4 pages"}}}}
+    assert enrich.wider({**WIDE, **no_answer, "enriched_at": NOW - timedelta(days=enrich.RETRY_DAYS)}, NOW)
+    assert not enrich.wider({**WIDE, **no_answer, "enriched_at": NOW}, NOW)                   # not the same day
+
+
+def test_a_page_read_empty_before_the_fix_is_read_once_more_and_not_again():
+    empty = {"web_facts": {"at": datetime(2026, 11, 9, tzinfo=timezone.utc), "facts": [],
+                           "read": [{"why": "0 facts"}, {"why": "0 facts"}, {"why": "page not read"}]}}
+    read = {**WIDE, **empty, "enriched_at": datetime(2026, 11, 9, tzinfo=timezone.utc)}
+    later = datetime(2026, 11, 19, 8, tzinfo=timezone.utc)
+    assert enrich.wider(read, later)
+    after = {**read, "web_facts": {**empty["web_facts"], "at": enrich.NO_ANSWER_FIXED}, "enriched_at": enrich.NO_ANSWER_FIXED}
+    assert not enrich.wider(after, enrich.NO_ANSWER_FIXED + timedelta(days=3))    # the model answered "nothing": it stands
+    assert not enrich.wider({**read, "web_facts": {**empty["web_facts"], "read": [{"why": "0 facts"}]}}, later)   # one page proves little
+
+
+def test_pages_read_again_go_before_first_reads():
+    again = {**WIDE, "_id": "Z", "enriched_at": NOW}
+    assert enrich.wider_key(again) < enrich.wider_key(WIDE)
+
+
 def test_big_projects_go_before_small_homes_before_offices_and_the_newest_first():
     older = {**WIDE, "_id": "A", "registered_on": "2024-01-01"}
     small = {**WIDE, "_id": "B", "units_total": 20}
