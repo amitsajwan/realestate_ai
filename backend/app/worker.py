@@ -30,10 +30,10 @@ ALL_LOOP_NAMES = (
     "engage", "newsroom", "calendar", "calendar_reels", "listing_reels", "marketing_runs", "project_enrich", "insights",
     "answer_gaps", "inbound_messages", "token_cleanup", "radar", "seo", "communities", "knowledge_index", "lead_followups",
     "system_watch",
-    "video_cleanup", "geoip", "press", "area_pictures", "area_photo_scout",
+    "video_cleanup", "geoip", "press", "area_pictures", "area_photo_scout", "whatsapp_alerts",
 )   # render_dispatch is not among them: only the `dispatch` role starts it (it calls Cloud Run; development has none)
 ROLE_LOOPS = {
-    "conversations": ("engage", "answer_gaps", "inbound_messages", "lead_followups", "system_watch"),
+    "conversations": ("engage", "answer_gaps", "inbound_messages", "lead_followups", "system_watch", "whatsapp_alerts"),
     "newsroom": ("newsroom", "seo", "communities", "project_enrich", "radar", "insights", "calendar", "token_cleanup",
                  "knowledge_index", "video_cleanup", "geoip", "press", "area_pictures", "area_photo_scout"),
     "media": ("calendar_reels", "listing_reels", "marketing_runs"),
@@ -58,6 +58,7 @@ def loops() -> LoopTable:
     from app.modules.newsroom.runner import loop as newsroom_loop
     from app.modules.propertyfacts.jobs import loop as marketing_loop
     from app.modules.whatsapp.jobs import loop as inbound_loop
+    from app.modules.whatsapp.alerts import loop as whatsapp_alerts_loop
     from app.services.token_cleanup_service import loop as token_cleanup_loop
     from app.modules.radar import loop as radar_loop
     from app.modules.reels.listing_reel import loop as reels_loop
@@ -75,7 +76,7 @@ def loops() -> LoopTable:
             "communities": communities_loop, "knowledge_index": knowledge_index_loop, "render_dispatch": dispatch_loop,
             "lead_followups": lead_followups_loop, "video_cleanup": video_cleanup_loop, "geoip": geoip_loop,
             "press": press_loop, "area_pictures": area_pictures_loop,
-            "area_photo_scout": area_photo_scout_loop,
+            "area_photo_scout": area_photo_scout_loop, "whatsapp_alerts": whatsapp_alerts_loop,
             # in the conversations worker, apart from the newsroom loops it watches; given this table's intervals
             "system_watch": system_watch_loop(deployed_intervals)}
 
@@ -153,6 +154,7 @@ def expected_intervals() -> Dict[str, Optional[float]]:
     from app.modules.knowledge.index import INTERVAL_S as KNOWLEDGE_INDEX_INTERVAL_S
     from app.modules.knowledge.vectors import enabled as knowledge_index_on
     from app.modules.whatsapp.jobs import HEARTBEAT_INTERVAL_S as INBOUND_INTERVAL_S
+    from app.modules.whatsapp import alerts as wa_alerts
     from app.services.token_cleanup_service import INTERVAL_S as TOKEN_CLEANUP_INTERVAL_S
     from app.platform.meta_graph.config import load as social_cfg
     from app.modules.newsroom.config import load as newsroom_cfg
@@ -188,6 +190,7 @@ def expected_intervals() -> Dict[str, Optional[float]]:
         "communities": float(COMMUNITIES_POLL_S) if communities_on() else None,  # COMMUNITY_ARTICLES_ENABLED
         "knowledge_index": float(KNOWLEDGE_INDEX_INTERVAL_S) if knowledge_index_on() else None,  # QDRANT_URL + EMBEDDER_URL
         "render_dispatch": float(DISPATCH_EVERY_S),  # always on where the dispatch role runs
+        "whatsapp_alerts": float(wa_alerts.INTERVAL_S) if wa_alerts.enabled() else None,  # WHATSAPP_ALERTS
         "lead_followups": float(LEAD_FOLLOWUPS_INTERVAL_S),  # always on (waiting alerts); LEAD_AUTO_FOLLOWUP adds the auto template
         "video_cleanup": float(VIDEO_CLEANUP_INTERVAL_S),  # always on (drawn reels older than 2 days)
         "geoip": float(GEOIP_INTERVAL_S) if geoip_on() else None,  # GEOIP_REFRESH (area/network files for the Live panel)

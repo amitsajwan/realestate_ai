@@ -116,6 +116,7 @@ def test_the_worker_runs_the_fifteen_loops_under_the_api_lease_names():
     from app.modules.tracking.jobs import loop as geoip_loop
     from app.modules.press import loop as press_loop
     from app.modules.areaphotos.runner import loop as area_photo_scout_loop
+    from app.modules.whatsapp.alerts import loop as whatsapp_alerts_loop
     table = worker.loops()
     watch = table.pop("system_watch")         # made with the worker's own intervals, so a new function each time
     assert callable(watch) and watch.__qualname__.startswith("loop_with")
@@ -129,7 +130,7 @@ def test_the_worker_runs_the_fifteen_loops_under_the_api_lease_names():
                               "knowledge_index": knowledge_index_loop, "lead_followups": lead_followups_loop,
                               "video_cleanup": video_cleanup_loop, "geoip": geoip_loop,
                               "press": press_loop, "area_pictures": area_pictures_loop,
-                              "area_photo_scout": area_photo_scout_loop}
+                              "area_photo_scout": area_photo_scout_loop, "whatsapp_alerts": whatsapp_alerts_loop}
 
 
 def test_worker_roles_partition_every_loop_once():
@@ -137,7 +138,8 @@ def test_worker_roles_partition_every_loop_once():
     assigned = [name for role, names in worker.ROLE_LOOPS.items() if role != "dispatch" for name in names]
     assert sorted(assigned) == sorted(worker.ALL_LOOP_NAMES)
     assert len(assigned) == len(set(assigned))
-    assert worker.requested_loop_names("conversations") == ("engage", "answer_gaps", "inbound_messages", "lead_followups", "system_watch")
+    assert worker.requested_loop_names("conversations") == ("engage", "answer_gaps", "inbound_messages", "lead_followups", "system_watch",
+                                                                "whatsapp_alerts")
     assert worker.requested_loop_names("dispatch") == ("render_dispatch",)
     assert "render_dispatch" not in worker.ALL_LOOP_NAMES
 

@@ -12,6 +12,15 @@ export function whatsappLink(phone: string | null | undefined, message: string):
   return n ? 'https://wa.me/' + n + '?text=' + encodeURIComponent(message) : null
 }
 
+/** The project page's WhatsApp ask: the platform chat link (`wa.me/<number>`) with a first message naming the project and its page. The
+ *  bot reads `(page <slug>)` as a price-sheet ask from that page (whatsapp/brain.py PAGE_ASK); no MahaRERA number in it, which would
+ *  start the status check instead. */
+export function pageWhatsApp(base: string | null | undefined, name: string, slug: string): string | null {
+  if (!base) return null
+  const text = `Hi, please send today's price sheet and floor plans for ${name} (page ${slug})`
+  return base + (base.includes('?') ? '&' : '?') + 'text=' + encodeURIComponent(text)
+}
+
 export function telLink(phone: string | null | undefined): string | null {
   const n = waNumber(phone)
   return n ? 'tel:+' + n : null

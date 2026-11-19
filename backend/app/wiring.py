@@ -124,6 +124,9 @@ def wire() -> None:
     from app.modules.seo import coverage as seo_coverage
     launches.configure(indexed=seo_coverage.indexed_paths)
     project_enrich.add_daily("launch clock", launches.refresh)
+    # the week's new projects in a place, for the WhatsApp alerts buyers sign up to (whatsapp.alerts); the register sits above chats
+    from app.modules.whatsapp import alerts as whatsapp_alerts
+    whatsapp_alerts.configure(new_projects=launches.new_in_place)
     # hot projects (areastats.hot): outside signals beyond MahaRERA, news and Search Console; YouTube is on with YOUTUBE_API_KEY
     from app.modules.areastats import hot as hot_projects
     hot_projects.add_signal("youtube", hot_projects.youtube_signal())

@@ -37,6 +37,8 @@ def _match(doc, flt):
                     return False
                 if op == "$lt" and not (val is not None and val < arg):
                     return False
+                if op == "$lte" and not (val is not None and val <= arg):
+                    return False
                 if op == "$in" and val not in arg:
                     return False
                 if op == "$nin" and val in arg:

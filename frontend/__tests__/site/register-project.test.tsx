@@ -159,8 +159,27 @@ describe('asking about a project without scrolling to the end', () => {
     expect(within(screen.getByTestId('ask-prompt')).queryByText('WhatsApp')).toBeNull()
     unmount()
     render(<RegisterProjectPage p={P} siteUrl="https://avasetu.in" facts={null} whatsappUrl="https://wa.me/919800000000" />)
-    expect(within(screen.getByTestId('ask-prompt')).getByText('WhatsApp').closest('a')).toHaveAttribute('href', 'https://wa.me/919800000000')
-    expect(within(screen.getByTestId('sticky-join')).getByText('WhatsApp').closest('a')).toHaveAttribute('href', 'https://wa.me/919800000000')
+    // the message names the project and its page, never its MahaRERA number (that starts the bot's status check)
+    const ask = within(screen.getByTestId('ask-prompt')).getByText('WhatsApp').closest('a')!.getAttribute('href')!
+    expect(ask.startsWith('https://wa.me/919800000000?text=')).toBe(true)
+    const text = decodeURIComponent(ask.split('text=')[1])
+    expect(text).toContain(`(page ${P.slug})`)
+    expect(text).not.toContain(P.regno)
+    expect(screen.getByTestId('sticky-whatsapp')).toHaveAttribute('href', ask)
+  })
+
+  it('makes WhatsApp the first action, with the form after it', () => {
+    render(<RegisterProjectPage p={P} siteUrl="https://avasetu.in" facts={null} whatsappUrl="https://wa.me/919800000000" />)
+    expect(screen.getByTestId('hero-whatsapp')).toHaveTextContent("Get today's price sheet on WhatsApp")
+    expect(screen.getByTestId('hero-form')).toHaveAttribute('href', '#enquire')
+    expect(within(screen.getByTestId('sticky-join')).getByText('Form').closest('a')).toHaveAttribute('href', '#enquire')
+  })
+
+  it("keeps an agent's form first on their listing page", () => {
+    const seller = { slug: 'house-deal', name: 'House Deal' } as unknown as Parameters<typeof RegisterProjectPage>[0]['seller']
+    render(<RegisterProjectPage p={P} siteUrl="https://avasetu.in" facts={null} whatsappUrl="https://wa.me/919800000000" seller={seller} />)
+    expect(screen.queryByTestId('hero-whatsapp')).toBeNull()
+    expect(screen.queryByTestId('sticky-whatsapp')).toBeNull()
   })
 })
 

@@ -106,3 +106,15 @@ async def test_the_indexed_pages_are_those_google_passed():
     await coll.insert_one({"_id": "https://avasetu.in/projects/a", "verdict": "PASS"})
     await coll.insert_one({"_id": "https://avasetu.in/projects/b", "verdict": "NEUTRAL"})
     assert await coverage.indexed_paths(db) == {"/projects/a"}
+
+
+def test_the_alert_reader_gives_a_places_new_projects_with_homes_newest_first():
+    docs = [{**LAUNCH, "_id": "A", "pune_place": "ravet", "registered_on": "2026-11-17", "promoter": "Kolte Patil"},
+            {**LAUNCH, "_id": "B", "pune_place": "ravet", "registered_on": "2026-11-19", "page_slug": "b-ravet"},
+            {**LAUNCH, "_id": "O", "pune_place": "ravet", "registered_on": "2026-11-01", "page_slug": "old-ravet"},        # before the week
+            {**LAUNCH, "_id": "W", "pune_place": "wakad", "registered_on": "2026-11-18", "page_slug": "w-wakad"},         # another place
+            {**LAUNCH, "_id": "C", "pune_place": "ravet", "project_type": "Commercial", "page_slug": "c-ravet"},           # offices
+            {**LAUNCH, "_id": "T", "pune_place": "ravet", "cluster_primary": "A", "page_slug": "t-ravet"}]                # a tower of A
+    got = launches.registered_in(docs, "ravet", NOW.date() - timedelta(days=7))
+    assert [p["regno"] for p in got] == ["B", "A"]
+    assert got[1]["builder"] == "Kolte Patil" and got[1]["homes"] == 168 and got[1]["slug"] == "new-tower-ravet"

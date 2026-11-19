@@ -8,6 +8,7 @@ import ListingCard from '@/components/site/ListingCard'
 import SourceKind from '@/components/site/SourceKind'
 import StickyJoinBar from '@/components/marketing/StickyJoinBar'
 import { PROJECT_CTA } from '@/lib/site/strings'
+import { pageWhatsApp } from '@/lib/site/links'
 import { jsonLdString } from '@/lib/marketing/seo'
 import { registerProjectJsonLd } from '@/lib/site/projectSeo'
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
@@ -205,7 +206,9 @@ function HeroLine({ p, where, linkless }: { p: RegisterProject; where: string; l
  *  the builder's own picture, never an AI illustration standing in for a real one. With no picture (most projects, 2026-10-31),
  *  a street map around the project's pin takes its place with the builder's logo over it (backend areastats/locmap.py,
  *  logos.py), else the logo alone. Over a photo the builder's logo sits in a white badge (owner 2026-11-03). */
-function Hero({ p, price, photo, linkless = false, closed = false, callback, emi }: { p: RegisterProject; price: { from: string; bhks: string } | null; photo: ProfilePicture | null; linkless?: boolean; closed?: boolean
+function Hero({ p, price, photo, linkless = false, closed = false, callback, emi, whatsappAsk }: { p: RegisterProject; price: { from: string; bhks: string } | null; photo: ProfilePicture | null; linkless?: boolean; closed?: boolean
+  /** the price-sheet ask on WhatsApp (lib/site/links pageWhatsApp): when set it is the first button and the form comes after it */
+  whatsappAsk?: string | null
   /** the example EMI on the price the chip quotes (homes only): buyers weigh a flat by the monthly payment first */
   emi?: { emi: number; rate: number; years: number } | null
   /** who the "Call me back" button's lead goes to, and what about: the same as the page's enquiry form */
@@ -326,12 +329,24 @@ function Hero({ p, price, photo, linkless = false, closed = false, callback, emi
           </a>
         </div>
       ) : (
-      <div className="mt-6 flex flex-wrap gap-3">
-        <a href="#enquire" className="inline-flex min-h-[48px] items-center rounded-full bg-amber-400 px-6 font-bold text-slate-900 no-underline">{PROJECT_CTA.today}</a>
+      <div className="mt-6 flex flex-wrap items-center gap-3">
+        {whatsappAsk ? (
+          <a href={whatsappAsk} target="_blank" rel="noopener noreferrer" data-testid="hero-whatsapp"
+            className="inline-flex min-h-[48px] items-center rounded-full bg-[#25D366] px-6 font-bold text-[#053b1a] no-underline">
+            {PROJECT_CTA.whatsapp}<span className="sr-only"> (opens WhatsApp)</span>
+          </a>
+        ) : (
+          <a href="#enquire" className="inline-flex min-h-[48px] items-center rounded-full bg-amber-400 px-6 font-bold text-slate-900 no-underline">{PROJECT_CTA.today}</a>
+        )}
         <a href="#visit" className="inline-flex min-h-[48px] items-center rounded-full px-5 font-semibold text-white no-underline ring-1 ring-inset ring-white/30 hover:bg-white/10">
           {PROJECT_CTA.visit}
         </a>
         {callback && <CallbackButton tone="dark" agentSlug={callback.agentSlug} agentName={callback.agentName} topic={callback.topic} />}
+        {whatsappAsk && (
+          <a href="#enquire" className="inline-flex min-h-[44px] items-center font-semibold text-white underline underline-offset-2" data-testid="hero-form">
+            {PROJECT_CTA.byForm}
+          </a>
+        )}
       </div>
       )}
       </div>
@@ -885,6 +900,8 @@ export interface Seller {
 
 export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], whatsappUrl, seller }: { p: RegisterProject; siteUrl: string; facts: PropertyFactsView | null; lists?: FacetLink[]; whatsappUrl?: string | null; seller?: Seller }) {
   const url = `${siteUrl}/projects/${p.slug}`
+  // the WhatsApp ask names this project; on an agent's listing page (seller) the agent's form stays first
+  const waAsk = pageWhatsApp(whatsappUrl, displayName(p), p.slug)
   const leadSlug = seller?.slug ?? HOUSE_AGENT
   const leadName = seller?.name ?? 'Avasetu'
   const askNote = seller ? `${seller.name} calls or WhatsApps you back; your number is never shared without your OK.` : ASK_NOTE
@@ -989,7 +1006,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
       </nav>
       )}
 
-      <Hero p={p} price={price} photo={heroPhoto} linkless={!!seller} closed={closed} emi={closed ? null : heroEmi} callback={{ agentSlug: leadSlug, agentName: leadName, topic: enquiryTopic }} />
+      <Hero p={p} price={price} photo={heroPhoto} linkless={!!seller} closed={closed} emi={closed ? null : heroEmi} callback={{ agentSlug: leadSlug, agentName: leadName, topic: enquiryTopic }} whatsappAsk={seller ? null : waAsk} />
 
       {/* a partner agent's listing names them at the top and opens their own page for it (owner 2026-10-30); on that page itself
           (seller) it would link to itself, and Avasetu's own listings need no line */}
@@ -1063,7 +1080,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
 
           <RecordSection p={p} shown={shown} facts={facts} linkless={!!seller} />
 
-          {!closed && <AskPrompt name={shown} whatsappUrl={whatsappUrl} label={PROJECT_CTA.today} />}
+          {!closed && <AskPrompt name={shown} whatsappUrl={waAsk} label={PROJECT_CTA.today} />}
 
           {seller && (seller.others ?? []).length > 0 && (
             <section aria-labelledby="more-title" data-testid="more-from-agent">
@@ -1106,7 +1123,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
 
         <aside className="min-w-0 space-y-6 lg:sticky lg:top-20 lg:self-start">
           {/* the side column stays in view on desktop, so the ask does too; phones get the bottom bar instead */}
-          {!closed && <div className="hidden lg:block"><AskPrompt name={shown} whatsappUrl={whatsappUrl} label={PROJECT_CTA.today} compact /></div>}
+          {!closed && <div className="hidden lg:block"><AskPrompt name={shown} whatsappUrl={waAsk} label={PROJECT_CTA.today} compact /></div>}
         </aside>
       </div>
 
@@ -1130,7 +1147,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
         {' '}Facts can change; check the record and your agreement before you book.
       </footer>
       </div>
-      {!closed && <StickyJoinBar watchId="project-hero" formId="enquire" label={PROJECT_CTA.short} whatsappUrl={whatsappUrl} whatsappLabel="WhatsApp" />}
+      {!closed && <StickyJoinBar watchId="project-hero" formId="enquire" label={PROJECT_CTA.short} whatsappUrl={waAsk} whatsappLabel={seller ? 'WhatsApp' : PROJECT_CTA.whatsappShort} whatsappFirst={!seller} />}
     </div>
   )
 }

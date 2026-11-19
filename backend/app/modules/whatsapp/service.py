@@ -24,7 +24,7 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Callable, Optional
 
-from . import adapters, lang as L
+from . import adapters, alerts, lang as L
 from .brain import ChatBrain
 from .config import WhatsAppConfig
 from .graph import WhatsAppGraphError
@@ -234,6 +234,8 @@ class WhatsAppService(ChatBrain):
             reply = L.pick(L.LOCATION, lang)
         elif mtype in MEDIA_TYPES or not text:
             reply = L.pick(L.MEDIA, lang)
+        elif alerts.asked(text):   # "ALERT Kharadi 2BHK": the week's new projects there, from here on
+            reply = alerts.turn(conv, text, lang, now)
         else:
             reply = await self._answer(conv, text, lang)
         agent_id = conv.get("agent_id")   # the answer may route the chat (a project's word names its listing's agent)
