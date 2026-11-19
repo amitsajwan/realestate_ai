@@ -5,7 +5,7 @@ import { ErrorBox, Spinner } from '@/components/app/ui'
 import { timeAgo } from '@/lib/app/format'
 import { errorMessage } from '@/lib/app/client'
 import { getRankings, revertPage } from '@/lib/app/insights'
-import type { AiVisits, BoardLeader, BoardRow, BoardStanding, PageCheck, PageContent, ProjectIndex, RankAction, RankTarget, Scoreboard, WeekCounts, WeekNumbers } from '@/lib/app/insights'
+import type { AiVisits, BoardLeader, BoardRow, BoardStanding, FixResult, PageCheck, PageContent, ProjectIndex, RankAction, RankTarget, Scoreboard, WeekCounts, WeekNumbers } from '@/lib/app/insights'
 import { useAsync } from '@/lib/app/useAsync'
 import { getNotifications, markNotificationRead } from '@/lib/app/whatsapp'
 
@@ -50,6 +50,36 @@ function WeekCount({ kind, label, hint, total, w }: { kind: 'clicks' | 'impressi
   )
 }
 
+/** One section of the tab, closed to its title and one line until tapped: the tab was some 18 sections long (2026-11-19).
+ *  Its content is only drawn when open. */
+export function Fold({ title, line, children, testId }: { title: string; line?: string | null; children: React.ReactNode; testId?: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <section className={`${card} mt-2`} data-testid={testId} aria-label={title}>
+      <button type="button" aria-expanded={open} onClick={() => setOpen(!open)}
+        className="flex min-h-[44px] w-full items-center justify-between gap-2 text-left">
+        <span className="min-w-0">
+          <span className="block font-semibold text-gray-900">{title}</span>
+          {line && <span className="block text-xs text-gray-600">{line}</span>}
+        </span>
+        <span aria-hidden className="text-gray-400">{open ? '▴' : '▾'}</span>
+      </button>
+      {open && <div className="mt-1">{children}</div>}
+    </section>
+  )
+}
+
+/** The first `step` items, then "Show all N". */
+function More<T>({ items, render, step = 10 }: { items: T[]; render: (x: T, i: number) => React.ReactNode; step?: number }) {
+  const [all, setAll] = useState(false)
+  return (
+    <>
+      <ul className="space-y-2 p-0">{(all ? items : items.slice(0, step)).map(render)}</ul>
+      {items.length > step && <button type="button" className={`${btn} mt-2 w-full`} onClick={() => setAll(!all)}>{all ? `Show ${step}` : `Show all ${items.length}`}</button>}
+    </>
+  )
+}
+
 function Empty({ children }: { children: React.ReactNode }) {
   return <p className="rounded-2xl bg-white p-4 text-sm text-gray-600">{children}</p>
 }
@@ -78,7 +108,7 @@ function ActionRow({ a, onDone }: { a: RankAction; onDone: () => void }) {
   }
   const after = a.after28 ?? a.after14
   return (
-    <li className={card}>
+    <li className="list-none border-t border-gray-100 pt-2 first:border-0 first:pt-0">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="min-w-0 break-words font-semibold text-gray-900">{FIX_LABEL[a.fix] ?? a.fix} · <span className="font-normal">{a.path}</span></p>
         {a.gain != null && <StatusPill tone={a.gain > 0 ? 'ok' : a.gain < 0 ? 'bad' : 'muted'}>{a.gain > 0 ? '+' : ''}{a.gain} positions</StatusPill>}
@@ -133,7 +163,7 @@ function RowList({ title, hint, rows }: { title: string; hint: string; rows?: Bo
 
 /** docs/plan/index-everything.md I6: our Google place against the big portals, from the searches we already run. Head to head
  * (both on the page) is the fair count; a search MagicBricks has no page for is a win that says little. */
-function Board({ b }: { b: Scoreboard }) {
+export function Board({ b }: { b: Scoreboard }) {
   const prev = b.history.length > 1 ? b.history[b.history.length - 2] : null
   const comparable = prev && !!prev.buyer_only === !!b.buyer_only   // weeks before 2026-11-06 counted our own lookups too
   const diff = comparable ? b.above_mb_when_shown - prev.above_mb_when_shown : null
@@ -244,8 +274,7 @@ const sitemapLabel = (s: string) => (s.startsWith('area-') ? s.slice(5).split('-
 function ProjectPages({ index, content, at }: { index?: ProjectIndex | null; content?: PageContent; at: string | null }) {
   const reasons = Object.entries(index?.missing_by_state ?? {})
   return (
-    <div className={card} data-testid="project-pages">
-      <p className="font-semibold text-gray-900">Project pages in Google</p>
+    <div data-testid="project-pages">
       <p className="text-xs text-gray-600">Project pages in our sitemap (the ones we ask Google to show), checked one by one with Google about once a week.</p>
       {!!index?.inspected && (
         <>
@@ -281,8 +310,7 @@ function ByArea({ rows, at }: { rows: AreaRow[]; at: string | null }) {
   const [all, setAll] = useState(false)
   const shown = rows.filter((r) => r.inspected > 0)
   return (
-    <div className={card}>
-      <p className="font-semibold text-gray-900">Indexed by area</p>
+    <div>
       <p className="text-xs text-gray-600">Pages Google has indexed, of those we checked, per sitemap{at ? `, ${timeAgo(at)}` : ''}. Least indexed first.
         An area&apos;s row holds its project pages and its list pages; Core is the home page, guides and other site pages. A row of 1 or 2 pages says little.</p>
       <ul className="mt-1 space-y-1 p-0">
@@ -306,8 +334,7 @@ const CHECK_KIND: Record<string, string> = {
 function PageChecks({ c }: { c: PageCheck }) {
   const [all, setAll] = useState(false)
   return (
-    <div className={card}>
-      <p className="font-semibold text-gray-900">Page check</p>
+    <div>
       <p className="text-xs text-gray-600">Up to 20 pages a day read live and compared with their sources. 7 days: {c.week} read, {c.week_flagged} with something to look at. Last run {c.at ? timeAgo(c.at) : 'not yet'}: {c.model} of {c.read} read by the model too.</p>
       <p className="text-xs text-gray-500">It only reports: nothing here changes a page or takes it out of search. &quot;Thin&quot; is stricter than the rule for search
         (under 60 words and at most one kind of own fact; search needs written text and one), so a thin page stays in until enrichment fills it or you fix it.
@@ -339,8 +366,7 @@ const AI_GROUP: Record<string, string> = {
 /** AI search and robots (seo/aivisits.py): which assistants and other robots read our pages, which pages AI answers use, and visits they send us. */
 function AiSearch({ a }: { a: AiVisits }) {
   return (
-    <div className={card}>
-      <p className="font-semibold text-gray-900">AI search and robots</p>
+    <div>
       <p className="text-xs text-gray-600">From our request log, by user agent and referring site: 7 days, then {a.days} days. &quot;Read to answer&quot; is an assistant (ChatGPT, Perplexity, Claude) fetching a page while answering someone. Every robot that reads the site is here by the name it gives (not checked against its address), and never in visitor counts.</p>
       {a.agents.length === 0 ? <p className="mt-1 text-sm text-gray-600">Nothing yet: counting starts with the deploy.</p> : (
         <ul className="mt-1 space-y-1 p-0">
@@ -363,6 +389,26 @@ function AiSearch({ a }: { a: AiVisits }) {
         ))}
     </div>
   )
+}
+
+// One line each section says while closed: the number to read without opening it.
+const indexLine = (i?: ProjectIndex | null) => (i?.inspected ? `${i.indexed} of ${i.inspected} checked are indexed (${Math.round((100 * i.indexed) / i.inspected)}%)` : null)
+const areaLine = (rows: AreaRow[]) => {
+  const r = rows.find((x) => x.inspected > 0)
+  return r ? `Least indexed: ${sitemapLabel(r.sitemap)}, ${r.indexed} of ${r.inspected}` : null
+}
+const aiLine = (a: AiVisits) => {
+  const n = a.agents.filter((r) => r.group === 'answer').reduce((t, r) => t + r.week, 0)
+  const v = a.agents.filter((r) => r.group === 'referral').reduce((t, r) => t + r.week, 0)
+  return a.agents.length ? `7 days: ${n} reads to answer a question, ${v} visits from AI answers` : 'Nothing yet.'
+}
+const doctorLine = (rs: FixResult[]) => {
+  const best = rs.filter((r) => r.median_gain != null && r.measured >= 5).sort((a, b) => (b.median_gain ?? 0) - (a.median_gain ?? 0))[0]
+  return best ? `Best so far: ${FIX_LABEL[best.fix] ?? best.fix}, median ${best.median_gain! > 0 ? '+' : ''}${best.median_gain} places` : `${rs.reduce((t, r) => t + r.measured, 0)} fixes measured so far`
+}
+const targetsLine = (ts: RankTarget[]) => {
+  const top = ts.filter((t) => t.our_rank != null && t.our_rank <= 10).length
+  return ts.length ? `We are in Google's top 10 for ${top} of them` : null
 }
 
 export default function RankingsTab() {
@@ -402,18 +448,31 @@ export default function RankingsTab() {
         )}
       </div>
 
-      {d.scoreboard?.at && <Board b={d.scoreboard} />}
+      {(!!d.coverage?.projects?.inspected || !!d.coverage?.content?.pages) && (
+        <Fold title="Project pages in Google" line={indexLine(d.coverage.projects)}>
+          <ProjectPages index={d.coverage.projects} content={d.coverage.content} at={d.coverage.at} />
+        </Fold>
+      )}
 
-      {(!!d.coverage?.projects?.inspected || !!d.coverage?.content?.pages) && <ProjectPages index={d.coverage.projects} content={d.coverage.content} at={d.coverage.at} />}
+      {!!d.coverage?.by_sitemap.length && (
+        <Fold title="Indexed by area" line={areaLine(d.coverage.by_sitemap)}>
+          <ByArea rows={d.coverage.by_sitemap} at={d.coverage.at} />
+        </Fold>
+      )}
 
-      {!!d.coverage?.by_sitemap.length && <ByArea rows={d.coverage.by_sitemap} at={d.coverage.at} />}
+      {d.page_check && (
+        <Fold title="Page check" line={`7 days: ${d.page_check.week} read, ${d.page_check.week_flagged} with something to look at`}>
+          <PageChecks c={d.page_check} />
+        </Fold>
+      )}
 
-      {d.page_check && <PageChecks c={d.page_check} />}
+      {d.ai && (
+        <Fold title="AI search and robots" line={aiLine(d.ai)}>
+          <AiSearch a={d.ai} />
+        </Fold>
+      )}
 
-      {d.ai && <AiSearch a={d.ai} />}
-
-      <div className={card}>
-        <p className="font-semibold text-gray-900">What works (page doctor)</p>
+      <Fold title="What works (page doctor)" line={doctorLine(d.doctor.results)}>
         <p className="text-xs text-gray-600">
           Positions gained 14 or 28 days after each fix. A fix with fewer than 5 results is tried first.
           {d.doctor.at ? ` Last round ${timeAgo(d.doctor.at)}.` : ''}
@@ -439,13 +498,12 @@ export default function RankingsTab() {
             {d.doctor.treated.map((t) => <li key={t.path} className="list-none break-words">{FIX_LABEL[t.fix] ?? t.fix}: {t.path} ({t.reason})</li>)}
           </ul>
         )}
-      </div>
+      </Fold>
 
-      <p className="px-1 pt-2 text-sm font-semibold text-gray-900">Target searches ({d.targets.length})</p>
-      {d.targets.length === 0 ? <Empty>No page has a target search yet (it needs Search Console data).</Empty> : (
-        <ul className="space-y-2 p-0">
-          {d.targets.map((t) => (
-            <li key={t.path} className={card}>
+      <Fold title={`Target searches (${d.targets.length})`} line={targetsLine(d.targets)}>
+        {d.targets.length === 0 ? <Empty>No page has a target search yet (it needs Search Console data).</Empty> : (
+          <More items={d.targets} render={(t) => (
+            <li key={t.path} className="list-none border-t border-gray-100 pt-2 first:border-0 first:pt-0">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="font-semibold text-gray-900">{t.name}</p>
                 <Trend t={t} />
@@ -459,28 +517,28 @@ export default function RankingsTab() {
               {t.page_fix && <p className="text-xs text-gray-600">Last fix: {FIX_LABEL[t.page_fix] ?? t.page_fix}, {day(t.page_fix_at)}</p>}
               <LinkOut href={SITE + t.path} label={t.name}>Open page</LinkOut>
             </li>
-          ))}
-        </ul>
-      )}
+          )} />
+        )}
+      </Fold>
 
-      <p className="px-1 pt-2 text-sm font-semibold text-gray-900">Latest fixes</p>
-      {d.actions.length === 0 ? <Empty>No fixes yet.</Empty> : (
-        <ul className="space-y-2 p-0">{d.actions.map((a, i) => <ActionRow key={`${a.path}-${a.fix}-${i}`} a={a} onDone={q.reload} />)}</ul>
-      )}
+      <Fold title={`Latest fixes (${d.actions.length})`} line={d.actions.length ? `Newest: ${FIX_LABEL[d.actions[0].fix] ?? d.actions[0].fix} on ${d.actions[0].path}` : 'No fixes yet.'}>
+        {d.actions.length === 0 ? <Empty>No fixes yet.</Empty> : (
+          <More items={d.actions} render={(a, i) => <ActionRow key={`${a.path}-${a.fix}-${i}`} a={a} onDone={q.reload} />} />
+        )}
+      </Fold>
 
-      <p className="px-1 pt-2 text-sm font-semibold text-gray-900">Searches with no page in the top 20 ({d.gaps.total})</p>
-      {d.gaps.items.length === 0 ? <Empty>None yet (checked weekly).</Empty> : (
-        <ul className="space-y-2 p-0">
-          {d.gaps.items.map((g) => (
-            <li key={g.phrase} className={card}>
+      <Fold title={`Searches with no page in the top 20 (${d.gaps.total})`} line={d.gaps.items.length ? `Most seen: "${d.gaps.items[0].phrase}"` : 'None yet (checked weekly).'}>
+        {d.gaps.items.length === 0 ? <Empty>None yet (checked weekly).</Empty> : (
+          <More items={d.gaps.items} render={(g) => (
+            <li key={g.phrase} className="list-none border-t border-gray-100 pt-2 first:border-0 first:pt-0">
               <p className="font-semibold text-gray-900">&quot;{g.phrase}&quot; · {g.source === 'searched'
                 ? <>our Google search · {g.position == null ? 'we are not in the results' : pos(g.position)}</>
                 : <>{g.impressions} impressions · {pos(g.position)}</>}{g.rising ? ' · rising' : ''}</p>
               <div className="text-xs text-gray-700">{g.page ? <>Our page for it: <LinkOut href={SITE + g.page}>{g.page}</LinkOut></> : g.action}</div>
             </li>
-          ))}
-        </ul>
-      )}
+          )} />
+        )}
+      </Fold>
     </>
   )
 }

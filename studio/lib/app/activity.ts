@@ -1,7 +1,7 @@
 /** Pure helpers for the listing activity screen (docs/contracts/activity.md). No I/O here. */
 import { sourceLabel } from './leads'
 import { t } from '@shared/strings'
-import type { ActivityEventType, ListingActivity } from './types'
+import type { ActivityEventType, ActivityFeedItem, ListingActivity } from './types'
 
 type Daily = ListingActivity['daily']
 
@@ -122,4 +122,30 @@ export const FEED_DOT: Record<ActivityEventType, string> = {
   call_click: 'bg-purple-500',
   share: 'bg-gray-400',
   enquiry: 'bg-amber-500',
+}
+
+export interface QuietFeed {
+  /** What a person did: enquiries, taps, shares, and views by someone who is now a lead. */
+  rows: ActivityFeedItem[]
+  /** Views by anonymous visitors, left out of `rows`. */
+  views: number
+  /** Those views by where they came from, most first: "WhatsApp 4, Instagram 3". */
+  bySource: { source: string; count: number }[]
+}
+
+/** The feed without the anonymous views: on a listing people share, "Visitor 7 viewed this" filled the screen and pushed the
+ *  enquiries out of sight. The views are counted instead; nothing is dropped from the totals above it. */
+export function quietFeed(feed: ActivityFeedItem[] | null | undefined): QuietFeed {
+  const rows: ActivityFeedItem[] = []
+  const counts = new Map<string, number>()
+  let views = 0
+  for (const f of feed ?? []) {
+    if (f.type === 'view' && f.who.kind === 'visitor') {
+      views += 1
+      const s = f.source || 'direct'
+      counts.set(s, (counts.get(s) ?? 0) + 1)
+    } else rows.push(f)
+  }
+  const bySource = [...counts.entries()].map(([source, count]) => ({ source, count })).sort((a, b) => b.count - a.count || a.source.localeCompare(b.source))
+  return { rows, views, bySource }
 }

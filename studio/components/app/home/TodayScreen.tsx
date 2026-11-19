@@ -175,7 +175,8 @@ function CallRow({ c, onCall }: { c: CallItem; onCall: (c: CallItem) => void }) 
   )
 }
 
-function CallList({ calls, onCall }: { calls: CallItem[]; onCall: (c: CallItem) => void }) {
+/** `leadsAbove`: the quick actions already show All leads (no website to share yet), so the list does not say it twice. */
+function CallList({ calls, onCall, leadsAbove = false }: { calls: CallItem[]; onCall: (c: CallItem) => void; leadsAbove?: boolean }) {
   const [all, setAll] = React.useState(false)
   if (calls.length === 0) return null
   const shown = all ? calls : calls.slice(0, CALL_LIST_MAX)
@@ -183,7 +184,7 @@ function CallList({ calls, onCall }: { calls: CallItem[]; onCall: (c: CallItem) 
     <section aria-label="Call today" className="rounded-2xl border border-gray-200 bg-white p-4">
       <div className="items-center justify-between [display:flex]">
         <h2 className="font-bold text-gray-900">Call today <span className="font-semibold text-gray-500">· {calls.length}</span></h2>
-        <Link href="/studio/leads" className="min-h-[44px] items-center text-sm font-semibold text-[#0f2340] underline decoration-[#f0b440] decoration-2 underline-offset-4 [display:flex]">All leads</Link>
+        {!leadsAbove && <Link href="/studio/leads" className="min-h-[44px] items-center text-sm font-semibold text-[#0f2340] underline decoration-[#f0b440] decoration-2 underline-offset-4 [display:flex]">All leads</Link>}
       </div>
       <ul className="divide-y divide-gray-100">{shown.map((c) => <CallRow key={c.id} c={c} onCall={onCall} />)}</ul>
       {calls.length > CALL_LIST_MAX && (
@@ -306,7 +307,7 @@ export function TodayScreen() {
       <QuickActions siteUrl={siteUrl} onShared={onShared} />
       {data.todayError && <ErrorBox message={data.todayError} onRetry={reload} />}
       {called && <CallLog c={called} onDone={(logged) => { setCalled(null); if (logged) void reload() }} />}
-      <CallList calls={data.calls} onCall={setCalled} />
+      <CallList calls={data.calls} onCall={setCalled} leadsAbove={!siteUrl} />
       <TodoList rows={data.todo} />
       {/* after the people waiting: a new agent has nobody to call yet, so for them it is at the top anyway */}
       {brand && <SetupCard steps={steps} />}

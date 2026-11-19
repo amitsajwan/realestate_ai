@@ -45,12 +45,12 @@ describe('Admin home', () => {
     await screen.findByTestId('admin-screen')
     expect(getNotifications).not.toHaveBeenCalled()
   })
-  it('shows the sections in order: Add agent, Today, Needs you, Agents, Health, Controls', async () => {
+  it('shows the sections in order: Add agent, Today, Agents, Site, Health, Controls', async () => {
     render(<AdminPage />)
     await screen.findByTestId('admin-screen')
     const ids = Array.from(document.querySelectorAll('[data-testid^=admin-]')).map((e) => e.getAttribute('data-testid'))
-    expect(ids.filter((x) => ['admin-add-agent', 'admin-today', 'admin-needs', 'admin-agents', 'admin-health', 'admin-controls'].includes(x as string)))
-      .toEqual(['admin-add-agent', 'admin-today', 'admin-needs', 'admin-agents', 'admin-health', 'admin-controls'])
+    expect(ids.filter((x) => ['admin-add-agent', 'admin-today', 'admin-needs', 'admin-agents', 'admin-site', 'admin-health', 'admin-controls'].includes(x as string)))
+      .toEqual(['admin-add-agent', 'admin-today', 'admin-agents', 'admin-site', 'admin-health', 'admin-controls'])
   })
 
   it('count tiles show today and the week, and link to the right screens', async () => {
@@ -65,32 +65,21 @@ describe('Admin home', () => {
     expect(screen.getByTestId('tile-news')).toHaveAttribute('href', '/studio/newsroom')
   })
 
-  it('Needs you lists approvals and links the website requests to Agents > Asked to join', async () => {
+  it('leaves what waits to Home and the Newsroom, and says the agents and the site in a line each', async () => {
     render(<AdminPage />)
-    expect(await screen.findByTestId('needs-posts')).toHaveAttribute('href', '/studio/content')
-    expect(screen.getByTestId('needs-posts')).toHaveTextContent('4 posts wait for your approval')
-    expect(screen.getByTestId('needs-news')).toHaveTextContent('2 news stories to review')
-    const asked = screen.getByTestId('needs-asked')
-    expect(asked).toHaveTextContent('2 asked to join on the website')
-    expect(asked).toHaveAttribute('href', '/studio/agents?tab=asked')
-    expect(screen.queryByTestId('invite-row')).toBeNull()
+    const agents = await screen.findByTestId('admin-agents-link')
+    expect(agents).toHaveAttribute('href', '/studio/agents')
+    expect(agents).toHaveTextContent('3 agents · 3 still setting up · 2 asked to join')
+    expect(screen.getByTestId('admin-site-link')).toHaveAttribute('href', '/studio/site')
+    expect(screen.queryByTestId('needs-posts')).toBeNull()
+    expect(screen.queryByTestId('admin-agent-row')).toBeNull()
+    expect(screen.queryByText(/Hot projects banner$/)).toBeNull()
   })
 
-  it('shows a calm empty state when nothing waits', async () => {
-    mockAdmin.overview.mockResolvedValue(overview({ waiting: { posts: 0, news: 0, invite_requests: 0 }, invite_requests: [] }))
+  it('says when there are no agents yet', async () => {
+    mockAdmin.overview.mockResolvedValue(overview({ agents: [], invite_requests: [] }))
     render(<AdminPage />)
-    expect(await screen.findByText('Nothing is waiting for you right now.')).toBeInTheDocument()
-  })
-
-  it('agents have a progress ring, a masked mobile, finish-setup hints and open the detail screen', async () => {
-    render(<AdminPage />)
-    const rows = await screen.findAllByTestId('admin-agent-row')
-    expect(rows).toHaveLength(3)
-    expect(rows[1]).toHaveAttribute('href', '/studio/agents/fx-a2')
-    expect(within(rows[1]).getByRole('img', { name: '2 of 8 steps done' })).toBeInTheDocument()
-    expect(within(rows[1]).getByText(/99\*{6}42/)).toBeInTheDocument()
-    expect(within(rows[1]).getByText('Finish setup: add logo, add banner, add RERA number')).toBeInTheDocument()
-    expect(within(rows[0]).getByText(/reach 3 listings/)).toBeInTheDocument()
+    expect(await screen.findByTestId('admin-agents-link')).toHaveTextContent(/^No agents yet›$/)
   })
 
   it('health rows are green, amber or red with the fix text', async () => {

@@ -1,6 +1,8 @@
 import { API_BASE_URL } from '@shared/config/api'
 import { ApiError, parseErrorBody } from './api'
 import { getToken } from './session'
+import { isFixtureMode } from './client'
+import { radarFixture } from './fixtures-owner'
 
 /** People publicly asking about homes, found by the radar (backend docs/RADAR.md). Operator only. */
 export interface RadarMatch {
@@ -107,6 +109,7 @@ export interface RadarMetrics {
 }
 
 async function request<T>(path: string, init: { method?: string; json?: unknown } = {}): Promise<T> {
+  if (isFixtureMode()) return radarFixture(path, init.method) as T
   const headers: Record<string, string> = { Accept: 'application/json' }
   const token = getToken()
   if (token) headers.Authorization = `Bearer ${token}`
