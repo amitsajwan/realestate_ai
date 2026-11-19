@@ -20,5 +20,30 @@
   "stop": ["in", "at", "near", "of", "for", "the", "a", "an", "and", "to", "pune", "maharashtra", "india", "with", "by", "on",
            "list", "rera", "maharera", "registered", "new", "buy", "sale", "sell", "for sale", "builders", "builder",
            "developers", "developer", "residential", "area", "location", "east", "west", "north", "south", "city",
-           "2024", "2025", "2026", "2027", "2028", "2029", "2030", "2031", "2032"]
+           "2024", "2025", "2026", "2027", "2028", "2029", "2030", "2031", "2032",
+           "madhe", "madhye", "madhil", "madhla", "jawal", "javal", "punyat", "punyatil", "ani", "sathi", "che", "chi",
+           "cha", "la"],
+  "_devanagari": "Marathi and Hindi words of a property search -> the English words above (seo/marathi.py). Place names come from reels/spoken_names.py, not from here.",
+  "devanagari": {
+    "मध्ये": "in", "मधील": "in", "मधे": "in", "येथे": "in", "येथील": "in", "जवळ": "near", "जवळील": "near", "आणि": "and",
+    "में": "in", "के पास": "near", "पास": "near", "का": "of", "की": "of", "के": "of", "और": "and",
+    "पुणे": "pune", "पुण्यात": "pune", "पुण्यातील": "pune", "पुण्याच्या": "pune", "पुण्यामध्ये": "pune",
+    "फ्लॅट": "flats", "फ्लॅट्स": "flats", "फ्लॅटस": "flats", "फ्लैट": "flats", "फ्लैट्स": "flats", "सदनिका": "flats",
+    "घर": "homes", "घरे": "homes", "मकान": "homes", "अपार्टमेंट": "apartments", "सोसायटी": "society",
+    "प्रॉपर्टी": "property", "मालमत्ता": "property", "प्रोजेक्ट": "projects", "प्रोजेक्ट्स": "projects", "प्रकल्प": "projects",
+    "गृहप्रकल्प": "projects", "नवीन": "new", "नवे": "new", "नया": "new", "नए": "new", "नवीन प्रोजेक्ट": "new projects",
+    "नवीन प्रकल्प": "new projects", "नए प्रोजेक्ट": "new projects", "न्यू लॉन्च": "new launch", "अपकमिंग": "upcoming",
+    "रेडी टू मूव्ह": "ready to move", "रेडी टू मूव": "ready to move", "रेडी पझेशन": "ready possession", "तयार घरे": "ready flats",
+    "तयार फ्लॅट": "ready flats", "पझेशन": "possession", "ताबा": "possession", "सर्वोत्तम": "best", "बेस्ट": "best",
+    "टॉप": "top", "चांगले": "best", "बीएचके": "bhk", "बीएचकेचे": "bhk", "लाख": "lakh", "लाखात": "lakh", "लाखांत": "lakh",
+    "कोटी": "crore", "करोड़": "crore", "किंमत": "price", "किंमती": "price", "कीमत": "price", "दर": "rate", "भाव": "rate",
+    "बजेट": "budget", "खरेदी": "buy", "विक्री": "sale", "विक्रीसाठी": "sale", "बिक्री": "sale", "बिल्डर": "builder",
+    "महारेरा": "maharera", "रेरा": "rera", "भाड्याने": "rent", "भाडे": "rent", "किराया": "rent", "किराए": "rent",
+    "प्लॉट": "plot", "प्लॉट्स": "plots", "जमीन": "land", "बंगला": "bungalow", "रो हाऊस": "row house", "रो हाउस": "row house",
+    "व्हिला": "villa", "रिसेल": "resale", "दुकान": "shop", "ऑफिस": "office", "कमर्शियल": "commercial",
+    "साठी": "for", "ची": "of", "चे": "of", "चा": "of", "च्या": "of", "मधले": "in"
+  },
+  "_roman_marathi": "Words that mark a search as Marathi typed in English letters (seo/marathi.language); not the place names.",
+  "roman_marathi": ["madhe", "madhye", "madhil", "madhla", "punyat", "punyatil", "ghar", "ghare", "navin", "kimmat", "kimat",
+                    "sadnika", "jawal", "javal", "prakalp", "vikri", "flatchi", "flatchya"]
 }

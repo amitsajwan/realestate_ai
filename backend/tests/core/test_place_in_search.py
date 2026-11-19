@@ -25,9 +25,9 @@ def test_no_place_guessed(q):
 
 
 def test_no_buyer_word_sounds_like_a_place():
-    v = json.loads((Path(pune_places.__file__).parents[1] / "modules" / "seo" / "vocabulary.json").read_text())
-    words = {w for k, x in v.items() if k != "_about" for ys in (x.values() if isinstance(x, dict) else [x]) for y in ys
-             for w in y.split()}
+    v = json.loads((Path(pune_places.__file__).parents[1] / "modules" / "seo" / "vocabulary.json").read_text(encoding="utf-8"))
+    words = {w for k, x in v.items() if not k.startswith("_") for ys in (x.values() if isinstance(x, dict) else [x])
+             for y in ([ys] if isinstance(ys, str) else ys) for w in y.split()}
     words |= {"flats", "apartments", "properties", "houses", "resale", "rental", "possession", "builders", "township", "budget"}
     assert [w for w in words if pune_places.in_search(w)] == []
 
