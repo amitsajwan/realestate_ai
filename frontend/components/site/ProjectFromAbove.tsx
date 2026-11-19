@@ -1,0 +1,44 @@
+import React from 'react'
+import { jsonLdString } from '@/lib/marketing/seo'
+import { shortMonth, type FromAbove } from '@/lib/site/fromAbove'
+
+/** "<name> from above": one satellite picture a year around the checked pin, the measured change in code-written words, and
+ *  what the numbers cover. Pictures are Sentinel-2 at 10 m, made clearer without generated detail (satellite-view.md). */
+export default function ProjectFromAbove({ view, shown, siteUrl }: { view: FromAbove; shown: string; siteUrl: string }) {
+  const first = view.frames[0]
+  const last = view.frames[view.frames.length - 1]
+  const ld = {
+    '@context': 'https://schema.org',
+    '@graph': view.frames.map((f) => ({
+      '@type': 'ImageObject', contentUrl: siteUrl.replace(/\/$/, '') + f.src, datePublished: f.day, creditText: view.credit,
+      caption: `${shown} site from above, ${shortMonth(f.day)}, Sentinel-2 satellite`,
+    })),
+  }
+  return (
+    <section aria-labelledby="from-above-title" data-testid="from-above">
+      <h2 id="from-above-title" className="text-xl font-bold text-slate-900">
+        {shown} from above, {first.year} to {last.year}
+      </h2>
+      <p className="mt-1 text-sm text-slate-700">{view.story}</p>
+      <ol className="mt-3 grid list-none grid-cols-3 gap-2 p-0 sm:grid-cols-6">
+        {view.frames.map((f) => (
+          <li key={f.year}>
+            <figure className="m-0">
+              <img src={f.src} width={f.width} height={f.height} loading="lazy" decoding="async"
+                alt={`${shown} site from above, ${shortMonth(f.day)}: the yellow ring is the map pin`}
+                className="h-auto w-full rounded-lg border border-slate-200" />
+              <figcaption className="mt-1 text-xs text-slate-700">
+                <span className="font-semibold text-slate-900">{shortMonth(f.day)}</span>
+                <span className="block">{f.built}% roofs, concrete</span>
+              </figcaption>
+            </figure>
+          </li>
+        ))}
+      </ol>
+      <p className="mt-2 text-xs text-slate-600">
+        {view.where} Pictures sharpened and colour-corrected by code; nothing is drawn in. {view.credit}.
+      </p>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(ld) }} />
+    </section>
+  )
+}

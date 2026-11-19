@@ -103,7 +103,9 @@ Feb to Apr Sentinel-2 L2A pass per year from the catalogue (tile cloud under 10%
 (`sh.dataspace.copernicus.eu/process/v1`, per its OpenAPI file read 2026-11-17) for that day, refuses a picture that is cloudy or
 does not cover the box, and writes `frontend/public/areas/<slug>-<year>.webp` with `<slug>.json`. With two years there, the
 guide shows the oldest and newest with month captions, the credit and `ImageObject` data, and uses the newest as its link
-preview. No real Copernicus call has been made yet (no credentials on the build machine).
+preview. 2026-11-20: Copernicus account made; pairs for all 8 areas (9 Feb 2017, 7 Feb 2026) written to
+`frontend/public/areas/`, enhanced by `pictures.enhance` (colour stretch, sharpening; no generated detail), live as the
+file fallback. The `area_pictures` loop enhances its pictures the same way.
 
 
 - Sentinel-2 (Copernicus, public, free, ours to keep with its credit) is too coarse for one project (10 m a pixel; that is

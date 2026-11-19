@@ -23,7 +23,7 @@ from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import httpx
-from PIL import Image
+from PIL import Image, ImageEnhance, ImageFilter
 
 from app.core import area_bounds, areas
 from app.platform import media
@@ -203,6 +203,44 @@ def judge_code(png: bytes) -> Tuple[Image.Image, float]:
     return rgba.convert("RGB"), round(white * 100, 1)
 
 
+Stretch = Tuple[Tuple[int, int, int], Tuple[int, int, int]]   # per channel low, high
+
+
+def stretch_for(images: Sequence[Image.Image]) -> Stretch:
+    """One colour stretch (2nd and 98th percentile per channel) over all the pictures given, so pictures of the same place
+    compare fairly: a change between them is the ground's, not the stretch's."""
+    lows, highs = [], []
+    for c in range(3):
+        hist = [0] * 256
+        for img in images:
+            for v, n in enumerate(img.convert("RGB").getchannel(c).histogram()):
+                hist[v] += n
+        total, seen, lo, hi = sum(hist), 0, 0, 255
+        for v, n in enumerate(hist):
+            if seen <= total * 0.02 < seen + n:
+                lo = v
+            if seen <= total * 0.98 < seen + n:
+                hi = v
+            seen += n
+        lows.append(lo)
+        highs.append(max(hi, lo + 1))
+    return (lows[0], lows[1], lows[2]), (highs[0], highs[1], highs[2])
+
+
+def enhance(img: Image.Image, stretch: Optional[Stretch] = None, upscale: int = 1) -> Image.Image:
+    """Clearer, never invented: a colour stretch, a slight gamma and colour lift, an optional Lanczos upscale and an unsharp
+    mask. Every step works only on what the satellite recorded; no model adds detail (a generative upscaler would draw
+    towers that are not there, the wrong picture this feature promises not to show)."""
+    rgb = img.convert("RGB")
+    lo, hi = stretch or stretch_for([rgb])
+    chans = [rgb.getchannel(c).point([max(0, min(255, round(255 * ((v - lo[c]) / (hi[c] - lo[c])) ** 0.9)))
+                                      if v > lo[c] else 0 for v in range(256)]) for c in range(3)]
+    out = ImageEnhance.Color(Image.merge("RGB", chans)).enhance(1.12)
+    if upscale > 1:
+        out = out.resize((out.width * upscale, out.height * upscale), Image.LANCZOS)
+    return out.filter(ImageFilter.UnsharpMask(radius=2 if upscale > 1 else 1.5, percent=110, threshold=2))
+
+
 def month_name(day: str) -> str:
     return f"{MONTHS[int(day[5:7]) - 1]} {day[:4]}"
 
@@ -297,7 +335,7 @@ async def capture_year(client: httpx.Client, auth: str, box: Box, area: areas.Ar
         if judged is not None and not judged["ok"]:
             log.info("area pictures: %s %s %s: the judge called it unusable (%s)", area.key, year, day, judged.get("reason"))
             continue
-        return img, {"captured_on": day, "tile_cloud_pct": round(cc, 1), "cloud_pct": cloud_pct}, judged
+        return enhance(img), {"captured_on": day, "tile_cloud_pct": round(cc, 1), "cloud_pct": cloud_pct}, judged
     return None
 
 

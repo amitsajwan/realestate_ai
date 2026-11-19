@@ -1,0 +1,54 @@
+{
+  "area": "baner",
+  "name": "Baner",
+  "box": [
+    18.54103,
+    73.76557,
+    18.57696,
+    73.80347
+  ],
+  "source": "Copernicus Sentinel-2 L2A, true colour (B04, B03, B02), Copernicus Data Space Ecosystem",
+  "updated": "2026-11-20",
+  "pictures": [
+    {
+      "year": 2017,
+      "captured": {
+        "from": "2017-02-09",
+        "to": "2017-02-09"
+      },
+      "month": "February 2017",
+      "tile_cloud_pct": 0.0,
+      "cloud_filter_pct": 10,
+      "src": "/areas/baner-2017.webp",
+      "width": 1000,
+      "height": 1000,
+      "box": [
+        18.54103,
+        73.76557,
+        18.57696,
+        73.80347
+      ],
+      "credit": "Contains modified Copernicus Sentinel data 2017"
+    },
+    {
+      "year": 2026,
+      "captured": {
+        "from": "2026-02-07",
+        "to": "2026-02-07"
+      },
+      "month": "February 2026",
+      "tile_cloud_pct": 0.0,
+      "cloud_filter_pct": 10,
+      "src": "/areas/baner-2026.webp",
+      "width": 1000,
+      "height": 1000,
+      "box": [
+        18.54103,
+        73.76557,
+        18.57696,
+        73.80347
+      ],
+      "credit": "Contains modified Copernicus Sentinel data 2026"
+    }
+  ]
+}

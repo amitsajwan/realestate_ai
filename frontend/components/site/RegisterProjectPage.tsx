@@ -20,6 +20,8 @@ import CostBreakdown from '@/components/site/CostBreakdown'
 import PriceBox from '@/components/site/PriceBox'
 import PriceIdea from '@/components/site/PriceIdea'
 import LocationMapSwitch from '@/components/site/LocationMapSwitch'
+import ProjectFromAbove from '@/components/site/ProjectFromAbove'
+import { forPin, type FromAbove } from '@/lib/site/fromAbove'
 import ProjectHistory from '@/components/site/ProjectHistory'
 import { isCommercial, type Stage } from '@/lib/site/allin'
 import { areaCompareOf, areaName, askedPrices, bhkRange, completionChange, completionPassedOf, displayName, extensionSentence, headingName,
@@ -900,7 +902,9 @@ export interface Seller {
   photos?: string[]
 }
 
-export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], whatsappUrl, seller }: { p: RegisterProject; siteUrl: string; facts: PropertyFactsView | null; lists?: FacetLink[]; whatsappUrl?: string | null; seller?: Seller }) {
+export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], whatsappUrl, seller, fromAbove = null }: { p: RegisterProject; siteUrl: string; facts: PropertyFactsView | null; lists?: FacetLink[]; whatsappUrl?: string | null; seller?: Seller; fromAbove?: FromAbove | null }) {
+  // the site from above, only while the checked pin is where the pictures were taken
+  const fromAboveView = forPin(fromAbove, p.map)
   const url = `${siteUrl}/projects/${p.slug}`
   // the WhatsApp ask names this project; on an agent's listing page (seller) the agent's form stays first
   const waAsk = pageWhatsApp(whatsappUrl, displayName(p), p.slug)
@@ -1064,6 +1068,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
           {!closed && <ProjectProfile profile={p.profile} name={shown} part="plans" plans3d={p.plans_3d?.items ?? []} lead={{ agentSlug: leadSlug, agentName: leadName,
             topic: enquiryTopic, waMessage: `Hi, I want to know about ${p.name} (MahaRERA ${p.regno}): ${url}` }} />}
           <LocationSection p={p} shown={shown} nearby={nearby} sources={facts?.nearby_sources ?? []} />
+          {fromAboveView && <ProjectFromAbove view={fromAboveView} shown={shown} siteUrl={siteUrl} />}
           <ProjectProfile profile={p.profile} name={shown} part="highlights" omit={heroBhks ? ['homes'] : []} />
 
           {/* the model's sections only: the answer above already says the facts, so with no sections there is no About */}

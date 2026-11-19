@@ -1,4 +1,4 @@
-# The site from above: a satellite view on project pages (2026-11-16, step 2 BUILT 2026-11-16)
+# The site from above: a satellite view on project pages (2026-11-16; step 2 LIVE 2026-11-19; steps 3-4 BUILT 2026-11-20, by hand, 4 projects)
 
 Owner, 2026-11-16: "can we get live images of project, like satellite images", then "let's add satellite, create a plan and
 developers will follow". Nothing here is built yet. Each step is marked code or owner, and steps are in the order to build them.
@@ -73,6 +73,35 @@ needs its `ARG` and `ENV` there as well as in images.yml.
 
 Not in this step: the satellite picture as the hero image or the social card. Those would need a stored picture, which
 Google's terms do not give us.
+
+### 3 and 4, as built (2026-11-20): measured, said in code, on four project pages
+
+Owner, 2026-11-20: "use ai to sharpen the images", "3 projects each for our main areas", "can we write some text ... how
+building or construction happened over time", then "lets go for it, the best". Trial on 9 large projects in Kharadi, Upper
+Kharadi and Wagholi; owner decided yes.
+
+- **Sharpening is not generative.** A generative upscaler would draw towers that are not there. `areastats.pictures.enhance`:
+  one colour stretch over all of a place's pictures (`stretch_for`), slight gamma and colour, optional 2x Lanczos, unsharp
+  mask. Used by the area script, the `area_pictures` loop and the project script. The page says "nothing is drawn in".
+- **The measure** (`areastats/sitepics.py`): one January to March pass a year since 2021 (same sun angle, least cloud); per
+  10 m pixel inside 100 m of the pin, Copernicus classes built / bare / green / other from NDBI, NDVI and visible colour, and
+  drops cloud by its scene classification. **Haze**: thin winter smog is not in that classification and reads as concrete
+  (2026-01-05: AOT 0.6, every project 20 to 30 points "more built"); of up to 8 cloud-free passes the least hazy is used, none
+  over AOT 0.4. Colour alone (no infrared) was tried first and was too noisy to write from.
+- **The sentence** (`sitepics.story`): code only. Claims a change of 15 points or more; "began to spread by" only from the
+  year the rise holds every later year; says "within 100 m of the map pin" and, under it, that the circle takes in
+  neighbouring plots and sees ground cover, not floors. Tests: `tests/modules/areastats/test_sitepics.py`.
+- **Files, not a store yet**: `backend/scripts/project_from_above.py <slug> ...` writes `frontend/public/from-above/
+  <slug>-<year>.webp` and `<slug>.json`; the page reads them (`lib/site/fromAbove.ts`) and shows "<name> from above, 2021
+  to 2026" under the location section with ImageObject data, only while the checked pin is within 50 m of where the
+  pictures were taken. jest: `__tests__/site/from-above.test.tsx`.
+- **On the site**: Yashwin Enchante (4% to 53%), Kohinoor Riverdale (cleared 2023-24, 0% to 22%), VTP Flamante (cleared
+  2023-24, 3% to 19%), The Strand (15% to 41%). **Held back**: Palladio (pin on a junction in built-up streets; the new
+  towers are outside the circle), My Home Upper Kharadi and Gera 343 Crest (numbers rise but the pictures do not show it
+  plainly), Rohan Abhilasha 4 (its pin is on the finished earlier phases: a wrong pin, and no screen corrects a project pin
+  yet; `propertyfacts/pin.py` finds them).
+- **Next**: a daily pass (`enrich.add_daily`, step 4 above) only for projects of 300+ homes with a Google pin, after a check
+  on 20 more sites including finished ones (they must say nothing). Until then, re-run the script by hand each February.
 
 ### 3. The site over time, from Sentinel-2: a trial on five projects (code, then the owner decides)
 
