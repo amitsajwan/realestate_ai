@@ -8,11 +8,7 @@ import { timeAgo } from '@/lib/app/format'
 import { useAsync } from '@/lib/app/useAsync'
 import { BRAND_NAME } from '@shared/brand'
 import { AddAgentSheet } from '../agents/AddAgentSheet'
-import { AreaPicturesReview } from './AreaPicturesReview'
-import { SpotlightEditor } from './SpotlightEditor'
-import { MapPinsReview } from './MapPinsReview'
 import { NavyBtn } from '../agents/InviteRequests'
-import { ProgressRing } from '../agents/ProgressRing'
 import { Btn, ErrorBox, Spinner } from '../ui'
 
 const NAVY = 'bg-[#102340]'
@@ -117,7 +113,16 @@ function Controls({ controls, onChange }: { controls: AdminControls; onChange: (
   )
 }
 
-/** Studio > Admin (owner only): everything the owner runs, on one phone screen. */
+/** "3 agents · 2 still setting up · 1 asked to join": the Agents screen has the rows. */
+export function agentsLine(o: AdminOverview): string {
+  const n = o.agents.length
+  const setting = o.agents.filter((a) => setupHints(a).length > 0).length
+  const asked = o.invite_requests.length
+  return [n ? `${n} agent${n === 1 ? '' : 's'}` : 'No agents yet', setting ? `${setting} still setting up` : '', asked ? `${asked} asked to join` : '']
+    .filter(Boolean).join(' · ')
+}
+
+/** Studio > Admin (owner only): the day's numbers, the agents and the site in a line each, and the system's health and switches. */
 export function AdminScreen() {
   const { data, error, loading, reload, setData } = useAsync(() => adminApi.overview(), [])
   const [adding, setAdding] = useState(false)
@@ -128,7 +133,6 @@ export function AdminScreen() {
   const t = o.counts.today
   const w = o.counts.week
   const posts = (c: typeof t) => c.posts_published.facebook_page + c.posts_published.instagram
-  const nothingWaiting = !o.waiting.posts && !o.waiting.news && !o.invite_requests.length
 
   return (
     <div className="space-y-6 pb-4" data-testid="admin-screen">
@@ -156,66 +160,21 @@ export function AdminScreen() {
         </div>
       </Section>
 
-      <Section title="Needs you" id="needs">
-        {nothingWaiting && <p className="rounded-2xl bg-white p-4 text-center text-gray-600">Nothing is waiting for you right now.</p>}
-        <ul className="space-y-2">
-          {o.waiting.posts > 0 && (
-            <li><Link href="/studio/content" data-testid="needs-posts" className="flex min-h-[56px] items-center justify-between rounded-2xl border border-gray-200 bg-white p-3">
-              <span><b>{o.waiting.posts}</b> {o.waiting.posts === 1 ? 'post waits' : 'posts wait'} for your approval</span><span aria-hidden className="text-xl text-gray-400">›</span>
-            </Link></li>
-          )}
-          {o.waiting.news > 0 && (
-            <li><Link href="/studio/newsroom" data-testid="needs-news" className="flex min-h-[56px] items-center justify-between rounded-2xl border border-gray-200 bg-white p-3">
-              <span><b>{o.waiting.news}</b> news {o.waiting.news === 1 ? 'story' : 'stories'} to review</span><span aria-hidden className="text-xl text-gray-400">›</span>
-            </Link></li>
-          )}
-          {o.invite_requests.length > 0 && (
-            <li><Link href="/studio/agents?tab=asked" data-testid="needs-asked" className="flex min-h-[56px] items-center justify-between rounded-2xl border border-gray-200 bg-white p-3">
-              <span><b>{o.invite_requests.length}</b> asked to join on the website</span><span className="text-sm font-semibold text-[#102340]">Agents ›</span>
-            </Link></li>
-          )}
-        </ul>
+      {/* What waits for the owner is on Home's To do (posts, join requests) and the Newsroom tab's count; the agents' own rows
+          are on Agents; the site's banner, pins and pictures are on Site. Admin keeps the day's numbers and the system
+          (2026-11-19: it had grown to eight sections, five screens on a phone). */}
+      <Section title="Agents" id="agents">
+        <Link href="/studio/agents" data-testid="admin-agents-link"
+          className="flex min-h-[56px] items-center justify-between rounded-2xl border border-gray-200 bg-white p-3 active:bg-gray-50">
+          <span>{agentsLine(o)}</span><span aria-hidden className="text-xl text-gray-400">›</span>
+        </Link>
       </Section>
 
-      <Link href="/studio/radar" data-testid="admin-radar-link" className="block rounded-2xl border border-gray-200 bg-white p-3 font-semibold text-[#102340] active:bg-gray-50">
-        Buyer radar: people asking about homes ›
-      </Link>
-      <Section title="Agents" id="agents" action={<Link href="/studio/agents" className="text-sm font-semibold text-[#102340] underline">All agents</Link>}>
-        {o.agents.length === 0 ? (
-          <p className="rounded-2xl bg-white p-4 text-center text-gray-600">No agents yet. Tap + Add agent.</p>
-        ) : (
-          <ul className="space-y-2">
-            {o.agents.map((a) => {
-              const hints = setupHints(a)
-              return (
-                <li key={a.id}>
-                  <Link href={`/studio/agents/${encodeURIComponent(a.id)}`} data-testid="admin-agent-row"
-                    className="flex min-h-[72px] items-center gap-3 rounded-2xl border border-gray-200 bg-white p-3 active:bg-gray-50">
-                    <ProgressRing done={a.progress.done} total={a.progress.total} />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-semibold text-gray-900">{a.name}</p>
-                      <p className="truncate text-sm text-gray-600">{a.mobile}{a.listing_count ? ` · ${a.listing_count} live` : ''}{a.last_activity ? ` · ${timeAgo(a.last_activity)}` : ''}</p>
-                      <p className="truncate text-xs text-gray-500">{hints.length ? `Finish setup: ${hints.join(', ')}` : 'All set'}</p>
-                    </div>
-                    <span aria-hidden className="text-xl text-gray-400">›</span>
-                  </Link>
-                </li>
-              )
-            })}
-          </ul>
-        )}
-      </Section>
-
-      <Section title="Hot projects banner" id="spotlight">
-        <SpotlightEditor />
-      </Section>
-
-      <Section title="Map pins to check" id="map-pins">
-        <MapPinsReview />
-      </Section>
-
-      <Section title="Pictures from above" id="area-pictures">
-        <AreaPicturesReview />
+      <Section title="Site" id="site">
+        <Link href="/studio/site" data-testid="admin-site-link"
+          className="flex min-h-[56px] items-center justify-between rounded-2xl border border-gray-200 bg-white p-3 active:bg-gray-50">
+          <span>Hot projects banner, map pins, pictures from above, area photos</span><span aria-hidden className="text-xl text-gray-400">›</span>
+        </Link>
       </Section>
 
       <Section title="Health" id="health">

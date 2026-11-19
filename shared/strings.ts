@@ -66,6 +66,7 @@ const en = {
   more: 'More',
   radar: 'Buyer radar',
   areaPhotos: 'Area photos',
+  site: 'Site',
   voicePremium: 'Voice listing',
   voicePremiumBadge: 'Premium',
   voicePremiumSub: 'Speak in Hindi, Marathi or English and we write the listing. Coming with Premium. For now, type the details.',

@@ -165,7 +165,8 @@ function PhotoRow({ p, i, count, canPublish, busy, act, move }: {
 }
 
 /** Studio > Area photos: real photos of each area for the top of its guide. Agents send; the owner publishes, hides, orders. */
-export function AreaPhotosScreen() {
+/** `embedded`: shown as a tab of the owner's Site screen, which has its own title. */
+export function AreaPhotosScreen({ embedded = false }: { embedded?: boolean } = {}) {
   const [area, setArea] = useState(LOCALITIES[0]?.key ?? 'kharadi')
   const { data, error, loading, reload, setData } = useAsync(() => areaPhotosApi.list(area), [area])
   const [busy, setBusy] = useState(false)
@@ -202,7 +203,7 @@ export function AreaPhotosScreen() {
   return (
     <div className="space-y-4 pb-4" data-testid="area-photos-screen">
       <header>
-        <h1 className="text-2xl font-extrabold text-[#102340]">{t('areaPhotos')}</h1>
+        {!embedded && <h1 className="text-2xl font-extrabold text-[#102340]">{t('areaPhotos')}</h1>}
         <p className="text-sm text-gray-600">Real photos of each area, shown at the top of its guide once the owner publishes them, with who took them and when.</p>
       </header>
       <label className="block text-sm font-semibold text-gray-800">Area

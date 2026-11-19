@@ -25,7 +25,7 @@ changes keep to it. Studio is its own Next.js app since 2026-11-03 (`studio/`, A
 | Who | Bar | More |
 |---|---|---|
 | Agent | Home, Inbox, Leads, Listings | Results, Content, Buyer radar, My brand and website |
-| Owner | Home, Inbox, Content, Newsroom | Leads, Listings, Results, Buyer radar, Agents, Admin, My brand and website |
+| Owner | Home, Inbox, Content, Newsroom | SEO, Leads, Listings, Results, Buyer radar, Agents, Site, Admin, Press, My brand and website |
 
 Counts: Inbox (conversations waiting for an answer), Leads (not contacted, or their reply unanswered), Content (posts to approve,
 owner), Newsroom (drafts to review, owner). More shows the sum of the counts inside it, and each row in the sheet shows its own.
@@ -50,6 +50,23 @@ Home reads everything once, and again when the app comes back to the front (afte
 
 A logged call: answered moves a New lead to Contacted with a follow-up in 2 days, and moves an overdue follow-up 2 days on; no
 answer sets the follow-up to tomorrow; a date sent with the call wins (`tracking/service.py`, `tests/modules/test_call_log.py`).
+
+## Admin and Site (owner, 2026-11-19)
+
+**Admin** (`components/app/admin/AdminScreen.tsx`): Add agent, **Today** (the day's counts, each tile opening its screen), Agents
+in one line ("3 agents · 2 still setting up · 1 asked to join", opening Agents), Site in one line, **Health**, **Controls**. What
+waits for the owner is on Home's To do and the Newsroom tab's count, not repeated here. It used to be eight sections, five
+screens on a phone.
+
+**Site** (`/studio/site`, `SiteScreen.tsx`): what the owner edits on the public site, a tab each: Hot banner, Map pins, From
+above (pictures from above), Photos (the area photos screen; agents still reach it from their own More as Area photos).
+
+## SEO (owner)
+
+Tabs: To do, Rankings, Rivals, Audit, Hot projects, Pages, Found on Google, System. **Rankings** opens on This week; every other
+section (project pages in Google, indexed by area, page check, AI search, what works, target searches, latest fixes, searches
+with no page) is closed to its title and one number until tapped, and long lists show 10 at a time. **Rivals** holds the
+weekly scoreboard: where we stand, the sites above us, MagicBricks head to head (2026-11-19; it used to open Rankings).
 
 ## Listing (`app/studio/listings/[id]/page.tsx`)
 

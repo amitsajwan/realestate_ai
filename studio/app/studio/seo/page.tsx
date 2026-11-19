@@ -12,10 +12,11 @@ import { useAsync } from '@/lib/app/useAsync'
 import AuditTab from './AuditTab'
 import PagesTab from './PagesTab'
 import RankingsTab from './RankingsTab'
+import RivalsTab from './RivalsTab'
 import TodoTab from './TodoTab'
 
-const TABS = ['todo', 'rankings', 'audit', 'hot', 'pages', 'found', 'system']
-const TAB_LABEL: Record<string, string> = { todo: 'To do', hot: 'Hot projects', rankings: 'Rankings', audit: 'Audit', pages: 'Pages', found: 'Found on Google', system: 'System' }
+const TABS = ['todo', 'rankings', 'rivals', 'audit', 'hot', 'pages', 'found', 'system']
+const TAB_LABEL: Record<string, string> = { todo: 'To do', hot: 'Hot projects', rankings: 'Rankings', rivals: 'Rivals', audit: 'Audit', pages: 'Pages', found: 'Found on Google', system: 'System' }
 const SIGNAL: Record<string, string> = { launch: 'New', bookings: 'Bookings', news: 'News', search: 'Search Console', google: 'Google', youtube: 'YouTube' }
 const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '')
 const card = 'list-none rounded-2xl bg-white p-3'
@@ -189,7 +190,7 @@ export default function SeoPage() {
         SEO
       </PageTitle>
       <TabBar label="SEO" value={tab} onChange={setTab} tabs={TABS.map((k) => ({ key: k, label: TAB_LABEL[k] }))} />
-      {tab === 'todo' ? <TodoTab /> : tab === 'hot' ? <HotTab /> : tab === 'rankings' ? <RankingsTab /> : tab === 'audit' ? <AuditTab /> : tab === 'pages' ? <PagesTab /> : tab === 'found' ? <FoundTab /> : <SystemTab />}
+      {tab === 'todo' ? <TodoTab /> : tab === 'hot' ? <HotTab /> : tab === 'rankings' ? <RankingsTab /> : tab === 'rivals' ? <RivalsTab /> : tab === 'audit' ? <AuditTab /> : tab === 'pages' ? <PagesTab /> : tab === 'found' ? <FoundTab /> : <SystemTab />}
     </div>
   )
 }

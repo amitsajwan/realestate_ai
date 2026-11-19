@@ -28,6 +28,8 @@ const PRESS_TAB: Tab = { href: '/studio/press', label: 'press', icon: 'M4 4h16v1
 const RADAR_TAB: Tab = { href: '/studio/radar', label: 'radar', icon: 'M12 12m-9 0a9 9 0 1018 0 9 9 0 10-18 0M12 12m-5 0a5 5 0 1010 0 5 5 0 10-10 0M12 12l6-6' }
 /** Everyone: agents send photos of their areas, the owner publishes them on the area guides (docs/plan/area-pictures.md step 4). */
 const AREA_PHOTOS_TAB: Tab = { href: '/studio/area-photos', label: 'areaPhotos', icon: 'M3 7h4l2-3h6l2 3h4v13H3zM12 17a4 4 0 100-8 4 4 0 000 8z' }
+/** Owner: what he edits on the public site (hot banner, map pins, pictures from above, area photos), out of Admin 2026-11-19. */
+const SITE_TAB: Tab = { href: '/studio/site', label: 'site', icon: 'M3 12a9 9 0 1018 0 9 9 0 10-18 0M3 12h18M12 3a14 14 0 010 18M12 3a14 14 0 000 18' }
 const PROFILE_TAB: Tab = { href: '/studio/profile', label: 'profile', icon: 'M20 21a8 8 0 00-16 0M12 13a4 4 0 100-8 4 4 0 000 8z' }
 const MORE_TAB: Tab = { href: '#more', label: 'more', icon: 'M5 12h.01M12 12h.01M19 12h.01' }
 
@@ -42,7 +44,7 @@ const AGENT_MORE: Tab[] = [RESULTS_TAB, CONTENT_TAB, RADAR_TAB, AREA_PHOTOS_TAB,
  * a bottom sheet with the rest.
  */
 const OWNER_BAR: Tab[] = [HOME_TAB, INBOX_TAB, CONTENT_TAB, NEWSROOM_TAB]
-const OWNER_MORE: Tab[] = [SEO_TAB, LEADS_TAB, LISTINGS_TAB, RESULTS_TAB, RADAR_TAB, AGENTS_TAB, ADMIN_TAB, PRESS_TAB, AREA_PHOTOS_TAB, PROFILE_TAB]
+const OWNER_MORE: Tab[] = [SEO_TAB, LEADS_TAB, LISTINGS_TAB, RESULTS_TAB, RADAR_TAB, AGENTS_TAB, SITE_TAB, ADMIN_TAB, PRESS_TAB, PROFILE_TAB]
 
 export function FixtureBanner() {
   const [on, setOn] = useState(false)
