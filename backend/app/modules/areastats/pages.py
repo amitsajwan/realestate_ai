@@ -19,7 +19,7 @@ from app.core import brand
 from app.core.areas import BY_KEY
 from app.modules.newsroom.store import Store
 
-from . import brands, clusters, pagefacts, plans3d, priceidea
+from . import brands, clusters, fromabove_view, pagefacts, plans3d, priceidea
 from .service import _count, _day
 from .text import ascii_text, builder_slug, promoter_key, words
 
@@ -825,6 +825,8 @@ def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None, ix
         "map_from": geo.get("located_from") if own else None,
         # a street map around the pin, for the hero when the project has no picture (areastats.locmap)
         "location_picture": location_picture(doc),
+        # the site from above, year by year and month by month (areastats.fromabove), only at the page's own pin
+        "from_above": fromabove_view.public_view(doc, (geo["lat"], geo["lon"]) if own else None),
         "checks": checks(doc), "text_checked": bool(doc.get("page_text")),
         "builder": track_record(doc, docs, ix) if docs is not None else None,
         "place": doc.get("place_locality") or None, "taluka": doc.get("taluka") or None,

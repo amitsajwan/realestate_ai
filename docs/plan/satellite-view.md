@@ -124,6 +124,28 @@ Copernicus quota.
 - **The credit line** "Contains modified Copernicus Sentinel data <years>" is the Copernicus licence's condition for
   using the pictures; it stays, small, on the page, in the video and in the post.
 
+### On every page that qualifies: the daily pass (2026-11-20)
+
+Owner, 2026-11-20: "lets get it for all pages". `areastats/fromabove.py`, a once-a-day pass inside the enrichment loop
+(`enrich.add_daily("site from above")`, wired in `wiring.py`, which also passes in the video drawer
+`calendar.site_timelapse.page_video`). On by itself wherever the Copernicus keys are set.
+
+- **Which pages**: a checked Google pin of its own (`pages.own_position`), 300+ homes across the project's registrations,
+  not finished. 232 on 2026-11-20 (33 in our 8 areas). Our areas first, then by hot score. Redone after 330 days, or at
+  once when the pin moves more than 50 m.
+- **Cost**: one class map a pass over the whole 600 m square serves both the month's cloud check and the year's measure;
+  then the true-colour pictures. About 130 requests a project, fewer when nothing changed (no pictures fetched). The pass
+  spends at most 220 requests a day (`REQUESTS_PER_DAY`), about 6,600 of the free 10,000 a month: about 50 projects a
+  month, so a first round of 232 takes 4 to 5 months. A quota refusal (HTTP 402/403/429) ends the day.
+- **Stored** as `from_above` on the register record (`{lat, lon, at, story, where, credit, frames, video}`, or
+  `{none: true}` when there is no change of 15 points); files under `uploads/from_above/<regno>/` (`<year>.webp`,
+  `months.mp4`, `months.webp`). `areastats/fromabove_view.py` turns it into the page's `from_above` (URLs only, only
+  within 50 m of the page's pin); the site reads it with `lib/site/fromAbove.ts fromRecord`. The four hand-made projects'
+  files in `public/from-above/` take precedence on their pages.
+- **Faster**: Copernicus grants extended quotas on request; the same Sentinel-2 pictures are also on AWS open data with no
+  quota (needs an image library on the server).
+- Tests: `tests/modules/areastats/test_fromabove.py`, `__tests__/site/from-above.test.tsx`.
+
 ### 3. The site over time, from Sentinel-2: a trial on five projects (code, then the owner decides)
 
 1. A script, not a loop: `backend/scripts/sentinel_trial.py --regno <n>`. For the checked pin, a 1 km square, it asks the

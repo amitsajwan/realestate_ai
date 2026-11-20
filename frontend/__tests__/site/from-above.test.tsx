@@ -2,7 +2,7 @@ import React from 'react'
 import path from 'path'
 import { render, screen } from '@testing-library/react'
 import ProjectFromAbove from '@/components/site/ProjectFromAbove'
-import { cleanFromAbove, forPin, readFromAbove } from '@/lib/site/fromAbove'
+import { cleanFromAbove, forPin, fromRecord, readFromAbove } from '@/lib/site/fromAbove'
 
 const SLUG = 'kohinoor-riverdale-kharadi'
 const frame = (year: number, built: number) => ({
@@ -74,4 +74,19 @@ describe('the site from above', () => {
     expect(vo.contentUrl).toBe('https://avasetu.in/from-above/kohinoor-riverdale-kharadi.mp4')
     expect(vo.name).toBe('Kohinoor Riverdale from above, Jan 2021 to Nov 2026')
   })
+
+  it('shows what the daily pass stored under uploads, and nothing from anywhere else', () => {
+    const dir = '/uploads/from_above/p52100056021'
+    const rec = { ...raw, slug: undefined,
+      frames: raw.frames.map((f) => ({ ...f, src: `${dir}/${f.year}.webp` })),
+      video: { src: `${dir}/months.mp4`, poster: `${dir}/months.webp`, width: 960, height: 540, from: '2021-01-20', to: '2026-11-11', months: 41 } }
+    const view = fromRecord(rec, SLUG)!
+    expect(view.frames.map((f) => f.src)).toEqual([2021, 2022, 2023, 2026].map((y) => `${dir}/${y}.webp`))
+    expect(view.video?.src).toBe(`${dir}/months.mp4`)
+    const escaped = { ...rec, frames: rec.frames.map((f) => ({ ...f, src: `/uploads/from_above/x/../../${f.year}.webp` })) }
+    expect(fromRecord(escaped, SLUG)).toBeNull()
+    expect(fromRecord({ ...rec, video: { ...rec.video, poster: '/uploads/other.webp' } }, SLUG)?.video).toBeNull()
+    expect(fromRecord(null, SLUG)).toBeNull()
+  })
 })
+

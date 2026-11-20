@@ -106,6 +106,13 @@ def wire() -> None:
     # a street map of where the project is, for pages with no picture (areastats.locmap)
     from app.modules.areastats import locmap
     project_enrich.add_daily("location maps", locmap.refresh)
+    # every page the satellite can say something true about: its site from above, year by year and month by month
+    # (areastats.fromabove); the loop is drawn by calendar.site_timelapse, a higher module
+    from app.modules.areastats import fromabove
+    from app.modules.calendar import site_timelapse
+    fromabove.configure(render=lambda name, place, shots, story, credit, out: site_timelapse.page_video(
+        name, place, [site_timelapse.Shot(day, pic) for day, pic in shots], story, credit, out))
+    project_enrich.add_daily("site from above", fromabove.refresh)
     # areas by place: a pinned project belongs to the area it is in (areastats.placement, app/core/area_bounds.py)
     from app.modules.areastats import placement
     placement.configure(pin_address=_pin_address)

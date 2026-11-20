@@ -1,5 +1,5 @@
 """A project's site seen from above, year by year: Sentinel-2 pictures around its checked pin and a measured change
-(docs/plan/satellite-view.md, steps 3 and 4). Shared by `backend/scripts/project_from_above.py`; no store of its own yet.
+(docs/plan/satellite-view.md, steps 3 and 4). Shared by `backend/scripts/project_from_above.py` and the daily pass `areastats.fromabove`.
 
 What it measures: one clear dry-season pass a year (January to March: least cloud over Pune, and the same sun angle every
 year, so tower shadows do not come and go with the season). Copernicus classes each 10 m pixel inside `RADIUS_M` of the pin
@@ -220,3 +220,4 @@ def clearest_frame(readings: Sequence[dict]) -> Optional[dict]:
     """Of one month's passes ({day, masked, haze}), the least hazy one with no cloud in the picture; None if none."""
     ok = [r for r in readings if r["masked"] <= MAX_FRAME_MASKED and r["haze"] <= MAX_HAZE]
     return min(ok, key=lambda r: (r["haze"], r["masked"], r["day"])) if ok else None
+

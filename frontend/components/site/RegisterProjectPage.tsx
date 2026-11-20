@@ -21,7 +21,7 @@ import PriceBox from '@/components/site/PriceBox'
 import PriceIdea from '@/components/site/PriceIdea'
 import LocationMapSwitch from '@/components/site/LocationMapSwitch'
 import ProjectFromAbove from '@/components/site/ProjectFromAbove'
-import { forPin, type FromAbove } from '@/lib/site/fromAbove'
+import { forPin, fromRecord, type FromAbove } from '@/lib/site/fromAbove'
 import ProjectHistory from '@/components/site/ProjectHistory'
 import { isCommercial, type Stage } from '@/lib/site/allin'
 import { areaCompareOf, areaName, askedPrices, bhkRange, completionChange, completionPassedOf, displayName, extensionSentence, headingName,
@@ -903,8 +903,9 @@ export interface Seller {
 }
 
 export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], whatsappUrl, seller, fromAbove = null }: { p: RegisterProject; siteUrl: string; facts: PropertyFactsView | null; lists?: FacetLink[]; whatsappUrl?: string | null; seller?: Seller; fromAbove?: FromAbove | null }) {
-  // the site from above, only while the checked pin is where the pictures were taken
-  const fromAboveView = forPin(fromAbove, p.map)
+  // the site from above, only while the checked pin is where the pictures were taken: a by-hand run's files first, else what
+  // the daily pass stored on the record
+  const fromAboveView = forPin(fromAbove, p.map) ?? forPin(fromRecord(p.from_above, p.slug), p.map)
   const url = `${siteUrl}/projects/${p.slug}`
   // the WhatsApp ask names this project; on an agent's listing page (seller) the agent's form stays first
   const waAsk = pageWhatsApp(whatsappUrl, displayName(p), p.slug)

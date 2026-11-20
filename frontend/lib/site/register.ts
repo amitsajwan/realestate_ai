@@ -47,6 +47,8 @@ export interface RegisterProject {
   map?: { lat: number; lon: number } | null
   /** a street map drawn around the checked pin, for the hero when there is no picture (backend areastats/locmap.py) */
   location_picture?: { url: string; width: number; height: number } | null
+  /** the site from above, stored by the daily pass (backend areastats/fromabove.py); checked by lib/site/fromAbove fromRecord */
+  from_above?: unknown
   builder?: BuilderRecord | null
   place?: string | null
   taluka?: string | null
