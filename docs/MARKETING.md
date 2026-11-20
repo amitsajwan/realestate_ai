@@ -334,6 +334,7 @@ as "may already be live": check the page, then delete that ledger document to al
 | `publish_ledger` | One document per publish key: sending, sent or failed. |
 | `marketing_runs` | Listing campaign jobs with their posts. |
 | `property_facts` | Kept fact sheets with sources and levels. |
+| `nearby_places` | Google's nearby places by pin position, kept 30 days so a re-gathered project asks Google nothing (`propertyfacts/surroundings.py` Nearby). |
 | `brochures` | Brochure kits per listing and file: facts with page, quote and state, the registration answer, the plans, maps and renders kept as images with the agent's use or don't-use (`propertyfacts/brochure.py`). |
 | `marketing_packs`, `publications` | Agent packs, and pack posts with consent. |
 | `reel_jobs` | Walkthrough reel jobs. |
