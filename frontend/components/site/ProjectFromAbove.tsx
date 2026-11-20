@@ -33,10 +33,10 @@ export default function ProjectFromAbove({ view, shown, siteUrl }: { view: FromA
       {video && (
         <figure className="m-0 mt-3">
           <FromAboveVideo src={video.src} poster={video.poster} width={video.width} height={video.height}
-            label={`${shown} site from above, one clear satellite picture a month, ${shortMonth(video.from)} to ${shortMonth(video.to)}`} />
+            label={`${shown} site from above, one clear satellite picture a season, ${shortMonth(video.from)} to ${shortMonth(video.to)}`} />
           <figcaption className="mt-1 text-xs text-slate-600">
-            Month by month, {shortMonth(video.from)} to {shortMonth(video.to)}: {video.months} clear passes, October to May
-            (the monsoon months are under cloud). Each year&apos;s measure is below.
+            Season by season, {shortMonth(video.from)} to {shortMonth(video.to)}: {video.months} clear passes, October to May
+            (the monsoon months are under cloud). Each picture&apos;s line comes from the yearly measure below.
           </figcaption>
         </figure>
       )}

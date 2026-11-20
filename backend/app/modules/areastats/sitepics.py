@@ -221,3 +221,55 @@ def clearest_frame(readings: Sequence[dict]) -> Optional[dict]:
     ok = [r for r in readings if r["masked"] <= MAX_FRAME_MASKED and r["haze"] <= MAX_HAZE]
     return min(ok, key=lambda r: (r["haze"], r["masked"], r["day"])) if ok else None
 
+
+
+# The timelapse shows a season, not a month (owner 2026-11-20: "too fast and repetition"): one picture for each of October
+# to December, January to March and April to May, about 17 since 2021, each held long enough to see.
+SEASONS = {10: 4, 11: 4, 12: 4, 1: 1, 2: 1, 3: 1, 4: 2, 5: 2}   # month -> quarter
+
+
+def by_season(months: Sequence[dict], keep: Sequence[str] = ()) -> List[dict]:
+    """One pass per dry quarter ({day, haze, ...}, oldest first): a day in `keep` (a year's measured pass) when the quarter has
+    one, else its least hazy."""
+    groups: Dict[tuple, List[dict]] = {}
+    for m in months:
+        y, mo = int(m["day"][:4]), int(m["day"][5:7])
+        if mo in SEASONS:
+            groups.setdefault((y, SEASONS[mo]), []).append(m)
+    out = []
+    for key in sorted(groups):
+        g = groups[key]
+        kept = [m for m in g if m["day"] in keep]
+        out.append(kept[0] if kept else min(g, key=lambda m: (m.get("haze", 0), m["day"])))
+    return out
+
+
+def captions(years: Sequence[dict], days: Sequence[str]) -> Dict[str, str]:
+    """A line for each picture of the timelapse, written from the yearly measure (never from a model looking at a 10 m
+    picture): the measured share on a year's own pass, else the stage the measure puts that day in. Same rules as `story`."""
+    rows = sorted(years, key=lambda r: r["day"])
+    out: Dict[str, str] = {}
+    if not rows:
+        return {d: "" for d in days}
+    first = rows[0]
+    held = [i for i, r in enumerate(rows) if i and all(x["built"] - first["built"] >= MIN_CHANGE for x in rows[i:])]
+    started = rows[held[0]] if held else None
+    cleared = next((r for r in rows[1:] if (started is None or r["day"] <= started["day"])
+                    and (first["green"] - r["green"] >= 20 or r["bare"] - first["bare"] >= 20)), None)
+    before = rows[rows.index(cleared) - 1] if cleared is not None and cleared is not started else None
+    measured = {r["day"]: r for r in rows}
+    spread_from = rows[held[0] - 1]["day"] if held else None   # the last measure before the rise that holds
+    for d in days:
+        if d in measured:
+            out[d] = f"Measured: {measured[d]['built']}% roofs and concrete"
+        elif spread_from is not None and d > spread_from:
+            out[d] = "Roofs and concrete spreading"
+        elif before is not None and before["day"] < d <= cleared["day"]:
+            out[d] = "Ground being cleared"
+        elif before is not None and d > cleared["day"]:
+            out[d] = "Cleared ground, little built yet"
+        elif first["green"] >= 30:
+            out[d] = "Plants and open ground"
+        else:
+            out[d] = "Open ground, little built"
+    return out

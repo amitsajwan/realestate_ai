@@ -23,7 +23,7 @@ from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import httpx
-from PIL import Image, ImageEnhance, ImageFilter
+from PIL import Image, ImageEnhance, ImageFilter, ImageStat
 
 from app.core import area_bounds, areas
 from app.platform import media
@@ -239,6 +239,29 @@ def enhance(img: Image.Image, stretch: Optional[Stretch] = None, upscale: int = 
     if upscale > 1:
         out = out.resize((out.width * upscale, out.height * upscale), Image.LANCZOS)
     return out.filter(ImageFilter.UnsharpMask(radius=2 if upscale > 1 else 1.5, percent=110, threshold=2))
+
+
+def even_out(images: Sequence[Image.Image], strength: float = 0.7) -> List[Image.Image]:
+    """Each picture's brightness and colour moved towards the set's average (per channel mean and spread), so a timelapse
+    does not flicker with the haze and light of each pass (owner 2026-11-20: "minor image enhancement"). A linear change
+    of each channel only: what is light stays lighter, what is dark stays darker, and nothing is added."""
+    stats = []
+    for img in images:
+        st = ImageStat.Stat(img.convert("RGB"))
+        stats.append((st.mean, st.stddev))
+    if not stats:
+        return []
+    target_mean = [sum(m[c] for m, _ in stats) / len(stats) for c in range(3)]
+    target_sd = [sum(sd[c] for _, sd in stats) / len(stats) for c in range(3)]
+    out = []
+    for img, (mean, sd) in zip(images, stats):
+        chans = []
+        for c, band in enumerate(img.convert("RGB").split()):
+            gain = 1 + strength * ((target_sd[c] / sd[c] if sd[c] > 1 else 1) - 1)
+            shift = mean[c] + strength * (target_mean[c] - mean[c])
+            chans.append(band.point([max(0, min(255, round((v - mean[c]) * gain + shift))) for v in range(256)]))
+        out.append(Image.merge("RGB", chans))
+    return out
 
 
 def month_name(day: str) -> str:

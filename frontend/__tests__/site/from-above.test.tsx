@@ -69,6 +69,8 @@ describe('the site from above', () => {
     expect(el.muted).toBe(true)
     expect(el.getAttribute('src')).toBeNull()            // nothing downloads before it is near the screen
     expect(screen.getByText(/41 clear passes, October to May/)).toBeTruthy()
+    expect(el.loop).toBe(false)                          // plays once and stops on the sentence
+    expect(el.controls).toBe(true)
     const ld = JSON.parse(container.querySelector('script[type="application/ld+json"]')!.innerHTML)
     const vo = ld['@graph'].find((g: { '@type': string }) => g['@type'] === 'VideoObject')
     expect(vo.contentUrl).toBe('https://avasetu.in/from-above/kohinoor-riverdale-kharadi.mp4')

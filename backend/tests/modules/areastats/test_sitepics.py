@@ -115,3 +115,37 @@ def test_a_months_picture_shows_no_cloud_and_the_least_haze():
     passes = [{"day": "2025-01-03", **cloudy}, {"day": "2025-01-13", **clear}, {"day": "2025-01-23", "masked": 0.0, "haze": 0.5}]
     assert s.clearest_frame(passes)["day"] == "2025-01-13"
     assert s.clearest_frame([{"day": "2025-01-03", **cloudy}]) is None
+
+
+def test_one_picture_a_dry_quarter_and_a_years_measured_pass_kept():
+    months = [{"day": d, "haze": h} for d, h in (("2023-01-09", 0.3), ("2023-02-13", 0.1), ("2023-03-25", 0.2),
+                                                  ("2023-04-04", 0.2), ("2023-05-14", 0.1), ("2023-10-06", 0.2),
+                                                  ("2023-12-30", 0.15))]
+    got = [m["day"] for m in s.by_season(months, keep=["2023-01-09"])]
+    assert got == ["2023-01-09", "2023-05-14", "2023-12-30"]
+
+
+def test_each_picture_gets_a_line_from_the_measure_never_more_than_it_found():
+    rows = [row("2021-02-28", 0, 17, 51), row("2022-01-19", 0, 2, 66), row("2023-01-09", 2, 35, 45),
+            row("2024-02-23", 16, 49, 19), row("2025-02-17", 10, 49, 26), row("2026-02-27", 22, 35, 27)]
+    days = ["2021-02-28", "2021-11-20", "2023-01-09", "2023-11-02", "2024-02-23", "2025-12-09", "2026-02-27"]
+    said = s.captions(rows, days)
+    assert said["2021-02-28"] == "Measured: 0% roofs and concrete"
+    assert said["2021-11-20"] == "Plants and open ground"
+    assert said["2023-11-02"] == "Ground being cleared"          # between the Jan 2023 and Feb 2024 measures
+    assert said["2025-12-09"] == "Roofs and concrete spreading"  # after the last measure before the rise held
+    assert said["2026-02-27"] == "Measured: 22% roofs and concrete"
+    assert all("tower" not in v and "complete" not in v and "floor" not in v for v in said.values())
+
+
+def test_even_out_brings_a_hazy_pass_towards_the_others_and_keeps_its_shapes():
+    clear = Image.new("RGB", (20, 20), (90, 80, 70))
+    hazy = Image.new("RGB", (20, 20), (170, 165, 160))
+    for img, hi in ((clear, (200, 190, 180)), (hazy, (230, 225, 220))):
+        for x in range(10, 20):
+            for y in range(20):
+                img.putpixel((x, y), hi)
+    a, b = pictures.even_out([clear, hazy])
+    gap_before = abs(clear.getpixel((2, 2))[0] - hazy.getpixel((2, 2))[0])
+    assert abs(a.getpixel((2, 2))[0] - b.getpixel((2, 2))[0]) < gap_before
+    assert b.getpixel((2, 2))[0] < b.getpixel((15, 2))[0]          # dark stays dark, light stays light

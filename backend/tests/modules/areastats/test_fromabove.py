@@ -190,3 +190,30 @@ def test_the_sitemap_date_moves_when_the_site_from_above_goes_on_the_page_and_no
     assert pages.page_updated(shown).startswith("2026-11-20")
     nothing = {**base, "from_above": {"none": True, "at": NOW}}
     assert pages.page_updated(nothing).startswith("2026-11-17")
+
+
+def test_a_page_shown_with_an_older_video_is_made_again_and_a_current_one_is_not():
+    big = {"_id": "P1", **PAGE, **PIN}
+    fresh = {"lat": 18.5447, "lon": 73.9685, "at": datetime(2026, 11, 20, tzinfo=timezone.utc), "story": "Within ..."}
+    old = {**big, "from_above": {**fresh, "video": {"path": "from_above/p1/months.mp4"}}}
+    assert fa.due(old, [old], NOW) == (18.5447, 73.9685)
+    current = {**big, "from_above": {**fresh, "video": {"path": "from_above/p1/months.mp4", "version": fa.VIDEO_VERSION}}}
+    assert fa.due(current, [current], NOW) is None
+
+
+async def test_the_video_shows_a_picture_a_season_each_with_its_line(tmp_path):
+    seen = []
+
+    def keep(name, place, shots, story, credit, out):
+        seen.extend(shots)
+        return render(name, place, shots, story, credit, out)
+
+    fa.configure(render=keep)
+    store = await seeded(("P1", PIN))
+    await fa.refresh(store, NOW, sat=Sat(), out_dir=tmp_path)
+    quarters = {(d[:4], s.SEASONS[int(d[5:7])]) for d, _, _ in seen}
+    assert len(quarters) == len(seen)                                  # never two pictures from one season
+    assert all(line for _, _, line in seen)
+    assert seen[0][2] == "Measured: 0% roofs and concrete"             # Jan 2021 is the first year's measured pass
+    rec = (await store.projects.find_one({"_id": "P1"}))["from_above"]
+    assert rec["video"]["version"] == fa.VIDEO_VERSION

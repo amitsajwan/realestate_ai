@@ -111,7 +111,7 @@ def wire() -> None:
     from app.modules.areastats import fromabove
     from app.modules.calendar import site_timelapse
     fromabove.configure(render=lambda name, place, shots, story, credit, out: site_timelapse.page_video(
-        name, place, [site_timelapse.Shot(day, pic) for day, pic in shots], story, credit, out))
+        name, place, [site_timelapse.Shot(day, pic, say) for day, pic, say in shots], story, credit, out))
     project_enrich.add_daily("site from above", fromabove.refresh)
     # areas by place: a pinned project belongs to the area it is in (areastats.placement, app/core/area_bounds.py)
     from app.modules.areastats import placement

@@ -39,7 +39,7 @@ from app.modules.newsroom.store import Store
 from . import fromabove_view, sitepics
 from .hubs import _primaries
 from .pages import is_old, own_position
-from .pictures import CATALOG_URL, PROCESS_URL, Failed, enhance, judge_code, process_request, stretch_for, token
+from .pictures import CATALOG_URL, PROCESS_URL, Failed, enhance, even_out, judge_code, process_request, stretch_for, token
 
 log = logging.getLogger(__name__)
 
@@ -52,9 +52,10 @@ REDO_DAYS = 330                 # a year's new pictures, after the dry season th
 FRAME_WIDTH = 300               # true colour over 600 m: 2 m a pixel before the 2x upscale
 YEAR_WIDTH = 600                # the yearly row's pictures, after the upscale
 EARLY_HAZE = 0.25               # a clear pass this clean ends the month's search: fewer requests
+VIDEO_VERSION = 2               # 2: a picture a season, held 1.5 s, big words and a line each (2026-11-20); older: made again
 
-# Render(name, place, shots [(day, picture)], story, credit, out mp4) -> (mp4 path, poster path)
-Render = Callable[[str, str, Sequence[Tuple[str, Image.Image]], str, str, Path], Tuple[Path, Path]]
+# Render(name, place, shots [(day, picture, line)], story, credit, out mp4) -> (mp4 path, poster path)
+Render = Callable[[str, str, Sequence[Tuple[str, Image.Image, str]], str, str, Path], Tuple[Path, Path]]
 _deps: Dict[str, Render] = {}
 
 
@@ -89,6 +90,8 @@ def due(d: dict, docs: Sequence[dict], now: datetime) -> Optional[Tuple[float, f
     pin = (float(d["geo"]["lat"]), float(d["geo"]["lon"]))
     old = d.get("from_above") or {}
     at = _aware(old.get("at"))
+    if old.get("story") and int((old.get("video") or {}).get("version") or 1) < VIDEO_VERSION:
+        return pin   # shown with a video of an older look: made again
     if at and (now - at).days < REDO_DAYS and old.get("lat") is not None \
             and fromabove_view.metres_apart(pin, (old["lat"], old["lon"])) <= fromabove_view.PIN_MOVED_M:
         return None
@@ -237,7 +240,8 @@ def make(d: dict, pin: Tuple[float, float], sat: Copernicus, today: date, out_di
     if said is None or len(seen.months) < 3:
         return {**base, "none": True}
     render = _deps.get("render")
-    days = sorted({m["day"] for m in seen.months} | {y["day"] for y in seen.years})
+    seasons_shown = sitepics.by_season(seen.months, keep=[y["day"] for y in seen.years])
+    days = sorted({m["day"] for m in seasons_shown} | {y["day"] for y in seen.years})
     raw: Dict[str, Image.Image] = {}
     for day in days:
         png = sat.colour(box, day)
@@ -251,7 +255,8 @@ def make(d: dict, pin: Tuple[float, float], sat: Copernicus, today: date, out_di
         # the sentence speaks of every year: a row with a year missing would show less than it says (Palladio, 2026-11-20)
         raise Failed(f"no true-colour picture for {', '.join(missing) or 'any day'}")
     stretch = stretch_for(list(raw.values()))
-    pics = {day: enhance(img, stretch, upscale=2) for day, img in raw.items()}
+    order = sorted(raw)
+    pics = dict(zip(order, even_out([enhance(raw[day], stretch, upscale=2) for day in order])))
     folder = out_dir / re.sub(r"[^a-z0-9]", "", str(d["_id"]).lower())
     folder.mkdir(parents=True, exist_ok=True)
     frames = []
@@ -263,15 +268,18 @@ def make(d: dict, pin: Tuple[float, float], sat: Copernicus, today: date, out_di
         frames.append({"year": int(y["day"][:4]), "day": y["day"], "path": _rel(f), "width": pics[y["day"]].width,
                        "height": pics[y["day"]].height, "built": y["built"], "bare": y["bare"], "green": y["green"],
                        "haze": y["haze"]})
-    shots = [(m["day"], pics[m["day"]]) for m in seen.months if m["day"] in pics]
+    lines = sitepics.captions(seen.years, [m["day"] for m in seasons_shown])
+    shots = [(m["day"], pics[m["day"]], lines[m["day"]]) for m in seasons_shown if m["day"] in pics]
     first, last = (shots[0][0], shots[-1][0]) if shots else ("", "")
     credit = f"{sitepics.CREDIT} {days[0][:4]}-{days[-1][:4]}"
     video = None
     if render and len(shots) >= 3:
         name = d.get("marketed_name") or d.get("name") or str(d["_id"])
         mp4, poster = render(name, place_name(d), shots, said, credit, folder / "months.mp4")
-        video = {"path": _rel(Path(mp4)), "poster": _rel(Path(poster)), "width": 960, "height": 540, "from": first,
-                 "to": last, "months": len(shots)}
+        with Image.open(poster) as im:
+            vw, vh = im.size
+        video = {"path": _rel(Path(mp4)), "poster": _rel(Path(poster)), "width": vw, "height": vh, "from": first,
+                 "to": last, "months": len(shots), "version": VIDEO_VERSION}
     return {**base, "story": said, "where": sitepics.where(), "credit": credit, "frames": frames, "video": video}
 
 

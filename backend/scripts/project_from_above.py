@@ -42,7 +42,7 @@ from app.modules.areastats import sitepics  # noqa: E402
 from app.modules.calendar import site_timelapse  # noqa: E402
 from app.modules.reels.compose import ReelError  # noqa: E402
 from app.modules.areastats.pictures import (  # noqa: E402
-    CATALOG_URL, PROCESS_URL, Failed, best_passes, enhance, fetch_process, judge_code, stretch_for, token,
+    CATALOG_URL, PROCESS_URL, Failed, best_passes, enhance, even_out, fetch_process, judge_code, stretch_for, token,
 )
 
 OUT = BACKEND.parent / "frontend" / "public" / "from-above"
@@ -104,8 +104,13 @@ def timelapse(client: httpx.Client, auth: str, slug: str, out: Path, reels: Opti
             for c, img in zip(chosen, raw):
                 img.save(keep / f"{c['day']}.png")
             (keep / "months.json").write_text(json.dumps(chosen), encoding="utf-8")
+    years = [{k: f[k] for k in ("day", "built", "bare", "green")} for f in doc["frames"]]
+    pick = {m["day"] for m in sitepics.by_season(chosen, keep=[y["day"] for y in years])}
+    chosen, raw = [c for c in chosen if c["day"] in pick], [img for c, img in zip(chosen, raw) if c["day"] in pick]
     stretch = stretch_for(raw)
-    shots = [site_timelapse.Shot(c["day"], enhance(img, stretch, upscale=2)) for c, img in zip(chosen, raw)]
+    said = sitepics.captions(years, [c["day"] for c in chosen])
+    pics = even_out([enhance(img, stretch, upscale=2) for img in raw])
+    shots = [site_timelapse.Shot(c["day"], pic, said[c["day"]]) for c, pic in zip(chosen, pics)]
     name, place = doc.get("name") or slug, place_of(client, slug)
     credit = f"{sitepics.CREDIT} {chosen[0]['day'][:4]}-{chosen[-1]['day'][:4]}"
     mp4, poster = site_timelapse.page_video(name, place, shots, doc["story"], credit, out / f"{slug}.mp4")

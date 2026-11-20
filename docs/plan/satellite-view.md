@@ -124,6 +124,20 @@ Copernicus quota.
 - **The credit line** "Contains modified Copernicus Sentinel data <years>" is the Copernicus licence's condition for
   using the pictures; it stays, small, on the page, in the video and in the post.
 
+### The video, second look (2026-11-20)
+
+Owner on the first: "too fast and repetition", "is text readable", "with every image change we need interpretation", "minor
+image enhancement". Now: one picture a dry season (Oct-Dec, Jan-Mar, Apr-May; `sitepics.by_season`, a year's measured pass
+kept), about 17 since 2021, each held about 1.5 s with a 0.5 s fade; square 720 px for the page with the date (58 px) and a
+line (32 px) across the top of the picture, readable on a phone; the words switch halfway through a fade, never overlap.
+Each line comes from the yearly measure (`sitepics.captions`: "Measured: 22% roofs and concrete" on a year's own pass,
+else "Plants and open ground", "Ground being cleared", "Cleared ground, little built yet", "Roofs and concrete
+spreading"), not from a model looking at a 10 m picture, which would guess. `pictures.even_out` moves each picture's
+brightness and colour towards the set's average so haze does not flicker; linear per channel, nothing added. On the page
+the video plays once, stops on the sentence, and has controls to replay. Videos of the first look are made again
+(`fromabove.VIDEO_VERSION`). Sharper pictures would need paid satellites (3 m and finer); Google's sharp view is the
+Map/Satellite switch, today's only.
+
 ### On every page that qualifies: the daily pass (2026-11-20)
 
 Owner, 2026-11-20: "lets get it for all pages". `areastats/fromabove.py`, a once-a-day pass inside the enrichment loop
