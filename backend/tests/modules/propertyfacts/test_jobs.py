@@ -207,7 +207,7 @@ async def test_send_to_calendar_plans_rows_for_approval(tmp_path):
     ig = sorted((r for r in rows if r["channel"] == "instagram"), key=lambda r: r["due_at"])
     assert len(ig) == 2 and ig[0]["slug"] == "campaign-L1-listing" and ig[1]["slug"].endswith("-ad")
     when = [r["due_at"].astimezone(schedule.IST).strftime("%m-%d %H:%M") for r in ig]
-    assert when == ["10-07 11:00", "10-07 19:00"]   # two a day (11:00 and 19:00 IST)
+    assert when == ["10-07 09:00", "10-07 13:00"]   # four a day (09:00, 13:00, 17:00, 21:00 IST)
     assert all(not i.startswith("/") and i.startswith("campaigns/L1/") for r in posts for i in r["images"])
     fb = next(r for r in rows if r["channel"] == "facebook_page")
     # Facebook links to this listing's own page (its photos, as in the post: jobs._post_page)
@@ -216,7 +216,7 @@ async def test_send_to_calendar_plans_rows_for_approval(tmp_path):
     again = await runs.to_calendar("a1", "L1")                # pressing twice adds nothing
     assert len([r for r in await cal.all() if r["slug"].startswith("campaign-L1-")]) == 2 * (n + jobs.FALLBACK_REELS)
     assert len(again["calendar"]) == 2 * (n + jobs.FALLBACK_REELS)
-    assert jobs.run_out(again)["calendar"][0]["due_at"] == "2026-10-07T05:30:00Z"   # 11 am IST
+    assert jobs.run_out(again)["calendar"][0]["due_at"] == "2026-10-07T03:30:00Z"   # 9 am IST
     assert not [r for r in again["reels"] if r["kind"] == "walkthrough"]   # one reel a listing (owner, 2026-11-07)
 
 

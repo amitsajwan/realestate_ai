@@ -7,8 +7,8 @@ Every INTERVAL_S, with LISTING_DAILY_PICKS > 0:
      (social.distribution, the pause switches). A failed or cancelled run ends the pick; a run that stops to ask the agent
      questions (understand.py) is cancelled after ASKING_GIVE_UP and the listing waits for its agent.
   2. Pick the next one, 09:00-18:00 IST, when no pick is running, fewer than LISTING_DAILY_PICKS were picked today, and the
-     campaign rows already waiting on Instagram fill less than AHEAD of the calendar's slots (2 a day: schedule.POST_TIMES). The
-     slots are the real pace: five listings a day would be ten posts a day on each channel, which the calendar spreads anyway.
+     campaign rows already waiting on Instagram fill less than AHEAD of the calendar's slots (4 a day: schedule.POST_TIMES). The
+     slots are the real pace: a listing is its post and its reel, so about two listings a day go out on each channel.
      The best listing first (`rank`): a price, a MahaRERA number, the most pictures, selling points, newest. A listing marketed
      (or tried) in the last REMARKET_AFTER is not picked again.
 

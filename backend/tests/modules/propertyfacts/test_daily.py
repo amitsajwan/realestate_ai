@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from app.modules.calendar.store import Store as CalendarStore
-from app.modules.propertyfacts import daily
+from app.modules.propertyfacts import daily, schedule
 
 from ..fakes import FakeDb
 
@@ -76,8 +76,9 @@ async def test_no_pick_at_night_past_the_days_limit_or_when_the_calendar_is_full
     assert (await daily.cycle(db, runs, NIGHT, limit=5))["picked"] is None
     assert (await daily.cycle(db, runs, NOW, limit=0))["picked"] is None
     cal = CalendarStore(db)
-    for i in range(6):   # three days of Instagram slots already waiting
-        await cal.add(f"campaign-X{i}-listing", "instagram", "c", "", datetime(2026, 11, 21 + i // 2, 5, 30 + i % 2, tzinfo=timezone.utc),
+    per = len(schedule.POST_TIMES)
+    for i in range(per * daily.AHEAD.days):   # three days of Instagram slots already waiting
+        await cal.add(f"campaign-X{i}-listing", "instagram", "c", "", datetime(2026, 11, 21 + i // per, 5, 30 + i % per, tzinfo=timezone.utc),
                       kind="post", status="approved")
     assert (await daily.cycle(db, runs, NOW, limit=5))["picked"] is None
 
