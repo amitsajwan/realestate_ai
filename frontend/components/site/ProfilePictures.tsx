@@ -43,16 +43,25 @@ export function Picture({ pic, eager }: { pic: ProfilePicture; eager?: boolean }
   )
 }
 
+/** Where the pictures came from, in one line, and the renders' warning once: a gallery from an agent's listing and the builder's
+ *  site said the same warning twice, back to back (outside review of Godrej Ivara, 2026-11-20). AI illustrations keep their own
+ *  line, since what it says is different: they are not pictures of the project at all. */
 export function Credit({ pics, name }: { pics: ProfilePicture[]; name?: string }) {
   const drawn = pics.some((p) => sourceOf(p) === 'ai')
   const own = pics.filter((p) => sourceOf(p) === 'builder')
   const brochure = pics.some((p) => sourceOf(p) === 'brochure')
   const agent = pics.find((p) => sourceOf(p) === 'agent')?.site
+  const url = own.find((p) => p.page_url)?.page_url
+  const from: React.ReactNode[] = []
+  if (agent) from.push(<>{agent}&apos;s listing</>)
+  if (own.length) from.push(url ? <a href={url} target="_blank" rel="noopener nofollow" className="underline underline-offset-2">the builder&apos;s website</a> : <>the builder&apos;s website</>)
+  if (brochure) from.push(<>the builder&apos;s brochure, shared by an agent</>)
   return (
     <>
-      {agent && (
-        <p className="mt-2 text-xs text-slate-600">
-          From {agent}&apos;s listing. Renders are the builder&apos;s artist&apos;s impressions: check the sanctioned plans before you book.
+      {from.length > 0 && (
+        <p className="mt-2 text-xs text-slate-600" data-testid="pictures-credit">
+          From {from.map((x, i) => <React.Fragment key={i}>{i === 0 ? '' : i === from.length - 1 ? ' and ' : ', '}{x}</React.Fragment>)}.
+          {' '}Renders are the builder&apos;s artist&apos;s impressions and plans are indicative: check the sanctioned plans before you book.
         </p>
       )}
       {drawn && (
@@ -60,23 +69,6 @@ export function Credit({ pics, name }: { pics: ProfilePicture[]; name?: string }
           Illustrations made by AI from the MahaRERA facts (towers, floors): they are not pictures of {name || 'the project'}. Ask us for the builder&apos;s pictures.
         </p>
       )}
-      {brochure && (
-        <p className="mt-2 text-xs text-slate-600">
-          From the builder&apos;s brochure, shared by an agent. Renders are artist&apos;s impressions; the plans are indicative. Check the sanctioned plans before you book.
-        </p>
-      )}
-      {own.length > 0 && <Sites pics={own}
-        end="Renders are the builder's artist's impressions; the plans are indicative. Check the sanctioned plans before you book." />}
     </>
-  )
-}
-
-/** The builder's own pages the pictures came from, linked as "the builder's website" (its domain is not printed, owner 2026-10-30). */
-function Sites({ pics, end }: { pics: ProfilePicture[]; end: string }) {
-  const url = pics.find((p) => p.page_url)?.page_url
-  return (
-    <p className="mt-2 text-xs text-slate-600">
-      From {url ? <a href={url} target="_blank" rel="noopener nofollow" className="underline underline-offset-2">the builder&apos;s website</a> : "the builder's website"}. {end}
-    </p>
   )
 }

@@ -49,6 +49,8 @@ export interface RegisterProject {
   location_picture?: { url: string; width: number; height: number } | null
   /** the site from above, stored by the daily pass (backend areastats/fromabove.py); checked by lib/site/fromAbove fromRecord */
   from_above?: unknown
+  /** what a person saw at the site, dated and signed, never model-written (backend areastats/sitevisits.py) */
+  site_visit?: { visited_on: string; by: string; text: string } | null
   builder?: BuilderRecord | null
   place?: string | null
   taluka?: string | null
@@ -346,7 +348,8 @@ function ownFaq(p: RegisterProject, nearby: { label?: string | null; name?: stri
       a: span + (change.kind === 'extension' ? extensionSentence(p.completion_now, change.months)
         : `The completion date filed with MahaRERA is ${longDay(p.completion_now)}.`
           + (change.kind === 'moved' ? ` At registration it was ${longDay(change.from)}.` : '') + ext)
-        + ' Ask the builder for the possession date in your agreement, in writing.' })
+        // said where the date moved or passed, as on the page itself; on every answer it was the same line on all pages
+        + (change.kind === 'moved' || completionPassedOf(p) ? ' Ask the builder for the possession date in your agreement, in writing.' : '') })
   }
   out.push({ topic: 'rera', q: `What is the MahaRERA number of ${shown}?`,
     a: whole ? `${shown} is registered with MahaRERA in ${whole.registrations} parts (towers or phases): ${whole.regnos.join(', ')}.`
@@ -380,7 +383,7 @@ function ownFaq(p: RegisterProject, nearby: { label?: string | null; name?: stri
   if (p.promoter) {
     const b = p.builder
     out.push({ topic: 'builder', q: `Who is the builder of ${shown}?`,
-      a: `The promoter registered with MahaRERA is ${p.promoter}.` + (b && b.count > 1 ? ` Our register has ${b.count} Pune projects by ${b.name}${b.record_ok ? `; ${b.moved_later} of ${b.with_dates} with both dates moved their completion date 3 months or more later` : ''}.` : '') })
+      a: `The promoter registered with MahaRERA is ${readableName(p.promoter)}.` + (b && b.count > 1 ? ` Our register has ${b.count} Pune projects by ${readableName(b.name)}${b.record_ok ? `; ${b.moved_later} of ${b.with_dates} with both dates moved their completion date 3 months or more later` : ''}.` : '') })
   }
   out.push({ topic: 'location', q: `Where is ${shown}?`, a: `${shown} is in ${where}${p.pincode ? ` (pincode ${p.pincode})` : ''}.` })
   if (completionPassedOf(p)) {
@@ -669,9 +672,12 @@ export function displayName(p: { name: string; marketed_name?: string | null; se
 export function otherNames(p: { name: string; marketed_name?: string | null; aliases?: string[] | null }, shown: string[] = []): string[] {
   const seen = new Set([displayName(p), ...shown].map((x) => x.toLowerCase().trim()))
   const out: string[] = []
+  // a name that is only the start of one already shown ("Nivaan Meadows Phase" beside "Nivaan Meadows Phase III") is a cut-off
+  // copy, not another name
+  const cut = (k: string) => [...seen].some((x) => x !== k && x.startsWith(k + ' '))
   for (const a of [...(p.aliases ?? []), p.name]) {
     const k = (a || '').toLowerCase().trim()
-    if (k && !seen.has(k)) { seen.add(k); out.push(a.trim()) }
+    if (k && !seen.has(k) && !cut(k)) { seen.add(k); out.push(a.trim()) }
   }
   return out
 }

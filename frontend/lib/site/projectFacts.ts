@@ -3,7 +3,7 @@
  * do (./placeFacts): AI answers quote a short paragraph that leads with a date and the numbers buyers ask about (MahaRERA number,
  * possession date and whether it moved, homes booked, the price). Nothing here says a fact the page does not show.
  */
-import { formatPrice } from './format'
+import { formatPrice, readableName } from './format'
 import { bhkRange as offerBhks } from './projects'
 import { acrossRegistrations, areaCompareOf, askedPrices, askedSource, completionPassedOf, displayName, extensionSentence, isExtensionOnly,
   longDay, mainRegistration, monthsApart, unitWord, wholeProject } from './register'
@@ -86,7 +86,7 @@ export function projectAnswer(f: AnswerFacts): string {
   }
   const b = f.builderRecord
   if (b && b.with_dates > 0) {
-    parts.push(`Of ${n(b.with_dates)} ${b.name} projects in Pune with both dates on MahaRERA, `
+    parts.push(`Of ${n(b.with_dates)} ${readableName(b.name)} projects in Pune with both dates on MahaRERA, `
       + `${b.moved_later ? n(b.moved_later) : 'none'} moved the completion date 3 months or more later.`)
   }
   if (f.price) parts.push(f.price.charAt(0).toUpperCase() + f.price.slice(1) + '.')
@@ -111,7 +111,7 @@ export function registerAnswer(p: RegisterProject, offer?: { from: string; bhks:
   const main = mainRegistration(p)
   const compare = areaCompareOf(p)
   return projectAnswer({
-    name: displayName(p), builder: p.builder?.name || p.promoter,
+    name: displayName(p), builder: readableName(p.builder?.name || p.promoter) || null,
     where: p.area ? `${p.area.name}, Pune` : [p.pune_place?.name ?? p.place, 'Pune district'].filter(Boolean).join(', '),
     regno: p.regno, asOf: p.details_read_at ?? p.page_updated,
     completionNow: main.completion_now, completionAtRegistration: main.completion_at_registration,

@@ -24,6 +24,7 @@ import ProjectFromAbove from '@/components/site/ProjectFromAbove'
 import ProjectVideo from '@/components/site/ProjectVideo'
 import { forPin, fromRecord } from '@/lib/site/fromAbove'
 import ProjectHistory from '@/components/site/ProjectHistory'
+import OnTheGround from '@/components/site/OnTheGround'
 import { isCommercial, type Stage } from '@/lib/site/allin'
 import { areaCompareOf, areaName, askedPrices, bhkRange, completionChange, completionPassedOf, displayName, extensionSentence, headingName,
   homesOf, longDay, lowestPriceInr, mainRegistration, monthYear, offerPrice, otherNames, possessionLabel, possessionOf, priceGap, projectFaq, placePath, soldOutOf, lowRise, unitsFiledPerBuilding,
@@ -33,12 +34,12 @@ import { watchVideos } from '@/lib/site/projectVideos'
 import type { ProfilePicture } from '@/lib/site/profile'
 import type { PropertyFactsView, PublicListing } from '@/lib/site/types'
 import type { WebFact } from '@/lib/site/webfacts'
-import { formatPrice, groupIndian } from '@/lib/site/format'
+import { formatPrice, groupIndian, readableName } from '@/lib/site/format'
 import { agentPath } from '@/lib/site/slug'
 import { emiFor, OWN_CASH_NOTE, ownCash } from '@/lib/site/upfront'
 import { projectUpdated, registerAnswer } from '@/lib/site/projectFacts'
 import { DETAILS_COMING_PATH, missingDetails, sayList } from '@/lib/site/detailsComing'
-import ProjectPoints, { HomeSizes } from '@/components/site/ProjectPoints'
+import ProjectPoints, { HomeSizes, confirmedSize } from '@/components/site/ProjectPoints'
 import { backing, priceHelp, sizeHelp, type Backing, type PriceHelpText } from '@/lib/site/sellerHelp'
 
 /** The agent's offer on the fact sheet, when it says anything (a price or a size): what campaign posts quote. */
@@ -189,7 +190,8 @@ function Stat({ label, value, sub, testId }: { label: string; value: React.React
  *  the brand buyers know; the company MahaRERA has (often an SPV such as "Manjari Housing Projects LLP") is in the record's
  *  promoter row, since in the headline it read as a second builder (design review 2026-10-25). */
 function HeroLine({ p, where, linkless }: { p: RegisterProject; where: string; linkless: boolean }) {
-  const brand = p.builder?.name || p.promoter
+  // MahaRERA files many builders in capitals; shown as people write the name
+  const brand = readableName(p.builder?.name || p.promoter)
   const placeHref = p.pune_place && !linkless ? placePath(p.pune_place.key.replace(/_/g, '-')) : null
   const builderHref = brand && p.builder_slug && !linkless ? `/builders/${p.builder_slug}` : null
   const link = 'text-white underline decoration-white/50 underline-offset-2 hover:decoration-white'
@@ -231,8 +233,9 @@ function Hero({ p, price, photo, linkless = false, closed = false, callback, emi
   }
   const homes = homesOf(p)
   // `sales` comes from the backend already summed over the parts for a page of several registrations
-  if (homes.booked != null) {
-    stats.push({ id: 'chip-booked', label: 'Booked', value: `${n(homes.booked)} of ${n(homes.of as number)} booked`,
+  // the label already says "Booked"; a record of no homes ("0 of 0") says nothing, so it shows no chip
+  if (homes.booked != null && homes.of) {
+    stats.push({ id: 'chip-booked', label: 'Booked', value: `${n(homes.booked)} of ${n(homes.of as number)}`,
       sub: p.sales && p.sales.booked > 0 ? `${n(p.sales.booked)} booked in the last ${p.sales.days} days`
         : homes.across ? homes.across : undefined })
   } else if (homes.total) stats.push({ id: 'chip-homes', label: 'Homes', value: `${n(homes.total)} homes`, sub: homes.across ?? undefined })
@@ -412,7 +415,7 @@ function PricesSection({ p, shown, offer, priced, numbers, stage, help }: {
   if (!offer && !rows && !rate && !idea) return null
   return (
     <section aria-labelledby="prices-title" data-testid="prices-section">
-      <SectionHead id="prices-title" title={`${shown} price`} />
+      <SectionHead id="prices-title" title="Price" />
       <div className="mt-3 space-y-4">
         {offer && <OfferBox o={offer} numbers={numbers} stage={stage} />}
         {!priced && <PriceBox prices={p.prices} stage={stage} />}
@@ -452,7 +455,9 @@ function LocationSection({ p, shown, nearby, sources }: { p: RegisterProject; sh
   const commute = m ? (p.commute ?? []).filter((c) => c.name && c.km != null).slice(0, 4) : []
   return (
     <section aria-labelledby="map-title">
-      <SectionHead id="map-title" title={`${shown} location`} kind={m ? 'checked' : 'unchecked'} tag={m ? 'Position checked' : 'Position not checked'} />
+      {/* a tag only for a position we checked: without one the map below says it is a search by name, and a "?" badge on every
+          such page read as an unfinished template (2026-11-20) */}
+      <SectionHead id="map-title" title="Location" kind={m ? 'checked' : undefined} tag={m ? 'Position checked' : undefined} />
       {m ? (
         <LocationMapSwitch lat={m.lat} lon={m.lon} shown={shown} osmSrc={src} osmLink={link} />
       ) : (
@@ -512,6 +517,13 @@ function LocationSection({ p, shown, nearby, sources }: { p: RegisterProject; sh
   )
 }
 
+/** True when the agent's price sheet gives each home's carpet area: the sheet is then the page's one statement of sizes, as it
+ *  is of prices. A list of sizes from other sites under it said 729 sq ft beside the sheet's 730 and 875 to 1,250 beside 890 to
+ *  1,234 (outside review of Godrej Ivara, 2026-11-20): two answers to one question. */
+export function sheetSizes(o: Offer | null | undefined): boolean {
+  return !!o && (!!o.carpet_sqft || (o.homes ?? []).some((h) => !!h.carpet_sqft))
+}
+
 const CHECK_KEYS = ['maharera_general', 'buildings', 'places', 'text'] as const
 const CHECK_NAMES: Record<string, string> = { maharera_general: 'Dates and homes booked', buildings: 'Buildings and wings',
   places: 'Location and nearby', text: 'Description' }
@@ -524,7 +536,7 @@ function readSources(p: RegisterProject, offer: Offer | null): { label: string; 
   if (offer) rows.push({ label: 'Price', kind: 'checked', note: `The agent's price sheet${when(offer.read_at)}` })
   else if (p.prices?.rows.length) rows.push({ label: 'Prices', kind: 'checked', note: `The builder's site, or two property sites that agree${when(p.prices.read_at)}` })
   if (!offer && p.price_idea?.rows.length) rows.push({ label: 'Rough price guide', kind: 'checked', note: `An asking price seen on one site, rounded and checked against the area${when(p.price_idea.read_at)}` })
-  if (p.home_sizes?.length) rows.push({ label: 'Home sizes', kind: 'checked', note: "The builder's site and property sites. A size marked not yet confirmed comes from one site." })
+  if (!sheetSizes(offer) && p.home_sizes?.some(confirmedSize)) rows.push({ label: 'Home sizes', kind: 'checked', note: "The builder's site, or two property sites that agree" })
   if (p.profile?.highlights.length) rows.push({ label: 'Project facts and amenities', kind: 'checked', note: `The builder's site and property sites, which can be wrong: where they differ from MahaRERA, MahaRERA counts${when(p.profile.read_at)}` })
   return rows
 }
@@ -580,7 +592,6 @@ function Cautions({ p }: { p: RegisterProject }) {
           </li>
         ))}
       </ul>
-      <p className="mt-2 text-xs text-slate-600">From the record, not an opinion of the project.</p>
     </div>
   )
 }
@@ -686,7 +697,7 @@ function AreaCompare({ p, shown }: { p: RegisterProject; shown: string }) {
   if (!c || !(c.booked || c.moved)) return null
   return (
     <div role="group" aria-labelledby="compare-area-title" data-testid="area-compare">
-      <SectionHead id="compare-area-title" title={`${shown} against ${c.place}`} kind="checked" tag="Worked out by Avasetu" level={3} />
+      <SectionHead id="compare-area-title" title={`Beside other ${c.place} projects`} kind="checked" tag="Worked out by Avasetu" level={3} />
       <dl className="mt-1 grid gap-x-6 sm:grid-cols-2">
         {c.booked && <Row label="Homes booked" value={`${c.booked.pct}%`}
           note={`The middle of ${n(c.booked.projects)} ${c.place} projects registered within a year of it: ${c.booked.area_pct}%.`} />}
@@ -709,11 +720,11 @@ function BuilderRecord({ p, linkless = false }: { p: RegisterProject; linkless?:
   const others = b.projects.filter((x) => !x.this)
   return (
     <div role="group" aria-labelledby="builder-title">
-      <SectionHead id="builder-title" title={`${b.name}: track record`} kind="rera" tag="From MahaRERA records" level={3} />
+      <SectionHead id="builder-title" title={`${readableName(b.name)}: track record`} kind="rera" tag="From MahaRERA records" level={3} />
       <p className="mt-2 text-slate-800">
-        {b.name} has {b.count} project{b.count === 1 ? '' : 's'} in our MahaRERA register for Pune.
-        {b.record_ok ? <> {b.moved_later} of {b.with_dates} with both dates moved the completion date 3 months or more later{b.avg_months_later ? `, by ${months(b.avg_months_later)} on average` : ''}.</>
-          : b.with_dates > 0 ? <> Only {b.with_dates} with both dates: too few to judge their record.</> : null}
+        {readableName(b.name)} has {b.count} project{b.count === 1 ? '' : 's'} in our MahaRERA register for Pune.
+        {/* with too few dated projects there is no record to state, so nothing is said (the same sentence was on 2 in 3 pages) */}
+        {b.record_ok ? <> {b.moved_later} of {b.with_dates} with both dates moved the completion date 3 months or more later{b.avg_months_later ? `, by ${months(b.avg_months_later)} on average` : ''}.</> : null}
       </p>
       {others.length > 0 && (
         <ul className="mt-3 space-y-1 p-0">
@@ -730,7 +741,7 @@ function BuilderRecord({ p, linkless = false }: { p: RegisterProject; linkless?:
         </ul>
       )}
       {p.builder_slug && b.count > 1 && !linkless && (
-        <p className="mt-2"><Link href={`/builders/${p.builder_slug}`} className={LINK}>All {b.count} projects by {b.name} in Pune</Link></p>
+        <p className="mt-2"><Link href={`/builders/${p.builder_slug}`} className={LINK}>All {b.count} projects by {readableName(b.name)} in Pune</Link></p>
       )}
     </div>
   )
@@ -757,7 +768,7 @@ function Videos({ videos, kept, paths, name, agent }: {
   if (!shown.length) return null
   return (
     <section aria-labelledby="videos-title" className="mt-8" data-testid="videos">
-      <h2 id="videos-title" className={H2}>{shown.length > 1 ? 'Sample flat videos' : 'Sample flat video'} of {name}</h2>
+      <h2 id="videos-title" className={H2}>{shown.length > 1 ? 'Sample flat videos' : 'Sample flat video'}</h2>
       <ul className="mt-3 grid list-none gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
         {shown.map((v) => (
           <li key={v.own?.url ?? v.site}>
@@ -800,7 +811,7 @@ function Possession({ p, shown }: { p: RegisterProject; shown: string }) {
   const whole = projectScope(p)
   return (
     <div role="group" aria-labelledby="possession-title" data-testid="possession">
-      <SectionHead id="possession-title" title={`${shown} possession date`} level={3} />
+      <SectionHead id="possession-title" title="Possession date" level={3} />
       <p className="mt-2 text-2xl font-bold text-slate-900">{span.from ? `${longDay(span.from)} to ${longDay(span.to)}` : longDay(span.date ?? main.completion_now)}</p>
       {span.from && whole && <p className="mt-1 text-slate-800">The completion dates filed with MahaRERA for its {whole.registrations} registrations; each is in the table of towers and phases below.</p>}
       <p className="mt-1 text-slate-800">
@@ -843,7 +854,7 @@ function RecordSection({ p, shown, facts, linkless = false }: { p: RegisterProje
   const registeredOn = d?.registered_on ?? facts?.maharera?.registered_on
   return (
     <section aria-labelledby="facts-title" data-testid="record">
-      <SectionHead id="facts-title" title={`${shown} RERA details`} kind="rera" tag={p.details_read_at ? `From MahaRERA, read ${longDay(p.details_read_at)}` : 'From MahaRERA'} />
+      <SectionHead id="facts-title" title="MahaRERA record" kind="rera" tag={p.details_read_at ? `From MahaRERA, read ${longDay(p.details_read_at)}` : 'From MahaRERA'} />
       <div className="mt-3 space-y-8">
         <Possession p={p} shown={shown} />
         <ProjectHistory p={p} shown={shown} />
@@ -864,7 +875,7 @@ function RecordSection({ p, shown, facts, linkless = false }: { p: RegisterProje
                 homesNote ? `${homesNote}.` : null].filter(Boolean).join(' ') || undefined} /> : null}
             {registeredOn && <Row label="Registered on" value={longDay(registeredOn)} />}
             <Row label={whole ? 'Main MahaRERA registration' : 'MahaRERA registration'} value={p.regno} note={p.listed_or_updated ? `Listed or updated on MahaRERA ${longDay(p.listed_or_updated)}.` : undefined} />
-            {p.promoter && <Row label="Promoter (builder)" value={p.promoter} />}
+            {p.promoter && <Row label="Promoter (builder)" value={readableName(p.promoter)} />}
             {projectType && <Row label="Project type" value={projectType} />}
             {p.pincode && <Row label="Pincode" value={p.pincode} />}
           </dl>
@@ -876,7 +887,7 @@ function RecordSection({ p, shown, facts, linkless = false }: { p: RegisterProje
         <TowerByTower p={p} />
         {rest.length > 0 && (
           <div role="group" aria-labelledby="web-facts-title" data-testid="web-facts">
-            <SectionHead id="web-facts-title" title={`More about ${shown}`} kind="checked" level={3} />
+            <SectionHead id="web-facts-title" title="What the builder's and property sites say" kind="checked" level={3} />
             <dl className="mt-3 grid gap-3 sm:grid-cols-2">
               {rest.map((f) => (
                 <div key={f.key} className="rounded-2xl border border-slate-200 bg-white p-4">
@@ -1082,6 +1093,9 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
         </div>
       )}
 
+      {/* a person's note from the site, right under the opening: the one part of the page only a visit gives (2026-11-20) */}
+      {p.site_visit && <div className="mt-6"><OnTheGround visit={p.site_visit} /></div>}
+
       {closed && <div className="mt-8 max-w-4xl">{others}</div>}
 
       {/* pictures next: what a buyer looks for before reading (owner 2026-10-20) */}
@@ -1100,7 +1114,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
           {!closed && <PricesSection p={p} shown={shown} offer={liveOffer(facts)} priced={!!price} numbers={facts?.numbers} stage={stage} help={priceHelp(backs, leadName)} />}
           {/* the site from space comes right after the prices: it is what no other page shows (owner 2026-11-20) */}
           {fromAboveView && <ProjectFromAbove view={fromAboveView} shown={shown} siteUrl={siteUrl} />}
-          <HomeSizes sizes={p.home_sizes} name={shown} help={sizeHelp(backs, leadName)} />
+          {!sheetSizes(liveOffer(facts)) && <HomeSizes sizes={p.home_sizes} name={shown} help={sizeHelp(backs, leadName)} />}
           {!closed && <ProjectProfile profile={p.profile} name={shown} part="plans" plans3d={p.plans_3d?.items ?? []} lead={{ agentSlug: leadSlug, agentName: leadName,
             topic: enquiryTopic, waMessage: `Hi, I want to know about ${p.name} (MahaRERA ${p.regno}): ${url}` }} />}
           <LocationSection p={p} shown={shown} nearby={nearby} sources={facts?.nearby_sources ?? []} />
@@ -1109,7 +1123,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
           {/* the model's sections only: the answer above already says the facts, so with no sections there is no About */}
           {sections.length > 0 && (
             <section aria-labelledby="about-title" data-testid="about">
-              <SectionHead id="about-title" title={`About ${shown}`} kind={p.text_checked ? 'checked' : 'unchecked'}
+              <SectionHead id="about-title" title="About the project" kind={p.text_checked ? 'checked' : 'unchecked'}
                 tag={p.text_checked ? 'Written from checked facts' : 'Not checked yet'} />
               {sections.map((x) => (
                 <div key={x.heading} className="mt-4">
@@ -1140,7 +1154,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
 
           {!seller && byPromoter.length > 0 && p.promoter && (
             <section aria-labelledby="promoter-title" data-testid="same-promoter">
-              <h2 id="promoter-title" className={H2}>More by {p.promoter}</h2>
+              <h2 id="promoter-title" className={H2}>More by {readableName(p.promoter)}</h2>
               <ul className="mt-3 grid list-none gap-2 p-0 sm:grid-cols-2">
                 {byPromoter.map((s) => {
                   const line = [s.bhk || null, s.price_from ? `from ${formatPrice(s.price_from)}` : null,

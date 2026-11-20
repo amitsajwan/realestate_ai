@@ -49,6 +49,13 @@ FAR_KM = 25            # as areastats.pagefacts COMMUTE_KM: nobody calls a place
 RATE_MIN, RATE_MAX = 2500, 70000   # rupees per sq ft: outside this, a price and a size were paired wrongly
 SOURCES_CHARS = 9000
 PROBLEMS_MAX = 5
+# Words that make a finished page read as an unfinished template, and the sites a page may name in its own words: ours, House Deal
+# (the team behind it, /contact) and MahaRERA. Another site named in the text reads as that site's word carrying the page
+# (outside review of Godrej Ivara, 2026-11-20: "(not yet confirmed)" amenities, "as housiey.com states"); the Sources panel says
+# where a fact was read by kind ("the builder's website", "two property sites").
+UNFINISHED = re.compile(r"(?i)\(not yet confirmed\)|area kind not stated|position not checked")
+DOMAIN = re.compile(r"(?i)\b(?:[a-z0-9-]+\.)+(?:com|in|net|org|co)\b")
+OWN_SITES = ("avasetu.in", "house-deal.com", "gov.in")
 MODEL_KINDS = ("number", "wrong_project", "location", "unsupported")
 # As audit.AGENT: "-Google" is served the page as Google is, and "AvasetuSeoAudit" stays out of our own AI visit log.
 AGENT = "AvasetuSeoAudit-Google/1.0 (+https://github.com/amitsajwan/realestate_ai)"
@@ -168,6 +175,14 @@ def rule_problems(doc: dict, raw: str, others: List[str], scope: Optional[dict] 
         if found:
             out += found
             break
+    unfinished = UNFINISHED.search(text)
+    if unfinished:
+        out.append(_problem("unfinished", f"The page says \"{unfinished.group(0)}\""))
+    # an email is a way to write to someone, not a site the text leans on
+    site = next((d for d in DOMAIN.findall(re.sub(r"\S+@\S+", " ", text))
+                 if not any(d.lower() == s or d.lower().endswith("." + s) for s in OWN_SITES)), None)
+    if site:
+        out.append(_problem("other_site", f"The text names {site}"))
     place = _place(doc)
     if place and _squash(place) not in _squash(text):
         out.append(_problem("location", f"The page does not name {place}"))

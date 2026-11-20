@@ -328,6 +328,7 @@ function ByArea({ rows, at }: { rows: AreaRow[]; at: string | null }) {
 
 const CHECK_KIND: Record<string, string> = {
   not_in_search: 'Not in search', record: 'Differs from the record', location: 'Place', wrong_project: 'Another project', number: 'Number', unsupported: 'Not in the sources', thin: 'Thin',
+  unfinished: 'Reads unfinished', other_site: 'Names another site',
 }
 
 /** The daily page check (seo/review.py): finished pages against their sources. It only reports: nothing here changes a page. */
