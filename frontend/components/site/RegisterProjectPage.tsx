@@ -24,6 +24,7 @@ import ProjectFromAbove from '@/components/site/ProjectFromAbove'
 import ProjectVideo from '@/components/site/ProjectVideo'
 import { forPin, fromRecord } from '@/lib/site/fromAbove'
 import ProjectHistory from '@/components/site/ProjectHistory'
+import OnTheGround from '@/components/site/OnTheGround'
 import { isCommercial, type Stage } from '@/lib/site/allin'
 import { areaCompareOf, areaName, askedPrices, bhkRange, completionChange, completionPassedOf, displayName, extensionSentence, headingName,
   homesOf, longDay, lowestPriceInr, mainRegistration, monthYear, offerPrice, otherNames, possessionLabel, possessionOf, priceGap, projectFaq, placePath, soldOutOf, lowRise, unitsFiledPerBuilding,
@@ -1091,6 +1092,9 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
           </p>
         </div>
       )}
+
+      {/* a person's note from the site, right under the opening: the one part of the page only a visit gives (2026-11-20) */}
+      {p.site_visit && <div className="mt-6"><OnTheGround visit={p.site_visit} /></div>}
 
       {closed && <div className="mt-8 max-w-4xl">{others}</div>}
 

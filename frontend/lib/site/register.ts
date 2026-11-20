@@ -49,6 +49,8 @@ export interface RegisterProject {
   location_picture?: { url: string; width: number; height: number } | null
   /** the site from above, stored by the daily pass (backend areastats/fromabove.py); checked by lib/site/fromAbove fromRecord */
   from_above?: unknown
+  /** what a person saw at the site, dated and signed, never model-written (backend areastats/sitevisits.py) */
+  site_visit?: { visited_on: string; by: string; text: string } | null
   builder?: BuilderRecord | null
   place?: string | null
   taluka?: string | null

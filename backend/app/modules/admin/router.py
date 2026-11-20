@@ -7,7 +7,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.core import brand
 from app.core.auth_backend import current_active_user
@@ -173,3 +173,51 @@ async def decide_map_pin(regno: str, body: MapPinDecisionIn, user: User = Depend
     except mappins.PinError as e:
         raise HTTPException(404, str(e))
     return {"items": await mappins.doubtful(svc.db)}
+
+
+# ---- on the ground: a person's dated note from the site (areastats/sitevisits.py) ----------------------------------------------
+from datetime import date as _date  # noqa: E402
+
+from app.modules.areastats import sitevisits  # noqa: E402
+
+
+class SiteVisitIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    project: str = Field(min_length=3, max_length=300)     # MahaRERA number or the page's address
+    visited_on: _date
+    by: Optional[str] = Field(default=None, max_length=sitevisits.BY_MAX)
+    text: str = Field(min_length=1, max_length=3000)
+
+
+class SiteVisitOffIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    project: str = Field(min_length=3, max_length=300)
+    at: str = Field(min_length=10, max_length=40)
+
+
+@router.get("/site-visits")
+async def get_site_visits(user: User = Depends(owner_only), svc: AdminService = Depends(get_service)) -> dict:
+    """Every saved visit, newest first, for the owner's list in Studio."""
+    return {"items": await sitevisits.recent(svc.db)}
+
+
+@router.post("/site-visits")
+async def add_site_visit(body: SiteVisitIn, user: User = Depends(owner_only), svc: AdminService = Depends(get_service)) -> dict:
+    """Save a note from the site; 422 with what to change when the rules refuse it (no model is asked)."""
+    limiter.check(str(user.id), "admin-site-visits", 30, 60.0)
+    try:
+        await sitevisits.add(svc.db, body.project, body.text, body.visited_on, body.by, str(user.id), svc.now())
+    except sitevisits.VisitError as e:
+        raise HTTPException(422, str(e))
+    return {"items": await sitevisits.recent(svc.db)}
+
+
+@router.post("/site-visits/withdraw")
+async def withdraw_site_visit(body: SiteVisitOffIn, user: User = Depends(owner_only), svc: AdminService = Depends(get_service)) -> dict:
+    """Take a visit off the page; it stays on the record, marked."""
+    limiter.check(str(user.id), "admin-site-visits", 30, 60.0)
+    try:
+        await sitevisits.withdraw(svc.db, body.project, body.at, str(user.id), svc.now())
+    except sitevisits.VisitError as e:
+        raise HTTPException(404, str(e))
+    return {"items": await sitevisits.recent(svc.db)}
