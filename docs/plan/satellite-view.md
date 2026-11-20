@@ -170,6 +170,9 @@ enhance-ai-trial, llm-pack-*, gemini-v2-lines, sample-yashwin.mp4):
 - **For search** (the selling point): the season lines are the VideoObject's transcript, /video-sitemap.xml lists every
   video (robots.txt names it), and /projects/from-space lists every project with its timeline (linked from /projects and
   from each section).
+- **Watch pages** `/projects/<slug>/from-space`: the video first, then the summary and every season line. Google shows a
+  video result only from a page where the video is the main thing; the video sitemap and the hub point here, the project
+  page's section links to it ("Open the full timeline"). Owner's part: submit video-sitemap.xml in Search Console.
 
 ### Kept, growing, and new launches (2026-11-20)
 

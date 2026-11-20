@@ -10,10 +10,10 @@ describe('the video sitemap', () => {
         years: [2021, 2026], updated: null, seasons: 0 },
     ])
     expect(xml).toContain('xmlns:video="http://www.google.com/schemas/sitemap-video/1.1"')
-    expect(xml).toContain('<loc>https://avasetu.in/projects/yashwin</loc>')
+    expect(xml).toContain('<loc>https://avasetu.in/projects/yashwin/from-space</loc>')   // the watch page
     expect(xml).toContain('<video:content_loc>https://avasetu.in/uploads/from_above/p1/months.mp4</video:content_loc>')
     expect(xml).toContain('<video:title>VJ Yashwin &amp; Co from space, 2021 to 2026</video:title>')
     expect(xml).toContain('Ground cleared &lt;then&gt; built.')
-    expect(xml).not.toContain('/projects/none')
+    expect(xml).not.toContain('/projects/none/')
   })
 })

@@ -95,7 +95,11 @@ export default function ProjectFromAbove({ view, shown, siteUrl }: { view: FromA
         {view.where} Pictures are the middle of every clear pass, sharpened and colour-corrected by code; nothing is drawn in.
         The lines are written from the pictures and the MahaRERA filings, and say only what can be seen. {view.credit}.
       </p>
-      <p className="mt-2 text-sm">
+      <p className="mt-2 flex flex-wrap gap-x-5 text-sm">
+        {video && (
+          <a href={`/projects/${view.slug}/from-space`} className="inline-flex min-h-[44px] items-center font-semibold text-[var(--site-primary,#0f2340)] underline underline-offset-2"
+            data-testid="from-above-watch">Open the full timeline</a>
+        )}
         <a href="/projects/from-space" className="inline-flex min-h-[44px] items-center font-semibold text-[var(--site-primary,#0f2340)] underline underline-offset-2">
           More Pune projects from space</a>
       </p>

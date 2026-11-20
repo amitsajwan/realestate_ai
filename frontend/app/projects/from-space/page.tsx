@@ -29,7 +29,7 @@ export default async function FromSpacePage() {
     breadcrumbJsonLd(cfg.siteUrl, [{ name: 'Home', path: '/' }, { name: 'Projects', path: '/projects' }, { name: 'From space', path: FROM_SPACE_PATH }]),
     { '@context': 'https://schema.org', '@type': 'ItemList', name: 'Pune projects from space',
       itemListElement: items.map((x, i) => ({ '@type': 'ListItem', position: i + 1, name: `${x.name} from space`,
-        url: `${cfg.siteUrl}/projects/${x.slug}#from-above` })) },
+        url: `${cfg.siteUrl}/projects/${x.slug}/from-space` })) },
   ]
   return (
     <MarketingShell>
@@ -51,7 +51,7 @@ export default async function FromSpacePage() {
           <ul className="grid list-none gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3" data-testid="from-space-list">
             {items.map((x) => (
               <li key={x.slug} className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-                <Link href={`/projects/${x.slug}#from-above`} className="block no-underline">
+                <Link href={`/projects/${x.slug}/from-space`} className="block no-underline">
                   <img src={x.picture} alt={`${x.name} from space, ${x.years[1]}`} width={600} height={600} loading="lazy"
                     className="aspect-square h-auto w-full object-cover" />
                   <div className="p-3">
