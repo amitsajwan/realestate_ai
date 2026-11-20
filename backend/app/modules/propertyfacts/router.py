@@ -2,7 +2,8 @@
 
 `public_router` (mounted at /api/v1/public, no auth): `GET /property-facts`, the verified facts we keep for a property, for its
 listing page; by MahaRERA number, else by project + locality; 404 when we have none. `GET /property-facts/by-regno/{regno}`, the
-same for a project's own page. `GET /project-videos`, the project pages with a kept listing video (mainvideo.py), and
+same for a project's own page. `GET /project-videos`, the project pages with a kept listing video (mainvideo.py) or kept agent
+videos (agentvideos.py), and
 `GET /listing-video/{name}`, that video or its poster, with byte ranges.
 `router` (mounted at /api/v1/listings, bearer auth, owner only): `POST /{listing_id}/campaign` starts marketing a listing
 (step 1 facts and page, then step 2 posts; see jobs.py), `GET /{listing_id}/campaign` its latest run,
@@ -18,6 +19,7 @@ reads it into a kit, `GET /{listing_id}/brochure` the kit (404 when none), `PATC
 or edits a fact, `POST .../brochure/registration` keeps the agent's "registered or exempt" answer, `GET .../pages/{n}.jpg` a
 page's thumbnail, `PATCH .../brochure/images/{image_id}` uses or drops a plan, map or render kept from the brochure, and
 `GET .../brochure/images/{image_id}.jpg` serves it."""
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal, Optional
 from urllib.parse import urlparse
@@ -35,7 +37,7 @@ from app.modules.areastats.pages import page_for
 from app.modules.listings import projectlive
 from app.platform.media import display_url, upload_path
 
-from . import brochure, brochure_once, jobs, mainvideo
+from . import agentvideos, brochure, brochure_once, jobs, mainvideo
 from .public import view
 from .store import FactsStore
 
@@ -63,17 +65,9 @@ def listing_photos(media: list) -> list:
 
 
 def listing_videos(videos: list, website: Optional[str]) -> list:
-    """The listing's sample-flat videos, played from the agent's own website (owner 2026-10-30: House Deal's videos play
-    straight from house-deal.com, never copied to our disk). Only https .mp4 files on the host of the agent's website go out."""
-    host = urlparse(website or "").hostname or ""
-    host = host[4:] if host.startswith("www.") else host
-    out = []
-    for v in videos[:6]:
-        u = urlparse(str((v or {}).get("url") or ""))
-        h = (u.hostname or "")[4:] if (u.hostname or "").startswith("www.") else (u.hostname or "")
-        if host and u.scheme == "https" and h == host and u.path.lower().endswith(".mp4"):
-            out.append({"url": u.geturl(), "label": str(v.get("label") or "")[:60]})
-    return out
+    """The listing's sample-flat videos on the agent's own website (agentvideos.website_videos); the page plays our kept copy
+    of each (`agent_videos`) when there is one."""
+    return agentvideos.website_videos(videos, website)
 
 
 def _own_offer(listing: dict) -> Optional[dict]:
@@ -116,6 +110,9 @@ async def with_sheet(db, out: Optional[dict], listing_id: Optional[str] = None, 
                           "listing_id": listing["_id"]}
         offer["photos"] = listing_photos(listing.get("media") or [])
         offer["videos"] = listing_videos(listing.get("videos") or [], b.get("website"))
+        own = await agentvideos.kept(db, Path(settings.upload_directory), listing["_id"])
+        if own:   # the agent's videos as we keep them, played from our server (owner 2026-11-20, agentvideos.py)
+            offer["agent_videos"] = [agentvideos.public(d) for d in own]
     if len(table) > 1:
         offer["homes"] = [{"bhk": r["bhk"], "label": r["label"], "carpet_sqft": r.get("carpet_sqft"), "price_inr": r.get("price_inr")}
                           for r in table]
@@ -138,26 +135,41 @@ async def main_video(db, listing_id: str) -> Optional[dict]:
     return mainvideo.public(kept)
 
 
+def _naive(d) -> Optional[datetime]:
+    """UTC without a zone, as Mongo hands dates back, so dates kept by either path compare."""
+    if not isinstance(d, datetime):
+        return None
+    return d.astimezone(timezone.utc).replace(tzinfo=None) if d.tzinfo else d
+
+
 async def project_videos(db) -> list:
-    """Every project page with a kept listing video, newest video first: the watch pages and the video sitemap read this.
-    One video a page (a project listed twice shows its newest), only live listings, only pages that are in search."""
-    out, seen = [], set()
-    runs = await db.get_collection(jobs.COLLECTION).find({"main_video.file": {"$exists": True}}).sort("created_at", -1).to_list(2000)
+    """Every project page with a kept video, the newest first: the listing's campaign video (`video`, mainvideo.py, or None)
+    and the agent's own videos we keep (`agent_videos`, agentvideos.py). The watch pages and the video sitemap read this.
+    One listing a page (a project listed twice shows its newest), only live listings, only pages that are in search."""
     uploads = Path(settings.upload_directory)
+    found: dict = {}   # listing id -> {"video", "agent_videos", "at"}
+    runs = await db.get_collection(jobs.COLLECTION).find({"main_video.file": {"$exists": True}}).sort("created_at", -1).to_list(2000)
     for run in runs:
-        if run["listing_id"] in seen:
+        if run["listing_id"] in found or not mainvideo.path_of(uploads, run["main_video"]["file"]):
             continue
-        seen.add(run["listing_id"])
-        listing = await db.get_collection("listings").find_one({"_id": run["listing_id"]}) or {}
+        found[run["listing_id"]] = {"video": mainvideo.public(run["main_video"]), "agent_videos": [],
+                                    "at": _naive(run.get("created_at") or run["main_video"].get("kept_at"))}
+    for doc in await agentvideos.kept(db, uploads):
+        at = _naive(doc.get("kept_at"))
+        entry = found.setdefault(doc["listing_id"], {"video": None, "agent_videos": [], "at": at})
+        entry["agent_videos"].append(agentvideos.public(doc))
+        if at and (entry["at"] is None or at > entry["at"]):
+            entry["at"] = at
+    out = []
+    for lid, entry in sorted(found.items(), key=lambda kv: kv[1]["at"] or datetime.min, reverse=True):
+        listing = await db.get_collection("listings").find_one({"_id": lid}) or {}
         if listing.get("status") not in jobs.MARKETABLE or listing.get("visibility", "public") != "public" or not listing.get("rera_no"):
-            continue
-        if not mainvideo.path_of(uploads, run["main_video"]["file"]):
             continue
         page = await page_for(db, str(listing["rera_no"]))
         if not page or not page.get("indexable") or any(o["slug"] == page["slug"] for o in out):
             continue
         out.append({"slug": page["slug"], "name": str(listing.get("project_name") or listing.get("title") or "").strip()[:120],
-                    "video": mainvideo.public(run["main_video"])})
+                    "video": entry["video"], "agent_videos": entry["agent_videos"]})
     return out
 
 

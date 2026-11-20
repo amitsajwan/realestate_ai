@@ -113,6 +113,9 @@ def wire() -> None:
     fromabove.configure(render=lambda name, place, shots, story, credit, out: site_timelapse.page_video(
         name, place, [site_timelapse.Shot(day, pic, say) for day, pic, say in shots], story, credit, out))
     project_enrich.add_daily("site from above", fromabove.refresh)
+    # the agents' own listing videos, copied to our server for video search (propertyfacts.agentvideos, owner 2026-11-20)
+    from app.modules.propertyfacts import agentvideos
+    project_enrich.add_daily("agent videos", agentvideos.turn)
     # areas by place: a pinned project belongs to the area it is in (areastats.placement, app/core/area_bounds.py)
     from app.modules.areastats import placement
     placement.configure(pin_address=_pin_address)

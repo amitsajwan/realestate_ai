@@ -28,7 +28,8 @@ import { isCommercial, type Stage } from '@/lib/site/allin'
 import { areaCompareOf, areaName, askedPrices, bhkRange, completionChange, completionPassedOf, displayName, extensionSentence, headingName,
   homesOf, longDay, lowestPriceInr, mainRegistration, monthYear, offerPrice, otherNames, possessionLabel, possessionOf, priceGap, projectFaq, placePath, soldOutOf, lowRise, unitsFiledPerBuilding,
   STAGE_LABEL, STAGE_NOTE, stageOf, unitWord, wholeProject as projectScope } from '@/lib/site/register'
-import type { EnrichCheck, Faq, Offer } from '@/lib/site/register'
+import type { AgentVideo, EnrichCheck, Faq, Offer } from '@/lib/site/register'
+import { watchVideos } from '@/lib/site/projectVideos'
 import type { ProfilePicture } from '@/lib/site/profile'
 import type { PropertyFactsView, PublicListing } from '@/lib/site/types'
 import type { WebFact } from '@/lib/site/webfacts'
@@ -735,21 +736,43 @@ function BuilderRecord({ p, linkless = false }: { p: RegisterProject; linkless?:
   )
 }
 
-/** Sample-flat videos under the pictures, played from the agent's own website: nothing is downloaded until a buyer presses play
- *  beyond the first frame (#t=0.1 with preload=metadata). */
-function Videos({ videos, name, agent }: { videos: { url: string; label: string }[]; name: string; agent: string | null }) {
-  const shown = videos.filter((v) => /^https:\/\/[^/\s]+\/\S+\.mp4$/i.test(v.url)).slice(0, 6)
+/** Each kept agent video's watch page by its key (the first video of a project is at /video, lib/site/projectVideos). */
+function videoPaths(slug: string, shown: string, offer?: Offer | null): Record<string, string> {
+  const watch = watchVideos(slug, shown, offer?.main_video, offer?.agent_videos)
+  return Object.fromEntries((offer?.agent_videos ?? []).map((a) => [a.key, watch.find((w) => w.video.url === a.url)?.path ?? '']))
+}
+
+/** Sample-flat videos under the pictures. Each plays our own copy when we keep one (propertyfacts agentvideos.py, owner
+ *  2026-11-20: so Google credits this page), with its poster and a link to its watch page; else straight from the agent's website,
+ *  where nothing downloads until a buyer presses play beyond the first frame (#t=0.1 with preload=metadata). Videos the agent
+ *  uploaded in Studio show once we keep them. */
+function Videos({ videos, kept, paths, name, agent }: {
+  videos: { url: string; label: string }[]; kept: AgentVideo[]; paths: Record<string, string>; name: string; agent: string | null
+}) {
+  const bySource = new Map(kept.map((k) => [k.source, k]))
+  const fromSite = videos.filter((v) => /^https:\/\/[^/\s]+\/\S+\.mp4$/i.test(v.url)).slice(0, 6)
+    .map((v) => ({ label: v.label, site: v.url, own: bySource.get(v.url) }))
+  const uploaded = kept.filter((k) => !fromSite.some((v) => v.site === k.source)).map((k) => ({ label: k.label, site: null, own: k }))
+  const shown = [...fromSite, ...uploaded]
   if (!shown.length) return null
   return (
     <section aria-labelledby="videos-title" className="mt-8" data-testid="videos">
       <h2 id="videos-title" className={H2}>{shown.length > 1 ? 'Sample flat videos' : 'Sample flat video'} of {name}</h2>
       <ul className="mt-3 grid list-none gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
         {shown.map((v) => (
-          <li key={v.url}>
+          <li key={v.own?.url ?? v.site}>
             <figure className="m-0">
-              {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-              <video controls playsInline preload="metadata" src={v.url + '#t=0.1'} className="aspect-[9/16] max-h-[70vh] w-full rounded-2xl bg-black object-contain sm:aspect-video" />
-              <figcaption className="mt-1 text-sm text-slate-700">{v.label || 'Video'}{agent ? <span className="text-slate-500"> · from {agent}</span> : null}</figcaption>
+              {v.own ? (
+                // eslint-disable-next-line jsx-a11y/media-has-caption
+                <video controls playsInline preload="none" poster={v.own.poster ?? undefined} src={v.own.url}
+                  className="aspect-[9/16] max-h-[70vh] w-full rounded-2xl bg-black object-contain sm:aspect-video" />
+              ) : (
+                // eslint-disable-next-line jsx-a11y/media-has-caption
+                <video controls playsInline preload="metadata" src={v.site + '#t=0.1'} className="aspect-[9/16] max-h-[70vh] w-full rounded-2xl bg-black object-contain sm:aspect-video" />
+              )}
+              <figcaption className="mt-1 text-sm text-slate-700">{v.label || 'Video'}{agent ? <span className="text-slate-500"> · from {agent}</span> : null}
+                {v.own && paths[v.own.key] ? <> · <a href={paths[v.own.key]} className="font-semibold text-[#0f2340] underline underline-offset-2">Watch</a></> : null}
+              </figcaption>
             </figure>
           </li>
         ))}
@@ -1064,8 +1087,9 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
       {/* pictures next: what a buyer looks for before reading (owner 2026-10-20) */}
       <div className="mt-8"><ProjectProfile profile={gallery} name={shown} part="photos" skip={heroPhoto?.url} /></div>
 
-      {/* the listing agent's sample-flat videos, played from their website (owner 2026-10-30) */}
-      <Videos videos={offer?.videos ?? []} name={shown} agent={offer?.agent?.name ?? null} />
+      {/* the listing agent's sample-flat videos: our kept copies, else from their website (owners 2026-10-30, 2026-11-20) */}
+      <Videos videos={offer?.videos ?? []} kept={offer?.agent_videos ?? []} name={shown} agent={offer?.agent?.name ?? null}
+        paths={videoPaths(p.slug, shown, offer)} />
 
       {/* our own marketing video of the listing, kept on our server (owner 2026-11-20) */}
       {!closed && offer?.main_video && <ProjectVideo video={offer.main_video} shown={shown} siteUrl={siteUrl} pageUrl={url} ld={!seller}

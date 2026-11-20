@@ -801,6 +801,21 @@ export interface Offer {
   videos?: { url: string; label: string }[] | null
   /** our own marketing video of the listing (propertyfacts mainvideo.py), kept on our server and served with byte ranges */
   main_video?: MainVideo | null
+  /** the agent's own videos copied to our server (propertyfacts agentvideos.py), played in place of the website copies */
+  agent_videos?: AgentVideo[] | null
+}
+
+/** One of the agent's videos as we keep it: `source` is the address it was copied from, `key` names its watch page. */
+export interface AgentVideo {
+  key: string
+  source: string
+  url: string
+  poster?: string | null
+  seconds?: number | null
+  width?: number | null
+  height?: number | null
+  label: string
+  uploaded_at?: string | null
 }
 
 /** The listing's campaign video as the page plays it: addresses on our API, its length and the day it was kept. */
