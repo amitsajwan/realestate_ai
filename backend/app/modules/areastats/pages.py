@@ -318,7 +318,9 @@ def page_updated(doc: dict) -> Optional[str]:
     pages said "changed today" on 2026-11-05 with nothing changed, and Google stops trusting a lastmod that always moves. A
     record read before `details_changed_at` existed keeps the old rule until its next read sets it. Going into search counts
     (`search_state` in, at): the page's noindex came off, a change Google must read again, and IndexNow sends only pages dated
-    after its last send, so 262 pages let in by a rule change on 2026-11-19 would otherwise never have been sent."""
+    after its last send, so 262 pages let in by a rule change on 2026-11-19 would otherwise never have been sent. The site from
+    above counts when it is shown (2026-11-20: 11 pages gained it and still said 17 Nov); a look that found no change does not,
+    since the page shows nothing new."""
     stamps = [doc.get("page_text_at")]
     held = doc.get("search_state") or {}
     if held.get("in") is True and isinstance(held.get("at"), datetime):
@@ -327,6 +329,9 @@ def page_updated(doc: dict) -> Optional[str]:
         stamps.append(doc["details_changed_at"])
     elif doc.get("details_ok", True):   # a failed details read changed nothing on the page
         stamps.append(doc.get("details_checked_at"))
+    above = doc.get("from_above") or {}
+    if above.get("story") and not above.get("none"):   # the site from above went on the page or was renewed (fromabove)
+        stamps.append(above.get("at"))
     return _latest(stamps)
 
 

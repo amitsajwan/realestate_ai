@@ -181,3 +181,12 @@ async def test_a_project_is_not_stored_with_a_years_picture_missing(tmp_path):
     got = await fa.refresh(store, NOW, sat=NoColourIn2024(), out_dir=tmp_path)
     assert got["failed"] == 1 and got["done"] == 0
     assert (await store.projects.find_one({"_id": "P1"})).get("from_above") is None   # tried again next round
+
+
+def test_the_sitemap_date_moves_when_the_site_from_above_goes_on_the_page_and_not_for_a_look_with_nothing_to_show():
+    base = {"page_text_at": datetime(2026, 11, 17, 19, 35, tzinfo=timezone.utc), "details_ok": False}
+    assert pages.page_updated(base).startswith("2026-11-17")
+    shown = {**base, "from_above": {"story": "Within 100 m of the map pin, ...", "at": NOW}}
+    assert pages.page_updated(shown).startswith("2026-11-20")
+    nothing = {**base, "from_above": {"none": True, "at": NOW}}
+    assert pages.page_updated(nothing).startswith("2026-11-17")
