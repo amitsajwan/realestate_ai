@@ -4,7 +4,7 @@ import type { Metadata } from 'next'
 import MarketingShell from '@/components/marketing/MarketingShell'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { breadcrumbJsonLd, jsonLdString, organizationJsonLd, pageMetadata } from '@/lib/marketing/seo'
-import { socialLinks } from '@/lib/marketing/social'
+import { brandProfiles } from '@/lib/marketing/social'
 import { BRAND_NAME, BRAND_NAME_DEVANAGARI } from '@/lib/brand'
 import { TEAM, teamAddress, teamForOrganization } from '@/lib/site/team'
 
@@ -24,7 +24,7 @@ const a = 'font-semibold text-[#0f2340] underline underline-offset-2'
 
 export default function ContactPage() {
   const cfg = getMarketingConfig()
-  const org = { ...organizationJsonLd(cfg, DESCRIPTION, Object.values(socialLinks())), alternateName: [BRAND_NAME_DEVANAGARI], ...teamForOrganization(cfg.siteUrl) }
+  const org = { ...organizationJsonLd(cfg, DESCRIPTION, brandProfiles()), alternateName: [BRAND_NAME_DEVANAGARI], ...teamForOrganization(cfg.siteUrl) }
   const ld = [
     { '@context': 'https://schema.org', '@type': 'ContactPage', name: TITLE, url: cfg.siteUrl + PATH, description: DESCRIPTION, mainEntity: org },
     breadcrumbJsonLd(cfg.siteUrl, [{ name: 'Home', path: '/' }, { name: 'Contact', path: PATH }]),

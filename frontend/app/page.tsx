@@ -12,8 +12,8 @@ import { getCityStats, longDate } from '@/components/localities/areaStats'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { LOCALITIES, TIER_LABELS, localitiesByTier } from '@/lib/marketing/localities'
 import { jsonLdString, organizationJsonLd, pageMetadata } from '@/lib/marketing/seo'
-import { socialLinks } from '@/lib/marketing/social'
-import { teamForOrganization } from '@/lib/site/team'
+import { brandProfiles } from '@/lib/marketing/social'
+import { organizationId, teamForOrganization } from '@/lib/site/team'
 import { BRAND_NAME, BRAND_NAME_DEVANAGARI } from '@/lib/brand'
 import { getFacetQuiet, getFacets } from '@/lib/site/facets'
 import { getBuilders, getListedSlugs, getSpotlight, linkListed } from '@/lib/site/hubs'
@@ -97,11 +97,11 @@ export default async function BuyerHome() {
   // the brand's own profiles (sameAs: the Facebook Page and Instagram, lib/marketing/social) and its Devanagari spelling, so
   // Google can tie the name to this page; WhatsApp is a chat link, not a profile, so it is not one of them
   const ld = [
-    { ...organizationJsonLd(cfg, ABOUT, Object.values(socialLinks())), alternateName: [BRAND_NAME_DEVANAGARI], ...teamForOrganization(cfg.siteUrl) },
+    { ...organizationJsonLd(cfg, ABOUT, brandProfiles()), alternateName: [BRAND_NAME_DEVANAGARI], ...teamForOrganization(cfg.siteUrl) },
     // Google retired the sitelinks search box in 2024, so the SearchAction draws no box in results; it still names the search,
     // and /projects?q= answers on the server, with or without JavaScript
     { '@context': 'https://schema.org', '@type': 'WebSite', name: cfg.businessName, alternateName: [BRAND_NAME_DEVANAGARI], url: cfg.siteUrl,
-      description: ABOUT,
+      description: ABOUT, publisher: { '@id': organizationId(cfg.siteUrl) },
       potentialAction: { '@type': 'SearchAction', target: { '@type': 'EntryPoint', urlTemplate: `${cfg.siteUrl}/projects?q={search_term_string}` },
         'query-input': 'required name=search_term_string' } },
   ]

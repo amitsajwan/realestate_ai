@@ -103,6 +103,7 @@ describe('site footer', () => {
     expect(Array.from(footer.querySelectorAll('a[href^="tel:"]')).map((a) => a.getAttribute('href'))).toEqual(['tel:+917447212121'])
     expect(within(team).getByRole('link', { name: 'housedealofficial@gmail.com' })).toHaveAttribute('href', 'mailto:housedealofficial@gmail.com')
     expect(within(team).getByRole('link', { name: 'Contact us' })).toHaveAttribute('href', '/contact')
+    expect(within(team).getByRole('link', { name: "House Deal's website" })).toHaveAttribute('href', 'https://house-deal.com')
     expect(hrefOf(footer, /^contact$/i)).toBe('/contact')
     const outside = footer.cloneNode(true) as HTMLElement
     outside.querySelector('[data-testid="team-block"]')!.remove()

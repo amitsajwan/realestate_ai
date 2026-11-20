@@ -16,7 +16,8 @@ export default function TeamBlock() {
         {teamAddress()}<br />
         <a href={`tel:${TEAM.tel}`} className={a}>{TEAM.phone}</a> · <a href={`mailto:${TEAM.email}`} className={a}>{TEAM.email}</a>
       </address>
-      <p className="mt-2"><Link href="/contact" className={a}>Contact us</Link></p>
+      {/* House Deal's own site, by its name, so the two sites link each other (owner's plan 2026-11-20; house-deal.com links back) */}
+      <p className="mt-2"><Link href="/contact" className={a}>Contact us</Link> · <a href={TEAM.website} className={a}>House Deal&apos;s website</a></p>
     </div>
   )
 }
