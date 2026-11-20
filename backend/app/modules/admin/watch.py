@@ -57,6 +57,9 @@ async def health_rows(svc: AdminService, ai_ping: Callable = health.default_ai_p
 async def _watch_rows(db, now: datetime) -> List[dict]:
     """Project reading, the background loops (as the watch last worked them out) and the watch itself."""
     rows = [health.reading_row(enrich_cfg().enabled, await areastats_owner.reading(db, now))]
+    from app.modules.areastats import fromabove
+    rows.append(health.from_above_row(fromabove.enabled(), await db.get_collection("newsroom_status").find_one({"_id": fromabove.MARK}),
+                                      now))
     kept = await db.get_collection(COLLECTION).find_one({"_id": "_loops"}) or {}
     rows.append(kept.get("row"))
     beat = (await heartbeats.read_all(db)).get(NAME)
@@ -125,7 +128,7 @@ REPEAT = timedelta(hours=24)          # a problem that lasts is told again once 
 DAILY_HOUR = 9                        # IST
 IST = timezone(timedelta(hours=5, minutes=30))
 # warnings worth a phone alert: each turns into a stop within days (credits run out, reads keep coming back empty)
-ALARM_WARN = frozenset({"google_search", "reading"})
+ALARM_WARN = frozenset({"google_search", "reading", "from_above"})
 SCREEN = {"screen": "/studio/admin"}
 
 Tell = Callable[[str, str], Awaitable[None]]

@@ -21,7 +21,7 @@ import PriceBox from '@/components/site/PriceBox'
 import PriceIdea from '@/components/site/PriceIdea'
 import LocationMapSwitch from '@/components/site/LocationMapSwitch'
 import ProjectFromAbove from '@/components/site/ProjectFromAbove'
-import { forPin, fromRecord, type FromAbove } from '@/lib/site/fromAbove'
+import { forPin, fromRecord } from '@/lib/site/fromAbove'
 import ProjectHistory from '@/components/site/ProjectHistory'
 import { isCommercial, type Stage } from '@/lib/site/allin'
 import { areaCompareOf, areaName, askedPrices, bhkRange, completionChange, completionPassedOf, displayName, extensionSentence, headingName,
@@ -208,7 +208,7 @@ function HeroLine({ p, where, linkless }: { p: RegisterProject; where: string; l
  *  the builder's own picture, never an AI illustration standing in for a real one. With no picture (most projects, 2026-10-31),
  *  a street map around the project's pin takes its place with the builder's logo over it (backend areastats/locmap.py,
  *  logos.py), else the logo alone. Over a photo the builder's logo sits in a white badge (owner 2026-11-03). */
-function Hero({ p, price, photo, linkless = false, closed = false, callback, emi, whatsappAsk }: { p: RegisterProject; price: { from: string; bhks: string } | null; photo: ProfilePicture | null; linkless?: boolean; closed?: boolean
+function Hero({ p, price, photo, linkless = false, closed = false, callback, emi, whatsappAsk, fromAboveYears = null }: { p: RegisterProject; fromAboveYears?: [number, number] | null; price: { from: string; bhks: string } | null; photo: ProfilePicture | null; linkless?: boolean; closed?: boolean
   /** the price-sheet ask on WhatsApp (lib/site/links pageWhatsApp): when set it is the first button and the form comes after it */
   whatsappAsk?: string | null
   /** the example EMI on the price the chip quotes (homes only): buyers weigh a flat by the monthly payment first */
@@ -313,6 +313,10 @@ function Hero({ p, price, photo, linkless = false, closed = false, callback, emi
       {legal && <p className="mt-2 text-sm text-slate-300" data-testid="legal-name">Filed on MahaRERA as {p.name}</p>}
       {aka.length > 0 && <p className="mt-1 text-sm text-slate-300" data-testid="aka">Also known as: {aka.join(', ')}</p>}
       {soldAs && <p className="mt-1 text-sm text-slate-300" data-testid="sold-as">{soldAs}</p>}
+      {fromAboveYears && (
+        <a href="#from-above" className="mt-2 inline-flex min-h-[44px] items-center gap-1 text-sm font-semibold text-amber-300 underline underline-offset-2"
+          data-testid="hero-from-above">Watch the site from space, {fromAboveYears[0]} to {fromAboveYears[1]}</a>
+      )}
       {p.group && (
         <p className="mt-2 text-base text-white" data-testid="group">
           Sold as <span className="font-semibold">{p.group.name}</span>{p.group.tower ? ` (${p.group.tower})` : ''} —{' '}
@@ -902,10 +906,9 @@ export interface Seller {
   photos?: string[]
 }
 
-export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], whatsappUrl, seller, fromAbove = null }: { p: RegisterProject; siteUrl: string; facts: PropertyFactsView | null; lists?: FacetLink[]; whatsappUrl?: string | null; seller?: Seller; fromAbove?: FromAbove | null }) {
-  // the site from above, only while the checked pin is where the pictures were taken: a by-hand run's files first, else what
-  // the daily pass stored on the record
-  const fromAboveView = forPin(fromAbove, p.map) ?? forPin(fromRecord(p.from_above, p.slug), p.map)
+export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], whatsappUrl, seller }: { p: RegisterProject; siteUrl: string; facts: PropertyFactsView | null; lists?: FacetLink[]; whatsappUrl?: string | null; seller?: Seller }) {
+  // the site from above (the daily pass, areastats.fromabove), only while the checked pin is where the pictures were taken
+  const fromAboveView = forPin(fromRecord(p.from_above, p.slug), p.map)
   const url = `${siteUrl}/projects/${p.slug}`
   // the WhatsApp ask names this project; on an agent's listing page (seller) the agent's form stays first
   const waAsk = pageWhatsApp(whatsappUrl, displayName(p), p.slug)
@@ -1013,7 +1016,8 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
       </nav>
       )}
 
-      <Hero p={p} price={price} photo={heroPhoto} linkless={!!seller} closed={closed} emi={closed ? null : heroEmi} callback={{ agentSlug: leadSlug, agentName: leadName, topic: enquiryTopic }} whatsappAsk={seller ? null : waAsk} />
+      <Hero p={p} price={price} photo={heroPhoto} linkless={!!seller} closed={closed} emi={closed ? null : heroEmi} callback={{ agentSlug: leadSlug, agentName: leadName, topic: enquiryTopic }} whatsappAsk={seller ? null : waAsk}
+        fromAboveYears={fromAboveView ? [fromAboveView.frames[0].year, fromAboveView.frames[fromAboveView.frames.length - 1].year] : null} />
 
       {/* a partner agent's listing names them at the top and opens their own page for it (owner 2026-10-30); on that page itself
           (seller) it would link to itself, and Avasetu's own listings need no line */}
@@ -1065,11 +1069,12 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
       <div className="mt-8 grid gap-8 lg:grid-cols-3">
         <div className="min-w-0 space-y-10 lg:col-span-2">
           {!closed && <PricesSection p={p} shown={shown} offer={liveOffer(facts)} priced={!!price} numbers={facts?.numbers} stage={stage} help={priceHelp(backs, leadName)} />}
+          {/* the site from space comes right after the prices: it is what no other page shows (owner 2026-11-20) */}
+          {fromAboveView && <ProjectFromAbove view={fromAboveView} shown={shown} siteUrl={siteUrl} />}
           <HomeSizes sizes={p.home_sizes} name={shown} help={sizeHelp(backs, leadName)} />
           {!closed && <ProjectProfile profile={p.profile} name={shown} part="plans" plans3d={p.plans_3d?.items ?? []} lead={{ agentSlug: leadSlug, agentName: leadName,
             topic: enquiryTopic, waMessage: `Hi, I want to know about ${p.name} (MahaRERA ${p.regno}): ${url}` }} />}
           <LocationSection p={p} shown={shown} nearby={nearby} sources={facts?.nearby_sources ?? []} />
-          {fromAboveView && <ProjectFromAbove view={fromAboveView} shown={shown} siteUrl={siteUrl} />}
           <ProjectProfile profile={p.profile} name={shown} part="highlights" omit={heroBhks ? ['homes'] : []} />
 
           {/* the model's sections only: the answer above already says the facts, so with no sections there is no About */}

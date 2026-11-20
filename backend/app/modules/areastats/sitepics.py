@@ -143,42 +143,45 @@ def month(day: str) -> str:
     return date.fromisoformat(day).strftime("%b %Y")
 
 
-def story(rows: Sequence[dict]) -> Optional[str]:
-    """The measured change, in plain words; None when there is too little to say (fewer than three years, or no change of
-    MIN_CHANGE points). Each row: {day: "YYYY-MM-DD", built, bare, green}, oldest first."""
+# What the words may say (2026-11-20, after a test on five sites with every band: docs/plan/satellite-view.md, "What the
+# satellite can and cannot tell"). Plants it tells well: near-infrared. "Roofs and concrete" it does not: at 10 m a cleared
+# site's pale dry ground reads like concrete, and finished towers read dark, so that share rose while a site was worked and
+# fell once towers stood (Yashwin Enchante 75% then 53%). So no percentage is said, and the one change claimed is plants
+# cleared; the pictures show the rest.
+CLEARED_DROP = 25         # points of plant cover lost, from a year with at least PLANTED, before "cleared" is said
+PLANTED = 30
+
+
+def clearing(rows: Sequence[dict]) -> Optional[tuple]:
+    """(the last year with plants, the year they were gone) when plant cover fell by CLEARED_DROP points from a year with
+    PLANTED% or more and never came back within half of that; None otherwise. Rows: {day, green}, any order."""
     rows = sorted(rows, key=lambda r: r["day"])
-    if len(rows) < 3:
-        return None
-    first, last = rows[0], rows[-1]
-    if last["built"] - first["built"] < MIN_CHANGE:
-        return None
-    said: List[str] = []
-    # the first year from which the rise holds every later year: one bright year (a tarp, a dry field) is not building
-    started = next(r for i, r in enumerate(rows) if i and all(x["built"] - first["built"] >= MIN_CHANGE for x in rows[i:]))
-    cleared = next((r for r in rows[1:] if r["day"] <= started["day"]
-                    and (first["green"] - r["green"] >= 20 or r["bare"] - first["bare"] >= 20)), None)
-    if cleared is not None and cleared is not started:
-        before = rows[rows.index(cleared) - 1]
-        if before["green"] - cleared["green"] >= MIN_CHANGE:
-            said.append(f"the ground was cleared between {month(before['day'])} and {month(cleared['day'])}: plant cover "
-                        f"fell from {before['green']}% to {cleared['green']}%.")
-        elif cleared["bare"] - before["bare"] >= MIN_CHANGE:
-            said.append(f"the ground was cleared between {month(before['day'])} and {month(cleared['day'])}: bare ground "
-                        f"rose from {before['bare']}% to {cleared['bare']}%.")
-    if started is last:
-        said.append(f"by {month(last['day'])} roofs and concrete covered {last['built']}% of the ground, against "
-                    f"{first['built']}% in {month(first['day'])}.")
-    else:
-        said.append(f"roofs and concrete began to spread by {month(started['day'])} and covered {last['built']}% of the "
-                    f"ground by {month(last['day'])}, against {first['built']}% in {month(first['day'])}.")
-    head = f"Within {RADIUS_M} m of the map pin, " + said[0]
-    return " ".join([head] + [t[0].upper() + t[1:] for t in said[1:]])
+    for i, before in enumerate(rows):
+        if before["green"] < PLANTED:
+            continue
+        for j in range(i + 1, len(rows)):
+            if before["green"] - rows[j]["green"] >= CLEARED_DROP and \
+                    all(before["green"] - x["green"] >= CLEARED_DROP / 2 for x in rows[j:]):
+                return rows[j - 1], rows[j]
+    return None
+
+
+def sentence(rows: Sequence[dict], first_day: str, last_day: str) -> str:
+    """What the pictures are, and plants cleared when the infrared shows it. Never a share of roofs or concrete."""
+    said = (f"The ground around the project's map pin, seen by the Sentinel-2 satellite once each dry season from "
+            f"{month(first_day)} to {month(last_day)}.")
+    cut = clearing(rows)
+    if cut:
+        before, after = cut
+        said += (f" Plants there were cleared between {month(before['day'])} and {month(after['day'])}: the satellite's "
+                 f"infrared shows plant cover falling from {before['green']}% to {after['green']}%.")
+    return said
 
 
 def where() -> str:
-    """The line that says what the numbers cover, shown with the sentence."""
-    return (f"Measured from Sentinel-2 satellite passes, January to March each year, within {RADIUS_M} m of the project's "
-            "map pin. The circle takes in neighbouring plots, and the satellite sees ground cover, not floors.")
+    """The line that says what the pictures are, shown with the sentence."""
+    return ("The yellow ring marks the project's map pin. Each picture is 600 m across at 10 m a pixel: it takes in "
+            "neighbouring plots, and shows ground, not floors.")
 
 
 # The timelapse: one picture a month, only for its looks. Monsoon months (June to September) are left out: Pune is under cloud
@@ -245,33 +248,20 @@ def by_season(months: Sequence[dict], keep: Sequence[str] = ()) -> List[dict]:
 
 
 def captions(years: Sequence[dict], days: Sequence[str]) -> Dict[str, str]:
-    """A line for each picture of the timelapse, written from the yearly measure (never from a model looking at a 10 m
-    picture): the measured share on a year's own pass, else the stage the measure puts that day in. Same rules as `story`."""
-    rows = sorted(years, key=lambda r: r["day"])
+    """A line for each picture of the timelapse, only from what the satellite tells well: plants on the ground, plants
+    being cleared, ground cleared. Elsewhere no line: the date and the picture say it (never from a model looking at a
+    10 m picture, which guessed in the 2026-11-20 trial)."""
+    cut = clearing(years)
     out: Dict[str, str] = {}
-    if not rows:
-        return {d: "" for d in days}
-    first = rows[0]
-    held = [i for i, r in enumerate(rows) if i and all(x["built"] - first["built"] >= MIN_CHANGE for x in rows[i:])]
-    started = rows[held[0]] if held else None
-    cleared = next((r for r in rows[1:] if (started is None or r["day"] <= started["day"])
-                    and (first["green"] - r["green"] >= 20 or r["bare"] - first["bare"] >= 20)), None)
-    before = rows[rows.index(cleared) - 1] if cleared is not None and cleared is not started else None
-    measured = {r["day"]: r for r in rows}
-    spread_from = rows[held[0] - 1]["day"] if held else None   # the last measure before the rise that holds
     for d in days:
-        if d in measured:
-            out[d] = f"Measured: {measured[d]['built']}% roofs and concrete"
-        elif spread_from is not None and d > spread_from:
-            out[d] = "Roofs and concrete spreading"
-        elif before is not None and before["day"] < d <= cleared["day"]:
-            out[d] = "Ground being cleared"
-        elif before is not None and d > cleared["day"]:
-            out[d] = "Cleared ground, little built yet"
-        elif first["green"] >= 30:
-            out[d] = "Plants and open ground"
+        if cut is None:
+            out[d] = ""
+        elif d <= cut[0]["day"]:
+            out[d] = "Plants on the ground"
+        elif d <= cut[1]["day"]:
+            out[d] = "Plants being cleared"
         else:
-            out[d] = "Open ground, little built"
+            out[d] = "Ground cleared"
     return out
 
 

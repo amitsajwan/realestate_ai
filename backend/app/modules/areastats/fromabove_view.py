@@ -3,6 +3,7 @@ kept apart, with no imports, so that pages can read it without pulling in the sa
 import math
 from typing import Optional, Tuple
 
+VERSION = 4               # the look's rules (areastats.fromabove.LOOK_VERSION): an older look is not shown
 PIN_MOVED_M = 50         # a pin moved further than this since the pictures were taken: they are of other ground
 
 
@@ -13,18 +14,23 @@ def metres_apart(a: Tuple[float, float], b: Tuple[float, float]) -> float:
 
 
 def public_view(d: dict, pin: Optional[Tuple[float, float]]) -> Optional[dict]:
-    """What the page shows: the yearly row, the sentence and the month-by-month loop as /uploads URLs, only while the page's pin
-    is within PIN_MOVED_M of where the pictures were taken; None otherwise and for a project with nothing to say."""
+    """What the page shows: the yearly row, the summary, each season's line and the video, as /uploads URLs; only under the
+    current rules (`version`), while the page's pin is within PIN_MOVED_M of where the pictures were taken, and not when the
+    pin was found doubtful (buildings standing before the project registered: the pictures may be a neighbour's)."""
     fa = d.get("from_above") or {}
-    if fa.get("none") or not fa.get("story") or not fa.get("where") or not fa.get("credit") or pin is None or fa.get("lat") is None \
-            or metres_apart(pin, (fa["lat"], fa["lon"])) > PIN_MOVED_M:
+    if fa.get("none") or fa.get("pin") == "doubtful" or int(fa.get("version") or 1) < VERSION:
         return None
-    frames = [{"year": f["year"], "day": f["day"], "src": "/uploads/" + f["path"], "width": f["width"], "height": f["height"],
-               "built": f["built"]} for f in fa.get("frames") or [] if f.get("path")]
+    if not fa.get("story") or not fa.get("where") or not fa.get("credit") or pin is None or fa.get("lat") is None             or metres_apart(pin, (fa["lat"], fa["lon"])) > PIN_MOVED_M:
+        return None
+    # no share of roofs or concrete: the satellite at 10 m does not tell them from cleared ground (2026-11-20)
+    frames = [{"year": f["year"], "day": f["day"], "src": "/uploads/" + f["path"], "width": f["width"], "height": f["height"]}
+              for f in fa.get("frames") or [] if f.get("path")]
     if len(frames) < 3:
         return None
     v = fa.get("video") or None
     video = {"src": "/uploads/" + v["path"], "poster": "/uploads/" + v["poster"], "width": v["width"], "height": v["height"],
              "from": v["from"], "to": v["to"], "months": v["months"]} if v and v.get("path") else None
-    return {"pin": {"lat": fa["lat"], "lon": fa["lon"]}, "story": fa["story"], "where": fa.get("where"),
-            "credit": fa.get("credit"), "frames": frames, "video": video}
+    seasons = [{"label": s["label"], "day": s["day"], "line": s["line"]} for s in fa.get("seasons") or [] if s.get("line")]
+    return {"pin": {"lat": fa["lat"], "lon": fa["lon"]}, "story": fa["story"], "where": fa["where"], "credit": fa["credit"],
+            "frames": frames, "seasons": seasons, "video": video, "updated": fa["at"].date().isoformat()
+            if hasattr(fa.get("at"), "date") else None}

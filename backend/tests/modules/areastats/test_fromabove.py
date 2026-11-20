@@ -1,63 +1,65 @@
-"""areastats.fromabove: every page the satellite can say something true about gets its site from above by itself, within the
-free Copernicus quota; pages.view shows it only at the pin it was taken at."""
+"""areastats.fromabove: every page the satellite can say something true about gets its site from above by itself: a median
+picture a dry month, seasons made from them, Gemini's line a season (checked, with the code's own line behind it), and a
+stop, said in admin health, when Gemini does not answer or every Copernicus account is spent."""
 import io
+import tarfile
 from datetime import date, datetime, timezone
 
 import httpx
+import numpy as np
 from PIL import Image
 
+from app.modules.admin import health
 from app.modules.areastats import fromabove as fa, fromabove_view, pages, sitepics as s
 from app.modules.newsroom.store import Store
 
 from ..fakes import FakeDb
 
 NOW = datetime(2026, 11, 20, 6, 0, tzinfo=timezone.utc)
+fa.GEMINI_RETRY_S = 0   # no real wait for a busy Gemini in tests
 PIN = {"geo": {"lat": 18.5447, "lon": 73.9685, "located_from": "google"}, "enrichment": {"steps": {"places": {"ok": True}}}}
-PAGE = {"registered_on": "2023-01-10", "completion_now": "2028-12-31", "project_type": "Residential", "locality": "kharadi",
-        "news": [], "in_register": True, "promoter": "Some Builder", "units_total": 648}
+PAGE = {"registered_on": "2022-08-10", "completion_now": "2028-12-31", "project_type": "Residential", "locality": "kharadi",
+        "news": [], "in_register": True, "promoter": "Some Builder", "units_total": 648,
+        "buildings": [{"name": "Tower A", "floors": 28}, {"name": "Tower B", "floors": 28}]}
 
 
-def class_png(cls: int, haze: int = 40, px: int = s.FRAME_PX) -> bytes:
-    img = Image.merge("LA", (Image.new("L", (px, px), cls), Image.new("L", (px, px), haze)))
-    out = io.BytesIO()
-    img.save(out, "PNG")
-    return out.getvalue()
-
-
-def colour_png() -> bytes:
-    out = io.BytesIO()
-    Image.new("RGB", (300, 300), (150, 120, 100)).save(out, "PNG")
-    return out.getvalue()
+def month_arrays(green: bool, clear: bool = True, shade: int = 120):
+    rgb = np.full((fa.PX, fa.PX, 3), shade, np.uint8)
+    ir = np.zeros((fa.PX, fa.PX, 3), np.uint8)
+    ir[..., 0], ir[..., 1] = (200, 40) if green else (90, 80)      # near-infrared, red: plants or not
+    n = np.full((fa.PX, fa.PX), 3 if clear else 0, np.uint8)
+    return {"rgb": rgb, "ir": ir, "n": n}
 
 
 class Sat:
-    """Copernicus as the pass sees it: a pass on the 10th of every month, the ground green until 2023, then built over."""
+    """Copernicus as the pass sees it: every dry month clear, plants until `cleared` (a month), then gone."""
 
-    def __init__(self, left=10_000, built_from="2023-06"):
-        self.left, self.used, self.built_from, self.colour_days = left, 0, built_from, []
+    def __init__(self, left=10_000, cleared="2023-06", cloudy=()):
+        self.left, self.used, self.cleared, self.cloudy, self.asked, self.switched = left, 0, cleared, set(cloudy), [], []
 
-    def _spend(self):
+    def month(self, box, start, end):
         if self.left <= 0:
             raise fa.Budget("spent")
         self.left -= 1
         self.used += 1
+        self.asked.append(start[:7])
+        return month_arrays(start[:7] < self.cleared, start[:7] not in self.cloudy, shade=100 + int(start[2:4]) * 5)
 
-    def passes(self, box, start, end):
-        self._spend()
-        out, d = [], date.fromisoformat(start)
-        while d <= date.fromisoformat(end):
-            out.append({"properties": {"datetime": f"{d.isoformat()[:8]}10T05:30:00Z", "eo:cloud_cover": 3.0}})
-            d = date(d.year + (d.month == 12), d.month % 12 + 1, 1)
-        return out
 
-    def classes(self, box, day):
-        self._spend()
-        return class_png(s.BUILT if day[:7] >= self.built_from else s.GREEN)
+class Gemini:
+    """Gemini as the pass asks it: a line for every season label it is shown, a summary and a pin check."""
 
-    def colour(self, box, day):
-        self._spend()
-        self.colour_days.append(day)
-        return colour_png()
+    def __init__(self, line="Ground cleared inside the ring.", summary="Plants cleared after the Aug 2022 registration.",
+                 pin="ok", answer=True):
+        self.line, self.summary, self.pin, self.answer, self.calls = line, summary, pin, answer, []
+
+    async def json(self, system, content):
+        self.calls.append(content)
+        if not self.answer:
+            return None
+        labels = [c["text"].split(",")[0] for c in content if c["type"] == "text" and ", true colour" in c.get("text", "")]
+        return {"seasons": {lab: self.line for lab in labels}, "summary": self.summary, "pin": self.pin,
+                "pin_reason": "buildings stood there before the registration" if self.pin == "doubtful" else ""}
 
 
 async def seeded(*docs):
@@ -72,182 +74,206 @@ def render(name, place, shots, story, credit, out):
     out.write_bytes(b"mp4")
     poster = out.with_suffix(".webp")
     shots[-1][1].save(poster, "WEBP")
+    render.shots = shots
     return out, poster
 
 
-def test_only_large_unfinished_projects_with_their_own_pin_are_looked_at():
+def test_only_large_unfinished_projects_with_their_own_pin_and_page_are_looked_at():
     big = {"_id": "P1", **PAGE, **PIN}
     assert fa.due(big, [big], NOW) == (18.5447, 73.9685)
     small = {**big, "units_total": 120}
     assert fa.due(small, [small], NOW) is None
-    # a project split into registrations counts all its homes
-    parts = [small, {"_id": "P2", "units_total": 200, "cluster_primary": "P1"}]
-    assert fa.due(small, parts, NOW) == (18.5447, 73.9685)
+    assert fa.due(small, [small, {"_id": "P2", "units_total": 200, "cluster_primary": "P1"}], NOW) == (18.5447, 73.9685)
     assert fa.due({**big, "geo": {**big["geo"], "located_from": "locality"}}, [big], NOW) is None   # an area's centre
-    assert fa.due({**big, "cluster_primary": "P9"}, [big], NOW) is None                            # its page is P9's
     assert fa.due({**big, "completion_now": "2024-03-31"}, [big], NOW) is None                      # finished
-    done = {**big, "from_above": {"lat": 18.5447, "lon": 73.9685, "at": datetime(2026, 11, 1, tzinfo=timezone.utc)}}
+    assert fa.due({**big, "cluster_primary": "P9"}, [big], NOW) is None                            # its page is P9's
+    done = {**big, "from_above": {"lat": 18.5447, "lon": 73.9685, "at": datetime(2026, 11, 1, tzinfo=timezone.utc),
+                                  "version": fa.LOOK_VERSION}}
     assert fa.due(done, [done], NOW) is None
+    older_rules = {**big, "from_above": {**done["from_above"], "version": 3}}
+    assert fa.due(older_rules, [older_rules], NOW) == (18.5447, 73.9685)
     a_season_ago = {**big, "from_above": {**done["from_above"], "at": datetime(2026, 8, 1, tzinfo=timezone.utc)}}
-    assert fa.due(a_season_ago, [a_season_ago], NOW) == (18.5447, 73.9685)          # each season: the timeline grows
-    moved = {**done, "geo": {**big["geo"], "lat": 18.5457}}
-    assert fa.due(moved, [moved], NOW) == (18.5457, 73.9685)                                        # a new pin: new pictures
+    assert fa.due(a_season_ago, [a_season_ago], NOW) == (18.5447, 73.9685)
 
 
-def test_months_are_grouped_least_cloudy_first_and_the_monsoon_left_out():
-    feats = [{"properties": {"datetime": d + "T05:30:00Z", "eo:cloud_cover": c}}
-             for d, c in (("2024-01-05", 8.0), ("2024-01-15", 1.0), ("2024-07-10", 0.0), ("2024-10-02", 5.0))]
-    assert fa.by_month(feats) == {"2024-01": ["2024-01-15", "2024-01-05"], "2024-10": ["2024-10-02"]}
-    assert fa.seasons(2021, date(2026, 11, 20))[:2] == [("2021-01-01", "2021-05-31"), ("2021-10-01", "2022-05-31")]
-    assert fa.seasons(2021, date(2026, 11, 20))[-1] == ("2026-10-01", "2026-11-20")
+def test_parallel_runs_split_the_pages_without_overlap():
+    regnos = [f"P5210{i:07d}" for i in range(200)]
+    a = {r for r in regnos if fa.in_shard(r, (0, 2))}
+    b = {r for r in regnos if fa.in_shard(r, (1, 2))}
+    assert a and b and not a & b and a | b == set(regnos)
 
 
-def test_one_class_map_a_pass_gives_the_months_picture_and_the_years_measure():
-    seen = fa.look(Sat(), s.box_around(18.5447, 73.9685, s.FRAME_SIDE_M), date(2026, 11, 20))
-    assert seen.months[0]["day"] == "2021-01-10" and seen.months[-1]["day"] == "2026-11-10"
-    assert all(int(m["day"][5:7]) in s.DRY_MONTHS for m in seen.months)
-    assert [(y["day"], y["built"]) for y in seen.years][:3] == [("2021-01-10", 0), ("2022-01-10", 0), ("2023-01-10", 0)]
-    assert seen.years[-1]["built"] == 100
-
-
-async def test_the_pass_stores_pictures_sentence_and_loop_hottest_first_in_our_areas(tmp_path):
-    fa.configure(render=render)
-    store = await seeded(("P1", {**PIN, "hot_score": 1}), ("P2", {**PIN, "hot_score": 9, "locality": "", "pune_place": "charholi", "pune_place_name": "Charholi"}),
-                         ("P3", {**PIN, "hot_score": 5}))
+def test_a_month_is_asked_once_and_the_month_still_running_again(tmp_path):
     sat = Sat()
-    got = await fa.refresh(store, NOW, budget=1, sat=sat, out_dir=tmp_path)
-    assert got["done"] == 1 and got["due"] == 3  # the day's budget is reached inside the first project: it finishes, no other starts
-    p3 = (await store.projects.find_one({"_id": "P3"}))["from_above"]                 # our area, hotter than P1
-    assert (await store.projects.find_one({"_id": "P2"})).get("from_above") is None   # hottest, but outside our areas: after them
-    got = await fa.refresh(store, NOW, budget=10_000, sat=sat, out_dir=tmp_path, force=True)
-    assert got["done"] == 2 and got["due"] == 2
-    assert p3["story"].startswith("Within 100 m of the map pin") and p3["credit"].startswith(s.CREDIT)
-    assert [f["year"] for f in p3["frames"]] == [2021, 2022, 2023, 2024, 2025, 2026]
-    assert (tmp_path / "p3" / "2024.webp").is_file() and p3["video"]["path"].endswith("p3/months.mp4")
-    assert await fa.refresh(store, NOW, sat=Sat()) is None          # once a day
+    kept = fa.read_new(sat, (0, 0, 1, 1), {"months": {}}, tmp_path, date(2026, 11, 20))
+    assert sat.asked[0] == "2021-01" and "2021-07" not in sat.asked and sat.asked[-1] == "2026-11"
+    assert kept["partial"] == "2026-11" and kept["months"]["2021-01"]["plants"] == 100
+    later = Sat()
+    fa.read_new(later, (0, 0, 1, 1), kept, tmp_path, date(2026, 12, 5))
+    assert later.asked == ["2026-11", "2026-12"]
 
 
-async def test_a_site_with_no_change_is_recorded_as_such_and_fetches_no_pictures(tmp_path):
+def test_a_cloudy_month_is_kept_as_such_and_left_out_of_the_seasons(tmp_path):
+    kept = fa.read_new(Sat(cloudy={"2024-01"}), (0, 0, 1, 1), {"months": {}}, tmp_path, date(2024, 3, 31))
+    months = fa.usable(kept, tmp_path)
+    assert "2024-01" not in months and "2024-02" in months
+    seasons = fa.seasons(months, tmp_path)
+    assert [x.label for x in seasons][-1] == "Jan-Mar 2024" and seasons[-1].months == ["2024-02", "2024-03"]
+
+
+async def test_the_pass_stores_the_yearly_row_season_lines_and_video_with_gemini_given_every_fact(tmp_path):
+    fa.configure(render=render)
+    store = await seeded(("P1", {**PIN, "hot_score": 1}), ("P2", {**PIN, "units_total": 100, "cluster_primary": "P1",
+                                                                     "name": "Phase 2", "registered_on": "2024-03-01"}))
+    gem = Gemini()
+    got = await fa.refresh(store, NOW, sat=Sat(), ask=gem, out_dir=tmp_path)
+    assert got["done"] == 1 and got["stopped"] is None
+    rec = (await store.projects.find_one({"_id": "P1"}))["from_above"]
+    assert rec["story"] == "Plants cleared after the Aug 2022 registration." and rec["pin"] == "ok"
+    assert [f["year"] for f in rec["frames"]] == [2021, 2022, 2023, 2024, 2025, 2026]
+    assert rec["seasons"][0] == {"label": "Jan-Mar 2021", "day": "2021-01-01", "line": "Ground cleared inside the ring."}
+    assert rec["video"]["months"] == len(render.shots) and render.shots[0][2] == "Ground cleared inside the ring."
+    told = gem.calls[0][0]["text"]
+    assert "registered Aug 2022" in told and "Tower A (28 floors)" in told and "Phase 2" in told   # every registration
+    assert sum(1 for c in gem.calls[0] if c["type"] == "image_url") == len(rec["seasons"]) + 6   # + each year's infrared
+    assert (tmp_path / "p1" / "2024.webp").is_file() and (tmp_path / "p1" / "reads.json").is_file()
+    shown = pages.view(await store.projects.find_one({"_id": "P1"}), [])["from_above"]
+    assert shown["seasons"][0]["line"] == "Ground cleared inside the ring." and "plants" not in shown["frames"][0]
+
+
+async def test_a_line_with_a_claim_the_satellite_cannot_make_falls_back_to_the_codes_own(tmp_path):
     fa.configure(render=render)
     store = await seeded(("P1", PIN))
-    sat = Sat(built_from="2099-01")
-    got = await fa.refresh(store, NOW, sat=sat, out_dir=tmp_path)
+    await fa.refresh(store, NOW, sat=Sat(), ask=Gemini(line="Rapid progress: the 12th floor is done.",
+                                                       summary="Construction well underway."), out_dir=tmp_path)
     rec = (await store.projects.find_one({"_id": "P1"}))["from_above"]
-    assert got["none"] == 1 and rec["none"] is True and sat.colour_days == []
-    assert fromabove_view.public_view({"from_above": rec}, (18.5447, 73.9685)) is None
+    assert not any("floor" in x["line"] or "Rapid" in x["line"] for x in rec["seasons"])
+    assert {x["line"] for x in rec["seasons"]} <= {"Plants on the ground", "Plants being cleared", "Ground cleared", ""}
+    assert rec["story"].startswith("The ground around the project's map pin") and rec["words"]["gemini"] == 0
+
+
+async def test_without_gemini_the_pass_stops_publishes_nothing_and_health_says_so(tmp_path):
+    fa.configure(render=render)
+    store = await seeded(("P1", PIN), ("P2", PIN))
+    got = await fa.refresh(store, NOW, sat=Sat(), ask=Gemini(answer=False), out_dir=tmp_path)
+    assert got["stopped"]["reason"] == "gemini" and got["done"] == 0
+    assert (await store.projects.find_one({"_id": "P1"})).get("from_above") is None
+    mark = await store.status.find_one({"_id": fa.MARK})
+    row = health.from_above_row(True, mark, NOW)
+    assert row["status"] == health.WARN and "Gemini is not answering" in row["text"]
+    later = datetime(2026, 11, 23, 6, 0, tzinfo=timezone.utc)
+    await fa.refresh(store, later, sat=Sat(), ask=None, out_dir=tmp_path, force=True)
+    row = health.from_above_row(True, await store.status.find_one({"_id": fa.MARK}), later)
+    assert row["status"] == health.BAD and "Stopped 3.0 days" in row["text"]   # since the first stop, not the latest
+
+
+async def test_a_pin_gemini_finds_doubtful_hides_the_section(tmp_path):
+    fa.configure(render=render)
+    store = await seeded(("P1", PIN))
+    await fa.refresh(store, NOW, sat=Sat(), ask=Gemini(pin="doubtful"), out_dir=tmp_path)
+    doc = await store.projects.find_one({"_id": "P1"})
+    assert doc["from_above"]["pin"] == "doubtful" and doc["from_above"]["pin_reason"]
+    assert pages.view(doc, [])["from_above"] is None
+
+
+async def test_a_later_look_asks_only_for_the_months_since(tmp_path):
+    fa.configure(render=render)
+    store = await seeded(("P1", PIN))
+    first = Sat()
+    await fa.refresh(store, NOW, sat=first, ask=Gemini(), out_dir=tmp_path)
+    later = Sat()
+    await fa.refresh(store, datetime(2027, 2, 20, 6, 0, tzinfo=timezone.utc), sat=later, ask=Gemini(), out_dir=tmp_path,
+                     force=True)
+    assert later.asked == ["2026-11", "2026-12", "2027-01", "2027-02"] and first.used > 40
+    rec = (await store.projects.find_one({"_id": "P1"}))["from_above"]
+    assert rec["seasons"][-1]["label"] == "Jan-Mar 2027"
+
+
+async def test_a_new_launch_says_when_it_registered(tmp_path):
+    fa.configure(render=render)
+    store = await seeded(("NEW", {**PIN, "registered_on": "2026-03-15"}))
+    await fa.refresh(store, NOW, sat=Sat(), ask=Gemini(), out_dir=tmp_path)
+    rec = (await store.projects.find_one({"_id": "NEW"}))["from_above"]
+    assert rec["story"].startswith("Registered with MahaRERA in Mar 2026.")
+
+
+async def test_too_few_clear_seasons_show_nothing_and_cost_no_gemini(tmp_path):
+    fa.configure(render=render)
+    store = await seeded(("P1", PIN))
+    cloudy = {m for m in fa.dry_months(2021, NOW.date()) if m >= "2022-01"}
+    gem = Gemini()
+    await fa.refresh(store, NOW, sat=Sat(cloudy=cloudy), ask=gem, out_dir=tmp_path)
+    assert (await store.projects.find_one({"_id": "P1"}))["from_above"]["none"] is True and gem.calls == []
 
 
 async def test_the_pass_stops_when_the_days_requests_are_spent(tmp_path):
     fa.configure(render=render)
     store = await seeded(("P1", PIN), ("P2", PIN))
-    got = await fa.refresh(store, NOW, budget=0, sat=Sat(), out_dir=tmp_path)
-    assert got["done"] == 0 and got["requests"] == 0          # the day's budget is spent: nothing starts
-    got = await fa.refresh(store, NOW, budget=10_000, sat=Sat(left=40), out_dir=tmp_path, force=True)
-    assert got["done"] == 0 and got["failed"] == 0             # Copernicus's ceiling reached mid-project: stop, try tomorrow
-    assert (await store.projects.find_one({"_id": "P1"})).get("from_above") is None
+    got = await fa.refresh(store, NOW, budget=0, sat=Sat(), ask=Gemini(), out_dir=tmp_path)
+    assert got["done"] == 0 and got["requests"] == 0
 
 
-async def test_the_page_shows_it_only_at_the_pin_it_was_taken_at(tmp_path):
-    fa.configure(render=render)
-    store = await seeded(("P1", PIN))
-    await fa.refresh(store, NOW, sat=Sat(), out_dir=tmp_path)
-    doc = await store.projects.find_one({"_id": "P1"})
-    shown = pages.view(doc, [])["from_above"]
-    assert shown["frames"][0]["src"].startswith("/uploads/") and shown["video"]["src"].endswith("/months.mp4")
-    assert "bare" not in shown["frames"][0] and "path" not in shown["frames"][0]
-    moved = {**doc, "geo": {**doc["geo"], "lat": 18.5457}}
-    assert pages.view(moved, [])["from_above"] is None
+def tar_of(**arrays):
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w") as t:
+        for name, arr in arrays.items():
+            png = io.BytesIO()
+            Image.fromarray(arr).save(png, "PNG")
+            info = tarfile.TarInfo(f"{name}.png")
+            info.size = len(png.getvalue())
+            t.addfile(info, io.BytesIO(png.getvalue()))
+    return buf.getvalue()
 
 
-def test_an_expired_token_is_renewed_and_the_call_made_again():
-    seen = []
+def test_when_one_accounts_month_is_spent_the_next_account_carries_on_and_both_spent_stops():
+    body = tar_of(**month_arrays(True))
 
     def answer(request):
-        seen.append(request.headers["Authorization"])
-        ok = request.headers["Authorization"] == "Bearer fresh"
-        return httpx.Response(200 if ok else 401, json={"features": []})
+        if "token" in str(request.url):
+            return httpx.Response(200, json={"access_token": "t2"})
+        return httpx.Response(403 if request.headers["Authorization"] == "Bearer t1" else 200, content=body)
 
-    sat = fa.Copernicus(httpx.Client(transport=httpx.MockTransport(answer)), "stale", 10, renew=lambda: "fresh")
-    assert sat.passes(s.box_around(18.5, 73.9, 600), "2025-01-01", "2025-05-31") == []
-    assert seen == ["Bearer stale", "Bearer fresh"] and sat.auth == "fresh" and sat.used == 1
+    sat = fa.Copernicus(httpx.Client(transport=httpx.MockTransport(answer)), [("id1", "s1"), ("id2", "s2")], 10, auth="t1")
+    got = sat.month(s.box_around(18.5, 73.9, 600), "2025-01-01", "2025-01-31")
+    assert got is not None and got["rgb"].shape == (fa.PX, fa.PX, 3) and sat.at == 1 and sat.switched
+
+    def refuse(request):
+        if "token" in str(request.url):
+            return httpx.Response(200, json={"access_token": "t"})
+        return httpx.Response(402)
+
+    sat = fa.Copernicus(httpx.Client(transport=httpx.MockTransport(refuse)), [("id1", "s1"), ("id2", "s2")], 10, auth="t")
+    try:
+        sat.month(s.box_around(18.5, 73.9, 600), "2025-01-01", "2025-01-31")
+        assert False, "should stop"
+    except fa.Budget as e:
+        assert "every account" in str(e)
 
 
-async def test_a_project_is_not_stored_with_a_years_picture_missing(tmp_path):
-    fa.configure(render=render)
-    store = await seeded(("P1", PIN))
+def test_a_line_is_checked_for_claims_and_length():
+    assert fa.checked("Ground cleared; new road along the west edge.", fa.LINE_WORDS)
+    for bad in ("Slabs going up fast", "Work is on track", "The 8th tower", "Rising structures appear", "x " * 30):
+        assert fa.checked(bad, fa.LINE_WORDS) is None
 
-    class NoColourIn2024(Sat):
-        def colour(self, box, day):
-            return None if day.startswith("2024-01") else super().colour(box, day)
 
-    got = await fa.refresh(store, NOW, sat=NoColourIn2024(), out_dir=tmp_path)
-    assert got["failed"] == 1 and got["done"] == 0
-    assert (await store.projects.find_one({"_id": "P1"})).get("from_above") is None   # tried again next round
+def test_an_older_look_is_not_shown():
+    doc = {"geo": {"lat": 18.5447, "lon": 73.9685}, "from_above": {"version": 3, "story": "x", "where": "y", "credit": "z",
+                                                                    "lat": 18.5447, "lon": 73.9685, "frames": []}}
+    assert fromabove_view.public_view(doc, (18.5447, 73.9685)) is None
 
 
 def test_the_sitemap_date_moves_when_the_site_from_above_goes_on_the_page_and_not_for_a_look_with_nothing_to_show():
     base = {"page_text_at": datetime(2026, 11, 17, 19, 35, tzinfo=timezone.utc), "details_ok": False}
     assert pages.page_updated(base).startswith("2026-11-17")
-    shown = {**base, "from_above": {"story": "Within 100 m of the map pin, ...", "at": NOW}}
-    assert pages.page_updated(shown).startswith("2026-11-20")
-    nothing = {**base, "from_above": {"none": True, "at": NOW}}
-    assert pages.page_updated(nothing).startswith("2026-11-17")
+    assert pages.page_updated({**base, "from_above": {"story": "The ground ...", "at": NOW}}).startswith("2026-11-20")
+    assert pages.page_updated({**base, "from_above": {"none": True, "at": NOW}}).startswith("2026-11-17")
 
 
-def test_a_page_shown_with_an_older_video_is_made_again_and_a_current_one_is_not():
-    big = {"_id": "P1", **PAGE, **PIN}
-    fresh = {"lat": 18.5447, "lon": 73.9685, "at": datetime(2026, 11, 20, tzinfo=timezone.utc), "story": "Within ..."}
-    old = {**big, "from_above": {**fresh, "video": {"path": "from_above/p1/months.mp4"}}}
-    assert fa.due(old, [old], NOW) == (18.5447, 73.9685)
-    current = {**big, "from_above": {**fresh, "video": {"path": "from_above/p1/months.mp4", "version": fa.VIDEO_VERSION}}}
-    assert fa.due(current, [current], NOW) is None
-
-
-async def test_the_video_shows_a_picture_a_season_each_with_its_line(tmp_path):
-    seen = []
-
-    def keep(name, place, shots, story, credit, out):
-        seen.extend(shots)
-        return render(name, place, shots, story, credit, out)
-
-    fa.configure(render=keep)
-    store = await seeded(("P1", PIN))
-    await fa.refresh(store, NOW, sat=Sat(), out_dir=tmp_path)
-    quarters = {(d[:4], s.SEASONS[int(d[5:7])]) for d, _, _ in seen}
-    assert len(quarters) == len(seen)                                  # never two pictures from one season
-    assert all(line for _, _, line in seen)
-    assert seen[0][2] == "Measured: 0% roofs and concrete"             # Jan 2021 is the first year's measured pass
-    rec = (await store.projects.find_one({"_id": "P1"}))["from_above"]
-    assert rec["video"]["version"] == fa.VIDEO_VERSION
-
-
-async def test_a_later_look_reuses_every_reading_and_picture_and_asks_only_for_what_is_new(tmp_path):
+async def test_the_from_space_list_has_every_page_showing_it_for_the_video_sitemap_and_hub(tmp_path):
     fa.configure(render=render)
-    store = await seeded(("P1", PIN))
-    first = Sat()
-    await fa.refresh(store, NOW, sat=first, out_dir=tmp_path)
-    assert (tmp_path / "p1" / "reads.json").is_file() and len(list((tmp_path / "p1" / "raw").glob("*.png"))) == len(first.colour_days)
-    # a season later, with the same Copernicus answers: only the new passes are searched and read, no old picture fetched
-    later = Sat()
-    await fa.refresh(store, datetime(2027, 2, 20, 6, 0, tzinfo=timezone.utc), sat=later, out_dir=tmp_path, force=True)
-    assert later.used < first.used / 5
-    assert all(d >= "2026-11-20" for d in later.colour_days)
-    rec = (await store.projects.find_one({"_id": "P1"}))["from_above"]
-    assert rec["video"]["to"] >= "2027-01-10"                      # the new season is in the video
-
-
-def test_kept_readings_are_dropped_when_the_pin_moves(tmp_path):
-    folder = tmp_path / "p1"
-    fa.save_kept(folder, (18.5447, 73.9685), {"months": {"2024-01": []}, "searched_to": "2026-11-20"})
-    assert fa.load_kept(folder, (18.5447, 73.9685))["searched_to"] == "2026-11-20"
-    assert fa.load_kept(folder, (18.5457, 73.9685)) == {"months": {}}
-
-
-async def test_a_new_launch_shows_its_ground_now_with_no_claim_and_an_older_unchanged_site_shows_nothing(tmp_path):
-    fa.configure(render=render)
-    store = await seeded(("NEW", {**PIN, "registered_on": "2026-03-15"}), ("OLD", PIN))
-    await fa.refresh(store, NOW, sat=Sat(built_from="2099-01"), out_dir=tmp_path)
-    new = (await store.projects.find_one({"_id": "NEW"}))["from_above"]
-    assert new["story"].startswith("Registered with MahaRERA in Mar 2026.") and "began" not in new["story"]
-    assert new["video"] and len(new["frames"]) >= 3
-    assert (await store.projects.find_one({"_id": "OLD"}))["from_above"]["none"] is True
+    store = await seeded(("P1", PIN), ("P2", PIN))
+    await fa.refresh(store, NOW, sat=Sat(), ask=Gemini(), out_dir=tmp_path)
+    await store.projects.update_one({"_id": "P2"}, {"$set": {"from_above.pin": "doubtful"}})
+    listed = await pages.from_space(store.db)
+    assert [x["slug"] for x in listed] == ["p1"]
+    assert listed[0]["video"]["src"].endswith("/months.mp4") and listed[0]["years"] == [2021, 2026]

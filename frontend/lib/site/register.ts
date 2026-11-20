@@ -589,6 +589,26 @@ export interface RegisterPlace {
   current?: number       // being built or finished within a year: the rest are older projects, listed at the bottom of the page
 }
 
+/** A project page showing its site from space (backend areastats.pages.from_space): the video sitemap and the hub page. */
+export interface FromSpaceItem {
+  slug: string
+  name: string
+  place: string | null
+  story: string
+  video: { src: string; poster: string; from: string; to: string; months: number } | null
+  picture: string
+  years: [number, number]
+  updated: string | null
+  seasons: number
+}
+
+export async function getFromSpace(): Promise<FromSpaceItem[]> {
+  const r = await get<FromSpaceItem[]>('/api/v1/public/register/from-space')
+  return r.ok && Array.isArray(r.data)
+    ? r.data.filter((x) => x && typeof x.slug === 'string' && /^[a-z0-9-]+$/.test(x.slug) && typeof x.picture === 'string')
+    : []
+}
+
 export async function getRegisterPlaces(): Promise<RegisterPlace[]> {
   return getRegisterPlacesOrThrow().catch(() => [])
 }

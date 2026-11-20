@@ -46,8 +46,8 @@ REEL_TEXT_TOP, REEL_TEXT_RIGHT = 0.14, 0.88   # Instagram's safe zone (reels.com
 REEL_SECONDS = 28.5                           # under the reels' 29 s
 
 FIRST_HOLD = 1.8      # seconds on the first picture, so the eye finds the ring before the ground starts to change
-FADE = 0.5            # a slow cross-fade between two seasons
-PER_MIN, PER_MAX = 1.0, 1.8
+FADE = 0.5            # the longest cross-fade; with a picture a month it is most of each step, so the ground flows
+PER_MIN, PER_MAX = 0.45, 1.8
 END_FADE = 0.8
 END_HOLD = 4.5        # the measured sentence, long enough to read
 
@@ -76,7 +76,8 @@ def schedule(n: int, per: float) -> List[Tuple[str, int, float]]:
     card (the last picture with the sentence)."""
     out = [("hold", 0, FIRST_HOLD)]
     for i in range(1, n):
-        out += [("fade", i, FADE), ("hold", i, max(0.0, per - FADE))]
+        fade = min(FADE, per * 0.75)
+        out += [("fade", i, fade), ("hold", i, max(0.0, per - fade))]
     out += [("fade", n, END_FADE), ("hold", n, END_HOLD)]
     return out
 
@@ -128,7 +129,7 @@ def _wrap(draw: ImageDraw.ImageDraw, text: str, font, width: int, max_lines: int
 def _ring(pic: Image.Image, side: int) -> Image.Image:
     out = pic.convert("RGB").resize((side, side), Image.LANCZOS)
     d = ImageDraw.Draw(out)
-    cx, cy, r = side // 2, side // 2, max(12, side // 30)
+    cx, cy, r = side // 2, side // 2, side // 6   # 100 m around the pin in 600 m: the ground the readings and words cover
     d.ellipse((cx - r, cy - r, cx + r, cy + r), outline=RING, width=max(3, side // 200))
     return out
 
@@ -179,10 +180,11 @@ def page_keys(name: str, place: str, shots: Sequence[Shot], story: str, credit: 
     keys: List[Key] = []
     for i, s in enumerate(shots):
         words, d = _layer(PAGE)
-        _shade(d, (0, 0, side, 150 if s.say else 100), 170)
+        said = _wrap(d, s.say, line, side - 2 * pad, 2) if s.say else []
+        _shade(d, (0, 0, side, 100 + 40 * len(said)), 170)
         d.text((pad, 18), month_label(s.day), font=big, fill=WHITE)
-        if s.say:
-            d.text((pad, 92), latin(s.say), font=line, fill=GOLD)
+        for k, t in enumerate(said):
+            d.text((pad, 92 + 38 * k), t, font=line, fill=GOLD)
         foot(d, i)
         keys.append((pics[i], words))
     end = Image.blend(pics[-1], Image.new("RGB", (side, side), NAVY), 0.72)
@@ -191,7 +193,7 @@ def page_keys(name: str, place: str, shots: Sequence[Shot], story: str, credit: 
     for t in _wrap(d, name, title, side - 2 * pad, 2):
         d.text((pad, y), t, font=title, fill=WHITE)
         y += 46
-    d.text((pad, y + 2), latin(place) + ", from above", font=line, fill=GOLD)
+    d.text((pad, y + 2), latin(place) + ", from space", font=line, fill=GOLD)
     y += 70
     for t in _wrap(d, story, body, side - 2 * pad, 10):
         d.text((pad, y), t, font=body, fill=WHITE)
@@ -231,8 +233,8 @@ def reel_keys(name: str, place: str, shots: Sequence[Shot], story: str, credit: 
             d.text((x0, y), t, font=title, fill=WHITE)
         d.text((x0, y + 74), latin(place), font=sub, fill=SOFT)
         d.text((x0, y + 128), month_label(s.day), font=big, fill=WHITE)
-        if s.say:
-            d.text((x0, y + 250), latin(s.say), font=line, fill=GOLD)
+        for k, t in enumerate(_wrap(d, s.say, line, right - x0, 2) if s.say else []):
+            d.text((x0, y + 250 + 56 * k), t, font=line, fill=GOLD)
         keys.append((ground(s.picture), words))
     words, d = frame(len(shots) - 1)
     y = top + 52

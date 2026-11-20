@@ -131,6 +131,38 @@ def pictures_row(on: bool, summary: Optional[Dict]) -> Dict:
     return _row("area_pictures", label, OK, f"Newest year within {worst} days for every area")
 
 
+FROM_ABOVE_STUCK_DAYS = 2   # stopped this long (Gemini not answering, every Copernicus account spent): red, and the watch tells
+
+
+def from_above_row(on: bool, mark: Optional[Dict], now: datetime) -> Dict:
+    """"Site from above" (areastats.fromabove): pages showing, what the last daily pass did, and why it stopped when it did.
+    The pass stops rather than publish without Gemini's lines (owner 2026-11-20), so a stop must be seen."""
+    label = "Site from above"
+    if not on:
+        return _row("from_above", label, WARN, "Off: no Copernicus account, so project pages show no satellite timeline",
+                    "Set COPERNICUS_CLIENT_ID and COPERNICUS_CLIENT_SECRET (deploy/gcp/keys.ps1)")
+    m = mark or {}
+    done, showing = m.get("done") or {}, m.get("showing") or 0
+    stopped = m.get("stopped") or {}
+    if stopped:
+        since = stopped.get("since")
+        since = since if not isinstance(since, datetime) or since.tzinfo else since.replace(tzinfo=timezone.utc)
+        days = (now - since).total_seconds() / 86400 if isinstance(since, datetime) else 0
+        what = {"gemini": "Gemini is not answering", "copernicus": "Copernicus refused every account"}.get(stopped.get("reason"),
+                                                                                                       "stopped")
+        fix = ("Check the Gemini key and the day's Gemini budget (ENRICH_GEMINI_INR_PER_DAY); https://ai.studio/spend"
+               if stopped.get("reason") == "gemini" else
+               "The month's free quota is spent on every account: it comes back on the 1st, or add an account (keys.ps1)")
+        return _row("from_above", label, BAD if days >= FROM_ABOVE_STUCK_DAYS else WARN,
+                    f"Stopped {round(days, 1)} days: {what} ({stopped.get('text', '')[:120]}). {showing} pages showing, "
+                    f"{done.get('due', 0)} waiting", fix)
+    at = m.get("at")
+    if not isinstance(at, datetime):
+        return _row("from_above", label, OK, "On, not run yet: the first pass comes with the next enrichment round")
+    return _row("from_above", label, OK, f"{showing} pages showing; last pass did {done.get('done', 0)}, "
+                                         f"{done.get('due', 0)} were waiting, {done.get('requests', 0)} Copernicus requests")
+
+
 FRESH_WARN, FRESH_BAD = 0.7, 0.4   # share of our areas' live project pages re-read in the window (to tune on real readings)
 
 

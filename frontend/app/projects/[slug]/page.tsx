@@ -23,7 +23,6 @@ import { getFacets } from '@/lib/site/facets'
 import RegisterProjectPage, { ASK_NOTE } from '@/components/site/RegisterProjectPage'
 import { pageMetadata } from '@/lib/marketing/seo'
 import { getRegisterProject, getRegisterProjectByRegno, longDay, offerPrice } from '@/lib/site/register'
-import { readFromAbove } from '@/lib/site/fromAbove'
 import ListThisProject from '@/components/site/ListThisProject'
 import { registerDescription, registerTitle } from '@/lib/site/projectSeo'
 import type { Offer } from '@/lib/site/register'
@@ -114,7 +113,6 @@ export default async function SharedProjectPage({ params }: Props) {
     return (
       <MarketingShell hot={{ area: r.area?.slug, exclude: r.slug }} stickyBar>
         <RegisterProjectPage p={r} siteUrl={getMarketingConfig().siteUrl} facts={facts} whatsappUrl={chatWhatsAppUrl()}
-          fromAbove={await readFromAbove(r.slug)}
           lists={r.pune_place ? (await getFacets()).filter((f) => f.place === r.pune_place?.key && f.indexable && !f.builder) : []} />
         <ComingSoonDock items={await comingSoonFor(r.pune_place?.key)} bottomBar />
       </MarketingShell>

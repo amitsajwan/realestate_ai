@@ -1,68 +1,102 @@
 """Every project page the satellite can say something true about gets its site from above, by itself (owner 2026-11-20: "lets
 get it for all pages"; docs/plan/satellite-view.md, "On every page that qualifies").
 
-Once a day, inside the enrichment loop, for the hottest pages first and within a Copernicus request budget (the free account
-gives 30,000 requests a month (owner's dashboard 2026-11-20); REQUESTS_PER_DAY spends at most two thirds of it):
+Once a day, inside the enrichment loop, for our areas' pages first, then the hottest, within a Copernicus request budget:
 
-1. Which pages: a checked Google pin of its own (pages.own_position, the pin the page's map shows), MIN_HOMES or more
-   homes across the project's registrations (a smaller plot is a few 10 m pixels and the circle would measure its
-   neighbours), not finished (nothing changes on its ground now), and none done at this pin in the last REDO_DAYS.
-2. One class map a pass over the whole 600 m square (sitepics.CLASS_EVALSCRIPT, 10 m pixels): its cloud and haze choose the
-   month's picture (sitepics.clearest_frame), and its 100 m circle around the pin gives the year's measure from the
-   January to March passes (sitepics.clearest). One request serves both.
-3. sitepics.story writes the sentence in code. No change of MIN_CHANGE points: the record says so (`from_above.none`) and
-   the page shows nothing; it is tried again in a year.
-4. Else the true-colour pictures of the chosen days, enhanced without invented detail (pictures.enhance, one stretch over
-   all of them), saved as the yearly row and drawn into the month-by-month loop by `render` (calendar.site_timelapse,
-   passed in by wiring: a higher module). Stored as `from_above` on the register record; pages.from_above shows it only
-   while the page's pin is within PIN_MOVED_M of where the pictures were taken.
+1. Which pages: a checked Google pin of its own (pages.own_position), MIN_HOMES or more homes across the project's
+   registrations, not finished, a page of its own (not a tower standing behind its project's page), and not looked at
+   within REDO_DAYS (a season: each look adds the new months, so the timeline grows).
+2. One request a dry month (October to May; the monsoon months are under cloud): the median of every clear pass of that
+   month, as a true-colour picture, an infrared picture (plants red) and the count of passes per pixel (MONTH_EVALSCRIPT).
+   The median keeps what stays and drops one-day haze, cloud edges and wet patches (2026-11-20 test on 15 sites: steadier,
+   clearer, and no false "cleared" where single passes gave four). Every month is kept (reads.json, raw/), so a later look
+   asks only for the months since.
+3. Seasons (Oct-Dec, Jan-Mar, Apr-May) are the median of their months, made here at no cost; each January to March season
+   is the year's picture on the page.
+4. The words: Gemini gets the project's MahaRERA facts (every registration standing behind the page, with its towers and
+   dates), every season's picture and each year's infrared, and writes a line a season, a summary and a pin check
+   (`describe`). Every line is checked (BANNED, length); a line that fails falls back to the code's own
+   (sitepics.captions), the summary to sitepics.sentence. A pin Gemini calls doubtful (buildings standing before the
+   project registered) hides the section until the pin is checked. Without Gemini the pass stops: nothing is published
+   with the code's words alone (owner: "we should not keep on working without it").
+5. The month pictures, made clearer by classic means (pictures.classic: no AI upscaler, which drew sheds that were not
+   there), dissolve into one another in the video (`render`, calendar.site_timelapse through wiring), each season's line on
+   screen while its months play.
 
-The Copernicus calls are synchronous (httpx.Client, like the area pictures) and run in a thread, so the worker's other loops
-keep going while a project is fetched.
+Two Copernicus accounts: when the first one's month is spent, the pass carries on with the second (owner's choice); when
+both are spent, or Gemini does not answer, it stops and says why (the MARK document; admin.health shows it).
 """
 import asyncio
+import base64
 import io
 import json
 import logging
 import re
+import tarfile
+import time
+import zlib
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 import httpx
+import numpy as np
 from PIL import Image, ImageDraw
 
 from app.core.areas import BY_KEY
 from app.core.config import settings
 from app.modules.newsroom.store import Store
 
+from . import budget as ai_budget
 from . import fromabove_view, sitepics
 from .hubs import _primaries
 from .pages import is_old, own_position
-from .pictures import CATALOG_URL, PROCESS_URL, Failed, enhance, even_out, judge_code, process_request, stretch_for, token
+from .pictures import PROCESS_URL, classic, enhance, stretch_for, token
 
 log = logging.getLogger(__name__)
 
-MARK = "site_from_above"        # newsroom_status document: when the pass last ran and what it did
+MARK = "site_from_above"        # newsroom_status document: when the pass last ran, what it did, why it stopped
 OUT_DIR = Path("uploads") / "from_above"
-REQUESTS_PER_DAY = 2000         # no project starts once this many are spent. The free account gives 30,000 requests a
-                                # month (and 30,000 processing units; a request here costs about 0.09 of one); a first
-                                # look is ~150 requests, a season's look ~10. Copernicus also caps 300 a minute: one run
-                                # uses about half, so looks are not run in parallel.
-OVERRUN = 200                   # a started project may go this far past it, so its requests are not thrown away half done
+REQUESTS_PER_DAY = 2000         # no project starts once this many are spent (a first look ~45 requests, a season's ~3)
+OVERRUN = 100
 MIN_HOMES = 300
-REDO_DAYS = 85                  # a page with pictures looks again each season: its timeline grows (about 10 requests,
-                                # since every reading and picture is kept)
-REDO_NONE_DAYS = 120            # a page where nothing had changed: looked at again a season later, as cheaply
-FRAME_WIDTH = 300               # true colour over 600 m: 2 m a pixel before the 2x upscale
-YEAR_WIDTH = 600                # the yearly row's pictures, after the upscale
-EARLY_HAZE = 0.25               # a clear pass this clean ends the month's search: fewer requests
-VIDEO_VERSION = 2               # 2: a picture a season, held 1.5 s, big words and a line each (2026-11-20); older: made again
+REDO_DAYS = 85                  # a page with pictures is looked at again each season: its timeline grows
+REDO_NONE_DAYS = 120
+PX = 300                        # 600 m at 2 m a pixel, before the 2x classic upscale
+CLEAR_MIN = 0.97                # share of the picture a month's median must cover (at least one clear pass per pixel)
+FIRST_YEAR = sitepics.FIRST_YEAR
+LOOK_VERSION = fromabove_view.VERSION   # 4: monthly medians, season lines by Gemini (2026-11-20); older looks are made again
+VIDEO_VERSION = 3
+NEW_LAUNCH_DAYS = 548
+GEMINI_RETRY_S = 90             # a busy Gemini (503): wait this long and ask once more before the pass stops
+ACCOUNTS_SWITCHED = "accounts"
+
+# The median of every clear pass of a month (cloud, cloud shadow, cirrus and haze over AOT 0.4 left out per pixel).
+MONTH_EVALSCRIPT = """//VERSION=3
+function setup() {
+  return {input: [{bands: ["B02","B03","B04","B08","SCL","AOT","dataMask"]}], mosaicking: "ORBIT",
+          output: [{id: "rgb", bands: 3, sampleType: "UINT8"}, {id: "ir", bands: 3, sampleType: "UINT8"},
+                   {id: "n", bands: 1, sampleType: "UINT8"}]};
+}
+function med(v) { if (!v.length) return 0; v.sort(function(x, y) { return x - y; }); var m = Math.floor(v.length / 2);
+  return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2; }
+function c(v, g) { return Math.max(0, Math.min(255, Math.round(v * g * 255))); }
+function evaluatePixel(samples) {
+  var b2 = [], b3 = [], b4 = [], b8 = [];
+  for (var i = 0; i < samples.length; i++) {
+    var s = samples[i];
+    if (!s.dataMask || [0, 1, 3, 8, 9, 10].indexOf(s.SCL) >= 0 || s.AOT > 0.4) continue;
+    b2.push(s.B02); b3.push(s.B03); b4.push(s.B04); b8.push(s.B08);
+  }
+  var r = med(b4), g = med(b3), b = med(b2), n = med(b8);
+  return {rgb: [c(r, 2.5), c(g, 2.5), c(b, 2.5)], ir: [c(n, 2), c(r, 2), c(g, 2)], n: [Math.min(255, b2.length)]};
+}
+"""
 
 # Render(name, place, shots [(day, picture, line)], story, credit, out mp4) -> (mp4 path, poster path)
 Render = Callable[[str, str, Sequence[Tuple[str, Image.Image, str]], str, str, Path], Tuple[Path, Path]]
-_deps: Dict[str, Render] = {}
+_deps: Dict[str, Any] = {}
 
 
 def configure(render: Optional[Render] = None) -> None:
@@ -70,8 +104,15 @@ def configure(render: Optional[Render] = None) -> None:
         _deps["render"] = render
 
 
+def accounts() -> List[Tuple[str, str]]:
+    """The Copernicus OAuth clients, in the order used: the second only once the first one's month is spent."""
+    out = [(settings.copernicus_client_id, settings.copernicus_client_secret),
+           (settings.copernicus_client_id_2, settings.copernicus_client_secret_2)]
+    return [(i, s) for i, s in out if i and s]
+
+
 def enabled() -> bool:
-    return bool(settings.copernicus_client_id and settings.copernicus_client_secret)
+    return bool(accounts())
 
 
 # --- which pages ----------------------------------------------------------------------------------------------------------
@@ -88,16 +129,17 @@ def _aware(v: object) -> Optional[datetime]:
 
 
 def due(d: dict, docs: Sequence[dict], now: datetime) -> Optional[Tuple[float, float]]:
-    """The pin to look at from above, or None: no own pin, too small, finished, or done at this pin within REDO_DAYS."""
+    """The pin to look at from above, or None: no own pin, too small, finished, a tower behind its project's page, or
+    looked at this season at this pin under the current rules."""
     if not own_position(d) or is_old(d, now.date()) or homes(d, docs) < MIN_HOMES:
         return None
     if d.get("cluster_primary") not in (None, d["_id"]):
         return None   # a tower whose page is its project's (Kharadi new project tower 1 -> Lodha Camelot, 2026-11-20)
     pin = (float(d["geo"]["lat"]), float(d["geo"]["lon"]))
     old = d.get("from_above") or {}
+    if int(old.get("version") or 1) < LOOK_VERSION:
+        return pin
     at = _aware(old.get("at"))
-    if old.get("story") and int((old.get("video") or {}).get("version") or 1) < VIDEO_VERSION:
-        return pin   # shown with a video of an older look: made again
     wait = REDO_NONE_DAYS if old.get("none") else REDO_DAYS
     if at and (now - at).days < wait and old.get("lat") is not None \
             and fromabove_view.metres_apart(pin, (old["lat"], old["lon"])) <= fromabove_view.PIN_MOVED_M:
@@ -105,198 +147,288 @@ def due(d: dict, docs: Sequence[dict], now: datetime) -> Optional[Tuple[float, f
     return pin
 
 
+def in_shard(regno: str, shard: Optional[Tuple[int, int]]) -> bool:
+    """Parallel runs split the pages between them by a stable hash of the registration number."""
+    return shard is None or zlib.crc32(str(regno).encode()) % shard[1] == shard[0]
+
+
 # --- the satellite --------------------------------------------------------------------------------------------------------
 
 class Budget(Exception):
-    """The day's requests are spent, or Copernicus refused for quota: stop until tomorrow."""
+    """The day's requests are spent, or every Copernicus account refused for quota: stop until tomorrow."""
+
+
+class Waiting(Exception):
+    """Gemini did not answer: stop, publish nothing with the code's words alone, try again tomorrow."""
 
 
 @dataclass
 class Copernicus:
-    """The three calls the pass makes, counted against the day's budget. Tests pass their own."""
+    """The month request, counted against the day's budget, across the accounts in turn. Tests pass their own."""
     client: httpx.Client
-    auth: str
+    keys: List[Tuple[str, str]]
     left: int
+    at: int = 0
     used: int = 0
-    renew: Optional[Callable[[], str]] = None   # a new token: Copernicus's last about 10 minutes, a run takes hours
+    auth: str = ""
+    switched: List[str] = field(default_factory=list)
 
-    def _post(self, url: str, body: dict, png: bool) -> httpx.Response:
+    def login(self) -> None:
+        self.auth = token(self.client, *self.keys[self.at])
+
+    def _post(self, body: dict) -> httpx.Response:
         if self.left <= 0:
             raise Budget("the day's Copernicus requests are spent")
         self.left -= 1
         self.used += 1
-        r = self.client.post(url, json=body, headers=self._headers(png), timeout=120)
-        if r.status_code == 401 and self.renew:
-            self.auth = self.renew()
-            r = self.client.post(url, json=body, headers=self._headers(png), timeout=120)
-        if r.status_code in (402, 403, 429):
-            raise Budget(f"Copernicus refused (HTTP {r.status_code}): quota")
+        headers = lambda: {"Authorization": f"Bearer {self.auth}", "Accept": "application/tar"}   # noqa: E731
+        r = self.client.post(PROCESS_URL, json=body, headers=headers(), timeout=180)
+        if r.status_code == 401:       # a token lasts about 10 minutes; a run takes hours
+            self.login()
+            r = self.client.post(PROCESS_URL, json=body, headers=headers(), timeout=180)
+        if r.status_code == 429:       # 300 a minute: wait once before reading it as the month's quota
+            time.sleep(20)
+            r = self.client.post(PROCESS_URL, json=body, headers=headers(), timeout=180)
+        while r.status_code in (402, 403, 429):
+            if self.at + 1 >= len(self.keys):
+                raise Budget(f"Copernicus refused every account for quota (HTTP {r.status_code})")
+            self.at += 1
+            self.switched.append(f"account {self.at + 1} from {datetime.now(timezone.utc).isoformat(timespec='minutes')}")
+            log.warning("from above: account %s refused for quota (HTTP %s); carrying on with account %s",
+                        self.at, r.status_code, self.at + 1)
+            self.login()
+            r = self.client.post(PROCESS_URL, json=body, headers=headers(), timeout=180)
         return r
 
-    def _headers(self, png: bool) -> Dict[str, str]:
-        return {"Authorization": f"Bearer {self.auth}", **({"Accept": "image/png"} if png else {})}
-
-    def passes(self, box, start: str, end: str) -> List[dict]:
-        r = self._post(CATALOG_URL, {"collections": [sitepics.SENTINEL_COLLECTION], "bbox": sitepics.bbox(box),
-                                     "datetime": f"{start}T00:00:00Z/{end}T23:59:59Z", "limit": 100,
-                                     "filter": "eo:cloud_cover < 30", "filter-lang": "cql2-text",
-                                     "fields": {"include": ["properties.datetime", "properties.eo:cloud_cover"]}}, False)
-        if r.status_code >= 400:
-            raise Failed(f"the catalogue search failed (HTTP {r.status_code})")
-        return r.json().get("features") or []
-
-    def classes(self, box, day: str) -> Optional[bytes]:
-        r = self._post(PROCESS_URL, sitepics.class_request(box, day, sitepics.FRAME_PX), True)
-        return r.content if r.status_code < 400 and r.content else None
-
-    def colour(self, box, day: str) -> Optional[bytes]:
-        r = self._post(PROCESS_URL, process_request(box, f"{day}T00:00:00Z", f"{day}T23:59:59Z", 100, FRAME_WIDTH), True)
-        return r.content if r.status_code < 400 and r.content else None
+    def month(self, box, start: str, end: str) -> Optional[Dict[str, np.ndarray]]:
+        body = {"input": {"bounds": {"bbox": sitepics.bbox(box), "properties": {"crs": "http://www.opengis.net/def/crs/OGC/1.3/CRS84"}},
+                          "data": [{"type": sitepics.SENTINEL_COLLECTION,
+                                    "dataFilter": {"timeRange": {"from": f"{start}T00:00:00Z", "to": f"{end}T23:59:59Z"},
+                                                   "maxCloudCoverage": 60},
+                                    "processing": {"upsampling": "BICUBIC", "downsampling": "BICUBIC"}}]},
+                "output": {"width": PX, "height": PX, "responses": [{"identifier": k, "format": {"type": "image/png"}}
+                                                                    for k in ("rgb", "ir", "n")]},
+                "evalscript": MONTH_EVALSCRIPT}
+        r = self._post(body)
+        if r.status_code >= 400 or not r.content:
+            return None
+        got: Dict[str, np.ndarray] = {}
+        with tarfile.open(fileobj=io.BytesIO(r.content)) as t:
+            for m in t.getmembers():
+                got[m.name.split(".")[0]] = np.array(Image.open(t.extractfile(m)))
+        return got if {"rgb", "ir", "n"} <= set(got) else None
 
 
-def seasons(first_year: int, today: date, since: Optional[date] = None) -> List[Tuple[str, str]]:
-    """The dry seasons to search, as (start, end) days: Jan to May of the first year, then each October to May, to today;
-    with `since`, only what comes after that day (what was searched before is kept)."""
-    out = [(date(first_year, 1, 1), date(first_year, 5, 31))]
-    for y in range(first_year, today.year + 1):
-        start = date(y, 10, 1)
-        if start > today:
-            break
-        out.append((start, min(date(y + 1, 5, 31), today)))
-    if since is not None:
-        out = [(max(a, since + timedelta(days=1)), b) for a, b in out if b > since]
-    return [(a.isoformat(), b.isoformat()) for a, b in out if a <= b]
+def dry_months(first_year: int, today: date) -> List[str]:
+    """Every dry month ("2024-01") from January of the first year to this month."""
+    return [d.strftime("%Y-%m") for d in sitepics.dry_months(date(first_year, 1, 1), today)]
 
 
-def by_month(features: Sequence[dict]) -> Dict[str, List[str]]:
-    """The passes of each dry month, least cloudy first: {"2024-01": [day, ...]}."""
-    got: Dict[str, List[Tuple[float, str]]] = {}
-    for f in features:
-        p = f.get("properties") or {}
-        day, cc = str(p.get("datetime") or "")[:10], p.get("eo:cloud_cover")
-        if len(day) == 10 and isinstance(cc, (int, float)) and int(day[5:7]) in sitepics.DRY_MONTHS:
-            got.setdefault(day[:7], []).append((float(cc), day))
-    return {m: [d for _, d in sorted(set(v))] for m, v in sorted(got.items())}
+def month_bounds(month: str) -> Tuple[str, str]:
+    y, m = int(month[:4]), int(month[5:7])
+    nxt = date(y + (m == 12), m % 12 + 1, 1)
+    return f"{month}-01", date.fromordinal(nxt.toordinal() - 1).isoformat()
 
 
-def read_pass(png: bytes) -> dict:
-    """One class map of the whole square: how clear the picture is, and the circle's shares (None when the circle is hidden)."""
-    return {**sitepics.frame_clear(png), "shares": sitepics.shares(png, side_m=sitepics.FRAME_SIDE_M)}
+def ring(px: int) -> np.ndarray:
+    """The 100 m circle around the pin, in a picture of sitepics.FRAME_SIDE_M across."""
+    r = px * sitepics.RADIUS_M / sitepics.FRAME_SIDE_M
+    yy, xx = np.mgrid[:px, :px]
+    c = (px - 1) / 2
+    return (yy - c) ** 2 + (xx - c) ** 2 <= r * r
 
 
-# --- what is kept: every pass read and every picture fetched, so a later look asks Copernicus only for what is new ----------
-# (owner 2026-11-20: "we are saving the images?? we can reuse??"). uploads/from_above/<regno>/reads.json and raw/<day>.png.
+def plants(ir: np.ndarray) -> int:
+    """Plant cover inside the ring, from the infrared picture (near-infrared and red, both at the same gain)."""
+    nir, red = ir[..., 0].astype(float), ir[..., 1].astype(float)
+    ndvi = (nir - red) / (nir + red + 1e-6)
+    inside = ring(ir.shape[0]) & (nir + red > 0)
+    return round(100 * ((ndvi >= 0.3) & inside).sum() / max(1, inside.sum()))
+
+
+# --- what is kept: every month read and its pictures, so a later look asks only for the months since ------------------
 
 def folder_of(regno: str, out_dir: Path = OUT_DIR) -> Path:
     return out_dir / re.sub(r"[^a-z0-9]", "", str(regno).lower())
 
 
 def load_kept(folder: Path, pin: Tuple[float, float]) -> dict:
-    """The readings kept for this pin: {lat, lon, searched_to, months: {"2024-01": [{day, masked, haze, shares}]}}. A pin
-    that moved over PIN_MOVED_M since starts afresh: those readings are of other ground."""
+    """{lat, lon, months: {"2024-01": {clear, passes, plants}}, partial}; a pin moved over PIN_MOVED_M starts afresh, and so
+    does a folder from before the monthly medians (no `months` of that shape)."""
     try:
         kept = json.loads((folder / "reads.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {"months": {}}
-    if fromabove_view.metres_apart(pin, (kept.get("lat", 0), kept.get("lon", 0))) > fromabove_view.PIN_MOVED_M:
+    if kept.get("kind") != "monthly" or \
+            fromabove_view.metres_apart(pin, (kept.get("lat", 0), kept.get("lon", 0))) > fromabove_view.PIN_MOVED_M:
         return {"months": {}}
     return kept
 
 
 def save_kept(folder: Path, pin: Tuple[float, float], kept: dict) -> None:
     folder.mkdir(parents=True, exist_ok=True)
-    (folder / "reads.json").write_text(json.dumps({**kept, "lat": pin[0], "lon": pin[1]}), encoding="utf-8")
+    (folder / "reads.json").write_text(json.dumps({**kept, "kind": "monthly", "lat": pin[0], "lon": pin[1]}), encoding="utf-8")
 
 
-def _settled(reads: Sequence[dict]) -> bool:
-    return any(r["masked"] <= sitepics.MAX_FRAME_MASKED and r["haze"] <= EARLY_HAZE for r in reads)
-
-
-def read_new(sat: Copernicus, box, kept: dict, today: date) -> dict:
-    """Search only the passes after the last search, and read a class map only for days not read before: a month that
-    already has a clean pass is left alone."""
-    since = date.fromisoformat(kept["searched_to"]) if kept.get("searched_to") else None
-    features: List[dict] = []
-    for start, end in seasons(sitepics.FIRST_YEAR, today, since):
-        features += sat.passes(box, start, end)
-    months: Dict[str, List[dict]] = {m: list(v) for m, v in (kept.get("months") or {}).items()}
-    for month, days in by_month(features).items():
-        reads = months.setdefault(month, [])
-        if _settled(reads):
+def read_new(sat: Copernicus, box, kept: dict, folder: Path, today: date) -> dict:
+    """Ask for each dry month not read before (and again for the month still running at the last look)."""
+    months = dict(kept.get("months") or {})
+    current = today.strftime("%Y-%m")
+    for m in dry_months(FIRST_YEAR, today):
+        if m in months and m != kept.get("partial"):
             continue
-        done = {r["day"] for r in reads}
-        for day in [d for d in days if d not in done][:max(0, sitepics.MONTH_PASSES - len(reads))]:
-            png = sat.classes(box, day)
-            if not png:
-                continue
-            reads.append({"day": day, **read_pass(png)})
-            if _settled(reads[-1:]):
-                break
-    return {**kept, "months": months, "searched_to": today.isoformat()}
+        start, end = month_bounds(m)
+        got = sat.month(box, start, min(end, today.isoformat()))
+        if got is None:
+            months[m] = {"clear": 0.0}
+            continue
+        clear = round(float((got["n"] > 0).mean()), 3)
+        entry: Dict[str, Any] = {"clear": clear}
+        if clear >= CLEAR_MIN:
+            raw = folder / "raw"
+            raw.mkdir(parents=True, exist_ok=True)
+            Image.fromarray(got["rgb"]).save(raw / f"{m}-rgb.png")
+            Image.fromarray(got["ir"]).save(raw / f"{m}-ir.png")
+            entry.update(passes=int(np.median(got["n"])), plants=plants(got["ir"]))
+        months[m] = entry
+    return {**kept, "months": months, "partial": current if int(current[5:]) in sitepics.DRY_MONTHS else None}
+
+
+def usable(kept: dict, folder: Path) -> List[str]:
+    return sorted(m for m, e in (kept.get("months") or {}).items()
+                  if e.get("clear", 0) >= CLEAR_MIN and (folder / "raw" / f"{m}-rgb.png").is_file())
+
+
+SEASON_NAMES = {4: "Oct-Dec", 1: "Jan-Mar", 2: "Apr-May"}
 
 
 @dataclass
-class Look:
-    months: List[dict] = field(default_factory=list)     # {day, masked, haze}: the picture of each month
-    years: List[dict] = field(default_factory=list)      # {day, haze, built, bare, green}: the measure of each year
+class Season:
+    key: Tuple[int, int]          # (year, quarter)
+    label: str                    # "Jan-Mar 2024"
+    day: str                      # its first month's first day, for sorting and dates
+    months: List[str]
+    rgb: Image.Image
+    ir: Image.Image
+    plants: int
 
 
-def look_at(kept: dict) -> Look:
-    """Each dry month's clearest picture and each year's clearest January to March measure, from the kept readings."""
-    out = Look()
-    year_reads: Dict[int, List[dict]] = {}
-    for month, reads in sorted((kept.get("months") or {}).items()):
-        pick = sitepics.clearest_frame(reads)
-        if pick:
-            out.months.append({k: pick[k] for k in ("day", "masked", "haze")})
-        if int(month[5:7]) <= 3:
-            year_reads.setdefault(int(month[:4]), []).extend(
-                {"day": r["day"], "haze": r["haze"], **r["shares"]} for r in reads if r.get("shares"))
-    for year in sorted(year_reads):
-        best = sitepics.clearest(year_reads[year])
-        if best:
-            out.years.append(best)
+def seasons(months: Sequence[str], folder: Path) -> List[Season]:
+    """Each dry season's picture: the median of its months' medians."""
+    groups: Dict[Tuple[int, int], List[str]] = {}
+    for m in months:
+        y, mo = int(m[:4]), int(m[5:7])
+        groups.setdefault((y, sitepics.SEASONS[mo]), []).append(m)
+    out = []
+    for key in sorted(groups, key=lambda k: groups[k][0]):
+        ms = groups[key]
+        rgb = np.median(np.stack([np.array(Image.open(folder / "raw" / f"{m}-rgb.png").convert("RGB")) for m in ms]), axis=0)
+        ir = np.median(np.stack([np.array(Image.open(folder / "raw" / f"{m}-ir.png").convert("RGB")) for m in ms]), axis=0)
+        ir8 = ir.astype(np.uint8)
+        out.append(Season(key, f"{SEASON_NAMES[key[1]]} {key[0]}", f"{ms[0]}-01", ms, Image.fromarray(rgb.astype(np.uint8)),
+                          Image.fromarray(ir8), plants(ir8)))
     return out
 
 
-def look(sat: Copernicus, box, today: date) -> Look:
-    """Everything from scratch, nothing kept (tests, and a by-hand look)."""
-    return look_at(read_new(sat, box, {"months": {}}, today))
-
-
-def picture(sat: Copernicus, box, day: str, folder: Path) -> Optional[Image.Image]:
-    """A day's true-colour picture: the kept one, else fetched once and kept."""
-    f = folder / "raw" / f"{day}.png"
-    if f.is_file():
-        with Image.open(f) as im:
-            return im.convert("RGB")
-    png = sat.colour(box, day)
-    if not png:
-        return None
-    try:
-        img = judge_code(png)[0]
-    except Failed:
-        return None
-    f.parent.mkdir(parents=True, exist_ok=True)
-    f.write_bytes(png)
-    return img
-
-
-# --- the files ------------------------------------------------------------------------------------------------------------
-
-def _ring(pic: Image.Image) -> Image.Image:
-    out = pic.copy()
+def ringed(pic: Image.Image) -> Image.Image:
+    """The picture with the 100 m circle around the pin: the ground the readings cover."""
+    out = pic.convert("RGB").copy()
     d = ImageDraw.Draw(out)
-    cx, cy, r = out.width // 2, out.height // 2, 16
-    d.ellipse((cx - r, cy - r, cx + r, cy + r), outline=(255, 210, 0), width=3)
+    c, r = out.width / 2, out.width * sitepics.RADIUS_M / sitepics.FRAME_SIDE_M
+    d.ellipse((c - r, c - r, c + r, c + r), outline=(255, 210, 0), width=max(2, out.width // 200))
     return out
 
+
+# --- the words: Gemini, given everything we know, checked line by line ----------------------------------------------------
+
+BANNED = re.compile(r"\b(floors?|slabs?|storey|storeys|stories|complet\w*|possession|handover|ready|price\w*|lakh|crore|"
+                    r"progress\w*|rapid\w*|underway|on track|on schedule|behind schedule|delay\w*|rising|taller|tallest|"
+                    r"planned|quality|luxur\w*|best|premium|\d+(?:st|nd|rd|th))\b", re.I)
+LINE_WORDS, SUMMARY_WORDS = 18, 45
+
+SYSTEM = """You write for home buyers on a project page. You get satellite pictures of the ground around a housing project's map
+pin in Pune: a 600 m square, 10 m per pixel, north up; the yellow ring is 100 m around the pin. Each season's picture is
+the median of every clear pass of that season (Oct-Dec, Jan-Mar, Apr-May; the monsoon is under cloud). For each Jan-Mar
+season you also get an infrared picture, where plants show bright red. You get the project's MahaRERA facts: every
+registration behind this page, with its dates, homes and buildings.
+
+For each season write one line of at most 14 words: what is visible in and near the ring and what changed since the
+season before. Then a summary of at most 35 words. Then a pin check.
+
+Rules:
+1. Say only what the pictures show: ground cleared, plants gone or grown, new building footprints, roads, the dark
+   shadows tall buildings cast (in winter they fall to the north-west and north), sheds or blue sheets, water.
+2. You may connect what you see with the MahaRERA facts ("work shows after the Aug 2022 registration"), never more.
+3. Never write floors, slabs, storeys, completion, possession, price, quality, progress, rapid, underway, rising,
+   taller, planned, on track or delayed: at 10 m none of that can be seen.
+4. If buildings stand in the ring in seasons before the project's first registration, say the ring may show an older
+   neighbouring phase, and mark the pin as doubtful.
+5. A season that looks like the one before: "Little change".
+6. You may mention one clear change just outside the ring: a project's other phases often sit there.
+
+Answer strict JSON: {"seasons": {"<label as given>": "<line>", ...}, "summary": "...", "pin": "ok" or "doubtful",
+"pin_reason": "..."}"""
+
+
+def facts(d: dict, docs: Sequence[dict]) -> str:
+    """The MahaRERA facts of the page and every registration standing behind it."""
+    def one(x: dict) -> str:
+        built = ", ".join(f"{b.get('name') or b.get('wing') or 'building'} ({b.get('floors')} floors)"
+                          for b in (x.get("buildings") or [])[:12] if b.get("floors"))
+        reg, due_ = str(x.get("registered_on") or "")[:10], str(x.get("completion_now") or "")[:10]
+        return (f"- {x.get('name') or x['_id']} ({x['_id']}): registered {sitepics.month(reg) if reg else 'unknown'}, "
+                f"completion filed {sitepics.month(due_) if due_ else 'unknown'}, {x.get('units_total') or '?'} homes"
+                f" ({x.get('units_booked') or 0} booked)" + (f"; buildings: {built}" if built else ""))
+    behind = [x for x in docs if x.get("cluster_primary") == d["_id"] and x is not d]
+    name = d.get("marketed_name") or d.get("name") or d["_id"]
+    return f"Project: {name}, {place_name(d)}.\nMahaRERA registrations behind this page:\n" + "\n".join(one(x) for x in [d, *behind])
+
+
+def _jpeg(img: Image.Image, side: int = 512) -> Dict[str, Any]:
+    buf = io.BytesIO()
+    ringed(img.resize((side, side), Image.LANCZOS)).save(buf, "JPEG", quality=85)
+    return {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()}}
+
+
+def checked(text: Any, words: int) -> Optional[str]:
+    """A line Gemini wrote, if it passes: plain text, within `words`, none of the BANNED words; else None."""
+    if not isinstance(text, str):
+        return None
+    t = " ".join(text.split()).strip()
+    if not t or len(t.split()) > words or BANNED.search(t):
+        return None
+    return t
+
+
+async def describe(ask: Any, d: dict, docs: Sequence[dict], shown: Sequence[Season], pics: Dict[str, Image.Image]) -> dict:
+    """{lines: {label: line}, summary, pin, pin_reason, checked: n kept, dropped: n} from one Gemini call; Waiting when Gemini
+    is not there or does not answer."""
+    if ask is None:
+        raise Waiting("no Gemini (no key, or the day's Gemini budget is spent)")
+    content: List[Dict[str, Any]] = [{"type": "text", "text": facts(d, docs)}]
+    for s in shown:
+        content.append({"type": "text", "text": f"{s.label}, true colour:"})
+        content.append(_jpeg(pics[s.label]))
+        if s.key[1] == 1:
+            content.append({"type": "text", "text": f"{s.label}, infrared (plant cover in the ring {s.plants}%):"})
+            content.append(_jpeg(s.ir))
+    try:
+        out = await ask.json(SYSTEM, content)
+    except Exception as e:
+        raise Waiting(f"Gemini failed ({type(e).__name__})")
+    if not isinstance(out, dict) or not isinstance(out.get("seasons"), dict):
+        raise Waiting("Gemini gave no usable answer")
+    lines = {s.label: checked(out["seasons"].get(s.label), LINE_WORDS) for s in shown}
+    return {"lines": {k: v for k, v in lines.items() if v}, "dropped": sum(1 for v in lines.values() if not v),
+            "summary": checked(out.get("summary"), SUMMARY_WORDS),
+            "pin": "doubtful" if out.get("pin") == "doubtful" else "ok",
+            "pin_reason": str(out.get("pin_reason") or "")[:300]}
+
+
+# --- one project ----------------------------------------------------------------------------------------------------------
 
 def _rel(f: Path) -> str:
     return f.relative_to(Path("uploads")).as_posix() if f.is_relative_to(Path("uploads")) else f.as_posix()
-
-
-NEW_LAUNCH_DAYS = 548           # registered this recently: shown from its first season, before any change is seen
 
 
 def new_launch(d: dict, today: date) -> bool:
@@ -313,75 +445,106 @@ def place_name(d: dict) -> str:
     return f"{name}, Pune" if name else "Pune"
 
 
-def make(d: dict, pin: Tuple[float, float], sat: Copernicus, today: date, out_dir: Path = OUT_DIR) -> dict:
-    """One project's look from above: the record to store (`none` when there is nothing true to say)."""
+@dataclass
+class Gathered:
+    base: dict
+    months: List[str] = field(default_factory=list)
+    shown: List[Season] = field(default_factory=list)
+    pics: Dict[str, Image.Image] = field(default_factory=dict)        # season label -> picture as shown
+    month_pics: Dict[str, Image.Image] = field(default_factory=dict)  # month -> picture as shown
+    years: List[dict] = field(default_factory=list)                   # {day, green}: each Jan-Mar season, for clearing
+    frames: List[dict] = field(default_factory=list)
+
+
+def gather(d: dict, pin: Tuple[float, float], sat: Copernicus, today: date, out_dir: Path = OUT_DIR) -> Gathered:
+    """Read the new months, make the seasons and the pictures as they will be shown, save the yearly row (sync: a thread)."""
     lat, lon = pin
     box = sitepics.box_around(lat, lon, sitepics.FRAME_SIDE_M)
     folder = folder_of(d["_id"], out_dir)
-    kept = read_new(sat, box, load_kept(folder, pin), today)
-    save_kept(folder, pin, kept)          # kept even when there is nothing to say: next season's look starts from here
-    seen = look_at(kept)
-    said = sitepics.story(seen.years)
-    if said is None and new_launch(d, today):
-        said = sitepics.baseline(d["registered_on"])   # a new launch: today's ground, growing season by season
-    base = {"lat": lat, "lon": lon, "months": len(seen.months), "years": len(seen.years)}
-    if said is None or len(seen.months) < 3:
-        return {**base, "none": True}
-    render = _deps.get("render")
-    seasons_shown = sitepics.by_season(seen.months, keep=[y["day"] for y in seen.years])
-    # every month's picture is fetched and kept, not only the seasons shown: a later look, a new style or a slider through
-    # every month then costs no request
-    days = sorted({m["day"] for m in seen.months} | {y["day"] for y in seen.years})
-    raw: Dict[str, Image.Image] = {}
-    for day in days:
-        img = picture(sat, box, day, folder)
-        if img is not None:
-            raw[day] = img
-    missing = [y["day"] for y in seen.years if y["day"] not in raw]
-    if missing or not raw:
-        # the sentence speaks of every year: a row with a year missing would show less than it says (Palladio, 2026-11-20)
-        raise Failed(f"no true-colour picture for {', '.join(missing) or 'any day'}")
-    stretch = stretch_for(list(raw.values()))
-    order = sorted(raw)
-    pics = dict(zip(order, even_out([enhance(raw[day], stretch, upscale=2) for day in order])))
-    frames = []
-    for y in seen.years:
-        if y["day"] not in pics:
-            continue
-        f = folder / f"{y['day'][:4]}.webp"
-        _ring(pics[y["day"]]).save(f, "WEBP", quality=84, method=6)
-        frames.append({"year": int(y["day"][:4]), "day": y["day"], "path": _rel(f), "width": pics[y["day"]].width,
-                       "height": pics[y["day"]].height, "built": y["built"], "bare": y["bare"], "green": y["green"],
-                       "haze": y["haze"]})
-    lines = sitepics.captions(seen.years, [m["day"] for m in seasons_shown])
-    shots = [(m["day"], pics[m["day"]], lines[m["day"]]) for m in seasons_shown if m["day"] in pics]
-    first, last = (shots[0][0], shots[-1][0]) if shots else ("", "")
-    credit = f"{sitepics.CREDIT} {days[0][:4]}-{days[-1][:4]}"
+    kept = read_new(sat, box, load_kept(folder, pin), folder, today)
+    save_kept(folder, pin, kept)
+    months = usable(kept, folder)
+    shown = seasons(months, folder)
+    base = {"lat": lat, "lon": lon, "months": len(months), "version": LOOK_VERSION}
+    years = [s for s in shown if s.key[1] == 1]
+    if len(shown) < 3 or len(years) < 3:
+        return Gathered({**base, "none": True})        # too few clear seasons to show anything
+    raw_months = {m: Image.open(folder / "raw" / f"{m}-rgb.png").convert("RGB") for m in months}
+    st = stretch_for([s.rgb for s in shown])            # one colour stretch for the whole series: changes are the ground's
+    g = Gathered(base, months, shown)
+    g.pics = {s.label: classic(enhance(s.rgb, st)) for s in shown}
+    g.month_pics = {m: classic(enhance(img, st)) for m, img in raw_months.items()}
+    g.years = [{"day": s.day, "green": s.plants} for s in years]
+    for s in years:
+        f = folder / f"{s.key[0]}.webp"
+        pic = ringed(g.pics[s.label])
+        pic.save(f, "WEBP", quality=84, method=6)
+        g.frames.append({"year": s.key[0], "day": f"{s.key[0]}-02-15", "path": _rel(f), "width": pic.width, "height": pic.height,
+                         "plants": s.plants})
+    return g
+
+
+def finish(d: dict, g: Gathered, words: dict, today: date, folder: Path) -> dict:
+    """The record to store, and the video drawn (sync: a thread)."""
+    code_lines = sitepics.captions(g.years, [s.day for s in g.shown])
+    season_lines = [{"label": s.label, "day": s.day, "line": words["lines"].get(s.label) or code_lines.get(s.day) or ""}
+                    for s in g.shown]
+    if new_launch(d, today):
+        story = sitepics.baseline(d["registered_on"])
+    else:
+        story = words.get("summary") or sitepics.sentence(g.years, g.shown[0].day, g.shown[-1].day)
+    credit = f"{sitepics.CREDIT} {g.months[0][:4]}-{g.months[-1][:4]}"
+    by_month = {m: line["line"] for line in season_lines for m in next(s.months for s in g.shown if s.label == line["label"])}
+    shots = [(f"{m}-01", g.month_pics[m], by_month.get(m, "")) for m in g.months]
     video = None
+    render = _deps.get("render")
     if render and len(shots) >= 3:
         name = d.get("marketed_name") or d.get("name") or str(d["_id"])
-        mp4, poster = render(name, place_name(d), shots, said, credit, folder / "months.mp4")
+        mp4, poster = render(name, place_name(d), shots, story, credit, folder / "months.mp4")
         with Image.open(poster) as im:
             vw, vh = im.size
-        video = {"path": _rel(Path(mp4)), "poster": _rel(Path(poster)), "width": vw, "height": vh, "from": first,
-                 "to": last, "months": len(shots), "version": VIDEO_VERSION}
-    return {**base, "story": said, "where": sitepics.where(), "credit": credit, "frames": frames, "video": video}
+        video = {"path": _rel(Path(mp4)), "poster": _rel(Path(poster)), "width": vw, "height": vh, "from": shots[0][0],
+                 "to": shots[-1][0], "months": len(shots), "version": VIDEO_VERSION}
+    return {**g.base, "story": story, "where": sitepics.where(), "credit": credit, "frames": g.frames,
+            "seasons": season_lines, "video": video, "pin": words["pin"], "pin_reason": words["pin_reason"],
+            "words": {"gemini": len(words["lines"]), "dropped": words["dropped"]}}
+
+
+async def look(d: dict, docs: Sequence[dict], pin: Tuple[float, float], sat: Copernicus, ask: Any, today: date,
+               out_dir: Path = OUT_DIR) -> dict:
+    g = await asyncio.to_thread(gather, d, pin, sat, today, out_dir)
+    if g.base.get("none"):
+        return g.base
+    try:
+        words = await describe(ask, d, docs, g.shown, g.pics)
+    except Waiting:
+        if ask is None:
+            raise
+        await asyncio.sleep(GEMINI_RETRY_S)   # "high demand" (503) passes in a minute or two: one more try, then stop
+        words = await describe(ask, d, docs, g.shown, g.pics)
+    return await asyncio.to_thread(finish, d, g, words, today, folder_of(d["_id"], out_dir))
 
 
 # --- the pass -------------------------------------------------------------------------------------------------------------
 
-def _open(budget: int) -> Copernicus:
-    client = httpx.Client()
+def _open(budget: int, start_account: int = 0) -> Copernicus:
+    keys = accounts()
+    sat = Copernicus(httpx.Client(), keys, budget, at=min(start_account, len(keys) - 1))
+    sat.login()
+    return sat
 
-    def renew() -> str:
-        return token(client, settings.copernicus_client_id, settings.copernicus_client_secret)
-    return Copernicus(client, renew(), budget, renew=renew)
+
+async def _ask(store: Store, now: datetime) -> Any:
+    reader = await ai_budget.reader(store.db, now)
+    return reader.ask(ai_budget.PLAIN, "site_from_above") if reader is not None else None
 
 
 async def refresh(store: Store, now: datetime, budget: int = REQUESTS_PER_DAY, force: bool = False,
-                  sat: Optional[Copernicus] = None, out_dir: Path = OUT_DIR) -> Optional[dict]:
-    """Look at the hottest due pages from above until the day's requests are spent: {done, none, failed, requests} or None
-    when not due (ran in the last 24 hours, or no Copernicus keys)."""
+                  sat: Optional[Copernicus] = None, ask: Any = "default", out_dir: Path = OUT_DIR,
+                  shard: Optional[Tuple[int, int]] = None, start_account: int = 0) -> Optional[dict]:
+    """Look at the due pages from above until the day's requests are spent: {due, done, none, failed, requests, stopped}, or
+    None when not due (ran in the last 24 hours) or there is no Copernicus account. Stops, and records why, when every
+    account's month is spent or Gemini does not answer."""
     if sat is None and not enabled():
         return None
     mark = await store.status.find_one({"_id": MARK}) or {}
@@ -389,24 +552,29 @@ async def refresh(store: Store, now: datetime, budget: int = REQUESTS_PER_DAY, f
     if not force and last and (now - last).total_seconds() < 24 * 3600:
         return None
     docs = await store.all_projects()
-    todo = [(d, pin) for d in _primaries(docs) for pin in [due(d, docs, now)] if pin]
-    # our own areas first, then the pages people open most
+    todo = [(d, pin) for d in _primaries(docs) if in_shard(d["_id"], shard) for pin in [due(d, docs, now)] if pin]
     todo.sort(key=lambda dp: (dp[0].get("locality") not in BY_KEY, -float(dp[0].get("hot_score") or 0)))
-    out = {"due": len(todo), "done": 0, "none": 0, "failed": 0, "requests": 0}
+    out: Dict[str, Any] = {"due": len(todo), "done": 0, "none": 0, "failed": 0, "requests": 0, "stopped": None}
+    if ask == "default":
+        ask = await _ask(store, now)
     own = sat is None
     try:
-        sat = sat or await asyncio.to_thread(_open, budget + OVERRUN)
+        sat = sat or await asyncio.to_thread(_open, budget + OVERRUN, start_account)
     except Exception as e:
-        log.warning("from above: no Copernicus token (%s)", type(e).__name__)
-        return None
+        out["stopped"] = {"reason": "copernicus", "text": f"no Copernicus token ({type(e).__name__})", "since": now}
+        await _mark(store, now, out)
+        return out
     try:
         for d, pin in todo:
             if sat.used >= budget:
                 break
             try:
-                got = await asyncio.to_thread(make, d, pin, sat, now.date(), out_dir)
+                got = await look(d, docs, pin, sat, ask, now.date(), out_dir)
             except Budget as e:
-                log.info("from above: %s", e)
+                out["stopped"] = {"reason": "copernicus", "text": str(e), "since": now}
+                break
+            except Waiting as e:
+                out["stopped"] = {"reason": "gemini", "text": str(e), "since": now}
                 break
             except Exception:
                 log.exception("from above: %s failed", d["_id"])
@@ -416,9 +584,21 @@ async def refresh(store: Store, now: datetime, budget: int = REQUESTS_PER_DAY, f
             out["none" if got.get("none") else "done"] += 1
     finally:
         out["requests"] = sat.used
+        out[ACCOUNTS_SWITCHED] = list(sat.switched)
         if own:
             sat.client.close()
-    await store.status.update_one({"_id": MARK}, {"$set": {"at": now, "done": out}}, upsert=True)
+    await _mark(store, now, out)
     log.info("from above: %s", out)
     return out
 
+
+async def _mark(store: Store, now: datetime, out: dict) -> None:
+    """The run's summary for admin.health: kept `stopped.since` while the same reason holds, so the row can say how long."""
+    prev = (await store.status.find_one({"_id": MARK}) or {}).get("stopped") or {}
+    stopped = out.get("stopped")
+    if stopped and prev.get("reason") == stopped["reason"]:
+        stopped = {**stopped, "since": prev.get("since") or now}
+    showing = await store.projects.count_documents({"from_above.story": {"$exists": True}, "from_above.pin": "ok",
+                                                    "from_above.version": LOOK_VERSION})
+    await store.status.update_one({"_id": MARK}, {"$set": {"at": now, "done": {k: v for k, v in out.items() if k != "stopped"},
+                                                           "stopped": stopped, "showing": showing}}, upsert=True)

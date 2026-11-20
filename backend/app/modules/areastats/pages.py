@@ -1401,6 +1401,25 @@ async def search(db, q: str, limit: int = 20) -> List[dict]:
     return [r["out"] for _, r in scored[:limit]]
 
 
+async def from_space(db) -> List[dict]:
+    """Every project page showing its site from space (areastats.fromabove), newest look first: {slug, name, place, story,
+    video {src, poster, from, to, months}, picture, updated}. For the video sitemap and the "from space" hub page, the
+    thing no other site shows (owner 2026-11-20: "it can be our selling point")."""
+    out = []
+    for d in await Store(db).shared_projects():
+        if not d.get("from_above") or not _served(d) or not own_position(d):
+            continue
+        view = fromabove_view.public_view(d, (d["geo"]["lat"], d["geo"]["lon"]))
+        if view is None:
+            continue
+        area = BY_KEY.get(d.get("locality") or "")
+        out.append({"slug": d.get("page_slug"), "name": names(d)[0], "place": area.name if area else d.get("pune_place_name"),
+                    "story": view["story"], "video": view["video"], "picture": view["frames"][-1]["src"],
+                    "years": [view["frames"][0]["year"], view["frames"][-1]["year"]], "updated": view["updated"],
+                    "seasons": len(view["seasons"])})
+    return sorted(out, key=lambda x: (x["updated"] or "", x["name"]), reverse=True)
+
+
 async def places(db) -> List[dict]:
     """Pune places with at least one project page, with counts, in the zone order of app/core/pune_places.py; talukas last.
     `current`: being built or finished within a year (not is_old), the projects a buyer of a new home looks at. `indexable`:

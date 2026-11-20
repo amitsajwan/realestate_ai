@@ -121,10 +121,11 @@ def test_overview_counts_waiting_agents_health_and_controls(monkeypatch):
     rows = {h["key"]: h for h in o["health"]}
     assert set(rows) == {"facebook", "instagram", "whatsapp", "messenger", "ai", "posting", "comments", "news", "indexnow", "google_index",
                          "neighbourhoods", "enrich", "freshness", "page_check", "google_search", "press", "area_pictures", "photo_scout",
-                         "system_watch"}
+                         "system_watch", "from_above"}
     assert rows["system_watch"]["status"] == "bad"   # no worker in a test: the watch never ran, and the screen says so
     assert rows["press"]["status"] == "warn" and "PRESS_AGENT" in rows["press"]["fix"]   # off by default
     assert rows["area_pictures"]["status"] == "warn" and "AREA_FROM_ABOVE" in rows["area_pictures"]["fix"]   # off by default
+    assert rows["from_above"]["status"] == "warn" and "COPERNICUS_CLIENT_ID" in rows["from_above"]["fix"]   # no account set
     assert rows["enrich"]["status"] == "warn" and "PROJECT_ENRICH_ENABLED" in rows["enrich"]["fix"]   # off by default
     assert rows["freshness"]["status"] == "ok" and rows["freshness"]["text"] == "First count runs within a day"
     assert rows["messenger"]["status"] == "warn"  # off by default

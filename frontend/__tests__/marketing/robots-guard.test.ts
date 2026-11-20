@@ -15,11 +15,12 @@ describe('robots.txt never shuts a public page', () => {
     expect(PRIVATE_PATHS.filter((p) => path.startsWith(p))).toEqual([])
   })
 
-  it('allows everything else and names the sitemap index and the news sitemap', () => {
+  it('allows everything else and names the sitemap index, the news sitemap and the video sitemap', () => {
     const r = robots()
     const rule = Array.isArray(r.rules) ? r.rules[0] : r.rules
     expect(rule.allow).toBe('/')
-    expect(r.sitemap).toEqual([expect.stringMatching(/\/sitemap\.xml$/), expect.stringMatching(/\/news-sitemap\.xml$/)])
+    expect(r.sitemap).toEqual([expect.stringMatching(/\/sitemap\.xml$/), expect.stringMatching(/\/news-sitemap\.xml$/),
+      expect.stringMatching(/\/video-sitemap\.xml$/)])
   })
 
   it('has no Host line, which Google ignores and Search Console flags (the canonical tags name the domain)', () => {

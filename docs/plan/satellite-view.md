@@ -138,6 +138,39 @@ the video plays once, stops on the sentence, and has controls to replay. Videos 
 (`fromabove.VIDEO_VERSION`). Sharper pictures would need paid satellites (3 m and finer); Google's sharp view is the
 Map/Satellite switch, today's only.
 
+### The look that went live: monthly medians, season lines by Gemini (2026-11-20, LIVE)
+
+Decided with the owner by looking, on 15 sites (sheets in docs/content/from-above/: check-core, check-more-1/2,
+enhance-ai-trial, llm-pack-*, gemini-v2-lines, sample-yashwin.mp4):
+
+- **What the satellite can and cannot tell.** All bands for 5 sites, 6 years: plants it tells well (near-infrared); "roofs
+  and concrete" it does not: a cleared site's pale dry ground reads as concrete and finished towers read dark (Yashwin
+  "75% built" while being built, 53% once finished). No percentage is said anywhere.
+- **Pictures: the median of every clear pass**, a request a dry month (`MONTH_EVALSCRIPT`: true colour, infrared, passes
+  per pixel). Over 15 sites single passes gave 4 false "plants cleared"; the median none. Seasons and each year's picture
+  are medians of the months, made here. About 45 requests a project, then a few a season.
+- **Sharper by classic means** (`pictures.classic`: Lanczos, CLAHE, unsharp). Tried and refused: an AI upscaler (EDSR, no
+  gain) and Gemini's image model, which drew sheds and blue roofs that are not in the data.
+- **The ring is 100 m around the pin**, the ground the words cover.
+- **Words: Gemini, given everything** (owner: "send all details we have"): every MahaRERA registration behind the page
+  with its dates, homes and buildings, every season's picture and each year's infrared, all in one call
+  (`fromabove.describe`, gemini-3.8-flash first). A line a season, a summary, a pin check. Every line goes through
+  `checked` (no floors, slabs, progress, rapid, rising, taller, planned...; at most 18 words); a failed line falls back to
+  the code's (plants on the ground / being cleared / ground cleared), a failed summary to `sitepics.sentence`. A pin
+  Gemini calls doubtful (buildings standing before the first registration: Rohan Abhilasha 4) hides the section. Trial
+  v2 on 4 sites matched what we saw; about Rs 2 a project.
+- **No Gemini, no publishing.** A busy Gemini (503) is asked again after 90 s; still nothing, the pass stops for the day
+  and says so (`MARK.stopped`). Studio > Admin > Health "Site from above" goes red after 2 days and the system watch alerts.
+- **Two Copernicus accounts** (owner's choice): `COPERNICUS_CLIENT_ID_2`/`_SECRET_2`; when one refuses for quota the pass
+  carries on with the next, and stops only when all are spent. Parallel runs split pages by `in_shard`.
+- **Video**: a picture a month dissolving into the next (~0.5 s each), the date and the season's line large over the
+  picture, the summary at the end, plays once on the page with controls.
+- **On the page**: right after the prices, with a "Watch the site from space" link in the hero; the newest six season lines
+  as page text (earlier ones fold away), the yearly row, then today's sharper view through Google's own satellite embed.
+- **For search** (the selling point): the season lines are the VideoObject's transcript, /video-sitemap.xml lists every
+  video (robots.txt names it), and /projects/from-space lists every project with its timeline (linked from /projects and
+  from each section).
+
 ### Kept, growing, and new launches (2026-11-20)
 
 Owner: "why we decreased images, more is better??", "for new launches we can have current satellites, and we grow with

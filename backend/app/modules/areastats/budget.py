@@ -38,6 +38,9 @@ ANSWER_DAYS = 120                     # a kept answer nobody asked for again in 
 # USD per 1M tokens (in, out) by model id prefix, list prices on 2026-10-25; Gemini bills its thinking as output. A Gemini model
 # not listed is priced at UNKNOWN_GEMINI, high, so the day's cap still holds when an alias moves to a dearer model.
 PRICES: Dict[str, Tuple[float, float]] = {
+    # Google's recommended flash from 2026-11; its introductory rate, which doubles to (1.50, 7.50) on 2027-01-01
+    "gemini-3.8-flash": (0.75, 3.75),
+    "gemini-3.5-flash-lite": (0.30, 2.50),
     "gemini-3-flash": (0.50, 3.00),
     "gemini-3.1-flash-lite": (0.25, 1.50),
     "gemini-flash-lite": (0.30, 2.50),
@@ -67,6 +70,8 @@ def route(tier: str, step: str) -> List[str]:
         return [GEMINI, FREE]
     if step == "area_picture":   # judging a satellite picture: Gemini's vision, lite first (the free tiers do not take images)
         return [LITE, GEMINI]
+    if step == "site_from_above":   # a project's seasons from above, all its pictures at once (areastats.fromabove): the full
+        return [GEMINI, LITE]        # model reads them as a person does (2026-11-20 trial); lite only when it has no room
     if step == "prices":
         return [LITE, FREE]
     return [FREE, LITE]

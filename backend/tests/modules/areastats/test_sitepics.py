@@ -46,33 +46,45 @@ def test_haze_is_read_from_the_second_band_and_the_least_hazy_clear_pass_wins():
     assert s.clearest([{"day": "2026-01-05", "haze": 0.6}]) is None
 
 
-def test_story_says_clearing_then_building_from_the_numbers():
-    rows = [row("2021-02-28", 0, 17, 51), row("2022-01-19", 0, 2, 66), row("2023-01-09", 2, 35, 45),
-            row("2024-02-23", 16, 49, 19), row("2025-02-17", 10, 49, 26), row("2026-02-27", 22, 35, 27)]
-    assert s.story(rows) == ("Within 100 m of the map pin, the ground was cleared between Jan 2023 and Feb 2024: plant cover "
-                             "fell from 45% to 19%. By Feb 2026 roofs and concrete covered 22% of the ground, against 0% "
-                             "in Feb 2021.")
+RIVERDALE = [row("2021-01-24", 0, 37, 62), row("2022-01-19", 0, 34, 65), row("2023-01-09", 2, 53, 44),
+             row("2024-02-23", 15, 75, 18), row("2025-01-18", 30, 63, 28), row("2026-01-08", 16, 45, 29)]
+YASHWIN = [row("2021-01-24", 16, 95, 0), row("2022-01-19", 30, 94, 0), row("2023-01-09", 31, 89, 0),
+           row("2024-02-23", 60, 74, 0), row("2025-01-18", 75, 77, 0), row("2026-01-08", 53, 68, 0)]
 
 
-def test_building_is_said_to_start_only_where_the_rise_holds_every_later_year():
-    rows = [row("2021-02-28", 4), row("2022-01-19", 29), row("2023-01-09", 31), row("2024-02-23", 61), row("2026-02-27", 53)]
-    assert s.story(rows).startswith("Within 100 m of the map pin, roofs and concrete began to spread by Jan 2022 and "
-                                    "covered 53% of the ground by Feb 2026")
-    dipped = [row("2021-02-28", 0), row("2022-01-19", 20), row("2023-01-09", 5), row("2024-02-23", 30)]
-    assert "map pin, by Feb 2024 roofs and concrete covered 30%" in s.story(dipped)
+def test_plants_cleared_is_said_from_the_infrared_and_nothing_about_roofs_or_concrete():
+    said = s.sentence(RIVERDALE, "2021-01-24", "2026-11-11")
+    assert said.startswith("The ground around the project's map pin, seen by the Sentinel-2 satellite once each dry season "
+                           "from Jan 2021 to Nov 2026.")
+    assert "cleared between Jan 2023 and Feb 2024" in said and "from 44% to 18%" in said
+    assert "roof" not in said.lower() and "concrete" not in said.lower()
 
 
-def test_no_sentence_without_a_change_of_fifteen_points_or_three_years():
-    flat = [row("2021-02-28", 20), row("2022-01-19", 25), row("2023-01-09", 34)]
-    assert s.story(flat) is None
-    assert s.story([row("2021-02-28", 0), row("2026-02-27", 80)]) is None
+def test_a_site_with_no_plants_to_lose_gets_only_what_the_pictures_are():
+    # Yashwin read 75% "roofs and concrete" while being built and 53% once finished: no such number is said
+    said = s.sentence(YASHWIN, "2021-01-24", "2026-11-11")
+    assert said == ("The ground around the project's map pin, seen by the Sentinel-2 satellite once each dry season from "
+                    "Jan 2021 to Nov 2026.")
+    assert all(v == "" for v in s.captions(YASHWIN, ["2023-11-02", "2025-12-09"]).values())
 
 
-def test_the_sentence_never_calls_the_circle_the_project():
-    rows = [row("2021-02-28", 0), row("2022-01-19", 20), row("2023-01-09", 40)]
-    said = s.story(rows) + " " + s.where()
-    assert "map pin" in said and "neighbouring plots" in said
-    assert "project is" not in said and "complete" not in said.lower()
+def test_a_season_of_green_that_comes_back_is_not_called_clearing():
+    seasonal = [row("2021-01-24", 0, 10, 62), row("2022-01-19", 0, 10, 30), row("2023-01-09", 0, 10, 60),
+                row("2024-02-23", 0, 10, 58)]
+    assert s.clearing(seasonal) is None
+
+
+def test_each_picture_gets_its_stage_of_clearing_and_no_number():
+    said = s.captions(RIVERDALE, ["2021-11-20", "2023-01-09", "2023-11-02", "2024-02-23", "2025-12-09"])
+    assert said == {"2021-11-20": "Plants on the ground", "2023-01-09": "Plants on the ground",
+                    "2023-11-02": "Plants being cleared", "2024-02-23": "Plants being cleared",
+                    "2025-12-09": "Ground cleared"}
+    assert not any("%" in v for v in said.values())
+
+
+def test_the_note_says_what_the_pictures_cover():
+    note = s.where()
+    assert "map pin" in note and "neighbouring plots" in note and "not floors" in note
 
 
 def test_measured_square_is_centred_on_the_pin():
@@ -123,19 +135,6 @@ def test_one_picture_a_dry_quarter_and_a_years_measured_pass_kept():
                                                   ("2023-12-30", 0.15))]
     got = [m["day"] for m in s.by_season(months, keep=["2023-01-09"])]
     assert got == ["2023-01-09", "2023-05-14", "2023-12-30"]
-
-
-def test_each_picture_gets_a_line_from_the_measure_never_more_than_it_found():
-    rows = [row("2021-02-28", 0, 17, 51), row("2022-01-19", 0, 2, 66), row("2023-01-09", 2, 35, 45),
-            row("2024-02-23", 16, 49, 19), row("2025-02-17", 10, 49, 26), row("2026-02-27", 22, 35, 27)]
-    days = ["2021-02-28", "2021-11-20", "2023-01-09", "2023-11-02", "2024-02-23", "2025-12-09", "2026-02-27"]
-    said = s.captions(rows, days)
-    assert said["2021-02-28"] == "Measured: 0% roofs and concrete"
-    assert said["2021-11-20"] == "Plants and open ground"
-    assert said["2023-11-02"] == "Ground being cleared"          # between the Jan 2023 and Feb 2024 measures
-    assert said["2025-12-09"] == "Roofs and concrete spreading"  # after the last measure before the rise held
-    assert said["2026-02-27"] == "Measured: 22% roofs and concrete"
-    assert all("tower" not in v and "complete" not in v and "floor" not in v for v in said.values())
 
 
 def test_even_out_brings_a_hazy_pass_towards_the_others_and_keeps_its_shapes():
