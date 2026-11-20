@@ -1,10 +1,12 @@
 """The readable() guard: OSM objects named by vowel-less abbreviations ("CTR") never reach a card; real short names do.
 And the Google-first `around`: searchNearby places lead, OpenStreetMap answers the categories it missed."""
 import json
+from datetime import datetime, timedelta
 
 import httpx
 
-from app.modules.propertyfacts.surroundings import GOOGLE_TYPES, OVERPASS, Nearby, _add, around, from_overpass, readable
+from app.modules.propertyfacts.surroundings import GOOGLE_TYPES, KEEP_DAYS, OVERPASS, Nearby, _add, around, from_overpass, readable
+from tests.modules.fakes import FakeDb
 
 LAT, LON = 18.5601, 73.9200
 
@@ -78,6 +80,39 @@ async def test_nearby_drops_closed_and_little_known_places():
 async def test_nearby_without_key_asks_nothing():
     best, answered = await Nearby(None).search(LAT, LON)
     assert best == {} and not answered
+
+
+NOW = datetime(2026, 11, 20, 10, 0)
+
+
+async def test_nearby_answer_is_kept_and_a_re_gather_asks_google_nothing():
+    db = FakeDb()
+    t, calls = _google({"hospital": [_place("Kokilabe Hospital", 0.01)]})
+    first, _ = await Nearby("k", transport=t, db=db).search(LAT, LON, NOW)
+    asked = len(calls)
+    again, answered = await Nearby("k", transport=t, db=db).search(LAT, LON, NOW + timedelta(days=KEEP_DAYS - 1))
+    assert answered and again == first and len(calls) == asked
+
+
+async def test_nearby_asks_again_once_the_kept_answer_is_a_month_old():
+    db = FakeDb()
+    t, calls = _google({"hospital": [_place("Kokilabe Hospital", 0.01)]})
+    await Nearby("k", transport=t, db=db).search(LAT, LON, NOW)
+    await Nearby("k", transport=t, db=db).search(LAT, LON, NOW + timedelta(days=KEEP_DAYS))
+    assert len(calls) == 2 * (len(GOOGLE_TYPES) + 1)
+
+
+async def test_nearby_keeps_nothing_when_a_call_failed():
+    db, calls = FakeDb(), []
+
+    def handler(request):
+        calls.append(1)
+        body = json.loads(request.content)
+        return httpx.Response(500) if "textQuery" in body else httpx.Response(200, json={"places": []})
+    t = httpx.MockTransport(handler)
+    await Nearby("k", transport=t, db=db).search(LAT, LON, NOW)
+    await Nearby("k", transport=t, db=db).search(LAT, LON, NOW)
+    assert len(calls) == 2 * (len(GOOGLE_TYPES) + 1)
 
 
 def _osm_json():
