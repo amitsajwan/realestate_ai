@@ -273,3 +273,10 @@ def captions(years: Sequence[dict], days: Sequence[str]) -> Dict[str, str]:
         else:
             out[d] = "Open ground, little built"
     return out
+
+
+def baseline(registered: str) -> str:
+    """The sentence for a new launch the satellite has seen no change on yet (owner 2026-11-20: "for new launches we can
+    have current satellites, and we grow with project"): when it registered and what the pictures are, no claim of building."""
+    return (f"Registered with MahaRERA in {month(registered)}. This is the ground within {RADIUS_M} m of its map pin as the "
+            "satellite has seen it each season; a new picture is added every season as the project goes on.")

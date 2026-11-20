@@ -138,6 +138,25 @@ the video plays once, stops on the sentence, and has controls to replay. Videos 
 (`fromabove.VIDEO_VERSION`). Sharper pictures would need paid satellites (3 m and finer); Google's sharp view is the
 Map/Satellite switch, today's only.
 
+### Kept, growing, and new launches (2026-11-20)
+
+Owner: "why we decreased images, more is better??", "for new launches we can have current satellites, and we grow with
+project", "we are saving the images?? we can reuse??".
+
+- **Kept**: every pass read (its cloud, haze and circle shares) in `uploads/from_above/<regno>/reads.json` with the last
+  day searched, and every month's true-colour picture as fetched in `raw/<day>.png` (about 2 MB a project; 13 GB free on
+  2026-11-20). A later look searches only passes after `searched_to`, reads only days not read, fetches only pictures not
+  kept (`fromabove.read_new`, `picture`): about 10 requests instead of about 150. A new video style or a slider through
+  every month costs nothing. A pin moved over 50 m starts afresh.
+- **Growing**: a page with pictures is looked at again every 85 days (`REDO_DAYS`), so each season adds a picture; a page
+  with no change every 120 (`REDO_NONE_DAYS`).
+- **Why a season per picture in the video**: more pictures in the same length flash by (the first version), and 41 at a
+  readable pace would run past a minute; at 10 m consecutive months look alike but for the season's green. Every month is
+  kept for a slider a buyer drives (next).
+- **New launches** (registered in the last 548 days, `fromabove.new_launch`) show their ground from the first season even
+  with no change measured: `sitepics.baseline` says when it registered and that a picture is added each season, no claim
+  of building. The captions still come from the measure.
+
 ### On every page that qualifies: the daily pass (2026-11-20)
 
 Owner, 2026-11-20: "lets get it for all pages". `areastats/fromabove.py`, a once-a-day pass inside the enrichment loop

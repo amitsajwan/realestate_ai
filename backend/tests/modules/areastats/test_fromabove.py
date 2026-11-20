@@ -86,8 +86,10 @@ def test_only_large_unfinished_projects_with_their_own_pin_are_looked_at():
     assert fa.due({**big, "geo": {**big["geo"], "located_from": "locality"}}, [big], NOW) is None   # an area's centre
     assert fa.due({**big, "cluster_primary": "P9"}, [big], NOW) is None                            # its page is P9's
     assert fa.due({**big, "completion_now": "2024-03-31"}, [big], NOW) is None                      # finished
-    done = {**big, "from_above": {"lat": 18.5447, "lon": 73.9685, "at": datetime(2026, 3, 1, tzinfo=timezone.utc)}}
+    done = {**big, "from_above": {"lat": 18.5447, "lon": 73.9685, "at": datetime(2026, 11, 1, tzinfo=timezone.utc)}}
     assert fa.due(done, [done], NOW) is None
+    a_season_ago = {**big, "from_above": {**done["from_above"], "at": datetime(2026, 8, 1, tzinfo=timezone.utc)}}
+    assert fa.due(a_season_ago, [a_season_ago], NOW) == (18.5447, 73.9685)          # each season: the timeline grows
     moved = {**done, "geo": {**big["geo"], "lat": 18.5457}}
     assert fa.due(moved, [moved], NOW) == (18.5457, 73.9685)                                        # a new pin: new pictures
 
@@ -217,3 +219,35 @@ async def test_the_video_shows_a_picture_a_season_each_with_its_line(tmp_path):
     assert seen[0][2] == "Measured: 0% roofs and concrete"             # Jan 2021 is the first year's measured pass
     rec = (await store.projects.find_one({"_id": "P1"}))["from_above"]
     assert rec["video"]["version"] == fa.VIDEO_VERSION
+
+
+async def test_a_later_look_reuses_every_reading_and_picture_and_asks_only_for_what_is_new(tmp_path):
+    fa.configure(render=render)
+    store = await seeded(("P1", PIN))
+    first = Sat()
+    await fa.refresh(store, NOW, sat=first, out_dir=tmp_path)
+    assert (tmp_path / "p1" / "reads.json").is_file() and len(list((tmp_path / "p1" / "raw").glob("*.png"))) == len(first.colour_days)
+    # a season later, with the same Copernicus answers: only the new passes are searched and read, no old picture fetched
+    later = Sat()
+    await fa.refresh(store, datetime(2027, 2, 20, 6, 0, tzinfo=timezone.utc), sat=later, out_dir=tmp_path, force=True)
+    assert later.used < first.used / 5
+    assert all(d >= "2026-11-20" for d in later.colour_days)
+    rec = (await store.projects.find_one({"_id": "P1"}))["from_above"]
+    assert rec["video"]["to"] >= "2027-01-10"                      # the new season is in the video
+
+
+def test_kept_readings_are_dropped_when_the_pin_moves(tmp_path):
+    folder = tmp_path / "p1"
+    fa.save_kept(folder, (18.5447, 73.9685), {"months": {"2024-01": []}, "searched_to": "2026-11-20"})
+    assert fa.load_kept(folder, (18.5447, 73.9685))["searched_to"] == "2026-11-20"
+    assert fa.load_kept(folder, (18.5457, 73.9685)) == {"months": {}}
+
+
+async def test_a_new_launch_shows_its_ground_now_with_no_claim_and_an_older_unchanged_site_shows_nothing(tmp_path):
+    fa.configure(render=render)
+    store = await seeded(("NEW", {**PIN, "registered_on": "2026-03-15"}), ("OLD", PIN))
+    await fa.refresh(store, NOW, sat=Sat(built_from="2099-01"), out_dir=tmp_path)
+    new = (await store.projects.find_one({"_id": "NEW"}))["from_above"]
+    assert new["story"].startswith("Registered with MahaRERA in Mar 2026.") and "began" not in new["story"]
+    assert new["video"] and len(new["frames"]) >= 3
+    assert (await store.projects.find_one({"_id": "OLD"}))["from_above"]["none"] is True

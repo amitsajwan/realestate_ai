@@ -22,6 +22,7 @@ keep going while a project is fetched.
 """
 import asyncio
 import io
+import json
 import logging
 import re
 from dataclasses import dataclass, field
@@ -48,7 +49,9 @@ OUT_DIR = Path("uploads") / "from_above"
 REQUESTS_PER_DAY = 220          # no project starts once this many are spent: about two projects, ~8,000 a month of 10,000
 OVERRUN = 200                   # a started project may go this far past it, so its requests are not thrown away half done
 MIN_HOMES = 300
-REDO_DAYS = 330                 # a year's new pictures, after the dry season they come from
+REDO_DAYS = 85                  # a page with pictures looks again each season: its timeline grows (about 10 requests,
+                                # since every reading and picture is kept)
+REDO_NONE_DAYS = 120            # a page where nothing had changed: looked at again a season later, as cheaply
 FRAME_WIDTH = 300               # true colour over 600 m: 2 m a pixel before the 2x upscale
 YEAR_WIDTH = 600                # the yearly row's pictures, after the upscale
 EARLY_HAZE = 0.25               # a clear pass this clean ends the month's search: fewer requests
@@ -92,7 +95,8 @@ def due(d: dict, docs: Sequence[dict], now: datetime) -> Optional[Tuple[float, f
     at = _aware(old.get("at"))
     if old.get("story") and int((old.get("video") or {}).get("version") or 1) < VIDEO_VERSION:
         return pin   # shown with a video of an older look: made again
-    if at and (now - at).days < REDO_DAYS and old.get("lat") is not None \
+    wait = REDO_NONE_DAYS if old.get("none") else REDO_DAYS
+    if at and (now - at).days < wait and old.get("lat") is not None \
             and fromabove_view.metres_apart(pin, (old["lat"], old["lon"])) <= fromabove_view.PIN_MOVED_M:
         return None
     return pin
@@ -147,15 +151,18 @@ class Copernicus:
         return r.content if r.status_code < 400 and r.content else None
 
 
-def seasons(first_year: int, today: date) -> List[Tuple[str, str]]:
-    """The dry seasons to search, as (start, end) days: Jan to May of the first year, then each October to May, to today."""
-    out = [(f"{first_year}-01-01", f"{first_year}-05-31")]
+def seasons(first_year: int, today: date, since: Optional[date] = None) -> List[Tuple[str, str]]:
+    """The dry seasons to search, as (start, end) days: Jan to May of the first year, then each October to May, to today;
+    with `since`, only what comes after that day (what was searched before is kept)."""
+    out = [(date(first_year, 1, 1), date(first_year, 5, 31))]
     for y in range(first_year, today.year + 1):
         start = date(y, 10, 1)
         if start > today:
             break
-        out.append((start.isoformat(), min(date(y + 1, 5, 31), today).isoformat()))
-    return out
+        out.append((start, min(date(y + 1, 5, 31), today)))
+    if since is not None:
+        out = [(max(a, since + timedelta(days=1)), b) for a, b in out if b > since]
+    return [(a.isoformat(), b.isoformat()) for a, b in out if a <= b]
 
 
 def by_month(features: Sequence[dict]) -> Dict[str, List[str]]:
@@ -174,40 +181,102 @@ def read_pass(png: bytes) -> dict:
     return {**sitepics.frame_clear(png), "shares": sitepics.shares(png, side_m=sitepics.FRAME_SIDE_M)}
 
 
+# --- what is kept: every pass read and every picture fetched, so a later look asks Copernicus only for what is new ----------
+# (owner 2026-11-20: "we are saving the images?? we can reuse??"). uploads/from_above/<regno>/reads.json and raw/<day>.png.
+
+def folder_of(regno: str, out_dir: Path = OUT_DIR) -> Path:
+    return out_dir / re.sub(r"[^a-z0-9]", "", str(regno).lower())
+
+
+def load_kept(folder: Path, pin: Tuple[float, float]) -> dict:
+    """The readings kept for this pin: {lat, lon, searched_to, months: {"2024-01": [{day, masked, haze, shares}]}}. A pin
+    that moved over PIN_MOVED_M since starts afresh: those readings are of other ground."""
+    try:
+        kept = json.loads((folder / "reads.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"months": {}}
+    if fromabove_view.metres_apart(pin, (kept.get("lat", 0), kept.get("lon", 0))) > fromabove_view.PIN_MOVED_M:
+        return {"months": {}}
+    return kept
+
+
+def save_kept(folder: Path, pin: Tuple[float, float], kept: dict) -> None:
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "reads.json").write_text(json.dumps({**kept, "lat": pin[0], "lon": pin[1]}), encoding="utf-8")
+
+
+def _settled(reads: Sequence[dict]) -> bool:
+    return any(r["masked"] <= sitepics.MAX_FRAME_MASKED and r["haze"] <= EARLY_HAZE for r in reads)
+
+
+def read_new(sat: Copernicus, box, kept: dict, today: date) -> dict:
+    """Search only the passes after the last search, and read a class map only for days not read before: a month that
+    already has a clean pass is left alone."""
+    since = date.fromisoformat(kept["searched_to"]) if kept.get("searched_to") else None
+    features: List[dict] = []
+    for start, end in seasons(sitepics.FIRST_YEAR, today, since):
+        features += sat.passes(box, start, end)
+    months: Dict[str, List[dict]] = {m: list(v) for m, v in (kept.get("months") or {}).items()}
+    for month, days in by_month(features).items():
+        reads = months.setdefault(month, [])
+        if _settled(reads):
+            continue
+        done = {r["day"] for r in reads}
+        for day in [d for d in days if d not in done][:max(0, sitepics.MONTH_PASSES - len(reads))]:
+            png = sat.classes(box, day)
+            if not png:
+                continue
+            reads.append({"day": day, **read_pass(png)})
+            if _settled(reads[-1:]):
+                break
+    return {**kept, "months": months, "searched_to": today.isoformat()}
+
+
 @dataclass
 class Look:
     months: List[dict] = field(default_factory=list)     # {day, masked, haze}: the picture of each month
     years: List[dict] = field(default_factory=list)      # {day, haze, built, bare, green}: the measure of each year
 
 
-def look(sat: Copernicus, box, today: date) -> Look:
-    """Each dry month's clearest picture and each year's clearest January to March measure, from one class map a pass."""
-    features: List[dict] = []
-    for start, end in seasons(sitepics.FIRST_YEAR, today):
-        features += sat.passes(box, start, end)
+def look_at(kept: dict) -> Look:
+    """Each dry month's clearest picture and each year's clearest January to March measure, from the kept readings."""
     out = Look()
     year_reads: Dict[int, List[dict]] = {}
-    for month, days in by_month(features).items():
-        reads = []
-        for day in days[:sitepics.MONTH_PASSES]:
-            png = sat.classes(box, day)
-            if not png:
-                continue
-            r = {"day": day, **read_pass(png)}
-            reads.append(r)
-            if r["masked"] <= sitepics.MAX_FRAME_MASKED and r["haze"] <= EARLY_HAZE:
-                break
+    for month, reads in sorted((kept.get("months") or {}).items()):
         pick = sitepics.clearest_frame(reads)
         if pick:
             out.months.append({k: pick[k] for k in ("day", "masked", "haze")})
         if int(month[5:7]) <= 3:
             year_reads.setdefault(int(month[:4]), []).extend(
-                {"day": r["day"], "haze": r["haze"], **r["shares"]} for r in reads if r["shares"])
+                {"day": r["day"], "haze": r["haze"], **r["shares"]} for r in reads if r.get("shares"))
     for year in sorted(year_reads):
         best = sitepics.clearest(year_reads[year])
         if best:
             out.years.append(best)
     return out
+
+
+def look(sat: Copernicus, box, today: date) -> Look:
+    """Everything from scratch, nothing kept (tests, and a by-hand look)."""
+    return look_at(read_new(sat, box, {"months": {}}, today))
+
+
+def picture(sat: Copernicus, box, day: str, folder: Path) -> Optional[Image.Image]:
+    """A day's true-colour picture: the kept one, else fetched once and kept."""
+    f = folder / "raw" / f"{day}.png"
+    if f.is_file():
+        with Image.open(f) as im:
+            return im.convert("RGB")
+    png = sat.colour(box, day)
+    if not png:
+        return None
+    try:
+        img = judge_code(png)[0]
+    except Failed:
+        return None
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_bytes(png)
+    return img
 
 
 # --- the files ------------------------------------------------------------------------------------------------------------
@@ -224,6 +293,17 @@ def _rel(f: Path) -> str:
     return f.relative_to(Path("uploads")).as_posix() if f.is_relative_to(Path("uploads")) else f.as_posix()
 
 
+NEW_LAUNCH_DAYS = 548           # registered this recently: shown from its first season, before any change is seen
+
+
+def new_launch(d: dict, today: date) -> bool:
+    try:
+        registered = date.fromisoformat(str(d.get("registered_on") or "")[:10])
+    except ValueError:
+        return False
+    return (today - registered).days <= NEW_LAUNCH_DAYS
+
+
 def place_name(d: dict) -> str:
     area = BY_KEY.get(d.get("locality") or "")
     name = d.get("market_place") or d.get("place_locality") or (area.name if area else "")
@@ -234,22 +314,26 @@ def make(d: dict, pin: Tuple[float, float], sat: Copernicus, today: date, out_di
     """One project's look from above: the record to store (`none` when there is nothing true to say)."""
     lat, lon = pin
     box = sitepics.box_around(lat, lon, sitepics.FRAME_SIDE_M)
-    seen = look(sat, box, today)
+    folder = folder_of(d["_id"], out_dir)
+    kept = read_new(sat, box, load_kept(folder, pin), today)
+    save_kept(folder, pin, kept)          # kept even when there is nothing to say: next season's look starts from here
+    seen = look_at(kept)
     said = sitepics.story(seen.years)
+    if said is None and new_launch(d, today):
+        said = sitepics.baseline(d["registered_on"])   # a new launch: today's ground, growing season by season
     base = {"lat": lat, "lon": lon, "months": len(seen.months), "years": len(seen.years)}
     if said is None or len(seen.months) < 3:
         return {**base, "none": True}
     render = _deps.get("render")
     seasons_shown = sitepics.by_season(seen.months, keep=[y["day"] for y in seen.years])
-    days = sorted({m["day"] for m in seasons_shown} | {y["day"] for y in seen.years})
+    # every month's picture is fetched and kept, not only the seasons shown: a later look, a new style or a slider through
+    # every month then costs no request
+    days = sorted({m["day"] for m in seen.months} | {y["day"] for y in seen.years})
     raw: Dict[str, Image.Image] = {}
     for day in days:
-        png = sat.colour(box, day)
-        if png:
-            try:
-                raw[day] = judge_code(png)[0]
-            except Failed:
-                continue
+        img = picture(sat, box, day, folder)
+        if img is not None:
+            raw[day] = img
     missing = [y["day"] for y in seen.years if y["day"] not in raw]
     if missing or not raw:
         # the sentence speaks of every year: a row with a year missing would show less than it says (Palladio, 2026-11-20)
@@ -257,8 +341,6 @@ def make(d: dict, pin: Tuple[float, float], sat: Copernicus, today: date, out_di
     stretch = stretch_for(list(raw.values()))
     order = sorted(raw)
     pics = dict(zip(order, even_out([enhance(raw[day], stretch, upscale=2) for day in order])))
-    folder = out_dir / re.sub(r"[^a-z0-9]", "", str(d["_id"]).lower())
-    folder.mkdir(parents=True, exist_ok=True)
     frames = []
     for y in seen.years:
         if y["day"] not in pics:
