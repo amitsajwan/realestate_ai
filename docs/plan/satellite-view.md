@@ -134,9 +134,11 @@ Owner, 2026-11-20: "lets get it for all pages". `areastats/fromabove.py`, a once
   not finished. 232 on 2026-11-20 (33 in our 8 areas). Our areas first, then by hot score. Redone after 330 days, or at
   once when the pin moves more than 50 m.
 - **Cost**: one class map a pass over the whole 600 m square serves both the month's cloud check and the year's measure;
-  then the true-colour pictures. About 130 requests a project, fewer when nothing changed (no pictures fetched). The pass
-  spends at most 220 requests a day (`REQUESTS_PER_DAY`), about 6,600 of the free 10,000 a month: about 50 projects a
-  month, so a first round of 232 takes 4 to 5 months. A quota refusal (HTTP 402/403/429) ends the day.
+  then the true-colour pictures. About 130 requests a project, about the same when nothing changed (the class maps are
+  most of it). No project starts once 220 are spent that day (`REQUESTS_PER_DAY`); a started one may run 200 past it
+  (`OVERRUN`) so its requests are not wasted. About two projects a day, about 8,000 of the free 10,000 requests a month:
+  the first round of 232 takes about four months. A quota refusal (HTTP 402/403/429) ends the day. First live round
+  2026-11-20: 229 due, the first (no change) took 129 requests.
 - **Stored** as `from_above` on the register record (`{lat, lon, at, story, where, credit, frames, video}`, or
   `{none: true}` when there is no change of 15 points); files under `uploads/from_above/<regno>/` (`<year>.webp`,
   `months.mp4`, `months.webp`). `areastats/fromabove_view.py` turns it into the page's `from_above` (URLs only, only

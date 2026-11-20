@@ -45,8 +45,8 @@ log = logging.getLogger(__name__)
 
 MARK = "site_from_above"        # newsroom_status document: when the pass last ran and what it did
 OUT_DIR = Path("uploads") / "from_above"
-REQUESTS_PER_DAY = 220          # about 6,600 a month of the free 10,000
-COST_GUESS = 130                # a project's requests, about: 7 season searches, ~70 class maps, ~45 pictures
+REQUESTS_PER_DAY = 220          # no project starts once this many are spent: about two projects, ~8,000 a month of 10,000
+OVERRUN = 200                   # a started project may go this far past it, so its requests are not thrown away half done
 MIN_HOMES = 300
 REDO_DAYS = 330                 # a year's new pictures, after the dry season they come from
 FRAME_WIDTH = 300               # true colour over 600 m: 2 m a pixel before the 2x upscale
@@ -289,13 +289,13 @@ async def refresh(store: Store, now: datetime, budget: int = REQUESTS_PER_DAY, f
     out = {"due": len(todo), "done": 0, "none": 0, "failed": 0, "requests": 0}
     own = sat is None
     try:
-        sat = sat or await asyncio.to_thread(_open, budget)
+        sat = sat or await asyncio.to_thread(_open, budget + OVERRUN)
     except Exception as e:
         log.warning("from above: no Copernicus token (%s)", type(e).__name__)
         return None
     try:
         for d, pin in todo:
-            if sat.left < COST_GUESS:
+            if sat.used >= budget:
                 break
             try:
                 got = await asyncio.to_thread(make, d, pin, sat, now.date(), out_dir)

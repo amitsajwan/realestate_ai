@@ -110,11 +110,13 @@ async def test_the_pass_stores_pictures_sentence_and_loop_hottest_first_in_our_a
     fa.configure(render=render)
     store = await seeded(("P1", {**PIN, "hot_score": 1}), ("P2", {**PIN, "hot_score": 9, "locality": "", "pune_place": "charholi", "pune_place_name": "Charholi"}),
                          ("P3", {**PIN, "hot_score": 5}))
-    sat = Sat(left=2 * fa.COST_GUESS + 10)
-    got = await fa.refresh(store, NOW, sat=sat, out_dir=tmp_path)
-    assert got["done"] == 2 and got["due"] == 3 and got["requests"] == sat.used
-    p3 = (await store.projects.find_one({"_id": "P3"}))["from_above"]
-    assert (await store.projects.find_one({"_id": "P2"})).get("from_above") is None   # outside our areas: after them
+    sat = Sat()
+    got = await fa.refresh(store, NOW, budget=1, sat=sat, out_dir=tmp_path)
+    assert got["done"] == 1 and got["due"] == 3  # the day's budget is reached inside the first project: it finishes, no other starts
+    p3 = (await store.projects.find_one({"_id": "P3"}))["from_above"]                 # our area, hotter than P1
+    assert (await store.projects.find_one({"_id": "P2"})).get("from_above") is None   # hottest, but outside our areas: after them
+    got = await fa.refresh(store, NOW, budget=10_000, sat=sat, out_dir=tmp_path, force=True)
+    assert got["done"] == 2 and got["due"] == 2
     assert p3["story"].startswith("Within 100 m of the map pin") and p3["credit"].startswith(s.CREDIT)
     assert [f["year"] for f in p3["frames"]] == [2021, 2022, 2023, 2024, 2025, 2026]
     assert (tmp_path / "p3" / "2024.webp").is_file() and p3["video"]["path"].endswith("p3/months.mp4")
@@ -134,10 +136,11 @@ async def test_a_site_with_no_change_is_recorded_as_such_and_fetches_no_pictures
 async def test_the_pass_stops_when_the_days_requests_are_spent(tmp_path):
     fa.configure(render=render)
     store = await seeded(("P1", PIN), ("P2", PIN))
-    got = await fa.refresh(store, NOW, sat=Sat(left=40), out_dir=tmp_path)
-    assert got["done"] == 0 and got["requests"] == 0          # not enough left for a project: nothing started
-    got = await fa.refresh(store, NOW, sat=Sat(left=fa.COST_GUESS), out_dir=tmp_path, force=True)
-    assert got["done"] + got["failed"] <= 1
+    got = await fa.refresh(store, NOW, budget=0, sat=Sat(), out_dir=tmp_path)
+    assert got["done"] == 0 and got["requests"] == 0          # the day's budget is spent: nothing starts
+    got = await fa.refresh(store, NOW, budget=10_000, sat=Sat(left=40), out_dir=tmp_path, force=True)
+    assert got["done"] == 0 and got["failed"] == 0             # Copernicus's ceiling reached mid-project: stop, try tomorrow
+    assert (await store.projects.find_one({"_id": "P1"})).get("from_above") is None
 
 
 async def test_the_page_shows_it_only_at_the_pin_it_was_taken_at(tmp_path):
