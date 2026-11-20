@@ -16,6 +16,17 @@ export interface FromAboveFrame {
   built: number // % of the 100 m circle: roofs and concrete
 }
 
+/** The month-by-month loop (--timelapse): one clear pass a dry month, made by the same script. */
+export interface FromAboveVideo {
+  src: string // /from-above/<slug>.mp4
+  poster: string // /from-above/<slug>.webp
+  width: number
+  height: number
+  from: string // YYYY-MM-DD, first month
+  to: string // YYYY-MM-DD, last month
+  months: number
+}
+
 export interface FromAbove {
   slug: string
   pin: { lat: number; lon: number }
@@ -23,6 +34,7 @@ export interface FromAbove {
   where: string
   credit: string
   frames: FromAboveFrame[]
+  video: FromAboveVideo | null
 }
 
 const DAY = /^(\d{4})-(\d{2})-\d{2}$/
@@ -48,6 +60,15 @@ export function metresApart(a: { lat: number; lon: number }, b: { lat: number; l
 /** A pin that moved this far since the pictures were made starts a new series: the old one is not shown. */
 export const PIN_MOVED_M = 50
 
+function cleanVideo(raw: unknown, slug: string): FromAboveVideo | null {
+  if (!raw || typeof raw !== 'object') return null
+  const v = raw as Record<string, unknown>
+  if (v.src !== `/from-above/${slug}.mp4` || v.poster !== `/from-above/${slug}.webp`) return null
+  if (!size(v.width) || !size(v.height) || !num(v.months) || v.months < 3) return null
+  if (typeof v.from !== 'string' || typeof v.to !== 'string' || !shortMonth(v.from) || !shortMonth(v.to) || v.from >= v.to) return null
+  return { src: v.src, poster: v.poster, width: v.width, height: v.height, from: v.from, to: v.to, months: Math.round(v.months) }
+}
+
 export function cleanFromAbove(raw: unknown, slug: string): FromAbove | null {
   if (!raw || typeof raw !== 'object') return null
   const r = raw as Record<string, unknown>
@@ -63,7 +84,8 @@ export function cleanFromAbove(raw: unknown, slug: string): FromAbove | null {
   }
   frames.sort((a, b) => a.year - b.year)
   if (frames.length < 3) return null
-  return { slug, pin: { lat: pin.lat, lon: pin.lon }, story: r.story.trim(), where: r.where.trim(), credit: r.credit.trim(), frames }
+  return { slug, pin: { lat: pin.lat, lon: pin.lon }, story: r.story.trim(), where: r.where.trim(), credit: r.credit.trim(), frames,
+    video: cleanVideo(r.video, slug) }
 }
 
 /** The project's pictures, only while its checked pin is where the pictures were taken. */

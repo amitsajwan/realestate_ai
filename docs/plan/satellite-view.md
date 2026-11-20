@@ -103,6 +103,27 @@ Kharadi and Wagholi; owner decided yes.
 - **Next**: a daily pass (`enrich.add_daily`, step 4 above) only for projects of 300+ homes with a Google pin, after a check
   on 20 more sites including finished ones (they must say nothing). Until then, re-run the script by hand each February.
 
+### Timelapse: month by month (2026-11-20)
+
+Owner, 2026-11-20: "images per quarter would have been good.. and a video, with images changing on right side, showing
+landscape changing". Costs nothing: a project's ~45 months are a few hundred small Process API requests, inside the free
+Copernicus quota.
+
+- **Months**: one pass a dry month, October to May, since Jan 2021 (`sitepics.dry_months`). June to September is left out:
+  under cloud on nearly every pass, and the clear ones are green with rain. Per month, of the 4 least cloudy passes, the
+  least hazy whose whole 600 m picture shows no cloud (`sitepics.frame_clear`, `clearest_frame`). About 40 months a project.
+- **No numbers on months.** The monthly picture carries its date only; the season changes plant cover month to month. The
+  measured shares and the sentence stay with the same-season yearly passes above.
+- **Drawn in code** (`calendar/site_timelapse.py`): key frames (one a month, the date and a timeline ticking), short
+  cross-fades, then the measured sentence held 3.5 s. Two shapes: a 960x540 silent loop for the page (text left, ground
+  right, about 1 MB) and a 1080x1920 reel with the brand music (text above, ground below, under 29 s). Tests:
+  `tests/modules/calendar/test_site_timelapse.py`.
+- **Made by hand**: `project_from_above.py --timelapse <slug> ... [--reels DIR] [--cache DIR]` writes `<slug>.mp4` and its
+  poster `<slug>.webp` beside the yearly pictures and records `"video"` in `<slug>.json`; with `--reels`, the reel and its
+  code-written caption. The page plays the loop (muted, looping) only once it is near the screen, with VideoObject data.
+- **The credit line** "Contains modified Copernicus Sentinel data <years>" is the Copernicus licence's condition for
+  using the pictures; it stays, small, on the page, in the video and in the post.
+
 ### 3. The site over time, from Sentinel-2: a trial on five projects (code, then the owner decides)
 
 1. A script, not a loop: `backend/scripts/sentinel_trial.py --regno <n>`. For the checked pin, a 1 km square, it asks the

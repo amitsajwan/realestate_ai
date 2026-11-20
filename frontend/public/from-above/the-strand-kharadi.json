@@ -79,5 +79,14 @@
       "green": 5,
       "haze": 0.157
     }
-  ]
+  ],
+  "video": {
+    "src": "/from-above/the-strand-kharadi.mp4",
+    "poster": "/from-above/the-strand-kharadi.webp",
+    "width": 960,
+    "height": 540,
+    "from": "2021-01-24",
+    "to": "2026-11-11",
+    "months": 43
+  }
 }

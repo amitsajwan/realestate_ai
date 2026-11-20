@@ -55,4 +55,23 @@ describe('the site from above', () => {
     expect(view?.story).toMatch(/^Within 100 m of the map pin/)
     expect(await readFromAbove('../secrets', dir)).toBeNull()
   })
+
+  it('plays the month-by-month loop only when its files are the project’s own, and names it for search', () => {
+    const video = { src: `/from-above/${SLUG}.mp4`, poster: `/from-above/${SLUG}.webp`, width: 960, height: 540,
+      from: '2021-01-20', to: '2026-11-11', months: 41 }
+    expect(cleanFromAbove({ ...raw, video: { ...video, src: '/from-above/other.mp4' } }, SLUG)?.video).toBeNull()
+    expect(cleanFromAbove({ ...raw, video: { ...video, months: 2 } }, SLUG)?.video).toBeNull()
+    expect(cleanFromAbove(raw, SLUG)?.video).toBeNull()
+    const view = cleanFromAbove({ ...raw, video }, SLUG)!
+    const { container } = render(<ProjectFromAbove view={view} shown="Kohinoor Riverdale" siteUrl="https://avasetu.in" />)
+    const el = screen.getByTestId('from-above-video') as HTMLVideoElement
+    expect(el.getAttribute('poster')).toBe(video.poster)
+    expect(el.muted).toBe(true)
+    expect(el.getAttribute('src')).toBeNull()            // nothing downloads before it is near the screen
+    expect(screen.getByText(/41 clear passes, October to May/)).toBeTruthy()
+    const ld = JSON.parse(container.querySelector('script[type="application/ld+json"]')!.innerHTML)
+    const vo = ld['@graph'].find((g: { '@type': string }) => g['@type'] === 'VideoObject')
+    expect(vo.contentUrl).toBe('https://avasetu.in/from-above/kohinoor-riverdale-kharadi.mp4')
+    expect(vo.name).toBe('Kohinoor Riverdale from above, Jan 2021 to Nov 2026')
+  })
 })

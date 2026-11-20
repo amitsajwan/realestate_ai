@@ -1,4 +1,5 @@
 import React from 'react'
+import FromAboveVideo from '@/components/site/FromAboveVideo'
 import { jsonLdString } from '@/lib/marketing/seo'
 import { shortMonth, type FromAbove } from '@/lib/site/fromAbove'
 
@@ -7,12 +8,21 @@ import { shortMonth, type FromAbove } from '@/lib/site/fromAbove'
 export default function ProjectFromAbove({ view, shown, siteUrl }: { view: FromAbove; shown: string; siteUrl: string }) {
   const first = view.frames[0]
   const last = view.frames[view.frames.length - 1]
+  const site = siteUrl.replace(/\/$/, '')
+  const video = view.video
   const ld = {
     '@context': 'https://schema.org',
-    '@graph': view.frames.map((f) => ({
-      '@type': 'ImageObject', contentUrl: siteUrl.replace(/\/$/, '') + f.src, datePublished: f.day, creditText: view.credit,
-      caption: `${shown} site from above, ${shortMonth(f.day)}, Sentinel-2 satellite`,
-    })),
+    '@graph': [
+      ...view.frames.map((f) => ({
+        '@type': 'ImageObject', contentUrl: site + f.src, datePublished: f.day, creditText: view.credit,
+        caption: `${shown} site from above, ${shortMonth(f.day)}, Sentinel-2 satellite`,
+      })),
+      ...(video ? [{
+        '@type': 'VideoObject', name: `${shown} from above, ${shortMonth(video.from)} to ${shortMonth(video.to)}`,
+        description: view.story, contentUrl: site + video.src, thumbnailUrl: site + video.poster, uploadDate: video.to,
+        creditText: view.credit,
+      }] : []),
+    ],
   }
   return (
     <section aria-labelledby="from-above-title" data-testid="from-above">
@@ -20,6 +30,16 @@ export default function ProjectFromAbove({ view, shown, siteUrl }: { view: FromA
         {shown} from above, {first.year} to {last.year}
       </h2>
       <p className="mt-1 text-sm text-slate-700">{view.story}</p>
+      {video && (
+        <figure className="m-0 mt-3">
+          <FromAboveVideo src={video.src} poster={video.poster} width={video.width} height={video.height}
+            label={`${shown} site from above, one clear satellite picture a month, ${shortMonth(video.from)} to ${shortMonth(video.to)}`} />
+          <figcaption className="mt-1 text-xs text-slate-600">
+            Month by month, {shortMonth(video.from)} to {shortMonth(video.to)}: {video.months} clear passes, October to May
+            (the monsoon months are under cloud). Each year&apos;s measure is below.
+          </figcaption>
+        </figure>
+      )}
       <ol className="mt-3 grid list-none grid-cols-3 gap-2 p-0 sm:grid-cols-6">
         {view.frames.map((f) => (
           <li key={f.year}>

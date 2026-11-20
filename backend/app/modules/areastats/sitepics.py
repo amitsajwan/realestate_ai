@@ -82,13 +82,14 @@ def catalog_query(box: Box, year: int, cloud: int = 10) -> dict:
             "fields": {"include": ["properties.datetime", "properties.eo:cloud_cover"]}}
 
 
-def class_request(box: Box, day: str) -> dict:
-    """The Process API request for one day's class map of the measured square, at the satellite's own 10 m."""
+def class_request(box: Box, day: str, px: int = MEASURE_PX) -> dict:
+    """The Process API request for one day's class map of the square, `px` across (the measured square: the satellite's own
+    10 m)."""
     return {
         "input": {"bounds": {"bbox": bbox(box), "properties": {"crs": "http://www.opengis.net/def/crs/OGC/1.3/CRS84"}},
                   "data": [{"type": SENTINEL_COLLECTION,
                             "dataFilter": {"timeRange": {"from": f"{day}T00:00:00Z", "to": f"{day}T23:59:59Z"}}}]},
-        "output": {"width": MEASURE_PX, "height": MEASURE_PX,
+        "output": {"width": px, "height": px,
                    "responses": [{"identifier": "default", "format": {"type": "image/png"}}]},
         "evalscript": CLASS_EVALSCRIPT,
     }
@@ -178,3 +179,44 @@ def where() -> str:
     """The line that says what the numbers cover, shown with the sentence."""
     return (f"Measured from Sentinel-2 satellite passes, January to March each year, within {RADIUS_M} m of the project's "
             "map pin. The circle takes in neighbouring plots, and the satellite sees ground cover, not floors.")
+
+
+# The timelapse: one picture a month, only for its looks. Monsoon months (June to September) are left out: Pune is under cloud
+# on almost every pass, and the few clear ones are green with rain, a change that is the season's, not the ground's. The
+# monthly pictures carry a date and no number; the measured shares stay with the same-season yearly passes above.
+DRY_MONTHS = (1, 2, 3, 4, 5, 10, 11, 12)
+FRAME_PX = 60                # the class map asked for the whole picture's square: 10 m pixels over FRAME_SIDE_M
+MAX_FRAME_MASKED = 0.02      # a month's picture shows no cloud or cloud shadow at all, near enough
+MONTH_PASSES = 4             # least cloudy passes of a month compared
+
+
+def dry_months(first: date, last: date) -> List[date]:
+    """The first day of each dry month from `first` to `last`, both included."""
+    out, y, m = [], first.year, first.month
+    while (y, m) <= (last.year, last.month):
+        if m in DRY_MONTHS:
+            out.append(date(y, m, 1))
+        y, m = (y + 1, 1) if m == 12 else (y, m + 1)
+    return out
+
+
+def month_query(box: Box, first_day: date, cloud: int = 30) -> dict:
+    """The catalogue search for one calendar month's passes over `box`."""
+    nxt = date(first_day.year + 1, 1, 1) if first_day.month == 12 else date(first_day.year, first_day.month + 1, 1)
+    return {"collections": [SENTINEL_COLLECTION], "bbox": bbox(box),
+            "datetime": f"{first_day.isoformat()}T00:00:00Z/{nxt.isoformat()}T00:00:00Z", "limit": 50,
+            "filter": f"eo:cloud_cover < {cloud}", "filter-lang": "cql2-text",
+            "fields": {"include": ["properties.datetime", "properties.eo:cloud_cover"]}}
+
+
+def frame_clear(png: bytes) -> Dict[str, float]:
+    """How much of the whole picture's square cloud hides (0 to 1) and its haze, from a class map of that square."""
+    img = _band(png, 0)
+    n = img.width * img.height
+    return {"masked": round(img.histogram()[MASKED] / n, 3) if n else 1.0, "haze": haze(png)}
+
+
+def clearest_frame(readings: Sequence[dict]) -> Optional[dict]:
+    """Of one month's passes ({day, masked, haze}), the least hazy one with no cloud in the picture; None if none."""
+    ok = [r for r in readings if r["masked"] <= MAX_FRAME_MASKED and r["haze"] <= MAX_HAZE]
+    return min(ok, key=lambda r: (r["haze"], r["masked"], r["day"])) if ok else None

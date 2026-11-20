@@ -94,3 +94,24 @@ def test_enhance_sharpens_without_inventing_detail():
     assert lo[0] <= 60 and hi[0] >= 180
     got = pictures.enhance(edge, (lo, hi))
     assert got.getpixel((5, 20))[0] < got.getpixel((35, 20))[0]   # the edge stays where it was, dark left, light right
+
+
+def test_timelapse_months_skip_the_monsoon():
+    from datetime import date
+    got = s.dry_months(date(2025, 4, 1), date(2025, 11, 20))
+    assert [d.isoformat() for d in got] == ["2025-04-01", "2025-05-01", "2025-10-01", "2025-11-01"]
+
+
+def test_a_month_query_asks_for_that_calendar_month_only():
+    from datetime import date
+    q = s.month_query(s.box_around(18.5, 73.9, 600), date(2025, 12, 1))
+    assert q["datetime"] == "2025-12-01T00:00:00Z/2026-01-01T00:00:00Z"
+
+
+def test_a_months_picture_shows_no_cloud_and_the_least_haze():
+    clear = s.frame_clear(class_png(s.BUILT, size=60, haze=40))
+    cloudy = s.frame_clear(class_png(s.BUILT, size=60, ring=(8, s.MASKED), haze=20))
+    assert clear["masked"] == 0 and cloudy["masked"] > s.MAX_FRAME_MASKED
+    passes = [{"day": "2025-01-03", **cloudy}, {"day": "2025-01-13", **clear}, {"day": "2025-01-23", "masked": 0.0, "haze": 0.5}]
+    assert s.clearest_frame(passes)["day"] == "2025-01-13"
+    assert s.clearest_frame([{"day": "2025-01-03", **cloudy}]) is None
