@@ -168,7 +168,7 @@ Owner, 2026-11-20: "lets get it for all pages". `areastats/fromabove.py`, a once
   once when the pin moves more than 50 m.
 - **Cost**: one class map a pass over the whole 600 m square serves both the month's cloud check and the year's measure;
   then the true-colour pictures. About 130 requests a project, about the same when nothing changed (the class maps are
-  most of it). No project starts once 220 are spent that day (`REQUESTS_PER_DAY`); a started one may run 200 past it
+  most of it). No project starts once 2,000 are spent that day (`REQUESTS_PER_DAY`; the free account gives 30,000 requests a month, not 10,000 as first read, owner's dashboard 2026-11-20); a started one may run 200 past it
   (`OVERRUN`) so its requests are not wasted. About two projects a day, about 8,000 of the free 10,000 requests a month:
   the first round of 232 takes about four months. A quota refusal (HTTP 402/403/429) ends the day. First live round
   2026-11-20: 229 due, the first (no change) took 129 requests.

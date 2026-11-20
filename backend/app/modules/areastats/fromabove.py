@@ -2,7 +2,7 @@
 get it for all pages"; docs/plan/satellite-view.md, "On every page that qualifies").
 
 Once a day, inside the enrichment loop, for the hottest pages first and within a Copernicus request budget (the free account
-gives about 10,000 requests a month; REQUESTS_PER_DAY keeps a third of it spare for the area pictures and runs by hand):
+gives 30,000 requests a month (owner's dashboard 2026-11-20); REQUESTS_PER_DAY spends at most two thirds of it):
 
 1. Which pages: a checked Google pin of its own (pages.own_position, the pin the page's map shows), MIN_HOMES or more
    homes across the project's registrations (a smaller plot is a few 10 m pixels and the circle would measure its
@@ -46,7 +46,10 @@ log = logging.getLogger(__name__)
 
 MARK = "site_from_above"        # newsroom_status document: when the pass last ran and what it did
 OUT_DIR = Path("uploads") / "from_above"
-REQUESTS_PER_DAY = 220          # no project starts once this many are spent: about two projects, ~8,000 a month of 10,000
+REQUESTS_PER_DAY = 2000         # no project starts once this many are spent. The free account gives 30,000 requests a
+                                # month (and 30,000 processing units; a request here costs about 0.09 of one); a first
+                                # look is ~150 requests, a season's look ~10. Copernicus also caps 300 a minute: one run
+                                # uses about half, so looks are not run in parallel.
 OVERRUN = 200                   # a started project may go this far past it, so its requests are not thrown away half done
 MIN_HOMES = 300
 REDO_DAYS = 85                  # a page with pictures looks again each season: its timeline grows (about 10 requests,
