@@ -4,7 +4,7 @@ import type { Metadata } from 'next'
 import MarketingShell from '@/components/marketing/MarketingShell'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { breadcrumbJsonLd, jsonLdString, organizationJsonLd, pageMetadata } from '@/lib/marketing/seo'
-import { socialLinks } from '@/lib/marketing/social'
+import { brandProfiles } from '@/lib/marketing/social'
 import { BRAND_NAME, BRAND_NAME_DEVANAGARI } from '@/lib/brand'
 import { HOW } from '@/lib/site/listRules'
 import { TEAM, teamAddress, teamForOrganization } from '@/lib/site/team'
@@ -34,7 +34,7 @@ const LISTS: { name: string; how: string; example: string }[] = [
 
 export default function AboutPage() {
   const cfg = getMarketingConfig()
-  const org = { ...organizationJsonLd(cfg, DESCRIPTION, Object.values(socialLinks())), alternateName: [BRAND_NAME_DEVANAGARI], ...teamForOrganization(cfg.siteUrl) }
+  const org = { ...organizationJsonLd(cfg, DESCRIPTION, brandProfiles()), alternateName: [BRAND_NAME_DEVANAGARI], ...teamForOrganization(cfg.siteUrl) }
   const ld = [
     { '@context': 'https://schema.org', '@type': 'AboutPage', name: TITLE, url: cfg.siteUrl + PATH, description: DESCRIPTION, mainEntity: org },
     breadcrumbJsonLd(cfg.siteUrl, [{ name: 'Home', path: '/' }, { name: 'About', path: PATH }]),
