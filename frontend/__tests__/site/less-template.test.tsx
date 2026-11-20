@@ -1,7 +1,8 @@
 import { render, screen, within } from '@testing-library/react'
 import React from 'react'
 import RegisterProjectPage from '@/components/site/RegisterProjectPage'
-import ProjectPoints, { labelRepeats } from '@/components/site/ProjectPoints'
+import ProjectPoints, { HomeSizes, labelRepeats } from '@/components/site/ProjectPoints'
+import { Credit } from '@/components/site/ProfilePictures'
 import { otherNames, projectFaq } from '@/lib/site/register'
 import type { RegisterProject } from '@/lib/site/register'
 
@@ -95,5 +96,52 @@ describe('names and answers', () => {
     expect(moved.a).toContain('Ask the builder for the possession date in your agreement, in writing.')
     const same = projectFaq({ ...P, completion_at_registration: P.completion_now }).find((f) => /possession date/.test(f.q))!
     expect(same.a).not.toContain('Ask the builder')
+  })
+})
+
+// an outside review of the Godrej Ivara page (2026-11-20): two lists of sizes that disagreed, "(not yet confirmed)" amenities and
+// sizes, and the renders' warning said twice under the pictures
+describe('the page states only what it can stand behind, once', () => {
+  const SIZES = [
+    { bhk: '2 BHK', low: 729, high: 729, kind: 'carpet area', official: true, one_site: false },
+    { bhk: '3 BHK', low: 875, high: 1250, kind: 'area kind not stated', official: false, one_site: false },
+    { bhk: '4 BHK', low: 1550, high: 1650, kind: 'carpet area', official: false, one_site: true },
+  ]
+
+  it('shows a size only from the builder or two sites, with its kind of area, and never "(not yet confirmed)"', () => {
+    render(<HomeSizes sizes={SIZES} name="Godrej Ivara" />)
+    const box = screen.getByTestId('home-sizes')
+    expect(box).toHaveTextContent('2 BHK: 729 sq ft, carpet area')
+    expect(box).not.toHaveTextContent(/3 BHK|4 BHK|not yet confirmed|not stated/)
+  })
+
+  it("lets the agent's price sheet be the one list of sizes when it gives carpet areas", () => {
+    const offer = { price_inr: 12000000, source: "House Deal's listing", read_at: '2026-11-07',
+      homes: [{ bhk: 2, label: '2 BHK', carpet_sqft: 730, price_inr: 12000000 }, { bhk: 3, label: '3 BHK', carpet_sqft: 890, price_inr: 15000000 }] }
+    const { unmount } = render(<RegisterProjectPage p={{ ...P, home_sizes: SIZES }} siteUrl="https://avasetu.in" facts={{ offer } as never} />)
+    expect(screen.queryByTestId('home-sizes')).toBeNull()
+    expect(screen.getByTestId('price-sheet')).toHaveTextContent('730 sq ft')
+    unmount()
+    page({ home_sizes: SIZES })
+    expect(screen.getByTestId('home-sizes')).toHaveTextContent('729 sq ft')
+  })
+
+  it('leaves out an amenity only one property site gives', () => {
+    const src = (site: string) => ({ site, url: null })
+    const { container } = page({ profile: { read_at: '2026-11-07', plans: [], photos: [], highlights: [
+      { topic: 'parking', text: 'Basement and visitor parking', official: false, sources: [src('a.com')] },
+      { topic: 'clubhouse', text: 'A clubhouse', official: false, sources: [src('a.com'), src('b.com')] },
+    ] } })
+    expect(container).toHaveTextContent('A clubhouse')
+    expect(container).not.toHaveTextContent(/Basement and visitor parking|not yet confirmed/)
+  })
+
+  it("says where the pictures came from in one line and the renders' warning once", () => {
+    const pic = (source: 'agent' | 'builder', site: string) => ({ url: `/u/${source}.webp`, width: 1, height: 1, alt: 'x', site, page_url: source === 'builder' ? 'https://builder.example/ivara' : null, source })
+    render(<Credit pics={[pic('agent', 'House Deal'), pic('builder', 'builder.example')]} />)
+    const credit = screen.getByTestId('pictures-credit')
+    expect(credit).toHaveTextContent("From House Deal's listing and the builder's website.")
+    expect(credit.textContent!.match(/Renders are/g)).toHaveLength(1)
+    expect(screen.getAllByText(/Renders are/)).toHaveLength(1)
   })
 })

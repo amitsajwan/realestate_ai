@@ -84,10 +84,12 @@ def cautions(doc: dict, towers: Optional[List[dict]] = None, web: Optional[dict]
     except (TypeError, ValueError):
         acres = 0.0
     if homes and acres > 0 and homes / acres >= DENSE_PER_ACRE:
-        site = (land.get("sources") or [{}])[0].get("site") or "the builder's website"
+        # said by the kind of source, never a portal's name: the page states the fact in its own voice and the Sources panel says
+        # where it was read ("as housiey.com states" read as a rival's word carrying the page, outside review 2026-11-20)
+        said = "the builder's website" if land.get("official") else "two property sites that agree"
         out.append({"key": "dense", "source": "web",
-                    "text": f"About {_n(homes / acres)} homes per acre ({_n(homes)} homes on {acres:g} acres, as {site} "
-                            f"states). Towers stand close: ask how far your tower is from the next and which flats face another tower."})
+                    "text": f"About {_n(homes / acres)} homes per acre ({_n(homes)} homes on {acres:g} acres, from {said}). "
+                            f"Towers stand close: ask how far your tower is from the next and which flats face another tower."})
     elif homes >= TOWNSHIP_HOMES and (d.get("towers") or 0) >= 6:
         out.append({"key": "township", "source": "rera",
                     "text": f"A large project: {_n(homes)} homes in {d['towers']} towers, built in phases. Ask when your own "

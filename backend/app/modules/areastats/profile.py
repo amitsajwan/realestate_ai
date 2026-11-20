@@ -779,6 +779,13 @@ def lines(profile: Optional[dict], doc: Optional[dict] = None) -> List[str]:
             for h in shown_highlights(profile, doc)]
 
 
+def confirmed(h: dict) -> bool:
+    """A highlight a page may state: from the builder's own site, or two sites that say it (seo-system rule 9). One property site's
+    word stays on the record, for the page-text model and the page check, but not on the page: "(not yet confirmed)" beside an
+    amenity read as an unfinished page (outside review of Godrej Ivara, 2026-11-20)."""
+    return bool(h.get("official")) or len(h.get("sources") or []) >= 2
+
+
 def public(profile: Optional[dict], drawn: bool = True, doc: Optional[dict] = None) -> Optional[dict]:
     """What a project page shows: highlights with their sources, pictures with where they came from; None when there is nothing.
     Pictures copied from other sites stay on the record and are never shown (pages.shown_pictures); `drawn=False` leaves the AI
@@ -799,6 +806,6 @@ def public(profile: Optional[dict], drawn: bool = True, doc: Optional[dict] = No
     return {"read_at": at.date().isoformat() if isinstance(at, datetime) else None,
             "highlights": [{"topic": h["topic"], "text": h["text"], "official": h.get("official", False),
                             "sources": [{"site": s["site"], "url": s["url"] if h.get("official") else None} for s in h.get("sources") or []]}
-                           for h in shown_highlights(profile, doc)],
+                           for h in shown_highlights(profile, doc) if confirmed(h)],
             "photos": [pic(p) for p in distinct_photos([p for p in profile.get("photos") or [] if p.get("path")])],
             "plans": [pic(p) for p in profile.get("plans") or [] if p.get("path")]}

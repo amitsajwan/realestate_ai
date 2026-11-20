@@ -264,3 +264,16 @@ def test_a_page_of_several_registrations_must_show_the_whole_project_s_bookings(
     assert [p for p in review.against_record(VANAYA, text, SCOPE) if "booked" in p["detail"]] == []
     assert [p["detail"] for p in review.against_record(VANAYA, "PR1261012601206 7 of 168 booked", SCOPE)
             if "booked" in p["detail"]] == ["40 of 745 homes booked is not on the page"]
+
+
+async def test_a_page_that_reads_unfinished_or_leans_on_another_site_is_reported():
+    # outside review of Godrej Ivara, 2026-11-20: both were on the live page
+    body = page(extra="<p>Fire safety system. (not yet confirmed)</p><p>2,792 homes on 12.8 acres, as housiey.com states.</p>")
+    found = {p["kind"]: p["detail"] for p in (await check(body))["problems"]}
+    assert found == {"unfinished": 'The page says "(not yet confirmed)"', "other_site": "The text names housiey.com"}
+
+
+async def test_our_own_sites_maharera_and_an_email_address_are_not_another_site():
+    body = page(extra="<p>Run by House Deal (house-deal.com), housedealofficial@gmail.com. Verify on maharera.maharashtra.gov.in "
+                      "or avasetu.in/check.</p>")
+    assert (await check(body))["problems"] == []

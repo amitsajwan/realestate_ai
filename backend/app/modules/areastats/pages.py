@@ -203,6 +203,14 @@ def own_facts(doc: dict) -> bool:
     return homes(doc) and bool((doc.get("prices") or {}).get("rows") or any(not x.get("one_site") for x in doc.get("home_sizes") or []))
 
 
+def shown_sizes(sizes: Optional[List[dict]]) -> List[dict]:
+    """The home sizes a page may state: the builder's site or two sites that agree (seo-system rule 9), each with its kind of
+    area, since carpet and saleable differ by 30-40% and a bare number misleads by that much. One site's size, or one whose kind
+    no site states, stays on the record only (outside review of Godrej Ivara, 2026-11-20: "875 to 1,250 sq ft, area kind not
+    stated (not yet confirmed)")."""
+    return [x for x in sizes or [] if not x.get("one_site") and x.get("kind") and "not stated" not in str(x.get("kind"))]
+
+
 def has_own_content(doc: dict) -> bool:
     """Something on the page beyond the register: written sections or a fact of its own (`own_facts`)."""
     return bool(doc.get("page_text")) or own_facts(doc)
@@ -873,8 +881,8 @@ def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None, ix
         "search_description": doc.get("seo_description") or doc.get("page_summary") or None,
         # the writer's sections under the paragraph: {heading, text}, checked with it (enrich.SECTIONS)
         "sections": (doc.get("page_sections") or []) if doc.get("page_text") and int(doc.get("page_text_version") or 1) < 6 else [],
-        # each kind of home's size, as sites state it, with its kind of area (enrich.home_sizes)
-        "home_sizes": [{k: x.get(k) for k in ("bhk", "low", "high", "kind", "official", "one_site", "sites")} for x in doc.get("home_sizes") or []],
+        # each kind of home's size, as sites state it, with its kind of area (enrich.home_sizes): only the ones the page may state
+        "home_sizes": [{k: x.get(k) for k in ("bhk", "low", "high", "kind", "official", "one_site", "sites")} for x in shown_sizes(doc.get("home_sizes"))],
         # the facts taken together (enrich.buyer_read): shown with its date and that it comes from MahaRERA's data
         "read": {k: (doc.get("page_read") or {}).get(k) for k in ("text", "on")} if (doc.get("page_read") or {}).get("text") else None,
         # the points at the top of the page from the writer's version 6 on (enrich.write_points): {heading, text, facts}

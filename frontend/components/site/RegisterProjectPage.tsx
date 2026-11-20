@@ -38,7 +38,7 @@ import { agentPath } from '@/lib/site/slug'
 import { emiFor, OWN_CASH_NOTE, ownCash } from '@/lib/site/upfront'
 import { projectUpdated, registerAnswer } from '@/lib/site/projectFacts'
 import { DETAILS_COMING_PATH, missingDetails, sayList } from '@/lib/site/detailsComing'
-import ProjectPoints, { HomeSizes } from '@/components/site/ProjectPoints'
+import ProjectPoints, { HomeSizes, confirmedSize } from '@/components/site/ProjectPoints'
 import { backing, priceHelp, sizeHelp, type Backing, type PriceHelpText } from '@/lib/site/sellerHelp'
 
 /** The agent's offer on the fact sheet, when it says anything (a price or a size): what campaign posts quote. */
@@ -516,6 +516,13 @@ function LocationSection({ p, shown, nearby, sources }: { p: RegisterProject; sh
   )
 }
 
+/** True when the agent's price sheet gives each home's carpet area: the sheet is then the page's one statement of sizes, as it
+ *  is of prices. A list of sizes from other sites under it said 729 sq ft beside the sheet's 730 and 875 to 1,250 beside 890 to
+ *  1,234 (outside review of Godrej Ivara, 2026-11-20): two answers to one question. */
+export function sheetSizes(o: Offer | null | undefined): boolean {
+  return !!o && (!!o.carpet_sqft || (o.homes ?? []).some((h) => !!h.carpet_sqft))
+}
+
 const CHECK_KEYS = ['maharera_general', 'buildings', 'places', 'text'] as const
 const CHECK_NAMES: Record<string, string> = { maharera_general: 'Dates and homes booked', buildings: 'Buildings and wings',
   places: 'Location and nearby', text: 'Description' }
@@ -528,7 +535,7 @@ function readSources(p: RegisterProject, offer: Offer | null): { label: string; 
   if (offer) rows.push({ label: 'Price', kind: 'checked', note: `The agent's price sheet${when(offer.read_at)}` })
   else if (p.prices?.rows.length) rows.push({ label: 'Prices', kind: 'checked', note: `The builder's site, or two property sites that agree${when(p.prices.read_at)}` })
   if (!offer && p.price_idea?.rows.length) rows.push({ label: 'Rough price guide', kind: 'checked', note: `An asking price seen on one site, rounded and checked against the area${when(p.price_idea.read_at)}` })
-  if (p.home_sizes?.length) rows.push({ label: 'Home sizes', kind: 'checked', note: "The builder's site and property sites. A size marked not yet confirmed comes from one site." })
+  if (!sheetSizes(offer) && p.home_sizes?.some(confirmedSize)) rows.push({ label: 'Home sizes', kind: 'checked', note: "The builder's site, or two property sites that agree" })
   if (p.profile?.highlights.length) rows.push({ label: 'Project facts and amenities', kind: 'checked', note: `The builder's site and property sites, which can be wrong: where they differ from MahaRERA, MahaRERA counts${when(p.profile.read_at)}` })
   return rows
 }
@@ -1103,7 +1110,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
           {!closed && <PricesSection p={p} shown={shown} offer={liveOffer(facts)} priced={!!price} numbers={facts?.numbers} stage={stage} help={priceHelp(backs, leadName)} />}
           {/* the site from space comes right after the prices: it is what no other page shows (owner 2026-11-20) */}
           {fromAboveView && <ProjectFromAbove view={fromAboveView} shown={shown} siteUrl={siteUrl} />}
-          <HomeSizes sizes={p.home_sizes} name={shown} help={sizeHelp(backs, leadName)} />
+          {!sheetSizes(liveOffer(facts)) && <HomeSizes sizes={p.home_sizes} name={shown} help={sizeHelp(backs, leadName)} />}
           {!closed && <ProjectProfile profile={p.profile} name={shown} part="plans" plans3d={p.plans_3d?.items ?? []} lead={{ agentSlug: leadSlug, agentName: leadName,
             topic: enquiryTopic, waMessage: `Hi, I want to know about ${p.name} (MahaRERA ${p.regno}): ${url}` }} />}
           <LocationSection p={p} shown={shown} nearby={nearby} sources={facts?.nearby_sources ?? []} />
