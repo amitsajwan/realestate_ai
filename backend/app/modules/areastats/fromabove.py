@@ -84,6 +84,8 @@ def due(d: dict, docs: Sequence[dict], now: datetime) -> Optional[Tuple[float, f
     """The pin to look at from above, or None: no own pin, too small, finished, or done at this pin within REDO_DAYS."""
     if not own_position(d) or is_old(d, now.date()) or homes(d, docs) < MIN_HOMES:
         return None
+    if d.get("cluster_primary") not in (None, d["_id"]):
+        return None   # a tower whose page is its project's (Kharadi new project tower 1 -> Lodha Camelot, 2026-11-20)
     pin = (float(d["geo"]["lat"]), float(d["geo"]["lon"]))
     old = d.get("from_above") or {}
     at = _aware(old.get("at"))

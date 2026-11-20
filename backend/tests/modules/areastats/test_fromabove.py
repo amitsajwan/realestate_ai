@@ -84,6 +84,7 @@ def test_only_large_unfinished_projects_with_their_own_pin_are_looked_at():
     parts = [small, {"_id": "P2", "units_total": 200, "cluster_primary": "P1"}]
     assert fa.due(small, parts, NOW) == (18.5447, 73.9685)
     assert fa.due({**big, "geo": {**big["geo"], "located_from": "locality"}}, [big], NOW) is None   # an area's centre
+    assert fa.due({**big, "cluster_primary": "P9"}, [big], NOW) is None                            # its page is P9's
     assert fa.due({**big, "completion_now": "2024-03-31"}, [big], NOW) is None                      # finished
     done = {**big, "from_above": {"lat": 18.5447, "lon": 73.9685, "at": datetime(2026, 3, 1, tzinfo=timezone.utc)}}
     assert fa.due(done, [done], NOW) is None
