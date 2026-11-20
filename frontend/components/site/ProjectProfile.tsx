@@ -52,24 +52,23 @@ export default function ProjectProfile({ profile, name, part, lead, skip, omit =
         <section aria-labelledby="highlights-title" data-testid="highlights">
           {projectFacts.length > 0 && (
             <>
-              <h2 id={amenities.length ? 'facts-title' : 'highlights-title'} className="text-xl font-bold">{name} project facts</h2>
+              <h2 id={amenities.length ? 'facts-title' : 'highlights-title'} className="text-xl font-bold">Project facts</h2>
               <Points items={projectFacts} />
             </>
           )}
           {amenities.length > 0 && (
             <>
-              <h2 id="highlights-title" className={`text-xl font-bold${projectFacts.length ? ' mt-6' : ''}`}>{name} amenities</h2>
+              <h2 id="highlights-title" className={`text-xl font-bold${projectFacts.length ? ' mt-6' : ''}`}>Amenities</h2>
               <Points items={amenities} />
             </>
           )}
-          <p className="mt-2 text-xs text-slate-600">
-            {profile.read_at ? `Last checked ${formatDay(profile.read_at)}. ` : ''}Dates and bookings come only from MahaRERA.
-          </p>
+          {/* "dates and bookings come only from MahaRERA" stood here on every page; the Sources panel says where each fact is from */}
+          {profile.read_at && <p className="mt-2 text-xs text-slate-600">Last checked {formatDay(profile.read_at)}.</p>}
         </section>
       )}
       {photos.length > 0 && (
         <section aria-labelledby="photos-title" data-testid="photos">
-          <h2 id="photos-title" className="text-xl font-bold">{drawn ? `What ${name} could look like` : `Pictures of ${name}`}</h2>
+          <h2 id="photos-title" className="text-xl font-bold">{drawn ? 'What it could look like' : 'Pictures'}</h2>
           <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
             {photos.map((p, i) => (
               <div key={p.url} className={i === 0 ? 'col-span-2 aspect-[16/9] sm:col-span-3' : 'aspect-[4/3]'}>

@@ -13,8 +13,8 @@ const profile = {
 describe('the project facts and amenities', () => {
   it('puts land with the project facts, apart from the amenities', () => {
     render(<ProjectProfile profile={profile as never} name="Rose Court" part="highlights" />)
-    expect(screen.getByRole('heading', { name: 'Rose Court project facts' })).toBeTruthy()
-    expect(screen.getByRole('heading', { name: 'Rose Court amenities' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Project facts' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Amenities' })).toBeTruthy()
   })
 
   it('says the source only for the builder or a single site', () => {

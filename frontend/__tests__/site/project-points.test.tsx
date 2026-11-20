@@ -4,7 +4,8 @@ import ProjectPoints, { HomeSizes } from '@/components/site/ProjectPoints'
 describe('the points and the sizes', () => {
   it('opens with a dated line and each point', () => {
     render(<ProjectPoints p={{ regno: 'P1', details_read_at: '2026-11-03', points: [{ label: '99% of 832 homes booked', text: 'Almost all are sold.' }] }} />)
-    expect(screen.getByRole('heading', { name: /As of 3 Nov 2026, from MahaRERA P1/ })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'What stands out' })).toBeTruthy()
+    expect(screen.getByTestId('points-asof')).toHaveTextContent('As of 3 Nov 2026, from MahaRERA and the sources below.')
     expect(screen.getByText('99% of 832 homes booked:')).toBeTruthy()
   })
 

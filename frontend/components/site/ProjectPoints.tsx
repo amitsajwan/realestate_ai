@@ -1,6 +1,19 @@
 import { longDay } from '@/lib/site/register'
 import type { RegisterProject } from '@/lib/site/register'
 
+const numbers = (s: string): string[] => s.match(/\d[\d,.]*/g)?.map((x) => x.replace(/[,.]+$/, '').replace(/,/g, '')) ?? []
+
+/** True when a point's sentence already says every number its label does ("0 of 523 homes booked: None of the 523 units have been
+ *  booked"): the label then only repeats it, a pattern that read as machine-written (2026-11-20), so the sentence stands alone. A
+ *  label with no number, or one whose number the sentence leaves out, still leads. */
+export function labelRepeats(label: string, text: string): boolean {
+  const own = numbers(label)
+  if (!own.length) return false
+  const said = new Set(numbers(text))
+  if (/\b(none|no)\b/i.test(text)) said.add('0')   // "None of the 523" says the label's 0
+  return own.every((x) => said.has(x))
+}
+
 /** What stands out, the points picked from the stored fact sheet, under one dated line. Both kinds of project page open with it. */
 export default function ProjectPoints({ p, updated }: { p: Pick<RegisterProject, 'points' | 'regno' | 'details_read_at' | 'read'>; updated?: string | null }) {
   const points = (p.points ?? []).filter((x) => x.label && x.text)
@@ -13,12 +26,17 @@ export default function ProjectPoints({ p, updated }: { p: Pick<RegisterProject,
           <p className="mt-1 text-lg leading-relaxed text-slate-900">{p.read.text}</p>
         </div>
       )}
-      <h2 id="points-title" className="text-sm font-medium text-slate-600">
-        {p.details_read_at ? `As of ${longDay(p.details_read_at)}, from MahaRERA ${p.regno} and the sources on this page` : `From MahaRERA ${p.regno} and the sources on this page`}
-      </h2>
+      {/* a plain heading and a dated line under it: the registration number is on the hero's badge, and a heading made of a
+          date and a number read as a template (2026-11-20) */}
+      <h2 id="points-title" className="text-lg font-semibold text-slate-900">What stands out</h2>
+      <p className="text-sm text-slate-600" data-testid="points-asof">
+        {p.details_read_at ? `As of ${longDay(p.details_read_at)}, from MahaRERA and the sources below.` : 'From MahaRERA and the sources below.'}
+      </p>
       <ul className="mt-2 list-none space-y-2 p-0">
         {points.map((x) => (
-          <li key={x.label} className="text-lg leading-relaxed text-slate-900"><strong className="font-semibold">{x.label}:</strong> {x.text}</li>
+          <li key={x.label} className="text-lg leading-relaxed text-slate-900">
+            {labelRepeats(x.label, x.text) ? x.text : <><strong className="font-semibold">{x.label}:</strong> {x.text}</>}
+          </li>
         ))}
       </ul>
       {updated && <p className="mt-2 text-sm text-slate-600" data-testid="updated">Updated {longDay(updated)}</p>}
@@ -32,7 +50,7 @@ export function HomeSizes({ sizes, name, help }: { sizes?: RegisterProject['home
   if (!sizes?.length) return null
   return (
     <section aria-labelledby="sizes-title" data-testid="home-sizes">
-      <h2 id="sizes-title" className="text-xl font-bold">{name} flat sizes</h2>
+      <h2 id="sizes-title" className="text-xl font-bold">Flat sizes</h2>
       <ul className="mt-3 list-none space-y-1 p-0">
         {sizes.map((x) => (
           <li key={x.bhk} className="text-slate-800">
