@@ -3,6 +3,7 @@ free Copernicus quota; pages.view shows it only at the pin it was taken at."""
 import io
 from datetime import date, datetime, timezone
 
+import httpx
 from PIL import Image
 
 from app.modules.areastats import fromabove as fa, fromabove_view, pages, sitepics as s
@@ -153,3 +154,16 @@ async def test_the_page_shows_it_only_at_the_pin_it_was_taken_at(tmp_path):
     assert "bare" not in shown["frames"][0] and "path" not in shown["frames"][0]
     moved = {**doc, "geo": {**doc["geo"], "lat": 18.5457}}
     assert pages.view(moved, [])["from_above"] is None
+
+
+def test_an_expired_token_is_renewed_and_the_call_made_again():
+    seen = []
+
+    def answer(request):
+        seen.append(request.headers["Authorization"])
+        ok = request.headers["Authorization"] == "Bearer fresh"
+        return httpx.Response(200 if ok else 401, json={"features": []})
+
+    sat = fa.Copernicus(httpx.Client(transport=httpx.MockTransport(answer)), "stale", 10, renew=lambda: "fresh")
+    assert sat.passes(s.box_around(18.5, 73.9, 600), "2025-01-01", "2025-05-31") == []
+    assert seen == ["Bearer stale", "Bearer fresh"] and sat.auth == "fresh" and sat.used == 1

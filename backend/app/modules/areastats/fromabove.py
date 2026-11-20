@@ -106,17 +106,23 @@ class Copernicus:
     auth: str
     left: int
     used: int = 0
+    renew: Optional[Callable[[], str]] = None   # a new token: Copernicus's last about 10 minutes, a run takes hours
 
     def _post(self, url: str, body: dict, png: bool) -> httpx.Response:
         if self.left <= 0:
             raise Budget("the day's Copernicus requests are spent")
         self.left -= 1
         self.used += 1
-        headers = {"Authorization": f"Bearer {self.auth}", **({"Accept": "image/png"} if png else {})}
-        r = self.client.post(url, json=body, headers=headers, timeout=120)
+        r = self.client.post(url, json=body, headers=self._headers(png), timeout=120)
+        if r.status_code == 401 and self.renew:
+            self.auth = self.renew()
+            r = self.client.post(url, json=body, headers=self._headers(png), timeout=120)
         if r.status_code in (402, 403, 429):
             raise Budget(f"Copernicus refused (HTTP {r.status_code}): quota")
         return r
+
+    def _headers(self, png: bool) -> Dict[str, str]:
+        return {"Authorization": f"Bearer {self.auth}", **({"Accept": "image/png"} if png else {})}
 
     def passes(self, box, start: str, end: str) -> List[dict]:
         r = self._post(CATALOG_URL, {"collections": [sitepics.SENTINEL_COLLECTION], "bbox": sitepics.bbox(box),
@@ -269,7 +275,10 @@ def make(d: dict, pin: Tuple[float, float], sat: Copernicus, today: date, out_di
 
 def _open(budget: int) -> Copernicus:
     client = httpx.Client()
-    return Copernicus(client, token(client, settings.copernicus_client_id, settings.copernicus_client_secret), budget)
+
+    def renew() -> str:
+        return token(client, settings.copernicus_client_id, settings.copernicus_client_secret)
+    return Copernicus(client, renew(), budget, renew=renew)
 
 
 async def refresh(store: Store, now: datetime, budget: int = REQUESTS_PER_DAY, force: bool = False,
