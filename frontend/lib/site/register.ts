@@ -799,6 +799,17 @@ export interface Offer {
   photos?: { url: string; width?: number | null; height?: number | null }[] | null
   /** the agent's sample-flat videos, played from their own website (only https .mp4 on it; propertyfacts listing_videos) */
   videos?: { url: string; label: string }[] | null
+  /** our own marketing video of the listing (propertyfacts mainvideo.py), kept on our server and served with byte ranges */
+  main_video?: MainVideo | null
+}
+
+/** The listing's campaign video as the page plays it: addresses on our API, its length and the day it was kept. */
+export interface MainVideo {
+  url: string
+  poster?: string | null
+  seconds?: number | null
+  headline?: string
+  uploaded_at?: string | null
 }
 
 /** "2, 3 & 4 BHK" from a price sheet's home labels; "" when none is a BHK. */

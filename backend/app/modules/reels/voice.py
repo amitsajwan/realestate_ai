@@ -161,7 +161,9 @@ def synth_spoken(text: str, lang: str = "en", gender: str = "female", rate: Opti
 # to entertainment reels; Gemini, on the paid project key, takes a direction: an energetic, warm reel host). Chirp above stays
 # the fallback, for a whole reel at a time (narration.spoken_lines), so one reel never mixes two voices.
 GEMINI_TTS_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-GEMINI_TTS_MODELS = ("gemini-3.8-flash-tts", "gemini-3.1-flash-tts-preview", "gemini-2.5-flash-preview-tts")
+# Google's TTS models (deprecations page, 2026-11-20): the 3.1 and 2.5 previews shut down on 2026-12-18 and Google names these two
+# as their replacements, the flagship first, then the lite one when the first is busy or refuses
+GEMINI_TTS_MODELS = ("gemini-3.8-flash-tts", "gemini-3.8-flash-lite-tts")
 GEMINI_SR = 24000   # Gemini's audio: 16-bit mono PCM at 24 kHz
 # Only the words go to Gemini: it reads any direction aloud (2026-10-16: "Read this aloud as a warm, energetic..." made a 12-word
 # line 17.9 s instead of 4.8 s; a short "Say warmly:" still 8.3 s), and this model takes no system instruction. Its natural

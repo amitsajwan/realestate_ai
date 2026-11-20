@@ -2,7 +2,8 @@
 
 `public_router` (mounted at /api/v1/public, no auth): `GET /property-facts`, the verified facts we keep for a property, for its
 listing page; by MahaRERA number, else by project + locality; 404 when we have none. `GET /property-facts/by-regno/{regno}`, the
-same for a project's own page.
+same for a project's own page. `GET /project-videos`, the project pages with a kept listing video (mainvideo.py), and
+`GET /listing-video/{name}`, that video or its poster, with byte ranges.
 `router` (mounted at /api/v1/listings, bearer auth, owner only): `POST /{listing_id}/campaign` starts marketing a listing
 (step 1 facts and page, then step 2 posts; see jobs.py), `GET /{listing_id}/campaign` its latest run,
 `POST /{listing_id}/campaign/calendar` sends its posts to the approval calendar (schedule.py),
@@ -17,21 +18,24 @@ reads it into a kit, `GET /{listing_id}/brochure` the kit (404 when none), `PATC
 or edits a fact, `POST .../brochure/registration` keeps the agent's "registered or exempt" answer, `GET .../pages/{n}.jpg` a
 page's thumbnail, `PATCH .../brochure/images/{image_id}` uses or drops a plan, map or render kept from the brochure, and
 `GET .../brochure/images/{image_id}.jpg` serves it."""
+from pathlib import Path
 from typing import Any, Literal, Optional
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.auth_backend import current_active_user
+from app.core.config import settings
 from app.core.database import get_database
 from app.models.user import User
 from app.modules.agentprojects.service import indexable
+from app.modules.areastats.pages import page_for
 from app.modules.listings import projectlive
 from app.platform.media import display_url, upload_path
 
-from . import brochure, brochure_once, jobs
+from . import brochure, brochure_once, jobs, mainvideo
 from .public import view
 from .store import FactsStore
 
@@ -118,7 +122,68 @@ async def with_sheet(db, out: Optional[dict], listing_id: Optional[str] = None, 
         offer["price_inr"] = homes.from_price(listing) or offer.get("price_inr")
     if homes.payment_plan(listing):
         offer["payment_plan"] = homes.payment_plan(listing)
+    video = await main_video(db, listing["_id"])
+    if video:
+        offer["main_video"] = video
     return {**out, "offer": offer}
+
+
+async def main_video(db, listing_id: str) -> Optional[dict]:
+    """The listing's latest campaign video kept for its page (mainvideo.py), while the file is there."""
+    runs = await db.get_collection(jobs.COLLECTION).find({"listing_id": listing_id, "main_video.file": {"$exists": True}}) \
+        .sort("created_at", -1).limit(1).to_list(1)
+    kept = (runs[0].get("main_video") if runs else None) or {}
+    if not kept.get("file") or not mainvideo.path_of(Path(settings.upload_directory), kept["file"]):
+        return None
+    return mainvideo.public(kept)
+
+
+async def project_videos(db) -> list:
+    """Every project page with a kept listing video, newest video first: the watch pages and the video sitemap read this.
+    One video a page (a project listed twice shows its newest), only live listings, only pages that are in search."""
+    out, seen = [], set()
+    runs = await db.get_collection(jobs.COLLECTION).find({"main_video.file": {"$exists": True}}).sort("created_at", -1).to_list(2000)
+    uploads = Path(settings.upload_directory)
+    for run in runs:
+        if run["listing_id"] in seen:
+            continue
+        seen.add(run["listing_id"])
+        listing = await db.get_collection("listings").find_one({"_id": run["listing_id"]}) or {}
+        if listing.get("status") not in jobs.MARKETABLE or listing.get("visibility", "public") != "public" or not listing.get("rera_no"):
+            continue
+        if not mainvideo.path_of(uploads, run["main_video"]["file"]):
+            continue
+        page = await page_for(db, str(listing["rera_no"]))
+        if not page or not page.get("indexable") or any(o["slug"] == page["slug"] for o in out):
+            continue
+        out.append({"slug": page["slug"], "name": str(listing.get("project_name") or listing.get("title") or "").strip()[:120],
+                    "video": mainvideo.public(run["main_video"])})
+    return out
+
+
+@public_router.get("/project-videos")
+async def public_project_videos(response: Response, db=Depends(get_db)) -> dict:
+    response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
+    return {"items": await project_videos(db)}
+
+
+@public_router.get("/listing-video/{name}")
+async def listing_video(name: str, request: Request):
+    """A listing's kept campaign video or its poster, with byte ranges (phone players ask for them). The names change with the
+    file, so they are cached for a year."""
+    path = mainvideo.path_of(Path(settings.upload_directory), name)
+    if not path:
+        raise HTTPException(status_code=404, detail="No such video")
+    cache = {"Cache-Control": "public, max-age=31536000, immutable", "Accept-Ranges": "bytes"}
+    if path.suffix == ".jpg":
+        return FileResponse(path, media_type="image/jpeg", headers=cache)
+    size = path.stat().st_size
+    rng = mainvideo.byte_range(request.headers.get("range"), size)
+    if rng is None:
+        return FileResponse(path, media_type="video/mp4", headers=cache)
+    start, end = rng
+    return StreamingResponse(mainvideo.chunks(path, start, end), status_code=206, media_type="video/mp4",
+                             headers={**cache, "Content-Range": f"bytes {start}-{end}/{size}", "Content-Length": str(end - start + 1)})
 
 
 @public_router.get("/property-facts")
