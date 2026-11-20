@@ -14,6 +14,7 @@ import json
 import logging
 import math
 import re
+from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -43,6 +44,8 @@ GOOGLE_TYPES: Dict[str, Tuple[str, ...]] = {
     "market": ("shopping_mall", "supermarket")}
 WORK_QUERY = "IT park"   # "Near work" wants the places people drive to, not an OSM polygon named "CTR"
 KNOWN_REVIEWS = 100      # a place with this many Google reviews is one buyers know; schools show none, so popularity alone ranks them
+KEEP_COLLECTION = "nearby_places"   # Nearby's answers by position: a re-gathered project does not ask Google again
+KEEP_DAYS = 30           # Google's terms keep positions for 30 days; the project's pin (pin.py) is re-read on the same clock
 KNOWN_TOP = 6            # how many of Google's most popular open places compete on distance for the PER_CATEGORY slots
 
 # key -> (label for posts, Overpass filters, Nominatim search phrase). Every place needs a name: an unnamed school cannot go on a card.
@@ -189,10 +192,16 @@ class Nearby:
     """Google's own places around a position (Places API (New)): for each category the best-known open places near the pin
     (searchNearby ranked by popularity), the nearest of those first; and, on a text search, the work places people drive
     to. Eight calls for a project, made together. `transport` is for tests. No key configured: nothing is asked and the
-    caller falls back to OpenStreetMap."""
+    caller falls back to OpenStreetMap.
 
-    def __init__(self, key: Optional[str], timeout: float = 20.0, transport: Optional[httpx.AsyncBaseTransport] = None):
+    With a `db` the answer is kept in KEEP_COLLECTION for KEEP_DAYS under the position asked about (2026-11-20: every
+    re-gather of a project made the eight calls again, and they were the larger part of the Places bill). Only a full answer
+    is kept: when any call failed, the next gather asks again."""
+
+    def __init__(self, key: Optional[str], timeout: float = 20.0, transport: Optional[httpx.AsyncBaseTransport] = None,
+                 db: Any = None):
         self.key, self.timeout, self.transport = (key or "").strip(), timeout, transport
+        self.col = db.get_collection(KEEP_COLLECTION) if db is not None else None
 
     async def _call(self, c: httpx.AsyncClient, url: str, body: dict) -> Optional[List[dict]]:
         headers = {"X-Goog-Api-Key": self.key, "X-Goog-FieldMask": NEARBY_FIELDS}
@@ -211,10 +220,24 @@ class Nearby:
         places = data.get("places", [])   # an empty area answers {} : asked and nothing there
         return places if isinstance(places, list) else None
 
-    async def search(self, lat: float, lon: float) -> Tuple[Dict[str, List[Dict[str, Any]]], bool]:
-        """({category: [{name, km, url}]}, whether Google answered at all)."""
+    async def search(self, lat: float, lon: float, now: Optional[datetime] = None) -> Tuple[Dict[str, List[Dict[str, Any]]], bool]:
+        """({category: [{name, km, url}]}, whether Google answered at all): the kept answer for this position when it is
+        under KEEP_DAYS old, else Google's."""
         if not self.key:
             return {}, False
+        now = _aware(now or datetime.now(timezone.utc))
+        key = f"{lat:.6f},{lon:.6f}"
+        if self.col is not None:
+            kept = await self.col.find_one({"_id": key})
+            if kept and isinstance(kept.get("at"), datetime) and now - _aware(kept["at"]) < timedelta(days=KEEP_DAYS):
+                return kept.get("best") or {}, True
+        best, complete, answered = await self._ask(lat, lon)
+        if complete and self.col is not None:
+            await self.col.update_one({"_id": key}, {"$set": {"best": best, "at": now}}, upsert=True)
+        return best, answered
+
+    async def _ask(self, lat: float, lon: float) -> Tuple[Dict[str, List[Dict[str, Any]]], bool, bool]:
+        """(best places by category, whether every call answered, whether any did)."""
         circle = {"center": {"latitude": lat, "longitude": lon}, "radius": RADIUS_M}
         dlat, dlon = RADIUS_M / 111000, RADIUS_M / (111000 * math.cos(math.radians(lat)))
         box = {"rectangle": {"low": {"latitude": lat - dlat, "longitude": lon - dlon},
@@ -230,7 +253,13 @@ class Nearby:
         for (cat, _, _), places in zip(asks, got):
             for p in known(places or []):
                 _place(best, lat, lon, p, cat)
-        return best, any(g is not None for g in got)
+        return best, all(g is not None for g in got), any(g is not None for g in got)
+
+
+def _aware(t: datetime) -> datetime:
+    """Mongo hands back naive UTC datetimes; compare them as UTC."""
+    return t if t.tzinfo else t.replace(tzinfo=timezone.utc)
+
 
 async def around(get_json: GetJson, lat: float, lon: float, now=None,
                  nearby: Optional[Nearby] = None) -> Tuple[List[Reading], List[str]]:
@@ -238,7 +267,7 @@ async def around(get_json: GetJson, lat: float, lon: float, now=None,
     categories with nothing found)."""
     best, checked = ({}, False)
     if nearby is not None:
-        best, checked = await nearby.search(lat, lon)
+        best, checked = await nearby.search(lat, lon, now)
     from_google = set(best)
     missing = [k for k in CATEGORIES if k not in best]
     if missing:

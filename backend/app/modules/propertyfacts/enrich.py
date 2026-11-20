@@ -25,7 +25,7 @@ def _shared_clients(db) -> Clients:
         from .pin import Pins
         from .surroundings import Nearby
         _clients = Clients(register=Register(db), facts_store=FactsStore(db), pins=Pins(db, settings.google_maps_api_key),
-                           nearby=Nearby(settings.google_maps_api_key))
+                           nearby=Nearby(settings.google_maps_api_key, db=db))
     return _clients
 
 

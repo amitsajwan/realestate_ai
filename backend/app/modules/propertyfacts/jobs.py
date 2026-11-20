@@ -1538,7 +1538,7 @@ def default_runs() -> MarketingRuns:
                          clients_factory=lambda: Clients(register=Store(db), facts_store=FactsStore(db),
                                                          brochures=Brochures(db, uploads), groups=Groups(db),
                                                          pins=Pins(db, settings.google_maps_api_key),
-                                                         nearby=Nearby(settings.google_maps_api_key)),
+                                                         nearby=Nearby(settings.google_maps_api_key, db=db)),
                          llm_factory=default_llm, voice_llm_factory=voiceover.writer_llm,
                          reel_jobs=ReelJobs(db, Path(settings.upload_directory), llm_factory=default_llm))
 
