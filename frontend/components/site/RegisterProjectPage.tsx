@@ -21,6 +21,7 @@ import PriceBox from '@/components/site/PriceBox'
 import PriceIdea from '@/components/site/PriceIdea'
 import LocationMapSwitch from '@/components/site/LocationMapSwitch'
 import ProjectFromAbove from '@/components/site/ProjectFromAbove'
+import ProjectVideo from '@/components/site/ProjectVideo'
 import { forPin, fromRecord, type FromAbove } from '@/lib/site/fromAbove'
 import ProjectHistory from '@/components/site/ProjectHistory'
 import { isCommercial, type Stage } from '@/lib/site/allin'
@@ -1061,6 +1062,10 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
 
       {/* the listing agent's sample-flat videos, played from their website (owner 2026-10-30) */}
       <Videos videos={offer?.videos ?? []} name={shown} agent={offer?.agent?.name ?? null} />
+
+      {/* our own marketing video of the listing, kept on our server (owner 2026-11-20) */}
+      {!closed && offer?.main_video && <ProjectVideo video={offer.main_video} shown={shown} siteUrl={siteUrl} pageUrl={url} ld={!seller}
+        watchHref={`/projects/${p.slug}/video`} />}
 
       <div className="mt-8 grid gap-8 lg:grid-cols-3">
         <div className="min-w-0 space-y-10 lg:col-span-2">

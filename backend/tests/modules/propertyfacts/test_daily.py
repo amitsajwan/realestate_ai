@@ -63,7 +63,7 @@ async def test_a_finished_run_goes_to_the_calendar_approved_and_the_next_is_pick
     await daily.cycle(db, runs, NOW, limit=5)
     await db.get_collection("marketing_runs").update_one({"_id": "run-B"}, {"$set": {"status": "done"}})
     out = await daily.cycle(db, runs, NOW + timedelta(minutes=30), limit=5)
-    assert out == {"calendared": 1, "picked": "A"}
+    assert out == {"calendared": 1, "started": [], "picked": "A"}
     rows = await CalendarStore(db).all()
     assert {r["status"] for r in rows} == {"approved"} and len(rows) == 2
     assert "daily listing pick" in rows[0]["history"][-1]["note"]
@@ -105,3 +105,71 @@ async def test_a_run_waiting_on_the_agents_answers_is_given_up_and_a_failed_one_
     await daily.cycle(db, runs, NOW + timedelta(days=1, minutes=30), limit=5)
     pick = await db.get_collection(daily.COLLECTION).find_one({"_id": "2026-11-21:A"})
     assert pick["status"] == "failed" and pick["reason"] == "no facts"
+
+
+GOOD = [{"url": f"/uploads/images/g{i}.jpg", "kind": "image", "quality": {"score": 92}} for i in range(4)]
+POOR = [{"url": f"/uploads/images/q{i}.jpg", "kind": "image", "quality": {"score": 55}} for i in range(4)]
+
+
+async def top_seeded():
+    db, runs = await seeded(
+        listing("cool", media=GOOD, rera_no="P1"),                                       # 2029, hot 0
+        listing("hot", media=GOOD, rera_no="P2"),                                        # 2030, hot 40
+        listing("warm", media=GOOD, rera_no="P3"),                                       # 2028, hot 12
+        listing("soon", media=GOOD, rera_no="P4"),                                       # 2027: completes too early
+        listing("blurry", media=POOR + GOOD[:2], rera_no="P2"),                          # two good pictures only
+        listing("unscored", media=PICS, rera_no="P2"),                                   # pictures never judged
+        listing("unknown", media=GOOD, rera_no="P9"),                                    # not in the register
+        listing("network", media=GOOD, rera_no="P2", visibility="network"))
+    projects = db.get_collection("projects")
+    for regno, done, hot in (("P1", datetime(2029, 4, 30), 0), ("P2", "2030-07-31", 40), ("P3", datetime(2028, 1, 30), 12),
+                             ("P4", datetime(2027, 12, 31), 90)):
+        await projects.insert_one({"_id": regno, "completion_now": done, "hot_score": hot})
+    return db, runs
+
+
+async def test_the_top_push_takes_projects_completing_after_2027_with_good_pictures_hottest_first():
+    db, runs = await top_seeded()
+    assert [l["_id"] for l, _ in await daily.top(db)] == ["hot", "warm", "cool"]
+    assert [l["_id"] for l, _ in await daily.top(db, n=2)] == ["hot", "warm"]
+
+
+async def test_top_picks_run_three_at_a_time_at_any_hour_and_reach_the_calendar_approved():
+    db, runs = await top_seeded()
+    await db.get_collection("listings").insert_one(listing("fourth", media=GOOD, rera_no="P1", created_at=NOW))
+    out = await daily.queue_top(db, NIGHT)
+    assert out == {"queued": ["Project hot", "Project warm", "Project fourth", "Project cool"], "already": []}
+    assert await daily.busy(db)
+    first = await daily.cycle(db, runs, NIGHT, limit=5)        # night: no daily pick, but the top push starts
+    assert first["started"] == ["hot", "warm", "fourth"] and first["picked"] is None
+    assert (await daily.cycle(db, runs, NIGHT, limit=5))["started"] == []      # three in flight
+    await db.get_collection("marketing_runs").update_one({"_id": "run-hot"}, {"$set": {"status": "done"}})
+    out = await daily.cycle(db, runs, NIGHT + timedelta(minutes=2), limit=5)
+    assert out["calendared"] == 1 and out["started"] == ["cool"]
+    rows = await CalendarStore(db).all()
+    assert len(rows) == 2 and {r["status"] for r in rows} == {"approved"}
+    picks = {p["listing_id"]: p for p in await db.get_collection(daily.COLLECTION).find({}).to_list(10)}
+    assert picks["hot"]["status"] == "calendared" and picks["hot"]["batch"] == "top" and picks["hot"]["hot"] == 40
+    assert picks["cool"]["run_id"] == "run-cool" and picks["cool"]["status"] == "running"
+
+
+async def test_queueing_the_top_push_twice_adds_nothing_and_lately_marketed_listings_are_left():
+    db, runs = await top_seeded()
+    await db.get_collection("marketing_runs").insert_one({"_id": "old", "listing_id": "warm", "agent_id": "HD", "status": "done",
+                                                          "created_at": NOW - timedelta(days=3)})
+    assert await daily.queue_top(db, NOW) == {"queued": ["Project hot", "Project cool"], "already": ["Project warm"]}
+    assert await daily.queue_top(db, NOW + timedelta(hours=1)) == {"queued": [], "already": ["Project hot", "Project warm", "Project cool"]}
+
+
+async def test_a_top_pick_whose_listing_cannot_be_marketed_ends_and_the_next_starts():
+    db, runs = await top_seeded()
+    await daily.queue_top(db, NOW)
+
+    async def refuse(agent_id, listing_id, **kw):
+        if listing_id == "hot":
+            raise RuntimeError("Publish this listing first")
+        return await Runs.create(runs, agent_id, listing_id)
+    runs.create = refuse
+    assert await daily.start_waiting(db, runs, NOW) == ["warm", "cool"]
+    pick = await db.get_collection(daily.COLLECTION).find_one({"_id": "2026-11-20:hot"})
+    assert pick["status"] == "failed" and "Publish" in pick["reason"]
