@@ -115,5 +115,19 @@ def test_the_video_names_the_project_and_place_and_opens_with_its_page():
     assert m.tags[:2] == ["Godrej Ivara", "Upper Kharadi"]
 
 
+def test_a_listing_reel_opens_with_its_listing_page_taken_from_the_caption():
+    head = "Spacious carpet areas\nHomes range 841-1,150 sq ft\n🌐 Website: house-deal.com\n🏠 On Avasetu: avasetu.in/agent/house-deal\n"
+    ig = {"_id": "r1", "slug": "campaign-L1-room3_design-ad", "channel": "instagram", "creative": {"project_name": "Unique UNI 89",
+          "locality": "Mundhwa"}, "caption": head + "Full details of Mundhwa, with its MahaRERA record: link in bio · "
+                                                    "avasetu.in/agent/house-deal/listings/L1"}
+    fb = {**ig, "channel": "facebook_page", "caption": head + "Photos and full details: "
+                                                              "https://avasetu.in/agent/house-deal/listings/L1?src=fb_room3_design-ad"}
+    for doc in (ig, fb):
+        m = adapters.youtube_meta(doc)
+        assert m.title == "Unique UNI 89: Spacious carpet areas | Mundhwa, Pune"
+        assert m.description.startswith("Full details, price sheet and MahaRERA status: https://avasetu.in/agent/house-deal/listings/L1\n")
+        assert "link in bio" not in m.description and "src=fb_" not in m.description and "house-deal.com" in m.description
+
+
 async def test_a_reel_without_its_video_file_is_skipped_quietly(set_up, tmp_path):
     assert await adapters.to_youtube(FakeDb(), {"_id": "r1", "slug": "s", "video": "gone.mp4", "caption": "x"}, tmp_path) is None
