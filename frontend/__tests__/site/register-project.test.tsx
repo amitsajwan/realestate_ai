@@ -107,7 +107,7 @@ describe('Avasetu project page from the MahaRERA register', () => {
     const faq = lds.find((x) => x['@type'] === 'FAQPage').mainEntity[0]
     expect(faq.name).toBe('What is the price of Gera World of Joy?')
     expect(screen.getByText(faq.acceptedAnswer.text)).toBeInTheDocument()   // the same words on the page
-    expect(registerTitle(g)).toBe('Gera World of Joy Wagholi: possession Oct 2029, MahaRERA')
+    expect(registerTitle(g)).toBe('Gera World of Joy Wagholi, Pune: possession Oct 2029, 58% booked')
     // with the legal name it runs past the ~160 characters Google shows, so the description leaves it to the page
     expect(registerDescription(g)).toBe('Gera World of Joy by Rohan Builders, Wagholi, Pune. Possession Oct 2029, 244 of 416 homes booked. MahaRERA P52100080076, checked by Avasetu.')
   })

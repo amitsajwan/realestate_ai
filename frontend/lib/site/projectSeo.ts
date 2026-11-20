@@ -8,8 +8,8 @@
  */
 import { BRAND_NAME } from '@/lib/brand'
 import { breadcrumbJsonLd } from '@/lib/marketing/seo'
-import { clipWords, fitDescription } from './format'
-import { areaName, askedPrices, displayName, homesOf, monthYear, offerPrice, otherNames, placePath, possessionLabel, unitWord } from './register'
+import { clipWords, fitDescription, readableName } from './format'
+import { areaName, askedPrices, displayName, homesOf, monthYear, offerPrice, otherNames, placePath, possessionLabel, unitWord, wholeProject } from './register'
 import type { Faq, Offer, RegisterProject } from './register'
 
 /** Titles longer than this get cut in Google's results on phones; the first option that fits is used. */
@@ -61,29 +61,88 @@ export function soldAsLine(p: RegisterProject): string | null {
   return `Sold as ${market}${by}; we list it under ${area}${p.pincode ? ` (pincode ${p.pincode})` : ''}.`
 }
 
-/** Search result title: "<name> <area>: 3 & 4 BHK from ₹1.99 Cr, possession Feb 2031". Without a price it is the MahaRERA number
- *  ("<name> <area>: MahaRERA P521..., possession Feb 2031"). Parts go in a fixed order to fit PROJECT_TITLE_MAX: the BHK sizes,
- *  then the possession date, then the area; the price stays while any title with it fits. `price`: offerPrice of the agent's
- *  sheet, so the title quotes the price the page shows. */
+/** A name MahaRERA shouts ("MANSHA PHASE-II") as people write it ("Mansha Phase-II"), keeping a builder's initials ("VTP", "SSP":
+ *  no vowel) in capitals. A name with small letters is left as written. */
+function titleName(s: string): string {
+  if (!/[A-Z]/.test(s) || /[a-z]/.test(s)) return s
+  return s.replace(/[A-Z0-9][A-Z0-9'&.]*/g, (w) => (/[AEIOU]/.test(w) ? readableName(w) : w))
+}
+
+/** "Phase 1 & 2" for a page that stands for registrations MahaRERA names as phases, when the name does not already say a phase:
+ *  searches with a phase in them were 10% of project page impressions (Search Console, 90 days to 2026-11-18). Up to three. */
+function phasesOf(p: RegisterProject, shown: string): string {
+  const towers = p.towers ?? []
+  if (towers.length < 2 || /\bphase\b/i.test(shown)) return ''
+  const ids: string[] = []
+  for (const t of towers) {
+    const m = /\bphase[\s-]*(\d+|[IVX]+)\b/i.exec(t.name || '')
+    if (!m) return ''
+    const id = m[1].toUpperCase()
+    if (!ids.includes(id)) ids.push(id)
+  }
+  if (ids.length < 2 || ids.length > 3) return ''
+  ids.sort((a, b) => (Number(a) || 0) - (Number(b) || 0))
+  return `Phase ${ids.slice(0, -1).join(', ')} & ${ids[ids.length - 1]}`
+}
+
+/** "45% booked" for the whole project, rounded down so it never says 100% before every home is booked; '' when none is
+ *  booked yet, or when the page stands for several registrations and not all of them report bookings. */
+function bookedShare(p: RegisterProject): string {
+  const w = wholeProject(p)
+  if (w && w.booked_counted !== w.registrations) return ''
+  const h = homesOf(p)
+  if (h.booked == null || !h.of || h.booked <= 0 || h.booked > h.of) return ''
+  return `${Math.floor((100 * h.booked) / h.of)}% booked`
+}
+
+/** Search result title: "<name> <area>, Pune: 3 & 4 BHK from ₹1.99 Cr, possession Feb 2031, 45% booked".
+ *
+ *  Measured 2026-11-20 (seo-system.md section 11): 78% of our project pages' impressions are searches for the bare name, so the
+ *  name buyers type leads; the share booked is the fact no portal title shows; a MahaRERA number is almost never searched, so it
+ *  is said only when there is nothing else to say. Parts are kept in this order while the title fits PROJECT_TITLE_MAX: the price,
+ *  the place (where the sites sell it, then ours), the possession, the share booked, the BHK sizes, the phases, ", Pune".
+ *  `price`: offerPrice of the agent's sheet, so the title quotes the price the page shows. */
 export function registerTitle(p: RegisterProject, price?: QuotedPrice): string {
-  const { shown, at, sold } = nameAt(p)
+  const shown = titleName(displayName(p))
+  const area = areaName(p)
+  const has = (x: string) => shown.toLowerCase().includes(x.toLowerCase())
+  const market = (p.market_place || '').trim()
+  // 2: both places, theirs first ("Kharadi, Wagholi"); 1: ours; 0: none (the name already says it, or no room)
+  const places = [
+    '',
+    area && !has(area) ? area : '',
+    market && area && !has(market) && !has(area) && market.toLowerCase() !== area.toLowerCase() ? `${market}, ${area}` : '',
+  ]
+  const ph = phasesOf(p, shown)
+  const pune = !has('pune') && (area || '').toLowerCase() !== 'pune'
   // the project's possession: for one in several registrations the earliest of theirs ("from Aug 2030"), never the main one's alone
   const when = possessionLabel(p)
   const q = quoted(p, price)
+  const booked = bookedShare(p)
+
   const options: string[] = []
-  if (q) {
-    const sized = q.bhks ? `${q.bhks} from ${q.from}` : `from ${q.from}`
-    const bare = `from ${q.from}`
-    for (const name of [...(sold ? [sold] : []), at, shown]) {
-      if (when) options.push(`${name}: ${sized}, possession ${when}`, `${name}: ${bare}, possession ${when}`)
-      options.push(`${name}: ${sized}`, `${name}: ${bare}`)
+  for (const withPrice of q ? [1, 0] : [0])
+    for (const place of [2, 1, 0]) {
+      if (place && !places[place]) continue
+      for (const withWhen of when ? [1, 0] : [0])
+        for (const withBooked of booked ? [1, 0] : [0])
+          for (const withSizes of withPrice && q?.bhks ? [1, 0] : [0])
+            for (const withPhase of ph ? [1, 0] : [0])
+              for (const withPune of pune ? [1, 0] : [0]) {
+                const name = withPhase ? `${shown} ${ph}${places[place] ? ',' : ''}` : shown
+                const head = [name, places[place]].filter(Boolean).join(' ') + (withPune ? ', Pune' : '')
+                const facts = [
+                  withPrice ? `${withSizes ? `${q!.bhks} ` : ''}from ${q!.from}` : '',
+                  withWhen ? `possession ${when}` : '',
+                  withBooked ? booked : '',
+                ].filter(Boolean)
+                // nothing else to say: the MahaRERA number tells a buyer the page is the registered project
+                if (!q && !when && !booked) facts.push(`MahaRERA ${p.regno}`)
+                options.push(facts.length ? `${head}: ${facts.join(', ')}` : head)
+              }
     }
-  }
-  for (const name of [...(sold ? [sold] : []), at, shown]) {
-    if (when) options.push(`${name}: MahaRERA ${p.regno}, possession ${when}`, `${name}: possession ${when}, MahaRERA`, `${name}: possession ${when}`)
-    else options.push(`${name}: MahaRERA ${p.regno}`, `${name}: MahaRERA`)
-  }
-  return options.find((t) => t.length <= PROJECT_TITLE_MAX) ?? at
+  // the loops run most-wanted first (each part kept before the ones after it), so the first that fits wins
+  return options.find((t) => t.length <= PROJECT_TITLE_MAX) ?? shown
 }
 
 /** "1,310–1,720 sq ft" from the rows' sizes (each row's size is the one its lowest price is for); "" without any. */
