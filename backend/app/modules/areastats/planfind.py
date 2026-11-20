@@ -66,7 +66,9 @@ async def collect(store, doc: dict, now: datetime, fetch: Optional[webfacts.Fetc
             file = folder / f"{h:016x}.webp"
             await asyncio.to_thread(im.save, file, "WEBP", quality=86, method=4)
             plans.append({"path": file.relative_to(uploads).as_posix(), "width": im.size[0], "height": im.size[1],
-                          "alt": f"{name}, from {src['site']}", "image_url": c["url"], "page_url": src["url"], "site": src["site"],
+                          # a builder's plan is shown and its alt text read: the page never names another site in its own words
+                          "alt": f"{name} floor plan, from the builder's website" if src["official"] else f"{name}, from {src['site']}",
+                          "image_url": c["url"], "page_url": src["url"], "site": src["site"],
                           "source": "builder" if src["official"] else "web"})
             found += 1
         read.append({"site": src["site"], "url": src["url"], "ok": bool(found), "why": f"{found} plans" if found else "no plan pictures"})

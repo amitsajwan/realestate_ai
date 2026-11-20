@@ -106,6 +106,16 @@ def wire() -> None:
     # a street map of where the project is, for pages with no picture (areastats.locmap)
     from app.modules.areastats import locmap
     project_enrich.add_daily("location maps", locmap.refresh)
+    # every page the satellite can say something true about: its site from above, year by year and month by month
+    # (areastats.fromabove); the loop is drawn by calendar.site_timelapse, a higher module
+    from app.modules.areastats import fromabove
+    from app.modules.calendar import site_timelapse
+    fromabove.configure(render=lambda name, place, shots, story, credit, out: site_timelapse.page_video(
+        name, place, [site_timelapse.Shot(day, pic, say) for day, pic, say in shots], story, credit, out))
+    project_enrich.add_daily("site from above", fromabove.refresh)
+    # the agents' own listing videos, copied to our server for video search (propertyfacts.agentvideos, owner 2026-11-20)
+    from app.modules.propertyfacts import agentvideos
+    project_enrich.add_daily("agent videos", agentvideos.turn)
     # areas by place: a pinned project belongs to the area it is in (areastats.placement, app/core/area_bounds.py)
     from app.modules.areastats import placement
     placement.configure(pin_address=_pin_address)
@@ -124,6 +134,9 @@ def wire() -> None:
     from app.modules.seo import coverage as seo_coverage
     launches.configure(indexed=seo_coverage.indexed_paths)
     project_enrich.add_daily("launch clock", launches.refresh)
+    # the week's new projects in a place, for the WhatsApp alerts buyers sign up to (whatsapp.alerts); the register sits above chats
+    from app.modules.whatsapp import alerts as whatsapp_alerts
+    whatsapp_alerts.configure(new_projects=launches.new_in_place)
     # hot projects (areastats.hot): outside signals beyond MahaRERA, news and Search Console; YouTube is on with YOUTUBE_API_KEY
     from app.modules.areastats import hot as hot_projects
     hot_projects.add_signal("youtube", hot_projects.youtube_signal())

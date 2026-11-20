@@ -72,7 +72,7 @@ async def test_a_project_registered_under_another_name_is_asked_once_more_under_
 async def test_the_other_checks_still_refuse_a_namesake():
     far = place("Kumar Primeview", lat=18.75, lon=74.24)                       # 40 km from Hadapsar
     shop = place("Kumar Primeview Sales Lounge", types=("store",))
-    other_pincode = place("Kumar Primeview", address="Wagholi, Pune 412207")
+    other_pincode = place("Kumar Primeview", lat=18.55, lon=73.94, address="Wagholi, Pune 412207")   # 4.7 km out: past NEIGHBOUR_KM
     transport, asked = google({"Kumar Primeview G2, Hadapsar, Pune": [far, shop, other_pincode]})
     pins = pin.Pins(FakeDb(), "key", transport=transport)
     p, note = await pins.find("P1", "Kumar Primeview G2", "Hadapsar", "411028", HADAPSAR, NOW)
@@ -99,8 +99,55 @@ async def test_a_not_found_for_a_name_with_no_other_name_is_not_asked_again():
     db = FakeDb()
     await db.get_collection(pin.COLLECTION).insert_one(
         {"_id": "P1", "at": NOW - timedelta(days=3), "place_id": None, "checked": "not found on Google Maps",
-         "project": "Lodha Camelot", "locality": "Kharadi"})
+         "project": "Lodha Camelot", "locality": "Kharadi", "rule": pin.RULE})
     transport, asked = google({})
     pins = pin.Pins(db, "key", transport=transport)
     assert (await pins.find("P1", "Lodha Camelot", "Kharadi", "411014", HADAPSAR, NOW))[0] is None
     assert asked == []
+
+
+# 2026-11-19: 419 of the 1,051 project pages in search had no pin; 278 were refused on a name Google spells a little differently,
+# 87 only on a neighbouring pincode. Each case below is one of them.
+
+def test_a_name_google_spells_a_little_differently_is_the_same_name():
+    assert pin.name_matches("SAVANNA HILLS", "Savannah Hills")
+    assert pin.name_matches(pin.sold_as("Aapla Ghar Wagholi Annex Phase I"), "Aapla Ghar Wagholi Annexe Wadebolai")
+    assert pin.name_matches(pin.sold_as("Shree Sai Hills Phase II"), "Shri Sai Hills")   # tried under the name without its phase
+    assert pin.name_matches("Nivaan Medows", "Nivaan Meadows")
+    assert pin.name_matches("Guruvista Phase II", "Guru Vista Phase II")
+
+
+def test_another_project_with_a_close_name_is_still_not_the_project():
+    assert not pin.name_matches("SHREERAM SHIVALAY WEST", "SHREERAM SHIVALAY EAST")      # a short word must be exact
+    assert not pin.name_matches("GALAXY PREMIERO", "The Galaxy One Co-operative Housing Society")
+    assert not pin.name_matches("Sai Shawas", "Sai Sahavas")                             # two letters apart
+    assert not pin.same_word("12345", "12346")
+    assert not pin.name_matches("Kharadi Pune Phase I", "Kharadi Bypass", locality="Kharadi")      # nothing left but "i"
+    assert not pin.name_matches("A S Corner", "Cafe Corner")
+    assert not pin.name_matches("VEDANTA", "VEDANT INFRA PUNE")                            # one word spelt otherwise is another
+    assert not pin.name_matches("Viman Imperia", "Imperial Relocation Packers And Movers Viman Nagar")   # out of order
+    assert not pin.name_matches("Kharadi Pune Phase I -Tower 5", "Majestique Towers", locality="Kharadi")
+
+
+def test_a_build_label_or_a_hyphenated_tower_code_at_the_end_is_cut():
+    assert pin.sold_as("ROHAN YUVA - BUILD A") == "ROHAN YUVA"
+    assert pin.sold_as("Bramhacorp Business Park T9-A1") == "Bramhacorp Business Park"
+
+
+def test_a_word_for_word_name_in_the_next_pincode_near_the_centre_is_the_site():
+    near = place("Amar Infinity", lat=18.512, lon=73.93, address="Baner, Pune 411069")      # about 0.5 km from the centre
+    assert pin.check(near, "AMAR INFINITY", "Hadapsar", "411028", HADAPSAR) is None
+    spelt = place("Savannah Hills", lat=18.512, lon=73.93, address="Pune 411069")         # a loose name needs the pincode too
+    assert pin.check(spelt, "SAVANNA HILLS", "Hadapsar", "411028", HADAPSAR) == "pincode 411069, MahaRERA says 411028"
+
+
+@pytest.mark.asyncio
+async def test_a_not_found_kept_under_the_older_rules_is_asked_once_more():
+    db = FakeDb()
+    await db.get_collection(pin.COLLECTION).insert_one(
+        {"_id": "P1", "at": NOW - timedelta(days=3), "place_id": None, "checked": "not found on Google Maps (name 'Savannah Hills' is not 'SAVANNA HILLS')",
+         "project": "SAVANNA HILLS", "locality": "Hadapsar"})
+    transport, asked = google({"SAVANNA HILLS, Hadapsar, Pune": [place("Savannah Hills")]})
+    pins = pin.Pins(db, "key", transport=transport)
+    p, _ = await pins.find("P1", "SAVANNA HILLS", "Hadapsar", "411028", HADAPSAR, NOW)
+    assert p is not None and p.name == "Savannah Hills" and asked == ["SAVANNA HILLS, Hadapsar, Pune"]

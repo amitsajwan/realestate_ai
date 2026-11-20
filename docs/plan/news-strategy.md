@@ -28,13 +28,20 @@ things** (people search "pune ring road status", not "ring road news 7 Oct"), wh
 3. **Project and area pages show nearby trackers (TARGET):** "Ring Road (east): approved, land acquisition under way, 3.2 km",
    measured from the project pin (docs: project_google_pins), linked to the tracker. This is what helps a buyer, and it links the
    tracker from many pages, which helps it rank.
-4. **/news is the dated change log (LIVE, narrowed):** only full reports (2+ sources, or 1 with 5+ facts) about our areas or about
-   city-wide rules and rates (RBI repo, stamp duty, MahaRERA rules, property tax). A one-line summary is never published.
+4. **/news is the dated change log (LIVE, all of Pune since 2026-11-19):** only full reports (2+ sources, or 1 with 5+ facts) about
+   any Pune place (`app/core/pune_places`, named in the headline or first sentence) or about city-wide rules and rates (RBI repo,
+   stamp duty, MahaRERA rules, property tax). A one-line summary is never published.
 5. **Social posts only on a change (TARGET):** a tracker status change or a rule/rate change is one post. Nothing else from the
    newsroom is posted.
 
 Never news: single MahaRERA listings (they go to the project register), crime, weather, restaurants, airport operations,
-Pune-wide items that do not touch our areas, general money advice.
+other cities, general money advice.
+
+2026-11-19, all of Pune: from 12 to 19 Nov 177 of 231 collected items were dropped as "no target area" and 5 were published, while
+the site has covered all of Pune since 10-04. A headline or first sentence naming Pune or any Pune place now counts as a Pune story
+(`stages/filter.py` `_PLACE_RE`, reason "Pune story"), our area keys are still credited only when the area itself is the subject,
+and the editor (`stages/impact.py`) is told the reader buys anywhere in Pune, so which part of Pune is never a reason to score low.
+Every later gate is unchanged: crime, ads, denied topics, the score, the editor's 6/10, research and the checks.
 
 ## Done 2026-10-20 (LIVE)
 

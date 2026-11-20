@@ -36,7 +36,8 @@ describe('Avasetu project page from the MahaRERA register', () => {
     expect(screen.queryByText(P.paragraph)).toBeNull()
     expect(screen.getAllByText('30 Oct 2029').length).toBeGreaterThan(0)
     expect(screen.getByText(/At registration: 31 Dec 2028./)).toBeInTheDocument()
-    expect(screen.getByText('244 of 416')).toBeInTheDocument()
+    // the hero's chip and the record's row
+    expect(screen.getAllByText('244 of 416')).toHaveLength(2)
     expect(screen.getByRole('link', { name: /Kesnand Greens/ })).toHaveAttribute('href', '/projects/kesnand-greens-wagholi')
     expect(screen.getAllByRole('link', { name: /Wagholi/ })[0]).toHaveAttribute('href', '/localities/wagholi')
     expect(screen.getByTestId('enquiry')).toHaveTextContent('Rohan Abhilasha 4 (MahaRERA P52100080076)')
@@ -107,7 +108,7 @@ describe('Avasetu project page from the MahaRERA register', () => {
     const faq = lds.find((x) => x['@type'] === 'FAQPage').mainEntity[0]
     expect(faq.name).toBe('What is the price of Gera World of Joy?')
     expect(screen.getByText(faq.acceptedAnswer.text)).toBeInTheDocument()   // the same words on the page
-    expect(registerTitle(g)).toBe('Gera World of Joy Wagholi: possession Oct 2029, MahaRERA')
+    expect(registerTitle(g)).toBe('Gera World of Joy Wagholi, Pune: possession Oct 2029, 58% booked')
     // with the legal name it runs past the ~160 characters Google shows, so the description leaves it to the page
     expect(registerDescription(g)).toBe('Gera World of Joy by Rohan Builders, Wagholi, Pune. Possession Oct 2029, 244 of 416 homes booked. MahaRERA P52100080076, checked by Avasetu.')
   })
@@ -159,8 +160,27 @@ describe('asking about a project without scrolling to the end', () => {
     expect(within(screen.getByTestId('ask-prompt')).queryByText('WhatsApp')).toBeNull()
     unmount()
     render(<RegisterProjectPage p={P} siteUrl="https://avasetu.in" facts={null} whatsappUrl="https://wa.me/919800000000" />)
-    expect(within(screen.getByTestId('ask-prompt')).getByText('WhatsApp').closest('a')).toHaveAttribute('href', 'https://wa.me/919800000000')
-    expect(within(screen.getByTestId('sticky-join')).getByText('WhatsApp').closest('a')).toHaveAttribute('href', 'https://wa.me/919800000000')
+    // the message names the project and its page, never its MahaRERA number (that starts the bot's status check)
+    const ask = within(screen.getByTestId('ask-prompt')).getByText('WhatsApp').closest('a')!.getAttribute('href')!
+    expect(ask.startsWith('https://wa.me/919800000000?text=')).toBe(true)
+    const text = decodeURIComponent(ask.split('text=')[1])
+    expect(text).toContain(`(page ${P.slug})`)
+    expect(text).not.toContain(P.regno)
+    expect(screen.getByTestId('sticky-whatsapp')).toHaveAttribute('href', ask)
+  })
+
+  it('makes WhatsApp the first action, with the form after it', () => {
+    render(<RegisterProjectPage p={P} siteUrl="https://avasetu.in" facts={null} whatsappUrl="https://wa.me/919800000000" />)
+    expect(screen.getByTestId('hero-whatsapp')).toHaveTextContent("Get today's price sheet on WhatsApp")
+    expect(screen.getByTestId('hero-form')).toHaveAttribute('href', '#enquire')
+    expect(within(screen.getByTestId('sticky-join')).getByText('Form').closest('a')).toHaveAttribute('href', '#enquire')
+  })
+
+  it("keeps an agent's form first on their listing page", () => {
+    const seller = { slug: 'house-deal', name: 'House Deal' } as unknown as Parameters<typeof RegisterProjectPage>[0]['seller']
+    render(<RegisterProjectPage p={P} siteUrl="https://avasetu.in" facts={null} whatsappUrl="https://wa.me/919800000000" seller={seller} />)
+    expect(screen.queryByTestId('hero-whatsapp')).toBeNull()
+    expect(screen.queryByTestId('sticky-whatsapp')).toBeNull()
   })
 })
 
@@ -198,10 +218,10 @@ describe('one price on the page', () => {
     render(<RegisterProjectPage p={{ ...P, sections: [{ heading: 'The project', text: 'Two towers on the main road.' }] }} siteUrl="https://avasetu.in" facts={SHEET} />)
     const offer = screen.getByTestId('offer')
     expect(offer.closest('aside')).toBeNull()
-    expect(within(screen.getByTestId('prices-section')).getByRole('heading', { level: 2 })).toHaveTextContent('Rohan Abhilasha 4 price')
+    expect(within(screen.getByTestId('prices-section')).getByRole('heading', { level: 2 })).toHaveTextContent(/^Price$/)
     expect(screen.getByTestId('prices-section')).toContainElement(offer)
-    const location = screen.getByRole('heading', { name: 'Rohan Abhilasha 4 location' })
-    const about = screen.getByRole('heading', { name: /About Rohan Abhilasha 4/ })
+    const location = screen.getByRole('heading', { name: 'Location' })
+    const about = screen.getByRole('heading', { name: 'About the project' })
     expect(offer.compareDocumentPosition(location) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(location.compareDocumentPosition(about) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
@@ -349,7 +369,7 @@ describe('project page v2: each fact once, in the order a buyer asks', () => {
     expect(screen.getByTestId('chip-bhk')).toHaveTextContent('3, 4 BHK')
     expect(screen.getByTestId('chip-price')).toHaveTextContent('from ₹1.99 Cr')
     expect(screen.getByTestId('chip-possession')).toHaveTextContent('Feb 2031')
-    expect(screen.getByTestId('chip-booked')).toHaveTextContent('27 of 249 booked')
+    expect(screen.getByTestId('chip-booked')).toHaveTextContent('Booked27 of 249')
     expect(screen.getByTestId('chip-booked')).toHaveTextContent('11 booked in the last 60 days')
     const hero = document.getElementById('project-hero')!
     expect(within(hero).getByRole('link', { name: "Get today's price sheet & floor plans" })).toHaveAttribute('href', '#enquire')
@@ -372,13 +392,15 @@ describe('project page v2: each fact once, in the order a buyer asks', () => {
     expect(screen.getByTestId('project-answer')).toHaveTextContent(ext)
     expect(screen.getByTestId('project-answer')).toHaveTextContent('MahaRERA shows 27 of 249 homes booked.')
     expect(screen.getByTestId('possession')).toHaveTextContent(ext)
-    expect(within(screen.getByTestId('possession')).getByRole('heading', { level: 3 })).toHaveTextContent('Park Eden possession date')
+    expect(within(screen.getByTestId('possession')).getByRole('heading', { level: 3 })).toHaveTextContent(/^Possession date$/)
     // what the reader sees (the structured data is the SEO work's, and keeps the old summary as its description for now)
     const seen = container.cloneNode(true) as HTMLElement
     seen.querySelectorAll('script').forEach((s) => s.remove())
     expect(seen).not.toHaveTextContent(/moved from|Moved \d+ months? later|homes are available/)
-    // the FAQ (on the page and in FAQPage) says it the same way
-    expect(screen.getByText(/^The completion date filed with MahaRERA is 28 Feb 2031; .*Ask the builder/)).toBeInTheDocument()
+    // the FAQ (on the page and in FAQPage) says it the same way; the date neither moved nor passed, so no "ask in writing" line
+    const said = screen.getAllByText(/^The completion date filed with MahaRERA is 28 Feb 2031; /)
+    expect(said.length).toBeGreaterThan(0)
+    said.forEach((x) => expect(x).not.toHaveTextContent('Ask the builder'))
   })
 
   it('shows prices and sizes with ₹ per sq ft, the source and day, the area rate and the ask for the offer', () => {
@@ -417,14 +439,14 @@ describe('project page v2: each fact once, in the order a buyer asks', () => {
   it('lists the amenities without a bullet repeating the BHK chip', () => {
     render(<RegisterProjectPage p={EDEN} siteUrl="https://avasetu.in" facts={null} />)
     const h = screen.getByTestId('highlights')
-    expect(within(h).getByRole('heading', { level: 2 })).toHaveTextContent('Park Eden amenities')
+    expect(within(h).getByRole('heading', { level: 2 })).toHaveTextContent(/^Amenities$/)
     expect(h).toHaveTextContent('A 30,000 sq ft clubhouse')
     expect(h).not.toHaveTextContent('3 and 4 BHK homes')
   })
 
   it('shows the model\'s sections under About and never the old summary; with no sections there is no About', () => {
     const { unmount } = render(<RegisterProjectPage p={{ ...EDEN, sections: [{ heading: 'Location', text: 'On the road to the IT parks.' }] }} siteUrl="https://avasetu.in" facts={null} />)
-    expect(within(screen.getByTestId('about')).getByRole('heading', { level: 2 })).toHaveTextContent('About Park Eden')
+    expect(within(screen.getByTestId('about')).getByRole('heading', { level: 2 })).toHaveTextContent(/^About the project$/)
     expect(screen.getByTestId('about')).toHaveTextContent('On the road to the IT parks.')
     expect(screen.queryByText(EDEN.paragraph)).toBeNull()
     unmount()
@@ -437,7 +459,7 @@ describe('project page v2: each fact once, in the order a buyer asks', () => {
     const facts = { maharera: { rera_no: 'P52100055555', url: 'https://x', project_type: 'Residential' } } as never
     render(<RegisterProjectPage p={EDEN} siteUrl="https://avasetu.in" facts={facts} />)
     const record = screen.getByTestId('record')
-    expect(within(record).getByRole('heading', { level: 2 })).toHaveTextContent('Park Eden RERA details')
+    expect(within(record).getByRole('heading', { level: 2 })).toHaveTextContent(/^MahaRERA record/)
     for (const id of ['possession', 'cautions', 'tower-by-tower', 'web-facts']) expect(record).toContainElement(screen.getByTestId(id))
     expect(within(record).getByText('2 in this registration')).toBeInTheDocument()
     expect(record).toHaveTextContent("5 in the whole project (builder's site)")
@@ -462,11 +484,11 @@ describe('project page v2: each fact once, in the order a buyer asks', () => {
     const profile = { ...EDEN.profile!, photos: [PHOTO('/m/a.webp', 'builder'), PHOTO('/m/b.webp', 'builder')] }
     render(<RegisterProjectPage p={{ ...EDEN, profile, sections: [{ heading: 'The project', text: 'x' }] }} siteUrl="https://avasetu.in" facts={null} />)
     const order = [document.getElementById('project-hero')!, screen.getByTestId('project-answer'), screen.getByTestId('photos'),
-      screen.getByTestId('prices-section'), screen.getByTestId('plans'), screen.getByRole('heading', { name: 'Park Eden location' }),
+      screen.getByTestId('prices-section'), screen.getByTestId('plans'), screen.getByRole('heading', { name: 'Location' }),
       screen.getByTestId('highlights'), screen.getByTestId('about'), screen.getByTestId('record'), screen.getByTestId('compare'),
       screen.getByRole('heading', { name: 'FAQ' }), document.getElementById('enquire')!]
     order.slice(1).forEach((el, i) => expect(order[i].compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy())
-    expect(screen.getByTestId('plans')).toHaveTextContent('Park Eden floor plans')
+    expect(screen.getByTestId('plans')).toHaveTextContent('Floor plans')
   })
 
   it('shows nothing for the new fields when the backend has not sent them', () => {
@@ -476,7 +498,7 @@ describe('project page v2: each fact once, in the order a buyer asks', () => {
     expect(screen.queryByTestId('area-rate')).toBeNull()
     expect(screen.queryByTestId('commute')).toBeNull()
     expect(screen.queryByTestId('area-compare')).toBeNull()
-    expect(screen.getByTestId('chip-booked')).toHaveTextContent(/^Booked244 of 416 booked$/)
+    expect(screen.getByTestId('chip-booked')).toHaveTextContent(/^Booked244 of 416$/)
     expect(screen.getByTestId('price-row')).not.toHaveTextContent('/sq ft')
     expect(within(screen.getByTestId('compare')).getByRole('link', { name: /Kesnand Greens/ })).toHaveTextContent('possession Mar 2029')
     expect(container).not.toHaveTextContent(/undefined|null|NaN/)
@@ -513,7 +535,7 @@ describe("the listing agent's videos", () => {
       { url: 'javascript:alert(1)', label: 'bad' }] } } as never
     render(<RegisterProjectPage p={P} siteUrl="https://avasetu.in" facts={facts} />)
     const box = screen.getByTestId('videos')
-    expect(box).toHaveTextContent('Sample flat video of')
+    expect(box).toHaveTextContent('Sample flat video')
     expect(box).toHaveTextContent('3 BHK sample flat · from House Deal')
     const v = box.querySelectorAll('video')
     expect(v).toHaveLength(1)
@@ -573,7 +595,7 @@ describe('the project against its area', () => {
   it('shows the share booked and the date move beside the area, dated, and says the counts are the builders\' own', () => {
     render(<RegisterProjectPage p={{ ...P, area_compare: compare }} siteUrl="https://avasetu.in" facts={null} />)
     const box = screen.getByTestId('area-compare')
-    expect(box).toHaveTextContent('Rohan Abhilasha 4 against Wagholi')
+    expect(box).toHaveTextContent('Beside other Wagholi projects')
     expect(box).toHaveTextContent('59%The middle of 12 Wagholi projects registered within a year of it: 41%.')
     expect(box).toHaveTextContent('Moved 14 months later9 of 31 Wagholi projects being built moved theirs 3 months or more.')
     expect(screen.getByTestId('area-compare-note')).toHaveTextContent('From MahaRERA records read 3 Oct 2026.')
@@ -604,5 +626,19 @@ describe('a page for offices or shops', () => {
 
   it('a home project still says homes', () => {
     expect(projectFaq(P).map((f) => f.q)).toContain('How many homes in Rohan Abhilasha 4 are booked?')
+  })
+})
+
+describe('chatWhatsAppUrl', () => {
+  const before = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER
+  afterEach(() => { process.env.NEXT_PUBLIC_WHATSAPP_NUMBER = before })
+
+  it("is the WhatsApp assistant's number, not the legal pages' contact", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { chatWhatsAppUrl } = require('@/lib/site/links')
+    process.env.NEXT_PUBLIC_WHATSAPP_NUMBER = '919834256406'
+    expect(chatWhatsAppUrl()).toBe('https://wa.me/919834256406')
+    process.env.NEXT_PUBLIC_WHATSAPP_NUMBER = ''
+    expect(chatWhatsAppUrl()).toBeNull()
   })
 })

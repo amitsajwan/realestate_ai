@@ -18,9 +18,12 @@ jest.mock('@/lib/site/facets', () => ({
   getFacets: async () => FACETS,
   getPlacePrices: async () => PRICES,
 }))
+// the place page reads them through getRegisterPlacesOrThrow, the other pages through getRegisterPlaces
+const mockPlaces = () => [{ key: 'lohegaon', slug: 'lohegaon', name: 'Lohegaon', zone: 'East Pune', spellings: ['Lohgaon', 'Lohogaon'], projects: 2, indexable: 2 }]
 jest.mock('@/lib/site/register', () => ({
   ...jest.requireActual('@/lib/site/register'),
-  getRegisterPlaces: async () => [{ key: 'lohegaon', slug: 'lohegaon', name: 'Lohegaon', zone: 'East Pune', spellings: ['Lohgaon', 'Lohogaon'], projects: 2, indexable: 2 }],
+  getRegisterPlaces: async () => mockPlaces(),
+  getRegisterPlacesOrThrow: async () => mockPlaces(),
   getRegisterProjects: async () => [
     { slug: 'sky-one', regno: 'P1', name: 'SKY ONE', marketed_name: 'Sky One', area: 'lohegaon', completion_now: '2028-06-30', indexable: true, stage: null,
       promoter: 'Sky Builders', units_total: 200, units_booked: 50, page_updated: '2026-10-19T08:00:00+00:00' },

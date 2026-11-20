@@ -19,7 +19,7 @@ from app.core import brand
 from app.core.areas import BY_KEY
 from app.modules.newsroom.store import Store
 
-from . import brands, clusters, pagefacts, plans3d, priceidea
+from . import brands, clusters, fromabove_view, pagefacts, plans3d, priceidea, sitevisits
 from .service import _count, _day
 from .text import ascii_text, builder_slug, promoter_key, words
 
@@ -203,6 +203,14 @@ def own_facts(doc: dict) -> bool:
     return homes(doc) and bool((doc.get("prices") or {}).get("rows") or any(not x.get("one_site") for x in doc.get("home_sizes") or []))
 
 
+def shown_sizes(sizes: Optional[List[dict]]) -> List[dict]:
+    """The home sizes a page may state: the builder's site or two sites that agree (seo-system rule 9), each with its kind of
+    area, since carpet and saleable differ by 30-40% and a bare number misleads by that much. One site's size, or one whose kind
+    no site states, stays on the record only (outside review of Godrej Ivara, 2026-11-20: "875 to 1,250 sq ft, area kind not
+    stated (not yet confirmed)")."""
+    return [x for x in sizes or [] if not x.get("one_site") and x.get("kind") and "not stated" not in str(x.get("kind"))]
+
+
 def has_own_content(doc: dict) -> bool:
     """Something on the page beyond the register: written sections or a fact of its own (`own_facts`)."""
     return bool(doc.get("page_text")) or own_facts(doc)
@@ -318,7 +326,9 @@ def page_updated(doc: dict) -> Optional[str]:
     pages said "changed today" on 2026-11-05 with nothing changed, and Google stops trusting a lastmod that always moves. A
     record read before `details_changed_at` existed keeps the old rule until its next read sets it. Going into search counts
     (`search_state` in, at): the page's noindex came off, a change Google must read again, and IndexNow sends only pages dated
-    after its last send, so 262 pages let in by a rule change on 2026-11-19 would otherwise never have been sent."""
+    after its last send, so 262 pages let in by a rule change on 2026-11-19 would otherwise never have been sent. The site from
+    above counts when it is shown (2026-11-20: 11 pages gained it and still said 17 Nov); a look that found no change does not,
+    since the page shows nothing new."""
     stamps = [doc.get("page_text_at")]
     held = doc.get("search_state") or {}
     if held.get("in") is True and isinstance(held.get("at"), datetime):
@@ -327,6 +337,10 @@ def page_updated(doc: dict) -> Optional[str]:
         stamps.append(doc["details_changed_at"])
     elif doc.get("details_ok", True):   # a failed details read changed nothing on the page
         stamps.append(doc.get("details_checked_at"))
+    above = doc.get("from_above") or {}
+    if above.get("story") and not above.get("none"):   # the site from above went on the page or was renewed (fromabove)
+        stamps.append(above.get("at"))
+    stamps.append(sitevisits.saved_at(doc))   # a person's note from the site went on the page (2026-11-20)
     return _latest(stamps)
 
 
@@ -825,6 +839,10 @@ def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None, ix
         "map_from": geo.get("located_from") if own else None,
         # a street map around the pin, for the hero when the project has no picture (areastats.locmap)
         "location_picture": location_picture(doc),
+        # the site from above, year by year and month by month (areastats.fromabove), only at the page's own pin
+        "from_above": fromabove_view.public_view(doc, (geo["lat"], geo["lon"]) if own else None),
+        # what a person saw at the site, dated and signed (areastats.sitevisits): never model-written
+        "site_visit": sitevisits.public(doc),
         "checks": checks(doc), "text_checked": bool(doc.get("page_text")),
         "builder": track_record(doc, docs, ix) if docs is not None else None,
         "place": doc.get("place_locality") or None, "taluka": doc.get("taluka") or None,
@@ -851,7 +869,12 @@ def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None, ix
         "marketed_name": names(doc)[0], "aliases": names(doc)[1], "page_updated": page_updated(doc),
         # how people search for the page (seo.targets, rank-loop R1): leads the title and H1; the legal name stays in the body
         "search_name": doc.get("search_name") or None,
-        # the name with the builder's brand in front when the name lacks it (L4): after search_name, before the marketed name
+        # the name the sites printing its MahaRERA number sell it under (seo.marketname): after search_name, before branded_name
+        "market_name": doc.get("market_name") or None,
+        # the place those sites put it in when it is not ours ("Kharadi" for a Wagholi pincode): the title says both, the page which is which
+        "market_place": doc.get("market_place") or None,
+        "market_sites": (doc.get("market_read") or {}).get("place_sites") or None,
+        # the name with the builder's brand in front when the name lacks it (L4): after the market name, before the marketed name
         "branded_name": branded_name(doc),
         # "People also ask" questions answered from our facts (seo.questions, R4), each with its source and its topic:
         # the topic is what lets the page drop its own question on a topic a real one already covers
@@ -861,8 +884,8 @@ def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None, ix
         "search_description": doc.get("seo_description") or doc.get("page_summary") or None,
         # the writer's sections under the paragraph: {heading, text}, checked with it (enrich.SECTIONS)
         "sections": (doc.get("page_sections") or []) if doc.get("page_text") and int(doc.get("page_text_version") or 1) < 6 else [],
-        # each kind of home's size, as sites state it, with its kind of area (enrich.home_sizes)
-        "home_sizes": [{k: x.get(k) for k in ("bhk", "low", "high", "kind", "official", "one_site", "sites")} for x in doc.get("home_sizes") or []],
+        # each kind of home's size, as sites state it, with its kind of area (enrich.home_sizes): only the ones the page may state
+        "home_sizes": [{k: x.get(k) for k in ("bhk", "low", "high", "kind", "official", "one_site", "sites")} for x in shown_sizes(doc.get("home_sizes"))],
         # the facts taken together (enrich.buyer_read): shown with its date and that it comes from MahaRERA's data
         "read": {k: (doc.get("page_read") or {}).get(k) for k in ("text", "on")} if (doc.get("page_read") or {}).get("text") else None,
         # the points at the top of the page from the writer's version 6 on (enrich.write_points): {heading, text, facts}
@@ -882,7 +905,7 @@ SAME_PROMOTER = 8
 
 def same_promoter(doc: dict, docs: List[dict], ix: Optional["LoadIndex"] = None) -> List[dict]:
     """Up to 8 other pages by the same promoter, active (not finished) first: {name, marketed_name, slug, completion_now}."""
-    return [{"name": d.get("name", ""), "marketed_name": names(d)[0], "search_name": d.get("search_name") or None, "branded_name": branded_name(d), "slug": d["page_slug"],
+    return [{"name": d.get("name", ""), "marketed_name": names(d)[0], "search_name": d.get("search_name") or None, "market_name": d.get("market_name") or None, "branded_name": branded_name(d), "slug": d["page_slug"],
              "completion_now": _day(d.get("completion_now"))} for d in promoter_pages(doc, docs, ix)]
 
 
@@ -905,9 +928,16 @@ def promoter_pages(doc: dict, docs: List[dict], ix: Optional["LoadIndex"] = None
     return mine[:SAME_PROMOTER]
 
 
+def shown_name(d: dict) -> str:
+    """The name a project's page leads with, and every link and card into it: how people search for it (seo.targets), else the
+    name the sites printing its number sell it under (seo.marketname), else with its brand in front, else its marketed name.
+    The site's lib/site/register.ts displayName is the same order."""
+    return d.get("search_name") or d.get("market_name") or branded_name(d) or names(d)[0]
+
+
 def card_name(d: dict) -> str:
     """The name a project's card in another page's list shows."""
-    return d.get("search_name") or branded_name(d) or names(d)[0]
+    return shown_name(d)
 
 
 def _one_per_name(docs: List[dict], doc: dict) -> List[dict]:
@@ -1302,6 +1332,7 @@ def _listing(every: List[dict], area: Optional[str], only_indexable: bool, limit
 
     return [{**finder(d), "slug": d["page_slug"], "regno": d.get("regno") or d["_id"], "name": d.get("name", ""), "marketed_name": names(d)[0],
              "search_name": d.get("search_name") or None,
+             "market_name": d.get("market_name") or None,
              "branded_name": branded_name(d),
              "area": d.get("locality"), "units_total": _count(d.get("units_total")), "units_booked": booked(d),
              "place": d.get("pune_place"), "place_name": d.get("pune_place_name"),
@@ -1379,6 +1410,25 @@ async def search(db, q: str, limit: int = 20) -> List[dict]:
     scored = [(s, r) for r in await _search_rows(db) if (s := _score(r, qn))]
     scored.sort(key=lambda x: (-x[0], not x[1]["out"]["active"], x[1]["out"]["marketed_name"].lower()))
     return [r["out"] for _, r in scored[:limit]]
+
+
+async def from_space(db) -> List[dict]:
+    """Every project page showing its site from space (areastats.fromabove), newest look first: {slug, name, place, story,
+    video {src, poster, from, to, months}, picture, updated}. For the video sitemap and the "from space" hub page, the
+    thing no other site shows (owner 2026-11-20: "it can be our selling point")."""
+    out = []
+    for d in await Store(db).shared_projects():
+        if not d.get("from_above") or not _served(d) or not own_position(d):
+            continue
+        view = fromabove_view.public_view(d, (d["geo"]["lat"], d["geo"]["lon"]))
+        if view is None:
+            continue
+        area = BY_KEY.get(d.get("locality") or "")
+        out.append({"slug": d.get("page_slug"), "name": names(d)[0], "place": area.name if area else d.get("pune_place_name"),
+                    "story": view["story"], "video": view["video"], "picture": view["frames"][-1]["src"],
+                    "years": [view["frames"][0]["year"], view["frames"][-1]["year"]], "updated": view["updated"],
+                    "seasons": len(view["seasons"])})
+    return sorted(out, key=lambda x: (x["updated"] or "", x["name"]), reverse=True)
 
 
 async def places(db) -> List[dict]:

@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from difflib import SequenceMatcher
 from typing import Dict, List, Optional
 
+from app.core import pune_places
 from app.core.areas import AREAS
 
 from ..policy import (AREA_KEYWORDS, AREA_PINCODES, BANNED, CITYWIDE_HINT, CITYWIDE_PILLARS, CORRIDOR_KEYWORDS, MAX_AGE_DAYS,
@@ -28,6 +29,9 @@ _CORRIDOR_RE = [_phrase(k) for k in CORRIDOR_KEYWORDS]
 _HINT_RE = [_phrase(k) for k in PUNE_HINT]
 _CITY_RE = [_phrase(k) for k in CITYWIDE_HINT]
 _MONEY_RE = [_phrase(k) for k in NATIONAL_MONEY]
+# every place in Pune district a buyer names (app.core.pune_places), whole names only: the site covers all of Pune since 2026-10-04,
+# and from 2026-11-12 to 2026-11-19 177 of 231 items were dropped as "no target area" while the newsroom still read only east Pune
+_PLACE_RE = [_phrase(n) for p in pune_places.PLACES for n in (p.name.lower(),) + p.aliases if len(n) >= 5]
 _PILLAR_RE: Dict[str, List["re.Pattern[str]"]] = {
     p: [_phrase(k, True) for k in list(ks) + topics.EXTRA_PILLAR_KEYWORDS.get(p, [])] for p, ks in PILLAR_KEYWORDS.items()}
 _PIN = re.compile(r"(?<!\d)(\d{6})(?!\d)")
@@ -132,7 +136,11 @@ def assess(item: RawItem, now: datetime) -> Relevance:
     if tracked:
         areas = [a for a in tracked[1] if a in AREA_KEYWORDS]
     citywide = False
-    if not areas and not corridor and not tracked:
+    # a story whose headline or first sentence names Pune or one of its places is a Pune buyer's story, whatever its pillar
+    pune_head = not areas and not corridor and not tracked and (_hits(_HINT_RE, head) > 0 or _hits(_PLACE_RE, head) > 0)
+    if pune_head:
+        citywide = _lead_pillar(head) is not None or _hits(_PILLAR_RE["infrastructure"], full) > 0
+    if not areas and not corridor and not tracked and not citywide:
         # rules, money and market news applies to every buyer in Pune: it needs no area, only a Pune or Maharashtra mention (or, for
         # national money news like the repo rate, the topic itself), and the headline must be about it, not mention it in passing
         lead = _lead_pillar(head)
@@ -167,19 +175,20 @@ def assess(item: RawItem, now: datetime) -> Relevance:
     if not scores:
         return _no("no buyer relevance: no pillar keyword evidence")
     pillar = _best(scores)
-    if citywide and pillar not in CITYWIDE_PILLARS:
+    if citywide and not pune_head and pillar not in CITYWIDE_PILLARS:
         pillar = _lead_pillar(head)  # let in for its rules or market news: that is what it is about
     if by_body and supply and "new_supply" in scores and len(by_body) == len(areas):
         pillar = "new_supply"  # the area was found only because it is a new-project item
     # buyer-relevance score: pillar evidence, plus the area being in the headline
     # a tracker's headline is about its topic by its own rules, as an area named in the headline is about the area
-    in_title = (bool(tracked) or any(p.search(title.lower()) for pats in _AREA_RE.values() for p in pats)
+    in_title = (bool(tracked) or _hits(_PLACE_RE, title.lower()) > 0
+                or any(p.search(title.lower()) for pats in _AREA_RE.values() for p in pats)
                 or any(p.search(title.lower()) for p in _CORRIDOR_RE))
     score = scores[pillar] + (2 if in_title else 1 if areas else 0)  # area in the first sentence counts for less than in the headline
     if score < topics.MIN_SCORE:
         return _no(f"no buyer relevance: score {score} below {topics.MIN_SCORE}")
     where = (f"tracker: {tracked[0]}" if tracked else ("areas: " + ", ".join(areas)) if areas
-             else "corridor topic with Pune hint" if corridor else "city-wide buyer news")
+             else "corridor topic with Pune hint" if corridor else "Pune story" if pune_head else "city-wide buyer news")
     why = where + f"; score {score}"
     return Relevance(keep=True, pillar=pillar, areas=areas, reason=why)
 

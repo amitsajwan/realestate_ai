@@ -41,7 +41,7 @@ if str(BACKEND) not in sys.path:
 from app.core.areas import get as area_get  # noqa: E402
 from app.core.config import settings  # noqa: E402
 from app.modules.areastats.pictures import (  # noqa: E402
-    CATALOG_URL, CLOUD, PROCESS_URL, SEASON, TOKEN_URL, WIDTH, Box, Failed, best_pass, box_for, catalog_query, judge_code,
+    CATALOG_URL, CLOUD, PROCESS_URL, SEASON, TOKEN_URL, WIDTH, Box, Failed, best_pass, box_for, catalog_query, enhance, judge_code,
     month_name, parse_box, process_request, season, token,
 )
 
@@ -128,6 +128,7 @@ def run(slug: str, years: Sequence[int], box: Optional[Box] = None, *, cloud: in
                 continue
             out.mkdir(parents=True, exist_ok=True)
             name = f"{area.slug}-{y}.webp"
+            img = enhance(img)
             img.save(out / name, "WEBP", quality=82, method=6)
             kept[y] = {**meta, "src": f"/areas/{name}", "width": img.width, "height": img.height,
                        "box": list(box), "credit": f"Contains modified Copernicus Sentinel data {y}"}

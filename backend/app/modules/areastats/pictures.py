@@ -23,7 +23,9 @@ from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import httpx
-from PIL import Image
+import cv2
+import numpy as np
+from PIL import Image, ImageEnhance, ImageFilter, ImageStat
 
 from app.core import area_bounds, areas
 from app.platform import media
@@ -203,6 +205,81 @@ def judge_code(png: bytes) -> Tuple[Image.Image, float]:
     return rgba.convert("RGB"), round(white * 100, 1)
 
 
+Stretch = Tuple[Tuple[int, int, int], Tuple[int, int, int]]   # per channel low, high
+
+
+def stretch_for(images: Sequence[Image.Image]) -> Stretch:
+    """One colour stretch (2nd and 98th percentile per channel) over all the pictures given, so pictures of the same place
+    compare fairly: a change between them is the ground's, not the stretch's."""
+    lows, highs = [], []
+    for c in range(3):
+        hist = [0] * 256
+        for img in images:
+            for v, n in enumerate(img.convert("RGB").getchannel(c).histogram()):
+                hist[v] += n
+        total, seen, lo, hi = sum(hist), 0, 0, 255
+        for v, n in enumerate(hist):
+            if seen <= total * 0.02 < seen + n:
+                lo = v
+            if seen <= total * 0.98 < seen + n:
+                hi = v
+            seen += n
+        lows.append(lo)
+        highs.append(max(hi, lo + 1))
+    return (lows[0], lows[1], lows[2]), (highs[0], highs[1], highs[2])
+
+
+def enhance(img: Image.Image, stretch: Optional[Stretch] = None, upscale: int = 1) -> Image.Image:
+    """Clearer, never invented: a colour stretch, a slight gamma and colour lift, an optional Lanczos upscale and an unsharp
+    mask. Every step works only on what the satellite recorded; no model adds detail (a generative upscaler would draw
+    towers that are not there, the wrong picture this feature promises not to show)."""
+    rgb = img.convert("RGB")
+    lo, hi = stretch or stretch_for([rgb])
+    chans = [rgb.getchannel(c).point([max(0, min(255, round(255 * ((v - lo[c]) / (hi[c] - lo[c])) ** 0.9)))
+                                      if v > lo[c] else 0 for v in range(256)]) for c in range(3)]
+    out = ImageEnhance.Color(Image.merge("RGB", chans)).enhance(1.12)
+    if upscale > 1:
+        out = out.resize((out.width * upscale, out.height * upscale), Image.LANCZOS)
+    return out.filter(ImageFilter.UnsharpMask(radius=2 if upscale > 1 else 1.5, percent=110, threshold=2))
+
+
+def classic(img: Image.Image, upscale: int = 2) -> Image.Image:
+    """Sharper and clearer by classic means only (owner 2026-11-20 chose it over AI upscalers, which either added nothing or
+    drew roofs and sheds that are not there): a Lanczos upscale, local contrast (CLAHE on lightness) and an unsharp mask.
+    Every step works on what the satellite recorded."""
+    a = cv2.cvtColor(np.array(img.convert("RGB")), cv2.COLOR_RGB2BGR)
+    if upscale > 1:
+        a = cv2.resize(a, None, fx=upscale, fy=upscale, interpolation=cv2.INTER_LANCZOS4)
+    light, ca, cb = cv2.split(cv2.cvtColor(a, cv2.COLOR_BGR2LAB))
+    light = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(light)
+    a = cv2.cvtColor(cv2.merge((light, ca, cb)), cv2.COLOR_LAB2BGR)
+    a = cv2.addWeighted(a, 1.6, cv2.GaussianBlur(a, (0, 0), 3), -0.6, 0)
+    return Image.fromarray(cv2.cvtColor(a, cv2.COLOR_BGR2RGB))
+
+
+def even_out(images: Sequence[Image.Image], strength: float = 0.7) -> List[Image.Image]:
+    """Each picture's brightness and colour moved towards the set's average (per channel mean and spread), so a timelapse
+    does not flicker with the haze and light of each pass (owner 2026-11-20: "minor image enhancement"). A linear change
+    of each channel only: what is light stays lighter, what is dark stays darker, and nothing is added."""
+    stats = []
+    for img in images:
+        st = ImageStat.Stat(img.convert("RGB"))
+        stats.append((st.mean, st.stddev))
+    if not stats:
+        return []
+    target_mean = [sum(m[c] for m, _ in stats) / len(stats) for c in range(3)]
+    target_sd = [sum(sd[c] for _, sd in stats) / len(stats) for c in range(3)]
+    out = []
+    for img, (mean, sd) in zip(images, stats):
+        chans = []
+        for c, band in enumerate(img.convert("RGB").split()):
+            gain = 1 + strength * ((target_sd[c] / sd[c] if sd[c] > 1 else 1) - 1)
+            shift = mean[c] + strength * (target_mean[c] - mean[c])
+            chans.append(band.point([max(0, min(255, round((v - mean[c]) * gain + shift))) for v in range(256)]))
+        out.append(Image.merge("RGB", chans))
+    return out
+
+
 def month_name(day: str) -> str:
     return f"{MONTHS[int(day[5:7]) - 1]} {day[:4]}"
 
@@ -297,7 +374,7 @@ async def capture_year(client: httpx.Client, auth: str, box: Box, area: areas.Ar
         if judged is not None and not judged["ok"]:
             log.info("area pictures: %s %s %s: the judge called it unusable (%s)", area.key, year, day, judged.get("reason"))
             continue
-        return img, {"captured_on": day, "tile_cloud_pct": round(cc, 1), "cloud_pct": cloud_pct}, judged
+        return enhance(img), {"captured_on": day, "tile_cloud_pct": round(cc, 1), "cloud_pct": cloud_pct}, judged
     return None
 
 

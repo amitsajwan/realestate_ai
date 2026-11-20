@@ -84,6 +84,9 @@ $Catalog = @(
   @{ Name = "COPERNICUS_CLIENT_ID"; For = "Sentinel-2 pictures of each area from above (Copernicus Data Space OAuth client)"
      Get = "https://dataspace.copernicus.eu -> sign up (free) -> Sentinel Hub dashboard -> User settings -> OAuth clients -> Create" }
   @{ Name = "COPERNICUS_CLIENT_SECRET"; For = "Sentinel-2 pictures: the OAuth client's secret (shown once)"; Get = "the same client" }
+  @{ Name = "COPERNICUS_CLIENT_ID_2"; For = "Sentinel-2 pictures: a second account, used when the first one's month is spent"
+     Get = "a second Copernicus Data Space account -> OAuth clients -> Create" }
+  @{ Name = "COPERNICUS_CLIENT_SECRET_2"; For = "Sentinel-2 pictures: the second account's client secret"; Get = "the same client" }
   @{ Name = "GSC_SA_KEY_B64"; For = "Search Console reader (which project pages Google shows)"; File = $true
      Get = "Google Cloud -> IAM -> Service accounts -> Keys -> Add key (JSON); add its email in Search Console as a Restricted user"
      Check = { param($v) $j = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($v)) | ConvertFrom-Json

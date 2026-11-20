@@ -228,10 +228,12 @@ export function urlsetXml(entries: SitemapEntry[]): string {
 }
 
 /** The sitemap index: one <sitemap> per group, dated by its newest page. */
-export function indexXml(base: string, groups: Map<string, SitemapEntry[]>): string {
+export function indexXml(base: string, groups: Map<string, SitemapEntry[]>, extra: string[] = []): string {
   const rows = [...groups].sort(([a], [b]) => (a === 'core' ? -1 : b === 'core' ? 1 : a.localeCompare(b))).map(([name, entries]) => {
     const newest = entries.map((e) => iso(e.lastModified)).filter((d): d is string => !!d).sort().pop()
     return `<sitemap><loc>${esc(`${base}/sitemaps/${name}.xml`)}</loc>${newest ? `<lastmod>${newest}</lastmod>` : ''}</sitemap>`
   })
+  // sitemaps of another kind served at their own address (the listing videos' video sitemap)
+  for (const path of extra) rows.push(`<sitemap><loc>${esc(base + path)}</loc></sitemap>`)
   return `${HEAD}<sitemapindex xmlns="${NS}">\n${rows.join('\n')}\n</sitemapindex>\n`
 }

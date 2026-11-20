@@ -1,4 +1,4 @@
-# The site from above: a satellite view on project pages (2026-11-16, step 2 BUILT 2026-11-16)
+# The site from above: a satellite view on project pages (2026-11-16; step 2 LIVE 2026-11-19; steps 3-4 BUILT 2026-11-20, by hand, 4 projects)
 
 Owner, 2026-11-16: "can we get live images of project, like satellite images", then "let's add satellite, create a plan and
 developers will follow". Nothing here is built yet. Each step is marked code or owner, and steps are in the order to build them.
@@ -58,7 +58,9 @@ for the registered name and refused a place whose name lacked the tower's code (
 
 ### 2. "Map / Satellite" on the location section (BUILT 2026-11-16)
 
-Owner still needs to do their part before the switch appears on the live site (see "What the owner does" below).
+Owner's part done 2026-11-16 (key `avasetu-maps-embed`, GitHub variable `NEXT_PUBLIC_MAPS_EMBED_KEY`). The switch still did not
+show until 2026-11-19: `frontend/Dockerfile` had no `ARG` for the key, so the build dropped it. Any new `NEXT_PUBLIC_*` setting
+needs its `ARG` and `ENV` there as well as in images.yml.
 
 | Part | What | Where |
 |---|---|---|
@@ -71,6 +73,158 @@ Owner still needs to do their part before the switch appears on the live site (s
 
 Not in this step: the satellite picture as the hero image or the social card. Those would need a stored picture, which
 Google's terms do not give us.
+
+### 3 and 4, as built (2026-11-20): measured, said in code, on four project pages
+
+Owner, 2026-11-20: "use ai to sharpen the images", "3 projects each for our main areas", "can we write some text ... how
+building or construction happened over time", then "lets go for it, the best". Trial on 9 large projects in Kharadi, Upper
+Kharadi and Wagholi; owner decided yes.
+
+- **Sharpening is not generative.** A generative upscaler would draw towers that are not there. `areastats.pictures.enhance`:
+  one colour stretch over all of a place's pictures (`stretch_for`), slight gamma and colour, optional 2x Lanczos, unsharp
+  mask. Used by the area script, the `area_pictures` loop and the project script. The page says "nothing is drawn in".
+- **The measure** (`areastats/sitepics.py`): one January to March pass a year since 2021 (same sun angle, least cloud); per
+  10 m pixel inside 100 m of the pin, Copernicus classes built / bare / green / other from NDBI, NDVI and visible colour, and
+  drops cloud by its scene classification. **Haze**: thin winter smog is not in that classification and reads as concrete
+  (2026-01-05: AOT 0.6, every project 20 to 30 points "more built"); of up to 8 cloud-free passes the least hazy is used, none
+  over AOT 0.4. Colour alone (no infrared) was tried first and was too noisy to write from.
+- **The sentence** (`sitepics.story`): code only. Claims a change of 15 points or more; "began to spread by" only from the
+  year the rise holds every later year; says "within 100 m of the map pin" and, under it, that the circle takes in
+  neighbouring plots and sees ground cover, not floors. Tests: `tests/modules/areastats/test_sitepics.py`.
+- **Files, not a store yet**: `backend/scripts/project_from_above.py <slug> ...` writes `frontend/public/from-above/
+  <slug>-<year>.webp` and `<slug>.json`; the page reads them (`lib/site/fromAbove.ts`) and shows "<name> from above, 2021
+  to 2026" under the location section with ImageObject data, only while the checked pin is within 50 m of where the
+  pictures were taken. jest: `__tests__/site/from-above.test.tsx`.
+- **On the site**: Yashwin Enchante (4% to 53%), Kohinoor Riverdale (cleared 2023-24, 0% to 22%), VTP Flamante (cleared
+  2023-24, 3% to 19%), The Strand (15% to 41%). **Held back**: Palladio (pin on a junction in built-up streets; the new
+  towers are outside the circle), My Home Upper Kharadi and Gera 343 Crest (numbers rise but the pictures do not show it
+  plainly), Rohan Abhilasha 4 (its pin is on the finished earlier phases: a wrong pin, and no screen corrects a project pin
+  yet; `propertyfacts/pin.py` finds them).
+- **Next**: a daily pass (`enrich.add_daily`, step 4 above) only for projects of 300+ homes with a Google pin, after a check
+  on 20 more sites including finished ones (they must say nothing). Until then, re-run the script by hand each February.
+
+### Timelapse: month by month (2026-11-20)
+
+Owner, 2026-11-20: "images per quarter would have been good.. and a video, with images changing on right side, showing
+landscape changing". Costs nothing: a project's ~45 months are a few hundred small Process API requests, inside the free
+Copernicus quota.
+
+- **Months**: one pass a dry month, October to May, since Jan 2021 (`sitepics.dry_months`). June to September is left out:
+  under cloud on nearly every pass, and the clear ones are green with rain. Per month, of the 4 least cloudy passes, the
+  least hazy whose whole 600 m picture shows no cloud (`sitepics.frame_clear`, `clearest_frame`). About 40 months a project.
+- **No numbers on months.** The monthly picture carries its date only; the season changes plant cover month to month. The
+  measured shares and the sentence stay with the same-season yearly passes above.
+- **Drawn in code** (`calendar/site_timelapse.py`): key frames (one a month, the date and a timeline ticking), short
+  cross-fades, then the measured sentence held 3.5 s. Two shapes: a 960x540 silent loop for the page (text left, ground
+  right, about 1 MB) and a 1080x1920 reel with the brand music (text above, ground below, under 29 s). Tests:
+  `tests/modules/calendar/test_site_timelapse.py`.
+- **Made by hand**: `project_from_above.py --timelapse <slug> ... [--reels DIR] [--cache DIR]` writes `<slug>.mp4` and its
+  poster `<slug>.webp` beside the yearly pictures and records `"video"` in `<slug>.json`; with `--reels`, the reel and its
+  code-written caption. The page plays the loop (muted, looping) only once it is near the screen, with VideoObject data.
+- **The credit line** "Contains modified Copernicus Sentinel data <years>" is the Copernicus licence's condition for
+  using the pictures; it stays, small, on the page, in the video and in the post.
+
+### The video, second look (2026-11-20)
+
+Owner on the first: "too fast and repetition", "is text readable", "with every image change we need interpretation", "minor
+image enhancement". Now: one picture a dry season (Oct-Dec, Jan-Mar, Apr-May; `sitepics.by_season`, a year's measured pass
+kept), about 17 since 2021, each held about 1.5 s with a 0.5 s fade; square 720 px for the page with the date (58 px) and a
+line (32 px) across the top of the picture, readable on a phone; the words switch halfway through a fade, never overlap.
+Each line comes from the yearly measure (`sitepics.captions`: "Measured: 22% roofs and concrete" on a year's own pass,
+else "Plants and open ground", "Ground being cleared", "Cleared ground, little built yet", "Roofs and concrete
+spreading"), not from a model looking at a 10 m picture, which would guess. `pictures.even_out` moves each picture's
+brightness and colour towards the set's average so haze does not flicker; linear per channel, nothing added. On the page
+the video plays once, stops on the sentence, and has controls to replay. Videos of the first look are made again
+(`fromabove.VIDEO_VERSION`). Sharper pictures would need paid satellites (3 m and finer); Google's sharp view is the
+Map/Satellite switch, today's only.
+
+### The look that went live: monthly medians, season lines by Gemini (2026-11-20, LIVE)
+
+Decided with the owner by looking, on 15 sites (sheets in docs/content/from-above/: check-core, check-more-1/2,
+enhance-ai-trial, llm-pack-*, gemini-v2-lines, sample-yashwin.mp4):
+
+- **What the satellite can and cannot tell.** All bands for 5 sites, 6 years: plants it tells well (near-infrared); "roofs
+  and concrete" it does not: a cleared site's pale dry ground reads as concrete and finished towers read dark (Yashwin
+  "75% built" while being built, 53% once finished). No percentage is said anywhere.
+- **Pictures: the median of every clear pass**, a request a dry month (`MONTH_EVALSCRIPT`: true colour, infrared, passes
+  per pixel). Over 15 sites single passes gave 4 false "plants cleared"; the median none. Seasons and each year's picture
+  are medians of the months, made here. About 45 requests a project, then a few a season.
+- **Sharper by classic means** (`pictures.classic`: Lanczos, CLAHE, unsharp). Tried and refused: an AI upscaler (EDSR, no
+  gain) and Gemini's image model, which drew sheds and blue roofs that are not in the data.
+- **The ring is 100 m around the pin**, the ground the words cover.
+- **Words: Gemini, given everything** (owner: "send all details we have"): every MahaRERA registration behind the page
+  with its dates, homes and buildings, every season's picture and each year's infrared, all in one call
+  (`fromabove.describe`, gemini-3.8-flash first). A line a season, a summary, a pin check. Every line goes through
+  `checked` (no floors, slabs, progress, rapid, rising, taller, planned...; at most 18 words); a failed line falls back to
+  the code's (plants on the ground / being cleared / ground cleared), a failed summary to `sitepics.sentence`. A pin
+  Gemini calls doubtful (buildings standing before the first registration: Rohan Abhilasha 4) hides the section. Trial
+  v2 on 4 sites matched what we saw; about Rs 2 a project.
+- **No Gemini, no publishing.** A busy Gemini (503) is asked again after 90 s; still nothing, the pass stops for the day
+  and says so (`MARK.stopped`). Studio > Admin > Health "Site from above" goes red after 2 days and the system watch alerts.
+- **Two Copernicus accounts** (owner's choice): `COPERNICUS_CLIENT_ID_2`/`_SECRET_2`; when one refuses for quota the pass
+  carries on with the next, and stops only when all are spent. Parallel runs split pages by `in_shard`.
+- **Video**: a picture a month dissolving into the next (~0.5 s each), the date and the season's line large over the
+  picture, the summary at the end, plays once on the page with controls.
+- **On the page**: right after the prices, with a "Watch the site from space" link in the hero; the newest six season lines
+  as page text (earlier ones fold away), the yearly row, then today's sharper view through Google's own satellite embed.
+- **For search** (the selling point): the season lines are the VideoObject's transcript, /video-sitemap.xml lists every
+  video (robots.txt names it), and /projects/from-space lists every project with its timeline (linked from /projects and
+  from each section).
+- **Watch pages** `/projects/<slug>/from-space`: the video first, then the summary and every season line. Google shows a
+  video result only from a page where the video is the main thing; the video sitemap and the hub point here, the project
+  page's section links to it ("Open the full timeline"). Owner's part: submit video-sitemap.xml in Search Console.
+
+### Kept, growing, and new launches (2026-11-20)
+
+Owner: "why we decreased images, more is better??", "for new launches we can have current satellites, and we grow with
+project", "we are saving the images?? we can reuse??".
+
+- **Kept**: every pass read (its cloud, haze and circle shares) in `uploads/from_above/<regno>/reads.json` with the last
+  day searched, and every month's true-colour picture as fetched in `raw/<day>.png` (about 2 MB a project; 13 GB free on
+  2026-11-20). A later look searches only passes after `searched_to`, reads only days not read, fetches only pictures not
+  kept (`fromabove.read_new`, `picture`): about 10 requests instead of about 150. A new video style or a slider through
+  every month costs nothing. A pin moved over 50 m starts afresh.
+- **Growing**: a page with pictures is looked at again every 85 days (`REDO_DAYS`), so each season adds a picture; a page
+  with no change every 120 (`REDO_NONE_DAYS`).
+- **Why a season per picture in the video**: more pictures in the same length flash by (the first version), and 41 at a
+  readable pace would run past a minute; at 10 m consecutive months look alike but for the season's green. Every month is
+  kept for a slider a buyer drives (next).
+- **New launches** (registered in the last 548 days, `fromabove.new_launch`) show their ground from the first season even
+  with no change measured: `sitepics.baseline` says when it registered and that a picture is added each season, no claim
+  of building. The captions still come from the measure.
+
+### On every page that qualifies: the daily pass (2026-11-20)
+
+Owner, 2026-11-20: "lets get it for all pages". `areastats/fromabove.py`, a once-a-day pass inside the enrichment loop
+(`enrich.add_daily("site from above")`, wired in `wiring.py`, which also passes in the video drawer
+`calendar.site_timelapse.page_video`). On by itself wherever the Copernicus keys are set.
+
+- **Which pages**: a checked Google pin of its own (`pages.own_position`), 300+ homes across the project's registrations,
+  not finished. 232 on 2026-11-20 (33 in our 8 areas). Our areas first, then by hot score. Redone after 330 days, or at
+  once when the pin moves more than 50 m.
+- **Cost**: one class map a pass over the whole 600 m square serves both the month's cloud check and the year's measure;
+  then the true-colour pictures. About 130 requests a project, about the same when nothing changed (the class maps are
+  most of it). No project starts once 2,000 are spent that day (`REQUESTS_PER_DAY`; the free account gives 30,000 requests a month, not 10,000 as first read, owner's dashboard 2026-11-20); a started one may run 200 past it
+  (`OVERRUN`) so its requests are not wasted. About two projects a day, about 8,000 of the free 10,000 requests a month:
+  the first round of 232 takes about four months. A quota refusal (HTTP 402/403/429) ends the day. First live round
+  2026-11-20: 229 due, the first (no change) took 129 requests.
+- **Stored** as `from_above` on the register record (`{lat, lon, at, story, where, credit, frames, video}`, or
+  `{none: true}` when there is no change of 15 points); files under `uploads/from_above/<regno>/` (`<year>.webp`,
+  `months.mp4`, `months.webp`). `areastats/fromabove_view.py` turns it into the page's `from_above` (URLs only, only
+  within 50 m of the page's pin); the site reads it with `lib/site/fromAbove.ts fromRecord`. The four hand-made projects'
+  files in `public/from-above/` take precedence on their pages.
+- **Faster**: Copernicus grants extended quotas on request; the same Sentinel-2 pictures are also on AWS open data with no
+  quota (needs an image library on the server).
+- Tests: `tests/modules/areastats/test_fromabove.py`, `__tests__/site/from-above.test.tsx`.
+
+### Today first, then how it got there (2026-11-20, LIVE)
+
+Owner: "you show live google satellite view, that is it: start with it and end with it". Google's picture cannot go inside our
+video or be its thumbnail (rule above), so the page does it: the section opens with Google's live satellite view (embed), then
+"How it got here, month by month" plays our video. The watch page /projects/<slug>/from-space keeps the video first (Google's
+condition for a video result) with the live view under it. The video now ends on the newest pass alone, "Now <month>", with
+nothing but the ring and the credit over it (`site_timelapse.page_keys`), and that frame is the poster. Videos drawn before
+(VIDEO_VERSION < 4) are drawn again by the daily pass from the kept months and the stored lines: no request, no Gemini.
 
 ### 3. The site over time, from Sentinel-2: a trial on five projects (code, then the owner decides)
 

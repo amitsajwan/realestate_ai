@@ -11,7 +11,7 @@ const P = {
   area: { key: 'wagholi', slug: 'wagholi', name: 'Wagholi' }, completion_now: '2029-03-31', completion_at_registration: '2029-03-31',
   units_total: 100, units_booked: 10, details_read_at: '2026-10-03', listed_or_updated: '2026-01-02', completion_passed: false,
   maharera_url: null, paragraph: 'Rose Court is a project in Wagholi.', indexable: true, finished: false, source: 'MahaRERA', same_area: [],
-  home_sizes: [{ bhk: '2 BHK', low: 800, high: 800, kind: 'carpet', one_site: true }],
+  home_sizes: [{ bhk: '2 BHK', low: 800, high: 800, kind: 'carpet', one_site: false }],
   prices: { read_at: '2026-10-20', rows: [{ bhk: '2 BHK', from_inr: 6900000, to_inr: null, sources: [{ site: '99acres' }, { site: 'Housing' }] }] },
 } as unknown as RegisterProject
 
@@ -69,12 +69,17 @@ describe('a project page in the seller voice', () => {
     page()
     const box = screen.getByTestId('checks')
     expect(box).toHaveTextContent("The builder's site, or two property sites that agree (20 Oct 2026)")
-    expect(box).toHaveTextContent('A size marked not yet confirmed comes from one site')
+    const sizes = within(box).getByText('Home sizes').closest('li')!
+    expect(sizes).toHaveTextContent("The builder's site, or two property sites that agree")
+    expect(box).not.toHaveTextContent('not yet confirmed')
   })
 
-  it('still marks a size only one site gives', () => {
-    page()
-    expect(screen.getByTestId('home-sizes')).toHaveTextContent('(not yet confirmed)')
+  // reversed 2026-11-20 (owner, after an outside review): one site's size was shown marked "(not yet confirmed)"; rule 9 says a page
+  // states only the builder's word or two sites', so it stays on the record and off the page
+  it('leaves out a size only one site gives', () => {
+    const { container } = page({ ...P, home_sizes: [{ bhk: '2 BHK', low: 800, high: 800, kind: 'carpet', one_site: true }] })
+    expect(screen.queryByTestId('home-sizes')).toBeNull()
+    expect(container).not.toHaveTextContent('not yet confirmed')
   })
 
   it('promises nothing on a finished project', () => {

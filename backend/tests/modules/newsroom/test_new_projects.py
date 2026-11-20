@@ -71,10 +71,10 @@ def test_area_in_second_sentence_of_other_story_is_still_a_passing_mention():
     assert not r.keep
 
 
-def test_new_project_in_another_locality_is_not_ours():
+def test_new_project_in_another_pune_place_is_not_credited_to_our_area():
     r = assess(item("Developer launches project in Hinjewadi",
                     "The developer has announced a residential tower with 200 homes. Kharadi is about an hour away."), NOW)
-    assert not r.keep
+    assert r.keep and "kharadi" not in r.areas
 
 
 def test_landmark_alone_deep_in_new_project_story_does_not_count():

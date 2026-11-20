@@ -207,7 +207,7 @@ async def test_send_to_calendar_plans_rows_for_approval(tmp_path):
     ig = sorted((r for r in rows if r["channel"] == "instagram"), key=lambda r: r["due_at"])
     assert len(ig) == 2 and ig[0]["slug"] == "campaign-L1-listing" and ig[1]["slug"].endswith("-ad")
     when = [r["due_at"].astimezone(schedule.IST).strftime("%m-%d %H:%M") for r in ig]
-    assert when == ["10-07 11:00", "10-07 19:00"]   # two a day (11:00 and 19:00 IST)
+    assert when == ["10-07 09:00", "10-07 12:00"]   # five a day (09:00, 12:00, 15:00, 18:00, 21:00 IST)
     assert all(not i.startswith("/") and i.startswith("campaigns/L1/") for r in posts for i in r["images"])
     fb = next(r for r in rows if r["channel"] == "facebook_page")
     # Facebook links to this listing's own page (its photos, as in the post: jobs._post_page)
@@ -216,7 +216,7 @@ async def test_send_to_calendar_plans_rows_for_approval(tmp_path):
     again = await runs.to_calendar("a1", "L1")                # pressing twice adds nothing
     assert len([r for r in await cal.all() if r["slug"].startswith("campaign-L1-")]) == 2 * (n + jobs.FALLBACK_REELS)
     assert len(again["calendar"]) == 2 * (n + jobs.FALLBACK_REELS)
-    assert jobs.run_out(again)["calendar"][0]["due_at"] == "2026-10-07T05:30:00Z"   # 11 am IST
+    assert jobs.run_out(again)["calendar"][0]["due_at"] == "2026-10-07T03:30:00Z"   # 9 am IST
     assert not [r for r in again["reels"] if r["kind"] == "walkthrough"]   # one reel a listing (owner, 2026-11-07)
 
 
@@ -465,3 +465,14 @@ async def test_a_listing_with_its_own_video_makes_that_one_reel_only(tmp_path, m
     await runs.run_once()
     d = await runs.latest("a1", "L1")
     assert [r["kind"] for r in d["reels"]] == ["video"] and RENDERED == []
+
+
+async def test_a_finished_run_keeps_its_reel_for_the_listings_page(tmp_path):
+    from app.modules.propertyfacts import mainvideo
+    db, runs, _, _ = await setup(tmp_path)
+    await runs.create("a1", "L1")
+    await runs.run_once()
+    run = await runs.latest("a1", "L1")
+    kept = run["main_video"]
+    assert kept["kind"] == "ad" and kept["source"] == run["reels"][0]["video"].lstrip("/").removeprefix("uploads/")
+    assert (tmp_path / mainvideo.KEPT_DIR / kept["file"]).read_bytes() == b"mp4"

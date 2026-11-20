@@ -35,3 +35,18 @@ export function missingDetails(p: Pick<RegisterProject, 'prices' | 'profile'>): 
 export function sayList(xs: string[]): string {
   return xs.length < 2 ? (xs[0] ?? '') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`
 }
+
+export interface ElsewhereComing { key: string; name: string; count: number }
+
+/** The same projects outside our areas (about 4,400 on 2026-11-19, far too many for one page), counted per Pune place, most first:
+ *  each place's own page (/projects/area/<place>) already lists every project still being built there, these included. */
+export function elsewhereComing(all: RegisterListItem[]): ElsewhereComing[] {
+  const by = new Map<string, ElsewhereComing>()
+  for (const r of all) {
+    if (r.area || !r.place || r.indexable || r.active === false || r.sold_out) continue
+    const got = by.get(r.place) ?? { key: r.place, name: r.place_name || r.place, count: 0 }
+    got.count += 1
+    by.set(r.place, got)
+  }
+  return [...by.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+}

@@ -12,6 +12,23 @@ export function whatsappLink(phone: string | null | undefined, message: string):
   return n ? 'https://wa.me/' + n + '?text=' + encodeURIComponent(message) : null
 }
 
+/** The bot's WhatsApp chat link (`NEXT_PUBLIC_WHATSAPP_NUMBER`, the number the WhatsApp assistant answers), or null with none set.
+ *  Not the legal pages' contact number (`NEXT_PUBLIC_CONTACT_WHATSAPP`), which production leaves empty: read from that, the project
+ *  pages showed no WhatsApp at all until 2026-11-19. */
+export function chatWhatsAppUrl(): string | null {
+  const n = waNumber(process.env.NEXT_PUBLIC_WHATSAPP_NUMBER)
+  return n ? 'https://wa.me/' + n : null
+}
+
+/** The project page's WhatsApp ask: the platform chat link (`wa.me/<number>`) with a first message naming the project and its page. The
+ *  bot reads `(page <slug>)` as a price-sheet ask from that page (whatsapp/brain.py PAGE_ASK); no MahaRERA number in it, which would
+ *  start the status check instead. */
+export function pageWhatsApp(base: string | null | undefined, name: string, slug: string): string | null {
+  if (!base) return null
+  const text = `Hi, please send today's price sheet and floor plans for ${name} (page ${slug})`
+  return base + (base.includes('?') ? '&' : '?') + 'text=' + encodeURIComponent(text)
+}
+
 export function telLink(phone: string | null | undefined): string | null {
   const n = waNumber(phone)
   return n ? 'tel:+' + n : null

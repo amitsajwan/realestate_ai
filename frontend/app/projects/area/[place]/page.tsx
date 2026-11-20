@@ -22,7 +22,7 @@ import { placeAnswer, placeFaq, placeGoodToKnow, placeStats, placeUpdated } from
 import { livePages } from '@/lib/site/filters'
 import { fitDescription, fitTitle, formatPrice } from '@/lib/site/format'
 import { getActive, getAreaMap, getListed } from '@/lib/site/hubs'
-import { displayName, getRegisterPlaces, longDay, getRegisterProjects, placePath, projectSummary, sizePriceLine, STAGE_LABEL, STAGE_NOTE, STAGES } from '@/lib/site/register'
+import { displayName, getRegisterPlacesOrThrow, longDay, getRegisterProjects, placePath, projectSummary, sizePriceLine, STAGE_LABEL, STAGE_NOTE, STAGES } from '@/lib/site/register'
 import type { RegisterListItem, RegisterPlace } from '@/lib/site/register'
 import { UsualBands } from '@/components/site/PriceIdea'
 
@@ -31,7 +31,7 @@ export const revalidate = 300
 type Props = { params: Promise<{ place: string }> }
 
 async function load(slug: string): Promise<{ place: RegisterPlace; projects: RegisterListItem[] } | null> {
-  const places = await getRegisterPlaces()
+  const places = await getRegisterPlacesOrThrow()   // an outage is an error page, never a 404 for a real place
   const place = places.find((p) => p.slug === slug)
   if (!place) return null
   const projects = await getRegisterProjects(undefined, true, place.key)

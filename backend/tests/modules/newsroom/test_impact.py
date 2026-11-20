@@ -27,7 +27,7 @@ async def test_a_tracked_topic_is_named_to_the_editor_so_distance_from_our_areas
     assert out["keep"] and out["score"] == 7
     system, user = llm.seen[0]
     assert "Tracked topic: purandar-airport" in user
-    assert "distance from our areas is not a reason to score low" in system and "naming" in system
+    assert "Which part of Pune it is in is never a reason to score low" in system and "naming" in system
 
 
 async def test_a_story_on_no_tracked_topic_is_sent_as_before():

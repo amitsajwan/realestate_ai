@@ -16,7 +16,7 @@ from app.modules.areastats import searchconsole
 from app.modules.newsroom.store import Store
 from app.platform import trace
 
-from . import coverage, doctor, freshness, gaps, grow, indexnow, note, review, scoreboard, targets
+from . import coverage, doctor, freshness, gaps, grow, indexnow, marketname, note, review, scoreboard, targets
 
 log = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ def enabled() -> bool:
 async def round_once(store: Store, now: datetime) -> dict:
     out = {}
     steps = (("gsc", searchconsole.refresh), ("indexnow", indexnow.run_once), ("coverage", coverage.run_once),
-             ("targets", targets.run_once), ("doctor", doctor.run_once), ("gaps", gaps.run_once),
+             ("targets", targets.run_once), ("market_names", marketname.run_once), ("doctor", doctor.run_once), ("gaps", gaps.run_once),
              ("grow", grow.run_once), ("scoreboard", scoreboard.run_once), ("freshness", freshness.run_once),
              ("review", review.run_once), ("note", note.run_once))
     for name, step in steps:

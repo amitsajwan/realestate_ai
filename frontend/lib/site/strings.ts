@@ -23,6 +23,10 @@ export const PROJECT_CTA = {
   formTitle: (name: string) => `Get the price sheet and floor plans for ${name}`,
   /** the register project page's main action: the price sheet is the day's, which is why a buyer asks rather than reads */
   today: "Get today's price sheet & floor plans",
+  /** the same ask on WhatsApp, the register page's first button (owner 2026-11-19: leads that do not depend on Google) */
+  whatsapp: "Get today's price sheet on WhatsApp",
+  whatsappShort: 'Price sheet on WhatsApp',
+  byForm: 'Or ask by form',
   /** its second action, and the site-visit form it opens */
   visit: 'Book a site visit',
   visitTitle: (name: string) => `Book a site visit to ${name}`,

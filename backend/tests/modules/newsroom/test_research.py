@@ -327,6 +327,6 @@ def test_airport_operations_are_not_property_news_but_airport_land_and_building_
                    "The Airports Authority of India eased height clearance rules for buildings near Lohegaon.").keep
 
 
-def test_other_localities_launches_and_other_cities_stay_out():
-    assert not _assess("Launch of new housing project in Hinjewadi Phase 3", "A developer launched a new project in Hinjewadi.").keep
+def test_other_pune_places_come_in_and_other_cities_stay_out():
+    assert _assess("Launch of new housing project in Hinjewadi Phase 3", "A developer launched a new project in Hinjewadi.").keep
     assert not _assess("Mumbai property registrations hit record in September", "Mumbai recorded 12,000 property registrations.").keep

@@ -103,6 +103,13 @@ async def public_project_search(response: Response, q: str = "", limit: int = 20
     return await pages.search(db, q, limit=max(1, min(limit, 50)))
 
 
+@public_router.get("/register/from-space")
+async def public_from_space(response: Response, db=Depends(get_db)) -> list:
+    """Every project page showing its site from space: the video sitemap and the hub page read it (pages.from_space)."""
+    response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
+    return await pages.from_space(db)
+
+
 @public_router.get("/register/places")
 async def public_places(response: Response, db=Depends(get_db)) -> list:
     """Every Pune place with projects in the register: {key, slug, name, zone, projects, indexable}, in zone order."""

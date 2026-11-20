@@ -111,6 +111,42 @@ CARD_END = {
     "mr_latn": "Yabaddal kahihi ithech vichara, kiva site visit sathi VISIT liha.",
 }
 
+# The project page's WhatsApp button (frontend lib/site/links pageWhatsApp) fills in "Hi, please send today's price sheet and floor plans
+# for <name> (page <slug>)": the buyer asked for the day's sheet, which a person sends (2026-11-19, WhatsApp the page's first action).
+# The chat carries the page's project, as a status check does (check_flow._carry), so the lead says what they asked about.
+PAGE_ASK = re.compile(r"\(page\s+([a-z0-9][a-z0-9-]{1,120})\)", re.I)
+PAGE_NAME = re.compile(r"\bfor\s+(.+?)\s*\(page\s", re.I | re.S)
+PAGE_ASK_REPLY = {
+    "en": "Thanks! Our team will send today's price sheet and floor plans for {name} here shortly. Meanwhile, ask me anything about it, "
+          "or reply VISIT to book a site visit.",
+    "hi": "धन्यवाद! हमारी टीम {name} की आज की प्राइस शीट और फ्लोर प्लान जल्द ही यहीं भेजेगी। तब तक इसके बारे में कुछ भी पूछें, या साइट विज़िट के लिए VISIT लिखें।",
+    "hinglish": "Thanks! Hamari team {name} ki aaj ki price sheet aur floor plans jald hi yahin bhejegi. Tab tak iske baare mein kuch bhi "
+                "poochhein, ya site visit ke liye VISIT likhein.",
+    "mr": "धन्यवाद! आमची टीम {name} ची आजची प्राइस शीट आणि फ्लोअर प्लॅन लवकरच इथेच पाठवेल. तोपर्यंत याबद्दल काहीही विचारा, किंवा साइट व्हिजिटसाठी VISIT लिहा.",
+    "mr_latn": "Dhanyavad! Aamchi team {name} chi aajchi price sheet ani floor plans lavkarach ithech pathvel. Toparyant yabaddal kahihi "
+               "vichara, kiva site visit sathi VISIT liha.",
+}
+
+
+def page_ask(conv: dict, text: str, lang: str, site: str) -> Optional[str]:
+    """The reply to the project page's WhatsApp message, once per page per chat; None when the message is not one."""
+    m = PAGE_ASK.search(text or "")
+    if not m:
+        return None
+    slug = m.group(1).lower()
+    named = PAGE_NAME.search(text)
+    name = " ".join((named.group(1) if named else slug.replace("-", " ").title()).split())[:80]
+    asked = conv.setdefault("pages_asked", [])
+    conv["context"] = {"kind": "register", "ref": None, "slug": slug, "title": name,
+                       "came_from": f"asked for today's price sheet on the project page {site}/projects/{slug}"}
+    if slug in asked:
+        return None   # asked again: the brain answers what else they wrote
+    asked.append(slug)
+    data = conv["data"]
+    data["needs_human"] = True   # the team sends the sheet and plans (WhatsApp service: whatsapp_needs_you)
+    data.setdefault("questions", []).append(f"Send today's price sheet and floor plans of {name}"[:200])
+    return L.pick(PAGE_ASK_REPLY, lang, name=name)
+
 
 def card_facts(facts) -> list:
     """The lines of a post a buyer asking for its price list wants: prices, configurations, payment plan, possession, MahaRERA."""
@@ -158,6 +194,11 @@ class ChatBrain:
         if chosen:
             conv["language"] = chosen
             return adapters.language_ok(chosen)
+        asked = page_ask(conv, text, lang, adapters.site_url())   # the project page's WhatsApp button
+        if asked is not None:
+            return asked
+        if PAGE_ASK.search(text):
+            text = PAGE_ASK.sub(" ", text).strip()
         checked = await check_flow.turn(self.db, conv, text, lang)   # "check my project's status" (docs/plan/project-check.md)
         if checked is not None:
             return checked

@@ -475,7 +475,7 @@ def _on(var: str) -> bool:
     return (os.environ.get(var) or "").strip().lower() in ("1", "on", "true", "yes")
 
 
-GEMINI_CRITICAL_MODEL = "gemini-3-flash-preview,gemini-flash-latest"
+GEMINI_CRITICAL_MODEL = "gemini-3.8-flash,gemini-flash-latest"   # Google's recommended flash (2026-11-20), then its alias
 
 
 def critical_llm() -> Optional[LLM]:
@@ -491,7 +491,7 @@ def critical_llm() -> Optional[LLM]:
     return providers[0] if len(providers) == 1 else OrderedLLM(providers)
 
 
-GEMINI_LITE_MODEL = "gemini-flash-lite-latest"
+GEMINI_LITE_MODEL = "gemini-3.5-flash-lite"   # Google's stable recommended Flash-Lite (2026-11-20)
 
 
 def gemini_llm(lite: bool = False) -> Optional["GroqLLM"]:

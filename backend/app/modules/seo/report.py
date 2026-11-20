@@ -88,7 +88,7 @@ async def rankings(store: Store, now: datetime) -> dict:
                 "before": a.get("before"), "after14": {k: v for k, v in (a.get("after14") or {}).items() if k != "at"} or None,
                 "after28": {k: v for k, v in (a.get("after28") or {}).items() if k != "at"} or None,
                 "gain": gain(a), "reverted": bool(a.get("reverted")),
-                "new": a.get("new") if a.get("fix") in ("title", "description") else None}
+                "new": a.get("new") if a.get("fix") in ("title", "description", "name") else None}
                for a in acts[:ACTIONS_SHOWN]]
     conflicts = await store.get_mark(targets.CONFLICTS)
     gapmark = await store.get_mark(gaps.MARK)

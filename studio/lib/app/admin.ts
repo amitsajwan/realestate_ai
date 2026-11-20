@@ -107,6 +107,18 @@ export interface MapPinWaiting {
   maps_url: string
 }
 
+/** A person's note from a project's site (backend areastats/sitevisits.py), as the owner's list shows it. */
+export interface SiteVisit {
+  regno: string; slug: string | null; project: string | null
+  /** the day of the visit, YYYY-MM-DD; the page says "Visited 19 Nov 2026 by House Deal" */
+  visited_on: string; by: string; text: string
+  /** when it was saved: names the visit to take off the page */
+  at: string | null
+  withdrawn: boolean
+}
+
+export interface SiteVisitIn { project: string; visited_on: string; by?: string; text: string }
+
 export interface AdminApi {
   overview(): Promise<AdminOverview>
   setControls(changes: Partial<Record<ControlFlag, boolean>>): Promise<AdminControls>
@@ -118,6 +130,9 @@ export interface AdminApi {
   setSpotlight(body: { auto: boolean; items: SpotlightPick[] }): Promise<SpotlightConfig>
   mapPins(): Promise<MapPinWaiting[]>
   decideMapPin(regno: string, approve: boolean): Promise<MapPinWaiting[]>
+  siteVisits(): Promise<SiteVisit[]>
+  addSiteVisit(body: SiteVisitIn): Promise<SiteVisit[]>
+  withdrawSiteVisit(project: string, at: string): Promise<SiteVisit[]>
 }
 
 /** What each pause switch does, in plain words (shown on the switch and in its confirmation). */
@@ -190,6 +205,10 @@ export function createAdminApi(opts: { getToken: () => string | null; baseUrl?: 
     mapPins: async () => (await request<{ items: MapPinWaiting[] }>('/map-pins')).items ?? [],
     decideMapPin: async (regno, approve) =>
       (await request<{ items: MapPinWaiting[] }>(`/map-pins/${encodeURIComponent(regno)}`, { method: 'POST', json: { approve } })).items ?? [],
+    siteVisits: async () => (await request<{ items: SiteVisit[] }>('/site-visits')).items ?? [],
+    addSiteVisit: async (body) => (await request<{ items: SiteVisit[] }>('/site-visits', { method: 'POST', json: body })).items ?? [],
+    withdrawSiteVisit: async (project, at) =>
+      (await request<{ items: SiteVisit[] }>('/site-visits/withdraw', { method: 'POST', json: { project, at } })).items ?? [],
   }
 }
 
@@ -245,6 +264,7 @@ export function createFixtureAdminApi(): AdminApi {
     lat: 18.55882, lon: 73.95986, why: "Google Maps: Majestique Towers (shares 'majestique' with 'Majestique Towers East')",
     maps_url: 'https://www.google.com/maps/search/?api=1&query=18.55882,73.95986',
   }]
+  let visits: SiteVisit[] = []
   const drop = (id: string) => {
     state.invite_requests = state.invite_requests.filter((x) => x.id !== id)
     state.waiting.invite_requests = state.invite_requests.length
@@ -282,6 +302,17 @@ export function createFixtureAdminApi(): AdminApi {
       pins = pins.filter((x) => x.regno !== regno)
       return [...pins]
     },
+    siteVisits: async () => [...visits],
+    addSiteVisit: async (body) => {
+      if (body.text.trim().split(/\s+/).length < 60) throw new ApiError(422, 'Write at least 60 words about what you saw')
+      visits = [{ regno: 'PR1260002502426', slug: 'godrej-ivara-pune', project: 'Godrej Ivara', visited_on: body.visited_on,
+        by: body.by?.trim() || 'House Deal', text: body.text.trim(), at: new Date().toISOString(), withdrawn: false }, ...visits]
+      return [...visits]
+    },
+    withdrawSiteVisit: async (_project, at) => {
+      visits = visits.map((v) => (v.at === at ? { ...v, withdrawn: true } : v))
+      return [...visits]
+    },
   }
 }
 
@@ -301,4 +332,7 @@ export const adminApi: AdminApi = {
   setSpotlight: (b) => impl().setSpotlight(b),
   mapPins: () => impl().mapPins(),
   decideMapPin: (regno, approve) => impl().decideMapPin(regno, approve),
+  siteVisits: () => impl().siteVisits(),
+  addSiteVisit: (b) => impl().addSiteVisit(b),
+  withdrawSiteVisit: (project, at) => impl().withdrawSiteVisit(project, at),
 }

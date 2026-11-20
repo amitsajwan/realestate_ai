@@ -1,0 +1,150 @@
+"""areastats.sitepics: a project's site from above, measured and said in code (docs/plan/satellite-view.md steps 3-4), and
+pictures.enhance, which makes Sentinel pictures clearer without inventing anything."""
+import io
+
+from PIL import Image
+
+from app.modules.areastats import pictures, sitepics as s
+
+
+def class_png(fill: int, size: int = 40, ring=None, haze: int = None) -> bytes:
+    """A class map: every pixel `fill`, or `ring` = (radius in pixels, class) painted over the middle."""
+    band = Image.new("L", (size, size), fill)
+    if ring:
+        r, cls = ring
+        c = (size - 1) / 2
+        for y in range(size):
+            for x in range(size):
+                if (x - c) ** 2 + (y - c) ** 2 <= r * r:
+                    band.putpixel((x, y), cls)
+    img = band if haze is None else Image.merge("LA", (band, Image.new("L", (size, size), haze)))
+    buf = io.BytesIO()
+    img.save(buf, "PNG")
+    return buf.getvalue()
+
+
+def row(day, built, bare=0, green=0):
+    return {"day": day, "built": built, "bare": bare, "green": green}
+
+
+def test_shares_count_only_the_circle_around_the_pin():
+    # built inside 10 pixels (100 m at 10 m a pixel), green outside: the circle reads all built
+    got = s.shares(class_png(s.GREEN, ring=(10, s.BUILT)))
+    assert got == {"built": 100, "bare": 0, "green": 0}
+
+
+def test_a_year_mostly_under_cloud_is_skipped():
+    assert s.shares(class_png(s.MASKED)) is None
+    assert s.shares(class_png(s.BARE, ring=(10, s.MASKED))) is None
+
+
+def test_haze_is_read_from_the_second_band_and_the_least_hazy_clear_pass_wins():
+    assert s.haze(class_png(s.BUILT, haze=153)) == 0.6
+    assert s.haze(class_png(s.BUILT)) == 0.0
+    passes = [{"day": "2026-01-05", "haze": 0.6}, {"day": "2026-02-27", "haze": 0.16}, {"day": "2026-01-08", "haze": 0.22}]
+    assert s.clearest(passes)["day"] == "2026-02-27"
+    assert s.clearest([{"day": "2026-01-05", "haze": 0.6}]) is None
+
+
+RIVERDALE = [row("2021-01-24", 0, 37, 62), row("2022-01-19", 0, 34, 65), row("2023-01-09", 2, 53, 44),
+             row("2024-02-23", 15, 75, 18), row("2025-01-18", 30, 63, 28), row("2026-01-08", 16, 45, 29)]
+YASHWIN = [row("2021-01-24", 16, 95, 0), row("2022-01-19", 30, 94, 0), row("2023-01-09", 31, 89, 0),
+           row("2024-02-23", 60, 74, 0), row("2025-01-18", 75, 77, 0), row("2026-01-08", 53, 68, 0)]
+
+
+def test_plants_cleared_is_said_from_the_infrared_and_nothing_about_roofs_or_concrete():
+    said = s.sentence(RIVERDALE, "2021-01-24", "2026-11-11")
+    assert said.startswith("The ground around the project's map pin, seen by the Sentinel-2 satellite once each dry season "
+                           "from Jan 2021 to Nov 2026.")
+    assert "cleared between Jan 2023 and Feb 2024" in said and "from 44% to 18%" in said
+    assert "roof" not in said.lower() and "concrete" not in said.lower()
+
+
+def test_a_site_with_no_plants_to_lose_gets_only_what_the_pictures_are():
+    # Yashwin read 75% "roofs and concrete" while being built and 53% once finished: no such number is said
+    said = s.sentence(YASHWIN, "2021-01-24", "2026-11-11")
+    assert said == ("The ground around the project's map pin, seen by the Sentinel-2 satellite once each dry season from "
+                    "Jan 2021 to Nov 2026.")
+    assert all(v == "" for v in s.captions(YASHWIN, ["2023-11-02", "2025-12-09"]).values())
+
+
+def test_a_season_of_green_that_comes_back_is_not_called_clearing():
+    seasonal = [row("2021-01-24", 0, 10, 62), row("2022-01-19", 0, 10, 30), row("2023-01-09", 0, 10, 60),
+                row("2024-02-23", 0, 10, 58)]
+    assert s.clearing(seasonal) is None
+
+
+def test_each_picture_gets_its_stage_of_clearing_and_no_number():
+    said = s.captions(RIVERDALE, ["2021-11-20", "2023-01-09", "2023-11-02", "2024-02-23", "2025-12-09"])
+    assert said == {"2021-11-20": "Plants on the ground", "2023-01-09": "Plants on the ground",
+                    "2023-11-02": "Plants being cleared", "2024-02-23": "Plants being cleared",
+                    "2025-12-09": "Ground cleared"}
+    assert not any("%" in v for v in said.values())
+
+
+def test_the_note_says_what_the_pictures_cover():
+    note = s.where()
+    assert "map pin" in note and "neighbouring plots" in note and "not floors" in note
+
+
+def test_measured_square_is_centred_on_the_pin():
+    south, west, north, east = s.box_around(18.5447, 73.9685, 400)
+    assert abs((south + north) / 2 - 18.5447) < 1e-9 and abs((west + east) / 2 - 73.9685) < 1e-9
+    assert abs((north - south) * pictures.KM_PER_DEG * 1000 - 400) < 1
+
+
+def test_enhance_sharpens_without_inventing_detail():
+    flat = Image.new("RGB", (50, 50), (120, 100, 90))
+    out = pictures.enhance(flat, upscale=2)
+    assert out.size == (100, 100)
+    assert len(set(out.getdata())) == 1            # nothing drawn where the satellite saw one colour
+    edge = Image.new("RGB", (40, 40), (60, 60, 60))
+    for y in range(40):
+        for x in range(20, 40):
+            edge.putpixel((x, y), (180, 180, 180))
+    lo, hi = pictures.stretch_for([edge])
+    assert lo[0] <= 60 and hi[0] >= 180
+    got = pictures.enhance(edge, (lo, hi))
+    assert got.getpixel((5, 20))[0] < got.getpixel((35, 20))[0]   # the edge stays where it was, dark left, light right
+
+
+def test_timelapse_months_skip_the_monsoon():
+    from datetime import date
+    got = s.dry_months(date(2025, 4, 1), date(2025, 11, 20))
+    assert [d.isoformat() for d in got] == ["2025-04-01", "2025-05-01", "2025-10-01", "2025-11-01"]
+
+
+def test_a_month_query_asks_for_that_calendar_month_only():
+    from datetime import date
+    q = s.month_query(s.box_around(18.5, 73.9, 600), date(2025, 12, 1))
+    assert q["datetime"] == "2025-12-01T00:00:00Z/2026-01-01T00:00:00Z"
+
+
+def test_a_months_picture_shows_no_cloud_and_the_least_haze():
+    clear = s.frame_clear(class_png(s.BUILT, size=60, haze=40))
+    cloudy = s.frame_clear(class_png(s.BUILT, size=60, ring=(8, s.MASKED), haze=20))
+    assert clear["masked"] == 0 and cloudy["masked"] > s.MAX_FRAME_MASKED
+    passes = [{"day": "2025-01-03", **cloudy}, {"day": "2025-01-13", **clear}, {"day": "2025-01-23", "masked": 0.0, "haze": 0.5}]
+    assert s.clearest_frame(passes)["day"] == "2025-01-13"
+    assert s.clearest_frame([{"day": "2025-01-03", **cloudy}]) is None
+
+
+def test_one_picture_a_dry_quarter_and_a_years_measured_pass_kept():
+    months = [{"day": d, "haze": h} for d, h in (("2023-01-09", 0.3), ("2023-02-13", 0.1), ("2023-03-25", 0.2),
+                                                  ("2023-04-04", 0.2), ("2023-05-14", 0.1), ("2023-10-06", 0.2),
+                                                  ("2023-12-30", 0.15))]
+    got = [m["day"] for m in s.by_season(months, keep=["2023-01-09"])]
+    assert got == ["2023-01-09", "2023-05-14", "2023-12-30"]
+
+
+def test_even_out_brings_a_hazy_pass_towards_the_others_and_keeps_its_shapes():
+    clear = Image.new("RGB", (20, 20), (90, 80, 70))
+    hazy = Image.new("RGB", (20, 20), (170, 165, 160))
+    for img, hi in ((clear, (200, 190, 180)), (hazy, (230, 225, 220))):
+        for x in range(10, 20):
+            for y in range(20):
+                img.putpixel((x, y), hi)
+    a, b = pictures.even_out([clear, hazy])
+    gap_before = abs(clear.getpixel((2, 2))[0] - hazy.getpixel((2, 2))[0])
+    assert abs(a.getpixel((2, 2))[0] - b.getpixel((2, 2))[0]) < gap_before
+    assert b.getpixel((2, 2))[0] < b.getpixel((15, 2))[0]          # dark stays dark, light stays light

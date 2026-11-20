@@ -7,6 +7,7 @@ let mockOwner = true
 jest.mock('@/components/app/agents/useIsOwner', () => ({ useIsOwner: () => mockOwner }))
 jest.mock('@/components/app/admin/SpotlightEditor', () => ({ SpotlightEditor: () => <p>banner editor</p> }))
 jest.mock('@/components/app/admin/MapPinsReview', () => ({ MapPinsReview: () => <p>map pins</p> }))
+jest.mock('@/components/app/admin/SiteVisits', () => ({ SiteVisits: () => <p>site visits</p> }))
 jest.mock('@/components/app/admin/AreaPicturesReview', () => ({ AreaPicturesReview: () => <p>pictures from above</p> }))
 jest.mock('@/components/app/admin/AreaPhotosScreen', () => ({ AreaPhotosScreen: ({ embedded }: { embedded?: boolean }) => <p>area photos{embedded ? ' (embedded)' : ''}</p> }))
 
@@ -16,6 +17,8 @@ it('opens on the hot banner and shows one tool per tab, area photos without a se
   render(<SitePage />)
   expect(screen.getByRole('heading', { name: 'Site' })).toBeInTheDocument()
   expect(screen.getByText('banner editor')).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('tab', { name: 'On the ground' }))
+  expect(screen.getByText('site visits')).toBeInTheDocument()
   fireEvent.click(screen.getByRole('tab', { name: 'Map pins' }))
   expect(screen.getByText('map pins')).toBeInTheDocument()
   expect(screen.queryByText('banner editor')).toBeNull()

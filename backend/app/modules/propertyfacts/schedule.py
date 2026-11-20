@@ -13,8 +13,10 @@ from app.modules.calendar.store import Store as CalendarStore, aware
 WALKTHROUGH_EXPERIMENT = "walkthrough_style"   # calendar tag: experiment + variant tour | stack (jobs.walkthrough_style)
 
 IST = timezone(timedelta(hours=5, minutes=30))
-POST_TIMES = (time(11, 0), time(19, 0))   # 2 a day on each channel (owner, 2026-10-08): lunchtime and after work, IST
-MIN_GAP = timedelta(hours=6)   # posts on a channel at least 6 hours apart (calendar.plan.daily_gap for more than one a day)
+# 5 a day on each channel, IST, 3 hours apart (owner, 2026-11-20: "posting will be scheduled, 5 per day", after "more listings
+# every day, we need to be visible"; 2 a day from 2026-10-08, 4 earlier on 2026-11-20): morning to night
+POST_TIMES = (time(9, 0), time(12, 0), time(15, 0), time(18, 0), time(21, 0))
+MIN_GAP = timedelta(hours=3)   # posts on a channel at least 3 hours apart, other calendar rows included
 CHANNELS = ("instagram", "facebook_page")
 SEARCH_DAYS = 60
 

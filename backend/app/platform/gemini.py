@@ -14,8 +14,8 @@ import httpx
 log = logging.getLogger(__name__)
 
 URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-IMAGE_MODELS = ("gemini-3.1-flash-image", "gemini-2.5-flash-image")
-READ_MODELS = ("gemini-3-flash-preview", "gemini-flash-latest")
+IMAGE_MODELS = ("gemini-3.1-flash-image", "gemini-3.1-flash-lite-image")   # 2.5-flash-image retires Mar 2027 (Google's named replacement)
+READ_MODELS = ("gemini-3.8-flash", "gemini-flash-latest")   # Google\'s recommended flash (2026-11-20), then its alias
 
 
 class GeminiError(Exception):

@@ -87,6 +87,10 @@ export default async function ProjectsPage({ searchParams }: Props) {
               <Link href={DETAILS_COMING_PATH} className="inline-flex min-h-[44px] items-center font-semibold text-[#0f2340] underline underline-offset-2">See what we have on them now</Link>
             </p>
           )}
+          <p className="mt-2 max-w-3xl text-slate-800" data-testid="from-space-link">
+            Watch projects take shape from space, month by month since 2021.{' '}
+            <Link href="/projects/from-space" className="inline-flex min-h-[44px] items-center font-semibold text-[#0f2340] underline underline-offset-2">Pune projects from space</Link>
+          </p>
         </div>
 
         {zones.length > 0 && (

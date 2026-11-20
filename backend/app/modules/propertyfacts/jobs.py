@@ -25,7 +25,7 @@ from app.modules.areastats import budget
 from app.modules.listings.service import ListingError
 from app.platform import gemini, trace
 
-from . import brochure_once, campaign, identity, listing_posts, points, room, run_news, understand, voiceover
+from . import brochure_once, campaign, identity, listing_posts, mainvideo, points, room, run_news, understand, voiceover
 from .brochure import Brochures, post_renders, usable_images
 from .facts import USABLE
 from .gather import Clients, gather
@@ -308,11 +308,23 @@ class MarketingRuns:
     async def _ready(self, job: dict, listing: dict, posts: int, reels: int) -> None:
         """A finished run reaches the approval calendar by itself and the people who need to know are told. Never fails the run:
         the agent can still press Send to calendar."""
+        await self._keep_main(job["_id"])
         try:
             await self.to_calendar(job["agent_id"], job["listing_id"])
             await run_news.ready(self.db, job["agent_id"], listing, posts, reels, self.now())
         except Exception:
             log.warning("marketing: run %s finished, but its posts were not sent on", job["_id"], exc_info=True)
+
+    async def _keep_main(self, jid: str) -> None:
+        """The run's main video kept for the listing's page (mainvideo.py), after it was drawn or voiced. Best effort: the
+        campaign never waits on it or fails for it."""
+        try:
+            run = await self.runs.find_one({"_id": jid})
+            kept = await asyncio.to_thread(mainvideo.keep, self.uploads_dir, run, self.now()) if run else None
+            if kept:
+                await self._set(jid, main_video=kept)
+        except Exception:
+            log.warning("marketing: run %s, its main video was not kept", jid, exc_info=True)
 
     async def to_calendar(self, agent_id: str, listing_id: str, start=None) -> dict:
         """Send the latest finished run's posts to the approval calendar as planned rows (schedule.queue). Idempotent."""
@@ -773,6 +785,7 @@ class MarketingRuns:
                 out, ctx.project, pool, facts, listing)   # one reel a listing: a filmed video stays the one
             reels = [r for r in job.get("reels") or [] if r.get("kind") not in ("slides", "ad")] + ads
             await self._set(job["_id"], reels=reels, reels_state="done", reels_error=None)
+            await self._keep_main(job["_id"])
             if job.get("calendar"):
                 await self.to_calendar(job["agent_id"], job["listing_id"])
         except Exception as e:
@@ -929,6 +942,7 @@ class MarketingRuns:
                 await self._set_reel(job["_id"], key, voice_state="done", voice_error="", **done)
                 trace.event(log, "marketing", job["_id"], "voice_over", trace.OK, reel=key, **ask)
                 await self._sync_reel_rows(job["_id"], key)
+                await self._keep_main(job["_id"])
             except Exception as e:
                 trace.event(log, "marketing", job["_id"], "voice_over", trace.FAILED, reel=key, reason=str(e)[:200] or type(e).__name__,
                             exc_info=True)
@@ -1538,7 +1552,7 @@ def default_runs() -> MarketingRuns:
                          clients_factory=lambda: Clients(register=Store(db), facts_store=FactsStore(db),
                                                          brochures=Brochures(db, uploads), groups=Groups(db),
                                                          pins=Pins(db, settings.google_maps_api_key),
-                                                         nearby=Nearby(settings.google_maps_api_key)),
+                                                         nearby=Nearby(settings.google_maps_api_key, db=db)),
                          llm_factory=default_llm, voice_llm_factory=voiceover.writer_llm,
                          reel_jobs=ReelJobs(db, Path(settings.upload_directory), llm_factory=default_llm))
 

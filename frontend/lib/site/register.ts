@@ -19,7 +19,7 @@ export interface RegisterProject {
   /** newest date this page's facts changed (our crawler or MahaRERA); null when unknown */
   page_updated?: string | null
   /** the promoter's other projects in our register */
-  same_promoter?: { name: string; marketed_name?: string | null; search_name?: string | null; slug: string; completion_now: string | null
+  same_promoter?: { name: string; marketed_name?: string | null; search_name?: string | null; market_name?: string | null; slug: string; completion_now: string | null
     /** its lowest published size price and the sizes priced (backend pages.project_page), like same_area */
     price_from?: number | null; bhk?: string | null }[]
   regno: string
@@ -47,6 +47,10 @@ export interface RegisterProject {
   map?: { lat: number; lon: number } | null
   /** a street map drawn around the checked pin, for the hero when there is no picture (backend areastats/locmap.py) */
   location_picture?: { url: string; width: number; height: number } | null
+  /** the site from above, stored by the daily pass (backend areastats/fromabove.py); checked by lib/site/fromAbove fromRecord */
+  from_above?: unknown
+  /** what a person saw at the site, dated and signed, never model-written (backend areastats/sitevisits.py) */
+  site_visit?: { visited_on: string; by: string; text: string } | null
   builder?: BuilderRecord | null
   place?: string | null
   taluka?: string | null
@@ -73,6 +77,12 @@ export interface RegisterProject {
   sold_out?: boolean
   /** how people search for the project (backend seo/targets.py, docs/plan/rank-loop.md R1): leads the title and H1 */
   search_name?: string | null
+  /** the name the sites printing its MahaRERA number sell it under ("VTP Altamira"; backend seo/marketname.py): after search_name */
+  market_name?: string | null
+  /** the place those sites put it in when it is not ours ("Kharadi" for a Wagholi pincode): the title names both, the page which is which */
+  market_place?: string | null
+  /** how many of those sites name that place */
+  market_sites?: number | null
   /** the name with the builder's brand in front when MahaRERA's lacks it ("Kolte Patil Life Republic"; backend pages.branded_name) */
   branded_name?: string | null
   /** Google's "People also ask" questions about it, answered from our facts (backend seo/questions.py, R4) */
@@ -250,6 +260,18 @@ export function possessionOf(p: RegisterProject): { date: string | null; from: s
 }
 
 /** A card's possession: "Apr 2031", or "Aug 2030 to Jan 2033" for a project whose parts finish at different times. */
+/** Every building 3 floors or fewer (villas, row houses): "towers" and "the tallest has 2 floors" read wrong for them (Panchshil V3
+ *  Villa Phase II: "Towers 30 ... The tallest has 2 floors", 2026-11-19). */
+export function lowRise(p: Pick<RegisterProject, 'buildings'>): boolean {
+  const floors = (p.buildings ?? []).map((b) => b.floors).filter((f): f is number => typeof f === 'number' && f > 0)
+  return floors.length >= 2 && Math.max(...floors) <= 3
+}
+
+/** MahaRERA filed a unit count for some building: without one, each row's "0 homes" says nothing (villas are filed so). */
+export function unitsFiledPerBuilding(p: Pick<RegisterProject, 'buildings'>): boolean {
+  return (p.buildings ?? []).some((b) => (b.units_residential ?? 0) > 0 || (b.units_other ?? 0) > 0)
+}
+
 export function cardPossession(r: { completion_now?: string | null; possession_to?: string | null }): string {
   return r.possession_to && r.completion_now ? `${monthYear(r.completion_now)} to ${monthYear(r.possession_to)}` : monthYear(r.completion_now)
 }
@@ -326,15 +348,17 @@ function ownFaq(p: RegisterProject, nearby: { label?: string | null; name?: stri
       a: span + (change.kind === 'extension' ? extensionSentence(p.completion_now, change.months)
         : `The completion date filed with MahaRERA is ${longDay(p.completion_now)}.`
           + (change.kind === 'moved' ? ` At registration it was ${longDay(change.from)}.` : '') + ext)
-        + ' Ask the builder for the possession date in your agreement, in writing.' })
+        // said where the date moved or passed, as on the page itself; on every answer it was the same line on all pages
+        + (change.kind === 'moved' || completionPassedOf(p) ? ' Ask the builder for the possession date in your agreement, in writing.' : '') })
   }
   out.push({ topic: 'rera', q: `What is the MahaRERA number of ${shown}?`,
     a: whole ? `${shown} is registered with MahaRERA in ${whole.registrations} parts (towers or phases): ${whole.regnos.join(', ')}.`
       : `${shown} is registered with MahaRERA as ${p.regno}.` })
   if (d?.towers) {
-    out.push({ topic: 'size', q: `How many towers and floors does ${shown} have?`,
+    const low = lowRise(p)
+    out.push({ topic: 'size', q: low ? `How many buildings does ${shown} have?` : `How many towers and floors does ${shown} have?`,
       a: `MahaRERA lists ${d.towers} building${d.towers === 1 ? '' : 's'}` + (whole ? ` in registration ${p.regno}, one of the project's ${whole.registrations}` : '')
-        + (d.max_floors ? `, the tallest with ${d.max_floors} floors.` : '.') })
+        + (d.max_floors ? (low ? `, none taller than ${d.max_floors} floor${d.max_floors === 1 ? '' : 's'}.` : `, the tallest with ${d.max_floors} floors.`) : '.') })
   }
   const units = d?.units_total ?? p.units_total
   const what = unitWord(p)
@@ -359,7 +383,7 @@ function ownFaq(p: RegisterProject, nearby: { label?: string | null; name?: stri
   if (p.promoter) {
     const b = p.builder
     out.push({ topic: 'builder', q: `Who is the builder of ${shown}?`,
-      a: `The promoter registered with MahaRERA is ${p.promoter}.` + (b && b.count > 1 ? ` Our register has ${b.count} Pune projects by ${b.name}${b.record_ok ? `; ${b.moved_later} of ${b.with_dates} with both dates moved their completion date 3 months or more later` : ''}.` : '') })
+      a: `The promoter registered with MahaRERA is ${readableName(p.promoter)}.` + (b && b.count > 1 ? ` Our register has ${b.count} Pune projects by ${readableName(b.name)}${b.record_ok ? `; ${b.moved_later} of ${b.with_dates} with both dates moved their completion date 3 months or more later` : ''}.` : '') })
   }
   out.push({ topic: 'location', q: `Where is ${shown}?`, a: `${shown} is in ${where}${p.pincode ? ` (pincode ${p.pincode})` : ''}.` })
   if (completionPassedOf(p)) {
@@ -441,6 +465,7 @@ export interface RegisterListItem {
   name: string
   marketed_name?: string | null
   search_name?: string | null
+  market_name?: string | null
   aliases?: string[]
   units_total?: number | null
   units_booked?: number | null
@@ -567,9 +592,37 @@ export interface RegisterPlace {
   current?: number       // being built or finished within a year: the rest are older projects, listed at the bottom of the page
 }
 
+/** A project page showing its site from space (backend areastats.pages.from_space): the video sitemap and the hub page. */
+export interface FromSpaceItem {
+  slug: string
+  name: string
+  place: string | null
+  story: string
+  video: { src: string; poster: string; from: string; to: string; months: number } | null
+  picture: string
+  years: [number, number]
+  updated: string | null
+  seasons: number
+}
+
+export async function getFromSpace(): Promise<FromSpaceItem[]> {
+  const r = await get<FromSpaceItem[]>('/api/v1/public/register/from-space')
+  return r.ok && Array.isArray(r.data)
+    ? r.data.filter((x) => x && typeof x.slug === 'string' && /^[a-z0-9-]+$/.test(x.slug) && typeof x.picture === 'string')
+    : []
+}
+
 export async function getRegisterPlaces(): Promise<RegisterPlace[]> {
+  return getRegisterPlacesOrThrow().catch(() => [])
+}
+
+/** The places for a page that 404s on an unknown place: an outage throws, so a real place page is never served (or cached
+ *  for its 5 minutes) as a 404. Search Console reported area pages from the sitemap as "Not found" when a slow backend under a
+ *  crawl gave the empty list. */
+export async function getRegisterPlacesOrThrow(): Promise<RegisterPlace[]> {
   const r = await get<RegisterPlace[]>('/api/v1/public/register/places')
-  return r.ok && Array.isArray(r.data) ? r.data : []
+  if (r.ok && Array.isArray(r.data) && r.data.length) return r.data
+  throw new Error('Place data is temporarily unavailable')
 }
 
 export function placePath(slug: string): string {
@@ -606,19 +659,25 @@ export function sizePriceLine(rows: { bhk: string | number; from_inr: number }[]
   return [...best.entries()].sort((a, b) => a[0] - b[0]).slice(0, most).map(([n, inr]) => `${n} BHK ${formatPrice(inr)}`).join(' · ')
 }
 
-/** The name buyers know the project by: how they search for it (search_name), else with its builder's brand in front when the
- *  name lacks it (branded_name, docs/plan/rival-housiey-ravet.md L4), else the marketed name, else MahaRERA's. */
-export function displayName(p: { name: string; marketed_name?: string | null; search_name?: string | null; branded_name?: string | null }): string {
-  return (p.search_name || '').trim() || (p.branded_name || '').trim() || (p.marketed_name || '').trim() || p.name
+/** The name buyers know the project by: how they search for it (search_name), else the name the sites printing its MahaRERA
+ *  number sell it under (market_name, backend seo/marketname.py), else with its builder's brand in front when the name lacks it
+ *  (branded_name, docs/plan/rival-housiey-ravet.md L4), else the marketed name, else MahaRERA's. Backend pages.shown_name is the
+ *  same order. */
+export function displayName(p: { name: string; marketed_name?: string | null; search_name?: string | null; market_name?: string | null;
+  branded_name?: string | null }): string {
+  return (p.search_name || '').trim() || (p.market_name || '').trim() || (p.branded_name || '').trim() || (p.marketed_name || '').trim() || p.name
 }
 
 /** Other names worth showing ("Also known as"): aliases and the legal name, minus the ones already displayed. */
 export function otherNames(p: { name: string; marketed_name?: string | null; aliases?: string[] | null }, shown: string[] = []): string[] {
   const seen = new Set([displayName(p), ...shown].map((x) => x.toLowerCase().trim()))
   const out: string[] = []
+  // a name that is only the start of one already shown ("Nivaan Meadows Phase" beside "Nivaan Meadows Phase III") is a cut-off
+  // copy, not another name
+  const cut = (k: string) => [...seen].some((x) => x !== k && x.startsWith(k + ' '))
   for (const a of [...(p.aliases ?? []), p.name]) {
     const k = (a || '').toLowerCase().trim()
-    if (k && !seen.has(k)) { seen.add(k); out.push(a.trim()) }
+    if (k && !seen.has(k) && !cut(k)) { seen.add(k); out.push(a.trim()) }
   }
   return out
 }
@@ -717,7 +776,7 @@ export function completionChange(p: Pick<RegisterProject, 'completion_now' | 'co
 /** The page heading's name: the one buyers know, with the phase when MahaRERA's name carries one and that name does not ("Park
  *  Eden" filed as "PARK EDEN PHASE I" is "Park Eden Phase I"), so two phases' pages do not read as one project. A page that stands
  *  for several registrations (`project`) is the whole project's and carries no phase. */
-export function headingName(p: { name: string; marketed_name?: string | null; search_name?: string | null; branded_name?: string | null;
+export function headingName(p: { name: string; marketed_name?: string | null; search_name?: string | null; market_name?: string | null; branded_name?: string | null;
   project?: ProjectScope | null }): string {
   const shown = displayName(p)
   // a page for every phase of a project names the project: its main registration's phase would make it read as one phase
@@ -746,6 +805,32 @@ export interface Offer {
   photos?: { url: string; width?: number | null; height?: number | null }[] | null
   /** the agent's sample-flat videos, played from their own website (only https .mp4 on it; propertyfacts listing_videos) */
   videos?: { url: string; label: string }[] | null
+  /** our own marketing video of the listing (propertyfacts mainvideo.py), kept on our server and served with byte ranges */
+  main_video?: MainVideo | null
+  /** the agent's own videos copied to our server (propertyfacts agentvideos.py), played in place of the website copies */
+  agent_videos?: AgentVideo[] | null
+}
+
+/** One of the agent's videos as we keep it: `source` is the address it was copied from, `key` names its watch page. */
+export interface AgentVideo {
+  key: string
+  source: string
+  url: string
+  poster?: string | null
+  seconds?: number | null
+  width?: number | null
+  height?: number | null
+  label: string
+  uploaded_at?: string | null
+}
+
+/** The listing's campaign video as the page plays it: addresses on our API, its length and the day it was kept. */
+export interface MainVideo {
+  url: string
+  poster?: string | null
+  seconds?: number | null
+  headline?: string
+  uploaded_at?: string | null
 }
 
 /** "2, 3 & 4 BHK" from a price sheet's home labels; "" when none is a BHK. */

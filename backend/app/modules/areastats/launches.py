@@ -100,6 +100,27 @@ async def refresh(store: Store, now: datetime) -> Optional[int]:
     return moved
 
 
+def registered_in(docs: List[dict], place: str, since: date) -> List[dict]:
+    """New projects with homes and a page of their own, registered in one place on or after `since`, newest first, as a WhatsApp alert
+    says them (whatsapp.alerts). The homes are the whole project's (pages.project_scope) when its page stands for several
+    registrations, the record's own otherwise."""
+    ix = pages.load_index(docs)
+    out = []
+    for d in docs:
+        day = pages._day(d.get("registered_on"))
+        if not day or day < since.isoformat() or not _a_page(d) or (d.get("pune_place") or d.get("locality")) != place:
+            continue
+        scope = pages.project_scope(d, docs, ix)
+        homes = (scope or {}).get("units_total") if scope else home_count(d)
+        out.append({"regno": d["_id"], "name": pages.card_name(d), "builder": (d.get("promoter") or "").strip()[:60] or None,
+                    "homes": homes or None, "slug": d["page_slug"], "registered_on": day})
+    return sorted(out, key=lambda p: p["registered_on"], reverse=True)
+
+
+async def new_in_place(db, place: str, since: datetime) -> List[dict]:
+    return registered_in(await Store(db).shared_projects(), place, since.date())
+
+
 def summary(docs: List[dict], now: datetime) -> dict:
     """{projects, search, indexed, shown, days_to_search, days_to_indexed} over the 50+ home projects of the last SUMMARY_DAYS."""
     rows = [d for d in docs if timed(d, now) and home_count(d) >= MIN_HOMES and (_age(d, now) or 0) <= SUMMARY_DAYS]

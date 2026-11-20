@@ -6,9 +6,9 @@ import EnquiryForm from '@/components/site/EnquiryForm'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/seo'
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
-import { DETAILS_COMING_PATH, detailsComing } from '@/lib/site/detailsComing'
+import { DETAILS_COMING_PATH, detailsComing, elsewhereComing } from '@/lib/site/detailsComing'
 import { agentOffers } from '@/lib/site/offers'
-import { displayName, getRegisterProjects, longDay, projectSummary } from '@/lib/site/register'
+import { displayName, getRegisterProjects, longDay, placePath, projectSummary } from '@/lib/site/register'
 
 // Our areas' new projects whose pages are not in search yet, on one page instead of hidden (lib/site/detailsComing). This page is in
 // search though they are not (owner 2026-11-19: "what is preventing to have this page indexed"): one list of dated MahaRERA records is
@@ -31,6 +31,8 @@ export default async function DetailsComingPage() {
   const [all, offers] = await Promise.all([getRegisterProjects(undefined, true), agentOffers()])
   const groups = detailsComing(all, new Set(offers.keys()))
   const total = groups.reduce((n, g) => n + g.items.length, 0)
+  const elsewhere = elsewhereComing(all)
+  const elsewhereTotal = elsewhere.reduce((n, x) => n + x.count, 0)
   const cfg = getMarketingConfig()
   const url = cfg.siteUrl + DETAILS_COMING_PATH
   const newest = groups.flatMap((g) => g.items).map((r) => r.listed_or_updated ?? '').sort().pop() || null
@@ -53,7 +55,7 @@ export default async function DetailsComingPage() {
           interests you, ask us and we send you what we find first.
         </p>
         {total === 0 ? (
-          <p className="text-slate-700">Every project in our areas has its full page now. <Link href="/projects" className="underline underline-offset-2">See all projects</Link>.</p>
+          <p className="text-slate-700">Every project in our main areas has its full page now. <Link href="/projects" className="underline underline-offset-2">See all projects</Link>.</p>
         ) : (
           <>
             <p className="text-sm text-slate-600">{total} projects in {groups.length} {groups.length === 1 ? 'area' : 'areas'}, the newest MahaRERA records first.{newest ? ` Updated ${longDay(newest)}.` : ''}</p>
@@ -76,6 +78,24 @@ export default async function DetailsComingPage() {
               </section>
             ))}
           </>
+        )}
+        {elsewhere.length > 0 && (
+          <section aria-labelledby="rest-title" data-testid="details-coming-elsewhere">
+            <h2 id="rest-title" className="text-xl font-bold text-slate-900">The rest of Pune</h2>
+            <p className="mt-2 max-w-3xl text-slate-700">
+              Across Pune district we are still collecting details on {elsewhereTotal.toLocaleString('en-IN')} more projects being built.
+              Each place&apos;s page lists all of its projects with the completion date filed on MahaRERA.
+            </p>
+            <ul className="mt-3 flex list-none flex-wrap gap-2 p-0">
+              {elsewhere.map((x) => (
+                <li key={x.key}>
+                  <Link href={placePath(x.key.replace(/_/g, '-'))} className="inline-flex min-h-[44px] items-center rounded-full border border-slate-300 bg-white px-3 text-[#0f2340] hover:border-[#0f2340]">
+                    {x.name} <span className="ml-1 text-sm text-slate-500">{x.count}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
         <section id="enquire" aria-labelledby="enq-title" className="scroll-mt-20 rounded-2xl border border-slate-200 bg-white p-4 sm:p-6">
           <h2 id="enq-title" className="text-xl font-semibold text-slate-900">Ask about one of these projects</h2>

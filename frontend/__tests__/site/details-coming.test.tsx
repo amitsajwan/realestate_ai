@@ -3,7 +3,7 @@
 import { render, screen } from '@testing-library/react'
 import React from 'react'
 import RegisterProjectPage from '@/components/site/RegisterProjectPage'
-import { detailsComing, missingDetails, sayList } from '@/lib/site/detailsComing'
+import { detailsComing, elsewhereComing, missingDetails, sayList } from '@/lib/site/detailsComing'
 import type { RegisterListItem, RegisterProject } from '@/lib/site/register'
 
 jest.mock('@/components/site/EnquiryForm', () => ({ __esModule: true, default: () => <section id="enquire" /> }))
@@ -21,6 +21,16 @@ describe('the details-coming list', () => {
       item('elsewhere', { area: null }), item('offered'), item('wagholi-one', { area: 'wagholi' }),
     ], new Set([item('offered').regno]))
     expect(groups.map((g) => [g.area, g.items.map((r) => r.slug)])).toEqual([['Kharadi', ['newer', 'older']], ['Wagholi', ['wagholi-one']]])
+  })
+})
+
+describe('the rest of Pune', () => {
+  it('counts the projects outside our areas per place, most first, and none in search, finished or sold out', () => {
+    const out = (slug: string, place: string, over: Partial<RegisterListItem> = {}) => item(slug, { area: null, place, place_name: place[0].toUpperCase() + place.slice(1), ...over })
+    expect(elsewhereComing([
+      out('a', 'moshi'), out('b', 'moshi'), out('c', 'kothrud'), out('d', 'kothrud', { indexable: true }), out('e', 'kothrud', { active: false }),
+      out('f', 'baner', { sold_out: true }), item('ours'),
+    ])).toEqual([{ key: 'moshi', name: 'Moshi', count: 2 }, { key: 'kothrud', name: 'Kothrud', count: 1 }])
   })
 })
 

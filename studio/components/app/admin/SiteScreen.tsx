@@ -6,10 +6,11 @@ import { useIsOwner } from '../agents/useIsOwner'
 import { AreaPhotosScreen } from './AreaPhotosScreen'
 import { AreaPicturesReview } from './AreaPicturesReview'
 import { MapPinsReview } from './MapPinsReview'
+import { SiteVisits } from './SiteVisits'
 import { SpotlightEditor } from './SpotlightEditor'
 
-const TABS = ['banner', 'pins', 'above', 'photos']
-const LABEL: Record<string, string> = { banner: 'Hot banner', pins: 'Map pins', above: 'From above', photos: 'Photos' }
+const TABS = ['banner', 'visits', 'pins', 'above', 'photos']
+const LABEL: Record<string, string> = { banner: 'Hot banner', visits: 'On the ground', pins: 'Map pins', above: 'From above', photos: 'Photos' }
 /** Studio > Site (owner only, 2026-11-19): what the owner edits on the public site, one tab each. It was four sections at the
  *  bottom of Admin, between the day's numbers and the system's health. */
 export function SiteScreen() {
@@ -20,7 +21,7 @@ export function SiteScreen() {
     <div className="space-y-3 pb-4" data-testid="site-screen">
       <PageTitle>Site</PageTitle>
       <TabBar label="Site" value={tab} onChange={setTab} tabs={TABS.map((k) => ({ key: k, label: LABEL[k] }))} />
-      {tab === 'banner' ? <SpotlightEditor /> : tab === 'pins' ? <MapPinsReview /> : tab === 'above' ? <AreaPicturesReview /> : <AreaPhotosScreen embedded />}
+      {tab === 'banner' ? <SpotlightEditor /> : tab === 'visits' ? <SiteVisits /> : tab === 'pins' ? <MapPinsReview /> : tab === 'above' ? <AreaPicturesReview /> : <AreaPhotosScreen embedded />}
     </div>
   )
 }

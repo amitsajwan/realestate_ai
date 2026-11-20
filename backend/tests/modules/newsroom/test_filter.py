@@ -47,7 +47,7 @@ def test_fixture_expectations(slug):
 def test_kharadi_word_boundary():
     assert assess(item(title="Kharadi bypass work", text="Pune roads"), NOW).areas == ["kharadi"]
     assert not assess(item(title="Kharadigaon tales", text="about Pune"), NOW).keep
-    assert not assess(item(title="Hinjewadi flyover", text="superwagholiX is a name"), NOW).keep
+    assert not assess(item(title="Nashik flyover", text="superwagholiX is a name"), NOW).keep
 
 
 def test_upper_kharadi_also_counts_kharadi():
@@ -131,4 +131,14 @@ def test_a_maharera_ruling_is_city_wide_rules_news():
     r = assess(item(title="MahaRERA rejects Pune homebuyer's parking claim, cites registered agreement stating no parking was sought",
                     text="MahaRERA rejects Pune homebuyer's parking claim, says oral assurances cannot establish entitlement without "
                          "documentary evidence"), NOW)
-    assert r.keep and r.pillar == "rules_money" and r.reason.startswith("city-wide buyer news")
+    assert r.keep and r.pillar == "rules_money" and r.reason.startswith(("city-wide buyer news", "Pune story"))
+
+
+def test_a_story_about_any_pune_place_is_ours_but_its_area_is_not_borrowed():
+    # 2026-11-12 to 11-19: 177 of 231 items dropped as "no target area" while the site covered all of Pune
+    for title in ("Bus depot and flyover approved for Wakad", "Water supply scheme for Hadapsar gets Rs 120 crore",
+                  "PMC widens Sinhagad Road: work starts next month"):
+        r = assess(item(title=title, text=""), NOW)
+        assert r.keep and r.areas == [] and r.reason.startswith("Pune story"), title
+    assert not assess(item(title="Pune Dengue Death: First Fatality of 2026 Reported", text=""), NOW).keep   # no buyer pillar
+    assert not assess(item(title="Nagpur metro extension approved", text=""), NOW).keep                     # another city

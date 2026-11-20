@@ -163,6 +163,9 @@ class Settings(BaseSettings):
     # Copernicus Data Space (Sentinel Hub) OAuth client: the areas' pictures from above (scripts/area_from_above.py, run by hand)
     copernicus_client_id: Optional[str] = None
     copernicus_client_secret: Optional[str] = None
+    # a second account, used when the first one's monthly quota is spent (areastats.fromabove switches by itself)
+    copernicus_client_id_2: Optional[str] = None
+    copernicus_client_secret_2: Optional[str] = None
     
     # AI Model Configuration
     ai_model_development: str = "llama-3.1-8b-instant"  # Fast, cheap model for development

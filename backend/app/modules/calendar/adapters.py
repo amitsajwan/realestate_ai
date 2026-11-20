@@ -570,7 +570,19 @@ def _language(doc: dict) -> str:
 # A reel on YouTube (docs/plan/visibility-base.md step 1): Google shows a video for "<project> review" within days, where a new
 # site waits months. The title names the project and the place as people search them; the description opens with the page.
 _LEAD_SYMBOLS = re.compile(r"^[^\w₹\"'(]+", re.U)
-_IG_ONLY = re.compile(r"link in our bio|tap the link", re.I)
+# lines for Instagram's bio link or Facebook's own tagged link: YouTube opens with the page instead (Unique UNI 89's reel went
+# up on 2026-11-20 opening with the home page, its listing page further down behind "link in bio" and "?src=fb_...")
+_IG_ONLY = re.compile(r"link in (our )?bio|tap the link|^Photos and full details: ", re.I)
+_OUR_PAGE = re.compile(r"(?:https?://)?(?:www\.)?" + re.escape(brand.SITE.split("://", 1)[-1]) + r"(/[^\s?#·]*[^\s?#·/.,)])")
+_AGENT_HOME = re.compile(r"^/agent/[\w-]+$")
+
+
+def caption_page(caption: str) -> str:
+    """The first page of ours the caption links (a listing, a project, an area), without its tracking tag; an agent's home page
+    only when there is nothing more particular. '' when it links none."""
+    paths = _OUR_PAGE.findall(caption or "")
+    best = next((p for p in paths if not _AGENT_HOME.match(p)), paths[0] if paths else "")
+    return brand.SITE + best if best else ""
 
 
 def youtube_meta(doc: dict):
@@ -589,7 +601,7 @@ def youtube_meta(doc: dict):
         head = f"{project}: {head}"
     if place and place.lower() not in head.lower():
         head = f"{head} | {place}, Pune"
-    page = page_for(doc) or brand.SITE
+    page = page_for(doc) or caption_page(caption) or brand.SITE
     body = "\n".join(lines[1:]).strip()
     description = f"Full details, price sheet and MahaRERA status: {page}\n\n{body}".strip()
     tags = [t for t in (project, place, f"{place} flats" if place else "", "Pune", "new projects Pune", "MahaRERA", brand.NAME) if t]
