@@ -7,6 +7,10 @@ Owner 2026-11-20 on the first version (41 months at half a second, text in a sid
 text readable", "with every image change we need interpretation". So: about 17 pictures (a season each) held about 1.5 s,
 text big enough to read on a phone, and each picture's line from `areastats.sitepics.captions`.
 
+Owner 2026-11-20: the video should end on the site as it is now, and that is its thumbnail. So the page video's last frame is
+the newest pass alone, "Now" and its month over it and nothing else, held after the sentence, and the poster is that frame.
+(The sharper "now" is Google's satellite, which may only be shown through its embed: the page shows it beside the video.)
+
 Everything on screen is code-written: the project's name, each pass's month, the line the yearly measure gives that day,
 and the sentence `sitepics.story` wrote. No model writes or draws anything here: at 10 m a pixel a model looking at the
 picture would guess. The pictures are the satellite's, made clearer by `areastats.pictures` (enhance, even_out), which add
@@ -39,7 +43,7 @@ RING = (255, 210, 0)
 
 PAGE = (720, 720)
 PAGE_FPS = 24
-PAGE_SECONDS = 34.0
+PAGE_SECONDS = 37.0
 REEL = (_compose.W, _compose.H)
 REEL_FPS = _compose.FPS
 REEL_TEXT_TOP, REEL_TEXT_RIGHT = 0.14, 0.88   # Instagram's safe zone (reels.compose)
@@ -50,6 +54,8 @@ FADE = 0.5            # the longest cross-fade; with a picture a month it is mos
 PER_MIN, PER_MAX = 0.45, 1.8
 END_FADE = 0.8
 END_HOLD = 4.5        # the measured sentence, long enough to read
+NOW_FADE = 0.8
+NOW_HOLD = 3.0        # the page video ends on the newest pass, as it is now
 
 
 @dataclass(frozen=True)
@@ -63,22 +69,25 @@ def month_label(day: str) -> str:
     return date.fromisoformat(day).strftime("%b %Y")
 
 
-def per_frame(n: int, seconds: float) -> float:
-    """Seconds each picture stays on screen so that `n` pictures, the first hold and the ending fit in `seconds`."""
+def per_frame(n: int, seconds: float, now: bool = False) -> float:
+    """Seconds each picture stays on screen so that `n` pictures, the first hold and the ending (with `now`, the newest pass
+    after the sentence) fit in `seconds`."""
     if n < 2:
         return PER_MAX
-    room = seconds - FIRST_HOLD - END_FADE - END_HOLD
+    room = seconds - FIRST_HOLD - END_FADE - END_HOLD - ((NOW_FADE + NOW_HOLD) if now else 0.0)
     return max(PER_MIN, min(PER_MAX, room / (n - 1)))
 
 
-def schedule(n: int, per: float) -> List[Tuple[str, int, float]]:
+def schedule(n: int, per: float, now: bool = False) -> List[Tuple[str, int, float]]:
     """The play order as (what, key, seconds): "hold" a key frame, or "fade" into it from the one before. Key n is the end
-    card (the last picture with the sentence)."""
+    card (the last picture with the sentence); with `now`, key n + 1 is the newest pass alone, the video's last frame."""
     out = [("hold", 0, FIRST_HOLD)]
     for i in range(1, n):
         fade = min(FADE, per * 0.75)
         out += [("fade", i, fade), ("hold", i, max(0.0, per - fade))]
     out += [("fade", n, END_FADE), ("hold", n, END_HOLD)]
+    if now:
+        out += [("fade", n + 1, NOW_FADE), ("hold", n + 1, NOW_HOLD)]
     return out
 
 
@@ -163,7 +172,8 @@ def _progress(d: ImageDraw.ImageDraw, x0: int, x1: int, y: int, days: Sequence[s
 
 def page_keys(name: str, place: str, shots: Sequence[Shot], story: str, credit: str) -> List[Key]:
     """The square key frames: the picture full size, the date and its line large across the top, a progress line and the
-    credit along the bottom; then the end card with the sentence."""
+    credit along the bottom; then the end card with the sentence; then the newest pass again with only "Now" and its month,
+    the last frame and the poster."""
     side = PAGE[0]
     pad = 26
     days = [s.day for s in shots]
@@ -200,6 +210,12 @@ def page_keys(name: str, place: str, shots: Sequence[Shot], story: str, credit: 
         y += 40
     foot(d, len(shots) - 1)
     keys.append((end, words))
+    words, d = _layer(PAGE)
+    _shade(d, (0, 0, side, 100), 170)
+    d.text((pad, 18), "Now", font=big, fill=GOLD)
+    d.text((pad + d.textlength("Now ", font=big), 18), month_label(shots[-1].day), font=big, fill=WHITE)
+    foot(d, len(shots) - 1)
+    keys.append((pics[-1], words))
     return keys
 
 
@@ -247,11 +263,12 @@ def reel_keys(name: str, place: str, shots: Sequence[Shot], story: str, credit: 
 
 def page_video(name: str, place: str, shots: Sequence[Shot], story: str, credit: str, out: Path,
                seconds: float = PAGE_SECONDS) -> Tuple[Path, Path]:
-    """The square video for the project page (silent H.264, small) and its poster (the last picture), side by side."""
+    """The square video for the project page (silent H.264, small) and its poster (its last frame: the newest pass, "Now"),
+    side by side."""
     if len(shots) < 3:
         raise ValueError("a timelapse needs at least three pictures")
     keys = page_keys(name, place, shots, story, credit)
-    plan = schedule(len(shots), per_frame(len(shots), seconds))
+    plan = schedule(len(shots), per_frame(len(shots), seconds, now=True), now=True)
     out = Path(out)
     out.parent.mkdir(parents=True, exist_ok=True)
     w, h = PAGE
@@ -260,7 +277,7 @@ def page_video(name: str, place: str, shots: Sequence[Shot], story: str, credit:
                             "-g", str(PAGE_FPS * 2), "-movflags", "+faststart", str(out)],
                            play(keys, plan, PAGE_FPS))
     poster = out.with_suffix(".webp")
-    flat(keys[len(shots) - 1]).save(poster, "WEBP", quality=82, method=6)
+    flat(keys[-1]).save(poster, "WEBP", quality=82, method=6)
     return out, poster
 
 

@@ -38,7 +38,7 @@ def test_a_fade_switches_the_words_halfway_so_two_dates_never_overlap():
 def test_key_frames_show_each_month_in_order_and_one_ending():
     page = t.page_keys("Kohinoor Riverdale", "Kharadi, Pune", shots(), STORY, "Contains modified Copernicus Sentinel data")
     reel = t.reel_keys("Kohinoor Riverdale", "Kharadi, Pune", shots(), STORY, "Contains modified Copernicus Sentinel data")
-    assert len(page) == len(reel) == 7
+    assert len(page) == 8 and len(reel) == 7      # the page video ends on the newest pass again, "Now"
     assert t.flat(page[0]).size == t.PAGE and t.flat(reel[0]).size == t.REEL
     assert t.flat(page[0]).tobytes() != t.flat(page[1]).tobytes()
 
@@ -47,6 +47,20 @@ def test_the_ground_is_shown_as_the_satellite_saw_it_with_only_the_ring_added():
     pic = Image.new("RGB", (600, 600), (120, 100, 90))
     page = t.flat(t.page_keys("X", "Wagholi, Pune", [t.Shot("2021-01-20", pic, "Open ground")] * 3, STORY, "credit")[0])
     assert page.getpixel((5, t.PAGE[1] // 2)) == (120, 100, 90)     # between the date band and the foot: the ground itself
+
+
+def test_the_page_video_ends_on_the_newest_pass_and_that_frame_is_its_poster(tmp_path, monkeypatch):
+    got = {}
+    monkeypatch.setattr(t.ffmpeg, "run_with_frames", lambda args, frames: got.update(frames=list(frames)))
+    newest = Image.new("RGB", (600, 600), (200, 40, 40))
+    sh = shots(5) + [t.Shot("2026-11-11", newest, "Ground cleared")]
+    _, poster = t.page_video("X", "Kharadi, Pune", sh, STORY, "credit", tmp_path / "months.mp4")
+    last = Image.frombytes("RGB", t.PAGE, got["frames"][-1])
+    assert last.getpixel((5, t.PAGE[1] // 2)) == (200, 40, 40)          # the newest ground itself, not the dark end card
+    with Image.open(poster) as im:
+        assert abs(im.convert("RGB").getpixel((5, t.PAGE[1] // 2))[0] - 200) < 12
+    plan = t.schedule(17, t.per_frame(17, t.PAGE_SECONDS, now=True), now=True)
+    assert plan[-1] == ("hold", 18, t.NOW_HOLD) and t.per_frame(17, t.PAGE_SECONDS, now=True) >= 1.5
 
 
 def test_month_labels_and_caption_come_from_the_record():

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import MarketingShell from '@/components/marketing/MarketingShell'
 import FromAboveVideo from '@/components/site/FromAboveVideo'
+import { mapsEmbedKey, satelliteSrc } from '@/components/site/mapsEmbed'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/seo'
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
@@ -53,6 +54,7 @@ export default async function FromSpaceWatchPage({ params }: Props) {
   const cfg = getMarketingConfig()
   const site = cfg.siteUrl.replace(/\/$/, '')
   const path = `/projects/${p.slug}/from-space`
+  const key = mapsEmbedKey()
   const ld = [
     breadcrumbJsonLd(cfg.siteUrl, [{ name: 'Home', path: '/' }, { name: 'Projects', path: '/projects' },
       { name, path: `/projects/${p.slug}` }, { name: 'From space', path }]),
@@ -72,6 +74,15 @@ export default async function FromSpaceWatchPage({ params }: Props) {
         <FromAboveVideo src={video.src} poster={video.poster} width={video.width} height={video.height}
           label={`${name} site from space, month by month, ${shortMonth(video.from)} to ${shortMonth(video.to)}`} />
         <p className="text-base leading-relaxed text-slate-800">{view.story}</p>
+        {/* the video ends on the newest Sentinel pass; Google's sharper view of today follows it (shown, never stored) */}
+        {key && (
+          <figure className="m-0" data-testid="watch-today">
+            <iframe title={`${name} today, Google satellite view`} src={satelliteSrc(key, view.pin.lat, view.pin.lon, 17)}
+              loading="lazy" referrerPolicy="no-referrer-when-downgrade" allowFullScreen
+              className="aspect-[4/3] w-full rounded-lg border border-slate-200 sm:aspect-[16/9]" />
+            <figcaption className="mt-1 text-xs text-slate-600">Today, from Google satellite, centred on the same map pin.</figcaption>
+          </figure>
+        )}
         <p className="text-sm text-slate-600">
           {video.months} clear months, {shortMonth(video.from)} to {shortMonth(video.to)}: every clear pass of the Sentinel-2
           satellite over the project&apos;s map pin, October to May (the monsoon is under cloud). A new picture is added every season.

@@ -67,7 +67,8 @@ PX = 300                        # 600 m at 2 m a pixel, before the 2x classic up
 CLEAR_MIN = 0.97                # share of the picture a month's median must cover (at least one clear pass per pixel)
 FIRST_YEAR = sitepics.FIRST_YEAR
 LOOK_VERSION = fromabove_view.VERSION   # 4: monthly medians, season lines by Gemini (2026-11-20); older looks are made again
-VIDEO_VERSION = 3
+VIDEO_VERSION = 4               # 4: the page video ends on the newest pass, which is its poster (2026-11-20)
+REDRAWS_PER_DAY = 60            # older videos drawn again from their kept pictures and lines: no request, no Gemini
 NEW_LAUNCH_DAYS = 548
 GEMINI_RETRY_S = 90             # a busy Gemini (503): wait this long and ask once more before the pass stops
 ACCOUNTS_SWITCHED = "accounts"
@@ -456,13 +457,16 @@ class Gathered:
     frames: List[dict] = field(default_factory=list)
 
 
-def gather(d: dict, pin: Tuple[float, float], sat: Copernicus, today: date, out_dir: Path = OUT_DIR) -> Gathered:
-    """Read the new months, make the seasons and the pictures as they will be shown, save the yearly row (sync: a thread)."""
+def gather(d: dict, pin: Tuple[float, float], sat: Optional[Copernicus], today: date, out_dir: Path = OUT_DIR) -> Gathered:
+    """Read the new months, make the seasons and the pictures as they will be shown, save the yearly row (sync: a thread).
+    `sat` None: only the months already kept (a redraw)."""
     lat, lon = pin
     box = sitepics.box_around(lat, lon, sitepics.FRAME_SIDE_M)
     folder = folder_of(d["_id"], out_dir)
-    kept = read_new(sat, box, load_kept(folder, pin), folder, today)
-    save_kept(folder, pin, kept)
+    kept = load_kept(folder, pin)
+    if sat is not None:
+        kept = read_new(sat, box, kept, folder, today)
+        save_kept(folder, pin, kept)
     months = usable(kept, folder)
     shown = seasons(months, folder)
     base = {"lat": lat, "lon": lon, "months": len(months), "version": LOOK_VERSION}
@@ -523,6 +527,26 @@ async def look(d: dict, docs: Sequence[dict], pin: Tuple[float, float], sat: Cop
         await asyncio.sleep(GEMINI_RETRY_S)   # "high demand" (503) passes in a minute or two: one more try, then stop
         words = await describe(ask, d, docs, g.shown, g.pics)
     return await asyncio.to_thread(finish, d, g, words, today, folder_of(d["_id"], out_dir))
+
+
+def stale_video(d: dict) -> bool:
+    """A current look whose video was drawn under older rules: it is drawn again as it stands."""
+    old = d.get("from_above") or {}
+    return (int(old.get("version") or 1) >= LOOK_VERSION and bool(old.get("video")) and old.get("lat") is not None
+            and int((old.get("video") or {}).get("version") or 1) < VIDEO_VERSION)
+
+
+def redraw(d: dict, today: date, out_dir: Path = OUT_DIR) -> Optional[dict]:
+    """The look's record with its video drawn again from the kept months and the stored lines (sync: a thread); None when the
+    kept pictures no longer make one. The look's day and words stay as they were."""
+    old = d["from_above"]
+    g = gather(d, (float(old["lat"]), float(old["lon"])), None, today, out_dir)
+    if g.base.get("none") or len(g.months) != int(old.get("months") or 0):
+        return None   # the kept pictures changed under the record: the next look makes both again
+    words = {"lines": {s["label"]: s["line"] for s in old.get("seasons") or []}, "summary": old.get("story") or "",
+             "pin": old.get("pin"), "pin_reason": old.get("pin_reason"), "dropped": (old.get("words") or {}).get("dropped", 0)}
+    got = finish(d, g, words, today, folder_of(d["_id"], out_dir))
+    return {**old, "video": got["video"]} if got.get("video") else None
 
 
 # --- the pass -------------------------------------------------------------------------------------------------------------
@@ -587,6 +611,17 @@ async def refresh(store: Store, now: datetime, budget: int = REQUESTS_PER_DAY, f
         out[ACCOUNTS_SWITCHED] = list(sat.switched)
         if own:
             sat.client.close()
+    looked = {d["_id"] for d, _ in todo}
+    out["redrawn"] = 0
+    for d in [d for d in _primaries(docs) if d["_id"] not in looked and stale_video(d)][:REDRAWS_PER_DAY]:
+        try:
+            got = await asyncio.to_thread(redraw, d, now.date(), out_dir)
+        except Exception:
+            log.exception("from above: %s, its video was not drawn again", d["_id"])
+            continue
+        if got:
+            await store.set_project(d["_id"], from_above=got)
+            out["redrawn"] += 1
     await _mark(store, now, out)
     log.info("from above: %s", out)
     return out

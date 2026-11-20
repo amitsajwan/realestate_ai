@@ -189,6 +189,23 @@ async def test_a_later_look_asks_only_for_the_months_since(tmp_path):
     assert rec["seasons"][-1]["label"] == "Jan-Mar 2027"
 
 
+async def test_an_older_video_is_drawn_again_from_the_kept_pictures_and_lines_with_no_request_and_no_gemini(tmp_path):
+    fa.configure(render=render)
+    store = await seeded(("P1", PIN))
+    await fa.refresh(store, NOW, sat=Sat(), ask=Gemini(), out_dir=tmp_path)
+    first = (await store.projects.find_one({"_id": "P1"}))["from_above"]
+    await store.set_project("P1", from_above={**first, "video": {**first["video"], "version": 3}})
+    sat, gem = Sat(), Gemini(line="A different line.")
+    later = datetime(2026, 11, 22, 6, 0, tzinfo=timezone.utc)
+    got = await fa.refresh(store, later, sat=sat, ask=gem, out_dir=tmp_path, force=True)
+    assert got["redrawn"] == 1 and sat.used == 0 and gem.calls == []
+    rec = (await store.projects.find_one({"_id": "P1"}))["from_above"]
+    assert rec["video"]["version"] == fa.VIDEO_VERSION and rec["at"] == first["at"] and rec["seasons"] == first["seasons"]
+    assert render.shots[0][2] == "Ground cleared inside the ring."   # the stored line, not a new one
+    again = await fa.refresh(store, later, sat=Sat(), ask=Gemini(), out_dir=tmp_path, force=True)
+    assert again["redrawn"] == 0
+
+
 async def test_a_new_launch_says_when_it_registered(tmp_path):
     fa.configure(render=render)
     store = await seeded(("NEW", {**PIN, "registered_on": "2026-03-15"}))

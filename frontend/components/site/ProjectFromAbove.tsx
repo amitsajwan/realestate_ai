@@ -9,8 +9,9 @@ const SHOWN_SEASONS = 6   // the newest seasons in full; the earlier ones fold a
 /** "<name> from space": the site season by season from Sentinel-2 (a median of every clear pass, made clearer by classic
  *  means, nothing drawn in), a line a season written from the pictures and the project's MahaRERA facts and checked
  *  (backend areastats/fromabove.py), one picture a year, and today's sharper view through Google's own embed (Google's
- *  imagery is shown, never stored). Nobody else shows a project this way, so the season lines are page text and the
- *  video's transcript (docs/plan/satellite-view.md, "Selling point"). */
+ *  imagery is shown, never stored). Google's view comes first (owner 2026-11-20: start with the live satellite view); the
+ *  video, which ends on the newest Sentinel pass, follows as how the site got there.
+ *  Nobody else shows a project this way, so the season lines are page text and the video's transcript (docs/plan/satellite-view.md, "Selling point"). */
 export default function ProjectFromAbove({ view, shown, siteUrl }: { view: FromAbove; shown: string; siteUrl: string }) {
   const first = view.frames[0]
   const last = view.frames[view.frames.length - 1]
@@ -47,8 +48,19 @@ export default function ProjectFromAbove({ view, shown, siteUrl }: { view: FromA
         {shown} from space, {first.year} to {last.year}
       </h2>
       <p className="mt-1 text-sm text-slate-700">{view.story}</p>
+      {key && (
+        <figure className="m-0 mt-3" data-testid="from-above-today">
+          <iframe title={`${shown} today, Google satellite view`} src={satelliteSrc(key, view.pin.lat, view.pin.lon, 17)}
+            loading="lazy" referrerPolicy="no-referrer-when-downgrade" allowFullScreen
+            className="aspect-[4/3] w-full rounded-lg border border-slate-200 sm:aspect-[16/9]" />
+          <figcaption className="mt-1 text-xs text-slate-600">Today, from Google satellite, centred on the project&apos;s map pin. Zoom in to see the site.</figcaption>
+        </figure>
+      )}
       {video && (
-        <figure className="m-0 mt-3">
+        <h3 className="mt-5 text-base font-semibold text-slate-900">How it got here, month by month</h3>
+      )}
+      {video && (
+        <figure className="m-0 mt-2">
           <FromAboveVideo src={video.src} poster={video.poster} width={video.width} height={video.height}
             label={`${shown} site from space, month by month, ${shortMonth(video.from)} to ${shortMonth(video.to)}`} />
           <figcaption className="mt-1 text-center text-xs text-slate-600">
@@ -83,14 +95,6 @@ export default function ProjectFromAbove({ view, shown, siteUrl }: { view: FromA
           </li>
         ))}
       </ol>
-      {key && (
-        <figure className="m-0 mt-4" data-testid="from-above-today">
-          <iframe title={`${shown} today, Google satellite view`} src={satelliteSrc(key, view.pin.lat, view.pin.lon, 17)}
-            loading="lazy" referrerPolicy="no-referrer-when-downgrade" allowFullScreen
-            className="aspect-[4/3] w-full rounded-lg border border-slate-200 sm:aspect-[16/9]" />
-          <figcaption className="mt-1 text-xs text-slate-600">Today, in Google&apos;s sharper satellite view, centred on the same pin.</figcaption>
-        </figure>
-      )}
       <p className="mt-2 text-xs text-slate-600">
         {view.where} Pictures are the middle of every clear pass, sharpened and colour-corrected by code; nothing is drawn in.
         The lines are written from the pictures and the MahaRERA filings, and say only what can be seen. {view.credit}.

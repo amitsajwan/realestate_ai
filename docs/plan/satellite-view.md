@@ -217,6 +217,15 @@ Owner, 2026-11-20: "lets get it for all pages". `areastats/fromabove.py`, a once
   quota (needs an image library on the server).
 - Tests: `tests/modules/areastats/test_fromabove.py`, `__tests__/site/from-above.test.tsx`.
 
+### Today first, then how it got there (2026-11-20, LIVE)
+
+Owner: "you show live google satellite view, that is it: start with it and end with it". Google's picture cannot go inside our
+video or be its thumbnail (rule above), so the page does it: the section opens with Google's live satellite view (embed), then
+"How it got here, month by month" plays our video. The watch page /projects/<slug>/from-space keeps the video first (Google's
+condition for a video result) with the live view under it. The video now ends on the newest pass alone, "Now <month>", with
+nothing but the ring and the credit over it (`site_timelapse.page_keys`), and that frame is the poster. Videos drawn before
+(VIDEO_VERSION < 4) are drawn again by the daily pass from the kept months and the stored lines: no request, no Gemini.
+
 ### 3. The site over time, from Sentinel-2: a trial on five projects (code, then the owner decides)
 
 1. A script, not a loop: `backend/scripts/sentinel_trial.py --regno <n>`. For the checked pin, a 1 km square, it asks the

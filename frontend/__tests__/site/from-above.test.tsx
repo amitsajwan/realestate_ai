@@ -77,5 +77,19 @@ describe('the site from above', () => {
     expect(box.querySelector('details')!.textContent).toContain('Open ground with a track')   // folded, still in the page
     expect(fromRecord({ ...raw, seasons: [{ label: 'x', day: 'nope', line: 'y' }] }, SLUG)!.seasons).toEqual([])
   })
-})
 
+  it('opens with Google’s live satellite view and follows it with the video of how the site got there', () => {
+    const before = process.env.NEXT_PUBLIC_MAPS_EMBED_KEY
+    process.env.NEXT_PUBLIC_MAPS_EMBED_KEY = 'test-key'
+    try {
+      render(<ProjectFromAbove view={fromRecord(raw, SLUG)!} shown="Kohinoor Riverdale" siteUrl="https://avasetu.in" />)
+      const today = screen.getByTestId('from-above-today')
+      const film = screen.getByTestId('from-above-video')
+      expect(today.compareDocumentPosition(film) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(today.querySelector('iframe')!.getAttribute('src')).toContain('maptype=satellite')
+      expect(screen.getByText('How it got here, month by month')).toBeTruthy()
+    } finally {
+      process.env.NEXT_PUBLIC_MAPS_EMBED_KEY = before
+    }
+  })
+})
