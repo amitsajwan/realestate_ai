@@ -57,7 +57,9 @@ def _hashtags(c: Ctx) -> str:
 def headline(listing: dict, c: Ctx) -> str:
     """'Godrej Ivara, Upper Kharadi: 2, 3 & 4 BHK from ₹1.20 Cr onwards' (one home: '2 BHK at ...: ₹1.29 Cr')."""
     table = homes.rows(listing)
-    where = c.where or c.locality or listing.get("locality") or "Pune"
+    # the name as the price sheet prints it: the listing's own when the checked facts held MahaRERA's back (Unique UNI 89's
+    # "UNI 89 WING C", 2026-11-20, posted as "Mundhwa: 2 & 3 BHK ..." with no name)
+    where = ", ".join(x for x in (c.project or listing.get("project_name"), c.locality or listing.get("locality")) if x) or "Pune"
     low = homes.from_price(listing)
     if homes.several(listing):
         what = homes.bhk_range(table) or units_word(listing)
@@ -193,15 +195,37 @@ JUDGE_MAX = 12          # pictures of one listing the model looks at
 JUDGE = ("Is this picture an advert or brochure page, or a plain photo or 3D render of a building, room or place? Shop signs and a "
          "building's own name on a render are fine. It is an advert when marketing has been laid over it: slogans, prices, offers, "
          "headlines, or a stock lifestyle scene sold with a tagline. JSON {\"advert\": true or false}.")
-PRINTED = 6   # words printed on a picture at which it is an advert (a builder creative's "₹1.20 Cr onwards, Pay for 2 BHK ...")
+PRINTED = 4   # words printed on a picture at which it is an advert (a builder creative's "₹1.20 Cr onwards, Pay for 2 BHK ...")
 WORD = re.compile(r"[A-Za-z]{3,}")
+SURE = 75     # tesseract's confidence (0-100) a word needs to count: Unique UNI 89's clean renders read 6-23 "words" in all, from
+              # windows, railings and court lines, but 0-2 at 75 or more; the adverts the model had judged read 5-25 (2026-11-20)
+
+
+def confident_words(tsv: str) -> int:
+    """Words of 3+ letters in tesseract's TSV output read at SURE confidence or more."""
+    n = 0
+    for row in tsv.splitlines()[1:]:
+        cols = row.split("\t")
+        if len(cols) < 12 or not WORD.fullmatch(cols[11].strip()):
+            continue
+        try:
+            n += float(cols[10]) >= SURE
+        except ValueError:
+            continue
+    return n
 
 
 def printed_words(path: str) -> int:
-    """How many words are printed on the picture (tesseract, the same OCR the brochure reader uses), kept beside it as
-    '<picture>.words' so each picture is read once. A render or a photo reads as 0-2; a builder's advert as dozens.
-    0 without tesseract."""
-    side = Path(f"{path}.words")
+    """How many words are printed on the picture: the model's verdict when it judged it (judge_pictures: 99 or 0 in
+    '<picture>.words'), else tesseract's confident words (the same OCR the brochure reader uses), kept as '<picture>.ocr' so
+    each picture is read once. A render or a photo reads as 0-2; a builder's advert as 5 to dozens. 0 without tesseract.
+    The older '.words' counts of pictures the model never judged took every word, sure or not, and are not read."""
+    if Path(f"{path}.judged").exists():
+        try:
+            return int(Path(f"{path}.words").read_text().strip())
+        except (OSError, ValueError):
+            pass
+    side = Path(f"{path}.ocr")
     try:
         return int(side.read_text().strip())
     except (OSError, ValueError):
@@ -210,10 +234,10 @@ def printed_words(path: str) -> int:
     if not exe:
         return 0
     try:
-        out = subprocess.run([exe, str(path), "-", "--psm", "11"], capture_output=True, text=True, timeout=30).stdout
+        out = subprocess.run([exe, str(path), "-", "--psm", "11", "tsv"], capture_output=True, text=True, timeout=30).stdout
     except (subprocess.SubprocessError, OSError):
         return 0
-    n = len(WORD.findall(out))
+    n = confident_words(out)
     try:
         side.write_text(str(n))
     except OSError:
