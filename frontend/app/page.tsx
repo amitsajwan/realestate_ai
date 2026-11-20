@@ -13,7 +13,7 @@ import { getMarketingConfig } from '@/lib/marketing/config'
 import { LOCALITIES, TIER_LABELS, localitiesByTier } from '@/lib/marketing/localities'
 import { jsonLdString, organizationJsonLd, pageMetadata } from '@/lib/marketing/seo'
 import { socialLinks } from '@/lib/marketing/social'
-import { teamForOrganization } from '@/lib/site/team'
+import { organizationId, teamForOrganization } from '@/lib/site/team'
 import { BRAND_NAME, BRAND_NAME_DEVANAGARI } from '@/lib/brand'
 import { getFacetQuiet, getFacets } from '@/lib/site/facets'
 import { getBuilders, getListedSlugs, getSpotlight, linkListed } from '@/lib/site/hubs'
@@ -101,7 +101,7 @@ export default async function BuyerHome() {
     // Google retired the sitelinks search box in 2024, so the SearchAction draws no box in results; it still names the search,
     // and /projects?q= answers on the server, with or without JavaScript
     { '@context': 'https://schema.org', '@type': 'WebSite', name: cfg.businessName, alternateName: [BRAND_NAME_DEVANAGARI], url: cfg.siteUrl,
-      description: ABOUT,
+      description: ABOUT, publisher: { '@id': organizationId(cfg.siteUrl) },
       potentialAction: { '@type': 'SearchAction', target: { '@type': 'EntryPoint', urlTemplate: `${cfg.siteUrl}/projects?q={search_term_string}` },
         'query-input': 'required name=search_term_string' } },
   ]
