@@ -244,8 +244,10 @@ def make(d: dict, pin: Tuple[float, float], sat: Copernicus, today: date, out_di
                 raw[day] = judge_code(png)[0]
             except Failed:
                 continue
-    if not raw:
-        raise Failed("no true-colour picture came")
+    missing = [y["day"] for y in seen.years if y["day"] not in raw]
+    if missing or not raw:
+        # the sentence speaks of every year: a row with a year missing would show less than it says (Palladio, 2026-11-20)
+        raise Failed(f"no true-colour picture for {', '.join(missing) or 'any day'}")
     stretch = stretch_for(list(raw.values()))
     pics = {day: enhance(img, stretch, upscale=2) for day, img in raw.items()}
     folder = out_dir / re.sub(r"[^a-z0-9]", "", str(d["_id"]).lower())

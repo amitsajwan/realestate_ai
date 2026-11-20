@@ -167,3 +167,16 @@ def test_an_expired_token_is_renewed_and_the_call_made_again():
     sat = fa.Copernicus(httpx.Client(transport=httpx.MockTransport(answer)), "stale", 10, renew=lambda: "fresh")
     assert sat.passes(s.box_around(18.5, 73.9, 600), "2025-01-01", "2025-05-31") == []
     assert seen == ["Bearer stale", "Bearer fresh"] and sat.auth == "fresh" and sat.used == 1
+
+
+async def test_a_project_is_not_stored_with_a_years_picture_missing(tmp_path):
+    fa.configure(render=render)
+    store = await seeded(("P1", PIN))
+
+    class NoColourIn2024(Sat):
+        def colour(self, box, day):
+            return None if day.startswith("2024-01") else super().colour(box, day)
+
+    got = await fa.refresh(store, NOW, sat=NoColourIn2024(), out_dir=tmp_path)
+    assert got["failed"] == 1 and got["done"] == 0
+    assert (await store.projects.find_one({"_id": "P1"})).get("from_above") is None   # tried again next round
