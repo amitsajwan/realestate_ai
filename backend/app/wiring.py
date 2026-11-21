@@ -119,6 +119,10 @@ def wire() -> None:
     areaspace.configure(render=lambda name, place, shots, story, credit, out: site_timelapse.page_video(
         name, place, [site_timelapse.Shot(day, pic, say) for day, pic, say in shots], story, credit, out, ring=False))
     project_enrich.add_daily("area from space", areaspace.refresh)
+    # Esri's sharp past pictures, about one a year, for every page and area showing its ground from space
+    # (areastats.esripast): which releases to draw, from Esri's metadata; the pictures are drawn by Esri in the browser
+    from app.modules.areastats import esripast
+    project_enrich.add_daily("esri past pictures", esripast.refresh)
     # the agents' own listing videos, copied to our server for video search (propertyfacts.agentvideos, owner 2026-11-20)
     from app.modules.propertyfacts import agentvideos
     project_enrich.add_daily("agent videos", agentvideos.turn)
