@@ -1,6 +1,7 @@
 import React from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import ProjectFromAbove from '@/components/site/ProjectFromAbove'
+import { waybackSrc } from '@/components/site/EsriWaybackOnTap'
 import { forPin, fromRecord } from '@/lib/site/fromAbove'
 
 const SLUG = 'kohinoor-riverdale-kharadi'
@@ -119,5 +120,15 @@ describe('the site from above', () => {
     } finally {
       process.env.NEXT_PUBLIC_MAPS_EMBED_KEY = before
     }
+  })
+
+  it('offers Esri’s sharp past pictures at the pin, asking Esri for nothing until the reader taps', () => {
+    render(<ProjectFromAbove view={fromRecord(raw, SLUG)!} shown="Kohinoor Riverdale" siteUrl="https://avasetu.in" />)
+    expect(screen.queryByTestId('esri-wayback-frame')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Compare sharp past pictures' }))
+    const frame = screen.getByTestId('esri-wayback-frame')
+    expect(frame.getAttribute('src')).toBe('https://livingatlas.arcgis.com/wayback/#mapCenter=73.968533%2C18.544776%2C17&mode=swipe')
+    expect(waybackSrc(18.5, 73.9, 16)).toContain('mapCenter=73.900000%2C18.500000%2C16')   // longitude first, as Esri reads it
+    expect(screen.getByText(/Not every release has a new picture of this/)).toBeTruthy()
   })
 })

@@ -1,4 +1,5 @@
 import React from 'react'
+import EsriWaybackOnTap from '@/components/site/EsriWaybackOnTap'
 import FromAboveProof from '@/components/site/FromAboveProof'
 import FromAboveVideo from '@/components/site/FromAboveVideo'
 import { mapsEmbedKey, satelliteSrc } from '@/components/site/mapsEmbed'
@@ -8,7 +9,7 @@ import { shortMonth, type FromAbove } from '@/lib/site/fromAbove'
 const SHOWN_SEASONS = 3   // the newest seasons as the current reading; the rest sit in the proof badge, still page text
 
 /** "<name> from above": Google's sharp satellite view first, as the picture a buyer looks at (Google's imagery is shown through
- *  its embed, never stored or read by us, and has no date), then the newest Sentinel-2 season as the latest reading, with the
+ *  its embed, never stored or read by us, and has no date), Esri's sharp past pictures on tap (EsriWaybackOnTap), then the newest Sentinel-2 season as the latest reading, with the
  *  project's registration and filed possession around it. The Sentinel timeline (10 m a pixel: proof that work went on, not a
  *  view of the plot) sits below as a badge that opens to the video and the yearly row; its season lines stay page text and the
  *  video's transcript, which is what search gets from it (owner 2026-11-21; docs/plan/satellite-view.md, "Google first, the
@@ -88,6 +89,7 @@ export default function ProjectFromAbove({ view, shown, siteUrl, possession = ''
           </figcaption>
         </figure>
       )}
+      <EsriWaybackOnTap lat={view.pin.lat} lon={view.pin.lon} label={shown} />
       {latest && (
         <div className="mt-3 rounded-lg border border-slate-200 p-3" data-testid="from-above-latest">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">

@@ -255,6 +255,23 @@ current update", and "remember the possession date: after 5 years why check from
 - Tests: `test_fromabove.py` (window, new launch, redraw cut), `__tests__/site/from-above.test.tsx` (order, closed badge
   downloads nothing, latest reading with registration and possession, every line in the page).
 
+### Esri's sharp past pictures, on tap (2026-11-21)
+
+Owner, 2026-11-21: "embed esri". Under Google's view on the project section, a **Compare sharp past pictures** button makes
+Esri's public World Imagery Wayback viewer in a frame, centred on the checked pin in its swipe mode
+(`EsriWaybackOnTap.tsx`, `https://livingatlas.arcgis.com/wayback/#mapCenter=<lon>,<lat>,17&mode=swipe`, the hash read from the
+viewer's own code 2026-11-21; it sends no frame-blocking header). Sharp (about 1 m a pixel at level 17), dated per release, with
+a list of the releases that changed at this spot: on Kohinoor Riverdale's pin, 2014 against Nov 2026, newest local change
+Sep 2026. On a phone the viewer opens in its plain explore view.
+
+- Shown from Esri's viewer with Esri's credits, never stored or read by us (the same rule as Google's). Made on the first tap,
+  so a reader who never taps costs no request; the tap is sent as `satellite_open`.
+- Only where the section shows, so only at a checked pin.
+- The caption says two releases may look the same: Esri does not refresh every spot each release, so no years are promised.
+- **Terms not confirmed.** Esri's product terms (E300, read 2026-11-21) say nothing about framing the public Wayback viewer,
+  and the World Imagery item's terms page renders by script and could not be read here. Owner: check Esri's World Imagery
+  terms of use, or ask Esri; if framing is not allowed, the button becomes a link to the same address.
+
 ### 3. The site over time, from Sentinel-2: a trial on five projects (code, then the owner decides)
 
 1. A script, not a loop: `backend/scripts/sentinel_trial.py --regno <n>`. For the checked pin, a 1 km square, it asks the
