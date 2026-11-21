@@ -255,6 +255,15 @@ current update", and "remember the possession date: after 5 years why check from
 - Tests: `test_fromabove.py` (window, new launch, redraw cut), `__tests__/site/from-above.test.tsx` (order, closed badge
   downloads nothing, latest reading with registration and possession, every line in the page).
 
+### The video in the open while the project is being built (2026-11-21)
+
+Owner, on seeing the video hidden in the badge: show it. On a project still being built (`!p.finished`) the video sits in
+the open right under the latest reading, before the summary: the latest line says where the ground is now, the video shows
+how it got there. The badge then holds only the yearly row, the earlier lines and the method. A finished project keeps the
+video in the badge as before. The video still loads only when it nears the screen (`FromAboveVideo`), so the open place
+costs no download for a reader who stops at the prices. Test: `from-above.test.tsx` (open under the latest reading, drawn
+once).
+
 ### One picture a season in the video (2026-11-21)
 
 Owner: neighbouring months "look same, don't matter much". A video drawn from now shows one picture a season (the median of

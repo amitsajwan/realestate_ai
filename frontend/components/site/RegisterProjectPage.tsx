@@ -1118,9 +1118,10 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
       <div className="mt-8 grid gap-8 lg:grid-cols-3">
         <div className="min-w-0 space-y-10 lg:col-span-2">
           {!closed && <PricesSection p={p} shown={shown} offer={liveOffer(facts)} priced={!!price} numbers={facts?.numbers} stage={stage} help={priceHelp(backs, leadName)} />}
-          {/* the site from above comes right after the prices: Google's sharp view, the latest reading, then the Sentinel timeline as
-              a proof badge (owner 2026-11-20, 2026-11-21) */}
-          {fromAboveView && <ProjectFromAbove view={fromAboveView} shown={shown} siteUrl={siteUrl} possession={possessionLabel(p)} esriPast={esriPast} />}
+          {/* the site from above comes right after the prices: Google's sharp view, the latest reading, the Sentinel video in the
+              open while the project is being built, then the yearly pictures as a proof badge (owner 2026-11-20, 2026-11-21) */}
+          {fromAboveView && <ProjectFromAbove view={fromAboveView} shown={shown} siteUrl={siteUrl} possession={possessionLabel(p)} esriPast={esriPast}
+            building={!p.finished} />}
           {!sheetSizes(liveOffer(facts)) && <HomeSizes sizes={p.home_sizes} name={shown} help={sizeHelp(backs, leadName)} />}
           {!closed && <ProjectProfile profile={p.profile} name={shown} part="plans" plans3d={p.plans_3d?.items ?? []} lead={{ agentSlug: leadSlug, agentName: leadName,
             topic: enquiryTopic, waMessage: `Hi, I want to know about ${p.name} (MahaRERA ${p.regno}): ${url}` }} />}

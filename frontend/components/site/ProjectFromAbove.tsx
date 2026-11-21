@@ -13,11 +13,12 @@ const SHOWN_SEASONS = 3   // the newest seasons as the current reading; the rest
 /** "<name> from above": Google's sharp satellite view first, as the picture a buyer looks at (Google's imagery is shown through
  *  its embed, never stored or read by us, and has no date), Esri's sharp past pictures on tap (EsriWaybackOnTap), then the newest Sentinel-2 season as the latest reading, with the
  *  project's registration and filed possession around it. The Sentinel timeline (10 m a pixel: proof that work went on, not a
- *  view of the plot) sits below as a badge that opens to the video and the yearly row; its season lines stay page text and the
+ *  view of the plot) follows: its video in the open while the project is being built, and a badge that opens to the yearly row
+ *  (and to the video, for a finished project); its season lines stay page text and the
  *  video's transcript, which is what search gets from it (owner 2026-11-21; docs/plan/satellite-view.md, "Google first, the
  *  timeline as proof"). */
-export default function ProjectFromAbove({ view, shown, siteUrl, possession = '', esriPast = null }: {
-  view: FromAbove; shown: string; siteUrl: string; possession?: string; esriPast?: EsriPast | null
+export default function ProjectFromAbove({ view, shown, siteUrl, possession = '', esriPast = null, building = false }: {
+  view: FromAbove; shown: string; siteUrl: string; possession?: string; esriPast?: EsriPast | null; building?: boolean
 }) {
   const first = view.frames[0]
   const last = view.frames[view.frames.length - 1]
@@ -52,17 +53,22 @@ export default function ProjectFromAbove({ view, shown, siteUrl, possession = ''
   )
   const dates = [view.registered ? `Registered with MahaRERA ${shortMonth(view.registered)}` : '',
     possession ? `possession filed for ${possession}` : ''].filter(Boolean)
+  // A project still being built shows its video in the open, under the latest reading: the ground changing season by season
+  // is the buyer's answer to "is work going on?" (owner 2026-11-21). A finished project keeps it in the proof badge. The video
+  // loads only near the screen either way.
+  const openVideo = building && !!video
+  const film = video && (
+    <figure className={openVideo ? 'm-0 mt-3' : 'm-0 mt-2'} data-testid={openVideo ? 'from-above-film' : undefined}>
+      <FromAboveVideo src={video.src} poster={video.poster} width={video.width} height={video.height}
+        label={`${shown} site from space, ${videoPace(video).by}, ${span}`} />
+      <figcaption className="mt-1 text-center text-xs text-slate-600">
+        {videoPace(video).title}, {span}: {videoPace(video).count}, October to May (the monsoon is under cloud).
+      </figcaption>
+    </figure>
+  )
   const media = (
     <>
-      {video && (
-        <figure className="m-0 mt-2">
-          <FromAboveVideo src={video.src} poster={video.poster} width={video.width} height={video.height}
-            label={`${shown} site from space, ${videoPace(video).by}, ${span}`} />
-          <figcaption className="mt-1 text-center text-xs text-slate-600">
-            {videoPace(video).title}, {span}: {videoPace(video).count}, October to May (the monsoon is under cloud).
-          </figcaption>
-        </figure>
-      )}
+      {!openVideo && film}
       <ol className="mt-3 grid list-none grid-cols-3 gap-2 p-0 sm:grid-cols-6">
         {view.frames.map((f) => (
           <li key={f.year}>
@@ -103,6 +109,7 @@ export default function ProjectFromAbove({ view, shown, siteUrl, possession = ''
           {dates.length > 0 && <p className="mt-1 text-xs text-slate-600" data-testid="from-above-dates">{dates.join(' · ')}</p>}
         </div>
       )}
+      {openVideo && film}
       <p className="mt-3 text-sm text-slate-700">{view.story}</p>
       {newest.length > 0 && (
         <div className="mt-2" data-testid="from-above-seasons">
