@@ -5,6 +5,7 @@ import { notFound, permanentRedirect } from 'next/navigation'
 import AgentStrip from '@/components/marketing/AgentStrip'
 import MarketingShell from '@/components/marketing/MarketingShell'
 import HomePlanBox from '@/components/site/homeplan/HomePlanBox'
+import CorridorMap, { CorridorStatus } from '@/components/site/CorridorMap'
 import ListingCard from '@/components/site/ListingCard'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { INSIGHT_NOTE, getInsight } from '@/lib/marketing/insights'
@@ -209,6 +210,14 @@ export default async function LocalityPage({ params }: Props) {
 
         <section className="mt-9"><h2 className="text-xl font-semibold text-slate-900">Getting around</h2>
           {l.gettingAround.map((p) => <p key={p} className="mt-3 leading-relaxed text-slate-800">{p}</p>)}</section>
+        {/* the east Pune corridor, running and coming (owner 2026-10-29, "show what is coming"): on the home page until
+            2026-11-21, when the home page became all of Pune's; here it is about the area the reader is looking at */}
+        {EAST_GUIDES.has(l.slug) && (
+          <div className="mt-10 overflow-hidden rounded-xl border border-slate-200" data-testid="area-corridor">
+            <div className="bg-[#0f2340] p-3 sm:p-4"><CorridorMap /></div>
+            <CorridorStatus />
+          </div>
+        )}
         <AreaLandmarks data={landmarks} homesNearWork={EAST_GUIDES.has(l.slug) ? '/home-plan' : undefined} />
 
         <AreaRecords name={l.name} stats={stats} links={recordLinks(l, places, facets)} />

@@ -3,7 +3,7 @@ import Link from 'next/link'
 
 /**
  * What is running and what is coming along the east Pune corridor (Nagar Road), drawn as a transit diagram for the home page's
- * hero (owner 2026-10-28: "show what is coming, metro, commercial spaces, corridor"). Drawn, not a picture: no photo of a line that
+ * east area guides (on the home page's hero until 2026-11-21; owner 2026-10-28: "show what is coming, metro, commercial spaces, corridor"). Drawn, not a picture: no photo of a line that
  * is not built exists, and a generated one would show a finished metro the site's own trackers say is years away.
  *
  * Every status here is the one the site already states (calendar/guides/upper-kharadi-metro-en.json, knowledge/areas.py and the
@@ -126,7 +126,7 @@ export default function CorridorMap() {
  *  as the promise beside it. */
 export function CorridorStatus() {
   return (
-    <section aria-labelledby="corridor-title" className="border-b border-slate-200 bg-slate-50 py-10 sm:py-12" data-testid="corridor-status">
+    <section aria-labelledby="corridor-title" className="bg-slate-50 py-10 sm:py-12" data-testid="corridor-status">
       <div className="mx-auto max-w-5xl px-4">
         <h2 id="corridor-title" className="text-[1.375rem] font-semibold tracking-tight text-slate-900 sm:text-2xl">What is coming to east Pune</h2>
         <p className="mt-1 max-w-2xl text-slate-600">Each with the stage it has actually reached, as of {CORRIDOR_AS_OF}. Approved is not the same as running.</p>

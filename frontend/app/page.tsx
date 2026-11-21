@@ -4,35 +4,37 @@ import type { Metadata } from 'next'
 import MarketingShell from '@/components/marketing/MarketingShell'
 import NewsSection from '@/components/news/NewsSection'
 import CardPicture from '@/components/site/CardPicture'
-import ProjectRail from '@/components/site/ProjectRail'
+import { RailCard } from '@/components/site/ListCard'
 import ProjectSearch from '@/components/site/ProjectSearch'
-import CorridorMap, { CorridorStatus } from '@/components/site/CorridorMap'
 import { AGENTS_PATH, agentAnchorForward, buyerEnquirePath } from '@/components/marketing/siteLinks'
 import { getCityStats, longDate } from '@/components/localities/areaStats'
 import { getMarketingConfig } from '@/lib/marketing/config'
-import { LOCALITIES, TIER_LABELS, localitiesByTier } from '@/lib/marketing/localities'
+import { LOCALITIES } from '@/lib/marketing/localities'
 import { jsonLdString, organizationJsonLd, pageMetadata } from '@/lib/marketing/seo'
 import { brandProfiles } from '@/lib/marketing/social'
+import { fetchTrackers, trackerPath } from '@/lib/news/trackers'
 import { organizationId, teamForOrganization } from '@/lib/site/team'
 import { BRAND_NAME, BRAND_NAME_DEVANAGARI } from '@/lib/brand'
-import { getFacetQuiet, getFacets } from '@/lib/site/facets'
+import { getFacetQuiet, getFacets, type FacetLink, type FacetPage } from '@/lib/site/facets'
 import { getBuilders, getListedSlugs, getSpotlight, linkListed } from '@/lib/site/hubs'
-import { getRegisterPlaces, placePath } from '@/lib/site/register'
+import { getProjectVideos, videoPagePath } from '@/lib/site/projectVideos'
+import { getFromSpace, getRegisterPlaces, placePath } from '@/lib/site/register'
+import { placeNow as now, zonesOf } from '@/lib/site/zones'
 import { WORK } from '@/lib/site/homeplan'
 
-// The buyers' home (2026-10-22; the agents' home moved to /agents). One topic for Google and for people: new projects in Pune,
-// checked on MahaRERA. Every section is links into the pages that answer buyers' searches: areas, the project lists, the hottest
-// projects, builders. Each block hides itself when its data is not there (an outage, or the build with no API), so the page never
-// breaks; kept 5 minutes like the lists it links.
+// The buyers' home (2026-10-22; the agents' home moved to /agents), and since 2026-11-21 the page every profile links to
+// (LinkedIn, Instagram, Facebook), so it speaks for all of Pune: each zone and its areas, the lists by size and stage, videos,
+// trackers. East Pune, where we work first, still leads each list; its corridor diagram moved to the east area guides (before,
+// it filled the hero and a second section, and the page read as an east Pune site). Every block hides itself when its data is
+// not there (an outage, or the build with no API), so the page never breaks; kept 5 minutes like the lists it links.
 export const revalidate = 300
 
 // Google shows about 70 characters of a title and 160 of a description: both fit, so none of the facts is cut off. This page
 // is the brand's face, and it faces buyers (owner 2026-10-29: "our main goal is now end users, not agents. When someone searches
-// avasetu, it should be able to search projects"): the title leads with the brand, then says what a buyer does here. Before,
-// no title on this page named us, so Google answered "avasetu pune" with the team's agent page and the agents' trial page.
+// avasetu, it should be able to search projects"): the title leads with the brand, then says what a buyer does here.
 const TITLE = `${BRAND_NAME}: Search New Projects in Pune, Checked Against MahaRERA`
-const DESCRIPTION = 'Search every new project in Kharadi, Wagholi, Lohegaon, Hinjawadi and more: possession filed with MahaRERA, whether it moved, homes booked, builders\' records.'
-const ABOUT = `${BRAND_NAME} (आवास + सेतु: home + bridge) is where home buyers search every new project in Pune's main areas with its MahaRERA record: possession filed, homes booked and builders' delivery records, and ask local agents about the ones they like.`
+const DESCRIPTION = 'Search new projects across Pune, from Kharadi and Wagholi to Hinjawadi, Baner, Ravet and Katraj: possession filed on MahaRERA, homes booked, builders\' records.'
+const ABOUT = `${BRAND_NAME} (आवास + सेतु: home + bridge) is where home buyers search every new project across Pune with its MahaRERA record: possession filed, homes booked and builders' delivery records, and ask local agents about the ones they like.`
 
 export const metadata: Metadata = pageMetadata(getMarketingConfig(), {
   title: TITLE,
@@ -71,31 +73,49 @@ function SectionHead({ id, title, text, href, link }: { id: string; title: strin
   )
 }
 
+const n = (x: number) => x.toLocaleString('en-IN')
+
 export default async function BuyerHome() {
   const cfg = getMarketingConfig()
-  const [city, places, facets, spot, builders, listed] = await Promise.all([getCityStats(), getRegisterPlaces(), getFacets(), getSpotlight(), getBuilders(), getListedSlugs()])
+  const [city, places, facets, spot, builders, listed, videos, space, trackers] = await Promise.all([
+    getCityStats(), getRegisterPlaces(), getFacets(), getSpotlight(), getBuilders(), getListedSlugs(), getProjectVideos(), getFromSpace(),
+    fetchTrackers(),
+  ])
   // an agent-listed project's card opens its listed page, never its register page that 301s there (as the banner does)
   const hot = linkListed(spot, listed)
-  const placeOf = (l: { key: string; name: string }) => places.find((p) => p.key === l.key || p.name.toLowerCase() === l.name.toLowerCase())
+  const zones = zonesOf(places)
+  const zoneOf = new Map(places.map((p) => [p.key, p.zone]))
+  const total = zones.reduce((s, z) => s + z.current, 0)
   // a list's own label says what it is, not where ("New launch projects"): side by side here, each chip has to name its area
   const where = (f: { place: string; place_slug: string }) => places.find((p) => p.key === f.place)?.name
     ?? f.place_slug.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
   // our areas first, in the area list's order (east Pune leads: owner 2026-10-26, "our main target for now is east Pune"),
-  // then every other place, biggest list first; sorted by size alone, Moshi's Top list was the home page's row of cards
+  // then every other place, biggest list first
   const ours = (key: string) => { const i = LOCALITIES.findIndex((l) => l.key === key); return i < 0 ? LOCALITIES.length : i }
   const byOurs = (a: { place: string; count: number }, b: { place: string; count: number }) => ours(a.place) - ours(b.place) || b.count - a.count
-  const launches = facets.filter((f) => f.intent === 'new-launches' && f.indexable && !f.builder && !f.possession && !f.bhk)
-    .sort(byOurs).slice(0, 12)
-  const ready = facets.filter((f) => f.intent === 'ready-to-move' && f.indexable && !f.builder && !f.possession && !f.bhk)
-    .sort(byOurs).slice(0, 8)
-  // the Top lists rank homes a buyer can still buy (areastats/pages.py buyable): our first area's as cards, every area's as a chip
-  const tops = facets.filter((f) => f.intent === 'top' && f.indexable && !f.builder && !f.possession && !f.bhk)
-    .sort(byOurs).slice(0, 8)
-  const topList = tops.length ? await getFacetQuiet(tops[0].place_slug, ['top']) : null
+  const plain = (f: FacetLink) => f.indexable && !f.builder && !f.possession && !f.budget
+  const pick = (test: (f: FacetLink) => boolean, most: number) => facets.filter((f) => plain(f) && test(f)).sort(byOurs).slice(0, most)
+  const tops = pick((f) => f.intent === 'top' && !f.bhk, 10)
+  const launches = pick((f) => f.intent === 'new-launches' && !f.bhk, 12)
+  const ready = pick((f) => f.intent === 'ready-to-move' && !f.bhk, 8)
+  const twos = pick((f) => f.bhk === 2, 10)
+  const threes = pick((f) => f.bhk === 3, 10)
+  // the most booked project of each part of Pune: each zone's biggest Top list, read in full for its first card, four zones
+  const leadLists = zones.slice(0, 6).flatMap((z) => {
+    const f = facets.filter((x) => plain(x) && x.intent === 'top' && !x.bhk && zoneOf.get(x.place) === z.name).sort((a, b) => b.count - a.count)[0]
+    return f ? [{ zone: z.name, slug: f.place_slug }] : []
+  }).slice(0, 4)
+  const leads = (await Promise.all(leadLists.map(async (l) => ({ zone: l.zone, list: await getFacetQuiet(l.slug, ['top']) }))))
+    .filter((x): x is { zone: string; list: FacetPage } => !!x.list && x.list.rows.length > 0)
   const brands = builders.filter((b) => b.indexable).sort((a, b) => Number(!!b.brand) - Number(!!a.brand) || b.projects - a.projects).slice(0, 12)
-  const tracked = city?.areas.reduce((n, a) => n + a.projects, 0) ?? 0
-  // the brand's own profiles (sameAs: the Facebook Page and Instagram, lib/marketing/social) and its Devanagari spelling, so
-  // Google can tie the name to this page; WhatsApp is a chat link, not a profile, so it is not one of them
+  // a video shows its picture before it plays: only the ones with a picture make the row
+  const clips = videos.flatMap((v) => {
+    const poster = v.video?.poster || v.agent_videos?.find((a) => a.poster)?.poster
+    return poster ? [{ slug: v.slug, name: v.name, poster }] : []
+  }).slice(0, 4)
+  const seen = space.find((x) => x.video) ?? space[0]
+  // the ask on a phone: the offices east and west, then anywhere else; working from home has the plan's own question
+  const offices = WORK.filter((w) => w.key !== 'home')
   const ld = [
     { ...organizationJsonLd(cfg, ABOUT, brandProfiles()), alternateName: [BRAND_NAME_DEVANAGARI], ...teamForOrganization(cfg.siteUrl) },
     // Google retired the sitelinks search box in 2024, so the SearchAction draws no box in results; it still names the search,
@@ -114,14 +134,14 @@ export default async function BuyerHome() {
 
       {/* the search is the hero's own action (so the header leaves its search pill off here); the enquiry is a quiet line under it */}
       <section aria-labelledby="home-title" className="bg-[#0f2340] text-white">
-        {/* the corridor diagram beside the promise: what is running and what is coming in east Pune, where we work first */}
-        <div className={wrap + ' grid gap-8 pb-10 pt-10 sm:pb-14 sm:pt-16 lg:grid-cols-[1.1fr_1fr] lg:items-center lg:gap-10'}>
+        <div className={wrap + ' grid gap-8 pb-10 pt-10 sm:pb-14 sm:pt-16 lg:grid-cols-[1.25fr_1fr] lg:items-center lg:gap-12'}>
           <div>
             <h1 id="home-title" className="max-w-3xl text-[2rem] font-semibold leading-[1.15] tracking-tight [text-wrap:balance] sm:text-[2.75rem] lg:text-[2.5rem]">
               New projects in Pune, checked against MahaRERA
             </h1>
             <p className="mt-4 max-w-2xl text-lg leading-relaxed text-white/80">
-              The possession date each builder filed and whether it moved, how many homes are booked, and each builder&apos;s delivery record.
+              Every project&apos;s record in one place: the possession date the builder filed and whether it moved, how many homes
+              are booked, and the builder&apos;s delivery record.
             </p>
             <ProjectSearch hero />
             <p className="mt-4 text-[15px] text-white/75">
@@ -135,15 +155,35 @@ export default async function BuyerHome() {
                 </a>
               </>}
             </p>
-            {tracked > 0 && city && (
+            {total > 0 && (
               <p className="mt-8 border-t border-white/15 pt-4 text-sm text-white/65">
                 {/* the count opens the tracker, which breaks it down area by area */}
                 <Link href="/pune-maharera-tracker" className="text-white/80 underline underline-offset-2 hover:text-white">
-                  {tracked.toLocaleString('en-IN')} projects in our areas</Link>, read from MahaRERA on {longDate(city.asOf)}.
+                  {n(total)} projects being built across Pune</Link>{city ? <>, read from MahaRERA on {longDate(city.asOf)}</> : null}.
               </p>
             )}
           </div>
-          <CorridorMap />
+          {/* Pune at a glance: each zone with its projects being built, opening its areas further down the page */}
+          {zones.length > 0 && (
+            <nav aria-label="Pune by zone" className="rounded-xl bg-white/[0.04] p-4 ring-1 ring-inset ring-white/15 sm:p-5" data-testid="hero-zones">
+              <p className="font-semibold text-white">Pune by zone</p>
+              <p className="text-sm text-white/65">Projects being built or just finished</p>
+              <ul className="mt-3 list-none border-t border-white/15 p-0">
+                {zones.map((z) => (
+                  <li key={z.id} className="border-b border-white/10 last:border-0">
+                    <a href={`#${z.id}`} className="group flex min-h-[48px] items-center gap-3 py-2 text-white no-underline">
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-medium group-hover:underline group-hover:underline-offset-4">{z.name}</span>
+                        <span className="block truncate text-xs text-white/55">{z.places.slice(0, 3).map((p) => p.name).join(', ')}</span>
+                      </span>
+                      <span className="text-sm tabular-nums text-white/80">{n(z.current)}</span>
+                      <Chevron className="text-white/40 group-hover:text-white" />
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          )}
         </div>
       </section>
 
@@ -151,9 +191,8 @@ export default async function BuyerHome() {
         <section aria-labelledby="hot-title" className={wrap + ' pt-10 sm:pt-14'} data-testid="home-hot">
           {/* "Hot" and "Top" are different rankings, so each says what it is (owner 2026-11-04, "getting confused which is correct") */}
           <SectionHead id="hot-title" title="Hot right now" text="Picked by our team, or drawing the most bookings, searches and news right now. Each card says why." />
-          {/* swiped on a phone, a grid on a laptop; it never moves by itself (ProjectRail) */}
-          {/* on a phone the card in the middle is in focus (globals.css .focus-row): snapped to the centre, with the row padded so
-              the first and last cards can reach it */}
+          {/* swiped on a phone, a grid on a laptop; it never moves by itself. On a phone the card in the middle is in focus
+              (globals.css .focus-row): snapped to the centre, with the row padded so the first and last cards can reach it */}
           <ul className="focus-row -mx-4 mt-5 flex list-none snap-x snap-mandatory gap-3 overflow-x-auto px-[10%] pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 lg:grid-cols-3">
             {hot.map((p) => (
               <li key={p.slug} className="w-[80%] max-w-[300px] shrink-0 snap-center sm:w-auto sm:max-w-none">
@@ -176,129 +215,149 @@ export default async function BuyerHome() {
         </section>
       )}
 
-      {topList && (
-        <div className={wrap}>
-          <ProjectRail id="home-top" title={`Top projects in ${topList.place.name} you can still buy`} sub="Most homes booked first, with 10 or more open (MahaRERA)"
-            href={topList.path} count={topList.count} rows={topList.rows} ranked className="mt-12" />
-        </div>
+      {/* one card per part of Pune, so the first projects a visitor sees are not all one area's */}
+      {leads.length >= 2 && (
+        <section aria-labelledby="leads-title" className={wrap + ' pt-12 sm:pt-14'} data-testid="home-leads">
+          <SectionHead id="leads-title" title="Most booked in each part of Pune" text="The first of each zone's Top list: most homes booked, with 10 or more still open (MahaRERA)." />
+          <ul className="-mx-4 mt-5 flex list-none snap-x gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 lg:grid-cols-4">
+            {leads.map(({ zone, list }) => (
+              <li key={list.path} className="flex w-[72%] max-w-[280px] shrink-0 snap-start flex-col sm:w-auto sm:max-w-none">
+                <p className={groupLabel + ' mb-2'}>{zone}</p>
+                <div className="flex-1"><RailCard r={list.rows[0]} rank={1} /></div>
+                <Link href={list.path} className="mt-2 text-sm font-medium text-[#0f2340] underline underline-offset-4">Top {list.count} in {list.place.name}</Link>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
-      {/* the East Pune home plan (docs/plan/home-plan.md): one tap per office opens the questions with it already picked */}
-      <section aria-labelledby="plan-title" className={wrap + ' pt-10 sm:pt-14'} data-testid="home-plan">
-        <SectionHead id="plan-title" title="Homes near your office in East Pune" href="/home-plan" link="How the home plan picks" />
+      <section aria-labelledby="areas-title" className={wrap + ' ' + section}>
+        <SectionHead id="areas-title" title="Projects by area" href="/projects" link="All places in Pune"
+          text={zones.length ? 'Every part of Pune, with the projects being built or just finished in each area.' : undefined} />
+        {zones.length > 0 && (
+          <div className="mt-6 grid gap-x-10 gap-y-8 sm:grid-cols-2" data-testid="home-zones">
+            {zones.map((z) => (
+              <div key={z.id} id={z.id} className="scroll-mt-20">
+                <h3 className="flex items-baseline justify-between gap-3 text-base font-semibold text-slate-900">
+                  {z.name}<span className="text-sm font-normal tabular-nums text-slate-500">{n(z.current)} projects</span>
+                </h3>
+                <ul className="mt-2 list-none border-t border-slate-200 p-0">
+                  {z.places.slice(0, 6).map((p) => (
+                    <li key={p.key} className="border-b border-slate-200">
+                      <Link href={placePath(p.slug)} className="group flex min-h-[48px] items-center gap-3 py-2.5 no-underline">
+                        <span className="min-w-0 flex-1 font-medium text-slate-900 underline-offset-4 group-hover:text-[#0f2340] group-hover:underline">Projects in {p.name}</span>
+                        <span className="text-sm tabular-nums text-slate-500">{n(now(p))}</span>
+                        <Chevron />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+                {z.places.length > 6 && (
+                  <p className="mt-2 text-sm"><Link href="/projects" className="text-slate-600 underline decoration-slate-300 underline-offset-2 hover:text-[#0f2340]">
+                    {z.places.length - 6} more in {z.name}</Link></p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        {/* the area guides (who an area suits, getting around, what is coming): static, so they show even when the API is down */}
+        <div className="mt-8">
+          <p className={groupLabel}>Area guides</p>
+          <ul className="mt-2 flex list-none flex-wrap gap-x-5 gap-y-1 p-0 text-sm" data-testid="home-guides">
+            {LOCALITIES.map((l) => (
+              <li key={l.slug}><Link href={`/localities/${l.slug}`} className="inline-flex min-h-[36px] items-center text-slate-700 underline decoration-slate-300 underline-offset-2 hover:text-[#0f2340]">{l.name}</Link></li>
+            ))}
+          </ul>
+        </div>
+        <p className="mt-6 sm:hidden"><Link href="/projects" className={more}>All places in Pune</Link></p>
+      </section>
+
+      {(tops.length > 0 || launches.length > 0 || ready.length > 0 || twos.length > 0 || threes.length > 0) && (
+        <section aria-labelledby="lists-title" className={'border-y border-slate-200 bg-slate-50 ' + section}>
+          <div className={wrap}>
+            <SectionHead id="lists-title" title="Find projects by what you need"
+              text="Each area's lists, read from MahaRERA. Top: most homes booked, with homes still open. New launches: registered in the last 12 months." />
+            <div className="mt-6 space-y-6">
+              {[
+                { label: 'Most booked', list: tops, text: (f: FacetLink) => `Top projects in ${where(f)}`, id: 'home-tops' },
+                { label: '2 BHK flats', list: twos, text: (f: FacetLink) => `2 BHK in ${where(f)}`, id: 'home-2bhk' },
+                { label: '3 BHK flats', list: threes, text: (f: FacetLink) => `3 BHK in ${where(f)}`, id: 'home-3bhk' },
+                { label: 'New launches', list: launches, text: (f: FacetLink) => `New launches in ${where(f)}`, id: 'home-launches' },
+                { label: 'Completion date passed', list: ready, text: (f: FacetLink) => `Ready to move in ${where(f)}`, id: 'home-ready' },
+              ].filter((g) => g.list.length > 0).map((g) => (
+                <div key={g.id}>
+                  <p className={groupLabel}>{g.label}</p>
+                  <ul className="mt-2 flex list-none flex-wrap gap-2 p-0" data-testid={g.id}>
+                    {g.list.map((f) => <li key={f.path}><Link href={f.path} className={chip}>{g.text(f)} ({f.count})</Link></li>)}
+                  </ul>
+                </div>
+              ))}
+              <p className="text-sm">
+                <Link href="/projects/upcoming" className="font-medium text-[#0f2340] underline underline-offset-4">Coming soon: projects announced but not yet registered</Link>
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* the home plan (docs/plan/home-plan.md): one tap per office opens the questions with it already picked */}
+      <section aria-labelledby="plan-title" className={wrap + ' ' + section} data-testid="home-plan">
+        <SectionHead id="plan-title" title="Homes near your office" href="/home-plan" link="How the home plan picks" />
         <p className="mt-2 max-w-2xl text-slate-700">
           Tell us where you work, your budget and your family, and see the projects that fit, with the MahaRERA facts behind each
           pick. Free, and no phone number needed.
         </p>
         <ul className="mt-4 flex list-none flex-wrap gap-3 p-0">
-          {WORK.filter((w) => w.east && w.key !== 'home').map((w) => (
+          {offices.map((w) => (
             <li key={w.key}>
               <Link href={`/home-plan?work=${w.key}`}
                 className="inline-flex min-h-[48px] items-center rounded-full border border-[#0f2340] px-5 font-semibold text-[#0f2340] no-underline hover:bg-[#0f2340] hover:text-white">
-                I work in {w.label}
+                {w.key === 'elsewhere' ? 'I work elsewhere in Pune' : `I work in ${w.label}`}
               </Link>
             </li>
           ))}
         </ul>
       </section>
 
-      {/* projects come first on a phone (before, the first one was two screens down, under this list); the hero's diagram
-          still shows the corridor up top */}
-      <div className="mt-12 border-t border-slate-200 sm:mt-14"><CorridorStatus /></div>
-
-      <section aria-labelledby="areas-title" className={wrap + ' ' + section}>
-        <SectionHead id="areas-title" title="Projects by area" href="/projects" link="All projects in Pune, by place" />
-        {(['it', 'affordable'] as const).map((tier) => (
-          <div key={tier} className="mt-8">
-            <h3 className="text-base font-semibold text-slate-900">{TIER_LABELS[tier].title}</h3>
-            <p className="text-sm text-slate-600">{TIER_LABELS[tier].blurb}</p>
-            <ul className="mt-3 grid list-none gap-x-10 border-t border-slate-200 p-0 sm:grid-cols-2" data-testid={`home-areas-${tier}`}>
-              {localitiesByTier(tier).map((l) => {
-                const place = placeOf(l)
-                const live = place && place.indexable > 0
-                const count = place && (place.current ?? place.projects) > 0
-                return (
-                  <li key={l.slug} className="group relative flex items-center gap-4 border-b border-slate-200 py-4">
-                    <div className="min-w-0 flex-1">
-                      {/* the whole row opens the area page (a tap beside the title did nothing: owner 2026-10-26); its name is the
-                          page's own ("Flats and residential projects in Kharadi"), "new projects" being the new-launches list's search.
-                          The guide link under it says "area guide", the header's word for those pages, so the two never read alike */}
-                      <Link href={live ? placePath(place.slug) : `/localities/${l.slug}`}
-                        className="font-semibold text-slate-900 no-underline underline-offset-4 after:absolute after:inset-0 after:content-[''] group-hover:text-[#0f2340] group-hover:underline">
-                        {live ? `Projects in ${l.name}` : l.name}
-                      </Link>
-                      <p className="text-sm text-slate-600">{l.tagline}</p>
-                      <p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm">
-                        {/* the projects a buyer of a new home looks at: every registration ever (303 in Kharadi) counted old ones too */}
-                        {count && <span className="font-medium text-slate-800">
-                          {place.current != null ? `${place.current} being built or just finished` : `${place.projects} projects on MahaRERA`}</span>}
-                        {count && <span aria-hidden className="text-slate-300">·</span>}
-                        <Link href={`/localities/${l.slug}`} className="relative z-10 inline-flex min-h-[32px] items-center text-slate-600 underline decoration-slate-300 underline-offset-2 hover:text-[#0f2340]">
-                          {l.name} area guide
-                        </Link>
-                      </p>
-                    </div>
-                    <Chevron />
-                  </li>
-                )
-              })}
-            </ul>
-          </div>
-        ))}
-        <p className="mt-6 sm:hidden"><Link href="/projects" className={more}>All projects in Pune, by place</Link></p>
-      </section>
-
-      {(launches.length > 0 || ready.length > 0 || tops.length > 0) && (
-        <section aria-labelledby="lists-title" className={'border-y border-slate-200 bg-slate-50 ' + section}>
+      {/* what we film and what the satellite sees: the site's own pictures, each opening its project's page */}
+      {(clips.length > 0 || seen) && (
+        <section aria-labelledby="see-title" className={'border-t border-slate-200 ' + section} data-testid="home-see">
           <div className={wrap}>
-            <SectionHead id="lists-title" title="Top projects, new launches and ready homes"
-              text="Each area's lists, ranked on MahaRERA facts. Top: most homes booked, with homes still open. New launches: registered in the last 12 months." />
-            <div className="mt-6 space-y-6">
-              {tops.length > 0 && (
-                <div>
-                  <p className={groupLabel}>Most booked</p>
-                  <ul className="mt-2 flex list-none flex-wrap gap-2 p-0" data-testid="home-tops">
-                    {tops.map((f) => <li key={f.path}><Link href={f.path} className={chip}>Top projects in {where(f)} ({f.count})</Link></li>)}
-                  </ul>
-                </div>
+            <SectionHead id="see-title" title="See the projects" text="Short videos of projects on sale, and each site from space, season by season since 2021." />
+            <div className="mt-6 grid gap-6 lg:grid-cols-[2fr_1fr]">
+              {clips.length > 0 && (
+                <ul className="-mx-4 flex list-none snap-x gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-4 sm:overflow-visible sm:px-0" data-testid="home-videos">
+                  {clips.map((c) => (
+                    <li key={c.slug} className="w-[42%] shrink-0 snap-start sm:w-auto">
+                      <Link href={videoPagePath(c.slug)} className="group block no-underline">
+                        <span className="relative block aspect-[9/16] overflow-hidden rounded-xl bg-slate-200">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={c.poster} alt="" loading="lazy" className="h-full w-full object-cover transition-transform group-hover:scale-[1.02]" />
+                          <span aria-hidden className="absolute bottom-2 left-2 flex h-9 w-9 items-center justify-center rounded-full bg-black/55 text-white">
+                            <svg viewBox="0 0 20 20" className="ml-0.5 h-4 w-4" fill="currentColor"><path d="M6 4.5v11l9-5.5z" /></svg>
+                          </span>
+                        </span>
+                        <span className="mt-2 block text-sm font-medium leading-snug text-slate-900 group-hover:text-[#0f2340] group-hover:underline">{c.name}<span className="sr-only">, video</span></span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
               )}
-              {launches.length > 0 && (
-                <div>
-                  <p className={groupLabel}>New launches</p>
-                  <ul className="mt-2 flex list-none flex-wrap gap-2 p-0" data-testid="home-launches">
-                    {launches.map((f) => <li key={f.path}><Link href={f.path} className={chip}>New launches in {where(f)} ({f.count})</Link></li>)}
-                  </ul>
-                </div>
-              )}
-              {ready.length > 0 && (
-                <div>
-                  <p className={groupLabel}>Completion date passed</p>
-                  <ul className="mt-2 flex list-none flex-wrap gap-2 p-0">
-                    {ready.map((f) => <li key={f.path}><Link href={f.path} className={chip}>Ready to move in {where(f)} ({f.count})</Link></li>)}
-                  </ul>
-                </div>
+              {seen && (
+                <Link href="/projects/from-space" className="group flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white no-underline hover:border-slate-300 hover:shadow-md">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={seen.picture} alt={`${seen.name} from space, ${seen.years[1]}`} loading="lazy" width={600} height={600} className="aspect-square w-full object-cover" />
+                  <span className="flex items-start justify-between gap-3 p-4">
+                    <span>
+                      <span className="block font-semibold text-slate-900 group-hover:text-[#0f2340]">Pune projects from space</span>
+                      <span className="mt-1 block text-sm text-slate-600">Satellite timelines of {n(space.length)} project sites, checked against what each builder filed.</span>
+                    </span>
+                    <Chevron className="mt-1" />
+                  </span>
+                </Link>
               )}
             </div>
           </div>
-        </section>
-      )}
-
-      {brands.length > 0 && (
-        <section aria-labelledby="builders-title" className={wrap + ' ' + section}>
-          <SectionHead id="builders-title" title="Builders and their delivery records" href="/builders" link="All builders in Pune"
-            text="Every Pune project of a builder in one place, with the possession dates they filed and how often those moved." />
-          <ul className="mt-5 grid list-none gap-x-10 border-t border-slate-200 p-0 sm:grid-cols-2 lg:grid-cols-3" data-testid="home-builders">
-            {brands.map((b) => (
-              <li key={b.slug} className="border-b border-slate-200">
-                <Link href={`/builders/${b.slug}`} className="group flex min-h-[52px] items-center gap-3 py-3 no-underline">
-                  <span className="min-w-0 flex-1 font-medium text-slate-900 underline-offset-4 group-hover:text-[#0f2340] group-hover:underline">{b.name}</span>
-                  {' '}<span className="text-sm tabular-nums text-slate-500">{b.projects} projects</span>
-                  <Chevron />
-                </Link>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-6 sm:hidden"><Link href="/builders" className={more}>All builders in Pune</Link></p>
         </section>
       )}
 
@@ -319,8 +378,46 @@ export default async function BuyerHome() {
               </li>
             ))}
           </ul>
+          {/* the works and rules that move prices, each with the stage it has actually reached (newsroom trackers) */}
+          {trackers.length > 0 && (
+            <div className="mt-10">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-white/60">What is changing in Pune</h3>
+              <ul className="mt-2 grid list-none gap-x-10 border-t border-white/15 p-0 sm:grid-cols-2" data-testid="home-trackers">
+                {trackers.map((t) => (
+                  <li key={t.slug} className="border-b border-white/10">
+                    <Link href={trackerPath(t.slug)} className="group flex min-h-[52px] items-center gap-3 py-3 text-white no-underline">
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-medium group-hover:underline group-hover:underline-offset-4">{t.name}</span>
+                        {t.status && <span className="block text-sm text-white/65">{t.status}</span>}
+                      </span>
+                      <Chevron className="text-white/40 group-hover:text-white" />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       </section>
+
+      {brands.length > 0 && (
+        <section aria-labelledby="builders-title" className={wrap + ' ' + section}>
+          <SectionHead id="builders-title" title="Builders and their delivery records" href="/builders" link="All builders in Pune"
+            text="Every Pune project of a builder in one place, with the possession dates they filed and how often those moved." />
+          <ul className="mt-5 grid list-none gap-x-10 border-t border-slate-200 p-0 sm:grid-cols-2 lg:grid-cols-3" data-testid="home-builders">
+            {brands.map((b) => (
+              <li key={b.slug} className="border-b border-slate-200">
+                <Link href={`/builders/${b.slug}`} className="group flex min-h-[52px] items-center gap-3 py-3 no-underline">
+                  <span className="min-w-0 flex-1 font-medium text-slate-900 underline-offset-4 group-hover:text-[#0f2340] group-hover:underline">{b.name}</span>
+                  {' '}<span className="text-sm tabular-nums text-slate-500">{b.projects} projects</span>
+                  <Chevron />
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-6 sm:hidden"><Link href="/builders" className={more}>All builders in Pune</Link></p>
+        </section>
+      )}
 
       <NewsSection quiet />
 
