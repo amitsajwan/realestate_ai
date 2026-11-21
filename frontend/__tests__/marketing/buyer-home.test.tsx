@@ -142,7 +142,8 @@ describe("buyers' home", () => {
     expect(ld[1].publisher).toEqual({ '@id': ld[0]['@id'] })
     // the brand's own profiles and its Devanagari name, so Google ties "Avasetu" to this page; no WhatsApp chat link
     expect(ld[0].name).toBe('Avasetu')
-    expect(ld[0].sameAs).toEqual(['https://www.facebook.com/profile.php?id=61594653947865', 'https://www.instagram.com/avasetu_/'])
+    expect(ld[0].sameAs).toEqual(['https://www.facebook.com/profile.php?id=61594653947865', 'https://www.instagram.com/avasetu_/',
+      'https://www.linkedin.com/company/avasetu/'])
     expect(ld[0].alternateName).toEqual(['आवासेतु'])
     expect(ld[1].alternateName).toEqual(['आवासेतु'])
     expect(JSON.stringify(ld)).not.toMatch(/wa\.me/)
