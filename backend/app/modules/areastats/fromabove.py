@@ -201,13 +201,14 @@ class Copernicus:
             r = self.client.post(PROCESS_URL, json=body, headers=headers(), timeout=180)
         return r
 
-    def month(self, box, start: str, end: str) -> Optional[Dict[str, np.ndarray]]:
+    def month(self, box, start: str, end: str, px: int = PX) -> Optional[Dict[str, np.ndarray]]:
+        """One month's median picture of `box`, `px` square (a project's 600 m at PX; an area's few km, areaspace)."""
         body = {"input": {"bounds": {"bbox": sitepics.bbox(box), "properties": {"crs": "http://www.opengis.net/def/crs/OGC/1.3/CRS84"}},
                           "data": [{"type": sitepics.SENTINEL_COLLECTION,
                                     "dataFilter": {"timeRange": {"from": f"{start}T00:00:00Z", "to": f"{end}T23:59:59Z"},
                                                    "maxCloudCoverage": 60},
                                     "processing": {"upsampling": "BICUBIC", "downsampling": "BICUBIC"}}]},
-                "output": {"width": PX, "height": PX, "responses": [{"identifier": k, "format": {"type": "image/png"}}
+                "output": {"width": px, "height": px, "responses": [{"identifier": k, "format": {"type": "image/png"}}
                                                                     for k in ("rgb", "ir", "n")]},
                 "evalscript": MONTH_EVALSCRIPT}
         r = self._post(body)
@@ -338,8 +339,9 @@ class Season:
     plants: int
 
 
-def seasons(months: Sequence[str], folder: Path) -> List[Season]:
-    """Each dry season's picture: the median of its months' medians."""
+def seasons(months: Sequence[str], folder: Path, measure: Callable[[np.ndarray], int] = plants) -> List[Season]:
+    """Each dry season's picture: the median of its months' medians, its plant cover by `measure` (inside the ring for a
+    project; areaspace measures the whole picture)."""
     groups: Dict[Tuple[int, int], List[str]] = {}
     for m in months:
         y, mo = int(m[:4]), int(m[5:7])
@@ -351,7 +353,7 @@ def seasons(months: Sequence[str], folder: Path) -> List[Season]:
         ir = np.median(np.stack([np.array(Image.open(folder / "raw" / f"{m}-ir.png").convert("RGB")) for m in ms]), axis=0)
         ir8 = ir.astype(np.uint8)
         out.append(Season(key, f"{SEASON_NAMES[key[1]]} {key[0]}", f"{ms[0]}-01", ms, Image.fromarray(rgb.astype(np.uint8)),
-                          Image.fromarray(ir8), plants(ir8)))
+                          Image.fromarray(ir8), measure(ir8)))
     return out
 
 

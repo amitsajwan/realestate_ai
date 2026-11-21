@@ -14,11 +14,14 @@ export function waybackSrc(lat: number, lon: number, zoom = 17): string {
   return `${WAYBACK}#mapCenter=${lon.toFixed(6)}%2C${lat.toFixed(6)}%2C${zoom}&mode=swipe`
 }
 
-export default function EsriWaybackOnTap({ lat, lon, label }: { lat: number; lon: number; label: string }) {
+/** `zoom` and `centredOn` for an area (areastats.areaspace): a few kilometres around its middle rather than a project's pin. */
+export default function EsriWaybackOnTap({ lat, lon, label, zoom = 17, centredOn = "the project's map pin" }: {
+  lat: number; lon: number; label: string; zoom?: number; centredOn?: string
+}) {
   const [open, setOpen] = useState(false)
   const [made, setMade] = useState(false)
   const frameId = useId()
-  const src = waybackSrc(lat, lon)
+  const src = waybackSrc(lat, lon, zoom)
   function toggle() {
     if (!made) {
       setMade(true)
@@ -38,7 +41,7 @@ export default function EsriWaybackOnTap({ lat, lon, label }: { lat: number; lon
             className="mt-3 aspect-[4/3] w-full rounded-lg border border-slate-200 sm:aspect-[16/9]" />
         )}
         <p className="mt-1 text-xs text-slate-600">
-          Esri World Imagery Wayback: Esri&apos;s earlier releases of its satellite pictures, centred on the project&apos;s map pin.
+          Esri World Imagery Wayback: Esri&apos;s earlier releases of its satellite pictures, centred on {centredOn}.
           Drag the divider to compare two releases; each says its date in the viewer. Not every release has a new picture of this
           spot, so two may look the same.{' '}
           <a href={src} target="_blank" rel="noopener noreferrer" className="font-semibold underline underline-offset-2">Open full screen ↗</a>

@@ -113,6 +113,12 @@ def wire() -> None:
     fromabove.configure(render=lambda name, place, shots, story, credit, out: site_timelapse.page_video(
         name, place, [site_timelapse.Shot(day, pic, say) for day, pic, say in shots], story, credit, out))
     project_enrich.add_daily("site from above", fromabove.refresh)
+    # each area from space, month by month, the same way over a few kilometres around its middle (areastats.areaspace);
+    # no ring on its video: there is no pin, the whole picture is the area
+    from app.modules.areastats import areaspace
+    areaspace.configure(render=lambda name, place, shots, story, credit, out: site_timelapse.page_video(
+        name, place, [site_timelapse.Shot(day, pic, say) for day, pic, say in shots], story, credit, out, ring=False))
+    project_enrich.add_daily("area from space", areaspace.refresh)
     # the agents' own listing videos, copied to our server for video search (propertyfacts.agentvideos, owner 2026-11-20)
     from app.modules.propertyfacts import agentvideos
     project_enrich.add_daily("agent videos", agentvideos.turn)

@@ -153,6 +153,27 @@ async def public_area_landmarks(slug: str, response: Response) -> dict:
     return out
 
 
+from . import areaspace  # noqa: E402
+
+
+@public_router.get("/areas/from-space")
+async def public_areas_from_space(response: Response, db=Depends(get_db)) -> list:
+    """Every area showing its ground from space, in menu order: the from-space hub and the video sitemap (areaspace.every)."""
+    response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
+    return await areaspace.every(db)
+
+
+@public_router.get("/areas/{slug}/from-space")
+async def public_area_from_space(slug: str, response: Response, db=Depends(get_db)) -> dict:
+    """The area from space, month by month (areaspace.public_view): its guide's section and its watch page. 404 for an area
+    we do not cover or one with nothing to show yet."""
+    out = await areaspace.one(db, slug)
+    if out is None:
+        raise HTTPException(status_code=404, detail="Nothing from space for this area")
+    response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
+    return out
+
+
 @public_router.get("/register/near/{area_slug}/{slug}")
 async def public_near_guide(area_slug: str, slug: str, response: Response, db=Depends(get_db)) -> list:
     """Project pages near a neighbourhood guide: [{slug, name, km, fact, source}], nearest first."""
