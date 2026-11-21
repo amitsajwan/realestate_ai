@@ -67,7 +67,7 @@ PX = 300                        # 600 m at 2 m a pixel, before the 2x classic up
 CLEAR_MIN = 0.97                # share of the picture a month's median must cover (at least one clear pass per pixel)
 FIRST_YEAR = sitepics.FIRST_YEAR
 LOOK_VERSION = fromabove_view.VERSION   # 4: monthly medians, season lines by Gemini (2026-11-20); older looks are made again
-VIDEO_VERSION = 4               # 4: the page video ends on the newest pass, which is its poster (2026-11-20)
+VIDEO_VERSION = 5               # 5: the timeline starts a year before the project registered (2026-11-21); 4: ends on the newest pass
 REDRAWS_PER_DAY = 60            # older videos drawn again from their kept pictures and lines: no request, no Gemini
 NEW_LAUNCH_DAYS = 548
 GEMINI_RETRY_S = 90             # a busy Gemini (503): wait this long and ask once more before the pass stops
@@ -221,6 +221,29 @@ class Copernicus:
         return got if {"rgb", "ir", "n"} <= set(got) else None
 
 
+def registered(d: dict, docs: Sequence[dict]) -> Optional[str]:
+    """The earliest MahaRERA registration day ("2024-03-01") of the page and every registration standing behind it."""
+    days = [str(x.get("registered_on") or "")[:10] for x in [d, *docs] if x is d or x.get("cluster_primary") == d["_id"]]
+    days = [v for v in days if re.fullmatch(r"\d{4}-\d{2}-\d{2}", v)]
+    return min(days) if days else None
+
+
+def first_year(opened: Optional[str]) -> int:
+    """The first year the timeline shows: the year before the project's first registration, one season of the ground before
+    work could start (owner 2026-11-21: a project registered in 2026, due years later, gains nothing from five years of
+    field). Never before FIRST_YEAR; unknown registration, FIRST_YEAR."""
+    return max(FIRST_YEAR, int(opened[:4]) - 1) if opened else FIRST_YEAR
+
+
+def window(months: Sequence[str], since: int) -> List[str]:
+    """The months from January of `since`, or from earlier when that leaves fewer than three January to March seasons (the
+    yearly row needs three: a new launch still shows its ground, starting earlier)."""
+    jan = sorted({int(m[:4]) for m in months if sitepics.SEASONS[int(m[5:7])] == 1})
+    if len(jan) >= 3:
+        since = min(since, jan[-3])
+    return [m for m in months if int(m[:4]) >= since]
+
+
 def dry_months(first_year: int, today: date) -> List[str]:
     """Every dry month ("2024-01") from January of the first year to this month."""
     return [d.strftime("%Y-%m") for d in sitepics.dry_months(date(first_year, 1, 1), today)]
@@ -272,11 +295,12 @@ def save_kept(folder: Path, pin: Tuple[float, float], kept: dict) -> None:
     (folder / "reads.json").write_text(json.dumps({**kept, "kind": "monthly", "lat": pin[0], "lon": pin[1]}), encoding="utf-8")
 
 
-def read_new(sat: Copernicus, box, kept: dict, folder: Path, today: date) -> dict:
-    """Ask for each dry month not read before (and again for the month still running at the last look)."""
+def read_new(sat: Copernicus, box, kept: dict, folder: Path, today: date, since: int = FIRST_YEAR) -> dict:
+    """Ask for each dry month from January of `since` not read before (and again for the month still running at the last
+    look)."""
     months = dict(kept.get("months") or {})
     current = today.strftime("%Y-%m")
-    for m in dry_months(FIRST_YEAR, today):
+    for m in dry_months(since, today):
         if m in months and m != kept.get("partial"):
             continue
         start, end = month_bounds(m)
@@ -459,19 +483,23 @@ class Gathered:
     frames: List[dict] = field(default_factory=list)
 
 
-def gather(d: dict, pin: Tuple[float, float], sat: Optional[Copernicus], today: date, out_dir: Path = OUT_DIR) -> Gathered:
+def gather(d: dict, pin: Tuple[float, float], sat: Optional[Copernicus], today: date, out_dir: Path = OUT_DIR,
+           opened: Optional[str] = None) -> Gathered:
     """Read the new months, make the seasons and the pictures as they will be shown, save the yearly row (sync: a thread).
-    `sat` None: only the months already kept (a redraw)."""
+    `sat` None: only the months already kept (a redraw). `opened`, the project's first registration day, starts the timeline
+    the year before it (`first_year`, `window`)."""
+    since = first_year(opened)
     lat, lon = pin
     box = sitepics.box_around(lat, lon, sitepics.FRAME_SIDE_M)
     folder = folder_of(d["_id"], out_dir)
     kept = load_kept(folder, pin)
     if sat is not None:
-        kept = read_new(sat, box, kept, folder, today)
+        # two years more than the window, in case the newest January to March seasons are under cloud (`window`)
+        kept = read_new(sat, box, kept, folder, today, max(FIRST_YEAR, since - 2))
         save_kept(folder, pin, kept)
-    months = usable(kept, folder)
+    months = window(usable(kept, folder), since)
     shown = seasons(months, folder)
-    base = {"lat": lat, "lon": lon, "months": len(months), "version": LOOK_VERSION}
+    base = {"lat": lat, "lon": lon, "months": len(months), "version": LOOK_VERSION, "registered": opened}
     years = [s for s in shown if s.key[1] == 1]
     if len(shown) < 3 or len(years) < 3:
         return Gathered({**base, "none": True})        # too few clear seasons to show anything
@@ -518,7 +546,7 @@ def finish(d: dict, g: Gathered, words: dict, today: date, folder: Path) -> dict
 
 async def look(d: dict, docs: Sequence[dict], pin: Tuple[float, float], sat: Copernicus, ask: Any, today: date,
                out_dir: Path = OUT_DIR) -> dict:
-    g = await asyncio.to_thread(gather, d, pin, sat, today, out_dir)
+    g = await asyncio.to_thread(gather, d, pin, sat, today, out_dir, registered(d, docs))
     if g.base.get("none"):
         return g.base
     try:
@@ -538,17 +566,22 @@ def stale_video(d: dict) -> bool:
             and int((old.get("video") or {}).get("version") or 1) < VIDEO_VERSION)
 
 
-def redraw(d: dict, today: date, out_dir: Path = OUT_DIR) -> Optional[dict]:
-    """The look's record with its video drawn again from the kept months and the stored lines (sync: a thread); None when the
-    kept pictures no longer make one. The look's day and words stay as they were."""
+def redraw(d: dict, today: date, out_dir: Path = OUT_DIR, opened: Optional[str] = None) -> Optional[dict]:
+    """The look's record with its video and yearly row drawn again from the kept months and the stored lines, in the window
+    from the year before `opened` (sync: a thread); None when the kept pictures no longer make one. The look's day and words
+    stay as they were."""
     old = d["from_above"]
-    g = gather(d, (float(old["lat"]), float(old["lon"])), None, today, out_dir)
-    if g.base.get("none") or len(g.months) != int(old.get("months") or 0):
+    lines = {s["label"]: s["line"] for s in old.get("seasons") or []}
+    g = gather(d, (float(old["lat"]), float(old["lon"])), None, today, out_dir, opened)
+    if g.base.get("none") or any(s.label not in lines for s in g.shown):
         return None   # the kept pictures changed under the record: the next look makes both again
-    words = {"lines": {s["label"]: s["line"] for s in old.get("seasons") or []}, "summary": old.get("story") or "",
-             "pin": old.get("pin"), "pin_reason": old.get("pin_reason"), "dropped": (old.get("words") or {}).get("dropped", 0)}
+    words = {"lines": lines, "summary": old.get("story") or "", "pin": old.get("pin"), "pin_reason": old.get("pin_reason"),
+             "dropped": (old.get("words") or {}).get("dropped", 0)}
     got = finish(d, g, words, today, folder_of(d["_id"], out_dir))
-    return {**old, "video": got["video"]} if got.get("video") else None
+    if not got.get("video"):
+        return None
+    keep = ("frames", "seasons", "video", "credit", "months", "registered")
+    return {**old, **{k: got[k] for k in keep}, "story": old.get("story") or got["story"]}
 
 
 # --- the pass -------------------------------------------------------------------------------------------------------------
@@ -617,7 +650,7 @@ async def refresh(store: Store, now: datetime, budget: int = REQUESTS_PER_DAY, f
     out["redrawn"] = 0
     for d in [d for d in _primaries(docs) if d["_id"] not in looked and stale_video(d)][:REDRAWS_PER_DAY]:
         try:
-            got = await asyncio.to_thread(redraw, d, now.date(), out_dir)
+            got = await asyncio.to_thread(redraw, d, now.date(), out_dir, registered(d, docs))
         except Exception:
             log.exception("from above: %s, its video was not drawn again", d["_id"])
             continue
