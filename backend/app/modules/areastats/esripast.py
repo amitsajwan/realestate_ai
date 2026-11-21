@@ -14,12 +14,13 @@ Which captures show (`pick`): the newest, then going back the newest one at leas
 back to SPAN_MONTHS before the newest, at most SHOWN: so about one a year over the last three years.
 
 Once a day inside the enrichment loop, each looked up again after REDO_DAYS (Esri publishes about one release a month), within
-QUERIES_PER_DAY (a page is about 60 questions): the areas showing their ground from space first, then project pages showing
+QUERIES_PER_DAY (a page is about 60 questions), AT_ONCE pages side by side: the areas showing their ground from space first, then project pages showing
 theirs (fromabove_view), then every other page with its own checked pin, our areas' and the hottest first. When the captures
 shown change, `changed_at` moves, and the page's sitemap date with it (pages.page_updated): a new sharp picture of the site is
 news on the page. Esri's terms for showing its tiles were not confirmed; the owner chose to show them, with Esri's credit
 (docs/plan/satellite-view.md, "Esri's sharp past pictures, year by year").
 """
+import asyncio
 import logging
 from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional, Sequence, Tuple
@@ -45,7 +46,8 @@ SHOWN = 4
 MIN_GAP_MONTHS = 10
 SPAN_MONTHS = 42
 REDO_DAYS = 30
-QUERIES_PER_DAY = 6000
+QUERIES_PER_DAY = 30000         # about 500 pages a day (owner 2026-11-21: "raise the cap")
+AT_ONCE = 4                     # pages looked up side by side: 30,000 questions in about 40 minutes, not 2.5 hours
 TIMEOUT = 30
 
 
@@ -234,16 +236,17 @@ async def refresh(store: Store, now: datetime, budget: int = QUERIES_PER_DAY, fo
         olds.update({f"area:{k}": (v or {}).get("esri_past") for k, v in kept.items()})
         out["due"] = len(todo)
         meta = Metadata(client, budget)
-        for kind, key, pin, zoom in todo if rels else []:
+
+        async def look(kind: str, key: str, pin: Tuple[float, float], zoom: int) -> None:
             try:
                 got = await one(meta, rels, pin, zoom, now.date())
             except Spent:
                 out["stopped"] = "the day's metadata questions are spent"
-                break
+                return
             except Exception:
                 log.exception("esri past: %s %s failed", kind, key)
                 out["failed"] += 1
-                continue
+                return
             old = olds.get(f"area:{key}" if kind == "area" else key)
             rec = {**got, "at": now, "changed_at": changed_at(old, got, now)}
             if kind == "area":
@@ -251,6 +254,12 @@ async def refresh(store: Store, now: datetime, budget: int = QUERIES_PER_DAY, fo
             else:
                 await store.set_project(key, esri_past=rec)
             out["done"] += 1
+
+        work = todo if rels else []
+        for start in range(0, len(work), AT_ONCE):
+            if out["stopped"]:
+                break
+            await asyncio.gather(*(look(*w) for w in work[start:start + AT_ONCE]))
         out["queries"] = meta.used
     finally:
         if own:

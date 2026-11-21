@@ -280,7 +280,7 @@ friendly", then "have esri also ... think seo and user advantage. Don't worry ab
 - **Which pictures** (`areastats/esripast.py`, a daily pass in enrichment): Esri's public metadata service says, for a point
   and a release, when that release's picture of the point was taken (`SRC_DATE2`). The date only moves forward release by
   release, so each change is found with a galloping search over the ~110 releases since 2019: about 58 questions a page, up
-  to 6,000 a day (about 100 pages), redone monthly. Kept: the newest capture, then about one a year back three and a half
+  to 30,000 a day (about 500 pages, four at a time), redone monthly. Kept: the newest capture, then about one a year back three and a half
   years, four at most (Kohinoor Riverdale: Nov 2022, Jan 2024, Feb 2025, Apr 2026, about 0.3 m a pixel, Maxar and Vantor).
   Stored as release numbers and dates only (`esri_past` on the record; on `area_from_space` for an area). No picture is
   stored or read by us.
