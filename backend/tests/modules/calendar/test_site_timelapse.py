@@ -72,6 +72,13 @@ def test_the_page_video_ends_on_the_newest_pass_and_that_frame_is_its_poster(tmp
     assert plan[-1] == ("hold", 18, t.NOW_HOLD) and t.per_frame(17, t.PAGE_SECONDS, now=True) >= 1.5
 
 
+def test_a_season_picture_is_dated_by_its_season():
+    plain = t.flat(t.page_keys("X", "Kharadi, Pune", shots(3), STORY, "credit")[0]).crop((0, 0, 720, 90))
+    named = [t.Shot(s.day, s.picture, s.say, "Jan-Mar 2021") for s in shots(3)]
+    assert t.shown_as(named[0]) == "Jan-Mar 2021" and t.shown_as(shots(1)[0]) == "Jan 2021"
+    assert t.flat(t.page_keys("X", "Kharadi, Pune", named, STORY, "credit")[0]).crop((0, 0, 720, 90)).tobytes() != plain.tobytes()
+
+
 def test_month_labels_and_caption_come_from_the_record():
     assert t.month_label("2026-02-27") == "Feb 2026"
     words = t.caption("Kohinoor Riverdale", "Kharadi, Pune", "2021-01-20", "2026-11-11", STORY,

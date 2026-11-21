@@ -478,7 +478,6 @@ class Gathered:
     months: List[str] = field(default_factory=list)
     shown: List[Season] = field(default_factory=list)
     pics: Dict[str, Image.Image] = field(default_factory=dict)        # season label -> picture as shown
-    month_pics: Dict[str, Image.Image] = field(default_factory=dict)  # month -> picture as shown
     years: List[dict] = field(default_factory=list)                   # {day, green}: each Jan-Mar season, for clearing
     frames: List[dict] = field(default_factory=list)
 
@@ -503,11 +502,9 @@ def gather(d: dict, pin: Tuple[float, float], sat: Optional[Copernicus], today: 
     years = [s for s in shown if s.key[1] == 1]
     if len(shown) < 3 or len(years) < 3:
         return Gathered({**base, "none": True})        # too few clear seasons to show anything
-    raw_months = {m: Image.open(folder / "raw" / f"{m}-rgb.png").convert("RGB") for m in months}
     st = stretch_for([s.rgb for s in shown])            # one colour stretch for the whole series: changes are the ground's
     g = Gathered(base, months, shown)
     g.pics = {s.label: classic(enhance(s.rgb, st)) for s in shown}
-    g.month_pics = {m: classic(enhance(img, st)) for m, img in raw_months.items()}
     g.years = [{"day": s.day, "green": s.plants} for s in years]
     for s in years:
         f = folder / f"{s.key[0]}.webp"
@@ -528,8 +525,8 @@ def finish(d: dict, g: Gathered, words: dict, today: date, folder: Path) -> dict
     else:
         story = words.get("summary") or sitepics.sentence(g.years, g.shown[0].day, g.shown[-1].day)
     credit = f"{sitepics.CREDIT} {g.months[0][:4]}-{g.months[-1][:4]}"
-    by_month = {m: line["line"] for line in season_lines for m in next(s.months for s in g.shown if s.label == line["label"])}
-    shots = [(f"{m}-01", g.month_pics[m], by_month.get(m, "")) for m in g.months]
+    # one picture a season, its months' median (owner 2026-11-21: month after month "looks same")
+    shots = [(s.day, g.pics[s.label], line["line"], s.label) for s, line in zip(g.shown, season_lines)]
     video = None
     render = _deps.get("render")
     if render and len(shots) >= 3:
@@ -538,7 +535,7 @@ def finish(d: dict, g: Gathered, words: dict, today: date, folder: Path) -> dict
         with Image.open(poster) as im:
             vw, vh = im.size
         video = {"path": _rel(Path(mp4)), "poster": _rel(Path(poster)), "width": vw, "height": vh, "from": shots[0][0],
-                 "to": shots[-1][0], "months": len(shots), "version": VIDEO_VERSION}
+                 "to": shots[-1][0], "months": len(g.months), "seasons": len(shots), "version": VIDEO_VERSION}
     return {**g.base, "story": story, "where": sitepics.where(), "credit": credit, "frames": g.frames,
             "seasons": season_lines, "video": video, "pin": words["pin"], "pin_reason": words["pin_reason"],
             "words": {"gemini": len(words["lines"]), "dropped": words["dropped"]}}

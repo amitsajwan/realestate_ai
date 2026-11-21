@@ -234,7 +234,6 @@ class Gathered:
     months: List[str] = field(default_factory=list)
     shown: List[fa.Season] = field(default_factory=list)
     pics: Dict[str, Image.Image] = field(default_factory=dict)
-    month_pics: Dict[str, Image.Image] = field(default_factory=dict)
     years: List[dict] = field(default_factory=list)
     frames: List[dict] = field(default_factory=list)
 
@@ -256,7 +255,6 @@ def gather(area: areas.Area, sat: Any, today: date, out_dir: Path = OUT_DIR) -> 
     st = stretch_for([s.rgb for s in shown])            # one stretch for the series: a change between pictures is the ground's
     g = Gathered(base, months, shown)
     g.pics = {s.label: classic(enhance(s.rgb, st)) for s in shown}
-    g.month_pics = {m: classic(enhance(Image.open(folder / "raw" / f"{m}-rgb.png").convert("RGB"), st)) for m in months}
     g.years = [{"day": s.day, "green": s.plants} for s in years]
     for s in years:
         f = folder / f"{s.key[0]}.webp"
@@ -272,8 +270,8 @@ def finish(area: areas.Area, g: Gathered, words: dict, folder: Path) -> dict:
     season_lines = [{"label": s.label, "day": s.day, "line": words["lines"].get(s.label) or ""} for s in g.shown]
     story = words.get("summary") or sentence(area.name, g.years, g.shown[0].day, g.shown[-1].day)
     credit = f"{sitepics.CREDIT} {g.months[0][:4]}-{g.months[-1][:4]}"
-    by_month = {m: line["line"] for line, s in zip(season_lines, g.shown) for m in s.months}
-    shots = [(f"{m}-01", g.month_pics[m], by_month.get(m, "")) for m in g.months]
+    # one picture a season, its months' median (owner 2026-11-21: month after month "looks same")
+    shots = [(s.day, g.pics[s.label], line["line"], s.label) for s, line in zip(g.shown, season_lines)]
     video = None
     render = _deps.get("render")
     if render and len(shots) >= 3:
@@ -281,7 +279,7 @@ def finish(area: areas.Area, g: Gathered, words: dict, folder: Path) -> dict:
         with Image.open(poster) as im:
             vw, vh = im.size
         video = {"path": fa._rel(Path(mp4)), "poster": fa._rel(Path(poster)), "width": vw, "height": vh, "from": shots[0][0],
-                 "to": shots[-1][0], "months": len(shots)}
+                 "to": shots[-1][0], "months": len(g.months), "seasons": len(shots)}
     return {**g.base, "area": area.key, "story": story, "where": where(area.name, int(g.base["side_m"])), "credit": credit,
             "frames": g.frames, "seasons": season_lines, "video": video,
             "words": {"gemini": len(words["lines"]), "dropped": words["dropped"], "summary": bool(words.get("summary"))}}
@@ -337,7 +335,8 @@ def public_view(doc: Optional[dict]) -> Optional[dict]:
         return None
     v = doc.get("video") or None
     video = {"src": "/uploads/" + v["path"], "poster": "/uploads/" + v["poster"], "width": v["width"], "height": v["height"],
-             "from": v["from"], "to": v["to"], "months": v["months"]} if v and v.get("path") else None
+             "from": v["from"], "to": v["to"], "months": v["months"],
+             **({"seasons": v["seasons"]} if v.get("seasons") else {})} if v and v.get("path") else None   # seasons: one picture each
     seasons = [{"label": s["label"], "day": s["day"], "line": s["line"]} for s in doc.get("seasons") or [] if s.get("line")]
     at = doc.get("at")
     return {"area": {"key": area.key, "name": area.name, "slug": area.slug}, "middle": {"lat": doc["lat"], "lon": doc["lon"]},

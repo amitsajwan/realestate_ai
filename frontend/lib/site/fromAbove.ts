@@ -21,7 +21,16 @@ export interface FromAboveVideo {
   height: number
   from: string // YYYY-MM-DD, first picture
   to: string // YYYY-MM-DD, last picture
-  months: number // pictures in it (one a dry season)
+  months: number // clear months behind it (the pictures in a video drawn before 2026-11-21)
+  seasons?: number // pictures in it when it shows one a season (drawn from 2026-11-21)
+}
+
+/** How a video steps: one picture a season (drawn from 2026-11-21, owner: month after month "looks same"), or every clear
+ *  month (drawn before, until each is drawn again at its next look). */
+export function videoPace(v: { months: number; seasons?: number }): { by: string; title: string; count: string } {
+  return v.seasons
+    ? { by: 'season by season', title: 'Season by season', count: `${v.seasons} seasons` }
+    : { by: 'month by month', title: 'Month by month', count: `${v.months} clear months` }
 }
 
 export interface FromAboveSeason {
@@ -77,7 +86,8 @@ function cleanVideo(raw: unknown): FromAboveVideo | null {
   if (!videoOk(v.src, v.poster) || typeof v.src !== 'string' || typeof v.poster !== 'string') return null
   if (!size(v.width) || !size(v.height) || !num(v.months) || v.months < 3) return null
   if (typeof v.from !== 'string' || typeof v.to !== 'string' || !shortMonth(v.from) || !shortMonth(v.to) || v.from >= v.to) return null
-  return { src: v.src, poster: v.poster, width: v.width, height: v.height, from: v.from, to: v.to, months: Math.round(v.months) }
+  return { src: v.src, poster: v.poster, width: v.width, height: v.height, from: v.from, to: v.to, months: Math.round(v.months),
+    ...(num(v.seasons) && v.seasons >= 3 ? { seasons: Math.round(v.seasons) } : {}) }
 }
 
 /** The register API's `from_above`, for the page of `slug`. */

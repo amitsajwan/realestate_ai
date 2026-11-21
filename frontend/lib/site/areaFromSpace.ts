@@ -29,7 +29,7 @@ export interface AreaFromSpaceItem {
   slug: string
   name: string
   story: string
-  video: { src: string; poster: string; from: string; to: string; months: number } | null
+  video: { src: string; poster: string; from: string; to: string; months: number; seasons?: number } | null
   picture: string
   years: [number, number]
   updated: string | null
@@ -51,7 +51,8 @@ function cleanVideo(raw: unknown, slug: string): FromAboveVideo | null {
   if (v.src !== `${dir(slug)}months.mp4` || v.poster !== `${dir(slug)}months.webp`) return null
   if (!size(v.width) || !size(v.height) || !num(v.months) || v.months < 3) return null
   if (typeof v.from !== 'string' || typeof v.to !== 'string' || !shortMonth(v.from) || !shortMonth(v.to) || v.from >= v.to) return null
-  return { src: v.src, poster: v.poster, width: v.width, height: v.height, from: v.from, to: v.to, months: Math.round(v.months) }
+  return { src: v.src, poster: v.poster, width: v.width, height: v.height, from: v.from, to: v.to, months: Math.round(v.months),
+    ...(num(v.seasons) && v.seasons >= 3 ? { seasons: Math.round(v.seasons) } : {}) }
 }
 
 /** The API's answer for the area of `slug`, checked: only pictures stored for this area, three years or more. */

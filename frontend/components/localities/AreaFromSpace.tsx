@@ -3,7 +3,7 @@ import EsriPastPictures from '@/components/site/EsriPastPictures'
 import EsriWaybackOnTap from '@/components/site/EsriWaybackOnTap'
 import FromAboveProof from '@/components/site/FromAboveProof'
 import FromAboveVideo from '@/components/site/FromAboveVideo'
-import { shortMonth, type FromAboveSeason } from '@/lib/site/fromAbove'
+import { shortMonth, videoPace, type FromAboveSeason } from '@/lib/site/fromAbove'
 import { areaFromSpacePath, type AreaFromSpace as View } from '@/lib/site/areaFromSpace'
 
 const SHOWN_SEASONS = 3   // the newest seasons as the current reading; the rest sit in the proof badge, still page text
@@ -53,9 +53,9 @@ export default function AreaFromSpace({ view, className = 'mt-9' }: { view: View
       <FromAboveProof media={
         <figure className="m-0 mt-2">
           <FromAboveVideo src={v.src} poster={v.poster} width={v.width} height={v.height}
-            label={`${view.name} from space, month by month, ${span}`} />
+            label={`${view.name} from space, ${videoPace(v).by}, ${span}`} />
           <figcaption className="mt-1 text-center text-xs text-slate-600">
-            Month by month, {span}: {v.months} clear months, October to May (the monsoon is under cloud).
+            {videoPace(v).title}, {span}: {videoPace(v).count}, October to May (the monsoon is under cloud).
           </figcaption>
         </figure>
       } summary={

@@ -63,10 +63,16 @@ class Shot:
     day: str              # YYYY-MM-DD, the pass
     picture: Image.Image  # square, enhanced, the pin at its centre
     say: str = ""         # the line for this picture (sitepics.captions)
+    label: str = ""       # what the picture stands for when not one month ("Jan-Mar 2024": a season's median)
 
 
 def month_label(day: str) -> str:
     return date.fromisoformat(day).strftime("%b %Y")
+
+
+def shown_as(s: Shot) -> str:
+    """The date written on a picture: its season's label, else its month."""
+    return s.label or month_label(s.day)
 
 
 def per_frame(n: int, seconds: float, now: bool = False) -> float:
@@ -192,7 +198,7 @@ def page_keys(name: str, place: str, shots: Sequence[Shot], story: str, credit: 
         words, d = _layer(PAGE)
         said = _wrap(d, s.say, line, side - 2 * pad, 2) if s.say else []
         _shade(d, (0, 0, side, 100 + 40 * len(said)), 170)
-        d.text((pad, 18), month_label(s.day), font=big, fill=WHITE)
+        d.text((pad, 18), shown_as(s), font=big, fill=WHITE)
         for k, t in enumerate(said):
             d.text((pad, 92 + 38 * k), t, font=line, fill=GOLD)
         foot(d, i)
@@ -213,7 +219,7 @@ def page_keys(name: str, place: str, shots: Sequence[Shot], story: str, credit: 
     words, d = _layer(PAGE)
     _shade(d, (0, 0, side, 100), 170)
     d.text((pad, 18), "Now", font=big, fill=GOLD)
-    d.text((pad + d.textlength("Now ", font=big), 18), month_label(shots[-1].day), font=big, fill=WHITE)
+    d.text((pad + d.textlength("Now ", font=big), 18), shown_as(shots[-1]), font=big, fill=WHITE)
     foot(d, len(shots) - 1)
     keys.append((pics[-1], words))
     return keys
@@ -248,7 +254,7 @@ def reel_keys(name: str, place: str, shots: Sequence[Shot], story: str, credit: 
         for t in _wrap(d, name, title, right - x0, 1):
             d.text((x0, y), t, font=title, fill=WHITE)
         d.text((x0, y + 74), latin(place), font=sub, fill=SOFT)
-        d.text((x0, y + 128), month_label(s.day), font=big, fill=WHITE)
+        d.text((x0, y + 128), shown_as(s), font=big, fill=WHITE)
         for k, t in enumerate(_wrap(d, s.say, line, right - x0, 2) if s.say else []):
             d.text((x0, y + 250 + 56 * k), t, font=line, fill=GOLD)
         keys.append((ground(s.picture), words))

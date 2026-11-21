@@ -29,7 +29,8 @@ def public_view(d: dict, pin: Optional[Tuple[float, float]]) -> Optional[dict]:
         return None
     v = fa.get("video") or None
     video = {"src": "/uploads/" + v["path"], "poster": "/uploads/" + v["poster"], "width": v["width"], "height": v["height"],
-             "from": v["from"], "to": v["to"], "months": v["months"]} if v and v.get("path") else None
+             "from": v["from"], "to": v["to"], "months": v["months"],
+             **({"seasons": v["seasons"]} if v.get("seasons") else {})} if v and v.get("path") else None   # seasons: one picture each
     seasons = [{"label": s["label"], "day": s["day"], "line": s["line"]} for s in fa.get("seasons") or [] if s.get("line")]
     return {"pin": {"lat": fa["lat"], "lon": fa["lon"]}, "story": fa["story"], "where": fa["where"], "credit": fa["credit"],
             "frames": frames, "seasons": seasons, "video": video, "registered": fa.get("registered") or None, "updated": fa["at"].date().isoformat()

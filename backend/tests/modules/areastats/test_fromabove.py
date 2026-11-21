@@ -132,7 +132,9 @@ async def test_the_pass_stores_the_yearly_row_season_lines_and_video_with_gemini
     assert rec["story"] == "Plants cleared after the Aug 2022 registration." and rec["pin"] == "ok"
     assert [f["year"] for f in rec["frames"]] == [2021, 2022, 2023, 2024, 2025, 2026]
     assert rec["seasons"][0] == {"label": "Jan-Mar 2021", "day": "2021-01-01", "line": "Ground cleared inside the ring."}
-    assert rec["video"]["months"] == len(render.shots) and render.shots[0][2] == "Ground cleared inside the ring."
+    # one picture a season, named by its season (owner 2026-11-21: month after month "looks same")
+    assert rec["video"]["seasons"] == len(render.shots) == len(rec["seasons"]) < rec["video"]["months"]
+    assert render.shots[0][2:] == ("Ground cleared inside the ring.", "Jan-Mar 2021")
     told = gem.calls[0][0]["text"]
     assert "registered Aug 2022" in told and "Tower A (28 floors)" in told and "Phase 2" in told   # every registration
     assert sum(1 for c in gem.calls[0] if c["type"] == "image_url") == len(rec["seasons"]) + 6   # + each year's infrared

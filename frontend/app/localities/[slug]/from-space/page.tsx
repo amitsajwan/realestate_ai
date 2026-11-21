@@ -10,7 +10,7 @@ import { mapsEmbedKey, satelliteSrc } from '@/components/site/mapsEmbed'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/seo'
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
-import { shortMonth } from '@/lib/site/fromAbove'
+import { shortMonth, videoPace } from '@/lib/site/fromAbove'
 import { areaFromSpacePath, getAreaFromSpace, type AreaFromSpace } from '@/lib/site/areaFromSpace'
 
 // An area from space on a page of its own, the video first (as the projects' watch pages: Google shows a video result only
@@ -68,7 +68,7 @@ export default async function AreaFromSpacePage({ params }: Props) {
         </nav>
         <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">{view.name}, Pune from space, {span(view)}</h1>
         <FromAboveVideo src={video.src} poster={video.poster} width={video.width} height={video.height}
-          label={`${view.name} from space, month by month, ${shortMonth(video.from)} to ${shortMonth(video.to)}`} />
+          label={`${view.name} from space, ${videoPace(video).by}, ${shortMonth(video.from)} to ${shortMonth(video.to)}`} />
         <p className="text-base leading-relaxed text-slate-800">{view.story}</p>
         {/* the video ends on the newest Sentinel pass; Google's sharper view of today follows it (shown, never stored) */}
         {key && (
@@ -83,7 +83,7 @@ export default async function AreaFromSpacePage({ params }: Props) {
           ? <EsriPastPictures past={view.esriPast} lat={view.middle.lat} lon={view.middle.lon} name={view.name} centredOn={`the middle of ${view.name}`} className="" />
           : <EsriWaybackOnTap lat={view.middle.lat} lon={view.middle.lon} label={view.name} zoom={14} centredOn={`the middle of ${view.name}`} />}
         <p className="text-sm text-slate-600">
-          {video.months} clear months, {shortMonth(video.from)} to {shortMonth(video.to)}: every clear pass of the Sentinel-2
+          {videoPace(video).count}, {shortMonth(video.from)} to {shortMonth(video.to)}: every clear pass of the Sentinel-2
           satellite over {view.name}, October to May (the monsoon is under cloud). A new picture is added every season.
         </p>
         {view.seasons.length > 0 && (

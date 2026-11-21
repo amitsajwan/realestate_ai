@@ -255,6 +255,15 @@ current update", and "remember the possession date: after 5 years why check from
 - Tests: `test_fromabove.py` (window, new launch, redraw cut), `__tests__/site/from-above.test.tsx` (order, closed badge
   downloads nothing, latest reading with registration and possession, every line in the page).
 
+### One picture a season in the video (2026-11-21)
+
+Owner: neighbouring months "look same, don't matter much". A video drawn from now shows one picture a season (the median of
+its months, the picture the season's line was written from), dated by its season ("Jan-Mar 2024"), for projects and areas
+alike: about 15 pictures where there were 40-odd. The video record keeps `months` (clear months behind it) and adds
+`seasons` (pictures in it); the pages say "season by season, N seasons" for these and "month by month" for a video drawn
+before (`videoPace`). Owner: "don't change existing videos, their turn will come later": no version bump, so a video is
+drawn the new way at its project's next look (each season) or redraw, never all at once for this.
+
 ### Esri's sharp past pictures, on tap (2026-11-21)
 
 Owner, 2026-11-21: "embed esri". Under Google's view on the project section, a **Compare sharp past pictures** button makes

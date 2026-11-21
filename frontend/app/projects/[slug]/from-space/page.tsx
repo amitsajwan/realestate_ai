@@ -8,7 +8,7 @@ import { mapsEmbedKey, satelliteSrc } from '@/components/site/mapsEmbed'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/seo'
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
-import { forPin, fromRecord, shortMonth, type FromAbove } from '@/lib/site/fromAbove'
+import { forPin, fromRecord, shortMonth, videoPace, type FromAbove } from '@/lib/site/fromAbove'
 import { displayName, getRegisterProject, type RegisterProject } from '@/lib/site/register'
 
 // A project's site from space on a page of its own, the video first: Google shows a video in its video results only from a
@@ -72,7 +72,7 @@ export default async function FromSpaceWatchPage({ params }: Props) {
         </nav>
         <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">{name} from space, {span(view)}</h1>
         <FromAboveVideo src={video.src} poster={video.poster} width={video.width} height={video.height}
-          label={`${name} site from space, month by month, ${shortMonth(video.from)} to ${shortMonth(video.to)}`} />
+          label={`${name} site from space, ${videoPace(video).by}, ${shortMonth(video.from)} to ${shortMonth(video.to)}`} />
         <p className="text-base leading-relaxed text-slate-800">{view.story}</p>
         {/* the video ends on the newest Sentinel pass; Google's sharper view of today follows it (shown, never stored) */}
         {key && (
@@ -84,7 +84,7 @@ export default async function FromSpaceWatchPage({ params }: Props) {
           </figure>
         )}
         <p className="text-sm text-slate-600">
-          {video.months} clear months, {shortMonth(video.from)} to {shortMonth(video.to)}: every clear pass of the Sentinel-2
+          {videoPace(video).count}, {shortMonth(video.from)} to {shortMonth(video.to)}: every clear pass of the Sentinel-2
           satellite over the project&apos;s map pin, October to May (the monsoon is under cloud). A new picture is added every season.
         </p>
         {view.seasons.length > 0 && (

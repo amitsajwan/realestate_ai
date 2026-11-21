@@ -111,13 +111,13 @@ def wire() -> None:
     from app.modules.areastats import fromabove
     from app.modules.calendar import site_timelapse
     fromabove.configure(render=lambda name, place, shots, story, credit, out: site_timelapse.page_video(
-        name, place, [site_timelapse.Shot(day, pic, say) for day, pic, say in shots], story, credit, out))
+        name, place, [site_timelapse.Shot(*shot) for shot in shots], story, credit, out))
     project_enrich.add_daily("site from above", fromabove.refresh)
     # each area from space, month by month, the same way over a few kilometres around its middle (areastats.areaspace);
     # no ring on its video: there is no pin, the whole picture is the area
     from app.modules.areastats import areaspace
     areaspace.configure(render=lambda name, place, shots, story, credit, out: site_timelapse.page_video(
-        name, place, [site_timelapse.Shot(day, pic, say) for day, pic, say in shots], story, credit, out, ring=False))
+        name, place, [site_timelapse.Shot(*shot) for shot in shots], story, credit, out, ring=False))
     project_enrich.add_daily("area from space", areaspace.refresh)
     # Esri's sharp past pictures, about one a year, for every page and area showing its ground from space
     # (areastats.esripast): which releases to draw, from Esri's metadata; the pictures are drawn by Esri in the browser

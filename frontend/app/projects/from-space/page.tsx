@@ -7,6 +7,7 @@ import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/se
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
 import { getFromSpace } from '@/lib/site/register'
 import { areaFromSpacePath, getAreasFromSpace } from '@/lib/site/areaFromSpace'
+import { videoPace } from '@/lib/site/fromAbove'
 
 // Every Pune project page that shows its site from space (backend areastats.fromabove), on one page: what no portal shows
 // (owner 2026-11-20: "it can be our selling point, no one does it"). Each card links to the project's own section. A page
@@ -62,7 +63,7 @@ export default async function FromSpacePage() {
                       className="aspect-square h-auto w-full object-cover" />
                     <div className="p-3">
                       <p className="font-semibold text-slate-900">{x.name}</p>
-                      <p className="text-xs font-semibold text-amber-700">{x.years[0]} to {x.years[1]}{x.video ? `, ${x.video.months} months` : ''}</p>
+                      <p className="text-xs font-semibold text-amber-700">{x.years[0]} to {x.years[1]}{x.video ? `, ${videoPace(x.video).count}` : ''}</p>
                       <p className="mt-1 line-clamp-3 text-sm text-slate-700">{x.story}</p>
                     </div>
                   </Link>
@@ -83,7 +84,7 @@ export default async function FromSpacePage() {
                     className="aspect-square h-auto w-full object-cover" />
                   <div className="p-3">
                     <p className="font-semibold text-slate-900">{x.name}{x.place ? `, ${x.place}` : ''}</p>
-                    <p className="text-xs font-semibold text-amber-700">{x.years[0]} to {x.years[1]}{x.video ? `, ${x.video.months} months` : ''}</p>
+                    <p className="text-xs font-semibold text-amber-700">{x.years[0]} to {x.years[1]}{x.video ? `, ${videoPace(x.video).count}` : ''}</p>
                     <p className="mt-1 line-clamp-3 text-sm text-slate-700">{x.story}</p>
                   </div>
                 </Link>
