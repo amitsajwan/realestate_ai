@@ -39,6 +39,7 @@ export interface FromAbove {
   frames: FromAboveFrame[]
   seasons: FromAboveSeason[]
   video: FromAboveVideo | null
+  registered: string | null // YYYY-MM-DD, the project's first MahaRERA registration: the timeline starts the year before it
   updated: string | null // YYYY-MM-DD, the last look
 }
 
@@ -101,8 +102,9 @@ export function fromRecord(raw: unknown, slug: string): FromAbove | null {
       .map((x) => ({ label: (x.label as string).trim(), day: x.day as string, line: (x.line as string).trim() }))
     : []
   const updated = typeof r.updated === 'string' && shortMonth(r.updated) ? r.updated : null
+  const registered = typeof r.registered === 'string' && DAY.test(r.registered) ? r.registered : null
   return { slug, pin: { lat: pin.lat, lon: pin.lon }, story: r.story.trim(), where: r.where.trim(), credit: r.credit.trim(), frames,
-    seasons, video: cleanVideo(r.video), updated }
+    seasons, video: cleanVideo(r.video), registered, updated }
 }
 
 /** The project's pictures, only while its checked pin is where the pictures were taken. */
