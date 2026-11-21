@@ -20,7 +20,10 @@ export function socialLinks(): { facebook: string; instagram: string } {
  *  (owner 2026-11-20: LinkedIn company page, the YouTube channel once it has public videos, Crunchbase, directories). They join
  *  Facebook and Instagram in the Organization's `sameAs`, which is how Google learns that "avasetu" is a name and not a
  *  misspelling of "Seva Setu". Only a profile that exists: an empty or bare site address (https://linkedin.com) tells Google nothing. */
-export const MORE_PROFILES: readonly string[] = []
+export const MORE_PROFILES: readonly string[] = [
+  // the company page, live 2026-11-21: Avasetu, Pune, linking https://avasetu.in
+  'https://www.linkedin.com/company/avasetu/',
+]
 
 /** Every public profile of the brand, for the Organization's `sameAs`: Facebook, Instagram, then MORE_PROFILES. A profile must be
  *  an https address with a path (a page of its own, not a site's front page); duplicates are dropped. */

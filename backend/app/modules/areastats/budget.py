@@ -70,8 +70,8 @@ def route(tier: str, step: str) -> List[str]:
         return [GEMINI, FREE]
     if step == "area_picture":   # judging a satellite picture: Gemini's vision, lite first (the free tiers do not take images)
         return [LITE, GEMINI]
-    if step == "site_from_above":   # a project's seasons from above, all its pictures at once (areastats.fromabove): the full
-        return [GEMINI, LITE]        # model reads them as a person does (2026-11-20 trial); lite only when it has no room
+    if step in ("site_from_above", "area_from_space"):   # a project's or an area's seasons from above, all its pictures at
+        return [GEMINI, LITE]   # once (fromabove, areaspace): the full model reads them as a person does; lite only when it has no room
     if step == "prices":
         return [LITE, FREE]
     return [FREE, LITE]

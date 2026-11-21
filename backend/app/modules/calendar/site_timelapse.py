@@ -63,10 +63,16 @@ class Shot:
     day: str              # YYYY-MM-DD, the pass
     picture: Image.Image  # square, enhanced, the pin at its centre
     say: str = ""         # the line for this picture (sitepics.captions)
+    label: str = ""       # what the picture stands for when not one month ("Jan-Mar 2024": a season's median)
 
 
 def month_label(day: str) -> str:
     return date.fromisoformat(day).strftime("%b %Y")
+
+
+def shown_as(s: Shot) -> str:
+    """The date written on a picture: its season's label, else its month."""
+    return s.label or month_label(s.day)
 
 
 def per_frame(n: int, seconds: float, now: bool = False) -> float:
@@ -170,14 +176,14 @@ def _progress(d: ImageDraw.ImageDraw, x0: int, x1: int, y: int, days: Sequence[s
     d.ellipse((x - thick * 2, y - thick * 2, x + thick * 2, y + thick * 2), fill=GOLD)
 
 
-def page_keys(name: str, place: str, shots: Sequence[Shot], story: str, credit: str) -> List[Key]:
+def page_keys(name: str, place: str, shots: Sequence[Shot], story: str, credit: str, ring: bool = True) -> List[Key]:
     """The square key frames: the picture full size, the date and its line large across the top, a progress line and the
     credit along the bottom; then the end card with the sentence; then the newest pass again with only "Now" and its month,
-    the last frame and the poster."""
+    the last frame and the poster. `ring` False for a whole area (areastats.areaspace): there is no pin to circle."""
     side = PAGE[0]
     pad = 26
     days = [s.day for s in shots]
-    pics = [_ring(s.picture, side) for s in shots]
+    pics = [_ring(s.picture, side) if ring else s.picture.convert("RGB").resize((side, side), Image.LANCZOS) for s in shots]
     big, line, small = load_font(58, "bold"), load_font(32, "semibold"), load_font(16, "regular")
     title, body = load_font(36, "bold"), load_font(29, "medium")
 
@@ -192,7 +198,7 @@ def page_keys(name: str, place: str, shots: Sequence[Shot], story: str, credit: 
         words, d = _layer(PAGE)
         said = _wrap(d, s.say, line, side - 2 * pad, 2) if s.say else []
         _shade(d, (0, 0, side, 100 + 40 * len(said)), 170)
-        d.text((pad, 18), month_label(s.day), font=big, fill=WHITE)
+        d.text((pad, 18), shown_as(s), font=big, fill=WHITE)
         for k, t in enumerate(said):
             d.text((pad, 92 + 38 * k), t, font=line, fill=GOLD)
         foot(d, i)
@@ -213,7 +219,7 @@ def page_keys(name: str, place: str, shots: Sequence[Shot], story: str, credit: 
     words, d = _layer(PAGE)
     _shade(d, (0, 0, side, 100), 170)
     d.text((pad, 18), "Now", font=big, fill=GOLD)
-    d.text((pad + d.textlength("Now ", font=big), 18), month_label(shots[-1].day), font=big, fill=WHITE)
+    d.text((pad + d.textlength("Now ", font=big), 18), shown_as(shots[-1]), font=big, fill=WHITE)
     foot(d, len(shots) - 1)
     keys.append((pics[-1], words))
     return keys
@@ -248,7 +254,7 @@ def reel_keys(name: str, place: str, shots: Sequence[Shot], story: str, credit: 
         for t in _wrap(d, name, title, right - x0, 1):
             d.text((x0, y), t, font=title, fill=WHITE)
         d.text((x0, y + 74), latin(place), font=sub, fill=SOFT)
-        d.text((x0, y + 128), month_label(s.day), font=big, fill=WHITE)
+        d.text((x0, y + 128), shown_as(s), font=big, fill=WHITE)
         for k, t in enumerate(_wrap(d, s.say, line, right - x0, 2) if s.say else []):
             d.text((x0, y + 250 + 56 * k), t, font=line, fill=GOLD)
         keys.append((ground(s.picture), words))
@@ -262,12 +268,12 @@ def reel_keys(name: str, place: str, shots: Sequence[Shot], story: str, credit: 
 
 
 def page_video(name: str, place: str, shots: Sequence[Shot], story: str, credit: str, out: Path,
-               seconds: float = PAGE_SECONDS) -> Tuple[Path, Path]:
+               seconds: float = PAGE_SECONDS, ring: bool = True) -> Tuple[Path, Path]:
     """The square video for the project page (silent H.264, small) and its poster (its last frame: the newest pass, "Now"),
     side by side."""
     if len(shots) < 3:
         raise ValueError("a timelapse needs at least three pictures")
-    keys = page_keys(name, place, shots, story, credit)
+    keys = page_keys(name, place, shots, story, credit, ring)
     plan = schedule(len(shots), per_frame(len(shots), seconds, now=True), now=True)
     out = Path(out)
     out.parent.mkdir(parents=True, exist_ok=True)

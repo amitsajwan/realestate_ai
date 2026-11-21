@@ -1,10 +1,21 @@
 """What a project page shows of its site from above (areastats.fromabove stores it as `from_above` on the register record):
 kept apart, with no imports, so that pages can read it without pulling in the satellite code."""
 import math
+import re
 from typing import Optional, Tuple
 
 VERSION = 4               # the look's rules (areastats.fromabove.LOOK_VERSION): an older look is not shown
 PIN_MOVED_M = 50         # a pin moved further than this since the pictures were taken: they are of other ground
+
+
+# A season line that says nothing changed (owner 2026-11-21, Kharadi: 23 seasons of "Little change." while its green fell from
+# 28% to 18%): never shown, never on a video frame; the season simply has no line.
+QUIET = re.compile(r"^\W*(little|no|hardly any|almost no|minimal|no visible|no clear|no major)( visible| clear| major| notable)?"
+                   r" (change|changes|difference)s?\W*$|^\W*(unchanged|same as before|as before)\W*$", re.I)
+
+
+def quiet(line: object) -> bool:
+    return isinstance(line, str) and bool(QUIET.match(line.strip()))
 
 
 def metres_apart(a: Tuple[float, float], b: Tuple[float, float]) -> float:
@@ -29,8 +40,9 @@ def public_view(d: dict, pin: Optional[Tuple[float, float]]) -> Optional[dict]:
         return None
     v = fa.get("video") or None
     video = {"src": "/uploads/" + v["path"], "poster": "/uploads/" + v["poster"], "width": v["width"], "height": v["height"],
-             "from": v["from"], "to": v["to"], "months": v["months"]} if v and v.get("path") else None
-    seasons = [{"label": s["label"], "day": s["day"], "line": s["line"]} for s in fa.get("seasons") or [] if s.get("line")]
+             "from": v["from"], "to": v["to"], "months": v["months"],
+             **({"seasons": v["seasons"]} if v.get("seasons") else {})} if v and v.get("path") else None   # seasons: one picture each
+    seasons = [{"label": s["label"], "day": s["day"], "line": s["line"]} for s in fa.get("seasons") or [] if s.get("line") and not quiet(s["line"])]
     return {"pin": {"lat": fa["lat"], "lon": fa["lon"]}, "story": fa["story"], "where": fa["where"], "credit": fa["credit"],
             "frames": frames, "seasons": seasons, "video": video, "registered": fa.get("registered") or None, "updated": fa["at"].date().isoformat()
             if hasattr(fa.get("at"), "date") else None}

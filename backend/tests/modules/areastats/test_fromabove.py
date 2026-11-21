@@ -132,7 +132,9 @@ async def test_the_pass_stores_the_yearly_row_season_lines_and_video_with_gemini
     assert rec["story"] == "Plants cleared after the Aug 2022 registration." and rec["pin"] == "ok"
     assert [f["year"] for f in rec["frames"]] == [2021, 2022, 2023, 2024, 2025, 2026]
     assert rec["seasons"][0] == {"label": "Jan-Mar 2021", "day": "2021-01-01", "line": "Ground cleared inside the ring."}
-    assert rec["video"]["months"] == len(render.shots) and render.shots[0][2] == "Ground cleared inside the ring."
+    # one picture a season, named by its season (owner 2026-11-21: month after month "looks same")
+    assert rec["video"]["seasons"] == len(render.shots) == len(rec["seasons"]) < rec["video"]["months"]
+    assert render.shots[0][2:] == ("Ground cleared inside the ring.", "Jan-Mar 2021")
     told = gem.calls[0][0]["text"]
     assert "registered Aug 2022" in told and "Tower A (28 floors)" in told and "Phase 2" in told   # every registration
     assert sum(1 for c in gem.calls[0] if c["type"] == "image_url") == len(rec["seasons"]) + 6   # + each year's infrared
@@ -204,6 +206,37 @@ async def test_an_older_video_is_drawn_again_from_the_kept_pictures_and_lines_wi
     assert render.shots[0][2] == "Ground cleared inside the ring."   # the stored line, not a new one
     again = await fa.refresh(store, later, sat=Sat(), ask=Gemini(), out_dir=tmp_path, force=True)
     assert again["redrawn"] == 0
+
+
+class QuietGemini(Gemini):
+    """Gemini saying "Little change." for most seasons, one change, and "" for one (nothing new)."""
+
+    async def json(self, system, content):
+        out = await super().json(system, content)
+        labels = list(out["seasons"])
+        out["seasons"] = {lab: "Little change." for lab in labels}
+        out["seasons"][labels[2]] = "Ground cleared inside the ring."
+        out["seasons"][labels[3]] = ""
+        return out
+
+
+async def test_a_season_with_nothing_new_has_no_line_not_even_the_codes_own(tmp_path):
+    fa.configure(render=render)
+    store = await seeded(("P1", PIN))
+    gem = QuietGemini()
+    await fa.refresh(store, NOW, sat=Sat(), ask=gem, out_dir=tmp_path)
+    rec = (await store.projects.find_one({"_id": "P1"}))["from_above"]
+    assert [x["line"] for x in rec["seasons"] if x["line"]] == ["Ground cleared inside the ring."]
+    assert [s[2] for s in render.shots if s[2]] == ["Ground cleared inside the ring."]
+    shown = pages.view(await store.projects.find_one({"_id": "P1"}), [])["from_above"]
+    assert [x["line"] for x in shown["seasons"]] == ["Ground cleared inside the ring."]
+
+
+def test_lines_kept_before_that_say_nothing_changed_are_not_shown():
+    for said in ("Little change.", "little change", "No change", "No visible change.", "Unchanged."):
+        assert fromabove_view.quiet(said)
+    for said in ("Little change in the ring, new road to the north.", "Plants cleared", ""):
+        assert not fromabove_view.quiet(said)
 
 
 async def test_a_new_launch_says_when_it_registered(tmp_path):

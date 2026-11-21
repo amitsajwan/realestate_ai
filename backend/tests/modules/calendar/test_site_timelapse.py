@@ -49,6 +49,15 @@ def test_the_ground_is_shown_as_the_satellite_saw_it_with_only_the_ring_added():
     assert page.getpixel((5, t.PAGE[1] // 2)) == (120, 100, 90)     # between the date band and the foot: the ground itself
 
 
+def test_an_areas_video_has_no_ring_because_it_has_no_pin():
+    pic = Image.new("RGB", (600, 600), (120, 100, 90))
+    side = t.PAGE[0]
+    on_ring = (side // 2 + side // 6, side // 2)    # where a project's ring would cross the middle line
+    ringed = t.flat(t.page_keys("X", "Pune", [t.Shot("2021-01-20", pic, "")] * 3, STORY, "credit")[0])
+    area = t.flat(t.page_keys("Kharadi", "Pune", [t.Shot("2021-01-20", pic, "")] * 3, STORY, "credit", ring=False)[0])
+    assert ringed.getpixel(on_ring) == t.RING and area.getpixel(on_ring) == (120, 100, 90)
+
+
 def test_the_page_video_ends_on_the_newest_pass_and_that_frame_is_its_poster(tmp_path, monkeypatch):
     got = {}
     monkeypatch.setattr(t.ffmpeg, "run_with_frames", lambda args, frames: got.update(frames=list(frames)))
@@ -61,6 +70,13 @@ def test_the_page_video_ends_on_the_newest_pass_and_that_frame_is_its_poster(tmp
         assert abs(im.convert("RGB").getpixel((5, t.PAGE[1] // 2))[0] - 200) < 12
     plan = t.schedule(17, t.per_frame(17, t.PAGE_SECONDS, now=True), now=True)
     assert plan[-1] == ("hold", 18, t.NOW_HOLD) and t.per_frame(17, t.PAGE_SECONDS, now=True) >= 1.5
+
+
+def test_a_season_picture_is_dated_by_its_season():
+    plain = t.flat(t.page_keys("X", "Kharadi, Pune", shots(3), STORY, "credit")[0]).crop((0, 0, 720, 90))
+    named = [t.Shot(s.day, s.picture, s.say, "Jan-Mar 2021") for s in shots(3)]
+    assert t.shown_as(named[0]) == "Jan-Mar 2021" and t.shown_as(shots(1)[0]) == "Jan 2021"
+    assert t.flat(t.page_keys("X", "Kharadi, Pune", named, STORY, "credit")[0]).crop((0, 0, 720, 90)).tobytes() != plain.tobytes()
 
 
 def test_month_labels_and_caption_come_from_the_record():

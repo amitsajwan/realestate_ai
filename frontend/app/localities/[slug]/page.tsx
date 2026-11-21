@@ -22,6 +22,8 @@ import { AreaTrackers } from '@/components/news/Trackers'
 import { fetchTrackers } from '@/lib/news/trackers'
 import AreaRecords from '@/components/localities/AreaRecords'
 import AreaGrowth from '@/components/localities/AreaGrowth'
+import AreaFromSpace from '@/components/localities/AreaFromSpace'
+import { getAreaFromSpace } from '@/lib/site/areaFromSpace'
 import { areaOgImage, readAreaPictures } from '@/components/localities/areaPictures'
 import AreaLandmarks, { areaQuestions, getAreaLandmarks } from '@/components/localities/AreaLandmarks'
 import { getAreaNews, getAreaPosts } from '@/components/localities/areaFeed'
@@ -211,6 +213,8 @@ export default async function LocalityPage({ params }: Props) {
 
         <AreaRecords name={l.name} stats={stats} links={recordLinks(l, places, facets)} />
         {!l.fallback && <AreaGrowth name={l.name} stats={stats} pictures={await readAreaPictures(l.slug)} siteUrl={getMarketingConfig().siteUrl} />}
+        {/* the area month by month from space, with each season's line (backend areastats/areaspace.py) */}
+        {!l.fallback && <AreaFromSpace view={await getAreaFromSpace(l.slug)} />}
 
         {hoods.length > 0 && (
           <section className="mt-9" aria-labelledby="hoods-title">

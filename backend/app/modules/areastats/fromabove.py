@@ -201,13 +201,14 @@ class Copernicus:
             r = self.client.post(PROCESS_URL, json=body, headers=headers(), timeout=180)
         return r
 
-    def month(self, box, start: str, end: str) -> Optional[Dict[str, np.ndarray]]:
+    def month(self, box, start: str, end: str, px: int = PX) -> Optional[Dict[str, np.ndarray]]:
+        """One month's median picture of `box`, `px` square (a project's 600 m at PX; an area's few km, areaspace)."""
         body = {"input": {"bounds": {"bbox": sitepics.bbox(box), "properties": {"crs": "http://www.opengis.net/def/crs/OGC/1.3/CRS84"}},
                           "data": [{"type": sitepics.SENTINEL_COLLECTION,
                                     "dataFilter": {"timeRange": {"from": f"{start}T00:00:00Z", "to": f"{end}T23:59:59Z"},
                                                    "maxCloudCoverage": 60},
                                     "processing": {"upsampling": "BICUBIC", "downsampling": "BICUBIC"}}]},
-                "output": {"width": PX, "height": PX, "responses": [{"identifier": k, "format": {"type": "image/png"}}
+                "output": {"width": px, "height": px, "responses": [{"identifier": k, "format": {"type": "image/png"}}
                                                                     for k in ("rgb", "ir", "n")]},
                 "evalscript": MONTH_EVALSCRIPT}
         r = self._post(body)
@@ -338,8 +339,9 @@ class Season:
     plants: int
 
 
-def seasons(months: Sequence[str], folder: Path) -> List[Season]:
-    """Each dry season's picture: the median of its months' medians."""
+def seasons(months: Sequence[str], folder: Path, measure: Callable[[np.ndarray], int] = plants) -> List[Season]:
+    """Each dry season's picture: the median of its months' medians, its plant cover by `measure` (inside the ring for a
+    project; areaspace measures the whole picture)."""
     groups: Dict[Tuple[int, int], List[str]] = {}
     for m in months:
         y, mo = int(m[:4]), int(m[5:7])
@@ -351,7 +353,7 @@ def seasons(months: Sequence[str], folder: Path) -> List[Season]:
         ir = np.median(np.stack([np.array(Image.open(folder / "raw" / f"{m}-ir.png").convert("RGB")) for m in ms]), axis=0)
         ir8 = ir.astype(np.uint8)
         out.append(Season(key, f"{SEASON_NAMES[key[1]]} {key[0]}", f"{ms[0]}-01", ms, Image.fromarray(rgb.astype(np.uint8)),
-                          Image.fromarray(ir8), plants(ir8)))
+                          Image.fromarray(ir8), measure(ir8)))
     return out
 
 
@@ -377,8 +379,10 @@ the median of every clear pass of that season (Oct-Dec, Jan-Mar, Apr-May; the mo
 season you also get an infrared picture, where plants show bright red. You get the project's MahaRERA facts: every
 registration behind this page, with its dates, homes and buildings.
 
-For each season write one line of at most 14 words: what is visible in and near the ring and what changed since the
-season before. Then a summary of at most 35 words. Then a pin check.
+For each season write one line of at most 14 words: what is visible in and near the ring and what is different from the
+same season a year before (for the first year's seasons: what the ground is then). Change at a site is slow: compare across
+years, not only with the season before. Then a summary of at most 35 words: what changed from the first picture to the last.
+Then a pin check.
 
 Rules:
 1. Say only what the pictures show: ground cleared, plants gone or grown, new building footprints, roads, the dark
@@ -388,7 +392,7 @@ Rules:
    taller, planned, on track or delayed: at 10 m none of that can be seen.
 4. If buildings stand in the ring in seasons before the project's first registration, say the ring may show an older
    neighbouring phase, and mark the pin as doubtful.
-5. A season that looks like the one before: "Little change".
+5. A season where nothing differs from a year before: an empty string "". Never write "Little change" or "No change".
 6. You may mention one clear change just outside the ring: a project's other phases often sit there.
 
 Answer strict JSON: {"seasons": {"<label as given>": "<line>", ...}, "summary": "...", "pin": "ok" or "doubtful",
@@ -443,8 +447,10 @@ async def describe(ask: Any, d: dict, docs: Sequence[dict], shown: Sequence[Seas
         raise Waiting(f"Gemini failed ({type(e).__name__})")
     if not isinstance(out, dict) or not isinstance(out.get("seasons"), dict):
         raise Waiting("Gemini gave no usable answer")
-    lines = {s.label: checked(out["seasons"].get(s.label), LINE_WORDS) for s in shown}
-    return {"lines": {k: v for k, v in lines.items() if v}, "dropped": sum(1 for v in lines.values() if not v),
+    said = {s.label: out["seasons"].get(s.label) for s in shown}
+    # "" (or a line saying nothing changed): the season has no line, and the code's own words do not stand in for it
+    lines = {k: ("" if fromabove_view.quiet(v) or v == "" else checked(v, LINE_WORDS)) for k, v in said.items()}
+    return {"lines": {k: v for k, v in lines.items() if v is not None}, "dropped": sum(1 for v in lines.values() if v is None),
             "summary": checked(out.get("summary"), SUMMARY_WORDS),
             "pin": "doubtful" if out.get("pin") == "doubtful" else "ok",
             "pin_reason": str(out.get("pin_reason") or "")[:300]}
@@ -476,7 +482,6 @@ class Gathered:
     months: List[str] = field(default_factory=list)
     shown: List[Season] = field(default_factory=list)
     pics: Dict[str, Image.Image] = field(default_factory=dict)        # season label -> picture as shown
-    month_pics: Dict[str, Image.Image] = field(default_factory=dict)  # month -> picture as shown
     years: List[dict] = field(default_factory=list)                   # {day, green}: each Jan-Mar season, for clearing
     frames: List[dict] = field(default_factory=list)
 
@@ -501,11 +506,9 @@ def gather(d: dict, pin: Tuple[float, float], sat: Optional[Copernicus], today: 
     years = [s for s in shown if s.key[1] == 1]
     if len(shown) < 3 or len(years) < 3:
         return Gathered({**base, "none": True})        # too few clear seasons to show anything
-    raw_months = {m: Image.open(folder / "raw" / f"{m}-rgb.png").convert("RGB") for m in months}
     st = stretch_for([s.rgb for s in shown])            # one colour stretch for the whole series: changes are the ground's
     g = Gathered(base, months, shown)
     g.pics = {s.label: classic(enhance(s.rgb, st)) for s in shown}
-    g.month_pics = {m: classic(enhance(img, st)) for m, img in raw_months.items()}
     g.years = [{"day": s.day, "green": s.plants} for s in years]
     for s in years:
         f = folder / f"{s.key[0]}.webp"
@@ -519,15 +522,17 @@ def gather(d: dict, pin: Tuple[float, float], sat: Optional[Copernicus], today: 
 def finish(d: dict, g: Gathered, words: dict, today: date, folder: Path) -> dict:
     """The record to store, and the video drawn (sync: a thread)."""
     code_lines = sitepics.captions(g.years, [s.day for s in g.shown])
-    season_lines = [{"label": s.label, "day": s.day, "line": words["lines"].get(s.label) or code_lines.get(s.day) or ""}
+    # Gemini's line, "" where it saw nothing new; the code's own line only where Gemini wrote none that passed its checks
+    said = {s.label: words["lines"][s.label] if s.label in words["lines"] else code_lines.get(s.day) or "" for s in g.shown}
+    season_lines = [{"label": s.label, "day": s.day, "line": "" if fromabove_view.quiet(said[s.label]) else said[s.label]}
                     for s in g.shown]
     if new_launch(d, today):
         story = sitepics.baseline(d["registered_on"])
     else:
         story = words.get("summary") or sitepics.sentence(g.years, g.shown[0].day, g.shown[-1].day)
     credit = f"{sitepics.CREDIT} {g.months[0][:4]}-{g.months[-1][:4]}"
-    by_month = {m: line["line"] for line in season_lines for m in next(s.months for s in g.shown if s.label == line["label"])}
-    shots = [(f"{m}-01", g.month_pics[m], by_month.get(m, "")) for m in g.months]
+    # one picture a season, its months' median (owner 2026-11-21: month after month "looks same")
+    shots = [(s.day, g.pics[s.label], line["line"], s.label) for s, line in zip(g.shown, season_lines)]
     video = None
     render = _deps.get("render")
     if render and len(shots) >= 3:
@@ -536,7 +541,7 @@ def finish(d: dict, g: Gathered, words: dict, today: date, folder: Path) -> dict
         with Image.open(poster) as im:
             vw, vh = im.size
         video = {"path": _rel(Path(mp4)), "poster": _rel(Path(poster)), "width": vw, "height": vh, "from": shots[0][0],
-                 "to": shots[-1][0], "months": len(shots), "version": VIDEO_VERSION}
+                 "to": shots[-1][0], "months": len(g.months), "seasons": len(shots), "version": VIDEO_VERSION}
     return {**g.base, "story": story, "where": sitepics.where(), "credit": credit, "frames": g.frames,
             "seasons": season_lines, "video": video, "pin": words["pin"], "pin_reason": words["pin_reason"],
             "words": {"gemini": len(words["lines"]), "dropped": words["dropped"]}}

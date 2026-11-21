@@ -2,7 +2,7 @@ import React from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import ProjectFromAbove from '@/components/site/ProjectFromAbove'
 import { waybackSrc } from '@/components/site/EsriWaybackOnTap'
-import { forPin, fromRecord } from '@/lib/site/fromAbove'
+import { forPin, fromRecord, videoPace } from '@/lib/site/fromAbove'
 
 const SLUG = 'kohinoor-riverdale-kharadi'
 const DIR = '/uploads/from_above/p52100056021'
@@ -130,5 +130,11 @@ describe('the site from above', () => {
     expect(frame.getAttribute('src')).toBe('https://livingatlas.arcgis.com/wayback/#mapCenter=73.968533%2C18.544776%2C17&mode=swipe')
     expect(waybackSrc(18.5, 73.9, 16)).toContain('mapCenter=73.900000%2C18.500000%2C16')   // longitude first, as Esri reads it
     expect(screen.getByText(/Not every release has a new picture of this/)).toBeTruthy()
+  })
+
+  it('names a video by how it steps: a season a picture from now on, every month for one drawn before', () => {
+    const seasonal = fromRecord({ ...raw, video: { ...video, months: 43, seasons: 15 } }, SLUG)!.video!
+    expect(videoPace(seasonal)).toEqual({ by: 'season by season', title: 'Season by season', count: '15 seasons' })
+    expect(videoPace(fromRecord(raw, SLUG)!.video!).count).toBe('17 clear months')
   })
 })
