@@ -49,7 +49,7 @@ const wrap = 'mx-auto max-w-5xl px-4'
 const section = 'py-10 sm:py-14'
 const h2 = 'text-[1.375rem] font-semibold tracking-tight text-slate-900 sm:text-2xl'
 const more = 'shrink-0 text-sm font-semibold text-[#0f2340] underline underline-offset-4'
-const chip = 'inline-flex min-h-[44px] items-center rounded-lg border border-slate-300 bg-white px-3.5 text-sm font-medium text-slate-800 no-underline hover:border-[#0f2340] hover:text-[#0f2340]'
+const chip = 'inline-flex min-h-[40px] items-center rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-800 no-underline hover:border-[#0f2340] hover:text-[#0f2340]'
 const groupLabel = 'text-xs font-semibold uppercase tracking-wider text-slate-500'
 
 // a row or card still reads as a link on a phone, where there is no hover (owner 2026-10-26, "don't look clickable"): by the
@@ -219,7 +219,7 @@ export default async function BuyerHome() {
       {leads.length >= 2 && (
         <section aria-labelledby="leads-title" className={wrap + ' pt-12 sm:pt-14'} data-testid="home-leads">
           <SectionHead id="leads-title" title="Most booked in each part of Pune" text="The first of each zone's Top list: most homes booked, with 10 or more still open (MahaRERA)." />
-          <ul className="-mx-4 mt-5 flex list-none snap-x gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 lg:grid-cols-4">
+          <ul className="-mx-4 mt-5 flex list-none snap-x scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 lg:grid-cols-4">
             {leads.map(({ zone, list }) => (
               <li key={list.path} className="flex w-[72%] max-w-[280px] shrink-0 snap-start flex-col sm:w-auto sm:max-w-none">
                 <p className={groupLabel + ' mb-2'}>{zone}</p>
@@ -233,7 +233,7 @@ export default async function BuyerHome() {
 
       <section aria-labelledby="areas-title" className={wrap + ' ' + section}>
         <SectionHead id="areas-title" title="Projects by area" href="/projects" link="All places in Pune"
-          text={zones.length ? 'Every part of Pune, with the projects being built or just finished in each area.' : undefined} />
+          text={zones.length ? 'Projects being built or just finished in each area, by part of Pune.' : undefined} />
         {zones.length > 0 && (
           <div className="mt-6 grid gap-x-10 gap-y-8 sm:grid-cols-2" data-testid="home-zones">
             {zones.map((z) => (
@@ -241,13 +241,13 @@ export default async function BuyerHome() {
                 <h3 className="flex items-baseline justify-between gap-3 text-base font-semibold text-slate-900">
                   {z.name}<span className="text-sm font-normal tabular-nums text-slate-500">{n(z.current)} projects</span>
                 </h3>
-                <ul className="mt-2 list-none border-t border-slate-200 p-0">
+                <ul className="mt-2 grid list-none grid-cols-2 gap-x-6 border-t border-slate-200 p-0">
                   {z.places.slice(0, 6).map((p) => (
                     <li key={p.key} className="border-b border-slate-200">
-                      <Link href={placePath(p.slug)} className="group flex min-h-[48px] items-center gap-3 py-2.5 no-underline">
-                        <span className="min-w-0 flex-1 font-medium text-slate-900 underline-offset-4 group-hover:text-[#0f2340] group-hover:underline">Projects in {p.name}</span>
+                      <Link href={placePath(p.slug)} aria-label={`Projects in ${p.name}: ${n(now(p))}`}
+                        className="group flex min-h-[44px] items-center gap-2 py-2 no-underline">
+                        <span className="min-w-0 flex-1 truncate font-medium text-slate-900 underline-offset-4 group-hover:text-[#0f2340] group-hover:underline">{p.name}</span>
                         <span className="text-sm tabular-nums text-slate-500">{n(now(p))}</span>
-                        <Chevron />
                       </Link>
                     </li>
                   ))}
@@ -288,7 +288,7 @@ export default async function BuyerHome() {
                 <div key={g.id}>
                   <p className={groupLabel}>{g.label}</p>
                   <ul className="mt-2 flex list-none flex-wrap gap-2 p-0" data-testid={g.id}>
-                    {g.list.map((f) => <li key={f.path}><Link href={f.path} className={chip}>{g.text(f)} ({f.count})</Link></li>)}
+                    {g.list.map((f) => <li key={f.path}><Link href={f.path} aria-label={`${g.text(f)} (${f.count})`} className={chip}>{where(f)} <span className="ml-1 tabular-nums text-slate-500">{f.count}</span></Link></li>)}
                   </ul>
                 </div>
               ))}
@@ -326,7 +326,7 @@ export default async function BuyerHome() {
             <SectionHead id="see-title" title="See the projects" text="Short videos of projects on sale, and each site from space, season by season since 2021." />
             <div className="mt-6 grid gap-6 lg:grid-cols-[2fr_1fr]">
               {clips.length > 0 && (
-                <ul className="-mx-4 flex list-none snap-x gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-4 sm:overflow-visible sm:px-0" data-testid="home-videos">
+                <ul className="-mx-4 flex list-none snap-x scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-4 sm:overflow-visible sm:px-0" data-testid="home-videos">
                   {clips.map((c) => (
                     <li key={c.slug} className="w-[42%] shrink-0 snap-start sm:w-auto">
                       <Link href={videoPagePath(c.slug)} className="group block no-underline">
@@ -344,9 +344,9 @@ export default async function BuyerHome() {
                 </ul>
               )}
               {seen && (
-                <Link href="/projects/from-space" className="group flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white no-underline hover:border-slate-300 hover:shadow-md">
+                <Link href="/projects/from-space" className="group flex flex-row overflow-hidden rounded-xl lg:flex-col border border-slate-200 bg-white no-underline hover:border-slate-300 hover:shadow-md">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={seen.picture} alt={`${seen.name} from space, ${seen.years[1]}`} loading="lazy" width={600} height={600} className="aspect-square w-full object-cover" />
+                  <img src={seen.picture} alt={`${seen.name} from space, ${seen.years[1]}`} loading="lazy" width={600} height={600} className="h-28 w-28 shrink-0 object-cover lg:aspect-[4/3] lg:h-auto lg:w-full" />
                   <span className="flex items-start justify-between gap-3 p-4">
                     <span>
                       <span className="block font-semibold text-slate-900 group-hover:text-[#0f2340]">Pune projects from space</span>
@@ -388,7 +388,7 @@ export default async function BuyerHome() {
                     <Link href={trackerPath(t.slug)} className="group flex min-h-[52px] items-center gap-3 py-3 text-white no-underline">
                       <span className="min-w-0 flex-1">
                         <span className="block font-medium group-hover:underline group-hover:underline-offset-4">{t.name}</span>
-                        {t.status && <span className="block text-sm text-white/65">{t.status}</span>}
+                        {t.status && <span className="mt-0.5 line-clamp-2 text-sm text-white/65">{t.status}</span>}
                       </span>
                       <Chevron className="text-white/40 group-hover:text-white" />
                     </Link>

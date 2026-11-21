@@ -89,6 +89,8 @@ describe('social strip and contact block', () => {
     expect(screen.getByRole('link', { name: /Facebook/ })).toHaveAttribute('href', DEFAULT_FACEBOOK_URL)
     expect(screen.getByRole('link', { name: /Instagram/ })).toHaveAttribute('href', 'https://www.instagram.com/avasetu_/')
     expect(DEFAULT_INSTAGRAM_URL).toBe('https://www.instagram.com/avasetu_/')
+    // the LinkedIn company page links the home page, so the footer links back (2026-11-21)
+    expect(screen.getByRole('link', { name: /LinkedIn/ })).toHaveAttribute('href', 'https://www.linkedin.com/company/avasetu/')
     for (const a of screen.getAllByRole('link')) expect(a.getAttribute('rel')).toContain('noopener')
   })
 

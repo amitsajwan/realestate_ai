@@ -117,8 +117,9 @@ describe("buyers' home", () => {
     const launches = within(screen.getByTestId('home-launches')).getAllByRole('link')
     // our areas in the area list's order (east Pune first), not the biggest list first; builder lists stay on their place
     expect(launches.map((a) => a.getAttribute('href'))).toEqual(['/projects/area/kharadi/new-launches', '/projects/area/wagholi/new-launches'])
-    // every list has the same label, so each chip names its area or they all read alike
-    expect(launches.map((a) => a.textContent)).toEqual(['New launches in Kharadi (7)', 'New launches in Wagholi (9)'])
+    // the group label says what the list is, so a chip shows only its area and count; its name says the whole list
+    expect(launches.map((a) => a.textContent)).toEqual(['Kharadi 7', 'Wagholi 9'])
+    expect(launches.map((a) => a.getAttribute('aria-label'))).toEqual(['New launches in Kharadi (7)', 'New launches in Wagholi (9)'])
     expect(screen.getByRole('link', { name: 'Ready to move in Viman Nagar (4)' })).toHaveAttribute('href', '/projects/area/viman-nagar/ready-to-move')
     // the size lists, each chip naming its area
     expect(within(screen.getByTestId('home-2bhk')).getByRole('link', { name: '2 BHK in Ravet (31)' })).toHaveAttribute('href', '/projects/area/ravet/2-bhk')
@@ -145,7 +146,7 @@ describe("buyers' home", () => {
     expect(zones.map((a) => a.getAttribute('href'))).toEqual(['#zone-east-pune', '#zone-pimpri-chinchwad', '#zone-pune-district'])
     expect(zones[1]).toHaveTextContent(/Pimpri-Chinchwad.*Ravet, Moshi.*165/)
     // each opens its own block of areas further down
-    expect(document.getElementById('zone-pimpri-chinchwad')).toHaveTextContent(/Projects in Ravet/)
+    expect(within(document.getElementById('zone-pimpri-chinchwad')!).getByRole('link', { name: 'Projects in Ravet: 95' })).toHaveAttribute('href', '/projects/area/ravet')
     // the east Pune corridor is on the east area guides now, not here
     expect(screen.queryByTestId('corridor-map')).toBeNull()
   })
