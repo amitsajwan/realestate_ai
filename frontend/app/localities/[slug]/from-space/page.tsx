@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import MarketingShell from '@/components/marketing/MarketingShell'
+import EsriPastPictures from '@/components/site/EsriPastPictures'
 import EsriWaybackOnTap from '@/components/site/EsriWaybackOnTap'
 import FromAboveVideo from '@/components/site/FromAboveVideo'
 import { mapsEmbedKey, satelliteSrc } from '@/components/site/mapsEmbed'
@@ -78,7 +79,9 @@ export default async function AreaFromSpacePage({ params }: Props) {
             <figcaption className="mt-1 text-xs text-slate-600">Today, from Google satellite, centred on the same middle of {view.name}.</figcaption>
           </figure>
         )}
-        <EsriWaybackOnTap lat={view.middle.lat} lon={view.middle.lon} label={view.name} zoom={14} centredOn={`the middle of ${view.name}`} />
+        {view.esriPast
+          ? <EsriPastPictures past={view.esriPast} lat={view.middle.lat} lon={view.middle.lon} name={view.name} centredOn={`the middle of ${view.name}`} className="" />
+          : <EsriWaybackOnTap lat={view.middle.lat} lon={view.middle.lon} label={view.name} zoom={14} centredOn={`the middle of ${view.name}`} />}
         <p className="text-sm text-slate-600">
           {video.months} clear months, {shortMonth(video.from)} to {shortMonth(video.to)}: every clear pass of the Sentinel-2
           satellite over {view.name}, October to May (the monsoon is under cloud). A new picture is added every season.

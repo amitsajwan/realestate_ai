@@ -341,6 +341,9 @@ def page_updated(doc: dict) -> Optional[str]:
     if above.get("story") and not above.get("none"):   # the site from above went on the page or was renewed (fromabove)
         stamps.append(above.get("at"))
     stamps.append(sitevisits.saved_at(doc))   # a person's note from the site went on the page (2026-11-20)
+    past = doc.get("esri_past") or {}
+    if len(past.get("shown") or []) >= 2:   # a new sharp picture of the site went on the page (areastats.esripast)
+        stamps.append(past.get("changed_at"))
     return _latest(stamps)
 
 

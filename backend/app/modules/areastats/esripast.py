@@ -1,5 +1,6 @@
-"""Esri's sharp past pictures, a few years of them, for every page that shows its ground from space (owner 2026-11-21: "can
-we not have screenshot last 3 years. This ui of Wayback is not very user friendly"). Esri's World Imagery Wayback keeps every
+"""Esri's sharp past pictures, a few years of them, for every project page with a checked pin and every area showing its ground
+from space (owner 2026-11-21: "can we not have screenshot last 3 years. This ui of Wayback is not very user friendly", then
+"have esri also ... think seo and user advantage"). Esri's World Imagery Wayback keeps every
 monthly release of its imagery (about 0.3 m a pixel over Pune, Vantor and Maxar). Its viewer, framed on the page, asked the
 buyer to find a release, drag a divider and read dates; this picks the pictures for them.
 
@@ -12,9 +13,12 @@ galloping search over the release list (about ten questions a capture) instead o
 Which captures show (`pick`): the newest, then going back the newest one at least MIN_GAP_MONTHS older than the last one kept,
 back to SPAN_MONTHS before the newest, at most SHOWN: so about one a year over the last three years.
 
-Once a day inside the enrichment loop, for project pages showing their site from space (fromabove_view) and areas showing
-theirs (areaspace), each looked up again after REDO_DAYS (Esri publishes about one release a month), within QUERIES_PER_DAY.
-Esri's terms for showing its tiles on our page are not confirmed (docs/plan/satellite-view.md, "Esri's sharp past pictures").
+Once a day inside the enrichment loop, each looked up again after REDO_DAYS (Esri publishes about one release a month), within
+QUERIES_PER_DAY (a page is about 60 questions): the areas showing their ground from space first, then project pages showing
+theirs (fromabove_view), then every other page with its own checked pin, our areas' and the hottest first. When the captures
+shown change, `changed_at` moves, and the page's sitemap date with it (pages.page_updated): a new sharp picture of the site is
+news on the page. Esri's terms for showing its tiles were not confirmed; the owner chose to show them, with Esri's credit
+(docs/plan/satellite-view.md, "Esri's sharp past pictures, year by year").
 """
 import logging
 from datetime import date, datetime, timezone
@@ -36,12 +40,12 @@ MARK = "esri_past"              # newsroom_status document: when the pass last r
 CONFIG_URL = "https://s3-us-west-2.amazonaws.com/config.maptiles.arcgis.com/waybackconfig.json"
 FIRST_RELEASE = "2019"          # releases before this year are not asked: their pictures are older than any page needs
 LAYERS = (3, 4, 5, 6)           # the metadata layers for 15 cm to 1.2 m pictures, the ones drawn at the zooms we show
-PROJECT_ZOOM, AREA_ZOOM = 18, 15
+PROJECT_ZOOM, AREA_ZOOM = 17, 16   # two tiles across: about 580 m (the Sentinel frame) and 1.2 km, still sharp
 SHOWN = 4
 MIN_GAP_MONTHS = 10
 SPAN_MONTHS = 42
 REDO_DAYS = 30
-QUERIES_PER_DAY = 3000
+QUERIES_PER_DAY = 6000
 TIMEOUT = 30
 
 
@@ -176,6 +180,16 @@ async def one(meta: Metadata, rels: Sequence[Release], pin: Tuple[float, float],
             "version": esripast_view.VERSION}
 
 
+def changed_at(old: Optional[dict], new: dict, now: datetime) -> Optional[datetime]:
+    """When the captures shown last changed: now, when they differ from the stored ones (a new sharp picture, or the first
+    look), else the stored time."""
+    def days(r: Optional[dict]) -> List[str]:
+        return [s["captured"] for s in (r or {}).get("shown") or []]
+    if days(new) != days(old) and len(days(new)) >= 2:
+        return now
+    return _aware((old or {}).get("changed_at"))
+
+
 async def _config(client: httpx.AsyncClient) -> dict:
     r = await client.get(CONFIG_URL, timeout=TIMEOUT)
     r.raise_for_status()
@@ -208,13 +222,16 @@ async def refresh(store: Store, now: datetime, budget: int = QUERIES_PER_DAY, fo
         docs = await store.all_projects()
         projects = []
         for d in _primaries(docs):
-            if not own_position(d):
+            if not own_position(d) or not d.get("page_slug"):
                 continue
             pin = (float(d["geo"]["lat"]), float(d["geo"]["lon"]))
-            if fromabove_view.public_view(d, pin) is not None and due(d.get("esri_past"), pin, now):
-                projects.append((d, pin))
-        projects.sort(key=lambda dp: (dp[0].get("locality") not in BY_KEY, -float(dp[0].get("hot_score") or 0)))
-        todo += [("project", d["_id"], pin, PROJECT_ZOOM) for d, pin in projects]
+            if due(d.get("esri_past"), pin, now):
+                projects.append((d, pin, fromabove_view.public_view(d, pin) is not None))
+        # the pages showing their site from space first, then our areas', then the hottest
+        projects.sort(key=lambda dp: (not dp[2], dp[0].get("locality") not in BY_KEY, -float(dp[0].get("hot_score") or 0)))
+        todo += [("project", d["_id"], pin, PROJECT_ZOOM) for d, pin, _ in projects]
+        olds = {d["_id"]: d.get("esri_past") for d in docs}
+        olds.update({f"area:{k}": (v or {}).get("esri_past") for k, v in kept.items()})
         out["due"] = len(todo)
         meta = Metadata(client, budget)
         for kind, key, pin, zoom in todo if rels else []:
@@ -227,7 +244,8 @@ async def refresh(store: Store, now: datetime, budget: int = QUERIES_PER_DAY, fo
                 log.exception("esri past: %s %s failed", kind, key)
                 out["failed"] += 1
                 continue
-            rec = {**got, "at": now}
+            old = olds.get(f"area:{key}" if kind == "area" else key)
+            rec = {**got, "at": now, "changed_at": changed_at(old, got, now)}
             if kind == "area":
                 await areaspace.AreaSpace(store.db).save(key, {"esri_past": rec})
             else:
