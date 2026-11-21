@@ -23,6 +23,8 @@ export function socialLinks(): { facebook: string; instagram: string } {
 export const MORE_PROFILES: readonly string[] = [
   // the company page, live 2026-11-21: Avasetu, Pune, linking https://avasetu.in
   'https://www.linkedin.com/company/avasetu/',
+  // the channel, live 2026-11-21: Avasetu, with the reels and project videos
+  'https://www.youtube.com/@avasetu',
 ]
 
 /** Every public profile of the brand, for the Organization's `sameAs`: Facebook, Instagram, then MORE_PROFILES. A profile must be

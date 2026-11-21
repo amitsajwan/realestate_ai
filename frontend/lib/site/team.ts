@@ -32,6 +32,7 @@ export const teamAddress = (): string => `${TEAM.street}, ${TEAM.locality} ${TEA
 export function teamJsonLd(siteUrl: string): Record<string, unknown> {
   return {
     '@type': 'RealEstateAgent',
+    '@id': TEAM.website + '/#organization',
     name: TEAM.name,
     url: TEAM.website,
     sameAs: [siteUrl + TEAM.page],
@@ -53,17 +54,16 @@ export function teamPostalAddress(): Record<string, unknown> {
 /** The Avasetu Organization's node id, so the WebSite's `publisher` (home page) points at it instead of a second copy. */
 export const organizationId = (siteUrl: string): string => siteUrl + '/#organization'
 
-/** What the Avasetu Organization adds about who runs it: its office (House Deal's), a phone and email that answer, and House
- *  Deal as the team (`member`) and the business Avasetu belongs to (`parentOrganization`, owner's plan 2026-11-20: so Google
- *  ties the brand to House Deal's MahaRERA agent number and office). Merged into the Organization on the home, About and
- *  Contact pages. */
+/** What the Avasetu Organization adds about who runs it: a phone and email that answer, and House
+ *  Deal as the business Avasetu belongs to (`parentOrganization`, owner's plan 2026-11-20: so Google ties the brand to House
+ *  Deal's MahaRERA agent number and office). The office address sits on House Deal only, and House Deal is said once, not again
+ *  as a `member` (owner 2026-11-21): Avasetu is a website with no office of its own. Merged into the Organization on the home,
+ *  About and Contact pages. */
 export function teamForOrganization(siteUrl: string): Record<string, unknown> {
   return {
     '@id': organizationId(siteUrl),
     parentOrganization: teamJsonLd(siteUrl),
-    address: teamPostalAddress(),
     contactPoint: [{ '@type': 'ContactPoint', contactType: 'customer service', telephone: TEAM.tel, email: TEAM.email,
       areaServed: 'IN', availableLanguage: ['English', 'Hindi'] }],
-    member: [teamJsonLd(siteUrl)],
   }
 }

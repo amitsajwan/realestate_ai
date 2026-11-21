@@ -173,17 +173,18 @@ describe("buyers' home", () => {
     expect(ld[1].potentialAction.target.urlTemplate).toMatch(/\/projects\?q=\{search_term_string\}$/)
     // who answers for the site: House Deal's office and phone (lib/site/team, owner 2026-11-13)
     expect(ld[0].contactPoint).toEqual([expect.objectContaining({ telephone: '+917447212121', email: 'housedealofficial@gmail.com' })])
-    expect(ld[0].address).toMatchObject({ streetAddress: '1107, RTC Silver, Upper Kharadi, Wagholi', postalCode: '412207' })
-    expect(ld[0].member[0]).toMatchObject({ '@type': 'RealEstateAgent', name: 'House Deal', identifier: { value: 'A031262502865' } })
+    // the office is House Deal's, so the address sits on House Deal only, and House Deal is said once (owner 2026-11-21)
+    expect(ld[0].address).toBeUndefined()
+    expect(ld[0].member).toBeUndefined()
     // Avasetu belongs to House Deal (owner's plan 2026-11-20), and the WebSite's publisher is this Organization, by its id
-    expect(ld[0].parentOrganization).toMatchObject({ '@type': 'RealEstateAgent', name: 'House Deal', url: 'https://house-deal.com',
-      identifier: { propertyID: 'MahaRERA', value: 'A031262502865' }, address: { postalCode: '412207' } })
+    expect(ld[0].parentOrganization).toMatchObject({ '@type': 'RealEstateAgent', '@id': 'https://house-deal.com/#organization',
+      name: 'House Deal', url: 'https://house-deal.com', identifier: { propertyID: 'MahaRERA', value: 'A031262502865' }, address: { postalCode: '412207' } })
     expect(ld[0]['@id']).toMatch(/\/#organization$/)
     expect(ld[1].publisher).toEqual({ '@id': ld[0]['@id'] })
     // the brand's own profiles and its Devanagari name, so Google ties "Avasetu" to this page; no WhatsApp chat link
     expect(ld[0].name).toBe('Avasetu')
     expect(ld[0].sameAs).toEqual(['https://www.facebook.com/profile.php?id=61594653947865', 'https://www.instagram.com/avasetu_/',
-      'https://www.linkedin.com/company/avasetu/'])
+      'https://www.linkedin.com/company/avasetu/', 'https://www.youtube.com/@avasetu'])
     expect(ld[0].alternateName).toEqual(['आवासेतु'])
     expect(ld[1].alternateName).toEqual(['आवासेतु'])
     expect(JSON.stringify(ld)).not.toMatch(/wa\.me/)
