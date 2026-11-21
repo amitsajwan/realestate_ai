@@ -19,7 +19,7 @@ from app.core import brand
 from app.core.areas import BY_KEY
 from app.modules.newsroom.store import Store
 
-from . import brands, clusters, fromabove_view, pagefacts, plans3d, priceidea, sitevisits
+from . import brands, clusters, esripast_view, fromabove_view, pagefacts, plans3d, priceidea, sitevisits
 from .service import _count, _day
 from .text import ascii_text, builder_slug, promoter_key, words
 
@@ -341,6 +341,9 @@ def page_updated(doc: dict) -> Optional[str]:
     if above.get("story") and not above.get("none"):   # the site from above went on the page or was renewed (fromabove)
         stamps.append(above.get("at"))
     stamps.append(sitevisits.saved_at(doc))   # a person's note from the site went on the page (2026-11-20)
+    past = doc.get("esri_past") or {}
+    if len(past.get("shown") or []) >= 2:   # a new sharp picture of the site went on the page (areastats.esripast)
+        stamps.append(past.get("changed_at"))
     return _latest(stamps)
 
 
@@ -841,6 +844,8 @@ def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None, ix
         "location_picture": location_picture(doc),
         # the site from above, year by year and month by month (areastats.fromabove), only at the page's own pin
         "from_above": fromabove_view.public_view(doc, (geo["lat"], geo["lon"]) if own else None),
+        # Esri's sharp past pictures at the same pin, about one a year (areastats.esripast): release numbers and dates only
+        "esri_past": esripast_view.public_view(doc, (geo["lat"], geo["lon"]) if own else None),
         # what a person saw at the site, dated and signed (areastats.sitevisits): never model-written
         "site_visit": sitevisits.public(doc),
         "checks": checks(doc), "text_checked": bool(doc.get("page_text")),

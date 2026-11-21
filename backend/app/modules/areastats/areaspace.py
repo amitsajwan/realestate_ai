@@ -40,7 +40,7 @@ from app.modules.newsroom.store import Store
 
 from . import budget as ai_budget
 from . import fromabove as fa
-from . import sitepics
+from . import esripast_view, sitepics
 from .pictures import KM_PER_DEG, Box, box_for, classic, enhance, stretch_for
 from .service import all_views
 
@@ -343,7 +343,8 @@ def public_view(doc: Optional[dict]) -> Optional[dict]:
     return {"area": {"key": area.key, "name": area.name, "slug": area.slug}, "middle": {"lat": doc["lat"], "lon": doc["lon"]},
             "side_km": round(int(doc.get("side_m") or 0) / 1000, 1), "story": doc["story"], "where": doc["where"],
             "credit": doc["credit"], "frames": frames, "seasons": seasons, "video": video,
-            "updated": at.date().isoformat() if hasattr(at, "date") else None}
+            "updated": at.date().isoformat() if hasattr(at, "date") else None,
+            "esri_past": esripast_view.public_view(doc, (doc["lat"], doc["lon"]))}
 
 
 async def one(db, slug: str) -> Optional[dict]:

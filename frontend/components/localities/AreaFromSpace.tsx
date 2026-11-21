@@ -1,4 +1,5 @@
 import React from 'react'
+import EsriPastPictures from '@/components/site/EsriPastPictures'
 import EsriWaybackOnTap from '@/components/site/EsriWaybackOnTap'
 import FromAboveProof from '@/components/site/FromAboveProof'
 import FromAboveVideo from '@/components/site/FromAboveVideo'
@@ -46,8 +47,9 @@ export default function AreaFromSpace({ view, className = 'mt-9' }: { view: View
           <ol className="mt-1 list-none p-0">{newest.map(line)}</ol>
         </div>
       )}
-      <EsriWaybackOnTap lat={view.middle.lat} lon={view.middle.lon} label={view.name} zoom={ESRI_ZOOM}
-        centredOn={`the middle of ${view.name}`} />
+      {view.esriPast
+        ? <EsriPastPictures past={view.esriPast} lat={view.middle.lat} lon={view.middle.lon} name={view.name} centredOn={`the middle of ${view.name}`} />
+        : <EsriWaybackOnTap lat={view.middle.lat} lon={view.middle.lon} label={view.name} zoom={ESRI_ZOOM} centredOn={`the middle of ${view.name}`} />}
       <FromAboveProof media={
         <figure className="m-0 mt-2">
           <FromAboveVideo src={v.src} poster={v.poster} width={v.width} height={v.height}

@@ -49,6 +49,7 @@ export interface RegisterProject {
   location_picture?: { url: string; width: number; height: number } | null
   /** the site from above, stored by the daily pass (backend areastats/fromabove.py); checked by lib/site/fromAbove fromRecord */
   from_above?: unknown
+  esri_past?: unknown   // Esri's sharp past pictures at the pin (lib/site/esriPast.ts)
   /** what a person saw at the site, dated and signed, never model-written (backend areastats/sitevisits.py) */
   site_visit?: { visited_on: string; by: string; text: string } | null
   builder?: BuilderRecord | null

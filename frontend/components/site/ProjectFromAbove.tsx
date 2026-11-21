@@ -1,5 +1,7 @@
 import React from 'react'
+import EsriPastPictures from '@/components/site/EsriPastPictures'
 import EsriWaybackOnTap from '@/components/site/EsriWaybackOnTap'
+import type { EsriPast } from '@/lib/site/esriPast'
 import FromAboveProof from '@/components/site/FromAboveProof'
 import FromAboveVideo from '@/components/site/FromAboveVideo'
 import { mapsEmbedKey, satelliteSrc } from '@/components/site/mapsEmbed'
@@ -14,8 +16,8 @@ const SHOWN_SEASONS = 3   // the newest seasons as the current reading; the rest
  *  view of the plot) sits below as a badge that opens to the video and the yearly row; its season lines stay page text and the
  *  video's transcript, which is what search gets from it (owner 2026-11-21; docs/plan/satellite-view.md, "Google first, the
  *  timeline as proof"). */
-export default function ProjectFromAbove({ view, shown, siteUrl, possession = '' }: {
-  view: FromAbove; shown: string; siteUrl: string; possession?: string
+export default function ProjectFromAbove({ view, shown, siteUrl, possession = '', esriPast = null }: {
+  view: FromAbove; shown: string; siteUrl: string; possession?: string; esriPast?: EsriPast | null
 }) {
   const first = view.frames[0]
   const last = view.frames[view.frames.length - 1]
@@ -89,7 +91,9 @@ export default function ProjectFromAbove({ view, shown, siteUrl, possession = ''
           </figcaption>
         </figure>
       )}
-      <EsriWaybackOnTap lat={view.pin.lat} lon={view.pin.lon} label={shown} />
+      {/* Esri's sharp pictures of the last few years, picked for the reader; Esri's own viewer only until they are looked up */}
+      {esriPast ? <EsriPastPictures past={esriPast} lat={view.pin.lat} lon={view.pin.lon} name={shown} centredOn="the project's map pin" ringM={100} />
+        : <EsriWaybackOnTap lat={view.pin.lat} lon={view.pin.lon} label={shown} />}
       {latest && (
         <div className="mt-3 rounded-lg border border-slate-200 p-3" data-testid="from-above-latest">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">

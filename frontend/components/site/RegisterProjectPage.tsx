@@ -21,6 +21,8 @@ import PriceBox from '@/components/site/PriceBox'
 import PriceIdea from '@/components/site/PriceIdea'
 import LocationMapSwitch from '@/components/site/LocationMapSwitch'
 import ProjectFromAbove from '@/components/site/ProjectFromAbove'
+import EsriPastPictures from '@/components/site/EsriPastPictures'
+import { esriPastFrom, type EsriPast } from '@/lib/site/esriPast'
 import ProjectVideo from '@/components/site/ProjectVideo'
 import { forPin, fromRecord } from '@/lib/site/fromAbove'
 import ProjectHistory from '@/components/site/ProjectHistory'
@@ -438,7 +440,7 @@ type Near = { label: string; name: string; km: number }
 
 /** "<name> location": the map around the position we checked against the pincode (without one, a map search by name and area,
  *  marked as not checked), the straight-line distance to the work hubs people commute to, then what is nearby. */
-function LocationSection({ p, shown, nearby, sources }: { p: RegisterProject; shown: string; nearby: Near[]; sources: { name: string; url: string }[] }) {
+function LocationSection({ p, shown, nearby, sources, esriPast = null }: { p: RegisterProject; shown: string; nearby: Near[]; sources: { name: string; url: string }[]; esriPast?: EsriPast | null }) {
   const m = p.map
   const where = [p.name, p.area?.name ?? p.place, 'Pune', p.pincode].filter(Boolean).join(', ')
   let src: string, link: string
@@ -470,6 +472,8 @@ function LocationSection({ p, shown, nearby, sources }: { p: RegisterProject; sh
           : 'A map search by name.'}{' '}
         <a href={link} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2">Open the map<span className="sr-only"> (opens in a new tab)</span></a>
       </p>
+      {/* a page with no timeline from space still gets the sharp past pictures at its checked pin (areastats.esripast) */}
+      {m && esriPast && <EsriPastPictures past={esriPast} lat={m.lat} lon={m.lon} name={shown} centredOn="the project's map pin" ringM={100} />}
       {(commute.length > 0 || nearby.length > 0) && (
         <div className="mt-3 grid gap-4 sm:grid-cols-2">
           {commute.length > 0 && (
@@ -944,6 +948,8 @@ export interface Seller {
 export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], whatsappUrl, seller }: { p: RegisterProject; siteUrl: string; facts: PropertyFactsView | null; lists?: FacetLink[]; whatsappUrl?: string | null; seller?: Seller }) {
   // the site from above (the daily pass, areastats.fromabove), only while the checked pin is where the pictures were taken
   const fromAboveView = forPin(fromRecord(p.from_above, p.slug), p.map)
+  // Esri's sharp past pictures at the checked pin (areastats.esripast): in the from-space section, else under the location map
+  const esriPast = p.map ? esriPastFrom(p.esri_past) : null
   const url = `${siteUrl}/projects/${p.slug}`
   // the WhatsApp ask names this project; on an agent's listing page (seller) the agent's form stays first
   const waAsk = pageWhatsApp(whatsappUrl, displayName(p), p.slug)
@@ -1114,11 +1120,11 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
           {!closed && <PricesSection p={p} shown={shown} offer={liveOffer(facts)} priced={!!price} numbers={facts?.numbers} stage={stage} help={priceHelp(backs, leadName)} />}
           {/* the site from above comes right after the prices: Google's sharp view, the latest reading, then the Sentinel timeline as
               a proof badge (owner 2026-11-20, 2026-11-21) */}
-          {fromAboveView && <ProjectFromAbove view={fromAboveView} shown={shown} siteUrl={siteUrl} possession={possessionLabel(p)} />}
+          {fromAboveView && <ProjectFromAbove view={fromAboveView} shown={shown} siteUrl={siteUrl} possession={possessionLabel(p)} esriPast={esriPast} />}
           {!sheetSizes(liveOffer(facts)) && <HomeSizes sizes={p.home_sizes} name={shown} help={sizeHelp(backs, leadName)} />}
           {!closed && <ProjectProfile profile={p.profile} name={shown} part="plans" plans3d={p.plans_3d?.items ?? []} lead={{ agentSlug: leadSlug, agentName: leadName,
             topic: enquiryTopic, waMessage: `Hi, I want to know about ${p.name} (MahaRERA ${p.regno}): ${url}` }} />}
-          <LocationSection p={p} shown={shown} nearby={nearby} sources={facts?.nearby_sources ?? []} />
+          <LocationSection p={p} shown={shown} nearby={nearby} sources={facts?.nearby_sources ?? []} esriPast={fromAboveView ? null : esriPast} />
           <ProjectProfile profile={p.profile} name={shown} part="highlights" omit={heroBhks ? ['homes'] : []} />
 
           {/* the model's sections only: the answer above already says the facts, so with no sections there is no About */}

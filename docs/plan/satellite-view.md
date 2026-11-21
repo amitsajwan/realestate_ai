@@ -272,7 +272,36 @@ Sep 2026. On a phone the viewer opens in its plain explore view.
   and the World Imagery item's terms page renders by script and could not be read here. Owner: check Esri's World Imagery
   terms of use, or ask Esri; if framing is not allowed, the button becomes a link to the same address.
 
-### 3. The site over time, from Sentinel-2: a trial on five projects (code, then the owner decides)
+### Esri's sharp past pictures, year by year (2026-11-21, replaces the framed viewer where looked up)
+
+Owner, 2026-11-21, on the framed viewer: "can we not have screenshot last 3 years. This ui of Wayback is not very user
+friendly", then "have esri also ... think seo and user advantage. Don't worry about license if it don't cost".
+
+- **Which pictures** (`areastats/esripast.py`, a daily pass in enrichment): Esri's public metadata service says, for a point
+  and a release, when that release's picture of the point was taken (`SRC_DATE2`). The date only moves forward release by
+  release, so each change is found with a galloping search over the ~110 releases since 2019: about 58 questions a page, up
+  to 6,000 a day (about 100 pages), redone monthly. Kept: the newest capture, then about one a year back three and a half
+  years, four at most (Kohinoor Riverdale: Nov 2022, Jan 2024, Feb 2025, Apr 2026, about 0.3 m a pixel, Maxar and Vantor).
+  Stored as release numbers and dates only (`esri_past` on the record; on `area_from_space` for an area). No picture is
+  stored or read by us.
+- **Which pages**: every project page with its own checked pin, not only those with a Sentinel timeline (the areas showing
+  theirs first, then pages showing their site from space, then our areas' and the hottest), and every area showing its
+  ground from space (at its middle).
+- **On the page** (`EsriPastPictures.tsx`): a 2 x 2 grid, oldest to newest, each picture drawn in the reader's browser from
+  Esri's tile service for its release (three by three tiles, two across, centred on the pin: about 580 m at zoom 17, the
+  Sentinel frame's size; an area 1.2 km at zoom 16, since further out the sharp pictures blur to Sentinel's level), with the
+  100 m ring on a project. In the from-space section it takes the framed viewer's place; on a page without a timeline it sits
+  under the location map; on the area section and the area watch page likewise. Until a page is looked up, the framed
+  viewer stays.
+- **For search**: the dates are page text ("Sharp satellite pictures taken in Nov 2022, Jan 2024, Feb 2025 and Apr 2026"),
+  and each picture's middle tile has an alt naming the place and the month. When the captures shown change (a new Esri
+  release with a newer picture), `changed_at` moves and so does the page's sitemap date (`pages.page_updated`).
+- **Credit**: one line, "Esri World Imagery · Maxar, Vantor", and a link to Esri's viewer ("Compare every release"). The owner
+  was ready to drop it; it stays, as it costs nothing and showing the pictures without it is what would get the tiles blocked.
+- **Terms**: still not confirmed for a commercial site; the owner accepts that. If Esri ever blocks the tiles,
+  the pictures fail to load and the "Compare every release" link still works; remove the section then.
+
+
 
 1. A script, not a loop: `backend/scripts/sentinel_trial.py --regno <n>`. For the checked pin, a 1 km square, it asks the
    Copernicus Data Space for the least cloudy true-colour picture of each quarter since the project's registration date, and

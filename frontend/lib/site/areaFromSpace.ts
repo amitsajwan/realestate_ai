@@ -7,6 +7,7 @@
  */
 import { fixturesForced, serverApiBase } from '@/lib/site/api'
 import { shortMonth, type FromAboveFrame, type FromAboveSeason, type FromAboveVideo } from '@/lib/site/fromAbove'
+import { esriPastFrom, type EsriPast } from '@/lib/site/esriPast'
 
 export interface AreaFromSpace {
   slug: string
@@ -20,6 +21,7 @@ export interface AreaFromSpace {
   seasons: FromAboveSeason[]
   video: FromAboveVideo | null
   updated: string | null // YYYY-MM-DD, the last look
+  esriPast: EsriPast | null // Esri's sharp past pictures at the middle (areastats.esripast)
 }
 
 /** One area in the from-space list (backend areaspace.every): the hub and the video sitemap. */
@@ -80,6 +82,7 @@ export function areaFromRecord(raw: unknown, slug: string): AreaFromSpace | null
     sideKm: num(r.side_km) && r.side_km > 0 && r.side_km < 20 ? r.side_km : 0,
     story: r.story.trim(), where: r.where.trim(), credit: r.credit.trim(), frames, seasons, video: cleanVideo(r.video, slug),
     updated: typeof r.updated === 'string' && shortMonth(r.updated) ? r.updated : null,
+    esriPast: esriPastFrom(r.esri_past),
   }
 }
 
