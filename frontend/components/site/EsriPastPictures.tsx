@@ -54,7 +54,9 @@ export default function EsriPastPictures({ past, lat, lon, name, centredOn, ring
         })}
       </ol>
       <p className="mt-1 text-xs text-slate-600">
-        Esri World Imagery{sources.length ? ` · ${sources.join(', ')}` : ''}. Each picture is dated by when it was taken{ring > 0 ? '; the ring is 100 m around the pin' : ''}.{' '}
+        Each picture is dated by when it was taken{ring > 0 ? '; the ring is 100 m around the pin' : ''}. Map image is the
+        intellectual property of Esri and is used herein under license. Copyright © {new Date().getFullYear()} Esri and its
+        licensors{sources.length ? ` (imagery: ${sources.join(', ')})` : ''}. All rights reserved.{' '}
         <a href={waybackLink(lat, lon, zoom)} target="_blank" rel="noopener noreferrer"
           className="inline-flex min-h-[44px] items-center font-semibold underline underline-offset-2">Compare every release ↗</a>
       </p>
