@@ -37,7 +37,7 @@ describe("Esri's sharp past pictures", () => {
     const middle = screen.getByAltText('Kohinoor Riverdale from above, satellite picture of Apr 2026') as HTMLImageElement
     expect(middle.getAttribute('src')).toBe('https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/3692/17/58662/92467')
     expect(middle.getAttribute('loading')).toBe('lazy')
-    expect(screen.getByText(/Esri World Imagery · Maxar, Vantor/)).toBeTruthy()
+    expect(screen.getByTestId('esri-past').textContent).toMatch(/Map image is the intellectual property of Esri and is used herein under license\. Copyright © \d{4} Esri and its licensors \(imagery: Maxar, Vantor\)\. All rights reserved\./)
     expect(screen.getByRole('link', { name: /Compare every release/ }).getAttribute('href')).toContain('mapCenter=73.968533%2C18.544776%2C17')
   })
 

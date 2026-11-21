@@ -115,3 +115,29 @@ async def test_every_page_with_its_own_pin_gets_its_past_pictures_and_the_page_s
     sent = pages.view(await store.projects.find_one({"_id": "P1"}), [])["esri_past"]
     assert sent["zoom"] == ep.PROJECT_ZOOM and [s["release"] for s in sent["shots"]] == [1030, 1020, 1009, 1000]
     assert await ep.refresh(store, NOW, client=httpx.AsyncClient(transport=httpx.MockTransport(answer))) is None   # once a day
+
+
+async def test_pages_are_looked_up_four_at_a_time_and_all_stop_when_the_days_questions_are_spent():
+    from app.modules.newsroom.store import Store
+    from ..fakes import FakeDb
+    store = Store(FakeDb())
+    pin = {"geo": {"lat": 18.5447, "lon": 73.9685, "located_from": "google"}, "enrichment": {"steps": {"places": {"ok": True}}}}
+    for i in range(9):
+        await store.projects.insert_one({"_id": f"P{i}", "regno": f"P{i}", "name": f"P{i}", "page_slug": f"p{i}", "locality": "kharadi",
+                                         "registered_on": "2022-08-10", "completion_now": "2028-12-31", "in_register": True, **pin})
+    config = {str(n): {"itemTitle": f"World Imagery (Wayback {d})", "metadataLayerUrl": u} for n, d, u in RELEASES}
+
+    def answer(request):
+        if request.url.host == "s3-us-west-2.amazonaws.com":
+            return httpx.Response(200, json=config)
+        i = int(request.url.path.split("/")[1][1:])
+        return httpx.Response(200, json={"features": [{"attributes": {"SRC_DATE2": ms(CAPTURE[i]), "SRC_RES": 0.31, "NICE_DESC": "Maxar"}}]})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(answer))
+    per_page = (await ep.refresh(store, NOW, client=client))["queries"] // 9
+    store2 = Store(FakeDb())
+    for d in await store.projects.find({}).to_list(20):
+        await store2.projects.insert_one({k: v for k, v in d.items() if k != "esri_past"})
+    got = await ep.refresh(store2, NOW, budget=per_page * 5, client=httpx.AsyncClient(transport=httpx.MockTransport(answer)))
+    assert got["stopped"] and 4 <= got["done"] <= 8     # the first four done; the second group ran out; no third group began
+    assert got["queries"] <= per_page * 5

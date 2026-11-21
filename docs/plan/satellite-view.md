@@ -280,7 +280,7 @@ friendly", then "have esri also ... think seo and user advantage. Don't worry ab
 - **Which pictures** (`areastats/esripast.py`, a daily pass in enrichment): Esri's public metadata service says, for a point
   and a release, when that release's picture of the point was taken (`SRC_DATE2`). The date only moves forward release by
   release, so each change is found with a galloping search over the ~110 releases since 2019: about 58 questions a page, up
-  to 6,000 a day (about 100 pages), redone monthly. Kept: the newest capture, then about one a year back three and a half
+  to 30,000 a day (about 500 pages, four at a time), redone monthly. Kept: the newest capture, then about one a year back three and a half
   years, four at most (Kohinoor Riverdale: Nov 2022, Jan 2024, Feb 2025, Apr 2026, about 0.3 m a pixel, Maxar and Vantor).
   Stored as release numbers and dates only (`esri_past` on the record; on `area_from_space` for an area). No picture is
   stored or read by us.
@@ -296,7 +296,9 @@ friendly", then "have esri also ... think seo and user advantage. Don't worry ab
 - **For search**: the dates are page text ("Sharp satellite pictures taken in Nov 2022, Jan 2024, Feb 2025 and Apr 2026"),
   and each picture's middle tile has an alt naming the place and the month. When the captures shown change (a new Esri
   release with a newer picture), `changed_at` moves and so does the page's sitemap date (`pages.page_updated`).
-- **Credit**: one line, "Esri World Imagery · Maxar, Vantor", and a link to Esri's viewer ("Compare every release"). The owner
+- **Credit**: Esri's standard wording, "Map image is the intellectual property of Esri and is used herein under license.
+  Copyright © <year> Esri and its licensors (imagery: Maxar, Vantor). All rights reserved." (2026-11-21), and a link to Esri's
+  viewer ("Compare every release"). The owner
   was ready to drop it; it stays, as it costs nothing and showing the pictures without it is what would get the tiles blocked.
 - **Terms**: still not confirmed for a commercial site; the owner accepts that. If Esri ever blocks the tiles,
   the pictures fail to load and the "Compare every release" link still works; remove the section then.
