@@ -214,6 +214,44 @@ async def test_a_new_launch_says_when_it_registered(tmp_path):
     assert rec["story"].startswith("Registered with MahaRERA in Mar 2026.")
 
 
+async def test_the_timeline_starts_the_year_before_the_project_first_registered(tmp_path):
+    fa.configure(render=render)
+    store = await seeded(("P1", {**PIN, "registered_on": "2024-03-01"}),
+                         ("P2", {**PIN, "units_total": 100, "cluster_primary": "P1", "registered_on": "2023-05-10"}))
+    sat = Sat(cleared="2024-06")
+    await fa.refresh(store, NOW, sat=sat, ask=Gemini(), out_dir=tmp_path)
+    rec = (await store.projects.find_one({"_id": "P1"}))["from_above"]
+    assert [f["year"] for f in rec["frames"]] == [2022, 2023, 2024, 2025, 2026]   # 2023 registration behind the page, less a year
+    assert rec["seasons"][0]["label"] == "Jan-Mar 2022" and render.shots[0][0] == "2022-01-01"
+    assert rec["registered"] == "2023-05-10" and min(sat.asked) == "2021-01"     # two spare years read, no more
+    assert pages.view(await store.projects.find_one({"_id": "P1"}), [])["from_above"]["registered"] == "2023-05-10"
+
+
+async def test_a_new_launch_still_shows_three_yearly_pictures(tmp_path):
+    fa.configure(render=render)
+    store = await seeded(("NEW", {**PIN, "registered_on": "2026-03-15"}))
+    sat = Sat()
+    await fa.refresh(store, NOW, sat=sat, ask=Gemini(), out_dir=tmp_path)
+    rec = (await store.projects.find_one({"_id": "NEW"}))["from_above"]
+    assert [f["year"] for f in rec["frames"]] == [2024, 2025, 2026] and min(sat.asked) == "2023-01"
+
+
+async def test_an_older_look_from_2021_is_cut_to_the_window_when_redrawn_with_its_own_lines(tmp_path):
+    fa.configure(render=render)
+    store = await seeded(("P1", PIN))
+    await fa.refresh(store, NOW, sat=Sat(), ask=Gemini(), out_dir=tmp_path)
+    first = (await store.projects.find_one({"_id": "P1"}))["from_above"]
+    await store.set_project("P1", registered_on="2025-01-10",
+                            from_above={**first, "video": {**first["video"], "version": 4}})
+    sat, gem = Sat(), Gemini()
+    got = await fa.refresh(store, datetime(2026, 11, 22, 6, 0, tzinfo=timezone.utc), sat=sat, ask=gem, out_dir=tmp_path,
+                           force=True)
+    assert got["redrawn"] == 1 and sat.used == 0 and gem.calls == []
+    rec = (await store.projects.find_one({"_id": "P1"}))["from_above"]
+    assert [f["year"] for f in rec["frames"]] == [2024, 2025, 2026] and rec["seasons"][0]["label"] == "Jan-Mar 2024"
+    assert rec["credit"].endswith("2024-2026") and rec["story"] == first["story"] and rec["at"] == first["at"]
+
+
 async def test_too_few_clear_seasons_show_nothing_and_cost_no_gemini(tmp_path):
     fa.configure(render=render)
     store = await seeded(("P1", PIN))

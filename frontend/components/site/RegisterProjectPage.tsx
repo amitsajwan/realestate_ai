@@ -320,7 +320,7 @@ function Hero({ p, price, photo, linkless = false, closed = false, callback, emi
       {soldAs && <p className="mt-1 text-sm text-slate-300" data-testid="sold-as">{soldAs}</p>}
       {fromAboveYears && (
         <a href="#from-above" className="mt-2 inline-flex min-h-[44px] items-center gap-1 text-sm font-semibold text-amber-300 underline underline-offset-2"
-          data-testid="hero-from-above">Watch the site from space, {fromAboveYears[0]} to {fromAboveYears[1]}</a>
+          data-testid="hero-from-above">See the site from above today</a>
       )}
       {p.group && (
         <p className="mt-2 text-base text-white" data-testid="group">
@@ -1112,8 +1112,9 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
       <div className="mt-8 grid gap-8 lg:grid-cols-3">
         <div className="min-w-0 space-y-10 lg:col-span-2">
           {!closed && <PricesSection p={p} shown={shown} offer={liveOffer(facts)} priced={!!price} numbers={facts?.numbers} stage={stage} help={priceHelp(backs, leadName)} />}
-          {/* the site from space comes right after the prices: it is what no other page shows (owner 2026-11-20) */}
-          {fromAboveView && <ProjectFromAbove view={fromAboveView} shown={shown} siteUrl={siteUrl} />}
+          {/* the site from above comes right after the prices: Google's sharp view, the latest reading, then the Sentinel timeline as
+              a proof badge (owner 2026-11-20, 2026-11-21) */}
+          {fromAboveView && <ProjectFromAbove view={fromAboveView} shown={shown} siteUrl={siteUrl} possession={possessionLabel(p)} />}
           {!sheetSizes(liveOffer(facts)) && <HomeSizes sizes={p.home_sizes} name={shown} help={sizeHelp(backs, leadName)} />}
           {!closed && <ProjectProfile profile={p.profile} name={shown} part="plans" plans3d={p.plans_3d?.items ?? []} lead={{ agentSlug: leadSlug, agentName: leadName,
             topic: enquiryTopic, waMessage: `Hi, I want to know about ${p.name} (MahaRERA ${p.regno}): ${url}` }} />}
