@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import AreaFromSpace from '@/components/localities/AreaFromSpace'
 import { areaFromRecord, cleanAreaItems } from '@/lib/site/areaFromSpace'
 import { videoSitemapXml } from '@/lib/site/videoSitemap'
@@ -32,13 +32,32 @@ describe('an area from space', () => {
     expect(areaFromRecord(null, 'kharadi')).toBeNull()
   })
 
-  it('puts the video, the summary and the newest season on the area guide, linking to its watch page', () => {
-    render(<AreaFromSpace view={areaFromRecord(raw, 'kharadi')} />)
+  it('leads with the latest reading and keeps the video closed in the proof badge, every season line in the page', () => {
+    const many = { ...raw, seasons: Array.from({ length: 8 }, (_, i) => ({ label: `Jan-Mar ${2019 + i}`, day: `${2019 + i}-01-01`, line: `Line ${i}.` })) }
+    render(<AreaFromSpace view={areaFromRecord(many, 'kharadi')} />)
     expect(screen.getByRole('heading', { name: 'Kharadi from space' })).toBeTruthy()
+    expect(screen.getByTestId('area-from-space-latest').textContent).toContain('Latest reading from space, Jan–Mar 2026 (looked Nov 2026)Line 7.')
+    expect(screen.getByTestId('area-from-space-seasons').textContent).toContain('Line 6.')
+    expect(screen.getByTestId('area-from-space-earlier').textContent).toContain('Line 0.')   // in the closed badge, still page text
+    expect(screen.queryByTestId('from-above-video')).toBeNull()                              // nothing downloads until opened
+    expect(screen.getByText(/How Kharadi changed from space: Jan 2019 to Nov 2026, Copernicus Sentinel-2 \(4 earlier seasons\)/)).toBeTruthy()
+    expect(screen.getByTestId('area-from-space-watch').getAttribute('href')).toBe('/localities/kharadi/from-space')
+  })
+
+  it('opens the video only when the proof badge is opened', () => {
+    render(<AreaFromSpace view={areaFromRecord(raw, 'kharadi')} />)
+    const badge = screen.getByTestId('from-above-proof') as HTMLDetailsElement
+    badge.open = true
+    fireEvent(badge, new Event('toggle'))
     expect(screen.getByTestId('from-above-video').getAttribute('poster')).toBe(`${DIR}/months.webp`)
-    expect(screen.getByText(/60 clear months of the Sentinel-2 satellite, Jan 2019 to Nov 2026, 5.5 km across/)).toBeTruthy()
-    expect(screen.getByText('New blocks of buildings in the north-east.')).toBeTruthy()
-    expect(screen.getByRole('link', { name: 'Every season of Kharadi from space' }).getAttribute('href')).toBe('/localities/kharadi/from-space')
+  })
+
+  it('offers Esri\'s sharp past pictures of the whole area on tap', () => {
+    render(<AreaFromSpace view={areaFromRecord(raw, 'kharadi')} />)
+    expect(screen.queryByTestId('esri-wayback-frame')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Compare sharp past pictures' }))
+    expect(screen.getByTestId('esri-wayback-frame').getAttribute('src')).toContain('mapCenter=73.948000%2C18.551000%2C14')
+    expect(screen.getByTestId('esri-wayback').textContent).toContain('satellite pictures, centred on the middle of Kharadi.')
   })
 
   it('shows no section without a video', () => {

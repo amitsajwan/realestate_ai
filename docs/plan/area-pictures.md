@@ -161,10 +161,16 @@ Cost: a first look is about 65 Copernicus requests (one a dry month since 2019),
 pixels with seven bands over a month of passes; so at most LOOKS_PER_DAY = 2 areas a day (all 8 in four days, about 6,000
 units once), then about 3 requests an area a season. It shares the projects' two Copernicus accounts.
 
-Where it shows: "<Area> from space" on the guide after "How <area> grew" (video, summary, the newest season's line); a watch
-page `/localities/<slug>/from-space` with the video first, every season's line, Google's live satellite view under it and
-`VideoObject` data; the areas first on `/projects/from-space`; the area watch pages first in `/video-sitemap.xml`. API:
-`GET /api/v1/public/areas/{slug}/from-space` and `GET /api/v1/public/areas/from-space`.
+Where it shows, laid out as the project section is since 2026-11-21 (satellite-view.md, "Google first, the timeline as
+proof"): the guide already shows Google's sharp view near its top (the street map's Satellite switch, or "<area> from
+above"), so "<Area> from space", after "How <area> grew", opens with the latest reading (the newest season's line and the
+day of the look), then the summary, the three seasons before, and Esri's sharp past pictures on tap at the middle of the
+area (zoom 14). The 10 m timeline sits in a closed badge, "How <area> changed from space: <from> to <to>": opening it makes
+the video (nothing downloads before) and holds the earlier season lines, the method and the links. Every season line is in
+the page either way. The watch page `/localities/<slug>/from-space` keeps the video first (Google's condition for a video
+result), then Google's live view, Esri on tap, every season's line and `VideoObject` data; the areas come first on
+`/projects/from-space` and in `/video-sitemap.xml`. API: `GET /api/v1/public/areas/{slug}/from-space` and
+`GET /api/v1/public/areas/from-space`.
 
 ## What the owner does
 
