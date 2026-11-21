@@ -7,6 +7,7 @@ import { cardPossession, monthYear, sizePriceLine } from '@/lib/site/register'
 import CallbackButton from './CallbackButton'
 import OpenChatButton from './OpenChatButton'
 import CardPicture from './CardPicture'
+import PickButtons from './PickButtons'
 
 /** One project as a card, the same on the Top list, the area page's rows and the home page (docs/plan/area-intent-pages.md,
  *  "Top projects" redesign 2026-10-26): picture with where it came from, stage, price or "ask", possession filed, homes open.
@@ -100,6 +101,7 @@ export function RankedCard({ r }: { r: FacetRow }) {
             {price ? 'Ask about floor plans' : 'Get the price'}
           </Link>
           <CallbackButton topic={cardTopic(r)} />
+          <PickButtons slug={r.slug} name={readableName(r.name)} />
         </div>
       </div>
     </li>
