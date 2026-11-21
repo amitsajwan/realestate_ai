@@ -170,14 +170,14 @@ def _progress(d: ImageDraw.ImageDraw, x0: int, x1: int, y: int, days: Sequence[s
     d.ellipse((x - thick * 2, y - thick * 2, x + thick * 2, y + thick * 2), fill=GOLD)
 
 
-def page_keys(name: str, place: str, shots: Sequence[Shot], story: str, credit: str) -> List[Key]:
+def page_keys(name: str, place: str, shots: Sequence[Shot], story: str, credit: str, ring: bool = True) -> List[Key]:
     """The square key frames: the picture full size, the date and its line large across the top, a progress line and the
     credit along the bottom; then the end card with the sentence; then the newest pass again with only "Now" and its month,
-    the last frame and the poster."""
+    the last frame and the poster. `ring` False for a whole area (areastats.areaspace): there is no pin to circle."""
     side = PAGE[0]
     pad = 26
     days = [s.day for s in shots]
-    pics = [_ring(s.picture, side) for s in shots]
+    pics = [_ring(s.picture, side) if ring else s.picture.convert("RGB").resize((side, side), Image.LANCZOS) for s in shots]
     big, line, small = load_font(58, "bold"), load_font(32, "semibold"), load_font(16, "regular")
     title, body = load_font(36, "bold"), load_font(29, "medium")
 
@@ -262,12 +262,12 @@ def reel_keys(name: str, place: str, shots: Sequence[Shot], story: str, credit: 
 
 
 def page_video(name: str, place: str, shots: Sequence[Shot], story: str, credit: str, out: Path,
-               seconds: float = PAGE_SECONDS) -> Tuple[Path, Path]:
+               seconds: float = PAGE_SECONDS, ring: bool = True) -> Tuple[Path, Path]:
     """The square video for the project page (silent H.264, small) and its poster (its last frame: the newest pass, "Now"),
     side by side."""
     if len(shots) < 3:
         raise ValueError("a timelapse needs at least three pictures")
-    keys = page_keys(name, place, shots, story, credit)
+    keys = page_keys(name, place, shots, story, credit, ring)
     plan = schedule(len(shots), per_frame(len(shots), seconds, now=True), now=True)
     out = Path(out)
     out.parent.mkdir(parents=True, exist_ok=True)

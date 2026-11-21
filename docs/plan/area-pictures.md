@@ -144,12 +144,36 @@ A real photo of the main road, the metro, the IT park is what buyers expect at t
 Not doing: AI-made "area pictures", stock photos of other cities, photos taken from portals or builders' sites without a
 licence.
 
+### 5. "<Area> from space": the project pages' timeline for the whole area (BUILT 2026-11-21)
+
+Owner, 2026-11-21: "for our areas why not have a similar project like from space". `areastats/areaspace.py` does for each
+area what `areastats/fromabove.py` does for a project (satellite-view.md): once a day inside enrichment, a square of 4 to 6 km
+(the area's box's longer side, kept within those) around the middle of its box (`pictures.box_for`), 480 pixels across
+(10 m a pixel); one median Sentinel-2 picture a dry month since January 2019, kept under `uploads/area_space/<slug>/` so a
+later look asks only for the months since; seasons made from them; Gemini given every season's picture, each January to
+March's infrared and the area's MahaRERA counts (projects registered each year, completions filed) writes a line a season
+and a summary, both checked (no floors, progress, prices; no project, builder or road named); a summary that fails is
+replaced by the code's own sentence, with the plant cover the infrared measured across the picture. Without Gemini the pass
+stops and publishes nothing, as the projects' does. The video is the projects' (`calendar.site_timelapse.page_video`) with
+no ring: there is no pin. Kept in `area_from_space`, one document an area.
+
+Cost: a first look is about 65 Copernicus requests (one a dry month since 2019), each about 12 processing units at 480
+pixels with seven bands over a month of passes; so at most LOOKS_PER_DAY = 2 areas a day (all 8 in four days, about 6,000
+units once), then about 3 requests an area a season. It shares the projects' two Copernicus accounts.
+
+Where it shows: "<Area> from space" on the guide after "How <area> grew" (video, summary, the newest season's line); a watch
+page `/localities/<slug>/from-space` with the video first, every season's line, Google's live satellite view under it and
+`VideoObject` data; the areas first on `/projects/from-space`; the area watch pages first in `/video-sitemap.xml`. API:
+`GET /api/v1/public/areas/{slug}/from-space` and `GET /api/v1/public/areas/from-space`.
+
 ## What the owner does
 
 1. Nothing for step 1.
 2. Step 2: the Maps Embed browser key (already asked for by satellite-view.md).
 3. Step 3: a free Copernicus account; then look at two picture pairs and say yes or no.
 4. Step 4: choose the photo source (own, Commons, Street View, or a mix).
+5. Step 5: nothing; it runs on the projects' Copernicus accounts and Gemini. Once the first areas show, request indexing
+   for one area's watch page in Search Console.
 
 ## How we judge it (four weeks after step 1 is live)
 

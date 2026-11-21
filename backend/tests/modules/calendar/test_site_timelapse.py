@@ -49,6 +49,15 @@ def test_the_ground_is_shown_as_the_satellite_saw_it_with_only_the_ring_added():
     assert page.getpixel((5, t.PAGE[1] // 2)) == (120, 100, 90)     # between the date band and the foot: the ground itself
 
 
+def test_an_areas_video_has_no_ring_because_it_has_no_pin():
+    pic = Image.new("RGB", (600, 600), (120, 100, 90))
+    side = t.PAGE[0]
+    on_ring = (side // 2 + side // 6, side // 2)    # where a project's ring would cross the middle line
+    ringed = t.flat(t.page_keys("X", "Pune", [t.Shot("2021-01-20", pic, "")] * 3, STORY, "credit")[0])
+    area = t.flat(t.page_keys("Kharadi", "Pune", [t.Shot("2021-01-20", pic, "")] * 3, STORY, "credit", ring=False)[0])
+    assert ringed.getpixel(on_ring) == t.RING and area.getpixel(on_ring) == (120, 100, 90)
+
+
 def test_the_page_video_ends_on_the_newest_pass_and_that_frame_is_its_poster(tmp_path, monkeypatch):
     got = {}
     monkeypatch.setattr(t.ffmpeg, "run_with_frames", lambda args, frames: got.update(frames=list(frames)))
