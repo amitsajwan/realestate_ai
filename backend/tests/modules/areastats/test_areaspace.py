@@ -219,3 +219,41 @@ async def test_a_season_with_nothing_new_has_no_line_and_gemini_compares_with_a_
     assert [s["line"] for s in rec["seasons"] if s["line"]] == ["Fields cleared in the south-east."]
     assert [s[2] for s in render.called[2] if s[2]] == ["Fields cleared in the south-east."]      # nor on the video
     assert [s["line"] for s in (await asp.one(store.db, "kharadi"))["seasons"]] == ["Fields cleared in the south-east."]
+
+
+class Blind(Gemini):
+    """Gemini as on Upper Kharadi's second look: one line, and a summary saying nothing changed; sees more when asked again."""
+
+    async def json(self, system, content):
+        out = await super().json(system, content)
+        if "Look again" in str(content[-1].get("text", "")):
+            return out
+        labels = list(out["seasons"])
+        return {"seasons": {lab: "" for lab in labels} | {labels[0]: "Fields in the east."},
+                "summary": "Upper Kharadi saw minimal visible structural transformation over the years."}
+
+
+async def test_an_answer_that_sees_almost_nothing_is_asked_once_more(tmp_path):
+    asp.configure(render=render)
+    store = await seeded()
+    gem = Blind()
+    await asp.refresh(store, NOW, sat=Sat(), ask=gem, out_dir=tmp_path)
+    assert len(gem.calls) == 2 * asp.LOOKS_PER_DAY                    # asked again, once per area
+    rec = await asp.AreaSpace(store.db).get("kharadi")
+    assert all(s["line"] == "New blocks of buildings in the north-east." for s in rec["seasons"])
+    assert rec["story"] == "Fields in the east gave way to buildings."
+
+
+async def test_a_summary_saying_nothing_changed_is_never_kept(tmp_path):
+    asp.configure(render=render)
+    store = await seeded()
+    await asp.refresh(store, NOW, sat=Sat(), ask=Gemini(summary="Kharadi remained largely the same, with minimal visible change."),
+                      out_dir=tmp_path)
+    rec = await asp.AreaSpace(store.db).get("kharadi")
+    assert rec["story"].startswith("Kharadi as the Sentinel-2 satellite has seen it")
+
+
+def test_the_codes_summary_measures_from_the_greenest_year_when_the_first_was_dry():
+    years = [{"day": f"{y}-01-01", "green": g} for y, g in ((2019, 15), (2021, 28), (2023, 21), (2026, 18))]
+    said = asp.sentence("Kharadi", years, "2019-01-01", "2026-10-01")
+    assert "was 28% in early 2021 and 18% in early 2026" in said

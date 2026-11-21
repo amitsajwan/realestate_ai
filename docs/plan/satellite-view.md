@@ -275,6 +275,11 @@ before, where change is too slow to see; 38% of all project season lines said th
   and the code's own words do not stand in for an empty season. This hides the stored ones at once, with no new Gemini call.
 - Areas: areaspace VERSION 2 looks at both areas again under the new words (their pictures are kept: one Gemini call each).
   Projects keep their lines until their next look (85 days), with the "Little change" ones hidden.
+- Areas, second look the same day: Kharadi's lines came right; Upper Kharadi's came back with one line and a summary of
+  "minimal visible structural transformation" over pictures where the north and east filled with buildings. So an area's
+  answer that sees almost nothing (lines for under a third of its seasons, or a summary saying nothing changed,
+  `areaspace.SAYS_NONE`) is asked once more, pointed at the first and last pictures; a summary saying nothing changed is never
+  kept (the code's sentence stands, measured from the greenest year when the first was dry: Kharadi 28% in 2021, 18% in 2026).
 
 ### Esri's sharp past pictures, on tap (2026-11-21)
 

@@ -27,6 +27,7 @@ import base64
 import io
 import logging
 import math
+import re
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from pathlib import Path
@@ -184,9 +185,36 @@ def _jpeg(img: Image.Image, side: int = 640) -> Dict[str, Any]:
     return {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()}}
 
 
+# A summary that says the area hardly changed (Upper Kharadi, 2026-11-21: "minimal visible structural transformation", over
+# pictures where the north and east filled with buildings): never kept, the code's own sentence stands instead
+SAYS_NONE = re.compile(r"\b(minimal|little|no|hardly any|few)\s+(visible\s+|major\s+|significant\s+|notable\s+|clear\s+)?"
+                       r"(structural\s+)?(change|changes|transformation|alteration|alterations|difference)\b|\bunchanged\b|"
+                       r"\bremain(s|ed)?\s+(largely\s+|much\s+|broadly\s+)?(the same|stable|consistent)\b", re.I)
+LOOK_AGAIN = ("Look again. Compare the first January to March picture with the last one: buildings, cleared ground and roads "
+              "that appear between them are change, even when slow. Write a line for each season where something shows that "
+              "was not there a year before, and a summary of what changed from the first picture to the last, with where.")
+
+
+def _read(out: Any, shown: Sequence[fa.Season]) -> dict:
+    if not isinstance(out, dict) or not isinstance(out.get("seasons"), dict):
+        raise fa.Waiting("Gemini gave no usable answer")
+    said = {s.label: out["seasons"].get(s.label) for s in shown}
+    lines = {k: ("" if fromabove_view.quiet(v) or v == "" else fa.checked(v, LINE_WORDS)) for k, v in said.items()}
+    summary = fa.checked(out.get("summary"), SUMMARY_WORDS)
+    return {"lines": {k: v for k, v in lines.items() if v is not None}, "dropped": sum(1 for v in lines.values() if v is None),
+            "summary": None if summary and SAYS_NONE.search(summary) else summary, "said_none": bool(summary and SAYS_NONE.search(summary))}
+
+
+def _thin(words: dict, shown: Sequence[fa.Season]) -> bool:
+    """An answer that sees almost nothing: fewer than a third of the seasons with a line, or a summary saying nothing changed."""
+    return words["said_none"] or sum(1 for v in words["lines"].values() if v) * 3 < len(shown)
+
+
 async def describe(ask: Any, area: areas.Area, view: Optional[dict], side: int, shown: Sequence[fa.Season],
                    pics: Dict[str, Image.Image]) -> dict:
-    """{lines: {label: line}, summary, dropped} from one Gemini call; fa.Waiting when Gemini is not there or does not answer."""
+    """{lines: {label: line}, summary, dropped} from a Gemini call, asked once more when the answer sees almost nothing (an
+    area changes slowly; a first answer read each season against the one before and saw no change); fa.Waiting when Gemini
+    is not there or does not answer."""
     if ask is None:
         raise fa.Waiting("no Gemini (no key, or the day's Gemini budget is spent)")
     content: List[Dict[str, Any]] = [{"type": "text", "text": facts(area, view)}]
@@ -196,16 +224,19 @@ async def describe(ask: Any, area: areas.Area, view: Optional[dict], side: int, 
         if s.key[1] == 1:
             content.append({"type": "text", "text": f"{s.label}, infrared (plant cover across the picture {s.plants}%):"})
             content.append(_jpeg(s.ir))
+    system = SYSTEM.format(km=_km(side))
     try:
-        out = await ask.json(SYSTEM.format(km=_km(side)), content)
+        words = _read(await ask.json(system, content), shown)
+        if _thin(words, shown):
+            again = _read(await ask.json(system, content + [{"type": "text", "text": LOOK_AGAIN}]), shown)
+            if sum(1 for v in again["lines"].values() if v) >= sum(1 for v in words["lines"].values() if v):
+                words = again
+    except fa.Waiting:
+        raise
     except Exception as e:
         raise fa.Waiting(f"Gemini failed ({type(e).__name__})")
-    if not isinstance(out, dict) or not isinstance(out.get("seasons"), dict):
-        raise fa.Waiting("Gemini gave no usable answer")
-    said = {s.label: out["seasons"].get(s.label) for s in shown}
-    lines = {k: ("" if fromabove_view.quiet(v) or v == "" else fa.checked(v, LINE_WORDS)) for k, v in said.items()}
-    return {"lines": {k: v for k, v in lines.items() if v is not None}, "dropped": sum(1 for v in lines.values() if v is None),
-            "summary": fa.checked(out.get("summary"), SUMMARY_WORDS)}
+    words.pop("said_none", None)
+    return words
 
 
 def _km(side: int) -> str:
@@ -220,6 +251,11 @@ def sentence(name: str, years: Sequence[dict], first_day: str, last_day: str) ->
     if len(years) >= 2 and abs(years[0]["green"] - years[-1]["green"]) >= COVER_CHANGE:
         a, b = years[0], years[-1]
         said += (f" Plant cover across the picture went from {a['green']}% in early {a['day'][:4]} to {b['green']}% in early "
+                 f"{b['day'][:4]}, by the satellite's infrared.")
+    elif len(years) >= 3 and max(y["green"] for y in years[:-1]) - years[-1]["green"] >= COVER_CHANGE:
+        # a dry first year hides the fall (Kharadi: 15% in 2019, 28% in 2021, 18% in 2026): measured from the greenest year
+        a, b = max(years[:-1], key=lambda y: y["green"]), years[-1]
+        said += (f" Plant cover across the picture was {a['green']}% in early {a['day'][:4]} and {b['green']}% in early "
                  f"{b['day'][:4]}, by the satellite's infrared.")
     return said
 
