@@ -38,7 +38,7 @@ export default async function InsightPage({ params }: Props) {
         {ld.map((x, i) => <script key={i} type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(x) }} />)}
         <p className="text-sm"><Link href="/insights" className="text-[#0f2340] underline underline-offset-2">All insights</Link></p>
         <h1 className="mt-3 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">{a.title}</h1>
-        <p className="mt-2 text-sm text-slate-600">Last updated: <time dateTime={a.updated}>{a.updatedLabel}</time></p>
+        <p className="mt-2 text-sm text-slate-600">By the {cfg.businessName} team · Last updated: <time dateTime={a.updated}>{a.updatedLabel}</time></p>
         <p className="mt-5 text-lg leading-relaxed text-slate-800">{a.summary}</p>
         <div className="mt-8 space-y-9">
           {a.sections.map((s) => (
@@ -46,6 +46,17 @@ export default async function InsightPage({ params }: Props) {
               <h2 className="text-xl font-semibold text-slate-900">{s.heading}</h2>
               {s.paragraphs?.map((p, i) => <p key={i} className="mt-3 leading-relaxed text-slate-800">{p}</p>)}
               {s.bullets && <ul className="mt-3 list-disc space-y-2 pl-6 leading-relaxed text-slate-800">{s.bullets.map((b, i) => <li key={i}>{b}</li>)}</ul>}
+              {s.links && (
+                <ul className="mt-3 list-none space-y-1 p-0 text-sm">
+                  {s.links.map((l) => (
+                    <li key={l.href}>
+                      {l.href.startsWith('/')
+                        ? <Link href={l.href} className="font-semibold text-[#0f2340] underline underline-offset-2">{l.label} →</Link>
+                        : <a href={l.href} rel="noopener noreferrer" target="_blank" className="font-semibold text-[#0f2340] underline underline-offset-2">{l.label} ↗</a>}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </section>
           ))}
         </div>

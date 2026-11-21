@@ -1,10 +1,12 @@
 /** Insights: buying guides for Pune. General information with cited official sources; no prices per sq ft, no predictions. */
+export interface InsightSource { label: string; href: string }
 export interface InsightSection {
   heading: string
   paragraphs?: string[]
   bullets?: string[]
+  /** pages to read next, after the text: our own pages ("/projects/...") or another site's */
+  links?: InsightSource[]
 }
-export interface InsightSource { label: string; href: string }
 export interface Insight {
   slug: string
   title: string
@@ -13,6 +15,8 @@ export interface Insight {
   updatedLabel: string
   sections: InsightSection[]
   sources: InsightSource[]
+  /** about how Avasetu works rather than a guide to buying, so agents' pages, which list buyer guides, leave it out */
+  aboutUs?: boolean
 }
 
 const NOTE =
@@ -20,6 +24,93 @@ const NOTE =
 export const INSIGHT_NOTE = NOTE
 
 export const INSIGHTS: Insight[] = [
+  {
+    slug: 'ai-real-estate-data-verification',
+    title: 'How we use AI on Pune property pages without letting it make things up',
+    summary:
+      'AI can write about any Pune project, including things that are not true. How every Avasetu page starts from MahaRERA and checked sources, what AI may and may not do, and two live pages that show it: Kohinoor Kaleido in Wagholi and Venkatesh Vanaya in Kharadi.',
+    updated: '2026-11-21',
+    updatedLabel: '21 November 2026',
+    aboutUs: true,
+    sections: [
+      {
+        heading: 'The short version',
+        bullets: [
+          'Facts come first: the MahaRERA record, prices with their source and date, and a map pin checked against the registration. AI only puts checked facts into sentences.',
+          'A fact found on one website alone stays off the page until another source confirms it.',
+          'Every piece of AI writing is checked in code before it reaches a page. When a draft fails, the page shows the facts in plain sentences instead.',
+          'Each page says where each fact came from and when it was last checked, including what is not checked yet.',
+          "One registration's numbers are never passed off as a whole project's.",
+        ],
+      },
+      {
+        heading: 'Why AI on its own is risky on a property page',
+        paragraphs: [
+          "A language model is built to write the likely next sentence, not the true one. Asked about a Pune project, it will happily describe a swimming pool the project does not have, a price nobody quoted, or the possession date from last year's brochure. It reads well, and that is the danger: on a property page a confident mistake can cost a family lakhs.",
+          'Much of what is written about projects online is copied from brochures and from other property sites, so even a careful model repeats their mistakes. We use AI as a writer, never as a source.',
+        ],
+      },
+      {
+        heading: 'Step 1: the register before the writing',
+        paragraphs: [
+          'Every project page starts from its MahaRERA registration: the registration number, the promoter, the pincode, the completion date the builder filed and every change to it, and how many homes are booked. We read the register again and again and keep every reading, which is how a page can say that a date moved or that bookings picked up.',
+          "Prices come from the builder's own site, or from two property sites that agree, and each carries the date it was checked. A project's place comes from its map pin, checked against its MahaRERA name and pincode.",
+        ],
+      },
+      {
+        heading: 'Step 2: what AI may do, and what it may not',
+        bullets: [
+          'It may turn checked facts into readable sentences, such as the short notes under "What stands out" on a project page.',
+          'It may read builder sites and brochures to find facts, which are used only when they agree with MahaRERA or a second source.',
+          'It may not invent a fact, give a number without a source, describe offices or shops as homes, or place a project somewhere its MahaRERA record does not support.',
+        ],
+      },
+      {
+        heading: 'Step 3: every output is checked',
+        paragraphs: [
+          'Before AI writing reaches a page, code checks it: each number has to match a fact we hold, and claims we never make, such as promised returns, advert language or a fact no source backs, are refused. When a draft does not pass, the page does not wait for a better one. It shows the facts in plain sentences: less elegant, always true.',
+          'Pages are read again after they go live, so a fact that has since changed on MahaRERA is caught and the page shows the new date.',
+        ],
+      },
+      {
+        heading: 'Example: Kohinoor Kaleido, Wagholi. Where is it, really?',
+        paragraphs: [
+          "Kohinoor Kaleido (MahaRERA P52100046027) is sold as a Kharadi project by five property sites. Its MahaRERA record gives the pincode 412207, which is Wagholi's, so its page lists it under Wagholi and says so in one line at the top. A model that learned from listings would have repeated \"Kharadi\".",
+          "The page's sources panel shows where each part came from: the registration, dates and bookings from MahaRERA, prices from the builder's site or two property sites that agree, each with the date it was checked. On 21 November 2026 it also showed the description as \"Not checked yet\". Saying what is not checked is part of the job.",
+        ],
+        links: [{ label: 'Kohinoor Kaleido, Wagholi', href: '/projects/kohinoor-kaleido-wagholi' }],
+      },
+      {
+        heading: 'Example: Venkatesh Vanaya, Kharadi. One registration is not the whole project',
+        paragraphs: [
+          "Venkatesh Vanaya is filed with MahaRERA as several registrations, one for each phase, and each has its own homes, bookings and completion date. Putting one phase's numbers in a headline would mislead, so the page gives the whole development's figures and says what they cover: on 20 November 2026, not one of 745 homes across 6 of its 7 registrations had been booked.",
+          'The completion date shows why the history matters. The phase the page is built on has a completion date of 30 April 2031, after a MahaRERA order added months to the 31 December 2030 first filed. A brochure shows one date; the register shows how it got there. The page also shows satellite pictures of the site from November 2022 to April 2026, centred on the checked pin, so anyone can see how far work has gone.',
+        ],
+        links: [{ label: 'Venkatesh Vanaya, Kharadi', href: '/projects/venkatesh-vanaya-wing-i-j-phase-2-kharadi' }],
+      },
+      {
+        heading: 'Where people still come in',
+        paragraphs: [
+          "Some facts only a person can confirm. A site visit note on a project page is written by our team, never by a model. When a reader tells us a page is wrong, we check it against MahaRERA and the builder's documents, fix it, and the page shows the new date.",
+        ],
+        links: [
+          { label: 'How we check every project', href: '/about#how-we-check' },
+          { label: 'Check any project against MahaRERA', href: '/check' },
+          { label: 'Tell us a page is wrong', href: '/contact' },
+        ],
+      },
+      {
+        heading: 'Why it matters',
+        paragraphs: [
+          'Google and AI assistants increasingly answer property questions themselves, and they quote pages that state checked facts with their sources and dates. Being plainly correct is how a small Pune platform earns that trust, one project page at a time.',
+        ],
+      },
+    ],
+    sources: [
+      { label: 'MahaRERA (official portal)', href: 'https://maharera.maharashtra.gov.in/' },
+      { label: 'A shorter version of this article on LinkedIn', href: 'https://www.linkedin.com/pulse/how-we-use-ai-pune-real-estate-pages-without-letting-make-things-isxxf/' },
+    ],
+  },
   {
     slug: 'diwali-home-offers-pune-decoded',
     title: "Diwali home offers in Pune, decoded: what 'zero stamp duty' and 'no EMI' really cost",
