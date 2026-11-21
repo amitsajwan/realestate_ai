@@ -40,7 +40,7 @@ from app.modules.newsroom.store import Store
 
 from . import budget as ai_budget
 from . import fromabove as fa
-from . import esripast_view, sitepics
+from . import esripast_view, fromabove_view, sitepics
 from .pictures import KM_PER_DEG, Box, box_for, classic, enhance, stretch_for
 from .service import all_views
 
@@ -49,7 +49,7 @@ log = logging.getLogger(__name__)
 COLLECTION = "area_from_space"
 MARK = "area_from_space"        # newsroom_status document: when the pass last ran, what it did, why it stopped
 OUT_DIR = Path("uploads") / "area_space"
-VERSION = 1                     # the look's rules: an older look is made again and not shown
+VERSION = 2                     # the look's rules: an older look is made again and not shown; 2: lines against a year before
 PX = 480                        # pixels across the frame: 4.8 km at 10 m a pixel, Sentinel-2's own
 SIDE_MIN_M, SIDE_MAX_M = 4000, 6000
 FIRST_YEAR = 2019               # Sentinel-2's corrected pictures (L2A) cover Pune from late 2018
@@ -151,8 +151,10 @@ clear pass of that season (Oct-Dec, Jan-Mar, Apr-May; the monsoon is under cloud
 infrared picture, where plants show bright red, with the share of the picture under plants. You get the area's MahaRERA
 counts: housing projects registered each year, and the years their completion is filed for.
 
-For each season write one line of at most 14 words: what changed across the area since the season before. Then a summary
-of at most 35 words: how the area changed over all the seasons.
+For each season write one line of at most 14 words: what is different from the same season a year before (for the first
+year's seasons: what the ground is then). Change here is slow: compare across years, not only with the season before, and
+look for blocks of buildings appearing, fields and green cleared, new roads. Then a summary of at most 35 words: how the area
+changed from the first picture to the last, with where.
 
 Rules:
 1. Say only what the pictures show: fields cleared, plants gone or grown, new blocks of buildings, the dark shadows tall
@@ -162,7 +164,7 @@ Rules:
    never more.
 4. Never write floors, slabs, storeys, completion, possession, price, quality, progress, rapid, underway, rising, taller,
    planned, on track or delayed.
-5. A season that looks like the one before: "Little change".
+5. A season where nothing differs from a year before: an empty string "". Never write "Little change" or "No change".
 
 Answer strict JSON: {{"seasons": {{"<label as given>": "<line>", ...}}, "summary": "..."}}"""
 
@@ -200,8 +202,9 @@ async def describe(ask: Any, area: areas.Area, view: Optional[dict], side: int, 
         raise fa.Waiting(f"Gemini failed ({type(e).__name__})")
     if not isinstance(out, dict) or not isinstance(out.get("seasons"), dict):
         raise fa.Waiting("Gemini gave no usable answer")
-    lines = {s.label: fa.checked(out["seasons"].get(s.label), LINE_WORDS) for s in shown}
-    return {"lines": {k: v for k, v in lines.items() if v}, "dropped": sum(1 for v in lines.values() if not v),
+    said = {s.label: out["seasons"].get(s.label) for s in shown}
+    lines = {k: ("" if fromabove_view.quiet(v) or v == "" else fa.checked(v, LINE_WORDS)) for k, v in said.items()}
+    return {"lines": {k: v for k, v in lines.items() if v is not None}, "dropped": sum(1 for v in lines.values() if v is None),
             "summary": fa.checked(out.get("summary"), SUMMARY_WORDS)}
 
 
@@ -265,9 +268,14 @@ def gather(area: areas.Area, sat: Any, today: date, out_dir: Path = OUT_DIR) -> 
     return g
 
 
+def _said(line: Optional[str]) -> str:
+    """A season's line as kept: "" when there is none or it says nothing changed (fromabove_view.quiet)."""
+    return "" if not line or fromabove_view.quiet(line) else line
+
+
 def finish(area: areas.Area, g: Gathered, words: dict, folder: Path) -> dict:
     """The record to store, and the video drawn (sync: a thread)."""
-    season_lines = [{"label": s.label, "day": s.day, "line": words["lines"].get(s.label) or ""} for s in g.shown]
+    season_lines = [{"label": s.label, "day": s.day, "line": _said(words["lines"].get(s.label))} for s in g.shown]
     story = words.get("summary") or sentence(area.name, g.years, g.shown[0].day, g.shown[-1].day)
     credit = f"{sitepics.CREDIT} {g.months[0][:4]}-{g.months[-1][:4]}"
     # one picture a season, its months' median (owner 2026-11-21: month after month "looks same")
@@ -337,7 +345,8 @@ def public_view(doc: Optional[dict]) -> Optional[dict]:
     video = {"src": "/uploads/" + v["path"], "poster": "/uploads/" + v["poster"], "width": v["width"], "height": v["height"],
              "from": v["from"], "to": v["to"], "months": v["months"],
              **({"seasons": v["seasons"]} if v.get("seasons") else {})} if v and v.get("path") else None   # seasons: one picture each
-    seasons = [{"label": s["label"], "day": s["day"], "line": s["line"]} for s in doc.get("seasons") or [] if s.get("line")]
+    seasons = [{"label": s["label"], "day": s["day"], "line": s["line"]} for s in doc.get("seasons") or []
+               if s.get("line") and not fromabove_view.quiet(s["line"])]
     at = doc.get("at")
     return {"area": {"key": area.key, "name": area.name, "slug": area.slug}, "middle": {"lat": doc["lat"], "lon": doc["lon"]},
             "side_km": round(int(doc.get("side_m") or 0) / 1000, 1), "story": doc["story"], "where": doc["where"],

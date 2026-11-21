@@ -264,6 +264,18 @@ alike: about 15 pictures where there were 40-odd. The video record keeps `months
 before (`videoPace`). Owner: "don't change existing videos, their turn will come later": no version bump, so a video is
 drawn the new way at its project's next look (each season) or redraw, never all at once for this.
 
+### No "Little change" lines (2026-11-21)
+
+Owner, on Kharadi's area section: 23 seasons of "Little change." "don't make sense ... I see green going down and construction
+happening" (its measured green fell from 28% in 2021 to 18% in 2026). Gemini was told to compare each season with the one
+before, where change is too slow to see; 38% of all project season lines said the same (80 of 205 pages, half or more).
+- Gemini now compares each season with the same season a year before, and leaves a season with nothing new empty ("");
+  "Little change" and "No change" are named only as forbidden (projects and areas).
+- A line saying nothing changed (`fromabove_view.quiet`) is never shown, on the page, in the transcript or on a video frame,
+  and the code's own words do not stand in for an empty season. This hides the stored ones at once, with no new Gemini call.
+- Areas: areaspace VERSION 2 looks at both areas again under the new words (their pictures are kept: one Gemini call each).
+  Projects keep their lines until their next look (85 days), with the "Little change" ones hidden.
+
 ### Esri's sharp past pictures, on tap (2026-11-21)
 
 Owner, 2026-11-21: "embed esri". Under Google's view on the project section, a **Compare sharp past pictures** button makes

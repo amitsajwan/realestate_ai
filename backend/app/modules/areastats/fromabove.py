@@ -379,8 +379,10 @@ the median of every clear pass of that season (Oct-Dec, Jan-Mar, Apr-May; the mo
 season you also get an infrared picture, where plants show bright red. You get the project's MahaRERA facts: every
 registration behind this page, with its dates, homes and buildings.
 
-For each season write one line of at most 14 words: what is visible in and near the ring and what changed since the
-season before. Then a summary of at most 35 words. Then a pin check.
+For each season write one line of at most 14 words: what is visible in and near the ring and what is different from the
+same season a year before (for the first year's seasons: what the ground is then). Change at a site is slow: compare across
+years, not only with the season before. Then a summary of at most 35 words: what changed from the first picture to the last.
+Then a pin check.
 
 Rules:
 1. Say only what the pictures show: ground cleared, plants gone or grown, new building footprints, roads, the dark
@@ -390,7 +392,7 @@ Rules:
    taller, planned, on track or delayed: at 10 m none of that can be seen.
 4. If buildings stand in the ring in seasons before the project's first registration, say the ring may show an older
    neighbouring phase, and mark the pin as doubtful.
-5. A season that looks like the one before: "Little change".
+5. A season where nothing differs from a year before: an empty string "". Never write "Little change" or "No change".
 6. You may mention one clear change just outside the ring: a project's other phases often sit there.
 
 Answer strict JSON: {"seasons": {"<label as given>": "<line>", ...}, "summary": "...", "pin": "ok" or "doubtful",
@@ -445,8 +447,10 @@ async def describe(ask: Any, d: dict, docs: Sequence[dict], shown: Sequence[Seas
         raise Waiting(f"Gemini failed ({type(e).__name__})")
     if not isinstance(out, dict) or not isinstance(out.get("seasons"), dict):
         raise Waiting("Gemini gave no usable answer")
-    lines = {s.label: checked(out["seasons"].get(s.label), LINE_WORDS) for s in shown}
-    return {"lines": {k: v for k, v in lines.items() if v}, "dropped": sum(1 for v in lines.values() if not v),
+    said = {s.label: out["seasons"].get(s.label) for s in shown}
+    # "" (or a line saying nothing changed): the season has no line, and the code's own words do not stand in for it
+    lines = {k: ("" if fromabove_view.quiet(v) or v == "" else checked(v, LINE_WORDS)) for k, v in said.items()}
+    return {"lines": {k: v for k, v in lines.items() if v is not None}, "dropped": sum(1 for v in lines.values() if v is None),
             "summary": checked(out.get("summary"), SUMMARY_WORDS),
             "pin": "doubtful" if out.get("pin") == "doubtful" else "ok",
             "pin_reason": str(out.get("pin_reason") or "")[:300]}
@@ -518,7 +522,9 @@ def gather(d: dict, pin: Tuple[float, float], sat: Optional[Copernicus], today: 
 def finish(d: dict, g: Gathered, words: dict, today: date, folder: Path) -> dict:
     """The record to store, and the video drawn (sync: a thread)."""
     code_lines = sitepics.captions(g.years, [s.day for s in g.shown])
-    season_lines = [{"label": s.label, "day": s.day, "line": words["lines"].get(s.label) or code_lines.get(s.day) or ""}
+    # Gemini's line, "" where it saw nothing new; the code's own line only where Gemini wrote none that passed its checks
+    said = {s.label: words["lines"][s.label] if s.label in words["lines"] else code_lines.get(s.day) or "" for s in g.shown}
+    season_lines = [{"label": s.label, "day": s.day, "line": "" if fromabove_view.quiet(said[s.label]) else said[s.label]}
                     for s in g.shown]
     if new_launch(d, today):
         story = sitepics.baseline(d["registered_on"])

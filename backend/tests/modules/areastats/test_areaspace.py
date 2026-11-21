@@ -195,3 +195,27 @@ def test_an_unknown_area_or_an_older_look_is_not_shown():
     assert asp.public_view(None) is None
     assert asp.public_view({"_id": "kharadi", "area": "kharadi", "version": 0, "story": "x", "where": "y", "credit": "z",
                             "frames": [{"year": 2020, "day": "2020-02-15", "path": "a", "width": 1, "height": 1}] * 3}) is None
+
+
+class Quiet(Gemini):
+    """Gemini as on Kharadi's first look (2026-11-21): "Little change." for most seasons, one change, and one left empty."""
+
+    async def json(self, system, content):
+        out = await super().json(system, content)
+        labels = list(out["seasons"])
+        out["seasons"] = {lab: "Little change." for lab in labels}
+        out["seasons"][labels[3]] = "Fields cleared in the south-east."
+        out["seasons"][labels[4]] = ""
+        return out
+
+
+async def test_a_season_with_nothing_new_has_no_line_and_gemini_compares_with_a_year_before(tmp_path):
+    asp.configure(render=render)
+    store = await seeded()
+    gem = Quiet()
+    await asp.refresh(store, NOW, sat=Sat(), ask=gem, out_dir=tmp_path)
+    assert "same season a year before" in gem.systems[0] and '"Little change"' in gem.systems[0]   # named only as forbidden
+    rec = await asp.AreaSpace(store.db).get("kharadi")
+    assert [s["line"] for s in rec["seasons"] if s["line"]] == ["Fields cleared in the south-east."]
+    assert [s[2] for s in render.called[2] if s[2]] == ["Fields cleared in the south-east."]      # nor on the video
+    assert [s["line"] for s in (await asp.one(store.db, "kharadi"))["seasons"]] == ["Fields cleared in the south-east."]
