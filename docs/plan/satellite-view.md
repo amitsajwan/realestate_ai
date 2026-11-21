@@ -226,6 +226,35 @@ condition for a video result) with the live view under it. The video now ends on
 nothing but the ring and the credit over it (`site_timelapse.page_keys`), and that frame is the poster. Videos drawn before
 (VIDEO_VERSION < 4) are drawn again by the daily pass from the kept months and the stored lines: no request, no Gemini.
 
+### Google first, the timeline as proof (2026-11-21)
+
+Owner, with an outside note: "keep the Copernicus imagery on the page, but stop treating it as a primary visual feature;
+demote it to a secondary verification badge below the clear Google Maps view", "analyse current satellite view to provide
+current update", and "remember the possession date: after 5 years why check from 2021".
+
+- **Order on the project page** (`ProjectFromAbove.tsx`): "<name> from above, today"; Google's satellite embed; the latest
+  reading (the newest season's line, its season and the day of the last look, then "Registered with MahaRERA <month> ·
+  possession filed for <month>", the possession through `possessionLabel`, the whole project's); the summary; the three
+  seasons before. Then a closed badge, "Construction proof from space: <from> to <to>, Copernicus Sentinel-2"
+  (`FromAboveProof.tsx`): opening it makes the video and the yearly row (neither is in the page before, so nothing
+  downloads), and holds the earlier season lines, the method and the links.
+- **For search nothing is lost**: every season line is in the server HTML (the earlier ones inside the badge), and the
+  ImageObject and VideoObject data with the transcript stay. The watch page `/projects/<slug>/from-space`, the hub and the
+  video sitemap are unchanged.
+- **"Current update"**: from the newest Sentinel season, not from Google's picture. Google's imagery may only be shown through
+  its embed (Rules above: never downloaded or read), and it carries no date: it can be older than our newest pass. The
+  caption under it says so.
+- **The window**: a timeline starts in January of the year before the project's first registration, the earliest across the
+  page and the registrations behind it (`fromabove.registered`, `first_year`): one look at the ground before work could
+  start. It starts earlier only when that would leave fewer than three January to March seasons, the yearly row's minimum
+  (`window`), so a new launch still shows. A look reads two spare years before the window, not every month since 2021 (fewer
+  Copernicus requests). The record keeps `registered`; the page shows it.
+- **Looks made before**: VIDEO_VERSION 5 makes the daily redraw cut each to its window from the kept pictures, with the
+  stored lines (no request, no Gemini): yearly row, season lines, video and credit years. Its summary stays as written until
+  the next look (85 days), and may still name an earlier year.
+- Tests: `test_fromabove.py` (window, new launch, redraw cut), `__tests__/site/from-above.test.tsx` (order, closed badge
+  downloads nothing, latest reading with registration and possession, every line in the page).
+
 ### 3. The site over time, from Sentinel-2: a trial on five projects (code, then the owner decides)
 
 1. A script, not a loop: `backend/scripts/sentinel_trial.py --regno <n>`. For the checked pin, a 1 km square, it asks the
