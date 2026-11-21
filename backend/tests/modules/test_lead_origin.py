@@ -46,3 +46,25 @@ async def test_leads_from_ai_answers_are_counted_per_assistant_for_the_week():
         await contacts.insert_one({"_id": str(i), "source": source, "utm": utm, "first_touch": {"referrer": ref},
                                    "created_at": NOW - timedelta(days=days)})
     assert await origin.leads_from_ai(contacts, NOW - timedelta(days=7)) == {"ChatGPT": 2, "Gemini": 1}
+
+
+def test_a_paid_google_click_is_google_ads_not_google_search():
+    # auto-tagging: the click id alone, arriving from google.com like a search click
+    assert origin.source_key(None, "https://www.google.com/", {"gclid": "Cj0KCQ"}) == "google_ads"
+    assert origin.source_key(None, "https://www.google.com/", {"utm_source": "google", "utm_medium": "cpc"}) == "google_ads"
+    assert origin.source_key(None, None, {"utm_source": "instagram", "utm_medium": "paid_social"}) == "meta_ads"
+    assert origin.source_key(None, None, {"utm_source": "newsletter", "utm_medium": "cpc"}) == "paid_ads"
+    # a search click and an ordinary tagged link stay what they were
+    assert origin.source_key(None, "https://www.google.com/", {"utm_source": "google", "utm_medium": "organic"}) == "google"
+    assert origin.source_key("qr", None, {"gclid": "x"}) == "qr"
+
+
+def test_the_agent_reads_google_ads_as_the_source():
+    lead = {"source": None, "utm": {"gclid": "Cj0KCQ"}, "first_touch": {"referrer": "https://www.google.com/"}}
+    assert source_text(lead) == "Google Ads"
+
+
+def test_a_scan_an_answer_and_a_bio_link_are_named_for_the_agent():
+    assert source_text({"source": "qr", "first_touch": {}}) == "A QR code on print"
+    assert source_text({"source": "answer", "first_touch": {}}) == "A Reddit or Quora answer"
+    assert source_text({"source": "bio", "first_touch": {}}) == "Your Instagram or WhatsApp bio"

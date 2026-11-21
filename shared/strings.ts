@@ -9,6 +9,8 @@ const en = {
   hello: 'Namaste',
   addListing: '+ Add listing',
   mySite: 'My website',
+  bioLinkHelp: 'Put this link in your Instagram and WhatsApp Business bio: buyers who find you there open your listings, and Leads shows they came from your bio.',
+  copyBioLink: 'Copy bio link',
   open: 'Open',
   share: 'Share',
   shareWhatsapp: 'Share on WhatsApp',

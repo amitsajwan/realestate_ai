@@ -23,6 +23,9 @@ const SOURCES: Record<string, string> = {
   twitter: 'X (Twitter)', linkedin: 'LinkedIn', reddit: 'Reddit', perplexity: 'Perplexity', unknown: 'Not recorded',
   // the other AI assistants (backend tracking/origin.AI_REFERRERS)
   copilot: 'Copilot', gemini: 'Gemini', claude: 'Claude', you: 'You.com', phind: 'Phind', meta_ai: 'Meta AI', grok: 'Grok', deepseek: 'DeepSeek',
+  // paid clicks (backend tracking/origin.PAID_NAMES): an ad's click id or utm_medium=cpc
+  google_ads: 'Google Ads', meta_ads: 'Facebook / Instagram ads', bing_ads: 'Microsoft Ads', paid_ads: 'A paid ad',
+  qr: 'QR code', answer: 'Reddit or Quora answer', bio: 'Your Instagram or WhatsApp bio',
 }
 
 const TAG_PREFIX: Record<string, string> = { fb: 'Facebook', ig: 'Instagram', wa: 'WhatsApp', yt: 'YouTube' }

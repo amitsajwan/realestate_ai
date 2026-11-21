@@ -209,6 +209,23 @@ export interface AiVisits {
   totals: Record<string, number>
 }
 
+/** Answers to post on Reddit and Quora (backend seo/answers.py): a buyer's question about one of our areas' projects, the
+ *  answer its page holds (written by code from MahaRERA, never a model), a draft and where to find a thread. Posted by hand. */
+export interface AnswerItem {
+  project: string
+  area: string
+  regno: string
+  topic: string
+  question: string
+  answer: string
+  source: string | null
+  page: string
+  draft: string
+  find: { reddit: string; quora: string }
+}
+export interface Answers { week: number; items: AnswerItem[] }
+
+export const getAnswers = () => call<Answers>('answers')
 export const getRankings = () => call<Rankings>('rankings')
 export const revertPage = (path: string) => call<{ reverted: number }>('rankings/revert', { path })
 export const decideSplit = (regnos: string[], decision: 'same' | 'apart' | 'undo') => call<{ decision: string }>('rankings/split', { regnos, decision })

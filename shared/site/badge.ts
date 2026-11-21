@@ -16,3 +16,8 @@ export function badgeEmbed(siteUrl: string, slug: string, regno: string, name: s
   return `<a href="${base}/projects/${slug}" title="${esc(name)} on MahaRERA, checked by Avasetu">` +
     `<img src="${badgeUrl(base, regno)}" width="300" height="64" alt="${esc(name)}: checked on MahaRERA (${regno})" /></a>`
 }
+
+/** The printable QR card for a project page (the site draws it at /qr/<slug>.svg): for the office and site-visit sheets. */
+export function qrUrl(siteUrl: string, slug: string): string {
+  return `${siteUrl.replace(/\/$/, '')}/qr/${slug}.svg`
+}

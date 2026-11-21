@@ -165,9 +165,9 @@ class TrackingService:
                 "_id": uuid.uuid4().hex,
                 "agent_id": agent_id, "name": i.name, "phone": i.phone, "message": i.message,
                 "anon_ids": [i.anon_id], "stage": "new",
-                # a tagged link (src=) wins; else an AI assistant's utm_source; else the outside site that sent them (google,
-                # instagram, ...)
-                "source": i.source or origin.ai_utm(i.utm) or origin.referrer_source(came_from["referrer"]) or came_from["app"],
+                # a tagged link (src=) wins; else an ad's tags or an AI assistant's utm_source; else the outside site that
+                # sent them (google, instagram, ...)
+                "source": i.source or origin.utm_source(i.utm) or origin.referrer_source(came_from["referrer"]) or came_from["app"],
                 "utm": i.utm,
                 "first_touch": came_from, "channel": i.channel,
                 "first_listing_id": i.listing_id,
