@@ -153,6 +153,32 @@ async def public_area_landmarks(slug: str, response: Response) -> dict:
     return out
 
 
+from . import compare  # noqa: E402
+
+
+@public_router.get("/areas/compare")
+async def public_area_pairs(response: Response) -> list:
+    """Every pair of neighbouring areas we compare: [{slug, a, b, apart_km}] (compare.py). Fixed by the code, no database."""
+    response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
+    return compare.listing()
+
+
+@public_router.get("/areas/compare/{pair}")
+async def public_area_compare(pair: str, response: Response, db=Depends(get_db)) -> dict:
+    """Two neighbouring areas side by side ("kharadi-vs-wagholi"): MahaRERA counts, possession dates moved, distances to the same
+    places. 404 for any other pair or the other order; `canonical` in the 404 says which address the site should send it to."""
+    found = compare.find(pair)
+    if found is None:
+        raise HTTPException(status_code=404, detail={"error": "Unknown pair", "canonical": compare.canonical(pair)})
+    a, b = found
+    stats = {x.key: await area_stats(db, x.key) for x in found}
+    docs = await Store(db).shared_projects()
+    today = datetime.now(IST).date()
+    moves = {x.key: date_moves([d for d in docs if d.get("locality") == x.key], today) for x in found}
+    response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
+    return compare.compare(a, b, stats, moves)
+
+
 from . import areaspace  # noqa: E402
 
 

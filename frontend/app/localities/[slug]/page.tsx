@@ -36,6 +36,8 @@ import { getFacets, siblings, withoutMovedSizePages } from '@/lib/site/facets'
 import { livePages } from '@/lib/site/filters'
 import { getRegisterPlaces, placePath } from '@/lib/site/register'
 import { fetchTopics, topicPath } from '@/lib/site/topics'
+import { getAreaPairs, pairsWith } from '@/lib/site/compare'
+import { PairLinks } from '@/components/localities/AreaCompare'
 
 type Props = { params: Promise<{ slug: string }> }
 type PageLocality = (Locality & { fallback?: false }) | {
@@ -151,7 +153,7 @@ export default async function LocalityPage({ params }: Props) {
   if (!validSlug(slug)) notFound()
   const l = pageLocality(slug)
   const photosRead = l.fallback ? Promise.resolve([]) : getAreaPhotos(l.slug)   // read alongside the rest; never rejects
-  const [listings, projects, stats, posts, news, hoods, active, facets, map, listed, trackers, places, landmarks] = await Promise.all([
+  const [listings, projects, stats, posts, news, hoods, active, facets, map, listed, trackers, places, landmarks, pairs] = await Promise.all([
     getLocalityListings(l.listingName), getCatalog(l.listingName), l.fallback ? Promise.resolve(null) : getAreaStats(l.slug),
     l.fallback ? Promise.resolve([]) : getAreaPosts(l, 6), l.fallback ? Promise.resolve([]) : getAreaNews(l, 5),
     l.fallback ? Promise.resolve([]) : getCommunities(l.key),
@@ -162,6 +164,7 @@ export default async function LocalityPage({ params }: Props) {
     l.fallback ? Promise.resolve([]) : fetchTrackers(l.key),
     l.fallback ? Promise.resolve([]) : getRegisterPlaces(),
     l.fallback ? Promise.resolve(null) : getAreaLandmarks(l.slug),
+    l.fallback ? Promise.resolve([]) : getAreaPairs(),
   ])
   const photos = await photosRead
   // the block shows when something tracked touches this area; the city-wide rates come along with it, never alone
@@ -278,6 +281,9 @@ export default async function LocalityPage({ params }: Props) {
           <section className="mt-9"><h2 className="text-xl font-semibold text-slate-900">Related guides</h2>
             <ul className="mt-3 space-y-1">{guides.map((g) => <li key={g.slug}><Link href={`/insights/${g.slug}`} className="text-[#0f2340] underline underline-offset-2">{g.title}</Link></li>)}</ul></section>
         )}
+
+        {/* the neighbouring areas side by side (lib/site/compare.ts): only areas near this one, nearest first */}
+        <PairLinks pairs={pairsWith(pairs, l.slug)} title={`Compare ${l.name} with nearby areas`} />
 
         {/* Same tier only, never "nearby" or a distance: the IT corridor spans both ends of the city. */}
         <section className="mt-9" aria-labelledby="other-areas-title">
