@@ -89,6 +89,8 @@ describe('social strip and contact block', () => {
     expect(screen.getByRole('link', { name: /Facebook/ })).toHaveAttribute('href', DEFAULT_FACEBOOK_URL)
     expect(screen.getByRole('link', { name: /Instagram/ })).toHaveAttribute('href', 'https://www.instagram.com/avasetu_/')
     expect(DEFAULT_INSTAGRAM_URL).toBe('https://www.instagram.com/avasetu_/')
+    // the LinkedIn company page links the home page, so the footer links back (2026-11-21)
+    expect(screen.getByRole('link', { name: /LinkedIn/ })).toHaveAttribute('href', 'https://www.linkedin.com/company/avasetu/')
     for (const a of screen.getAllByRole('link')) expect(a.getAttribute('rel')).toContain('noopener')
   })
 
@@ -107,7 +109,8 @@ describe('social strip and contact block', () => {
   })
 
   it("the brand's other profiles join sameAs only as a page of their own, never a site's front page", () => {
-    expect(brandProfiles()).toEqual([DEFAULT_FACEBOOK_URL, DEFAULT_INSTAGRAM_URL, 'https://www.linkedin.com/company/avasetu/'])
+    expect(brandProfiles()).toEqual([DEFAULT_FACEBOOK_URL, DEFAULT_INSTAGRAM_URL, 'https://www.linkedin.com/company/avasetu/',
+      'https://www.youtube.com/@avasetu'])
     expect(brandProfiles([' https://www.linkedin.com/company/avasetu/ ', 'https://linkedin.com', 'https://instagram.com/',
       'http://www.crunchbase.com/organization/avasetu', '', DEFAULT_INSTAGRAM_URL]))
       .toEqual([DEFAULT_FACEBOOK_URL, DEFAULT_INSTAGRAM_URL, 'https://www.linkedin.com/company/avasetu/'])

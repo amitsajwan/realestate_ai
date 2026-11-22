@@ -1,12 +1,14 @@
 import React from 'react'
-import { socialLinks } from '@/lib/marketing/social'
+import { MORE_PROFILES, socialLinks } from '@/lib/marketing/social'
 import { BRAND_NAME } from '@/lib/brand'
 
 const ICON = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'currentColor', 'aria-hidden': true as const, focusable: false as const }
 
-/** Real links to the Avasetu Facebook Page and Instagram. Opens in a new tab. tone = background it sits on. */
+/** Real links to the Avasetu Facebook Page, Instagram and, once it is live (MORE_PROFILES), the LinkedIn company page: people who
+ *  come from LinkedIn see the way back. Opens in a new tab. tone = background it sits on. */
 export default function SocialStrip({ tone = 'light', className = '' }: { tone?: 'light' | 'dark'; className?: string }) {
   const { facebook, instagram } = socialLinks()
+  const linkedin = MORE_PROFILES.find((u) => /^https:\/\/(www\.)?linkedin\.com\/company\/[^/]+/.test(u))
   const base = 'inline-flex min-h-[44px] items-center gap-2 rounded-full border px-4 text-sm font-semibold no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2'
   const look = tone === 'dark'
     ? 'border-white/40 text-white hover:bg-white/10 focus-visible:outline-white'
@@ -25,6 +27,14 @@ export default function SocialStrip({ tone = 'light', className = '' }: { tone?:
           Instagram<span className="sr-only"> (opens in a new tab)</span>
         </a>
       </li>
+      {linkedin && (
+        <li>
+          <a href={linkedin} target="_blank" rel="noopener noreferrer" className={base + ' ' + look}>
+            <svg {...ICON}><path d="M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zM3 9.75h4v11.25H3V9.75zm6.5 0h3.8v1.55h.06c.53-1 1.83-2.05 3.77-2.05 4.03 0 4.77 2.65 4.77 6.1V21h-4v-5.1c0-1.22-.02-2.78-1.7-2.78-1.7 0-1.95 1.32-1.95 2.69V21h-4V9.75z" /></svg>
+            LinkedIn<span className="sr-only"> (opens in a new tab)</span>
+          </a>
+        </li>
+      )}
     </ul>
   )
 }

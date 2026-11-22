@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 
 // The area page reads listings, projects and the MahaRERA area stats from the API: replaced here.
 const mockFetch = jest.fn()
@@ -139,6 +139,15 @@ describe('area pages', () => {
     render(await LocalityPage({ params: Promise.resolve({ slug: 'wagholi' }) }))
     expect(screen.getByRole('region', { name: 'In the MahaRERA records' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Tell us what you are looking for' })).toHaveAttribute('href', '/enquire?src=locality_wagholi')
+  })
+
+  it("shows the east Pune corridor on east Pune's guides only (it left the home page 2026-11-21)", async () => {
+    respond(200, STATS)
+    render(await LocalityPage({ params: Promise.resolve({ slug: 'wagholi' }) }))
+    expect(within(screen.getByTestId('area-corridor')).getByRole('heading', { name: 'What is coming to east Pune' })).toBeInTheDocument()
+    cleanup()
+    render(await LocalityPage({ params: Promise.resolve({ slug: 'baner' }) }))
+    expect(screen.queryByTestId('area-corridor')).toBeNull()
   })
 
   it('still renders the page, without the section, when the stats call fails', async () => {

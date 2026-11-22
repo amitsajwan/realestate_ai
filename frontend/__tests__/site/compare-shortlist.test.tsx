@@ -3,7 +3,7 @@ import React from 'react'
 import PickButtons from '@/components/site/PickButtons'
 import PicksBar from '@/components/site/PicksBar'
 import RegisterProjectPage from '@/components/site/RegisterProjectPage'
-import { briefLine, compareRows, soonerNearby } from '@/lib/site/compare'
+import { briefLine, compareRows, soonerNearby } from '@/lib/site/projectCompare'
 import {
   COMPARE_KEY, COMPARE_MAX, SAVED_KEY, comparePath, parseSlugs, readPicks, shortlistMessage, shortlistPath, toggle, whatsappShare,
 } from '@/lib/site/picks'

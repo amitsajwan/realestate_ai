@@ -5,6 +5,7 @@ import { notFound, permanentRedirect } from 'next/navigation'
 import AgentStrip from '@/components/marketing/AgentStrip'
 import MarketingShell from '@/components/marketing/MarketingShell'
 import HomePlanBox from '@/components/site/homeplan/HomePlanBox'
+import CorridorMap, { CorridorStatus } from '@/components/site/CorridorMap'
 import ListingCard from '@/components/site/ListingCard'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { INSIGHT_NOTE, getInsight } from '@/lib/marketing/insights'
@@ -35,6 +36,8 @@ import { getFacets, siblings, withoutMovedSizePages } from '@/lib/site/facets'
 import { livePages } from '@/lib/site/filters'
 import { getRegisterPlaces, placePath } from '@/lib/site/register'
 import { fetchTopics, topicPath } from '@/lib/site/topics'
+import { getAreaPairs, pairsWith } from '@/lib/site/compare'
+import { PairLinks } from '@/components/localities/AreaCompare'
 
 type Props = { params: Promise<{ slug: string }> }
 type PageLocality = (Locality & { fallback?: false }) | {
@@ -150,7 +153,7 @@ export default async function LocalityPage({ params }: Props) {
   if (!validSlug(slug)) notFound()
   const l = pageLocality(slug)
   const photosRead = l.fallback ? Promise.resolve([]) : getAreaPhotos(l.slug)   // read alongside the rest; never rejects
-  const [listings, projects, stats, posts, news, hoods, active, facets, map, listed, trackers, places, landmarks] = await Promise.all([
+  const [listings, projects, stats, posts, news, hoods, active, facets, map, listed, trackers, places, landmarks, pairs] = await Promise.all([
     getLocalityListings(l.listingName), getCatalog(l.listingName), l.fallback ? Promise.resolve(null) : getAreaStats(l.slug),
     l.fallback ? Promise.resolve([]) : getAreaPosts(l, 6), l.fallback ? Promise.resolve([]) : getAreaNews(l, 5),
     l.fallback ? Promise.resolve([]) : getCommunities(l.key),
@@ -161,6 +164,7 @@ export default async function LocalityPage({ params }: Props) {
     l.fallback ? Promise.resolve([]) : fetchTrackers(l.key),
     l.fallback ? Promise.resolve([]) : getRegisterPlaces(),
     l.fallback ? Promise.resolve(null) : getAreaLandmarks(l.slug),
+    l.fallback ? Promise.resolve([]) : getAreaPairs(),
   ])
   const photos = await photosRead
   // the block shows when something tracked touches this area; the city-wide rates come along with it, never alone
@@ -209,6 +213,14 @@ export default async function LocalityPage({ params }: Props) {
 
         <section className="mt-9"><h2 className="text-xl font-semibold text-slate-900">Getting around</h2>
           {l.gettingAround.map((p) => <p key={p} className="mt-3 leading-relaxed text-slate-800">{p}</p>)}</section>
+        {/* the east Pune corridor, running and coming (owner 2026-10-29, "show what is coming"): on the home page until
+            2026-11-21, when the home page became all of Pune's; here it is about the area the reader is looking at */}
+        {EAST_GUIDES.has(l.slug) && (
+          <div className="mt-10 overflow-hidden rounded-xl border border-slate-200" data-testid="area-corridor">
+            <div className="bg-[#0f2340] p-3 sm:p-4"><CorridorMap /></div>
+            <CorridorStatus />
+          </div>
+        )}
         <AreaLandmarks data={landmarks} homesNearWork={EAST_GUIDES.has(l.slug) ? '/home-plan' : undefined} />
 
         <AreaRecords name={l.name} stats={stats} links={recordLinks(l, places, facets)} />
@@ -269,6 +281,9 @@ export default async function LocalityPage({ params }: Props) {
           <section className="mt-9"><h2 className="text-xl font-semibold text-slate-900">Related guides</h2>
             <ul className="mt-3 space-y-1">{guides.map((g) => <li key={g.slug}><Link href={`/insights/${g.slug}`} className="text-[#0f2340] underline underline-offset-2">{g.title}</Link></li>)}</ul></section>
         )}
+
+        {/* the neighbouring areas side by side (lib/site/compare.ts): only areas near this one, nearest first */}
+        <PairLinks pairs={pairsWith(pairs, l.slug)} title={`Compare ${l.name} with nearby areas`} />
 
         {/* Same tier only, never "nearby" or a distance: the IT corridor spans both ends of the city. */}
         <section className="mt-9" aria-labelledby="other-areas-title">

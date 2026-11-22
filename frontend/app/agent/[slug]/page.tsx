@@ -95,7 +95,7 @@ export default async function AgentHomePage({ params, searchParams }: Props) {
           <h2 id="guides-title" className="mb-1 text-2xl font-bold">Guides for Pune home buyers</h2>
           <p className="mb-4 text-slate-600">Plain-language, sourced, and no guesses on prices.</p>
           <ul className="grid gap-4 sm:grid-cols-3">
-            {INSIGHTS.map((a) => (
+            {INSIGHTS.filter((a) => !a.aboutUs).map((a) => (
               <li key={a.slug}>
                 <Link href={`/insights/${a.slug}`} className="flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-4 no-underline hover:border-[var(--site-primary)]">
                   <span className="text-xs font-bold uppercase tracking-wide text-[var(--site-accent-text)]">Guide</span>

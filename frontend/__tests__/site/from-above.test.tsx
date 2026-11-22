@@ -66,6 +66,18 @@ describe('the site from above', () => {
     expect(screen.getByTestId('from-above-video')).toBeTruthy()
   })
 
+  it('shows the video in the open under the latest reading while the project is being built, the yearly pictures still folded', () => {
+    render(<ProjectFromAbove view={fromRecord(raw, SLUG)!} shown="Kohinoor Riverdale" siteUrl="https://avasetu.in" building />)
+    const film = screen.getByTestId('from-above-film')
+    expect(film.querySelector('[data-testid="from-above-video"]')).toBeTruthy()
+    expect(screen.getByTestId('from-above-latest').compareDocumentPosition(film) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.getByTestId('from-above-proof').contains(film)).toBe(false)
+    expect(screen.queryAllByRole('img')).toHaveLength(0)
+    open()
+    expect(screen.getAllByTestId('from-above-video')).toHaveLength(1)   // not drawn twice once the badge opens
+    expect(screen.getAllByRole('img').length).toBe(4)
+  })
+
   it('plays the season-by-season video once, only when its files are the project’s own, and names it for search', () => {
     expect(fromRecord({ ...raw, video: { ...video, poster: '/uploads/other.webp' } }, SLUG)?.video).toBeNull()
     expect(fromRecord({ ...raw, video: { ...video, months: 2 } }, SLUG)?.video).toBeNull()
