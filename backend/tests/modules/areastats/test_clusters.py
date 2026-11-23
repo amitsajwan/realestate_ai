@@ -7,6 +7,7 @@ from app.modules.areastats.clusters import (
     cluster_key,
     compute_clusters,
     confirmed_groups,
+    squash,
 )
 from app.modules.areastats.pages import assign_all
 from app.modules.newsroom.store import Store
@@ -43,6 +44,16 @@ def test_base_name_strips_a_letter_and_number_tower_id():
     assert base_name("The Unicorn Building A Wing A1 & A2") == "the unicorn"
     assert base_name("Skyline Tower T-3") == "skyline"
     assert base_name("Kohinoor B2B") == "kohinoor b2b"   # a letter-number word with no label stays part of the name
+
+
+def test_base_name_strips_a_number_glued_to_its_label():
+    # VTP Beaumonde Nation R2: towers 4 and 5, one promoter and pincode, stayed on two pages (2026-11-23)
+    assert squash(base_name("VTP Beaumonde-Nation R2 Tower4")) == squash(base_name("Vtp Beaumonde- Nation R2 Tower5")) == "vtpbeaumondenationr2"
+    assert base_name("VTP Aethereus phase2") == base_name("VTP Aethereus Phase 1") == "vtp aethereus"
+    assert base_name("MANTRA CITY 360 PHASE01") == "mantra city 360"
+    # only a number is read glued: a letter would make "Wings" wing "s"
+    assert base_name("Grand Wings") == "grand wings"
+    assert base_name("Sky Towers") == "sky towers"
 
 
 def test_base_name_strips_trailing_roman_numeral():
