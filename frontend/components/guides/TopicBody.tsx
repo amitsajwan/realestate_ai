@@ -76,15 +76,21 @@ export function FactTable({ table, lang }: { table: TopicTable; lang: Topic['lan
   )
 }
 
-/** The story: status line, key dates, the written sections, and results when the topic has them. */
-export function TopicStory({ t, lang }: { t: Topic; lang: Topic['lang'] }) {
+/** The status line: the guide's answer in one paragraph. */
+export function TopicStatus({ t, lang, className = '' }: { t: Topic; lang: Topic['lang']; className?: string }) {
+  return <p className={`rounded-xl border border-amber-300 bg-amber-50 p-4 font-semibold text-amber-900 ${className}`.trim()}>{say(t.status_line, lang)}</p>
+}
+
+/** The story: status line, key dates, the written sections, and results when the topic has them. An area's page shows the status
+ *  line at its top instead (`status={false}`). */
+export function TopicStory({ t, lang, status = true }: { t: Topic; lang: Topic['lang']; status?: boolean }) {
   const s = (x: Text | undefined) => say(x, lang)
   return (
     <>
-      <p className="rounded-xl border border-amber-300 bg-amber-50 p-4 font-semibold text-amber-900">{s(t.status_line)}</p>
+      {status && <TopicStatus t={t} lang={lang} />}
 
-      <h2 className="mt-8 text-xl font-bold text-[#0f2340]">{s(UI.dates)}</h2>
-      <dl className="mt-3 divide-y divide-slate-200 rounded-xl border border-slate-200">
+      {t.dates.length > 0 && <h2 className="mt-8 text-xl font-bold text-[#0f2340]">{s(UI.dates)}</h2>}
+      {t.dates.length > 0 && <dl className="mt-3 divide-y divide-slate-200 rounded-xl border border-slate-200">
         {t.dates.map((d, i) => (
           <div key={i} className="flex flex-col gap-1 p-3 sm:flex-row sm:justify-between sm:gap-4">
             <dt className="text-slate-700">{s(d.label)}</dt>
@@ -94,7 +100,7 @@ export function TopicStory({ t, lang }: { t: Topic; lang: Topic['lang'] }) {
             </dd>
           </div>
         ))}
-      </dl>
+      </dl>}
 
       {t.sections.map((sec) => (
         <section key={sec.id} className="mt-8">

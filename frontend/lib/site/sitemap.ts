@@ -7,6 +7,7 @@ import { fetchTrackers, trackerPath } from '@/lib/news/trackers'
 import { getCatalog, getSitemapEntries } from '@/lib/site/api'
 import { getFacets, withoutMovedSizePages } from '@/lib/site/facets'
 import { fetchTopics, topicPath } from '@/lib/site/topics'
+import { AREA_GUIDES } from '@/lib/site/areaGuide'
 import { livePages } from '@/lib/site/filters'
 import { getBuilders } from '@/lib/site/hubs'
 import { getRegisterProjects, getRegisterPlaces, placePath, projectPageOfListing, regnoKey } from '@/lib/site/register'
@@ -100,8 +101,9 @@ export async function buildSitemap(): Promise<Grouped> {
     core(at('/pune-maharera-tracker', 0.8)),
     core(at('/about', 0.5)),
     core(at('/contact', 0.5)),
-    // a locality with a guide of the same slug names the guide as its canonical page, so only the guide is listed
-    ...LOCALITIES.filter((l) => !topics.some((t) => t.slug === l.slug)).map((l) => core(at(`/localities/${l.slug}`, 0.8, l.updated))),
+    // an area with its own guide redirects there, so only the guide is listed (AREA_GUIDES, not the topics read: a failed read
+    // would list a redirect)
+    ...LOCALITIES.filter((l) => !AREA_GUIDES.has(l.slug)).map((l) => core(at(`/localities/${l.slug}`, 0.8, l.updated))),
     // neighbouring areas side by side (lib/site/compare.ts): 13 pairs, each made of the two areas' own figures
     ...pairs.map((p) => core(at(comparePath(p.slug), 0.6))),
     core(at('/news', 0.8)),

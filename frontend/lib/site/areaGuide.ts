@@ -3,7 +3,8 @@
  * search: its locality page names the guide as canonical and leaves the sitemap (265ed70f). A canonical is only a hint, and
  * Google kept showing /localities/upper-kharadi beside the guide for "upper kharadi" because every link on the site still
  * pointed at the locality page (Search Console, 2026-11-23: 118 impressions on it, the guide linked from nowhere). So the
- * site's own links name the same page as the canonical.
+ * site's own links name the same page as the canonical. That was not enough either (Google kept the locality page as its own
+ * canonical), so from 2026-11-23 /localities/<slug> redirects to the guide, which is the whole area page (components/area/AreaPage).
  *
  * Kept here rather than read from the topics API because the links sit in pages that render without it; an area joins this
  * list when its topic page goes live.
