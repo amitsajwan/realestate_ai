@@ -13,6 +13,7 @@ import { getFacets, sizePage } from '@/lib/site/facets'
 import { type AnyFilter, MIN_PROJECTS, filterPath, filterProjects, filterTitle } from '@/lib/site/filters'
 import { formatPrice, groupIndian } from '@/lib/site/format'
 import { formatDay } from '@/lib/site/projects'
+import { areaGuidePath } from '@/lib/site/areaGuide'
 
 /** The matching projects, or null when the area is unknown or fewer than MIN_PROJECTS match (the page is then a 404). */
 async function load(f: AnyFilter | null, areaSlug: string) {
@@ -50,10 +51,10 @@ export default async function FilterPage({ filter, areaSlug }: { filter: AnyFilt
     <MarketingShell hot={{ area: area.slug }}>
       <div className="mx-auto max-w-5xl px-4 py-10 sm:py-14" style={AVASETU_SITE_VARS}>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(breadcrumbJsonLd(cfg.siteUrl, [
-          { name: 'Home', path: '/' }, { name: 'Area guides', path: '/localities' }, { name: `${area.name}, Pune`, path: `/localities/${area.slug}` }, { name: title, path },
+          { name: 'Home', path: '/' }, { name: 'Area guides', path: '/localities' }, { name: `${area.name}, Pune`, path: areaGuidePath(area.slug) }, { name: title, path },
         ])) }} />
         <nav aria-label="Breadcrumb" className="text-sm">
-          <Link href={`/localities/${area.slug}`} className="inline-flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2">{area.name} area guide</Link>
+          <Link href={areaGuidePath(area.slug)} className="inline-flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2">{area.name} area guide</Link>
         </nav>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">{title}</h1>
         <p className="mt-4 max-w-3xl text-lg leading-relaxed text-slate-800">
@@ -94,7 +95,7 @@ export default async function FilterPage({ filter, areaSlug }: { filter: AnyFilt
         </ul>
 
         <p className="mt-8">
-          <Link href={`/localities/${area.slug}`} className="font-semibold text-[#0f2340] underline underline-offset-2">Who {area.name} suits, how to get around and what to check</Link>
+          <Link href={areaGuidePath(area.slug)} className="font-semibold text-[#0f2340] underline underline-offset-2">Who {area.name} suits, how to get around and what to check</Link>
         </p>
       </div>
     </MarketingShell>

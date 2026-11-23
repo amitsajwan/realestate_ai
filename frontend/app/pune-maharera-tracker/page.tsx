@@ -9,6 +9,7 @@ import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/se
 import { fixturesForced } from '@/lib/site/api'
 import { getFacets } from '@/lib/site/facets'
 import { getRegisterPlaces } from '@/lib/site/register'
+import { areaGuidePath } from '@/lib/site/areaGuide'
 
 /** Pune's new-home projects by area, from MahaRERA's public records, kept current by the register refresh. A page others can
  *  cite and link to: facts only, each area linked to its guide, a ready-made citation. Rendered per request (the figures are
@@ -82,7 +83,7 @@ function DateMovesReport({ city, asOf }: { city: CityStats; asOf: string }) {
               const m = a.date_moves as DateMoves
               return (
                 <tr key={a.area.key} className="border-t border-slate-200">
-                  <th scope="row" className="p-3 font-medium"><Link href={`/localities/${a.area.slug}`} className="text-[#0f2340] underline underline-offset-2">{a.area.name}</Link></th>
+                  <th scope="row" className="p-3 font-medium"><Link href={areaGuidePath(a.area.slug)} className="text-[#0f2340] underline underline-offset-2">{a.area.name}</Link></th>
                   <td className="p-3 text-right">{fmt(m.with_dates)}</td>
                   <td className="p-3 text-right">{fmt(m.moved)}{m.with_dates ? ` (${Math.round((100 * m.moved) / m.with_dates)}%)` : ''}</td>
                   <td className="p-3 text-right">{m.median_months != null ? months(m.median_months) : '–'}</td>
@@ -174,7 +175,7 @@ export default async function TrackerPage() {
                 <tbody>
                   {city.areas.map((a) => (
                     <tr key={a.area.key} className="border-t border-slate-200">
-                      <th scope="row" className="p-3 font-medium"><Link href={`/localities/${a.area.slug}`} className="text-[#0f2340] underline underline-offset-2">{a.area.name}</Link></th>
+                      <th scope="row" className="p-3 font-medium"><Link href={areaGuidePath(a.area.slug)} className="text-[#0f2340] underline underline-offset-2">{a.area.name}</Link></th>
                       <td className="p-3 text-right"><Count value={a.projects} href={links.get(a.area.key)?.all} label={`${fmt(a.projects)} projects in ${a.area.name}`} /></td>
                       <td className="p-3 text-right">{a.units_total !== null && a.units_booked !== null ? `${fmt(a.units_booked)} of ${fmt(a.units_total)}` : 'n/a'}</td>
                       {[year, year + 1].map((y) => (

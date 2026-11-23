@@ -15,6 +15,10 @@ jest.mock('@/components/localities/AreaLandmarks', () => ({
 jest.mock('@/components/localities/areaStats', () => ({ ...jest.requireActual('@/components/localities/areaStats'), getAreaStats: async () => null }))
 jest.mock('@/components/localities/areaPhotoData', () => ({ ...jest.requireActual('@/components/localities/areaPhotoData'), getAreaPhotos: async () => [] }))
 
+// the area's lists in search (the place page's own chips)
+const mockFacets = jest.fn(async () => [] as unknown[])
+jest.mock('@/lib/site/facets', () => ({ ...jest.requireActual('@/lib/site/facets'), getFacets: () => mockFacets() }))
+
 import TopicPage from '@/app/guides/[slug]/page'
 import { cleanAreaLandmarks } from '@/components/localities/AreaLandmarks'
 import { OPEN_CHAT_EVENT } from '@/components/site/ChatWidget'
@@ -103,4 +107,18 @@ test("an area's guide shows its landmarks and metro, and asks the area's questio
   const faq = [...container.querySelectorAll('script[type="application/ld+json"]')].map((x) => JSON.parse(x.textContent || '{}'))
     .find((x) => x['@type'] === 'FAQPage')
   expect(faq.mainEntity.map((q: { name: string }) => q.name)).toEqual(['Is there a metro station near Upper Kharadi?', 'Which IT parks and offices are near Upper Kharadi?'])
+})
+
+test('an area guide links the place page and its lists in search, which own "projects in X"', async () => {
+  const facet = (intent: string, path: string, indexable: boolean, bhk: number | null = null) => ({ key: path, path, place: path.split('/')[3].replace(/-/g, '_'),
+    place_slug: path.split('/')[3], intent, possession: null, builder: null, bhk, label: bhk ? `${bhk} BHK Flats` : intent, count: 9, indexable, page_updated: null })
+  mockFacets.mockResolvedValueOnce([facet('top', '/projects/area/upper-kharadi/top', true), facet('all', '/projects/area/upper-kharadi/2-bhk', true, 2),
+    facet('ready-to-move', '/projects/area/upper-kharadi/ready-to-move', false), facet('top', '/projects/area/wagholi/top', true)])
+  await page()
+  const block = screen.getByRole('heading', { name: 'Projects and flats in Upper Kharadi' }).closest('section')!
+  const hrefs = Array.from(block.querySelectorAll('a')).map((a) => a.getAttribute('href'))
+  expect(within(block).getByRole('link', { name: 'See every project in Upper Kharadi' }).getAttribute('href')).toBe('/projects/area/upper-kharadi')
+  expect(hrefs).toEqual(expect.arrayContaining(['/projects/area/upper-kharadi/top', '/projects/area/upper-kharadi/2-bhk']))
+  expect(hrefs).not.toContain('/projects/area/upper-kharadi/ready-to-move')   // not in search
+  expect(hrefs).not.toContain('/projects/area/wagholi/top')
 })

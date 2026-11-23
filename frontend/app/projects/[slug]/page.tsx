@@ -37,6 +37,7 @@ import ProjectPoints, { HomeSizes } from '@/components/site/ProjectPoints'
 import { getProfile } from '@/lib/site/profile'
 import ProjectProfile from '@/components/site/ProjectProfile'
 import type { CatalogProject } from '@/lib/site/types'
+import { areaGuidePath } from '@/lib/site/areaGuide'
 
 // ISR: each project page is rendered on its first visit and kept for an hour (nothing here reads cookies or headers)
 export const revalidate = 3600
@@ -153,7 +154,7 @@ export default async function SharedProjectPage({ params }: Props) {
         {ld.map((x, i) => <script key={i} type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(x) }} />)}
         <nav aria-label="Breadcrumb" className="text-sm">
           <Link href="/projects" className="inline-flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2">All projects</Link>
-          {area && <> <span aria-hidden className="px-1 text-slate-400">/</span> <Link href={`/localities/${area.slug}`} className="inline-flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2">{area.name}</Link></>}
+          {area && <> <span aria-hidden className="px-1 text-slate-400">/</span> <Link href={areaGuidePath(area.slug)} className="inline-flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2">{area.name}</Link></>}
         </nav>
 
         <header id="project-hero">
@@ -168,7 +169,7 @@ export default async function SharedProjectPage({ params }: Props) {
           {updated && <p className="mt-1 text-sm text-slate-600">Updated {longDay(updated)}</p>}
           {area && (
             <p className="mt-2 text-sm">
-              <Link href={`/localities/${area.slug}`} className="inline-flex min-h-[44px] items-center font-semibold text-[var(--site-primary)] underline underline-offset-2">
+              <Link href={areaGuidePath(area.slug)} className="inline-flex min-h-[44px] items-center font-semibold text-[var(--site-primary)] underline underline-offset-2">
                 Buyer guide to {area.name}: who it suits, commute and what to check
               </Link>
             </p>

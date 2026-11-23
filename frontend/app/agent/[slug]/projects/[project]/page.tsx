@@ -17,6 +17,7 @@ import { localityByName } from '@/lib/marketing/localities'
 import { agentPath, normalizeSlug, siteOrigin } from '@/lib/site/slug'
 import { displayName, enquiryName } from '@/lib/site/theme'
 import DemoRibbon from '../../DemoRibbon'
+import { areaGuidePath } from '@/lib/site/areaGuide'
 
 interface Props {
   params: Promise<{ slug: string; project: string }>
@@ -72,7 +73,7 @@ export default async function ProjectPage({ params }: Props) {
           {p.positioning && <p className="mt-2 max-w-2xl text-lg text-slate-800">{p.positioning}</p>}
           {area && (
             <p className="mt-2 text-sm">
-              <Link href={`/localities/${area.slug}`} className="inline-flex min-h-[44px] items-center font-semibold text-[var(--site-primary)] underline underline-offset-2">
+              <Link href={areaGuidePath(area.slug)} className="inline-flex min-h-[44px] items-center font-semibold text-[var(--site-primary)] underline underline-offset-2">
                 Buyer guide to {area.name}: who it suits, commute and what to check
               </Link>
             </p>

@@ -35,6 +35,7 @@ import { areaCompareOf, areaName, askedPrices, bhkRange, completionChange, compl
   homesOf, longDay, lowestPriceInr, mainRegistration, monthYear, offerPrice, otherNames, possessionLabel, possessionOf, priceGap, projectFaq, placePath, soldOutOf, lowRise, unitsFiledPerBuilding,
   STAGE_LABEL, STAGE_NOTE, stageOf, unitWord, wholeProject as projectScope } from '@/lib/site/register'
 import type { AgentVideo, EnrichCheck, Faq, Offer } from '@/lib/site/register'
+import { areaGuidePath } from '@/lib/site/areaGuide'
 import { watchVideos } from '@/lib/site/projectVideos'
 import type { ProfilePicture } from '@/lib/site/profile'
 import type { PropertyFactsView, PublicListing } from '@/lib/site/types'
@@ -1050,7 +1051,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
                     {f.label} in {placeName ?? p.area?.name}
                   </Link>
                 ))}
-                {p.area && <Link href={`/localities/${p.area.slug}`} className="inline-flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2">{p.area.name} area guide</Link>}
+                {p.area && <Link href={areaGuidePath(p.area.slug)} className="inline-flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2">{p.area.name} area guide</Link>}
                 {p.near_guide && <Link href={p.near_guide.path} className="inline-flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2" data-testid="near-guide">Near {p.near_guide.name} ({p.near_guide.km} km): neighbourhood guide</Link>}
               </div>
             </section>
@@ -1070,7 +1071,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
         <Link href="/" className="text-[#0f2340] underline underline-offset-2">Home</Link>
         <span aria-hidden className="px-1 text-slate-400">/</span>
         <Link href="/projects" className="text-[#0f2340] underline underline-offset-2">Projects</Link>
-        {p.area && <> <span aria-hidden className="px-1 text-slate-400">/</span> <Link href={`/localities/${p.area.slug}`} className="text-[#0f2340] underline underline-offset-2">{p.area.name}</Link></>}
+        {p.area && <> <span aria-hidden className="px-1 text-slate-400">/</span> <Link href={areaGuidePath(p.area.slug)} className="text-[#0f2340] underline underline-offset-2">{p.area.name}</Link></>}
         {!p.area && placeName && placeHref && <> <span aria-hidden className="px-1 text-slate-400">/</span> <Link href={placeHref} className="text-[#0f2340] underline underline-offset-2">{placeName}</Link></>}
       </nav>
       )}

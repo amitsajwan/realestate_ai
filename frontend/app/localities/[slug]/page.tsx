@@ -38,6 +38,7 @@ import { getRegisterPlaces, placePath } from '@/lib/site/register'
 import { fetchTopics, topicPath } from '@/lib/site/topics'
 import { getAreaPairs, pairsWith } from '@/lib/site/compare'
 import { PairLinks } from '@/components/localities/AreaCompare'
+import { areaGuidePath } from '@/lib/site/areaGuide'
 
 type Props = { params: Promise<{ slug: string }> }
 type PageLocality = (Locality & { fallback?: false }) | {
@@ -290,7 +291,7 @@ export default async function LocalityPage({ params }: Props) {
           <h2 id="other-areas-title" className="text-xl font-semibold text-slate-900">{l.fallback ? 'Pune area guides we cover' : `Other ${TIER_WORD[l.tier]} areas we cover`}</h2>
           <ul className="mt-3 flex list-none flex-wrap gap-2 p-0">
             {sameTier.map((o) => (
-              <li key={o.slug}><Link href={`/localities/${o.slug}`} className="inline-flex min-h-[44px] items-center rounded-full border border-slate-300 px-4 text-sm font-semibold text-[#0f2340] no-underline hover:border-[#0f2340]">{o.name}</Link></li>
+              <li key={o.slug}><Link href={areaGuidePath(o.slug)} className="inline-flex min-h-[44px] items-center rounded-full border border-slate-300 px-4 text-sm font-semibold text-[#0f2340] no-underline hover:border-[#0f2340]">{o.name}</Link></li>
             ))}
             <li><Link href="/localities" className="inline-flex min-h-[44px] items-center px-2 text-sm font-semibold text-[#0f2340] underline underline-offset-2">All Pune area guides</Link></li>
           </ul>

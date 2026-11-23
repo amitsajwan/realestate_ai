@@ -6,6 +6,7 @@ import MarketingShell from '@/components/marketing/MarketingShell'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { TIER_LABELS, type LocalityTier, localitiesByTier } from '@/lib/marketing/localities'
 import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/seo'
+import { areaGuidePath } from '@/lib/site/areaGuide'
 
 /** Affordable belt first: that is where most of our buyers look. */
 const TIERS: LocalityTier[] = ['affordable', 'it']
@@ -35,7 +36,7 @@ export default function LocalitiesPage() {
             <ul className="mt-4 grid list-none gap-4 p-0 sm:grid-cols-2">
               {localitiesByTier(tier).map((l) => (
                 <li key={l.slug}>
-                  <Link href={`/localities/${l.slug}`} className="flex h-full flex-col rounded-2xl border border-slate-200 border-l-4 border-l-[#f0b440] bg-[#fbf6ea] p-5 no-underline hover:border-slate-400 hover:border-l-[#f0b440]">
+                  <Link href={areaGuidePath(l.slug)} className="flex h-full flex-col rounded-2xl border border-slate-200 border-l-4 border-l-[#f0b440] bg-[#fbf6ea] p-5 no-underline hover:border-slate-400 hover:border-l-[#f0b440]">
                     <span className="text-xl font-semibold text-slate-900">{l.name}</span>
                     <span className="mt-1 text-sm text-slate-600">{l.tagline}</span>
                   </Link>

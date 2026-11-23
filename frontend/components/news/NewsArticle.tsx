@@ -6,6 +6,7 @@ import { policyDisclaimer } from '@/lib/news/disclaimer'
 import BuyerLine from './BuyerLine'
 import InterestStrip from './InterestStrip'
 import { TEAM } from '@/lib/brand'
+import { areaGuidePath } from '@/lib/site/areaGuide'
 
 const CHANNEL = { facebook: 'Facebook', instagram: 'Instagram' } as const
 
@@ -24,7 +25,7 @@ export default function NewsArticle({ item, projects = [] }: { item: NewsItem; p
       <p className="text-sm"><Link href="/news" className="text-[#0f2340] underline underline-offset-2">{NEWS_TEXT.all}</Link></p>
       <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
         <span className="rounded-full bg-[#f0b440] px-2.5 py-1 font-bold uppercase tracking-wide text-[#0f2340]">News &middot; {item.pillar_label}</span>
-        {item.areas.map((a) => <Link key={a.slug} href={`/localities/${a.slug}`} className="font-semibold uppercase tracking-wide text-slate-700 underline-offset-2 hover:underline">{a.name}</Link>)}
+        {item.areas.map((a) => <Link key={a.slug} href={areaGuidePath(a.slug)} className="font-semibold uppercase tracking-wide text-slate-700 underline-offset-2 hover:underline">{a.name}</Link>)}
       </p>
       <h1 className="mt-3 text-3xl font-extrabold leading-tight tracking-tight text-[#0f2340] sm:text-4xl">{item.headline}</h1>
       <p className="mt-3 text-sm text-slate-700">
@@ -152,7 +153,7 @@ export default function NewsArticle({ item, projects = [] }: { item: NewsItem; p
       {item.areas.length > 0 && (
         <nav aria-label="Areas in this story" data-testid="news-areas" className="mt-6 flex flex-wrap gap-x-5 text-sm">
           {item.areas.map((a) => (
-            <Link key={a.slug} href={`/localities/${a.slug}`} className="inline-flex min-h-[44px] items-center font-semibold text-[#0f2340] underline underline-offset-4">
+            <Link key={a.slug} href={areaGuidePath(a.slug)} className="inline-flex min-h-[44px] items-center font-semibold text-[#0f2340] underline underline-offset-4">
               {NEWS_TEXT.moreAbout(a.name)}
             </Link>
           ))}

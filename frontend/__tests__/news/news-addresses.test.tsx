@@ -82,7 +82,7 @@ describe('links', () => {
     render(<NewsArticle item={{ ...ring, areas: [{ key: 'lohegaon', slug: 'lohegaon', name: 'Lohegaon' }, { key: 'upper_kharadi', slug: 'upper-kharadi', name: 'Upper Kharadi' }] }} />)
     const nav = screen.getByTestId('news-areas')
     expect(within(nav).getByRole('link', { name: 'More about Lohegaon' })).toHaveAttribute('href', '/localities/lohegaon')
-    expect(within(nav).getByRole('link', { name: 'More about Upper Kharadi' })).toHaveAttribute('href', '/localities/upper-kharadi')
+    expect(within(nav).getByRole('link', { name: 'More about Upper Kharadi' })).toHaveAttribute('href', '/guides/upper-kharadi')
   })
 
   it('a digest links its stories by slug, and shows a roundup project (no page of its own) without a link', () => {

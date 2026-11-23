@@ -6,6 +6,7 @@ import { getFacets } from '@/lib/site/facets'
 import { formatPrice } from '@/lib/site/format'
 import { priceRange } from '@/lib/site/projects'
 import { displayName, getRegisterPlaces, getRegisterProjects, placePath, projectSummary } from '@/lib/site/register'
+import { areaGuidePath } from '@/lib/site/areaGuide'
 
 /** /llms.txt (llmstxt.org): a short map of the site for AI assistants, written from the same lists as the sitemap. It is a hint
  *  some assistants read, not a ranking signal; the pages themselves are what they quote (docs/plan/seo-system.md "AI search"). */
@@ -57,7 +58,7 @@ export async function GET(): Promise<Response> {
     '',
     ...(projects.length ? ['## Projects: MahaRERA number, possession date, homes booked, price', ...projects, ''] : []),
     '## Area guides',
-    ...LOCALITIES.map((l) => `- [Living in ${l.name}, Pune: area guide](${site}/localities/${l.slug})${metro.get(l.slug) ? `: ${metro.get(l.slug)}` : ''}`),
+    ...LOCALITIES.map((l) => `- [Living in ${l.name}, Pune: area guide](${site}${areaGuidePath(l.slug)})${metro.get(l.slug) ? `: ${metro.get(l.slug)}` : ''}`),
     '',
     '## Data',
     `- [Pune MahaRERA tracker](${site}/pune-maharera-tracker): projects registered, completion dates moved and homes booked across Pune`,

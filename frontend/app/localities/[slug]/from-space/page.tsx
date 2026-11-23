@@ -12,6 +12,7 @@ import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/se
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
 import { shortMonth, videoPace } from '@/lib/site/fromAbove'
 import { areaFromSpacePath, getAreaFromSpace, type AreaFromSpace } from '@/lib/site/areaFromSpace'
+import { areaGuidePath } from '@/lib/site/areaGuide'
 
 // An area from space on a page of its own, the video first (as the projects' watch pages: Google shows a video result only
 // from a page where the video is the main thing). The area guide keeps its section; the video sitemap points here. Made by
@@ -53,7 +54,7 @@ export default async function AreaFromSpacePage({ params }: Props) {
   const key = mapsEmbedKey()
   const ld = [
     breadcrumbJsonLd(cfg.siteUrl, [{ name: 'Home', path: '/' }, { name: 'Area guides', path: '/localities' },
-      { name: `${view.name}, Pune`, path: `/localities/${view.slug}` }, { name: 'From space', path }]),
+      { name: `${view.name}, Pune`, path: areaGuidePath(view.slug) }, { name: 'From space', path }]),
     { '@context': 'https://schema.org', '@type': 'VideoObject', name: `${view.name}, Pune from space, ${shortMonth(video.from)} to ${shortMonth(video.to)}`,
       description: view.story, contentUrl: site + video.src, thumbnailUrl: site + video.poster, uploadDate: view.updated || video.to,
       creditText: view.credit, transcript: view.seasons.map((s) => `${s.label}: ${s.line}`).join(' ') || undefined },
@@ -64,7 +65,7 @@ export default async function AreaFromSpacePage({ params }: Props) {
         {ld.map((x, i) => <script key={i} type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(x) }} />)}
         <nav aria-label="Breadcrumb" className="text-sm text-slate-600">
           <Link href="/localities" className="underline underline-offset-2">Area guides</Link> /{' '}
-          <Link href={`/localities/${view.slug}`} className="underline underline-offset-2">{view.name}</Link>
+          <Link href={areaGuidePath(view.slug)} className="underline underline-offset-2">{view.name}</Link>
         </nav>
         <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">{view.name}, Pune from space, {span(view)}</h1>
         <FromAboveVideo src={video.src} poster={video.poster} width={video.width} height={video.height}
@@ -100,7 +101,7 @@ export default async function AreaFromSpacePage({ params }: Props) {
           </section>
         )}
         <p className="flex flex-wrap gap-x-5">
-          <Link href={`/localities/${view.slug}`} className="inline-flex min-h-[44px] items-center font-semibold text-[var(--site-primary,#0f2340)] underline underline-offset-2">
+          <Link href={areaGuidePath(view.slug)} className="inline-flex min-h-[44px] items-center font-semibold text-[var(--site-primary,#0f2340)] underline underline-offset-2">
             {view.name} area guide: projects, MahaRERA counts and landmarks</Link>
           <Link href="/projects/from-space" className="inline-flex min-h-[44px] items-center font-semibold text-[var(--site-primary,#0f2340)] underline underline-offset-2">
             More of Pune from space</Link>
