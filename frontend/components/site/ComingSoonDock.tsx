@@ -13,6 +13,8 @@ import type { UpcomingBrief } from '@/lib/site/hubs'
 export const TURN_MS = 5000
 export const STILL_TURN_MS = 8000
 export const SHOW_AFTER_MS = 2500
+/** Narrower than this is a phone, where the card waits for a scroll past the first screen (Tailwind's `sm`). */
+export const PHONE_MAX = 640
 export const FOLD_MS = 24 * 60 * 60 * 1000
 const FOLD_KEY = 'coming-soon-folded-at'
 
@@ -52,8 +54,23 @@ export default function ComingSoonDock({ items, bottomBar = false }: { items: Up
   useEffect(() => {
     still.current = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
     setFolded(foldedRecently(Date.now()))
-    const t = window.setTimeout(() => setShown(true), SHOW_AFTER_MS)
-    return () => window.clearTimeout(t)
+    // on a phone it waits until the reader has scrolled past the first screen too: there it covers the top of the page, and a
+    // card over the content a visitor from search lands on is what Google counts against a page on mobile (2026-11-23)
+    let timed = false
+    let scrolled = window.innerWidth >= PHONE_MAX
+    const show = () => { if (timed && scrolled) setShown(true) }
+    const onScroll = () => {
+      if (window.scrollY < window.innerHeight * 0.8) return
+      scrolled = true
+      window.removeEventListener('scroll', onScroll)
+      show()
+    }
+    if (!scrolled) window.addEventListener('scroll', onScroll, { passive: true })
+    const t = window.setTimeout(() => { timed = true; show() }, SHOW_AFTER_MS)
+    return () => {
+      window.clearTimeout(t)
+      window.removeEventListener('scroll', onScroll)
+    }
   }, [])
 
   useEffect(() => {
