@@ -14,6 +14,7 @@ jest.mock('@/lib/site/api', () => ({
 jest.mock('@/components/marketing/MarketingShell', () => ({ __esModule: true, default: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }))
 jest.mock('next/navigation', () => ({
   notFound: () => { throw new Error('NOT_FOUND') },
+  permanentRedirect: (to: string) => { throw new Error(`REDIRECT ${to}`) },
   usePathname: () => '/',
   useRouter: () => ({ push: jest.fn() }),
 }))
@@ -191,9 +192,8 @@ describe('area page as the hub', () => {
     expect(String(m.alternates?.canonical)).toMatch(/\/localities\/keshav-nagar$/)
   })
 
-  it('names the area guide as its canonical page when the area has one, so search sees one page per area', async () => {
-    routes({ '/public/topics': { status: 200, body: [{ slug: 'upper-kharadi' }] } })
-    const m = await generateMetadata({ params: Promise.resolve({ slug: 'upper-kharadi' }) })
-    expect(String(m.alternates?.canonical)).toMatch(/\/guides\/upper-kharadi$/)
+  it('sends an area with its own guide to the guide for good, so search keeps one page per area', async () => {
+    // naming the guide canonical was not enough: Google kept /localities/upper-kharadi as its own canonical (2026-11-23)
+    await expect(LocalityPage({ params: Promise.resolve({ slug: 'upper-kharadi' }) })).rejects.toThrow('REDIRECT /guides/upper-kharadi')
   })
 })

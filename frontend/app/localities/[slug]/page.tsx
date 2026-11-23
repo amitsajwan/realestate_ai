@@ -1,72 +1,18 @@
 import React from 'react'
-import Link from 'next/link'
 import type { Metadata } from 'next'
 import { notFound, permanentRedirect } from 'next/navigation'
-import AgentStrip from '@/components/marketing/AgentStrip'
-import MarketingShell from '@/components/marketing/MarketingShell'
-import HomePlanBox from '@/components/site/homeplan/HomePlanBox'
-import CorridorMap, { CorridorStatus } from '@/components/site/CorridorMap'
-import ListingCard from '@/components/site/ListingCard'
-import { getMarketingConfig } from '@/lib/marketing/config'
-import { INSIGHT_NOTE, getInsight } from '@/lib/marketing/insights'
-import { LOCALITIES, type Locality, type LocalityTier, getLocality, localitiesByTier, localityNameFromSlug, localitySource, localitySourceFromSlug } from '@/lib/marketing/localities'
-import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/seo'
-import ProjectCard from '@/components/site/ProjectCard'
-import ActiveProjects from '@/components/site/ActiveProjects'
-import { getActive, getAreaMap, getListed, type ListedProject } from '@/lib/site/hubs'
-import AreaMap, { showsMap } from '@/components/site/AreaMap'
-import AreaFromAbove from '@/components/site/AreaFromAbove'
-import AreaLatest from '@/components/localities/AreaLatest'
-import AreaPhotos from '@/components/localities/AreaPhotos'
+import AreaPage from '@/components/area/AreaPage'
+import { pageLocality } from '@/components/area/pageLocality'
 import { areaPhotoOgImage, getAreaPhotos } from '@/components/localities/areaPhotoData'
-import { AreaTrackers } from '@/components/news/Trackers'
-import { fetchTrackers } from '@/lib/news/trackers'
-import AreaRecords from '@/components/localities/AreaRecords'
-import AreaGrowth from '@/components/localities/AreaGrowth'
-import AreaFromSpace from '@/components/localities/AreaFromSpace'
-import { getAreaFromSpace } from '@/lib/site/areaFromSpace'
 import { areaOgImage, readAreaPictures } from '@/components/localities/areaPictures'
-import AreaLandmarks, { areaQuestions, getAreaLandmarks } from '@/components/localities/AreaLandmarks'
-import { getAreaNews, getAreaPosts } from '@/components/localities/areaFeed'
-import { getAreaStats, recordLinks } from '@/components/localities/areaStats'
-import { getCommunities } from '@/components/localities/communities'
-import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
+import { getMarketingConfig } from '@/lib/marketing/config'
+import { LOCALITIES, getLocality, localityNameFromSlug } from '@/lib/marketing/localities'
+import { pageMetadata } from '@/lib/marketing/seo'
 import { getCatalog, getLocalityListings } from '@/lib/site/api'
-import { getFacets, siblings, withoutMovedSizePages } from '@/lib/site/facets'
-import { livePages } from '@/lib/site/filters'
+import { AREA_GUIDES, areaGuidePath } from '@/lib/site/areaGuide'
 import { getRegisterPlaces, placePath } from '@/lib/site/register'
-import { fetchTopics, topicPath } from '@/lib/site/topics'
-import { getAreaPairs, pairsWith } from '@/lib/site/compare'
-import { PairLinks } from '@/components/localities/AreaCompare'
-import { areaGuidePath } from '@/lib/site/areaGuide'
 
 type Props = { params: Promise<{ slug: string }> }
-type PageLocality = (Locality & { fallback?: false }) | {
-  fallback: true
-  slug: string
-  key: string
-  name: string
-  tier: LocalityTier
-  listingName: string
-  tagline: string
-  summary: string
-  suits: string[]
-  gettingAround: string[]
-  checks: string[]
-  faqs: { q: string; a: string }[]
-  guides: string[]
-  sources: { label: string; href: string }[]
-  updated?: string
-  updatedLabel?: string
-}
-
-function pageLocality(slug: string): PageLocality {
-  const l = getLocality(slug)
-  return l ? { ...l, fallback: false } : fallbackLocality(slug)
-}
-
-/** "Other <word> areas we cover" (the tier titles in TIER_LABELS read badly there). */
-const TIER_WORD: Record<LocalityTier, string> = { affordable: 'affordable', it: 'IT corridor' }
 
 export function generateStaticParams() {
   return LOCALITIES.map((l) => ({ slug: l.slug }))
@@ -96,7 +42,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     // no guide of its own: the same stub for every place name an agent typed, so it stays out of search (2026-10-27)
     return { ...meta, robots: { index: false, follow: true } }
   }
-  const meta = pageMetadata(getMarketingConfig(), {
+  return pageMetadata(getMarketingConfig(), {
     // the guide answers "living in X" and "X review"; "projects in X" belongs to /projects/area/x (docs/plan/seo-system.md
     // section 4 owner map). The old title said "projects" too, so the two pages competed for that search (owner 2026-11-04)
     title: `Living in ${l.name}, Pune: area guide for home buyers`,
@@ -106,204 +52,26 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     // first published photo of the place; else the brand's card
     image: areaOgImage(l.name, await readAreaPictures(l.slug)) ?? areaPhotoOgImage(await getAreaPhotos(l.slug)),
   })
-  // an area with its own full guide has one page for search: the guide (both ranked for "upper kharadi" and held each other back)
-  const guide = (await fetchTopics()).some((t) => t.slug === l.slug)
-  return guide ? { ...meta, alternates: { canonical: getMarketingConfig().siteUrl + topicPath(l.slug) } } : meta
 }
-
-/** Where "I'm interested" leads: the enquiry page (app/enquire). `?src=locality_<key>` is
- *  picked up by the site's attribution (lib/site/tracking.ts readAttribution) and stored as the lead's source. */
-const enquireHref = (l: { key: string }) => `/enquire?src=${localitySource(l)}`
-
-const fallbackEnquireHref = (slug: string) => `/enquire?src=${localitySourceFromSlug(slug)}`
-
-/** Project cards on a guide: a few, since the area's projects page lists them all (and ranks them) */
-const GUIDE_PROJECTS = 6
-
-// the guides in East Pune (app/core/pune_places.py zone), where the home plan has projects to pick from
-const EAST_GUIDES = new Set(['kharadi', 'upper-kharadi', 'wagholi', 'lohegaon', 'keshav-nagar'])
 
 const validSlug = (slug: string) => /^[a-z0-9]+(?:-[a-z0-9]+){0,8}$/.test(slug)
-
-function fallbackLocality(slug: string): PageLocality {
-  const name = localityNameFromSlug(slug)
-  return {
-    fallback: true,
-    slug, key: slug.replace(/-/g, '_'), name, tier: 'affordable', listingName: name,
-    tagline: 'Live listings and projects agents have added',
-    summary: `We do not have a full buyer guide for ${name} yet. This page shows live listings and projects agents have added, plus the checks every buyer should do before a visit or booking.`,
-    suits: ['Buyers shortlisting homes in this locality', 'Buyers who want a working page to share listings from agents', 'Buyers ready to verify project details before paying a token amount'],
-    gettingAround: ['We do not quote travel times. Try your own commute at 9:00 am and 6:30 pm on a weekday before you decide.'],
-    checks: [
-      'RERA registration number of the project, looked up on the MahaRERA website',
-      'Carpet area in the agreement, and the price per sq ft of carpet area',
-      'Where the water comes from, and what the power backup covers',
-      'Possession date in the agreement compared with the one on the RERA page',
-      'The full cost: stamp duty, registration, GST where applicable, parking and maintenance deposit',
-    ],
-    faqs: [
-      { q: `Do you have a full guide for ${name}?`, a: 'Not yet. Until we have sourced locality facts, this page shows only live listings, projects agents have added and general buyer checks.' },
-      { q: 'What should I verify before visiting?', a: 'Check the RERA number, the exact carpet area, possession date, water and power backup, and the full cost sheet before you pay anything.' },
-    ],
-    guides: [], sources: [],
-  }
-}
 
 export default async function LocalityPage({ params }: Props) {
   const slug = (await params).slug
   if (!validSlug(slug)) notFound()
+  // an area with its own written guide has one page, the guide, which carries everything this page had (2026-11-23). Naming it
+  // canonical was not enough: Google kept this page as its own canonical beside the guide (Search Console, last crawl 2026-11-20),
+  // since the two pages said different things. A permanent redirect is an instruction, not a hint.
+  if (AREA_GUIDES.has(slug)) permanentRedirect(areaGuidePath(slug))
   const l = pageLocality(slug)
-  const photosRead = l.fallback ? Promise.resolve([]) : getAreaPhotos(l.slug)   // read alongside the rest; never rejects
-  const [listings, projects, stats, posts, news, hoods, active, facets, map, listed, trackers, places, landmarks, pairs] = await Promise.all([
-    getLocalityListings(l.listingName), getCatalog(l.listingName), l.fallback ? Promise.resolve(null) : getAreaStats(l.slug),
-    l.fallback ? Promise.resolve([]) : getAreaPosts(l, 6), l.fallback ? Promise.resolve([]) : getAreaNews(l, 5),
-    l.fallback ? Promise.resolve([]) : getCommunities(l.key),
-    l.fallback ? Promise.resolve([]) : getActive({ area: l.key }),
-    l.fallback ? Promise.resolve([]) : getFacets(),
-    l.fallback ? Promise.resolve(null) : getAreaMap(l.key),
-    l.fallback ? Promise.resolve(new Map<string, ListedProject>()) : getListed(),
-    l.fallback ? Promise.resolve([]) : fetchTrackers(l.key),
-    l.fallback ? Promise.resolve([]) : getRegisterPlaces(),
-    l.fallback ? Promise.resolve(null) : getAreaLandmarks(l.slug),
-    l.fallback ? Promise.resolve([]) : getAreaPairs(),
-  ])
-  const photos = await photosRead
-  // the block shows when something tracked touches this area; the city-wide rates come along with it, never alone
-  const nearby = trackers.some((t) => t.areas.some((a) => a.slug === l.slug)) ? trackers : []
-  // the area's own lists (new launches, 2 BHK flats ...) and the agents' pages that still answer here
-  const lists = [...siblings(facets, l.key).map((f) => ({ path: f.path, title: f.label, count: f.count })),
-    ...(l.fallback ? [] : withoutMovedSizePages(livePages(projects, [l]), facets)).map((f) => ({ path: f.path, title: f.title.replace(/, Pune$/, ''), count: f.count }))]
-  if (l.fallback && listings.length === 0 && projects.length === 0) {
-    // no guide and no agent's listing, but MahaRERA projects here (Wanowrie has 50, Magarpatta 16): the place's list is the page
-    if ((await getRegisterPlaces()).some((p) => p.slug === slug)) permanentRedirect(placePath(slug))
-    notFound()
+  if (l.fallback) {
+    const [listings, projects] = await Promise.all([getLocalityListings(l.listingName), getCatalog(l.listingName)])
+    if (listings.length === 0 && projects.length === 0) {
+      // no guide and no agent's listing, but MahaRERA projects here (Wanowrie has 50, Magarpatta 16): the place's list is the page
+      if ((await getRegisterPlaces()).some((p) => p.slug === slug)) permanentRedirect(placePath(slug))
+      notFound()
+    }
   }
-  const sameTier = localitiesByTier(l.tier).filter((o) => o.slug !== l.slug)
-  const guides = l.guides.map((s) => getInsight(s)).filter((g): g is NonNullable<typeof g> => !!g)
-  // the guide's own questions, then the ones the landmarks and MahaRERA counts answer (metro, offices, hospitals, airport, projects
-  // registered last year): the "People also ask" questions for an area, each answered by one dated sentence
-  const faqs = l.fallback ? l.faqs : [...l.faqs, ...areaQuestions(l.name, landmarks, stats?.registered ?? [], stats?.as_of ?? null, l.faqs.map((f) => f.q))]
-  const faqLd = {
-    '@context': 'https://schema.org', '@type': 'FAQPage',
-    mainEntity: faqs.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
-  }
-  return (
-    <MarketingShell hot={{ area: l.slug }}>
-      <article className="mx-auto max-w-3xl px-4 py-10 sm:py-14">
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(faqLd) }} />
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(breadcrumbJsonLd(getMarketingConfig().siteUrl, [
-          { name: 'Home', path: '/' }, { name: 'Area guides', path: '/localities' }, { name: `${l.name}, Pune`, path: `/localities/${l.slug}` },
-        ])) }} />
-        <p className="text-sm"><Link href="/localities" className="text-[#0f2340] underline underline-offset-2">All area guides</Link></p>
-        <h1 className="mt-3 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">{l.name}, Pune</h1>
-        <p className="mt-1 font-semibold text-amber-700">{l.tagline}</p>
-        {l.updated && l.updatedLabel && <p className="mt-2 text-sm text-slate-600">Last updated: <time dateTime={l.updated}>{l.updatedLabel}</time></p>}
-        <p className="mt-5 text-lg leading-relaxed text-slate-800">{l.summary}</p>
-        <a href={l.fallback ? fallbackEnquireHref(l.slug) : enquireHref(l)} className="mt-5 inline-flex min-h-[48px] items-center rounded-full bg-amber-400 px-6 font-bold text-slate-900 no-underline">Tell us what you are looking for</a>
-        {/* real photos of the place, credited (Studio > Area photos); nothing when none is published */}
-        <AreaPhotos name={l.name} photos={photos} className="mt-10" />
-        {/* the area's most active projects on its street map, first thing after the intro (only areas with a drawn map) */}
-        {showsMap(map) && <AreaMap data={map} listed={listed} allHref={`/projects/area/${l.slug}`} className="mt-10" />}
-        {/* no drawn map yet: Google's view from above, on tap, at a hand-set centre (only with the embed key) */}
-        {!showsMap(map) && <AreaFromAbove slug={l.slug} name={l.name} className="mt-10" />}
-
-        {EAST_GUIDES.has(l.slug) && <div className="mt-10"><HomePlanBox area={l.name} /></div>}
-
-        <section className="mt-10"><h2 className="text-xl font-semibold text-slate-900">Who {l.name} suits</h2>
-          <ul className="mt-3 list-disc space-y-2 pl-6 leading-relaxed text-slate-800">{l.suits.map((s) => <li key={s}>{s}</li>)}</ul></section>
-
-        <section className="mt-9"><h2 className="text-xl font-semibold text-slate-900">Getting around</h2>
-          {l.gettingAround.map((p) => <p key={p} className="mt-3 leading-relaxed text-slate-800">{p}</p>)}</section>
-        {/* the east Pune corridor, running and coming (owner 2026-10-29, "show what is coming"): on the home page until
-            2026-11-21, when the home page became all of Pune's; here it is about the area the reader is looking at */}
-        {EAST_GUIDES.has(l.slug) && (
-          <div className="mt-10 overflow-hidden rounded-xl border border-slate-200" data-testid="area-corridor">
-            <div className="bg-[#0f2340] p-3 sm:p-4"><CorridorMap /></div>
-            <CorridorStatus />
-          </div>
-        )}
-        <AreaLandmarks data={landmarks} homesNearWork={EAST_GUIDES.has(l.slug) ? '/home-plan' : undefined} />
-
-        <AreaRecords name={l.name} stats={stats} links={recordLinks(l, places, facets)} />
-        {!l.fallback && <AreaGrowth name={l.name} stats={stats} pictures={await readAreaPictures(l.slug)} siteUrl={getMarketingConfig().siteUrl} />}
-        {/* the area month by month from space, with each season's line (backend areastats/areaspace.py) */}
-        {!l.fallback && <AreaFromSpace view={await getAreaFromSpace(l.slug)} />}
-
-        {hoods.length > 0 && (
-          <section className="mt-9" aria-labelledby="hoods-title">
-            <h2 id="hoods-title" className="text-xl font-semibold text-slate-900">Neighbourhoods in {l.name}</h2>
-            <ul className="mt-3 grid list-none gap-3 p-0 sm:grid-cols-2">
-              {hoods.map((h) => (
-                <li key={h.slug}><Link href={`/localities/${h.area_slug}/${h.slug}`} className="block h-full rounded-xl border border-slate-200 p-4 no-underline hover:border-slate-400">
-                  <span className="font-semibold text-[#0f2340]">{h.name}</span>
-                  {h.summary && <span className="mt-1 block text-sm text-slate-600">{h.summary}</span>}
-                </Link></li>
-              ))}
-            </ul>
-          </section>
-        )}
-
-        {projects.length > 0 && (
-          <section className="mt-9" style={AVASETU_SITE_VARS} aria-labelledby="projects-title">
-            {/* a taste of the area's projects; the full list and its rankings live on the projects page, linked first below */}
-            <h2 id="projects-title" className="text-xl font-semibold text-slate-900">Projects in {l.name}</h2>
-            <p className="mt-1 text-sm text-slate-600">With the completion date filed on MahaRERA and how many homes are booked.</p>
-            <ul className="mt-4 grid list-none gap-4 p-0 sm:grid-cols-2">
-              {projects.slice(0, GUIDE_PROJECTS).map((p) => <li key={p.slug}><ProjectCard p={p} href={`/projects/${p.slug}`} /></li>)}
-            </ul>
-            <p className="mt-4"><Link href={l.fallback ? '/projects' : `/projects/area/${l.slug}`} className="font-semibold text-[#0f2340] underline underline-offset-2">{l.fallback ? 'All projects' : `See every project in ${l.name}`}</Link></p>
-            {!l.fallback && lists.length > 0 && (
-              <ul className="mt-4 flex list-none flex-wrap gap-2 p-0">
-                {lists.map((f) => (
-                  <li key={f.path}><Link href={f.path} className="inline-flex min-h-[44px] items-center rounded-full border border-slate-300 px-4 text-sm font-semibold text-[#0f2340] no-underline hover:border-[#0f2340]">{f.title} ({f.count})</Link></li>
-                ))}
-              </ul>
-            )}
-          </section>
-        )}
-        {!showsMap(map) && <ActiveProjects title={`Most active projects in ${l.name}`} items={active} />}
-        <AreaTrackers name={l.name} items={nearby} />
-        <AreaLatest name={l.name} posts={posts} news={news} />
-
-        <section className="mt-9"><h2 className="text-xl font-semibold text-slate-900">Homes in {l.name}</h2>
-          {listings.length > 0 ? (
-            <ul className="mt-4 grid list-none gap-4 p-0 sm:grid-cols-2">{listings.map((x) => x.agent?.slug ? <ListingCard key={x.id} slug={x.agent.slug} listing={x} /> : null)}</ul>
-          ) : (
-            <p className="mt-3 rounded-xl bg-slate-50 p-4 text-slate-700">{projects.length > 0 ? 'No individual homes are listed here yet; the new projects above have prices. ' : 'We do not have live listings here yet. '}Tell us your budget and preferred type and we will send you options as they come.</p>
-          )}</section>
-
-        <section className="mt-9"><h2 className="text-xl font-semibold text-slate-900">Before you visit or book</h2>
-          <ul className="mt-3 list-disc space-y-2 pl-6 leading-relaxed text-slate-800">{l.checks.map((s) => <li key={s}>{s}</li>)}</ul></section>
-
-        <section className="mt-9"><h2 className="text-xl font-semibold text-slate-900">Questions buyers ask</h2>
-          <dl className="mt-3 space-y-4">{faqs.map((f) => (<div key={f.q}><dt className="font-semibold text-slate-900">{f.q}</dt><dd className="mt-1 leading-relaxed text-slate-800">{f.a}</dd></div>))}</dl></section>
-
-        {guides.length > 0 && (
-          <section className="mt-9"><h2 className="text-xl font-semibold text-slate-900">Related guides</h2>
-            <ul className="mt-3 space-y-1">{guides.map((g) => <li key={g.slug}><Link href={`/insights/${g.slug}`} className="text-[#0f2340] underline underline-offset-2">{g.title}</Link></li>)}</ul></section>
-        )}
-
-        {/* the neighbouring areas side by side (lib/site/compare.ts): only areas near this one, nearest first */}
-        <PairLinks pairs={pairsWith(pairs, l.slug)} title={`Compare ${l.name} with nearby areas`} />
-
-        {/* Same tier only, never "nearby" or a distance: the IT corridor spans both ends of the city. */}
-        <section className="mt-9" aria-labelledby="other-areas-title">
-          <h2 id="other-areas-title" className="text-xl font-semibold text-slate-900">{l.fallback ? 'Pune area guides we cover' : `Other ${TIER_WORD[l.tier]} areas we cover`}</h2>
-          <ul className="mt-3 flex list-none flex-wrap gap-2 p-0">
-            {sameTier.map((o) => (
-              <li key={o.slug}><Link href={areaGuidePath(o.slug)} className="inline-flex min-h-[44px] items-center rounded-full border border-slate-300 px-4 text-sm font-semibold text-[#0f2340] no-underline hover:border-[#0f2340]">{o.name}</Link></li>
-            ))}
-            <li><Link href="/localities" className="inline-flex min-h-[44px] items-center px-2 text-sm font-semibold text-[#0f2340] underline underline-offset-2">All Pune area guides</Link></li>
-          </ul>
-        </section>
-
-        {l.sources.length > 0 && (
-          <section className="mt-10 border-t border-slate-200 pt-6"><h2 className="text-lg font-semibold text-slate-900">Sources</h2>
-            <ul className="mt-2 list-disc space-y-1 pl-6 text-sm">{l.sources.map((s) => <li key={s.href}><a href={s.href} target="_blank" rel="noopener noreferrer" className="text-[#0f2340] underline underline-offset-2">{s.label}</a></li>)}</ul></section>
-        )}
-        <p className="mt-8 rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-700">{INSIGHT_NOTE}</p>
-        <AgentStrip />
-      </article>
-    </MarketingShell>
-  )
+  // called, not rendered as <AreaPage />: the page awaits it, so the page itself returns the finished tree
+  return AreaPage({ l, path: `/localities/${l.slug}` })
 }
