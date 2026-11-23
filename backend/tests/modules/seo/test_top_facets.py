@@ -195,3 +195,14 @@ def test_a_list_without_a_dated_change_takes_the_month_its_projects_were_last_re
     v = facets.facet_view(Facet("kharadi", "top"), docs, NOW)
     assert v["month"] == "Oct 2026" and "(Oct 2026)" in v["title"]
     assert facets.facet_view(Facet("kharadi", "top"), DOCS, NOW)["month"] is None   # never today's month without a read
+
+
+def test_a_new_launches_list_says_new_projects_the_words_people_search():
+    # "new projects in kharadi" was spread over the place page and all its lists at 20-50 (Search Console 2026-11-23)
+    t = facets.title(Facet("kharadi", "new-launches"), "Kharadi", 15, "Nov 2026")
+    assert t == "New Projects & Launches in Kharadi, Pune: 15 on MahaRERA"
+    assert facets.h1(Facet("kharadi", "new-launches"), "Kharadi") == "New projects and launches in Kharadi, Pune"
+    for name in ("Upper Kharadi", "Keshav Nagar", "Pimpri Chinchwad"):
+        assert len(facets.title(Facet("x", "new-launches"), name, 120, "Nov 2026")) <= 62
+    # the place page keeps its own words: "flats" and "residential projects", not "new"
+    assert "new" not in facets.title(Facet("kharadi", "all"), "Kharadi", 286, None).lower()

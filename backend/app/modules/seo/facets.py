@@ -55,7 +55,9 @@ BUDGETS: Dict[str, Tuple[str, int, int]] = {
 }
 _MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 
-LABEL = {"new-launches": "New launch projects", "top": "Top projects", "ready-to-move": "Ready to move projects",
+# "new projects in kharadi" is the search; the list said only "new launch projects", so Google spread it over the place page
+# and every list of the place, all at 20-50 (Search Console 2026-11-23). Owner: change it now, not after the title hold.
+LABEL = {"new-launches": "New projects and launches", "top": "Top projects", "ready-to-move": "Ready to move projects",
          "all": "Residential projects"}
 # the area keys we market (app/core/areas.py) are Pune place keys too: their seeds come first
 FOCUS = tuple(a.key for a in AREAS)
@@ -623,8 +625,8 @@ TOP_TEN_MIN = 3   # projects a top list needs before its title counts them ("Top
 
 
 def title(f: Facet, place: str, n: int, month: Optional[str], builder_name: Optional[str] = None) -> str:
-    """Search title, aiming at 60 characters: "New Launch Projects in Kharadi, Pune (Oct 2026): 7 on MahaRERA"."""
-    what = {"new-launches": "New Launch Projects", "top": "Top Projects", "ready-to-move": "Ready to Move Flats",
+    """Search title, aiming at 60 characters: "New Projects & Launches in Kharadi, Pune: 15 on MahaRERA"."""
+    what = {"new-launches": "New Projects & Launches", "top": "Top Projects", "ready-to-move": "Ready to Move Flats",
             "all": "Projects"}[f.intent]
     if f.bhk:
         # "2 bhk flats in lohegaon": the size and "flats" lead, as people search
