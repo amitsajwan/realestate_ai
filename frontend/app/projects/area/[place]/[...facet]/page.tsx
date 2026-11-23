@@ -57,7 +57,7 @@ function description(p: FacetPage): string {
     // "27 top residential projects in Kharadi, Pune from MahaRERA's records: VJ IndiLife Kharadi.", 2026-11-04)
     return fitDescription((has) => `${p.count} projects in ${p.place.name}, Pune you can still buy, ranked by homes booked on MahaRERA${has(3) ? `: ${p.rows[0].name} leads` : ''}. Possession filed and whether it moved${has(2) ? ", the builder's date record" : ''}${has(1) ? `, read ${longDay(p.as_of)}` : ''}.`)
   }
-  const what = { 'new-launches': 'new launch projects and flats', top: 'top residential projects', 'ready-to-move': 'ready to move flats and projects', all: 'projects' }[p.intent]
+  const what = { 'new-launches': 'new projects and launches', top: 'top residential projects', 'ready-to-move': 'ready to move flats and projects', all: 'projects' }[p.intent]
   return fitDescription((has) => `${p.count} ${what} in ${p.place.name}, Pune ${has(5) ? "from MahaRERA's records" : 'on MahaRERA'}${names(has)}. ${has(4) ? 'Registration date, possession' : 'Possession'} filed and whether it moved, homes booked${has(1) ? `, read ${longDay(p.as_of)}` : ''}.`)
 }
 

@@ -21,9 +21,11 @@ LEGAL = re.compile(r"\b(m s|private|pvt|limited|ltd|llp|the|and|co|company|corpo
 # The separator may mix spaces and dashes ("WING – N", "PHASE -5"), and one label may name several ("WING- G & H").
 # A letter and a number name one tower too ("WING C1 & C2", "TOWER T-3"): unread, "The Unicorn Building C Wing C1 & C2" kept
 # "wing c1 c2" in its base name and never met its sibling towers (docs/plan/rival-housiey-ravet.md L3, 2026-11-06).
+# A number may also be glued to the label ("R2 Tower4", "PHASE2"): unread, VTP Beaumonde Nation's towers 4 and 5 (one promoter,
+# one pincode) stayed on separate pages (2026-11-23). Only a number: a glued letter would read "Grand Wings" as wing "s".
 _ID = r"(?:[a-z]-?[0-9]+[a-z]?|[0-9]+[a-z]?|[ivxlcdm]+|[a-z])"
 TOWER_LABEL = re.compile(
-    r"\b(towers?|wings?|buildings?|phases?)[\s\-–]+" + _ID + r"(?:\s*[&,/]\s*" + _ID + r")*\b",
+    r"\b(towers?|wings?|buildings?|phases?)(?:[\s\-–]+" + _ID + r"|[0-9]+[a-z]?)(?:\s*[&,/]\s*" + _ID + r")*\b",
     re.IGNORECASE,
 )
 # A note in brackets is not part of the name: "(MHADA)", "(Commercial)"
