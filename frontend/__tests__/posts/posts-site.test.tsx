@@ -110,7 +110,8 @@ describe('social strip and contact block', () => {
 
   it("the brand's other profiles join sameAs only as a page of their own, never a site's front page", () => {
     expect(brandProfiles()).toEqual([DEFAULT_FACEBOOK_URL, DEFAULT_INSTAGRAM_URL, 'https://www.linkedin.com/company/avasetu/',
-      'https://www.youtube.com/@avasetu', 'https://www.crunchbase.com/organization/avasetu'])
+      'https://www.youtube.com/@avasetu', 'https://www.crunchbase.com/organization/avasetu',
+      'https://www.startupblink.com/startup/avasetu'])
     expect(brandProfiles([' https://www.linkedin.com/company/avasetu/ ', 'https://linkedin.com', 'https://instagram.com/',
       'http://www.crunchbase.com/organization/avasetu', '', DEFAULT_INSTAGRAM_URL]))
       .toEqual([DEFAULT_FACEBOOK_URL, DEFAULT_INSTAGRAM_URL, 'https://www.linkedin.com/company/avasetu/'])

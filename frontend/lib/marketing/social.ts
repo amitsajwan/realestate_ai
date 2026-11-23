@@ -27,6 +27,8 @@ export const MORE_PROFILES: readonly string[] = [
   'https://www.youtube.com/@avasetu',
   // the Crunchbase organization profile, added 2026-11-23
   'https://www.crunchbase.com/organization/avasetu',
+  // the StartupBlink startup profile, added 2026-11-23
+  'https://www.startupblink.com/startup/avasetu',
 ]
 
 /** Every public profile of the brand, for the Organization's `sameAs`: Facebook, Instagram, then MORE_PROFILES. A profile must be
