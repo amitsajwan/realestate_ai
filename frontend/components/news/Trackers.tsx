@@ -1,6 +1,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { KIND_LABEL, TRACKER_TEXT, trackerDate, trackerPath, type Tracker, type TrackerLink, type TrackerReport } from '@/lib/news/trackers'
+import { areaGuidePath } from '@/lib/site/areaGuide'
 
 /** Where a project stands: one segment per stage, done ones filled, the current one gold. Only the current stage is named on a phone
  *  (five labels do not fit 360 px); every label shows from `sm` up. Renders nothing for rules and rates, or an unknown stage. */
@@ -27,7 +28,7 @@ function Kicker({ t, linkAreas = false }: { t: Tracker; linkAreas?: boolean }) {
     <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
       <span className="rounded-full bg-[#0f2340] px-2.5 py-1 font-bold uppercase tracking-wide text-white">Tracker &middot; {KIND_LABEL[t.kind]}</span>
       {t.areas.map((a) => linkAreas
-        ? <Link key={a.slug} href={`/localities/${a.slug}`} className="font-semibold uppercase tracking-wide text-slate-700 underline-offset-2 hover:underline">{a.name}</Link>
+        ? <Link key={a.slug} href={areaGuidePath(a.slug)} className="font-semibold uppercase tracking-wide text-slate-700 underline-offset-2 hover:underline">{a.name}</Link>
         : <span key={a.slug} className="font-semibold uppercase tracking-wide text-slate-600">{a.name}</span>)}
       {t.areas.length === 0 && <span className="font-semibold uppercase tracking-wide text-slate-600">{t.kind === 'project' ? 'Pune' : 'All Pune buyers'}</span>}
     </p>

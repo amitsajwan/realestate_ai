@@ -18,6 +18,7 @@ import { livePages } from '@/lib/site/filters'
 import { fitDescription, formatPrice } from '@/lib/site/format'
 import { getRegisterPlaces, longDay, monthYear, placePath } from '@/lib/site/register'
 import { HOW, HOW_PATH } from '@/lib/site/listRules'
+import { areaGuidePath } from '@/lib/site/areaGuide'
 
 // Area list pages (docs/plan/area-intent-pages.md): New launches, Top projects, Ready to move, Possession <year>, by builder, for
 // any Pune place. The backend makes a page live only when people search for it and enough projects match (seo/grow.py); anything
@@ -167,7 +168,7 @@ export default async function FacetPageView({ params }: Props) {
   if (!p) notFound()
   const cfg = getMarketingConfig()
   const [all, catalog, places] = await Promise.all([getFacets(), getCatalog().catch(() => []), getRegisterPlaces()])
-  const guide = getLocality(p.place.slug) ? `/localities/${p.place.slug}` : null
+  const guide = getLocality(p.place.slug) ? areaGuidePath(p.place.slug) : null
   const chips = placeChips(p.place, all, livePages(catalog), guide)
   const zone = places.find((x) => x.key === p.place.key)?.zone
   const zoneKeys = new Set(places.filter((x) => x.zone === zone).map((x) => x.key))

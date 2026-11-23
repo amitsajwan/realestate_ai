@@ -11,6 +11,7 @@ import { breadcrumbJsonLd } from '@/lib/marketing/seo'
 import { clipWords, fitDescription, readableName } from './format'
 import { areaName, askedPrices, displayName, homesOf, monthYear, offerPrice, otherNames, placePath, possessionLabel, unitWord, wholeProject } from './register'
 import type { Faq, Offer, RegisterProject } from './register'
+import { areaGuidePath } from '@/lib/site/areaGuide'
 
 /** Titles longer than this get cut in Google's results on phones; the first option that fits is used. */
 export const PROJECT_TITLE_MAX = 65
@@ -264,7 +265,7 @@ export function registerProjectJsonLd({ p, siteUrl, faq = [], photos = [], offer
     containedInPlace: p.group ? { '@type': kind, name: p.group.name, url: siteUrl + p.group.path } : undefined,
   })
   // the same levels as the visible breadcrumb: the locality guide, else the Pune place list
-  const placeCrumb = p.area ? { name: p.area.name, path: `/localities/${p.area.slug}` }
+  const placeCrumb = p.area ? { name: p.area.name, path: areaGuidePath(p.area.slug) }
     : p.pune_place?.name ? { name: p.pune_place.name, path: placePath(p.pune_place.key.replace(/_/g, '-')) } : null
   const crumbs = [{ name: 'Home', path: '/' }, { name: 'Projects', path: '/projects' }, ...(placeCrumb ? [placeCrumb] : []),
     { name: shown, path: `/projects/${p.slug}` }]

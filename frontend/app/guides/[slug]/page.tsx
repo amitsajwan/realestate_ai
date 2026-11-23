@@ -15,6 +15,9 @@ import { getAreaPhotos } from '@/components/localities/areaPhotoData'
 import { readAreaPictures } from '@/components/localities/areaPictures'
 import { getAreaStats } from '@/components/localities/areaStats'
 import { getLocality } from '@/lib/marketing/localities'
+import FacetChips from '@/components/site/FacetChips'
+import { getFacets, placeChips } from '@/lib/site/facets'
+import { placePath } from '@/lib/site/register'
 
 export const revalidate = 60
 
@@ -197,6 +200,10 @@ export default async function TopicPage({ params }: Props) {
   const [photos, landmarks, stats, pictures] = area
     ? await Promise.all([getAreaPhotos(area.slug), getAreaLandmarks(area.slug), getAreaStats(area.slug), readAreaPictures(area.slug)])
     : [[], null, null, []]
+  // the guide stands for the area in search (its locality page names it canonical), so it links the area's projects the way
+  // that page did: the place page owns "projects in X" and was linked from nowhere here, so Google showed the guide for
+  // "upper kharadi projects" (Search Console 2026-11-23). Only lists live in search, as on the place page.
+  const lists = area ? placeChips({ key: area.slug.replace(/-/g, '_'), slug: area.slug }, await getFacets()) : []
   // its questions are in English, so only an English guide carries them (shown and in the FAQPage data alike)
   const more = area && lang === 'en'
     ? areaQuestions(area.name, landmarks, stats?.registered ?? [], stats?.as_of ?? null, t.faq.map((f) => say(f.q, 'en'))) : []
@@ -218,6 +225,14 @@ export default async function TopicPage({ params }: Props) {
         {t.checked_on && <p className="mt-2 text-sm text-slate-500">{say(UI.checked, lang)}: {day(t.checked_on, lang)}</p>}
 
         {area && <AreaPhotos name={area.name} photos={photos} className="mt-8" />}
+
+        {area && (
+          <section className="mt-8" aria-labelledby="area-projects">
+            <h2 id="area-projects" className="text-xl font-bold text-[#0f2340]">Projects and flats in {area.name}</h2>
+            <p className="mt-2"><Link href={placePath(area.slug)} className="font-semibold text-[#0f2340] underline underline-offset-2">See every project in {area.name}</Link>, with possession dates and homes booked from MahaRERA.</p>
+            <FacetChips chips={lists} current={placePath(area.slug)} label={`Lists for ${area.name}`} className="mt-3" />
+          </section>
+        )}
 
         <div className="mt-6"><Body t={t} lang={lang} /></div>
 

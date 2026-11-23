@@ -193,7 +193,7 @@ describe('area pages', () => {
     const affordable = screen.getByRole('region', { name: 'Affordable homes' })
     const it = screen.getByRole('region', { name: 'IT corridor' })
     expect(within(affordable).getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(
-      ['/localities/upper-kharadi', '/localities/wagholi', '/localities/lohegaon', '/localities/keshav-nagar'])
+      ['/guides/upper-kharadi', '/localities/wagholi', '/localities/lohegaon', '/localities/keshav-nagar'])
     expect(within(it).getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(
       ['/localities/kharadi', '/localities/hinjawadi', '/localities/wakad', '/localities/baner'])
   })

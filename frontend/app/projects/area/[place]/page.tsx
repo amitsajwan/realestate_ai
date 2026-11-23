@@ -25,6 +25,7 @@ import { getActive, getAreaMap, getListed } from '@/lib/site/hubs'
 import { displayName, getRegisterPlacesOrThrow, longDay, getRegisterProjects, placePath, projectSummary, sizePriceLine, STAGE_LABEL, STAGE_NOTE, STAGES } from '@/lib/site/register'
 import type { RegisterListItem, RegisterPlace } from '@/lib/site/register'
 import { UsualBands } from '@/components/site/PriceIdea'
+import { areaGuidePath } from '@/lib/site/areaGuide'
 
 export const revalidate = 300
 
@@ -159,7 +160,7 @@ export default async function PlaceProjectsPage({ params }: Props) {
   const comingSoon = await comingSoonFor(place.slug)
   const [active, facets, catalog, prices, map, listed] = await Promise.all([getActive({ place: place.key }), getFacets(), getCatalog().catch(() => []),
     getPlacePrices(place.slug), getAreaMap(place.key), getListed()])
-  const chips = placeChips(place, facets, livePages(catalog), getLocality(place.slug) ? `/localities/${place.slug}` : null)
+  const chips = placeChips(place, facets, livePages(catalog), getLocality(place.slug) ? areaGuidePath(place.slug) : null)
   const launches = facets.some((f) => f.place === place.key && f.intent === 'new-launches' && !f.possession && !f.builder && f.indexable)
   // rows of cards into the place's own lists (top, new launches, ready to move): only lists that are live in search
   const live = (intent: string) => facets.some((f) => f.place === place.key && f.intent === intent && !f.possession && !f.builder && !f.bhk && f.indexable)

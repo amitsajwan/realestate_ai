@@ -11,6 +11,7 @@ import { getNearGuide } from '@/lib/site/hubs'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { INSIGHT_NOTE } from '@/lib/marketing/insights'
 import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/seo'
+import { areaGuidePath } from '@/lib/site/areaGuide'
 
 /** A neighbourhood inside one of our areas, written by the communities bot from OpenStreetMap and MahaRERA facts only
  *  (backend/app/modules/communities). Only published, checked articles exist; anything else is a 404. */
@@ -52,9 +53,9 @@ export default async function CommunityPage({ params }: Props) {
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(article) }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(breadcrumbJsonLd(cfg.siteUrl, [
           { name: 'Home', path: '/' }, { name: 'Area guides', path: '/localities' },
-          { name: `${c.area_name}, Pune`, path: `/localities/${c.area_slug}` }, { name: c.name, path },
+          { name: `${c.area_name}, Pune`, path: areaGuidePath(c.area_slug) }, { name: c.name, path },
         ])) }} />
-        <p className="text-sm"><Link href={`/localities/${c.area_slug}`} className="text-[#0f2340] underline underline-offset-2">{c.area_name} area guide</Link></p>
+        <p className="text-sm"><Link href={areaGuidePath(c.area_slug)} className="text-[#0f2340] underline underline-offset-2">{c.area_name} area guide</Link></p>
         <h1 className="mt-3 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">{c.title}</h1>
         {c.updated && <p className="mt-2 text-sm text-slate-600">Last updated: <time dateTime={c.updated}>{longDate(c.updated)}</time></p>}
         {c.paragraphs.map((p) => <p key={p} className="mt-5 text-lg leading-relaxed text-slate-800">{p}</p>)}

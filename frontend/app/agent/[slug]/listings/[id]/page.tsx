@@ -27,6 +27,7 @@ import type { PublicListing } from '@/lib/site/types'
 import { projectForListing } from '@/lib/site/listingProject'
 import RegisterProjectPage from '@/components/site/RegisterProjectPage'
 import { getRegisterProjectByRegno, projectPageOfListing } from '@/lib/site/register'
+import { areaGuidePath } from '@/lib/site/areaGuide'
 
 interface Props {
   params: Promise<{ slug: string; id: string }>
@@ -59,7 +60,7 @@ export default async function ListingPage({ params }: Props) {
   const phone = agent.phone || (l.agent && l.agent.phone)
   const locality = localityByName(l.locality)
   const fallbackLocalitySlug = locality ? '' : localitySlug(l.locality)
-  const localityHref = locality ? `/localities/${locality.slug}` : (fallbackLocalitySlug ? `/localities/${fallbackLocalitySlug}` : '')
+  const localityHref = locality ? areaGuidePath(locality.slug) : (fallbackLocalitySlug ? areaGuidePath(fallbackLocalitySlug) : '')
   const projectName = (l.project_name || '').trim()
   const project = projectName || l.rera_no || l.about?.project_name ? projectForListing(l, await getCatalog()) : null
   const projectLabel = projectName || project?.name || ''

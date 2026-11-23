@@ -3,6 +3,7 @@ import Link from 'next/link'
 import type { Locality } from '@/lib/marketing/localities'
 import { comparePath, type AreaCompare, type AreaPair, type CompareSide } from '@/lib/site/compare'
 import { longDate } from './areaStats'
+import { areaGuidePath } from '@/lib/site/areaGuide'
 
 /**
  * "<A> vs <B>" (lib/site/compare.ts): two columns of facts a buyer can check, never a score or a winner. MahaRERA's counts as the
@@ -155,7 +156,7 @@ export default function AreaCompareView({ c, guides }: { c: AreaCompare; guides:
                 <h3 className="font-semibold text-slate-900">{g.name}</h3>
                 <p className="mt-1 text-sm font-semibold text-amber-700">{g.tagline}</p>
                 <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-relaxed text-slate-800">{g.suits.map((s) => <li key={s}>{s}</li>)}</ul>
-                <p className="mt-3 text-sm"><Link href={`/localities/${g.slug}`} className="font-semibold text-[#0f2340] underline underline-offset-2">{g.name} area guide</Link></p>
+                <p className="mt-3 text-sm"><Link href={areaGuidePath(g.slug)} className="font-semibold text-[#0f2340] underline underline-offset-2">{g.name} area guide</Link></p>
               </div>
             ))}
           </div>

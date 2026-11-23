@@ -10,6 +10,7 @@ import { breadcrumbJsonLd, jsonLdString } from '@/lib/marketing/seo'
 import { fetchPost, formatPostDate, postPath, POSTS_TEXT } from '@/lib/posts/data'
 import { postJsonLd, postMetadata } from '@/lib/posts/seo'
 import { postParagraphs, projectPath, withoutTitle } from '@/lib/posts/text'
+import { areaGuidePath } from '@/lib/site/areaGuide'
 
 export const revalidate = 60
 
@@ -56,7 +57,7 @@ export default async function PostPage({ params }: Props) {
       <article className="mx-auto max-w-3xl px-4 py-8 sm:py-12" data-testid="post-page">
         <nav aria-label="Breadcrumb" className="text-sm text-slate-600">
           <Link href="/posts" className="font-semibold text-[#0f2340] underline underline-offset-4">{POSTS_TEXT.allPosts}</Link>
-          {area && <> · <Link href={`/localities/${area.slug}`} className="underline underline-offset-4">{area.name}</Link></>}
+          {area && <> · <Link href={areaGuidePath(area.slug)} className="underline underline-offset-4">{area.name}</Link></>}
         </nav>
         <header className="mt-4">
           {post.kind === 'reel' && <span className="inline-block rounded-full bg-black/80 px-3 py-1 text-xs font-bold text-white">{POSTS_TEXT.reel}</span>}
@@ -108,7 +109,7 @@ export default async function PostPage({ params }: Props) {
 
         {area && (
           <p className="mt-8 border-t border-slate-200 pt-6">
-            <Link href={`/localities/${area.slug}`} data-testid="post-area-link"
+            <Link href={areaGuidePath(area.slug)} data-testid="post-area-link"
               className="text-base font-bold text-[#0f2340] underline underline-offset-4">
               {POSTS_TEXT.moreAbout(area.name)}
             </Link>

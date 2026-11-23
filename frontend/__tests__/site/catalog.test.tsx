@@ -125,7 +125,7 @@ describe('shared project pages', () => {
     expect(screen.getByRole('link', { name: "goyal my home kharadi on Zeta Homes's page" })).toHaveAttribute('href', '/agent/zeta/projects/my-home-upper-kharadi')
     // the ask box after the facts says it too (9052d168); the agents section is where it says who gets back to the buyer
     expect(within(screen.getByRole('region', { name: 'Agents for this project' })).getByText(/The Avasetu team calls or WhatsApps you back/)).toBeInTheDocument()
-    expect(screen.getAllByRole('link', { name: /Buyer guide to Upper Kharadi/ })[0]).toHaveAttribute('href', '/localities/upper-kharadi')
+    expect(screen.getAllByRole('link', { name: /Buyer guide to Upper Kharadi/ })[0]).toHaveAttribute('href', '/guides/upper-kharadi')
   })
 
   it('asks right after the project details, and gives phones a bottom bar to the form', async () => {

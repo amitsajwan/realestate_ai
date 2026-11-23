@@ -21,6 +21,7 @@ import { getProjectVideos, videoPagePath } from '@/lib/site/projectVideos'
 import { getFromSpace, getRegisterPlaces, placePath } from '@/lib/site/register'
 import { placeNow as now, zonesOf } from '@/lib/site/zones'
 import { WORK } from '@/lib/site/homeplan'
+import { areaGuidePath } from '@/lib/site/areaGuide'
 
 // The buyers' home (2026-10-22; the agents' home moved to /agents), and since 2026-11-21 the page every profile links to
 // (LinkedIn, Instagram, Facebook), so it speaks for all of Pune: each zone and its areas, the lists by size and stage, videos,
@@ -265,7 +266,7 @@ export default async function BuyerHome() {
           <p className={groupLabel}>Area guides</p>
           <ul className="mt-2 flex list-none flex-wrap gap-x-5 gap-y-1 p-0 text-sm" data-testid="home-guides">
             {LOCALITIES.map((l) => (
-              <li key={l.slug}><Link href={`/localities/${l.slug}`} className="inline-flex min-h-[36px] items-center text-slate-700 underline decoration-slate-300 underline-offset-2 hover:text-[#0f2340]">{l.name}</Link></li>
+              <li key={l.slug}><Link href={areaGuidePath(l.slug)} className="inline-flex min-h-[36px] items-center text-slate-700 underline decoration-slate-300 underline-offset-2 hover:text-[#0f2340]">{l.name}</Link></li>
             ))}
           </ul>
         </div>

@@ -159,7 +159,7 @@ describe('area page as the hub', () => {
     render(await LocalityPage({ params: Promise.resolve({ slug: 'wagholi' }) }))
     const other = screen.getByRole('region', { name: 'Other affordable areas we cover' })
     expect(within(other).getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(
-      ['/localities/upper-kharadi', '/localities/lohegaon', '/localities/keshav-nagar', '/localities'])
+      ['/guides/upper-kharadi', '/localities/lohegaon', '/localities/keshav-nagar', '/localities'])
   })
 
   it('names the IT corridor for IT areas', async () => {
