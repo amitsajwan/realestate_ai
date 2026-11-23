@@ -5,7 +5,22 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 const mockFetchTopic = jest.fn()
 jest.mock('@/lib/site/topics', () => ({ ...jest.requireActual('@/lib/site/topics'), fetchTopic: (slug: string) => mockFetchTopic(slug) }))
 jest.mock('@/components/marketing/MarketingShell', () => ({ __esModule: true, default: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }))
-jest.mock('next/navigation', () => ({ notFound: () => { throw new Error('NOT_FOUND') } }))
+jest.mock('next/navigation', () => ({
+  notFound: () => { throw new Error('NOT_FOUND') },
+  permanentRedirect: (to: string) => { throw new Error(`REDIRECT ${to}`) },
+  usePathname: () => '/',
+  useRouter: () => ({ push: jest.fn() }),
+}))
+// an area's guide is the area's page (components/area/AreaPage), which also reads the area's projects and listings: none here,
+// and every other read answers 404 (each section then leaves itself out)
+const mockCatalog = jest.fn(async () => [] as unknown[])
+jest.mock('@/lib/site/api', () => ({
+  getCatalog: () => mockCatalog(),
+  getLocalityListings: async () => [],
+  fixturesForced: () => false,
+  serverApiBase: () => 'http://api',
+}))
+beforeAll(() => { global.fetch = jest.fn(async () => ({ ok: false, status: 404, json: async () => ({}) })) as unknown as typeof fetch })
 jest.mock('@/components/site/PostsGrid', () => ({ __esModule: true, default: () => null }))
 
 // the area's landmarks, counts and photos (an area guide names this page canonical, so they are shown here too)
@@ -103,10 +118,14 @@ test("an area's guide shows its landmarks and metro, and asks the area's questio
   const { container } = render(await TopicPage({ params: Promise.resolve({ slug: 'upper-kharadi' }) }))
   expect(screen.getByTestId('metro-answer').textContent).toBe(
     'The nearest running metro station to Upper Kharadi is Ramwadi (Aqua Line (Line 2)), about 6.5 km west of the middle of Upper Kharadi, as of November 2026.')
-  expect(screen.getByRole('heading', { name: 'More questions about Upper Kharadi' })).toBeInTheDocument()
+  // one list of questions: the guide's, the area's own, then the ones its landmarks answer; shown and in the FAQPage data alike
+  const list = screen.getByRole('heading', { name: 'Questions people ask' }).closest('section')!
+  const shown = Array.from(list.querySelectorAll('summary')).map((x) => x.textContent!.replace(/\+$/, ''))
   const faq = [...container.querySelectorAll('script[type="application/ld+json"]')].map((x) => JSON.parse(x.textContent || '{}'))
     .find((x) => x['@type'] === 'FAQPage')
-  expect(faq.mainEntity.map((q: { name: string }) => q.name)).toEqual(['Is there a metro station near Upper Kharadi?', 'Which IT parks and offices are near Upper Kharadi?'])
+  expect(faq.mainEntity.map((q: { name: string }) => q.name)).toEqual(shown)
+  expect(shown).toEqual(expect.arrayContaining(['What is the difference between Kharadi and Upper Kharadi?',
+    'Is there a metro station near Upper Kharadi?', 'Which IT parks and offices are near Upper Kharadi?']))
 })
 
 test('an area guide links the place page and its lists in search, which own "projects in X"', async () => {
