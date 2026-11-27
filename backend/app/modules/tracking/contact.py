@@ -68,6 +68,12 @@ def state_of(contact: dict, convs: List[dict]) -> dict:
     return {"state": "in_touch" if heard else "no_reply", "at": last["at"], "by": last["who"], "channel": last["channel"]}
 
 
+def last_heard(convs: List[dict]) -> Optional[datetime]:
+    """When the buyer last wrote on any channel; None when they never have."""
+    heard = [t["at"] for t in _touches(convs, []) if t["who"] == "them"]
+    return heard[-1] if heard else None
+
+
 async def conversations_by_lead(db, contacts: List[dict]) -> Dict[str, List[dict]]:
     """{lead id: [{channel, doc}]} for the given leads, three reads in all (the leads list asks for up to 200 at once)."""
     ids = [c["_id"] for c in contacts]

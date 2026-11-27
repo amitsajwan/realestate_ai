@@ -106,6 +106,27 @@ async def test_the_loop_thinks_about_new_leads_and_replies_newest_first_and_skip
     assert asked == [("new-fresh", NOW - timedelta(minutes=10)), ("new-old", NOW - timedelta(hours=5))]
 
 
+async def test_a_lead_the_whatsapp_bot_answered_still_gets_a_brief_from_the_buyers_last_message():
+    # owner, 2026-11-27: every WhatsApp lead since the switch went on read as "in touch" because the bot answered last, so 4 of 5
+    # got no brief. A bot's answer is not a person's: the brief follows the buyer's last message.
+    db = FakeDb()
+    await db.get_collection("contacts").insert_one(lead("wa", ago=timedelta(hours=3), phone="+91 98765 43210"))
+    await db.get_collection("contacts").insert_one(lead("person", ago=timedelta(hours=3), phone="+91 98765 43211"))
+    convs = db.get_collection("whatsapp_conversations")
+    await convs.insert_one({"_id": "c1", "lead_id": "wa", "wa_id": "919876543210", "messages": [
+        {"role": "user", "ts": NOW - timedelta(hours=3)}, {"role": "bot", "ts": NOW - timedelta(hours=3)},
+        {"role": "user", "ts": NOW - timedelta(minutes=30)}, {"role": "bot", "ts": NOW - timedelta(minutes=29)}]})
+    await convs.insert_one({"_id": "c2", "lead_id": "person", "wa_id": "919876543211", "messages": [
+        {"role": "user", "ts": NOW - timedelta(hours=3)}, {"role": "agent", "ts": NOW - timedelta(hours=2)}]})
+    asked = []
+
+    async def think(db_, agent_id, lead_id, since):
+        asked.append((lead_id, since))
+        return "thought"
+    assert await followups.fresh_briefs(db, NOW, think) == 1
+    assert asked == [("wa", NOW - timedelta(minutes=30))]
+
+
 async def test_the_loop_stops_at_its_cap_on_an_off_switch_and_goes_on_after_a_failure(monkeypatch):
     db = FakeDb()
     for i in range(9):
