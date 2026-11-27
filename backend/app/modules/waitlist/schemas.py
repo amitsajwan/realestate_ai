@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from app.platform.text import normalize_indian_mobile
 
-CONSENT_TEXT = "OK to contact me about my free trial"
+CONSENT_TEXT = "OK to contact me about joining Avasetu"
 
 
 class InviteRequestIn(BaseModel):
@@ -45,7 +45,7 @@ class InviteRequestIn(BaseModel):
     @classmethod
     def _consent(cls, v: bool) -> bool:
         if v is not True:
-            raise ValueError("Consent is required so we can contact you about your free trial")
+            raise ValueError("Consent is required so we can contact you about joining")
         return v
 
 
