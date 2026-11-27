@@ -65,9 +65,44 @@ Order: 1, then 2, then 3-5. The agent network work stays first in line; this doe
 - **No new cities.** All of Pune first; the register and the rules are Pune- and MahaRERA-shaped.
 - **No AI agent that publishes or picks an agent.** Rules 6 and 7 stand: the shortlist and the agent pick are code.
 
+## Why: the SEO differentiator (owner 2026-11-27)
+
+All of this exists to rank. Portals have more listings; what they cannot copy is **a dated record of each project, kept by us
+over time**: what MahaRERA said each month, how many homes sold, when the date moved, and what the pictures showed. That
+history cannot be rebuilt later by a newcomer (`seo-system.md` 8b). Every piece above should leave a public, dated, linkable
+fact on a project or area page.
+
+## MahaRERA history: sales per month (owner 2026-11-27)
+
+**What we hold today:** `booked_history`, which is one dated homes-booked count each time the count changes. It is read by the
+register refresh (`areastats.refresh`), about once every 30 days per project (180 for finished ones), plus whenever page
+enrichment reads it. `completion_history` records every date move. `hot.py` and `pagefacts.sales` already use both. The
+history only goes back to October 2026, so most projects have one or two readings. That is too thin for a sales-per-month
+figure today.
+
+**What to do:**
+1. **Read selling projects weekly, starting now.** A project that is under construction and has unsold homes gets details every
+   7 days instead of 30; finished and sold-out projects stay as they are. Each week of delay is history we can never get
+   back. Cost: MahaRERA requests only (still PAUSE apart), no money. First count how many Pune projects are "selling", so
+   we know the per-day reads fit in the current steps.
+2. **Look for MahaRERA's own history.** Promoters file quarterly progress reports (units booked, construction stage) on the
+   project record. If the public portal serves past quarters without login or captcha, one backfill gives years of quarterly
+   sales for each project at once, and the construction stage MahaRERA has on file (the "declared" side of declared vs seen).
+   This is a one-day spike: find the endpoint or the document, read 3 projects by hand, and decide. If it needs a login or
+   captcha, we do not use it (the same rule as the other closed endpoints).
+3. **Monthly sales, from the readings.** A code-only function: homes booked per month between readings, spread evenly across
+   the gap and labelled with the dates read ("about 12 a month between 3 Nov and 1 Dec, from MahaRERA's count"). Never a
+   figure when the gap is long or a count went down (a cancellation or a corrected filing is shown as is).
+4. **Use it everywhere it is a fact:** a sales line and small chart on the project page and the report, "selling fastest this
+   month" lists per area (an indexable page), area totals sold per month for the newsroom and number-of-the-week reels, and a
+   sales-pace point in the shortlist. Each says when we read it.
+
+Order: 1 and the spike (2) first, because they start the clock. Monthly sales (3-4) after the report's first version.
+
 ## Money and the ₹5,000/month budget
 
-The vision's ₹5,000 a month is already below what runs: the VM alone is about $67 a month (2026-11-19), and Gemini has its
+The vision's ₹5,000 a month is already below what runs: the VM alone was estimated at about $67 a month from list prices
+when it was resized to e2-standard-2 on 2026-11-19 (not read from the bill; check Billing for the real figure), and Gemini has its
 own caps (enrich ₹50/day lane, AI Studio prepaid credit). Both pieces above cost close to nothing extra because they read the
 register; the only model call is reading a buyer's words into filters (cheap model, one call per brief). The budget line in
 the vision should be read as "no new paid sources", not as the platform's whole cost.
