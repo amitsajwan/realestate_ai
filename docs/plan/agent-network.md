@@ -92,6 +92,39 @@ Missing evidence scores 0, never a guess. Version the rule and keep writing `age
   the chat's agent answers). The word agents send is still TRIAL, because old posts and QR codes say it. Still saying "free
   trial": the older brand post, reel and calendar templates (`marketing/brand_posts.py`, `text_posts.py`, `calendar/library.py`,
   `reels/*_reels.py`); change them before any of them is scheduled again.
+- 2026-11-27: steps 1–2 and the wording are LIVE (d130fd04, 16e97490). The call-back form's consent text ("about joining
+  Avasetu", b4a80292) is on main but NOT live: the owner paused deploys the same day (`AUTO_DEPLOY=false`) to release
+  several pieces together.
+
+### Next: what the board screen still lacks (steps 3, 4, 6 in screen terms)
+
+What runs today (`studio/app/studio/lead-board/page.tsx`): agents see every open card (no name or number), why it fits them,
+what the buyer read, how many agents asked, and ask free with a note; the owner sees the asks (name, time, note) and gives
+with one tap. What is missing, most important first:
+
+1. **The owner chooses blind.** An ask shows only the agent's name and note. Show each ask's points with the breakdown
+   (listing in the project 30, covers the area 20, called fast 20, buyer ratings 15, fewer recent leads 10, language 5;
+   missing evidence scores 0) and rank the asks by it. Grow `agent_shortlist` into this scorer if its owner commits it
+   (uncommitted in the main checkout, owner unknown); otherwise score in `inbox/board.py`. One scorer, no model.
+2. **No deadline.** The 30-minute ask window from a card's first appearance: a countdown on the card ("closes in 18 min"),
+   and a **Ready to decide** tab at the top of the owner's board with the closed windows that have asks.
+3. **Agents are not told the outcome.** A **My asks** list for agents (waiting, given to you, went to another agent), and a
+   plain note when a buyer goes to someone else. No name of the other agent.
+4. **The agent's own score.** "How you'd score" on each card for the signed-in agent, from the same table, so they know
+   why they would or would not get it.
+5. **Nothing after the give.** "I called" on the handover; no call in 2 hours passes the buyer to the next ask and tells
+   the first agent (step 6).
+6. **Agents hear of new buyers only from the owner's WhatsApp link.** Step 5's alert template ("A buyer in {area} wants a
+   {bhk}. Ask for this buyer") goes to Meta first: approval takes days.
+
+Build 1–4 together (one screen, one release); then 5; then 6 once the template is approved. Step 7 (buyer side) after that.
+
+### Before the next deploy
+
+- Open the Studio screens signed in, as the owner and as a verified agent: Agents > MahaRERA check, the lead board
+  (Fits you / All Pune, ask, take back), and the locked screen for an unverified agent. Not yet looked at in a browser.
+- Turn deploys back on only when the owner says (`gh variable set AUTO_DEPLOY --body true`), then check the release
+  (deploy skill).
 
 ## AI in the network (proposed 2026-11-27, not decided)
 
