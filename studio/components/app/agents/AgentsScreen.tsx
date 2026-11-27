@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import React, { useState } from 'react'
 import { adminApi } from '@/lib/app/admin'
-import type { InviteRequest, InvitedRequest, TrialSignup } from '@/lib/app/admin'
+import type { AgentCheck, InviteRequest, InvitedRequest, TrialSignup } from '@/lib/app/admin'
 import { conciergeApi } from '@/lib/app/concierge'
 import type { AgentSummary } from '@/lib/app/concierge'
 import { timeAgo } from '@/lib/app/format'
@@ -13,9 +13,10 @@ import { Btn, ErrorBox, PageTitle, Spinner } from '../ui'
 import { AddAgentSheet } from './AddAgentSheet'
 import { CodeSheet, InviteRow } from './InviteRequests'
 import { ProgressRing } from './ProgressRing'
+import { ReraChecks } from './ReraChecks'
 import { BRAND_NAME } from '@shared/brand'
 
-const TABS = ['setup', 'active', 'all', 'signedup', 'asked']
+const TABS = ['setup', 'active', 'all', 'signedup', 'asked', 'rera']
 const settingUp = (a: AgentSummary) => a.progress.done < a.progress.total
 
 const shortDate = (iso: string) => new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
@@ -69,6 +70,7 @@ export function AgentsScreen() {
   const { data, error, loading, reload } = useAsync(() => conciergeApi.list(), [])
   const requests = useAsync<InviteRequest[]>(() => adminApi.inviteRequests().catch(() => []), [])
   const signups = useAsync<TrialSignup[]>(() => adminApi.trialSignups().catch(() => []), [])
+  const checks = useAsync<AgentCheck[]>(() => adminApi.agentChecks().catch(() => []), [])
   const [adding, setAdding] = useState(false)
   const [invited, setInvited] = useState<InvitedRequest | null>(null)
 
@@ -107,9 +109,12 @@ export function AgentsScreen() {
         { key: 'all', label: 'All', count: agents.length },
         { key: 'signedup', label: 'Signed up', count: (signups.data ?? []).length },
         { key: 'asked', label: 'Asked to join', count: asked.length, tone: 'urgent' },
+        { key: 'rera', label: 'MahaRERA check', count: (checks.data ?? []).filter((c) => c.status === 'pending' && c.rera_agent_no).length, tone: 'urgent' },
       ]} />
       {error && <ErrorBox message={error} onRetry={reload} />}
-      {tab === 'signedup' ? (
+      {tab === 'rera' ? (
+        checks.loading && !checks.data ? <Spinner /> : <ReraChecks items={checks.data ?? []} onChange={checks.reload} />
+      ) : tab === 'signedup' ? (
         <>
           <p className="text-sm text-gray-600">Agents who took the free trial themselves (TRIAL on WhatsApp). Reach out on WhatsApp and help with the first property.</p>
           {signups.loading && !signups.data ? <Spinner /> : (signups.data ?? []).length === 0 ? (

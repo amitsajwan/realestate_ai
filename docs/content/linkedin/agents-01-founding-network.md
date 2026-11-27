@@ -1,19 +1,19 @@
 ---
-title: "Looking for property agents across Pune"
+title: "Pune agents buyers can check"
 platform: LinkedIn post (founder profile), repost from the Avasetu company page
 audience: Pune property agents and channel partners, any area of Pune, MahaRERA registered
 purpose: recruit the founding agent network across Pune (Avasetu 2.0 target: 30 prospects, 15 onboarded by 31 December 2026)
-image: design canvas https://claude.ai/artifact/Q2PS2sEcNNtFa71S92n9wg (artboard "LinkedIn post image")
+image: agents-01-founding-network.png (1080x1350, rendered 2026-11-27 from the design canvas artboard "LinkedIn post image"); the same image as .jpg goes to Facebook and Instagram through backend/scripts/recruit_posts.py
 link: https://avasetu.in/for-agents (no trial or offer named: joining is open and free; the page itself still says "1 month free, first 20 agents")
 publish: now (week of 26 November 2026)
-status: READY, publish by hand
+status: PUBLISHED 2026-11-27 on the Avasetu company page ("message us" for "message me"): https://www.linkedin.com/feed/update/urn:li:share:7531934240523972608
+published_founder: 2026-11-27 on the founder's own profile ("message me", link in the first comment): https://www.linkedin.com/feed/update/urn:li:share:7532013831141855232/
+published_fb_ig: 2026-11-27 through social.distribution.send (keys recruit:agents-01:facebook / :instagram): https://www.facebook.com/122108649813488464/posts/122125541583488464 and https://www.instagram.com/p/DgOzqYOETkw/
 ---
 
 ## Post
 
-I'm looking for property agents across Pune.
-
-Not for a portal where you pay to be on top. For a small network of agents buyers can check.
+Most property portals sell the top spot. We're building the opposite: a network of Pune agents buyers can check.
 
 At Avasetu we read every MahaRERA registration in Pune again and again: completion dates, how many homes are booked,
 which dates have moved. Buyers use our project pages to check a project before they visit.

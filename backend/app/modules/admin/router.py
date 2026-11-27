@@ -221,3 +221,32 @@ async def withdraw_site_visit(body: SiteVisitOffIn, user: User = Depends(owner_o
     except sitevisits.VisitError as e:
         raise HTTPException(404, str(e))
     return {"items": await sitevisits.recent(svc.db)}
+
+
+# ---- MahaRERA check of agents (onboarding/verification.py; docs/plan/agent-network.md step 1) ------------------------------
+from typing import Literal  # noqa: E402
+
+from app.modules.onboarding import verification  # noqa: E402
+
+
+class AgentCheckIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    status: Literal["pending", "verified", "rejected"]
+    register_url: Optional[str] = Field(None, max_length=500)
+    note: Optional[str] = Field(None, max_length=verification.MAX_NOTE)
+
+
+@router.get("/agent-checks")
+async def agent_checks(user: User = Depends(owner_only), svc: AdminService = Depends(get_service)) -> dict:
+    """Every agent with their MahaRERA agent number and whether the owner has checked it on the register."""
+    return {"items": await verification.checks(svc.db)}
+
+
+@router.post("/agent-checks/{agent_id}")
+async def set_agent_check(agent_id: str, body: AgentCheckIn, user: User = Depends(owner_only),
+                          svc: AdminService = Depends(get_service)) -> dict:
+    """Verified (with the register page), rejected (with a note), or back to pending."""
+    try:
+        return await verification.set_status(svc.db, str(user.id), agent_id, body.status, body.register_url, body.note, svc.now())
+    except verification.VerificationError as e:
+        raise HTTPException(e.status_code, str(e))

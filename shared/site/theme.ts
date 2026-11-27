@@ -79,6 +79,12 @@ export function safeRera(v: unknown): string | null {
   return typeof v === 'string' && RERA.test(v.trim()) ? v.trim() : null
 }
 
+/** True when Avasetu checked the agent's present MahaRERA number on the register. */
+export function reraVerified(b: Pick<AgentBranding, 'rera_agent_no' | 'rera_verified_no'> | null | undefined): boolean {
+  const no = safeRera(b?.rera_agent_no)
+  return !!no && safeRera(b?.rera_verified_no) === no
+}
+
 /** Who the enquiry form on an agent's site is with: the agent's business (an enquiry on their own site is theirs, owner
  * 2026-10-30), or Avasetu on the team's own site. */
 export function enquiryName(agent: { slug: string; agent_name: string; branding_data?: AgentBranding | null }): string {

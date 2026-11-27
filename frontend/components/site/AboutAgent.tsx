@@ -1,6 +1,6 @@
 import React from 'react'
 import type { AgentProfile } from '@/lib/site/types'
-import { MAHARERA_URL, displayName, safeImage, safeRera } from '@/lib/site/theme'
+import { MAHARERA_URL, displayName, reraVerified, safeImage, safeRera } from '@/lib/site/theme'
 import { shownPhone } from '@/lib/site/links'
 import HiddenPhone from './HiddenPhone'
 import { BRAND_NAME } from '@/lib/brand'
@@ -17,6 +17,7 @@ export default function AboutAgent({ agent }: { agent: AgentProfile }) {
   const name = displayName(agent)
   const logo = safeImage(b?.logo)
   const rera = safeRera(b?.rera_agent_no)
+  const verified = reraVerified(b)
   const about = (b?.about || '').trim() || (agent.bio || '').trim()
   const areas = b?.areas || []
   const services = (b?.services || []).filter((s) => s && s.trim())
@@ -94,8 +95,14 @@ export default function AboutAgent({ agent }: { agent: AgentProfile }) {
             </dl>
             {rera && (
               <p data-testid="rera-agent" className="mx-4 mb-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800">
-                <span className="font-semibold">RERA agent registration: {rera}</span>
-                <span className="block text-slate-600">This number is stated by the agent. {BRAND_NAME} has not verified it.{' '}
+                {verified && (
+                  <span data-testid="rera-verified" className="mb-1.5 inline-flex items-center gap-1 rounded-full bg-[#F0B13B] px-2.5 py-0.5 text-xs font-bold text-[#102340]">
+                    <svg width="12" height="12" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 10.5l3.5 3.5L15 7" stroke="currentColor" strokeWidth="2.6" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                    MahaRERA verified
+                  </span>
+                )}
+                <span className="block font-semibold">RERA agent registration: {rera}</span>
+                <span className="block text-slate-600">{verified ? `${BRAND_NAME} checked this number on the MahaRERA register.` : `This number is stated by the agent. ${BRAND_NAME} has not verified it.`}{' '}
                   <a href={MAHARERA_URL} target="_blank" rel="noopener noreferrer" className="font-semibold underline underline-offset-2" style={{ color: 'var(--site-primary)' }}>Check it on MahaRERA</a>.
                 </span>
               </p>

@@ -40,6 +40,30 @@ describe('PassBox', () => {
     expect(within(note).getByText(/full details went to House Deal on WhatsApp/)).toBeInTheDocument()
     expect(within(note).getByText(/leads about Wagholi go to House Deal by themselves/)).toBeInTheDocument()
   })
+
+  it('shows deterministic fit evidence and only selects a candidate after the owner taps it', async () => {
+    passLead.mockClear()
+    handover.shortlist = [{ agent_id: 'HD', name: 'House Deal', slug: 'house-deal', has_whatsapp: true, evidence_count: 2,
+      reasons: ['Agent-declared service area: Wagholi', '1 fresh active listing in Wagholi'],
+      unknowns: ['Current availability and capacity are not recorded'] }]
+    render(<PassBox leadId="l1" />)
+    fireEvent.click(screen.getByRole('button', { name: 'Pass to an agent' }))
+    expect(await screen.findByRole('region', { name: 'Agent fit suggestions' })).toBeInTheDocument()
+    expect(screen.getByText('Agent-declared service area: Wagholi')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Use this candidate' }))
+    expect(await screen.findByLabelText('Pass this buyer to')).toHaveValue('HD')
+    expect(passLead).not.toHaveBeenCalled()
+    delete handover.shortlist
+  })
+
+  it('says when the data does not support a shortlist and leaves manual selection available', async () => {
+    handover.shortlist = []
+    render(<PassBox leadId="l1" />)
+    fireEvent.click(screen.getByRole('button', { name: 'Pass to an agent' }))
+    expect(await screen.findByText(/No fresh area or active-listing fit evidence/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Pass this buyer to')).toBeInTheDocument()
+    delete handover.shortlist
+  })
 })
 
 describe('PassedNote', () => {

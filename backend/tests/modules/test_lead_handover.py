@@ -139,6 +139,52 @@ async def test_the_picker_leaves_out_retired_accounts_and_a_pass_to_one_is_refus
         assert e.status_code == 409 and "retired" in str(e)
 
 
+async def test_operator_shortlist_uses_profile_area_and_fresh_matching_inventory_only():
+    db = await setup(form_lead(requirement={"bhk": 2.0, "budget_min_inr": 7_500_000, "budget_max_inr": 8_500_000,
+                                           "timeline": None, "financing": None, "localities": []}))
+    await db.get_collection("agent_public_profiles").update_one(
+        {"agent_id": HD}, {"$set": {"branding_data": {"business_name": "House Deal", "areas": ["Wagholi"]}}})
+    listings = db.get_collection("listings")
+    await listings.insert_one({"_id": "fresh-fit", "agent_id": HD, "status": "live", "locality": "Wagholi", "bhk": 2.0,
+                               "price_inr": 8_000_000, "freshness_confirmed_at": NOW - timedelta(days=3)})
+    await listings.insert_one({"_id": "needs-confirmation", "agent_id": HD, "status": "under_offer", "locality": "Wagholi",
+                               "bhk": 2.0, "price_inr": 8_000_000, "freshness_confirmed_at": NOW - timedelta(days=25)})
+    await listings.insert_one({"_id": "no-freshness-date", "agent_id": HD, "status": "live", "locality": "Wagholi",
+                               "bhk": 2.0, "price_inr": 8_000_000})
+    await listings.insert_one({"_id": "hidden", "agent_id": HD, "status": "live", "locality": "Wagholi",
+                               "freshness_confirmed_at": NOW - timedelta(days=50)})
+    # A retired account must not appear even if its inventory fits perfectly.
+    await listings.insert_one({"_id": "retired-fit", "agent_id": RETIRED, "status": "live", "locality": "Wagholi", "bhk": 2.0,
+                               "price_inr": 8_000_000, "freshness_confirmed_at": NOW})
+
+    svc = InboxService(db, FakeWhatsApp(), now=lambda: NOW)
+    h = await svc.handover_for(OWNER, "saket")
+    assert [a["agent_id"] for a in h["shortlist"]] == [HD]
+    agent = h["shortlist"][0]
+    assert "Agent-declared service area: Wagholi" in agent["reasons"]
+    assert "1 fresh active listing in Wagholi" in agent["reasons"]
+    assert "Has an active listing in the requested 2 BHK configuration" in agent["reasons"]
+    assert "Has an active listing within the buyer's stated budget" in agent["reasons"]
+    assert any("need freshness confirmation" in x for x in agent["unknowns"])
+    assert any("excluded by freshness rules" in x for x in agent["unknowns"])
+    assert "Agent recommendation opt-in is not recorded" in agent["unknowns"]
+    await svc.pass_lead(OWNER, "saket", HD)
+    event = await db.get_collection("agent_recommendation_events").find_one({"lead_id": "saket"})
+    assert event["fit_version"] == "agent-fit-v1"
+    assert event["selected_agent_id"] == HD and event["selected_from_shortlist"] is True
+    assert event["selected_reasons"] == agent["reasons"]
+    assert event["candidates"][0]["agent_id"] == HD
+    assert "phone" not in event and "text" not in event
+
+
+async def test_operator_shortlist_has_no_candidate_when_all_area_inventory_is_hidden():
+    db = await setup(form_lead())
+    await db.get_collection("listings").insert_one({"_id": "hidden", "agent_id": HD, "status": "live", "locality": "Wagholi",
+                                                    "freshness_confirmed_at": NOW - timedelta(days=50)})
+    h = await InboxService(db, FakeWhatsApp(), now=lambda: NOW).handover_for(OWNER, "saket")
+    assert h["shortlist"] == []
+
+
 async def test_a_pass_moves_the_lead_and_its_chat_and_sends_the_card_to_the_agent():
     db = await setup(form_lead())
     wa = FakeWhatsApp()
@@ -153,6 +199,11 @@ async def test_a_pass_moves_the_lead_and_its_chat_and_sends_the_card_to_the_agen
     alert = await db.get_collection("notifications").find_one({"agent_id": HD})
     assert alert["kind"] == "buyer_passed" and "Mansha Phase-II" in alert["summary"] and alert["ref"]["lead_id"] == "saket"
     assert "Mansha" in r["whatsapp_url"]
+    audit = await db.get_collection("agent_recommendation_events").find_one({"lead_id": "saket"})
+    assert audit["selected_agent_id"] == HD and audit["selected_from_shortlist"] is False
+    assert audit["candidate_count"] == 1 and audit["candidates"][0]["agent_id"] == HD
+    assert audit["candidates"][0]["reasons"] == [] and audit["outcome"] is None
+    assert "phone" not in audit and "text" not in audit
     mine = await InboxService(db, wa, now=lambda: NOW).passed(OWNER)
     assert [(p["name"], p["agent_name"], p["whatsapp_status"]) for p in mine] == [("Saket Patil", "House Deal", "sent")]
 
@@ -188,6 +239,8 @@ async def test_always_adds_the_area_rule_and_the_next_lead_there_goes_by_itself(
     assert (await contacts.find_one({"_id": "next"}))["agent_id"] == HD
     assert (await contacts.find_one({"_id": "fresh"}))["agent_id"] == OWNER       # the follow-up gets its turn first
     assert (await contacts.find_one({"_id": "elsewhere"}))["agent_id"] == OWNER   # no rule for it
+    auto_audit = await db.get_collection("agent_recommendation_events").find_one({"lead_id": "next"})
+    assert auto_audit["decision_by"] == "auto" and auto_audit["route_rule"] == {"kind": "area", "label": "Wagholi"}
     assert told == [(OWNER, "lead_auto_passed", "Next Buyer went to House Deal by your Wagholi rule. WhatsApp to them sent.")]
     assert (await svc.routes(OWNER))[0]["passed"] == 1
     # once per lead: the next cycle passes the fresh one and nothing twice

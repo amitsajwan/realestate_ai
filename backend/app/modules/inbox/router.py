@@ -17,9 +17,10 @@
   DELETE /conversations/routes/{id}   (owner) remove one
 
 Lead board, mounted at /lead-board (board.py): the owner's open leads without name or number, for signed-in agents
-  GET    /lead-board                  the cards; the owner also gets every ask with its offer; ?as_agent=true: as any other
+  GET    /lead-board                  the cards (verified agents only; others get `locked`); the owner also gets every ask; ?as_agent=true: as any other
                                        agent sees it (the owner and a holder can check what agents read)
-  POST   /lead-board/{ref}/ask        (agent) ask for a lead: {offer_kind: none|fee|share, offer_value, note}; asking again changes it
+  POST   /lead-board/{ref}/ask        (verified agent) ask for a lead, free: {note}; asking again changes it. Offers are off: an
+                                       old client's offer_kind / offer_value are ignored
   DELETE /lead-board/{ref}/ask        (agent) take the ask back
   POST   /lead-board/{ref}/give       (owner) give the lead to an agent who asked: {agent_id}; an ordinary pass
   POST   /lead-board/{ref}/remove     (owner) take a lead off the board (a test, or one the owner keeps)
@@ -55,8 +56,7 @@ class PassIn(BaseModel):
 
 
 class AskIn(BaseModel):
-    offer_kind: Literal["none", "fee", "share"] = "none"
-    offer_value: Optional[float] = Field(None, ge=0, le=1_000_000)
+    # offers are off (board.py): fields an older Studio still sends are dropped, never stored
     note: Optional[str] = Field(None, max_length=200)
 
 
@@ -179,7 +179,7 @@ async def board_agents(user: User = Depends(owner_only), b: LeadBoard = Depends(
 
 @board_router.post("/{ref}/ask")
 async def ask(ref: str, body: AskIn, user: User = Depends(current_active_user), b: LeadBoard = Depends(get_board)) -> dict:
-    return await _run(b.ask(str(user.id), ref, body.offer_kind, body.offer_value, body.note))
+    return await _run(b.ask(str(user.id), ref, body.note))
 
 
 @board_router.delete("/{ref}/ask")

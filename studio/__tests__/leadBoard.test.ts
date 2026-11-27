@@ -1,4 +1,4 @@
-import { activityLine, areaCounts, boardTitle, shareText, type BoardCard } from '@/lib/app/leadBoard'
+import { activityLine, areaCounts, bhkOptions, boardTitle, filterCards, shareText, type BoardCard } from '@/lib/app/leadBoard'
 import { nextAfterLogin } from '@/lib/app/session'
 
 test('after signing in, only a Studio path in ?next= is followed', () => {
@@ -38,4 +38,17 @@ test('the message to one agent greets them by name', () => {
   const text = shareText([{ areas: ['Moshi'], genuine: 'replied' } as BoardCard], 'https://avasetu.in/studio/lead-board', 'Stavan')
   expect(text.startsWith('Namaste Stavan ji, Avasetu team here.')).toBe(true)
   expect(text).toContain('1 buyer lead on Avasetu (Moshi), 1 already replied to us.')
+})
+
+test('Fits you keeps the cards with a reason they fit; All Pune keeps every card; area and BHK narrow either', () => {
+  const cards = [
+    { ref: 'a', fit: ['You cover Wagholi'], areas: ['Wagholi'], bhk: '2 BHK' },
+    { ref: 'b', fit: [], areas: ['Baner'], bhk: '3 BHK' },
+    { ref: 'c', fit: ['You have a listing in this project'], areas: ['Kharadi'], bhk: '3 BHK' },
+  ]
+  expect(filterCards(cards, 'fits', null, null).map((c) => c.ref)).toEqual(['a', 'c'])
+  expect(filterCards(cards, 'all', null, null).map((c) => c.ref)).toEqual(['a', 'b', 'c'])
+  expect(filterCards(cards, 'all', 'Baner', null).map((c) => c.ref)).toEqual(['b'])
+  expect(filterCards(cards, 'fits', null, '3 BHK').map((c) => c.ref)).toEqual(['c'])
+  expect(bhkOptions([{ bhk: '3 BHK' }, { bhk: null }, { bhk: '1 BHK' }, { bhk: '3 BHK' }])).toEqual(['1 BHK', '3 BHK'])
 })

@@ -1,6 +1,7 @@
 # Agent network: lead board, asks and picking by points
 
-**Status:** TARGET. Decided by the owner 2026-11-27; nothing below beyond "What already runs" is built.
+**Status:** TARGET. Decided by the owner 2026-11-27. Steps 1 and 2 built on branch `agent-network/verify-and-board` (2026-11-27,
+not merged); offers hidden. The rest is not built.
 **Design:** the screens are drawn on the design canvas https://claude.ai/artifact/Q2PS2sEcNNtFa71S92n9wg (the flow, buyer form,
 WhatsApp alert, lead board, one buyer opened, owner pick, handover, buyer told who calls, LinkedIn post image). Figures on it are
 placeholders.
@@ -69,9 +70,73 @@ Missing evidence scores 0, never a guess. Version the rule and keep writing `age
 7. **Buyer side.** A consent line on the enquiry form, a "who will call you" message, and the next-day rating. Ratings are
    stored, never invented, and shown only when there are enough of them.
 
+### Progress
+
+- 2026-11-27, steps 1 and 2 (branch `agent-network/verify-and-board`): `onboarding/verification.py` keeps `rera_check` on the
+  profile (pending until the owner records verified, with the register page, or rejected; a changed number is pending again).
+  Owner screen: Studio > Agents > MahaRERA check (`GET/POST /admin/agent-checks`). The badge shows on `/agent/[slug]` and in
+  Studio from `branding_data.rera_verified_no`. The board (`inbox/board.py`) shows cards and takes asks only from verified
+  agents (others get `locked` with the reason); every card carries `fit` (listing in the project, listing in the area, area
+  covered) and Studio filters "Fits you" / "All Pune", area and BHK. **Every agent who used the board before is locked out
+  until the owner checks their number.**
+- Offers: hidden (the recommendation below). Studio no longer asks for or shows one, the API drops any offer it is sent, and
+  offers stored before stay in `lead_asks` untouched.
+
+## AI in the network (proposed 2026-11-27, not decided)
+
+What already runs, and where it shows up:
+
+| AI part | What it does | Role in the network | State |
+|---|---|---|---|
+| Project intelligence (MahaRERA reads, enrichment, page writer, fact checks) | Keeps every Pune project page researched and current | The research agents send their buyers; why buyers trust our pages | Live |
+| Listing copilot (`ai_listing`, listing from a RERA number) | The agent types a RERA number and the listing fills itself | The main reason agents join | Live |
+| Posts and reels (creative room, reel drawing, voice-over) | Draws posts and videos for each listing | "Made for you, you approve" | Live |
+| Website chat as salesperson (chat + knowledge search) | Answers buyers and collects BHK, budget and timing | Where the lead card's details come from | Live |
+| Buyer mind (deep mind, Lead Brief; `docs/plan/buyer-mind.md`) | Reads a lead: who the buyer is, what they need, problems (possession after their move-in date), 2–3 other projects | The best thing to hand an agent after the pick | Built, switched off. Next: try it on real leads |
+
+Where it plugs into the flow, in order:
+
+1. **Handover, after the pick (recommended first, about 2 days, mostly wiring).** The full Lead Brief plus a suggested first
+   WhatsApp message the agent can edit, and anything to know before calling. "You don't just get a number, you get the buyer
+   understood": the reason to pay for a subscription later.
+2. **Board card, before the pick.** A one-line summary by the buyer mind ("2 BHK, own home, moving in 6 months, compared 3
+   Kharadi projects"), written without name, number or the buyer's own words and checked by the same copy guards. After the
+   brief has been tried on real leads.
+3. **Studio copilot for agents.** Point the existing "Ask AI" at the project research, so an agent can ask "What's the real
+   possession date of Ivara, and has it moved?" and get an answer with its source.
+4. **Later, not now:** voice listing ("2 BHK in Ivara, 850 sq ft, 1.35 crore" spoken into the phone), and reading the MahaRERA
+   agent register by code for step 1's check.
+
+What AI will not do (already rules here and in CLAUDE.md): pick the agent (fixed points do that); make up ratings, deals or
+availability; post anything without the agent's or the owner's approval.
+
+## Recruiting posts: the Studio session owns them too (owner, 2026-11-27)
+
+The same session that builds the board also makes and puts out the posts that bring agents in. The owner should not have to
+draft or post anything except the founder's own LinkedIn post.
+
+| When | Post | Where | How |
+|---|---|---|---|
+| Week of 27 Nov | "Looking for property agents across Pune": text in `docs/content/linkedin/agents-01-founding-network.md`, image = canvas artboard "LinkedIn post image" | LinkedIn (founder profile, then shared by the company page) | **By the owner.** There is no LinkedIn API in the code. Give the owner the final text and the PNG, ready to paste |
+| Same week | Same message, cut for buyers' channels: one image plus a short caption that says "for agents" in its first line | Avasetu Facebook page and Instagram | Through `social.distribution.send` only (CLAUDE.md rule 6), key `recruit:agents-01:<platform>`. Dry run first, then live. Send the owner the links of what went out |
+| Week 2 | "How it works" carousel: the canvas screens (lead board, one buyer opened, owner pick, handover) as 4–5 slides | LinkedIn (owner), FB/IG (send) | As above. Say on the first slide that it's being built with the first agents |
+| Week 4 | First agents on the network (name, area, page link), **only with each agent's written OK** | LinkedIn, FB/IG | As above |
+| Every week | One-to-one messages to the prospect list (short version in the post file) | WhatsApp / LinkedIn DM from the owner | Draft them; the owner sends. Business-initiated WhatsApp needs an approved template |
+
+Rules for the posts:
+- Name the audience first (agents, not buyers), as every piece of content does.
+- Claim only what is live that day. The board, the ask window and picking by points are "being built with our first agents"
+  until they ship.
+- No lead numbers and no promise of buyers. Never say anyone can pay to rank. No made-up agents or quotes.
+- Company channels sign as the Avasetu team. Only the founder's LinkedIn post is in the founder's voice.
+- The agent recruitment reels of Oct 2026 brought no agents. Posts back up the direct messages; they don't replace them. Count
+  replies per channel in the prospect list.
+- Images are drawn in code where the reel and post renderers can do it. Otherwise export them from the canvas. Keep the brand
+  look: navy `#102340`, gold `#F0B13B`, Inter.
+
 ## Decisions still open (ask the owner, don't assume)
 
-- **Offers on the board.** `ask` takes a sealed offer today (`fee` for the lead, or a `share` of brokerage; owner 2026-10-31).
+- **Offers on the board.** (Hidden 2026-11-27 as recommended; stored offers kept. The decision itself is still open.) `ask` took a sealed offer (`fee` for the lead, or a `share` of brokerage; owner 2026-10-31).
   The 2026-11-27 rules and the recruiting post say **nobody can pay for a higher place**. Also, taking a fee for passing a buyer
   probably makes Avasetu a "real estate agent" under RERA s.2(zm), which needs a MahaRERA registration. **Recommendation:**
   hide the offer fields, never use offers in the points, and keep the stored data until the owner and a RERA lawyer decide.

@@ -92,6 +92,33 @@ export function PassBox({ leadId, threadId, onPassed }: { leadId?: string | null
           <HandoverCardView card={info.card} />
         </div>
       )}
+      {info?.shortlist && info.shortlist.length > 0 && (
+        <section aria-label="Agent fit suggestions" className="space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
+          <div>
+            <p className="text-sm font-semibold text-gray-900">Agent fit suggestions for your review</p>
+            <p className="text-xs text-gray-700">Based on agent-declared areas and listings marked active. This is a shortlist for your review, not a quality score.</p>
+          </div>
+          {info.shortlist.map((a) => (
+            <div key={a.agent_id} className="space-y-1 rounded-lg bg-white p-2 text-sm">
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-semibold text-gray-900">{a.name}</p>
+                {a.evidence_count > 0 && <span className="text-xs text-gray-600">{a.evidence_count} fit signals</span>}
+              </div>
+              {a.reasons.length > 0 ? <ul className="list-disc pl-5 text-gray-700">{a.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>
+                : <p className="text-gray-600">No matching area or listing information is available.</p>}
+              <p className="text-xs text-amber-900">Unknown: {a.unknowns.join('; ')}.</p>
+              <button type="button" className="min-h-[40px] font-semibold text-blue-700 underline" onClick={() => setPick(a.agent_id)}>
+                Use this candidate
+              </button>
+            </div>
+          ))}
+        </section>
+      )}
+      {info?.shortlist && info.shortlist.length === 0 && (
+        <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+          No fresh area or active-listing fit evidence is available for this buyer. You can still choose an agent manually below.
+        </p>
+      )}
       <label htmlFor="pass-agent" className="block text-sm font-semibold text-gray-800">Pass this buyer to</label>
       {!agents && !error ? <Spinner /> : (
         <select id="pass-agent" className={inputCls} value={pick} onChange={(e) => setPick(e.target.value)}>
