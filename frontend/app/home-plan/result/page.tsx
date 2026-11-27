@@ -35,7 +35,7 @@ function Pick({ p, n, near }: { p: PlanPick; n: number; near: string[] }) {
         <Link href={i.href} className="text-[#0f2340] underline underline-offset-2">{i.name}</Link>
       </h2>
       {i.builder && <p className="text-sm text-slate-600">by {i.builder}</p>}
-      {i.listedBy && <p className="mt-1 text-sm text-slate-700">Listed by {i.listedBy}, a partner agent (not ranked higher for it)</p>}
+      {i.listedBy && <p className="mt-1 text-sm text-slate-700">Listed by {i.listedBy} (not ranked higher for it)</p>}
       {p.home?.sqft ? <p className="mt-1 text-sm text-slate-700">{formatArea(p.home.sqft)} home on the price sheet</p> : null}
       {reasons.length > 0 && (
         <>

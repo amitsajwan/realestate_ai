@@ -29,7 +29,7 @@ function Column({ title, links }: { title: string; links: SiteLink[] }) {
   )
 }
 
-/** Cream footer: name and tagline, the contact block and the team behind the site (House Deal), then Explore / For agents / Legal link columns. */
+/** Cream footer: name and tagline, the contact block and the team behind the site (lib/site/team), then Explore / For agents / Legal link columns. */
 export default function SiteFooter({ cfg }: { cfg: MarketingConfig }) {
   const s = siteLinks()
   return (

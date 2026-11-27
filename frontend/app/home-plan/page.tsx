@@ -39,7 +39,7 @@ function hubAnswer(s: HubSummary, asOf: string): string {
 const HOW = 'We take every MahaRERA project in East Pune that is still being sold and keep the ones with a home of your size in your '
   + 'budget, within 25 km of your office. They are ranked on facts only: distance to your office, whether the builder has moved the '
   + 'MahaRERA completion date, how many homes are booked, and how soon it is due when you have young children or parents at home. '
-  + 'A partner agent listing a project does not move it up.'
+  + 'An agent listing a project does not move it up.'
 
 /** The plan's questions, with what the register says about each office, and the plan's own rules. "Edit answers" on a plan links
  *  here with the answers in the address, so the form starts filled in. */

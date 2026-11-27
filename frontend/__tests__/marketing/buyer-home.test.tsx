@@ -5,6 +5,14 @@ import BuyerHome, { metadata } from '@/app/page'
 jest.mock('@/components/news/NewsSection', () => ({ __esModule: true, default: () => null }))
 jest.mock('next/navigation', () => ({ useRouter: () => ({ push: jest.fn() }), usePathname: () => '/' }))
 
+// the team's ways to reach it are the site's settings (lib/site/team): production's values
+const teamEnv = { wa: process.env.NEXT_PUBLIC_WHATSAPP_NUMBER, email: process.env.NEXT_PUBLIC_CONTACT_EMAIL }
+beforeAll(() => { process.env.NEXT_PUBLIC_WHATSAPP_NUMBER = '919834256406'; process.env.NEXT_PUBLIC_CONTACT_EMAIL = 'hello@avasetu.in' })
+afterAll(() => {
+  if (teamEnv.wa === undefined) delete process.env.NEXT_PUBLIC_WHATSAPP_NUMBER; else process.env.NEXT_PUBLIC_WHATSAPP_NUMBER = teamEnv.wa
+  if (teamEnv.email === undefined) delete process.env.NEXT_PUBLIC_CONTACT_EMAIL; else process.env.NEXT_PUBLIC_CONTACT_EMAIL = teamEnv.email
+})
+
 const API: Record<string, unknown> = {
   '/public/areas/stats': { as_of: '2026-10-21', source: 'MahaRERA', areas: [
     { area: { key: 'kharadi', name: 'Kharadi', slug: 'kharadi', tier: 'it' }, as_of: '2026-10-21', projects: 66, completing: [], units_total: null, units_booked: null, recent: [], source: 'MahaRERA' },
@@ -172,14 +180,12 @@ describe("buyers' home", () => {
     const ld = Array.from(container.querySelectorAll('script[type="application/ld+json"]')).map((s) => JSON.parse(s.textContent || '{}'))
     expect(ld.map((x) => x['@type'])).toEqual(['Organization', 'WebSite'])
     expect(ld[1].potentialAction.target.urlTemplate).toMatch(/\/projects\?q=\{search_term_string\}$/)
-    // who answers for the site: House Deal's office and phone (lib/site/team, owner 2026-11-13)
-    expect(ld[0].contactPoint).toEqual([expect.objectContaining({ telephone: '+917447212121', email: 'housedealofficial@gmail.com' })])
-    // the office is House Deal's, so the address sits on House Deal only, and House Deal is said once (owner 2026-11-21)
+    // who answers for the site: the Avasetu team on its own WhatsApp and email (lib/site/team); no agent as a parent organisation
+    // or an office (owner 2026-11-27: "we don't need a partner yet")
+    expect(ld[0].contactPoint).toEqual([expect.objectContaining({ telephone: '+919834256406', email: 'hello@avasetu.in' })])
     expect(ld[0].address).toBeUndefined()
     expect(ld[0].member).toBeUndefined()
-    // Avasetu belongs to House Deal (owner's plan 2026-11-20), and the WebSite's publisher is this Organization, by its id
-    expect(ld[0].parentOrganization).toMatchObject({ '@type': 'RealEstateAgent', '@id': 'https://house-deal.com/#organization',
-      name: 'House Deal', url: 'https://house-deal.com', identifier: { propertyID: 'MahaRERA', value: 'A031262502865' }, address: { postalCode: '412207' } })
+    expect(ld[0].parentOrganization).toBeUndefined()
     expect(ld[0]['@id']).toMatch(/\/#organization$/)
     expect(ld[1].publisher).toEqual({ '@id': ld[0]['@id'] })
     // the brand's own profiles and its Devanagari name, so Google ties "Avasetu" to this page; no WhatsApp chat link

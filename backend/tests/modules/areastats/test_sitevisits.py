@@ -52,7 +52,7 @@ async def test_a_note_is_found_by_regno_or_page_address_and_kept_append_only():
     await sitevisits.add(db, "https://avasetu.in/projects/godrej-ivara-pune/", NOTE + " Second look.", date(2026, 11, 19), "Rahul, House Deal", "OWNER", NOW + timedelta(hours=1))
     visits = (await record(db))["site_visits"]
     assert [v["visited_on"] for v in visits] == ["2026-11-18", "2026-11-19"]
-    assert visits[0]["by"] == "House Deal" and visits[1]["by"] == "Rahul, House Deal"
+    assert visits[0]["by"] == "Avasetu team" and visits[1]["by"] == "Rahul, House Deal"   # a note without a name is the team's own
     with pytest.raises(sitevisits.VisitError, match="No project"):
         await sitevisits.add(db, "P00000000000", NOTE, TODAY, None, "OWNER", NOW)
 
@@ -66,7 +66,7 @@ async def test_the_page_shows_the_newest_visit_and_a_withdrawn_one_stays_on_the_
     await sitevisits.withdraw(db, REC["_id"], (NOW + timedelta(hours=1)).isoformat(), "OWNER", NOW + timedelta(hours=2))
     doc = await record(db)
     assert len(doc["site_visits"]) == 2 and doc["site_visits"][1]["withdrawn"] is True
-    assert sitevisits.public(doc, TODAY) == {"visited_on": "2026-11-18", "by": "House Deal", "text": NOTE}
+    assert sitevisits.public(doc, TODAY) == {"visited_on": "2026-11-18", "by": "Avasetu team", "text": NOTE}
 
 
 def test_a_visit_over_a_year_old_leaves_the_page():

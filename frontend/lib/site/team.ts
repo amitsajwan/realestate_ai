@@ -1,69 +1,56 @@
+import { TEAM as TEAM_NAME } from '@/lib/brand'
+import { getMarketingConfig } from '@/lib/marketing/config'
+import { waNumber } from './phone'
+
 /**
- * The team behind Avasetu: House Deal, a MahaRERA-registered agent's office in Upper Kharadi (owner 2026-11-13: "use House
- * Deal's contact as the main contact, let it be the main team behind it").
+ * Who answers for Avasetu, and how to reach them: the footer of every public page, About, Contact and the Organization in the
+ * structured data all read it from here, so a change is made once.
  *
- * Why it is on the site at all: buying a home is a money decision, and Google's raters look for who is responsible for such a
- * site, with an address and a way to reach them (Search Quality Rater Guidelines 2.5.2, 2.5.3). Until 2026-11-13 the site named
- * no one and /contact answered 404. Every value here is what House Deal publishes about itself on house-deal.com and on its own
- * page here (/agent/house-deal); change them in this one place.
+ * Avasetu is run by its own team (owner 2026-11-27: "we don't need a partner yet"). No agent is the team behind the site or its
+ * partner: agents list homes here, each listing says whose it is, and that is all the site says about them. From 2026-11-13 to
+ * 2026-11-27 this named House Deal, an agent, as the team, with its office, phone and MahaRERA agent number.
+ *
+ * Why it is on the site at all: buying a home is a money decision, and Google's raters look for who is responsible for such a site
+ * and a way to reach them (Search Quality Rater Guidelines 2.5.2, 2.5.3). The ways to reach the team are the site's own settings,
+ * nothing typed here: the WhatsApp number the assistant answers (NEXT_PUBLIC_WHATSAPP_NUMBER, as the project pages' WhatsApp
+ * buttons use it) and the contact email (NEXT_PUBLIC_CONTACT_EMAIL, as on the legal pages). An unset one is not shown.
  */
-export const TEAM = {
-  name: 'House Deal',
-  /** what House Deal is, in the words of its own page */
-  what: 'a property advisory office for new projects across East Pune',
-  street: '1107, RTC Silver, Upper Kharadi, Wagholi',
-  locality: 'Pune',
-  postalCode: '412207',
-  region: 'Maharashtra',
-  /** shown as written; dialled from `tel` */
-  phone: '+91 74472 12121',
-  tel: '+917447212121',
-  email: 'housedealofficial@gmail.com',
-  /** MahaRERA's registration number for House Deal as a real estate agent */
-  rera: 'A031262502865',
-  website: 'https://house-deal.com',
-  page: '/agent/house-deal',
-} as const
-
-/** The address on one line, as a letter would carry it. */
-export const teamAddress = (): string => `${TEAM.street}, ${TEAM.locality} ${TEAM.postalCode}`
-
-/** House Deal as schema.org data: the real estate agent, its MahaRERA number, office and phone. */
-export function teamJsonLd(siteUrl: string): Record<string, unknown> {
-  return {
-    '@type': 'RealEstateAgent',
-    '@id': TEAM.website + '/#organization',
-    name: TEAM.name,
-    url: TEAM.website,
-    sameAs: [siteUrl + TEAM.page],
-    identifier: { '@type': 'PropertyValue', propertyID: 'MahaRERA', value: TEAM.rera },
-    address: teamPostalAddress(),
-    telephone: TEAM.tel,
-    email: TEAM.email,
-    areaServed: { '@type': 'City', name: 'Pune' },
-  }
+export interface SiteTeam {
+  name: string
+  /** what the team does, said the same way wherever it is said */
+  what: string
+  whatsappDigits: string | null
+  /** '+91 98342 56406' */
+  whatsappDisplay: string | null
+  whatsappUrl: string | null
+  email: string | null
 }
 
-export function teamPostalAddress(): Record<string, unknown> {
+function display(digits: string): string {
+  return /^91[6-9]\d{9}$/.test(digits) ? '+91 ' + digits.slice(2, 7) + ' ' + digits.slice(7) : '+' + digits
+}
+
+export function siteTeam(env: { whatsapp?: string; email?: string | null } = {}): SiteTeam {
+  const wa = waNumber(env.whatsapp ?? process.env.NEXT_PUBLIC_WHATSAPP_NUMBER)
   return {
-    '@type': 'PostalAddress', streetAddress: TEAM.street, addressLocality: TEAM.locality, postalCode: TEAM.postalCode,
-    addressRegion: TEAM.region, addressCountry: 'IN',
+    name: TEAM_NAME,
+    what: 'checks Pune projects against MahaRERA, answers every enquiry sent from this website and fixes a page when someone tells us it is wrong',
+    whatsappDigits: wa,
+    whatsappDisplay: wa ? display(wa) : null,
+    whatsappUrl: wa ? 'https://wa.me/' + wa : null,
+    email: env.email !== undefined ? env.email : getMarketingConfig().email,
   }
 }
 
 /** The Avasetu Organization's node id, so the WebSite's `publisher` (home page) points at it instead of a second copy. */
 export const organizationId = (siteUrl: string): string => siteUrl + '/#organization'
 
-/** What the Avasetu Organization adds about who runs it: a phone and email that answer, and House
- *  Deal as the business Avasetu belongs to (`parentOrganization`, owner's plan 2026-11-20: so Google ties the brand to House
- *  Deal's MahaRERA agent number and office). The office address sits on House Deal only, and House Deal is said once, not again
- *  as a `member` (owner 2026-11-21): Avasetu is a website with no office of its own. Merged into the Organization on the home,
- *  About and Contact pages. */
-export function teamForOrganization(siteUrl: string): Record<string, unknown> {
-  return {
-    '@id': organizationId(siteUrl),
-    parentOrganization: teamJsonLd(siteUrl),
-    contactPoint: [{ '@type': 'ContactPoint', contactType: 'customer service', telephone: TEAM.tel, email: TEAM.email,
-      areaServed: 'IN', availableLanguage: ['English', 'Hindi'] }],
+/** What the Avasetu Organization adds about who answers: the team's WhatsApp and email. No parent organization and no office:
+ *  Avasetu belongs to no agent. Merged into the Organization on the home, About and Contact pages. */
+export function teamForOrganization(siteUrl: string, team: SiteTeam = siteTeam()): Record<string, unknown> {
+  const point = {
+    '@type': 'ContactPoint', contactType: 'customer service', areaServed: 'IN', availableLanguage: ['English', 'Hindi', 'Marathi'],
+    ...(team.whatsappDigits ? { telephone: '+' + team.whatsappDigits } : {}), ...(team.email ? { email: team.email } : {}),
   }
+  return { '@id': organizationId(siteUrl), ...(team.whatsappDigits || team.email ? { contactPoint: [point] } : {}) }
 }

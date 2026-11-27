@@ -7,17 +7,16 @@ import { breadcrumbJsonLd, jsonLdString, organizationJsonLd, pageMetadata } from
 import { brandProfiles } from '@/lib/marketing/social'
 import { BRAND_NAME, BRAND_NAME_DEVANAGARI } from '@/lib/brand'
 import { HOW } from '@/lib/site/listRules'
-import { TEAM, teamAddress, teamForOrganization } from '@/lib/site/team'
+import { siteTeam, teamForOrganization } from '@/lib/site/team'
 
 // Who is behind the site and how its facts are made (owner 2026-11-04, the SEO review's first item): home buying is a money
 // decision, so Google and the AI assistants look for this page before trusting a site's lists, and /about answered 404.
-// Every sentence here is something the code does (backend seo/facets.py, areastats/pages.py). Who answers for it is House Deal
-// (owner 2026-11-13), with its office, phone and MahaRERA number (lib/site/team); no person is named.
+// Every sentence here is something the code does (backend seo/facets.py, areastats/pages.py). Who answers for it is the Avasetu
+// team (lib/site/team; owner 2026-11-27: no partner agent); no person is named.
 
 const PATH = '/about'
 const TITLE = `About ${BRAND_NAME}: how we check Pune's new projects`
-// the team is House Deal (owner 2026-11-13); still no person named
-const DESCRIPTION = `What ${BRAND_NAME} is, who runs it (House Deal, Upper Kharadi), where every fact comes from and how the top, new launch and ready lists are ranked.`
+const DESCRIPTION = `What ${BRAND_NAME} is, who runs it, where every fact comes from and how the top, new launch and ready lists are ranked.`
 
 export const metadata: Metadata = pageMetadata(getMarketingConfig(), { title: TITLE, description: DESCRIPTION, path: PATH })
 
@@ -34,7 +33,8 @@ const LISTS: { name: string; how: string; example: string }[] = [
 
 export default function AboutPage() {
   const cfg = getMarketingConfig()
-  const org = { ...organizationJsonLd(cfg, DESCRIPTION, brandProfiles()), alternateName: [BRAND_NAME_DEVANAGARI], ...teamForOrganization(cfg.siteUrl) }
+  const team = siteTeam()
+  const org = { ...organizationJsonLd(cfg, DESCRIPTION, brandProfiles()), alternateName: [BRAND_NAME_DEVANAGARI], ...teamForOrganization(cfg.siteUrl, team) }
   const ld = [
     { '@context': 'https://schema.org', '@type': 'AboutPage', name: TITLE, url: cfg.siteUrl + PATH, description: DESCRIPTION, mainEntity: org },
     breadcrumbJsonLd(cfg.siteUrl, [{ name: 'Home', path: '/' }, { name: 'About', path: PATH }]),
@@ -109,17 +109,13 @@ export default function AboutPage() {
           </p>
         </section>
 
-        {/* the team behind the site (owner 2026-11-13: House Deal's contact is the main contact, House Deal the main team): only what
-            House Deal publishes about itself (lib/site/team); its own site is linked as theirs */}
-        <section aria-labelledby="partner-title" className="mt-10" data-testid="about-partner">
-          <h2 id="partner-title" className={h2}>Who runs {BRAND_NAME}</h2>
+        {/* who runs the site: its own team, and no agent as a partner (owner 2026-11-27); the ways to reach it are lib/site/team's */}
+        <section aria-labelledby="team-title" className="mt-10" data-testid="about-team">
+          <h2 id="team-title" className={h2}>Who runs {BRAND_NAME}</h2>
           <p className={p}>
-            The team behind {BRAND_NAME} is <a href={TEAM.page} className={a}>{TEAM.name}</a>, {TEAM.what}, registered with MahaRERA as a
-            real estate agent ({TEAM.rera}). Its office is at {teamAddress()}. The team answers the enquiries sent from this website and
-            fixes a page when someone tells us it is wrong. {TEAM.name} also sells homes in some of the projects here: its listings are
-            marked on their pages, and that never moves a project up our lists.{' '}
-            <a href="/contact" className={a}>Contact us</a> or see{' '}
-            <a href={TEAM.website} target="_blank" rel="noopener noreferrer" className={a}>House Deal&apos;s own website<span className="sr-only"> (opens in a new tab)</span></a>.
+            {BRAND_NAME} is run by the {team.name} in Pune, which {team.what}. It is not an agent&apos;s or a builder&apos;s site. Agents
+            list homes here: each listing says whose it is, and that never moves a project up our lists.{' '}
+            <a href="/contact" className={a}>Contact us</a>.
           </p>
         </section>
 

@@ -11,6 +11,14 @@ jest.mock('@/components/site/PostsSection', () => ({ __esModule: true, default: 
 jest.mock('@/components/news/NewsSection', () => ({ __esModule: true, default: () => null }))
 jest.mock('@/components/marketing/BuyerProjectLinks', () => ({ __esModule: true, default: () => null }))
 
+// the team's ways to reach it are the site's settings (lib/site/team): production's values
+const teamEnv = { wa: process.env.NEXT_PUBLIC_WHATSAPP_NUMBER, email: process.env.NEXT_PUBLIC_CONTACT_EMAIL }
+beforeAll(() => { process.env.NEXT_PUBLIC_WHATSAPP_NUMBER = '919834256406'; process.env.NEXT_PUBLIC_CONTACT_EMAIL = 'hello@avasetu.in' })
+afterAll(() => {
+  if (teamEnv.wa === undefined) delete process.env.NEXT_PUBLIC_WHATSAPP_NUMBER; else process.env.NEXT_PUBLIC_WHATSAPP_NUMBER = teamEnv.wa
+  if (teamEnv.email === undefined) delete process.env.NEXT_PUBLIC_CONTACT_EMAIL; else process.env.NEXT_PUBLIC_CONTACT_EMAIL = teamEnv.email
+})
+
 const cfg = buildMarketingConfig({})
 const EXPECTED: Array<[RegExp, string]> = [
   [/^for agents$/i, '/agents'],
@@ -96,14 +104,13 @@ describe('site footer', () => {
     }
     const hrefs = within(footer).getAllByRole('link').map((a) => a.getAttribute('href'))
     expect(hrefs).toEqual(expect.arrayContaining([socialLinks().instagram, socialLinks().facebook]))
-    // the team behind the site (House Deal, lib/site/team): its office, phone, email and MahaRERA number, and no other number
+    // the team behind the site (lib/site/team): the Avasetu team and its email, no agent as the team or partner (owner 2026-11-27)
     const team = within(footer).getByTestId('team-block')
-    expect(team).toHaveTextContent('House Deal, MahaRERA agent A031262502865')
-    expect(team).toHaveTextContent('1107, RTC Silver, Upper Kharadi, Wagholi, Pune 412207')
-    expect(Array.from(footer.querySelectorAll('a[href^="tel:"]')).map((a) => a.getAttribute('href'))).toEqual(['tel:+917447212121'])
-    expect(within(team).getByRole('link', { name: 'housedealofficial@gmail.com' })).toHaveAttribute('href', 'mailto:housedealofficial@gmail.com')
+    expect(team).toHaveTextContent('Avasetu team, Pune')
+    expect(within(team).getByRole('link', { name: 'hello@avasetu.in' })).toHaveAttribute('href', 'mailto:hello@avasetu.in')
     expect(within(team).getByRole('link', { name: 'Contact us' })).toHaveAttribute('href', '/contact')
-    expect(within(team).getByRole('link', { name: "House Deal's website" })).toHaveAttribute('href', 'https://house-deal.com')
+    expect(footer.textContent).not.toMatch(/House Deal|A031262502865|RTC Silver/)
+    expect(footer.querySelector('a[href^="tel:"]')).toBeNull()
     expect(hrefOf(footer, /^contact$/i)).toBe('/contact')
     const outside = footer.cloneNode(true) as HTMLElement
     outside.querySelector('[data-testid="team-block"]')!.remove()

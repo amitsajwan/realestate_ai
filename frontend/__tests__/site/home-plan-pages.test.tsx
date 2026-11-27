@@ -54,7 +54,7 @@ it('the plan lists East Pune projects still being sold, never another zone, a so
   expect(within(picks[0]).getByText('1.1 km from EON IT Park, Kharadi in a straight line')).toBeTruthy()
   // the partner's own price sheet stands for the project, and the card says whose it is
   expect(within(picks[1]).getByText('2 BHK from ₹84 L, the asking price published online')).toBeTruthy()
-  expect(within(picks[1]).getByText('Listed by House Deal, a partner agent (not ranked higher for it)')).toBeTruthy()
+  expect(within(picks[1]).getByText('Listed by House Deal (not ranked higher for it)')).toBeTruthy()
   expect(screen.getByText('Ask which schools run buses to the society, and time the school run in the morning')).toBeTruthy()
   // school-going children: the nearest school from the pick's stored surroundings; no hospital, as parents do not live with them
   expect(within(picks[0]).getByText('Nearest school: Near School, 0.8 km in a straight line (OpenStreetMap)')).toBeTruthy()

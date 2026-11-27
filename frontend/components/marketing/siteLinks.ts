@@ -45,7 +45,7 @@ export function siteLinks() {
   const insights: SiteLink = { href: '/insights', label: 'Insights' }
   // what Avasetu is and how the lists are ranked (app/about): in the footer and the phone menu, where people look for it
   const about: SiteLink = { href: '/about', label: 'About us' }
-  // who answers, with the office address and phone (app/contact, lib/site/team)
+  // who answers and how to reach them (app/contact, lib/site/team)
   const contact: SiteLink = { href: '/contact', label: 'Contact' }
   const invite: SiteLink = { href: INVITE_PATH, label: 'Join free' }
   const signIn: SiteLink = { href: SIGN_IN_PATH, label: 'Sign in', otherApp: true }

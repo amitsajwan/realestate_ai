@@ -16,6 +16,7 @@ import logging
 from datetime import date, datetime, timedelta
 from typing import List, Optional
 
+from app.core import brand
 from app.platform.guards import PREDICT, URL, word_count
 from app.platform.text import HYPE, PHONE
 from app.modules.newsroom.store import Store
@@ -27,7 +28,7 @@ MIN_WORDS = 60
 MAX_WORDS = 250
 SHOWN_DAYS = 365
 BY_MAX = 60
-TEAM = "House Deal"   # the team behind the site (frontend lib/site/team.ts): who went, unless a person's name is given
+TEAM = brand.TEAM   # the team behind the site (frontend lib/site/team.ts): who went, unless a person's name is given
 
 
 class VisitError(ValueError):

@@ -6,8 +6,8 @@ import { contactName, PROJECT_CTA } from './strings'
  *  sheet: an agent's price sheet; covered: an agent's page, or House Deal's areas; ask: elsewhere; closed: no enquiries. */
 export type Backing = 'sheet' | 'covered' | 'ask' | 'closed'
 
-/** House Deal's six areas (owner 2026-10-30). The lead rules that pass these on live in the database and can be empty; this list is
- *  what the team stands behind on the page. */
+/** Our main East Pune areas, where the Avasetu team gets a buyer the price sheet itself (first set 2026-10-30 as an agent's areas;
+ *  owner 2026-11-27: no partner agent, so these leads stay with the team). This list is what the team stands behind on the page. */
 const COVERED = new Set(['upper-kharadi', 'kharadi', 'wagholi', 'mundhwa', 'hadapsar', 'keshav-nagar'])
 
 interface Where { area?: { slug: string } | null; pune_place?: { key: string } | null }
