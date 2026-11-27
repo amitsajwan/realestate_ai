@@ -1,6 +1,7 @@
 // Client-side tracking helpers. Everything here fails silently: tracking must never break the page.
 import { API_BASE_URL } from '@/lib/config/api'
 import { getToken } from '@shared/session'
+import { gaEvent } from './ga'
 import type { Attribution } from './types'
 
 export type SiteEventType = 'page_view' | 'listing_view' | 'share' | 'call_click' | 'whatsapp_click' | 'chat_open'
@@ -127,8 +128,8 @@ function post(route: string, body: object): void {
   }
 }
 
-/** A browser signed in to Studio is the agent's own: its visits show as "You" in the Live panel and are not counted. */
-function isStaff(): boolean {
+/** A browser signed in to Studio is the agent's own: its visits show as "You" in the Live panel and are not counted (nor sent to GA4). */
+export function isStaff(): boolean {
   try {
     return !!getToken()
   } catch {
@@ -228,6 +229,7 @@ export function trackEvent(type: SiteEventType, agentSlug: string, listingId?: s
     post('event', {
       ...buildTouch(agentSlug, listingId), type, ...(viewId ? { view_id: viewId } : {}), ...(step || {}), ...(isStaff() ? { staff: true } : {}),
     })
+    if (!isStaff()) gaEvent(type, agentSlug)
   } catch {
     /* never throw from tracking */
   }
@@ -300,6 +302,8 @@ export async function submitInquiry(agentSlug: string, listingId: string | undef
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...buildTouch(agentSlug, listingId), ...input }),
     })
+    // GA4's key event for an enquiry: which form only, never the name, phone or message
+    if (res.ok && !isStaff()) gaEvent('inquiry', agentSlug, { form: input.callback ? 'callback' : 'enquiry' })
     return res.ok
   } catch {
     return false
