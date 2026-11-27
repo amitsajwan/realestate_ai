@@ -9,7 +9,8 @@ their completion dates. Each step:
    discover: one project number seen in Google results that we lack is looked up on MahaRERA by name (areastats.discover);
    a found one joins the watch list in the next part;
 3. details: reads MahaRERA's project API for up to `details` records: completion dates and homes booked, again every
-   DETAILS_MAX_AGE_DAYS because builders file updates. A changed completion date is appended to the record's
+   DETAILS_MAX_AGE_DAYS because builders file updates (every SELLING_MAX_AGE_DAYS for a project still selling, so its dated
+   sold count is a true record of how fast it sells: MahaRERA keeps no such history, so we build it). A changed completion date is appended to the record's
    `completion_history` ({from, to, seen_at}), which the date-watch reels (calendar/delay_reels.py) read. A changed homes-booked
    count is also kept, dated, in `booked_history` (how fast a project sells: areastats.hot).
 Requests are spaced by PAUSE seconds: MahaRERA is a public service and must not feel us.
@@ -45,6 +46,7 @@ DETAILS_PER_STEP = 15
 CATCHUP_PAGES = 10              # while behind: about 10 x 2 s of searches and 50 x 2 s of project reads per step
 CATCHUP_DETAILS = 50
 DETAILS_MAX_AGE_DAYS = 30
+SELLING_MAX_AGE_DAYS = 7          # a project still selling: read weekly so the dated sold count is a true record of its pace
 OLD_DETAILS_MAX_AGE_DAYS = 180   # finished projects (pages.is_old): their record rarely changes
 DETAILS_RETRY_DAYS = 1  # after a failed read
 PAUSE = 2.0  # seconds between MahaRERA requests; tests set it to 0
@@ -137,12 +139,27 @@ async def relabel(store: Store, docs: Optional[List[dict]] = None) -> int:
     return changed
 
 
+def _selling(d: dict) -> bool:
+    """A project with homes still to sell: MahaRERA's count has some booked and some unsold (0 <= booked < total). Its sold
+    count is the one field that keeps moving, so we read it weekly (SELLING_MAX_AGE_DAYS) to keep a true record of how fast it
+    sells. No portal keeps this history, so starting the clock early is the point (docs/plan/avasetu-intelligence.md)."""
+    total, booked = d.get("units_total"), d.get("units_booked")
+    return isinstance(total, int) and isinstance(booked, int) and 0 <= booked < total
+
+
+def _wait_days(d: dict, now: datetime) -> int:
+    if not d.get("details_ok"):
+        return DETAILS_RETRY_DAYS
+    if project_pages.is_old(d, now.date()):   # finished: its record rarely changes, even with unsold resale stock
+        return OLD_DETAILS_MAX_AGE_DAYS
+    return SELLING_MAX_AGE_DAYS if _selling(d) else DETAILS_MAX_AGE_DAYS
+
+
 def _due(d: dict, now: datetime) -> bool:
     at = d.get("details_checked_at")
     if not isinstance(at, datetime):
         return True
-    wait = (OLD_DETAILS_MAX_AGE_DAYS if project_pages.is_old(d, now.date()) else DETAILS_MAX_AGE_DAYS) if d.get("details_ok") else DETAILS_RETRY_DAYS
-    return now - _aware(at) >= timedelta(days=wait)
+    return now - _aware(at) >= timedelta(days=_wait_days(d, now))
 
 
 def _wanted(d: dict) -> bool:

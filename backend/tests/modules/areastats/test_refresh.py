@@ -177,6 +177,20 @@ async def test_a_record_read_before_the_change_date_existed_settles_on_its_last_
     assert doc["details_checked_at"] == NOW and pages.page_updated(doc) == before.isoformat()
 
 
+def test_a_selling_project_is_re_read_weekly_not_monthly():
+    """A project with homes still to sell is due a week after its last read; a sold-out or finished one waits the usual month."""
+    ok = {"details_ok": True}
+    selling = {"units_total": 120, "units_booked": 70, **ok}       # 50 still to sell
+    sold_out = {"units_total": 120, "units_booked": 120, **ok}     # nothing left: no pace to record
+    week = NOW - timedelta(days=refresh.SELLING_MAX_AGE_DAYS + 1)
+    assert refresh._due({"details_checked_at": week, **selling}, NOW) is True
+    assert refresh._due({"details_checked_at": NOW - timedelta(days=5), **selling}, NOW) is False
+    assert refresh._due({"details_checked_at": week, **sold_out}, NOW) is False
+    # finished (completion long past) stays on the slow cadence even with unsold stock
+    done = {"details_checked_at": week, "completion_now": "2020-01-01", **selling}
+    assert refresh._due(done, NOW) is False
+
+
 async def test_details_limit_and_failures_retry_next_day():
     store = await seeded(("PR1", "wagholi", 11, {}), ("PR2", "wagholi", 12, {}), ("PR3", "wagholi", None, {}))
 
