@@ -1180,7 +1180,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
             building={!p.finished} />}
           {!sheetSizes(liveOffer(facts)) && <HomeSizes sizes={p.home_sizes} name={shown} help={sizeHelp(backs, leadName)} />}
           {!closed && <ProjectProfile profile={p.profile} name={shown} part="plans" plans3d={p.plans_3d?.items ?? []} lead={{ agentSlug: leadSlug, agentName: leadName,
-            topic: enquiryTopic, waMessage: `Hi, I want to know about ${p.name} (MahaRERA ${p.regno}): ${url}` }} />}
+            topic: enquiryTopic, waMessage: `Hi, I want to know about ${shown} (MahaRERA ${p.regno}): ${url}` }} />}
           <LocationSection p={p} shown={shown} nearby={nearby} sources={facts?.nearby_sources ?? []} esriPast={fromAboveView ? null : esriPast} />
           <ProjectProfile profile={p.profile} name={shown} part="highlights" omit={heroBhks ? ['homes'] : []} />
 
@@ -1252,12 +1252,12 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
           it, `#visit` opens it on the visit, and a visit carries its own topic so the team knows what to arrange. */}
       {!notActive && <div className="max-w-2xl">
         <EnquiryForm agentSlug={leadSlug} agentName={leadName} note={askNote} topic={enquiryTopic} listingId={seller?.listingId}
-          waMessage={`Hi, I want to know about ${p.name} (MahaRERA ${p.regno}): ${url}`}
+          waMessage={`Hi, I want to know about ${shown} (MahaRERA ${p.regno}): ${url}`}
           choices={[
-            { anchor: 'enquire', label: PROJECT_CTA.pricesChoice, title: PROJECT_CTA.formTitle(p.name), topic: enquiryTopic,
-              waMessage: `Hi, I want to know about ${p.name} (MahaRERA ${p.regno}): ${url}`, submitLabel: PROJECT_CTA.today },
-            { anchor: 'visit', label: PROJECT_CTA.visitChoice, title: PROJECT_CTA.visitTitle(p.name), topic: `Site visit: ${enquiryTopic}`,
-              waMessage: `Hi, I want to book a site visit to ${p.name} (MahaRERA ${p.regno}): ${url}`, submitLabel: PROJECT_CTA.visit },
+            { anchor: 'enquire', label: PROJECT_CTA.pricesChoice, title: PROJECT_CTA.formTitle(shown), topic: enquiryTopic,
+              waMessage: `Hi, I want to know about ${shown} (MahaRERA ${p.regno}): ${url}`, submitLabel: PROJECT_CTA.today },
+            { anchor: 'visit', label: PROJECT_CTA.visitChoice, title: PROJECT_CTA.visitTitle(shown), topic: `Site visit: ${enquiryTopic}`,
+              waMessage: `Hi, I want to book a site visit to ${shown} (MahaRERA ${p.regno}): ${url}`, submitLabel: PROJECT_CTA.visit },
           ]} />
       </div>}
 

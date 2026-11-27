@@ -97,6 +97,9 @@ describe('Avasetu project page from the MahaRERA register', () => {
     const { container } = render(<RegisterProjectPage p={g} siteUrl="https://avasetu.in" facts={null} />)
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Gera World of Joy, Wagholi')
     expect(screen.getByTestId('legal-name')).toHaveTextContent('Filed on MahaRERA as Geras World of Joy M')
+    // the enquiry form asks about the name buyers know, not the filing name (Lodha Camelot read "Kharadi New Project - Tower 1")
+    expect(screen.getAllByRole('heading', { name: /floor plans for Gera World of Joy$/ }).length).toBeGreaterThan(0)
+    expect(screen.queryByRole('heading', { name: /Geras World of Joy M/ })).toBeNull()
     expect(screen.getByTestId('aka')).toHaveTextContent('Also known as: World of Joy Kharadi')
     expect(within(screen.getByTestId('same-promoter')).getByRole('link', { name: /Gera Song of Joy/ })).toHaveAttribute('href', '/projects/gera-song-of-joy')
     const lds = [...container.querySelectorAll('script[type="application/ld+json"]')].map((s) => JSON.parse(s.textContent || '{}'))
@@ -385,7 +388,8 @@ describe('project page v2: each fact once, in the order a buyer asks', () => {
     expect(document.querySelectorAll('section[id="enquire"], section[id="visit"]')).toHaveLength(1)
     const visit = document.getElementById('visit')!
     expect(document.getElementById('enquire')).toContainElement(visit)
-    expect(visit).toHaveAttribute('data-title', 'Book a site visit to PARK EDEN PHASE I')
+    // the buyer reads the page's name; the team's topic keeps the MahaRERA filing name and number
+    expect(visit).toHaveAttribute('data-title', 'Book a site visit to Park Eden')
     expect(visit).toHaveAttribute('data-topic', 'Site visit: PARK EDEN PHASE I (MahaRERA P52100055555)')
     expect(visit).toHaveAttribute('data-submit', 'Book a site visit')
   })
