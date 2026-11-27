@@ -10,7 +10,7 @@ import { pageMetadata } from '@/lib/marketing/seo'
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
 import { briefLine, compareName } from '@/lib/site/projectCompare'
 import { COMPARE_MAX, SAVED_MAX, comparePath, parseSlugs, shortlistMessage, shortlistPath, whatsappShare } from '@/lib/site/picks'
-import { getRegisterProject } from '@/lib/site/register'
+import { getPageRegister } from '@/lib/site/register'
 import type { RegisterProject } from '@/lib/site/register'
 
 export const revalidate = 300
@@ -29,7 +29,9 @@ export async function generateMetadata(): Promise<Metadata> {
 
 async function read(slug: string): Promise<RegisterProject | null> {
   try {
-    return await getRegisterProject(slug)
+    // an agent-listed page's slug (lodha-camelot) reads its register record and keeps that slug: the picks list holds it
+    const p = await getPageRegister(slug)
+    return p && { ...p, slug }
   } catch {
     return null
   }

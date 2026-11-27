@@ -2,7 +2,8 @@
  * Our own page for every MahaRERA project (docs/plan/project-pages.md): GET /api/v1/public/register/projects/{slug} and the list.
  * The facts are Avasetu's (the register); an agent's listing in the project lives on the agent's page and uses them.
  */
-import { PAGE_DATA_MS, getCatalog, serverApiBase } from './api'
+import { PAGE_DATA_MS, getCatalog, getCatalogProject, serverApiBase } from './api'
+import type { CatalogProject } from './types'
 import { badStatus, failed, withRetry, type Got } from './retry'
 import type { WebFacts } from './webfacts'
 import type { ProjectProfile } from './profile'
@@ -543,6 +544,24 @@ export async function getRegisterProjectByRegno(regno: string | null | undefined
   if (!/^P[A-Z0-9]{6,20}$/.test(n)) return null
   const r = await get<{ slug: string }>('/api/v1/public/register/by-regno/' + encodeURIComponent(n))
   return r.ok && r.data?.slug ? getRegisterProject(r.data.slug).catch(() => null) : null
+}
+
+/** The register record an agent-listed project's page draws, under the listed page's own address so its URL and canonical
+ *  stay (owner 2026-11-27: every project page has one layout; the partner agent shows as "Listed by" from its price sheet).
+ *  Null when the project has no register record or it cannot be read: the catalog layout still serves it then. */
+export async function registerOfListing(p: CatalogProject): Promise<RegisterProject | null> {
+  const r = await Promise.resolve().then(() => getRegisterProjectByRegno(p.rera_no)).catch(() => null)
+  return r ? { ...r, slug: p.slug } : null
+}
+
+/** A project's register record by either address of its page: its register slug, or an agent-listed page's slug (Lodha
+ *  Camelot is /projects/lodha-camelot, its register slug the filing name). The record keeps its register slug, so a sub-page
+ *  (/video, /from-space) reached from the listed page names the same canonical address as the one in the sitemaps. */
+export async function getPageRegister(slug: string): Promise<RegisterProject | null> {
+  const r = await getRegisterProject(slug)
+  if (r) return r
+  const listed = await getCatalogProject(slug).catch(() => null)
+  return listed?.agents.length ? getRegisterProjectByRegno(listed.rera_no).catch(() => null) : null
 }
 
 /** The project page an agent's listing of this MahaRERA number shows and names as its canonical page: the number's register page

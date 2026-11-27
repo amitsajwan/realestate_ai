@@ -9,7 +9,7 @@ import { getMarketingConfig } from '@/lib/marketing/config'
 import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/seo'
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
 import { forPin, fromRecord, shortMonth, videoPace, type FromAbove } from '@/lib/site/fromAbove'
-import { displayName, getRegisterProject, type RegisterProject } from '@/lib/site/register'
+import { displayName, getPageRegister, type RegisterProject } from '@/lib/site/register'
 
 // A project's site from space on a page of its own, the video first: Google shows a video in its video results only from a
 // page where the video is the main thing (owner 2026-11-20: "what we need from google so it picks quickly"). The project page
@@ -26,7 +26,7 @@ const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+){0,15}$/
 
 async function load(slug: string): Promise<{ p: RegisterProject; view: FromAbove; name: string } | null> {
   if (!SLUG.test(slug)) return null
-  const p = await getRegisterProject(slug)
+  const p = await getPageRegister(slug)
   if (!p) return null
   const view = forPin(fromRecord(p.from_above, p.slug), p.map)
   return view?.video ? { p, view, name: displayName(p) } : null

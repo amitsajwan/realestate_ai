@@ -22,7 +22,7 @@ import { getCatalog, getCatalogProject, getPropertyFacts } from '@/lib/site/api'
 import { getFacets } from '@/lib/site/facets'
 import RegisterProjectPage, { ASK_NOTE } from '@/components/site/RegisterProjectPage'
 import { pageMetadata } from '@/lib/marketing/seo'
-import { getRegisterProject, getRegisterProjectByRegno, longDay, offerPrice } from '@/lib/site/register'
+import { getRegisterProject, getRegisterProjectByRegno, longDay, offerPrice, registerOfListing, type RegisterProject } from '@/lib/site/register'
 import ListThisProject from '@/components/site/ListThisProject'
 import { registerDescription, registerTitle } from '@/lib/site/projectSeo'
 import type { Offer } from '@/lib/site/register'
@@ -81,8 +81,9 @@ async function loadRegister(params: Props['params']) {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const p = await load(params)
-  if (p && p.agents.length) return catalogProjectMetadata(p, priceRange(p) + ', ' + bhkRange(p.bhk_options), await getWebFacts(p.rera_no))
-  const r = await loadRegister(params)
+  const listed = p && p.agents.length ? await registerOfListing(p) : null
+  if (p && p.agents.length && !listed) return catalogProjectMetadata(p, priceRange(p) + ', ' + bhkRange(p.bhk_options), await getWebFacts(p.rera_no))
+  const r = listed ?? await loadRegister(params)
   if (!r) return { title: 'Project not found', robots: { index: false } }
   // the first builder picture is the preview of a shared link and the page's image in search, else the brand card
   const photo = r.profile?.photos?.find((x) => (x.source ?? 'builder') === 'builder' && x.url.startsWith('/') && x.width && x.height)
@@ -95,7 +96,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     path: `/projects/${r.slug}`,
     ...(photo ? { image: { path: photo.url, width: photo.width as number, height: photo.height as number, alt: photo.alt } } : {}),
   })
-  return r.indexable ? meta : { ...meta, robots: { index: false, follow: true } }   // thin pages stay out of search until filled in
+  // thin pages stay out of search until filled in; a listed project's page was in search already and stays (owner: never prune)
+  return r.indexable || listed ? meta : { ...meta, robots: { index: false, follow: true } }
+}
+
+/** Avasetu's project page drawn from the register record: every project's one layout, agent-listed or not. */
+async function RegisterView({ r }: { r: RegisterProject }) {
+  const facts = await getPropertyFacts({ rera: r.regno, project: r.name, locality: r.area?.name }).catch(() => null)
+  return (
+    <MarketingShell hot={{ area: r.area?.slug, exclude: r.slug }} stickyBar>
+      <RegisterProjectPage p={r} siteUrl={getMarketingConfig().siteUrl} facts={facts} whatsappUrl={chatWhatsAppUrl()}
+        lists={r.pune_place ? (await getFacets()).filter((f) => f.place === r.pune_place?.key && f.indexable && !f.builder) : []} />
+      <ComingSoonDock items={await comingSoonFor(r.pune_place?.key)} bottomBar />
+    </MarketingShell>
+  )
 }
 
 export default async function SharedProjectPage({ params }: Props) {
@@ -112,16 +126,14 @@ export default async function SharedProjectPage({ params }: Props) {
     // to the shared page (docs/plan/one-project-one-page.md 1d)
     if (listed) permanentRedirect(`/projects/${listed.slug}`)
     if (r.slug !== slug) permanentRedirect(`/projects/${r.slug}`)
-    const facts = await getPropertyFacts({ rera: r.regno, project: r.name, locality: r.area?.name }).catch(() => null)
-    return (
-      <MarketingShell hot={{ area: r.area?.slug, exclude: r.slug }} stickyBar>
-        <RegisterProjectPage p={r} siteUrl={getMarketingConfig().siteUrl} facts={facts} whatsappUrl={chatWhatsAppUrl()}
-          lists={r.pune_place ? (await getFacets()).filter((f) => f.place === r.pune_place?.key && f.indexable && !f.builder) : []} />
-        <ComingSoonDock items={await comingSoonFor(r.pune_place?.key)} bottomBar />
-      </MarketingShell>
-    )
+    return <RegisterView r={r} />
   }
   if (p.slug !== slug) permanentRedirect(`/projects/${p.slug}`) // an agent's own slug for the same project
+  // an agent-listed project with a register record has the same page as every other project, at its listed address; the
+  // partner agent is named on it from their price sheet ("Listed by House Deal"). The catalog layout below is only for a listing
+  // whose MahaRERA number the register does not have (or a moment the register cannot be read).
+  const listedRegister = await registerOfListing(p)
+  if (listedRegister) return <RegisterView r={listedRegister} />
   const cfg = getMarketingConfig()
   const main = mainAgent(p)
   const lead = projectLead(p)

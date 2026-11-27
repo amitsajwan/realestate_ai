@@ -23,6 +23,8 @@ const mockProjectOfListing = jest.fn(async (_regno?: string | null): Promise<str
 jest.mock('@/lib/site/register', () => ({ getRegisterProject: async () => null, getRegisterProjects: () => mockRegister(), longDay: () => '',
   getRegisterPlaces: () => mockPlaces(), placePath: (s: string) => `/projects/area/${s}`,
   projectPageOfListing: (r?: string | null) => mockProjectOfListing(r),
+  // no register record for these listed projects, so they keep the catalog layout (listed-project-layout.test.tsx has the other case)
+  registerOfListing: async () => null,
   regnoKey: (r?: string | null) => (r || '').trim().toUpperCase() }))
 // topic guides (lib/site/topics): none unless a test sets them
 const mockTopics = jest.fn(async (): Promise<unknown[]> => [])

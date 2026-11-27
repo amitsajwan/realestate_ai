@@ -35,9 +35,8 @@ nobody searches read as mass-made content and split one project's links and clic
 3. **A renamed page loses its history.** Search Console counts are matched to a record by its current address only
    (`areastats/searchconsole.refresh`, `seo/targets`), so a rename reads as a page that lost every impression, and the rank loop
    reacts to that.
-4. **Two kinds of project page.** `/projects/<slug>` is either a register page or an agent catalog page (`agent_projects`); one
-   catalog page is live, `lodha-camelot`. Left as it is in this step (a register page of a listed project redirects to it); folding
-   it into the register model is later work.
+4. **Two kinds of project page.** Folded on 2026-11-27 (step 1e): every project page is drawn by `RegisterProjectPage`. See
+   "How a project page is chosen" below.
 
 ## Decisions
 
@@ -59,8 +58,30 @@ nobody searches read as mass-made content and split one project's links and clic
 | 1b | History follows renames: `searchconsole.page_paths` / `summed` (counts, the week's counts, position weighted by impressions) and `seo.targets` (phrases, conflicts) read every address a page has had | BUILT |
 | 1c | Addresses from the stable name: `pages.address_name` / `address_slug` (also the place check's, so a rename is never undone); `pages.rename_addresses` in the register step after the groups, `settings.project_renames_per_day` (25; 0 stops), least-seen pages first, once per page by code (`address_from`, `address_at`), never onto an address another page has or had or a catalog page's. Banner picks, site visits and the chat find a page by an old address | BUILT |
 | 1d | One redirect, never a chain: a tower's or an old address goes straight to the page an agent lists the project on, else to the project page (`app/projects/[slug]/page.tsx`) | BUILT |
+| 1e | One layout: an agent-listed project (`agent_projects`, today only `lodha-camelot`) is drawn by `RegisterProjectPage` from its register record, at its listed address; the old catalog layout is kept only for a listing the register has no record of | LIVE |
 | 2 | One price per project, one resolver every surface reads | TARGET |
 | 3 | Daily whole-site check: two pages for one project, a price that differs between pages, a paperwork-name address with a known name, anything over the first screen, an agent called our partner | TARGET |
+
+## How a project page is chosen (LIVE)
+
+`frontend/app/projects/[slug]/page.tsx`, for `/projects/<slug>`:
+
+1. A retired House Deal address (`RETIRED`) 308s to the project's own page.
+2. **An agent catalog project** (`/api/v1/public/projects/<slug>`, an `agent_projects` row with agents): the register record of its
+   MahaRERA number (`registerOfListing`, by regno, so a tower finds its project) is drawn by `RegisterProjectPage` with the
+   record's slug swapped for the listed one, so the address, canonical and sitemap entry stay `lodha-camelot`. Only when the
+   register has no record does the old catalog layout (agents box, catalog FAQ) draw it.
+3. **Any other slug** is a register page. If an agent lists any of its registrations the page 308s to the listed address;
+   a tower's or an old address 308s to its project's page; one redirect, never a chain.
+
+Who sells it shows from the price sheet, not from the layout: `property-facts` returns the newest agent listing's `offer`
+(price sheet, photos, videos) and, when that agent is a partner (not the house account), the page says "Listed by <agent>"
+with a link to the listing on the agent's own page. Ivara and Camelot are both House Deal's that way. Enquiries go to the
+Avasetu team (`projectLead`), never straight to the partner.
+
+The sub-pages (`/video`, `/from-space`) and the picks pages (`/compare`, `/shortlist`) read a slug through `getPageRegister`,
+which accepts the listed slug too. A sub-page keeps the register slug in its canonical (the address the video sitemap lists);
+compare and shortlist keep the slug the buyer picked.
 
 ## What we watch
 

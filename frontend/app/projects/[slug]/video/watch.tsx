@@ -9,7 +9,7 @@ import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/se
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
 import { getPropertyFacts } from '@/lib/site/api'
 import { watchVideos, type WatchVideo } from '@/lib/site/projectVideos'
-import { areaName, displayName, getRegisterProject, offerPrice, type Offer, type RegisterProject } from '@/lib/site/register'
+import { areaName, displayName, getPageRegister, offerPrice, type Offer, type RegisterProject } from '@/lib/site/register'
 
 // A project's video on a page of its own (owner 2026-11-20): Google shows a video in its video results only where the video is
 // the page's main content, so the project page plays them and these pages are the ones the video sitemap names. The first
@@ -24,7 +24,7 @@ type Got = { p: RegisterProject; w: WatchVideo; offer: Offer; all: WatchVideo[] 
 /** The project and the asked video; null when either is missing. `key` null: the project's first video. */
 export async function loadWatch(slug: string, key: string | null): Promise<Got | null> {
   if (!SLUG.test(slug) || (key !== null && !KEY.test(key))) return null
-  const p = await getRegisterProject(slug)
+  const p = await getPageRegister(slug)
   if (!p) return null
   const facts = await getPropertyFacts({ rera: p.regno, project: p.name, locality: p.area?.name }).catch(() => null)
   const offer = (facts as unknown as { offer?: Offer } | null)?.offer
