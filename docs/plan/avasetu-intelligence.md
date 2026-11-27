@@ -99,6 +99,40 @@ figure today.
 
 Order: 1 and the spike (2) first, because they start the clock. Monthly sales (3-4) after the report's first version.
 
+### Spike result, 2026-11-27: what MahaRERA serves without login
+
+The public pages' code (`publicpage/main.js`) lists many endpoints. We called each once for project 43848 (Kosmic Kourtyard
+Phase 2), 2 s apart. Base: `/api/maha-rera-public-view-project-registration-service/public/projectregistartion/`, POST
+`{"projectId": <id>}`.
+
+| Endpoint | Open? | What it gives |
+|---|---|---|
+| `getProjectGeneralDetailsByProjectId` | open (already used) | today's sold and total units, dates, status |
+| `getBuildingWingUnitSummary` | open (already used) | per-building counts |
+| `getProjectPreviousExtensionDetails` | **open, new** | every extension: original date, revised date, delay reason, application number. This is the **full date-move history back to registration**, which our `completion_history` (since Oct 2026) lacks |
+| `getProjectCurrentStatus` | **open, new** | Active, deregistered, in abeyance (a buyer's red flag, not read today) |
+| `getComplaintDetailsByProjectId` | **open, new** | complaints, misc complaints and recovery warrants **keyed by the project**, not by builder name. Empty for 43848; the shape still needs a project that has some |
+| complaint service `getComplaintByProjectId` | open, new | "NO_RECORDS_FOUND" for 43848; same need |
+| `getLastQPRFormDetails`, `getUploadedDocumentsWithQPR`, `getUploadedDocuments` | **401** | quarterly progress reports and documents need a signed-in token |
+| `getProjectSoldUnsoldInventory`, `getProjectFinanceInventoryDetails`, `getProjectBuildingWingsFloorUnit` | **401** | inventory over time, unit by unit: closed |
+| `getProjectLitigationDetails` | **401** | litigation the promoter declared: closed |
+
+What this means:
+- **No past sales from MahaRERA.** The quarterly reports and the sold/unsold inventory sit behind a login, so we don't use them
+  (same rule as before). The only sales history there will ever be is the one we keep ourselves, so step 1 (weekly reads)
+  matters more, not less. The sold count likely moves when the builder files the quarterly report, so the honest grain is
+  "sold this quarter, filed on <date>". Weekly reads tell us within a week when each filing lands, and that date is itself
+  a fact. Check this against `booked_history` before promising a monthly figure.
+- **Full date-move history: yes, backfill it.** One read per project gives every extension since registration. That feeds
+  the report, `/check`, cautions, the builder record ("N of 12 projects extended, by 7 months on average") and the date-watch
+  reels, with years of depth on day one.
+- **Complaints and warrants: yes, by project.** This answers the "no litigation scraping" worry: matched by MahaRERA project
+  id, not by name. Show a count and MahaRERA's own words with the date read, never a judgement. Find a project that has
+  complaints to pin the response shape first.
+- **Status: yes.** Deregistered or in abeyance goes at the top of the report and turns off the enquiry form.
+- Cost: three more requests per project per read, still 2 s apart; the extension history only needs a re-read when the
+  completion date changes.
+
 ## Money and the ₹5,000/month budget
 
 The vision's ₹5,000 a month is already below what runs: the VM alone was estimated at about $67 a month from list prices
