@@ -9,7 +9,7 @@ export const LEGAL_NOTICE =
 
 export const PATHS = {
   home: '/',
-  /** the agents' home: what the product does, the free trial (/ is the buyers' home) */
+  /** the agents' home: what the product does, open and free to join (/ is the buyers' home) */
   agents: '/agents',
   invite: '/request-invite',
   signIn: '/join',
@@ -20,7 +20,7 @@ export const PATHS = {
 
 export const NAV = {
   signIn: 'Sign in',
-  requestInvite: 'Claim your free trial',
+  requestInvite: 'Join free',
   primaryLabel: 'Main',
   footerLabel: 'Legal and help',
   legal: [
@@ -69,20 +69,20 @@ export const SAMPLE_NOTE = 'Screens show sample data.'
 
 export const LANDING = {
   // the brand last: the buyers' home is the brand's page (2026-10-29), this one answers agents' searches
-  metaTitle: `Free trial for real estate agents in Pune | ${BRAND_NAME}`,
+  metaTitle: `For real estate agents in Pune: open and free to join | ${BRAND_NAME}`,
   metaDescription:
-    'Free trial for Pune real estate agents: 1 month free, every property, first 20 agents. Your own website, posts and reels made for you, and every enquiry as a lead card.',
-  metaOrgDescription: 'Avasetu (आवास + सेतु: home + bridge) helps real estate agents in Pune market their properties, get buyer enquiries and follow them up. Free trial: 1 month free for the first 20 agents.',
+    'For real estate agents anywhere in Pune, open and free to join: your own website with your MahaRERA number checked, posts and reels made for you, every enquiry as a lead card, and a lead board of Pune buyers you can ask for.',
+  metaOrgDescription: 'Avasetu (आवास + सेतु: home + bridge) helps real estate agents in Pune market their properties, get buyer enquiries and follow them up. Open and free to join.',
   hero: {
     eyebrow: 'For real estate agents in Pune',
-    pilot: 'Free trial',
+    pilot: 'Open and free to join',
     titleLines: ['Get more enquiries.', 'Know who to call first.'],
     lead:
       'Your website, posts and reels, made for you. Every enquiry becomes a lead card.',
-    cta: 'Claim your free trial',
+    cta: 'Join free',
     whatsapp: 'Ask us on WhatsApp',
     secondary: 'See a sample agent page',
-    facts: '1 month free · First 20 agents · No card · No app · English, हिंदी, मराठी',
+    facts: 'Free to join · No card · No app · English, हिंदी, मराठी',
     signInLead: 'Already have your code?',
     signIn: 'Sign in',
   },
@@ -138,8 +138,8 @@ export const LANDING = {
   },
   cost: {
     id: 'cost',
-    title: '1 month free. First 20 Pune agents.',
-    body: 'No card. After that, a small monthly fee. You see the price first, then decide.',
+    title: 'Open and free to join.',
+    body: 'No card, and nothing to pay to join or to ask for a buyer on the lead board. If we ever charge for something, you see the price first, then decide.',
   },
   faq: {
     id: 'faq',
@@ -147,11 +147,11 @@ export const LANDING = {
     items: [
       {
         q: 'How do I start?',
-        a: 'Tap Claim your free trial and send TRIAL on WhatsApp. Your sign-up code comes back at once; sign in and add your first property.',
+        a: 'Tap Join free and send the sign-up word on WhatsApp. Your sign-up code comes back at once; sign in, add your MahaRERA agent number and your first property.',
       },
       {
         q: 'Is it really free?',
-        a: 'The first month is free, no card, for the first 20 Pune agents. After that, a small monthly fee. You see the price first.',
+        a: 'Yes. Joining is free, with no card, and so is asking for a buyer on the lead board. Nobody can pay for a higher place. If we ever charge for something, you see the price first.',
       },
       {
         q: 'Do you post on my own Facebook and Instagram?',
@@ -183,17 +183,17 @@ export const LANDING = {
     whatsapp: 'Or message us on WhatsApp',
     fullForm: 'Add your city or a note',
   },
-  sticky: { cta: 'Claim your free trial', whatsapp: 'WhatsApp us' },
+  sticky: { cta: 'Join free', whatsapp: 'WhatsApp us' },
 }
 
 // ---------------------------------------------------------------------------------------------------------
 // Request invite
 // ---------------------------------------------------------------------------------------------------------
 export const INVITE = {
-  metaTitle: 'Ask us to call you | Free trial for real estate agents in Pune',
-  metaDescription: 'Leave your number and we call you back about your free trial: 1 month free, every property.',
+  metaTitle: 'Ask us to call you | For real estate agents in Pune',
+  metaDescription: 'Leave your number and we call you back about joining Avasetu: open and free for agents anywhere in Pune.',
   title: 'Ask us to call you',
-  lead: 'Free trial for real estate agents in Pune: 1 month free, every property, no card. Open to the first 20 Pune agents. Send TRIAL on WhatsApp and your sign-up code comes back at once.',
+  lead: 'For real estate agents anywhere in Pune: open and free to join, no card. Send TRIAL on WhatsApp and your sign-up code comes back at once.',
   labels: {
     name: 'Your name',
     phone: 'Mobile number',
@@ -281,7 +281,7 @@ export function privacyDoc(cfg: MarketingConfig): LegalDoc {
         paragraphs: ['What we collect depends on who you are.'],
         bullets: [
           'Agents: name, mobile number, city, languages and specialities you choose, your photo, the properties you post (details and photos), and how you use the service.',
-          'Agents who claim the free trial on WhatsApp: your WhatsApp number and the message you send, so we can send your sign-up code back.',
+          'Agents who sign up on WhatsApp: your WhatsApp number and the message you send, so we can send your sign-up code back.',
           'People who ask us to call them: name, mobile number, city, an optional note, and your consent. To prevent abuse we also keep a scrambled (hashed) version of your connection\'s IP address. We do not keep the IP address itself.',
           'Buyers who send an enquiry through an agent\'s website: name, mobile number, your message, and any preferences you choose to share (for example bedrooms, budget, timing, home loan).',
           'People browsing our website or an agent\'s website: which pages you view and how long each one stays open on your screen, linked to a random id stored in your browser (not your name), and the link you came from, so we and the agent can see which pages help buyers and which properties get attention. We also note the kind of device and browser (for example "Android phone, Chrome"), and, from your connection at that moment, the approximate city and the network (for example "Pune, Jio"); we do not keep your internet (IP) address. It stays anonymous unless you send an enquiry or give us your number.',
@@ -293,7 +293,7 @@ export function privacyDoc(cfg: MarketingConfig): LegalDoc {
           'To connect buyers with the agent they contacted.',
           'To show agents their enquiries and what each buyer is looking for.',
           'To create and run agents\' websites and share-ready marketing.',
-          'To reply to free-trial claims and call-back requests, and to run the free trial.',
+          'To reply to sign-ups and call-back requests, and to run the service for agents.',
           'To keep the service safe and to improve it.',
         ],
       },
@@ -388,7 +388,7 @@ export function termsDoc(cfg: MarketingConfig): LegalDoc {
       {
         id: 'about', heading: 'About the service',
         paragraphs: [
-          n + ' is a service for real estate agents in Pune. It lets an agent post properties, get a website and share-ready marketing, and see buyer enquiries. The free trial is one month, open to the first 20 agents, and needs no card. We tell you the price of anything after the trial before it applies, and the service may change.',
+          n + ' is a service for real estate agents in Pune. It lets an agent post properties, get a website and share-ready marketing, and see buyer enquiries. Joining is free and needs no card. If we ever charge for something, we tell you the price before it applies, and the service may change.',
         ],
       },
       {

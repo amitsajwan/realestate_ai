@@ -25,9 +25,9 @@ describe('agent site listing states', () => {
 })
 
 describe('AgentStrip', () => {
-  it('invites agents to claim the free trial with no invented numbers', () => {
+  it('invites agents to join free with no invented numbers', () => {
     const { container } = render(<AgentStrip />)
-    expect(screen.getByRole('link', { name: /claim your free trial/i })).toHaveAttribute('href', '/trial')
+    expect(screen.getByRole('link', { name: /join free/i })).toHaveAttribute('href', '/trial')
     expect(container.textContent).not.toMatch(/\d/)
   })
 })

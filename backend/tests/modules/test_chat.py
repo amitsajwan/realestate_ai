@@ -324,13 +324,13 @@ async def test_what_do_you_do_is_answered_for_both_sides_without_a_buyer_questio
         assert "find a new home in Pune" in t.reply and "/agents" in t.reply and "buy or to rent" not in t.reply
 
 
-async def test_an_agent_hears_the_trial_and_never_a_price_after_it():
+async def test_an_agent_hears_joining_is_free_and_never_a_price():
     d = engine.new_data()
     await say(d, "hi")
     t = await say(d, "I'm an agent")
-    assert "first month is free" in t.reply and "/trial" in t.reply and not t.quick
+    assert "open and free" in t.reply and "/trial" in t.reply and not t.quick and "first 20" not in t.reply
     t = await say(d, "how much for agents after the trial?")
-    assert "small monthly fee" in t.reply and "Rs" not in t.reply and "₹" not in t.reply
+    assert "Joining is free" in t.reply and "Nobody can pay" in t.reply and "Rs" not in t.reply and "₹" not in t.reply
 
 
 async def test_find_a_home_starts_the_buyer_questions():

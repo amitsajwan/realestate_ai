@@ -1,7 +1,7 @@
 """What Avasetu says about itself and about buying in Pune: one vetted set of answers for the website chat and for replies to post comments.
 
 The agent answers follow the landing page and /trial copy (frontend/lib/marketing/strings.ts); change both together. Only stable, checkable
-statements: no price after the free trial, no prices per sq ft, no predictions, no invented distances, and transport is 'approved is not
+statements: no price for anything later, no prices per sq ft, no predictions, no invented distances, and transport is 'approved is not
 running'. `answer()` uses a keyword hit when there is one, else lets the LLM answer from these entries only (checked: no new numbers, no links).
 """
 import re
@@ -70,7 +70,7 @@ ENTRIES: List[Entry] = [
     # entry listed first, so everywhere else (and on WhatsApp and comment replies) "who" above still answers it.
     Entry("who_agents", WHO_KEYS,
           f"{brand.NAME} helps real estate agents in Pune get buyers: we make your website, posts and reels, every project is checked "
-          "against MahaRERA, and every buyer enquiry becomes a lead card. The first month is free, no card, for the first 20 Pune agents.",
+          "against MahaRERA, and every buyer enquiry becomes a lead card. Joining is open and free, with no card.",
           "agent", "Start at /trial."),
     Entry("projects", ("what projects", "which projects", "all projects", "all project", "project you have", "projects you have",
                        "projects do you have", "what properties", "properties you have", "homes you have", "flats you have", "new projects",
@@ -79,13 +79,13 @@ ENTRIES: List[Entry] = [
           "Tell me the area, BHK and budget and I will show the homes that match.", "buyer", "See them at /projects."),
     Entry("agent", AGENT_SAYS + ("real estate agent", "list my property", "sell my"),
           "If you are a real estate agent in Pune: we make your website, posts and reels, and every buyer enquiry becomes a lead card with "
-          "budget, area, timing and how warm the buyer is. The first month is free, no card, for the first 20 Pune agents.", "agent", "Start at /trial."),
+          "budget, area, timing and how warm the buyer is. We check your MahaRERA agent number, and then the lead board of Pune buyers opens for you. Joining is open and free, with no card.", "agent", "Start at /trial."),
     Entry("agent_cost", ("price for agents", "cost for agents", "how much for agents", "pricing", "plans", "monthly fee", "subscription",
                          "charges for agents", "really free", "after trial", "after the trial", "kitna lagega", "kitne paise"),
-          "The first month is free, no card, for the first 20 Pune agents. After that there is a small monthly fee, and you see the price first, then decide.",
+          "Joining is free, with no card, and so is asking for a buyer on the lead board. Nobody can pay for a higher place. If we ever charge for something, you see the price first, then decide.",
           "agent", "Start at /trial."),
     Entry("agent_start", ("how do i start", "how to start", "how to join", "sign up", "signup", "sign-up code", "trial code"),
-          "Tap Claim your free trial and send TRIAL on WhatsApp. Your sign-up code comes back at once; sign in and add your first property. "
+          "Tap Join free and send TRIAL on WhatsApp. Your sign-up code comes back at once; sign in, add your MahaRERA agent number and your first property. "
           "Most Pune projects are already here: pick yours and add your prices.", "agent", "Start at /trial. The step-by-step guide is at /for-agents/guide."),
     Entry("agent_posts", ("post on my", "my facebook", "my instagram", "reels", "posts for me", "social media", "marketing"),
           "We make posts and reels for each property. They go on Avasetu's Facebook and Instagram with your name, after you approve each post.", "agent",

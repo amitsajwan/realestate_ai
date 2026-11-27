@@ -51,10 +51,7 @@ export default function SiteHeader({ businessName, cta = 'buyer', search = false
             </a>
           )}
           {cta === 'agent' && (
-            // the full label does not fit beside the name and Menu on a phone: 'Free trial' there, same accessible name
-            <Link href={s.invite.href} aria-label={NAV.requestInvite} data-testid="header-cta" className={button}>
-              <span className="sm:hidden">Free trial</span><span className="hidden sm:inline">{NAV.requestInvite}</span>
-            </Link>
+            <Link href={s.invite.href} data-testid="header-cta" className={button}>{NAV.requestInvite}</Link>
           )}
           <details className="group relative lg:hidden">
             <summary className="flex min-h-[44px] cursor-pointer list-none items-center gap-1.5 rounded-lg px-2 font-semibold text-white [&::-webkit-details-marker]:hidden">

@@ -41,7 +41,7 @@ describe("the agents' pages", () => {
     expect(trial.robots).toEqual({ index: false, follow: true })
     expect(invite.robots).toEqual({ index: false, follow: true })
     expect(agentsHome.robots).toBeUndefined()
-    expect(String(agentsHome.title)).toBe('Free trial for real estate agents in Pune | Avasetu')
+    expect(String(agentsHome.title)).toBe('For real estate agents in Pune: open and free to join | Avasetu')
   })
 })
 

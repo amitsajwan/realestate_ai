@@ -22,7 +22,7 @@ export const AGENT_ANCHORS = ['invite', 'live', 'what-it-does', 'cost', 'faq', '
 /** The script that does it: before anything paints, with history replaced so Back does not return to the wrong page. */
 export const agentAnchorForward = (): string =>
   `(function(){var h=location.hash.slice(1);if(${JSON.stringify(AGENT_ANCHORS)}.indexOf(h)>-1||/^lp-/.test(h))location.replace('${AGENTS_PATH}#'+h)})()`
-export const INVITE_PATH = '/trial'   // 'Claim your free trial' (WhatsApp TRIAL); the call-back form stays at /request-invite
+export const INVITE_PATH = '/trial'   // 'Join free' (WhatsApp TRIAL, the word the sign-up bot answers); the call-back form stays at /request-invite
 /** Studio is the agent's app; it sends a signed-out visitor to the sign-in screen (/join). */
 export const SIGN_IN_PATH = '/studio'
 /** A buyer's 'tell us what you need': the enquiry page (app/enquire), whose form is on the first screen. */
@@ -47,7 +47,7 @@ export function siteLinks() {
   const about: SiteLink = { href: '/about', label: 'About us' }
   // who answers, with the office address and phone (app/contact, lib/site/team)
   const contact: SiteLink = { href: '/contact', label: 'Contact' }
-  const invite: SiteLink = { href: INVITE_PATH, label: 'Claim your free trial' }
+  const invite: SiteLink = { href: INVITE_PATH, label: 'Join free' }
   const signIn: SiteLink = { href: SIGN_IN_PATH, label: 'Sign in', otherApp: true }
   const need: SiteLink = { href: buyerEnquirePath(), label: 'Tell us what you need' }
   const ig: SiteLink = { href: instagram, label: 'Instagram', external: true }

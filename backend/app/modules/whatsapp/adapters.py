@@ -370,14 +370,14 @@ async def notify(db, agent_id: str, kind: str, text: str, ref: dict, now: dateti
     await _notify(db, agent_id, kind, text, ref, now)
 
 
-# ---- claim your free trial (agents) --------------------------------------------------------------------------------
+# ---- join free (agents; the keyword is still TRIAL) --------------------------------------------------------------------------------
 TRIAL_TEXT = {
     "issued": {
-        "en": "Your {brand} free trial is ready. 1 month free, every property, no card.\n\nYour sign-up code: {code}\n"
+        "en": "Welcome to {brand}. Joining is free, every property, no card.\n\nYour sign-up code: {code}\n"
               "Sign in here: {join} (enter this WhatsApp number and the code).",
-        "hi": "आपका {brand} फ्री ट्रायल तैयार है। 1 महीना फ्री, हर प्रॉपर्टी, कोई कार्ड नहीं।\n\nआपका साइन-अप कोड: {code}\n"
+        "hi": "{brand} में आपका स्वागत है। जुड़ना फ्री है, हर प्रॉपर्टी, कोई कार्ड नहीं।\n\nआपका साइन-अप कोड: {code}\n"
               "यहाँ साइन इन करें: {join} (यही WhatsApp नंबर और कोड डालें)।",
-        "mr": "तुमचा {brand} फ्री ट्रायल तयार आहे. 1 महिना फ्री, प्रत्येक प्रॉपर्टी, कार्ड नको.\n\nतुमचा साइन-अप कोड: {code}\n"
+        "mr": "{brand} मध्ये तुमचं स्वागत आहे. सामील होणं फ्री आहे, प्रत्येक प्रॉपर्टी, कार्ड नको.\n\nतुमचा साइन-अप कोड: {code}\n"
               "इथे साइन इन करा: {join} (हाच WhatsApp नंबर आणि कोड टाका).",
     },
     "too_soon": {
@@ -386,14 +386,14 @@ TRIAL_TEXT = {
         "mr": "तुमचा साइन-अप कोड थोड्या वेळापूर्वी पाठवला आहे, तो अजून चालेल. इथे साइन इन करा: {join}",
     },
     "full": {
-        "en": "Today's free trials are all taken. We have saved your request and will send your code here soon.",
-        "hi": "आज के सभी फ्री ट्रायल भर गए हैं। आपकी रिक्वेस्ट सेव है, आपका कोड जल्दी यहीं भेजेंगे।",
-        "mr": "आजचे सगळे फ्री ट्रायल भरले आहेत. तुमची विनंती सेव्ह आहे, तुमचा कोड लवकरच इथे पाठवू.",
+        "en": "Today's sign-ups are all taken. We have saved your request and will send your code here soon.",
+        "hi": "आज के सभी साइन-अप भर गए हैं। आपकी रिक्वेस्ट सेव है, आपका कोड जल्दी यहीं भेजेंगे।",
+        "mr": "आजचे सगळे साइन-अप भरले आहेत. तुमची विनंती सेव्ह आहे, तुमचा कोड लवकरच इथे पाठवू.",
     },
     "blocked": {
-        "en": "This number cannot start a trial. Please reply here if you think this is a mistake.",
-        "hi": "इस नंबर से ट्रायल शुरू नहीं हो सकता। अगर यह गलती है तो यहीं जवाब दें।",
-        "mr": "या नंबरवरून ट्रायल सुरू होऊ शकत नाही. ही चूक वाटत असेल तर इथेच उत्तर द्या.",
+        "en": "This number cannot sign up. Please reply here if you think this is a mistake.",
+        "hi": "इस नंबर से साइन-अप नहीं हो सकता। अगर यह गलती है तो यहीं जवाब दें।",
+        "mr": "या नंबरवरून साइन-अप होऊ शकत नाही. ही चूक वाटत असेल तर इथेच उत्तर द्या.",
     },
 }
 

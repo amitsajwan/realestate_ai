@@ -71,11 +71,13 @@ function Check({ className = '' }: { className?: string }) {
 }
 
 const GET_ICONS = [
-  // page, megaphone, inbox, chart
+  // page, megaphone, inbox, chart, board, shield (one per C.gets item, in order)
   'M4 5h16v14H4zM4 9h16M8 13h5M8 16h8',
   'M4 10v4h3l6 4V6L7 10H4zM17 9a4 4 0 010 6',
   'M4 13l2-8h12l2 8v6H4zM4 13h5l1 2h4l1-2h5',
   'M5 19V11M10 19V6M15 19v-6M20 19V9',
+  'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
+  'M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6zM8.5 12l2.5 2.5 4.5-5',
 ]
 
 export default function ForAgentsPage() {
