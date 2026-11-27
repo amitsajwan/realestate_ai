@@ -302,7 +302,13 @@ export function BrandEditor({ agentId, loadBranding, saveBranding, uploadImage, 
         <Field label="MahaRERA agent registration number (needed to keep your account active)" htmlFor="brand-rera">
           <input id="brand-rera" className={inputCls} value={draft.rera_agent_no} maxLength={20} autoCapitalize="characters" onChange={(e) => set({ rera_agent_no: e.target.value.toUpperCase() })} placeholder="A52100012345" />
         </Field>
-        <p className="text-xs text-gray-500">Shown on your page as stated by you. {BRAND_NAME} does not verify it and does not call you &quot;verified&quot;.</p>
+        {doc.rera_status === 'verified' && draft.rera_agent_no.trim() === (doc.branding_data.rera_agent_no || '') ? (
+          <p data-testid="rera-status" className="text-xs font-semibold text-green-800">MahaRERA verified: we checked this number on the register. Your page shows the badge, and the lead board is open to you.</p>
+        ) : doc.rera_status === 'rejected' && draft.rera_agent_no.trim() === (doc.branding_data.rera_agent_no || '') ? (
+          <p data-testid="rera-status" className="text-xs font-semibold text-red-700">We could not match this number on the MahaRERA register. Check it, or message us.</p>
+        ) : (
+          <p data-testid="rera-status" className="text-xs text-gray-500">We check every number on the MahaRERA register by hand. Until then your page shows it as stated by you, and the lead board opens once it is verified. A new number is checked again.</p>
+        )}
       </section>
 
       {/* Save stays in reach just above the tab bar: the form is three screens long, and the button at its foot was missed

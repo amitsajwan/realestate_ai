@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from typing import Awaitable, Callable, Protocol
 
 from . import branding as bd
+from . import verification
 from .otp import OTPService
 from .schemas import SiteCreate
 from .slug import unique_slug
@@ -226,7 +227,7 @@ class OnboardingService:
         branding = doc.get("branding_data") or {}
         return {"slug": doc["slug"], "agent_name": doc.get("agent_name", ""), "photo": doc.get("photo", ""),
                 "logo": branding.get("logo"), "social": branding.get("social") or {}, "branding_data": branding,
-                "rera_due_at": rera_due_at(doc)}
+                "rera_due_at": rera_due_at(doc), "rera_status": verification.status_of(doc)}
 
     def _result(self, doc: dict, created: bool) -> dict:
         return {

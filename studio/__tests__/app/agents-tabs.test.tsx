@@ -4,7 +4,7 @@ import { AgentsScreen } from '@/components/app/agents/AgentsScreen'
 import { fixtureAgents } from '@/lib/app/concierge'
 
 const mockAdmin: Record<string, jest.Mock> = {}
-;['inviteRequests', 'invite', 'dismiss'].forEach((n) => (mockAdmin[n] = jest.fn()))
+;['inviteRequests', 'invite', 'dismiss', 'agentChecks', 'setAgentCheck'].forEach((n) => (mockAdmin[n] = jest.fn()))
 const mockList = jest.fn()
 
 jest.mock('next/navigation', () => ({ usePathname: () => '/studio/agents' }))
@@ -34,6 +34,7 @@ beforeEach(() => {
   mockList.mockReset()
   mockList.mockResolvedValue(AGENTS)
   mockAdmin.inviteRequests.mockResolvedValue(REQUESTS())
+  mockAdmin.agentChecks.mockResolvedValue([])
   window.history.replaceState(null, '', '/studio/agents')
 })
 
@@ -100,4 +101,21 @@ describe('Agents tabs', () => {
     render(<AgentsScreen />)
     expect(await screen.findByText('Nobody is waiting to join.')).toBeInTheDocument()
   })
+})
+
+test('MahaRERA check: the owner records an agent as verified with the register page', async () => {
+  const pending = { agent_id: 'a1', slug: 'asha', name: 'Asha Patil', rera_agent_no: 'A52100012345', status: 'pending', checked_at: null,
+    register_url: null, note: null, number_changed: false }
+  mockAdmin.agentChecks.mockResolvedValue([pending, { ...pending, agent_id: 'a2', name: 'No Number', rera_agent_no: null }])
+  mockAdmin.setAgentCheck.mockResolvedValue({ ...pending, status: 'verified' })
+  window.history.replaceState(null, '', '/studio/agents?tab=rera')
+  render(<AgentsScreen />)
+  const rows = await screen.findAllByTestId('rera-check-row')
+  expect(rows).toHaveLength(2)
+  expect(within(rows[1]).getByText('No MahaRERA number given yet')).toBeInTheDocument()
+  expect(within(rows[1]).queryByRole('button', { name: 'Record the check' })).toBeNull()
+  fireEvent.click(within(rows[0]).getByRole('button', { name: 'Record the check' }))
+  fireEvent.change(within(rows[0]).getByLabelText(/page on the MahaRERA register/), { target: { value: 'https://maharera.maharashtra.gov.in/a/1' } })
+  fireEvent.click(within(rows[0]).getByRole('button', { name: 'Verified' }))
+  await waitFor(() => expect(mockAdmin.setAgentCheck).toHaveBeenCalledWith('a1', { status: 'verified', register_url: 'https://maharera.maharashtra.gov.in/a/1', note: null }))
 })

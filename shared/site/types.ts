@@ -78,6 +78,9 @@ export interface AgentBranding {
   preset?: 'navy-gold' | 'emerald' | 'terracotta' | 'royal-purple' | 'slate-teal' | 'cream-ink'
   custom_primary?: string | null
   rera_agent_no?: string | null
+  /** The MahaRERA agent number Avasetu checked on the register (set only by the owner's check, onboarding/verification.py). The
+   *  page says "MahaRERA verified" only while it equals rera_agent_no: a changed number is unchecked again. */
+  rera_verified_no?: string | null
   areas?: string[]
   languages?: string[]
   years_experience?: number | null

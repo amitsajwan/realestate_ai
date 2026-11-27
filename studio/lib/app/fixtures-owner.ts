@@ -285,11 +285,11 @@ function board(owner: boolean): Board {
       { ref: 'b1', project: 'Green Meadows Phase 2', areas: ['Wagholi'], bhk: '2 BHK', budget: '₹60–70 L', when: 'Within 3 months', paying: 'Home loan', wants: 'Near a school',
         came_from: 'Website', age: 'Came in 2 days ago', created_at: days(2), last_active_at: ago(6), temperature: 'hot', genuine: 'replied', signals: ['opened the price list'],
         activity: { pages: [{ label: 'Green Meadows Phase 2', minutes: 4 }, { label: 'Wagholi 2 BHK flats', minutes: 2 }], more_pages: 1, page_count: 3, projects_seen: 2, visits: 2, days: 2, read_min: 7, device: 'Phone', city: 'Pune', taps: ['WhatsApp'], enquiries: 1 },
-        caution: null, asked: 1, mine: null, given: null, ...(owner ? { lead_id: 'c1', asks: [] } : {}) },
+        caution: null, fit: owner ? [] : ['You cover Wagholi'], asked: 1, mine: null, given: null, ...(owner ? { lead_id: 'c1', asks: [] } : {}) },
       { ref: 'b2', project: null, areas: ['Kharadi', 'Upper Kharadi'], bhk: '3 BHK', budget: '₹1.2–1.5 Cr', when: '6–12 months', paying: null, wants: null,
         came_from: 'Instagram', age: 'Came in 5 days ago', created_at: days(5), last_active_at: days(1), temperature: 'warm', genuine: 'number', signals: [],
         activity: { pages: [{ label: 'Kharadi top projects', minutes: 3 }], more_pages: 0, page_count: 1, projects_seen: 3, visits: 1, days: 1, read_min: 3, device: 'Computer', city: null, taps: [], enquiries: 1 },
-        caution: null, asked: 0, mine: null, given: null, ...(owner ? { lead_id: 'c2', asks: [] } : {}) },
+        caution: null, fit: [], asked: 0, mine: null, given: null, ...(owner ? { lead_id: 'c2', asks: [] } : {}) },
     ],
   }
 }
@@ -298,7 +298,7 @@ export function boardFixture(path: string, method = 'GET', asOwner = true): unkn
   const p = path.split('?')[0]
   if (p === '' && method === 'GET') return board(asOwner && !path.includes('as_agent'))
   if (p === '/agents') return { items: [{ agent_id: 'fx-a1', name: 'Rahul Sharma', first_name: 'Rahul', whatsapp: '919800000001', listings: 2, asked: 1 }] }
-  if (p.endsWith('/ask') && method === 'POST') return { offer_kind: 'none', offer_value: null, offer: null, note: null, at: new Date().toISOString() }
+  if (p.endsWith('/ask') && method === 'POST') return { note: null, at: new Date().toISOString() }
   if (p.endsWith('/give')) return { ok: true, passed_to: 'Rahul Sharma' }
   return { ok: true }
 }

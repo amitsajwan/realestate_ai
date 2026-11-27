@@ -1,5 +1,5 @@
-"""Lead board (inbox/board.py): agents see the owner's open leads without name or number, ask for one with an offer, and the owner
-gives it to one of them (owner, 2026-10-31)."""
+"""Lead board (inbox/board.py): MahaRERA-verified agents see the owner's open leads without name or number, ask for one free, and
+the owner gives it to one of them (owner, 2026-10-31; offers off and verified agents only, 2026-11-27)."""
 from datetime import datetime, timedelta
 
 from app.modules.inbox import board as board_mod
@@ -23,14 +23,21 @@ def lead(_id, ago=timedelta(days=2), **kw):
             "calls": [{"ts": NOW - ago + timedelta(hours=1), "outcome": "answered"}], **kw}
 
 
+def checked(number, status="verified"):
+    return {"rera_check": {"status": status, "number": number, "by": OWNER, "at": NOW,
+                           "register_url": "https://maharera.maharashtra.gov.in/agents/x"}}
+
+
 async def setup(*leads):
     board_mod._demand.clear()
     board_mod._names.clear()
     db = FakeDb()
     await db.get_collection("projects").insert_one({"_id": "P52100028315", "regno": "P52100028315", "name": "MANSHA PHASE-II",
                                                     "locality": "wagholi", "page_slug": "mansha-phase-ii-wagholi"})
-    for p in ({"agent_id": HD, "slug": "house-deal", "phone": "+919921900001", "branding_data": {"business_name": "House Deal"}},
-              {"agent_id": STAVAN, "slug": "stavan", "phone": "+919921900002", "agent_name": "Stavan"},
+    for p in ({"agent_id": HD, "slug": "house-deal", "phone": "+919921900001",
+               "branding_data": {"business_name": "House Deal", "rera_agent_no": "A52100000001"}, **checked("A52100000001")},
+              {"agent_id": STAVAN, "slug": "stavan", "phone": "+919921900002", "agent_name": "Stavan",
+               "branding_data": {"rera_agent_no": "A52100000002"}, **checked("A52100000002")},
               {"agent_id": OWNER, "slug": "avasetu", "phone": "+919767900001"}):
         await db.get_collection("agent_public_profiles").insert_one(p)
     for c in leads:
@@ -72,18 +79,18 @@ async def test_a_number_we_know_keeps_any_lead_off_even_a_passed_one_but_a_passe
     assert [c["ref"] for c in (await board.cards(OWNER))["items"]] == [ref_of("hd")]
 
 
-async def test_offers_are_sealed_and_the_owner_gives_the_lead_to_one_agent():
+async def test_asking_is_free_and_the_owner_gives_the_lead_to_one_agent():
     db, board, wa = await setup(lead("rahul"))
     ref = ref_of("rahul")
-    await board.ask(HD, ref, "fee", 2000)
-    await board.ask(STAVAN, ref, "share", 25, "I work Wagholi daily")
+    await board.ask(HD, ref)
+    await board.ask(STAVAN, ref, "I work Wagholi daily")
     seen = (await board.cards(HD))["items"][0]
-    assert seen["asked"] == 2 and seen["mine"]["offer"] == "₹2,000 for the lead" and "asks" not in seen and "lead_id" not in seen
+    assert seen["asked"] == 2 and seen["mine"]["note"] is None and "asks" not in seen and "lead_id" not in seen
     mine = (await board.cards(OWNER))["items"][0]
-    assert [(a["agent_name"], a["offer"]) for a in mine["asks"]] == [("House Deal", "₹2,000 for the lead"),
-                                                                     ("Stavan", "25% of the brokerage on closing")]
+    assert [(a["agent_name"], a["note"]) for a in mine["asks"]] == [("House Deal", None), ("Stavan", "I work Wagholi daily")]
+    assert not any("offer" in k for a in mine["asks"] for k in a)
     alert = await db.get_collection("notifications").find_one({"agent_id": OWNER, "kind": "lead_asked"})
-    assert "House Deal asked for the lead (2 BHK · Mansha Phase-II): ₹2,000 for the lead." == alert["summary"]
+    assert "House Deal asked for the lead (2 BHK · Mansha Phase-II)." == alert["summary"]
 
     r = await board.give(OWNER, ref, STAVAN)
     assert r["passed_to"] == "Stavan" and wa.sent[0][0] == "919921900002"
@@ -96,7 +103,7 @@ async def test_offers_are_sealed_and_the_owner_gives_the_lead_to_one_agent():
 
 async def test_view_as_an_agent_shows_what_any_agent_reads_and_nothing_of_the_owner():
     _, board, _ = await setup(lead("rahul"), lead("saket", agent_id=HD, passed_by=OWNER, passed_to=HD))
-    await board.ask(HD, ref_of("rahul"), "fee", 2000)
+    await board.ask(HD, ref_of("rahul"))
     view = await board.cards(PREVIEW)
     assert view["preview"] is True and view["owner"] is False and len(view["items"]) == 2
     assert all("lead_id" not in c and "asks" not in c and "holder" not in c and c["mine"] is None for c in view["items"])
@@ -138,7 +145,7 @@ async def test_a_lead_passed_before_reads_as_open_and_giving_it_moves_it_from_th
     await board.ask(HD, ref_of("saket"))
     alert = await db.get_collection("notifications").find_one({"kind": "lead_asked"})
     assert alert["agent_id"] == OWNER   # the owner hears of the ask, not the agent holding it
-    await board.ask(STAVAN, ref_of("saket"), "fee", 1500)
+    await board.ask(STAVAN, ref_of("saket"))
     r = await board.give(OWNER, ref_of("saket"), STAVAN)
     moved = await db.get_collection("contacts").find_one({"_id": "saket"})
     assert r["passed_to"] == "Stavan" and moved["agent_id"] == STAVAN and moved["passed_by"] == OWNER
@@ -223,3 +230,66 @@ async def test_a_lead_given_from_the_board_tells_the_other_agents_how_fast_it_we
     other = (await board.cards(HD))["items"][0]
     assert other["given"] == "Given to an agent 2 hours after it came in"
     assert (await board.cards(STAVAN))["items"][0]["given"] is None
+
+
+async def test_an_offer_stored_before_offers_went_off_is_kept_but_never_shown():
+    db, board, _ = await setup(lead("rahul"))
+    await db.get_collection("lead_asks").insert_one({"_id": "rahul:HD", "lead_id": "rahul", "owner_id": OWNER, "agent_id": HD,
+                                                     "status": "open", "offer_kind": "fee", "offer_value": 2000, "note": None,
+                                                     "at": NOW})
+    for viewer in (HD, OWNER):
+        shown = repr((await board.cards(viewer))["items"][0])
+        assert "2000" not in shown and "2,000" not in shown and "fee" not in shown
+    assert (await db.get_collection("lead_asks").find_one({"_id": "rahul:HD"}))["offer_value"] == 2000
+
+
+async def test_an_agent_not_verified_on_maharera_sees_why_and_no_cards_and_cannot_ask():
+    db, board, _ = await setup(lead("rahul"))
+    profiles = db.get_collection("agent_public_profiles")
+    await profiles.insert_one({"agent_id": "NEW", "slug": "new", "phone": "+919921900009", "agent_name": "New Agent"})
+    view = await board.cards("NEW")
+    assert view["items"] == [] and view["locked"]["status"] == "pending" and "Add your MahaRERA agent number" in view["locked"]["reason"]
+    await profiles.update_one({"agent_id": "NEW"}, {"$set": {"branding_data": {"rera_agent_no": "A52100000009"}}})
+    assert "checking" in (await board.cards("NEW"))["locked"]["reason"]
+    await profiles.update_one({"agent_id": "NEW"}, {"$set": checked("A52100000009", "rejected")})
+    assert (await board.cards("NEW"))["locked"]["status"] == "rejected"
+    try:
+        await board.ask("NEW", ref_of("rahul"))
+        assert False, "should be refused"
+    except InboxError as e:
+        assert e.status_code == 403
+    assert await db.get_collection("lead_asks").find_one({"agent_id": "NEW"}) is None
+
+
+async def test_changing_the_maharera_number_closes_the_board_until_the_new_one_is_checked():
+    db, board, _ = await setup(lead("rahul"))
+    assert (await board.cards(HD))["items"]
+    await db.get_collection("agent_public_profiles").update_one({"agent_id": HD}, {"$set": {"branding_data.rera_agent_no": "A52199999999"}})
+    assert (await board.cards(HD))["locked"]["status"] == "pending"
+
+
+async def test_every_verified_agent_sees_every_card_and_each_card_says_why_it_fits_them():
+    db, board, _ = await setup(lead("rahul"), lead("baner", first_touch={}, requirement={"bhk": 3.0, "localities": ["Baner"],
+                                                                                         "source": "stated"}))
+    listings = db.get_collection("listings")
+    await listings.insert_one({"_id": "l1", "agent_id": HD, "status": "live", "rera_no": "p52100028315", "locality": "Wagholi",
+                               "created_at": NOW - timedelta(days=3)})
+    await db.get_collection("agent_public_profiles").update_one({"agent_id": STAVAN}, {"$set": {"branding_data.areas": ["wagholi"]}})
+    for agent in (HD, STAVAN):
+        assert {c["ref"] for c in (await board.cards(agent))["items"]} == {ref_of("rahul"), ref_of("baner")}
+    hd = {c["ref"]: c["fit"] for c in (await board.cards(HD))["items"]}
+    assert hd == {ref_of("rahul"): ["You have a listing in this project"], ref_of("baner"): []}
+    st = {c["ref"]: c["fit"] for c in (await board.cards(STAVAN))["items"]}
+    assert st == {ref_of("rahul"): ["You cover Wagholi"], ref_of("baner"): []}
+    assert all(c["fit"] == [] for c in (await board.cards(OWNER))["items"])
+
+
+async def test_a_listing_that_is_not_fresh_or_not_live_says_nothing_about_fit():
+    db, board, _ = await setup(lead("rahul"))
+    listings = db.get_collection("listings")
+    await listings.insert_one({"_id": "sold", "agent_id": HD, "status": "sold", "locality": "Wagholi"})
+    await listings.insert_one({"_id": "undated", "agent_id": HD, "status": "live", "locality": "Wagholi"})
+    await listings.insert_one({"_id": "old", "agent_id": HD, "status": "live", "locality": "Wagholi",
+                               "confirmed_at": NOW - timedelta(days=400), "updated_at": NOW - timedelta(days=400),
+                               "created_at": NOW - timedelta(days=400)})
+    assert (await board.cards(HD))["items"][0]["fit"] == []
