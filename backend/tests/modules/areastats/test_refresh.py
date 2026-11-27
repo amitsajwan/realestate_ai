@@ -191,6 +191,34 @@ def test_a_selling_project_is_re_read_weekly_not_monthly():
     assert refresh._due(done, NOW) is False
 
 
+async def test_details_keeps_maharera_status_when_a_status_fetcher_is_given():
+    """A deregistered project is flagged on the record and counted; an Active one carries no warning. No fetcher: no status read."""
+    store = await seeded(("PR1", "wagholi", 11, {}), ("PR2", "wagholi", 12, {}))
+
+    async def fetch(mid):
+        return general({11: "PR1", 12: "PR2"}[mid])
+
+    async def fetch_status(mid):
+        gone = mid == 11
+        return {"status": "1", "responseObject": {"projectId": mid, "coreStatus": {
+            "statusName": "De-Registered" if gone else "Active", "isDeregistered": int(gone), "isAbeyance": 0}}}
+
+    out = await refresh.details(store, fetch, NOW, limit=5, fetch_status=fetch_status)
+    assert out["read"] == 2 and out["flagged"] == 1
+    p1, p2 = await store.project("PR1"), await store.project("PR2")
+    assert p1["maharera_deregistered"] is True and p1["maharera_status"] == "De-Registered" and p1["maharera_status_at"] == NOW
+    assert p2["maharera_deregistered"] is False and p2["maharera_status"] == "Active"
+    assert pages.status_flag(p1) == "deregistered" and pages.status_flag(p2) is None
+    # without a status fetcher the read still works and writes no status field
+    store2 = await seeded(("PR3", "wagholi", 13, {}))
+
+    async def fetch3(mid):
+        return general("PR3")
+
+    await refresh.details(store2, fetch3, NOW, limit=5)
+    assert "maharera_status" not in await store2.project("PR3")
+
+
 async def test_details_limit_and_failures_retry_next_day():
     store = await seeded(("PR1", "wagholi", 11, {}), ("PR2", "wagholi", 12, {}), ("PR3", "wagholi", None, {}))
 

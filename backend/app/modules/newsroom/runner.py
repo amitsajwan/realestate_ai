@@ -43,9 +43,10 @@ async def _area_records(store: Store, stages: dict, cfg, counts: dict) -> None:
     if "maharera" not in cfg.sources:
         return
     try:
-        from app.modules.agentprojects.maharera import make_fetch
+        from app.modules.agentprojects.maharera import make_fetch, make_fetch_status
         from app.modules.areastats import refresh
-        counts["areas"] = await refresh.step(store, stages["get"], make_fetch(), datetime.now(timezone.utc))
+        counts["areas"] = await refresh.step(store, stages["get"], make_fetch(), datetime.now(timezone.utc),
+                                             fetch_status=make_fetch_status())
     except Exception:
         log.exception("newsroom: area records failed")
 

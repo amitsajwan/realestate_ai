@@ -177,8 +177,10 @@ async def behind(store: Store, now: datetime, docs: Optional[List[dict]] = None)
 
 
 async def details(store: Store, fetch: project_api.Fetch, now: datetime, limit: int = DETAILS_PER_STEP,
-                  docs: Optional[List[dict]] = None) -> dict:
-    """Fill completion dates and homes from MahaRERA's project API for the records that need it most (never read first, newest first)."""
+                  docs: Optional[List[dict]] = None, fetch_status: Optional[project_api.Fetch] = None) -> dict:
+    """Fill completion dates and homes from MahaRERA's project API for the records that need it most (never read first, newest
+    first). When `fetch_status` is given, each read also keeps MahaRERA's current status (Active / deregistered / in abeyance),
+    the buyer's red flag the page shows when it is not Active."""
     docs = docs if docs is not None else await store.all_projects()
     due = [d for d in docs if _wanted(d) and _due(d, now)]
     # our areas and watched projects first, then the rest of Pune; within each, never read first, newest first
@@ -221,8 +223,17 @@ async def details(store: Store, fetch: project_api.Fetch, now: datetime, limit: 
         if move:   # the builder filed a new date: kept as history for the date-watch reels
             await store.add_date_move(d["_id"], move)
             out["moved"] = out.get("moved", 0) + 1
+        status_fields: dict = {}
+        if fetch_status is not None and mid is not None:   # MahaRERA's open current-status answer (second request, spaced)
+            await asyncio.sleep(PAUSE)
+            st = project_api.parse_status(await fetch_status(mid), mid)
+            if st is not None:
+                status_fields = {"maharera_status": st["status"], "maharera_deregistered": st["deregistered"],
+                                 "maharera_abeyance": st["abeyance"], "maharera_status_at": now}
+                if st["deregistered"] or st["abeyance"]:
+                    out["flagged"] = out.get("flagged", 0) + 1
         await store.set_project(d["_id"], **fields, details_checked_at=now, details_ok=True, details_error=None,
-                                **_booked(d, fields, now), **readings.details_changed(d, fields, now))
+                                **_booked(d, fields, now), **readings.details_changed(d, fields, now), **status_fields)
     return out
 
 
@@ -230,7 +241,7 @@ _booked = readings.booked  # moved to areastats.readings, which enrich shares
 
 
 async def step(store: Store, get, fetch: project_api.Fetch, now: datetime, pages: Optional[int] = None,
-               limit: Optional[int] = None) -> dict:
+               limit: Optional[int] = None, fetch_status: Optional[project_api.Fetch] = None) -> dict:
     """One round: sweep, relabel, the watch list, details, page slugs for new records. Batch sizes follow `behind` unless given. A failing part is logged
     and never stops the others."""
     catching_up = (pages is None or limit is None) and await behind(store, now)
@@ -238,7 +249,7 @@ async def step(store: Store, get, fetch: project_api.Fetch, now: datetime, pages
     limit = limit if limit is not None else (CATCHUP_DETAILS if catching_up else DETAILS_PER_STEP)
     out: dict = {"mode": "catch-up" if catching_up else "steady"}
     for name, part in (("sweep", lambda: sweep(store, get, now, pages)), ("relabel", lambda: relabel(store)),
-                       ("discover", lambda: discover.resolve(store, get, now)), ("watch", lambda: watchlist.sync(store, now)), ("details", lambda: details(store, fetch, now, limit)),
+                       ("discover", lambda: discover.resolve(store, get, now)), ("watch", lambda: watchlist.sync(store, now)), ("details", lambda: details(store, fetch, now, limit, fetch_status=fetch_status)),
                        ("pages", lambda: project_pages.assign_all(store)),
                        # after the groups: a page moves to its selling name's address, a few a day (one-project-one-page.md 1c)
                        ("addresses", lambda: project_pages.rename_addresses(store, now))):

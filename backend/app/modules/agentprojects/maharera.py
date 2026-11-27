@@ -18,6 +18,8 @@ API = ("https://maharerait.maharashtra.gov.in/api/maha-rera-public-view-project-
        "projectregistartion/getProjectGeneralDetailsByProjectId")
 BUILDINGS_API = ("https://maharerait.maharashtra.gov.in/api/maha-rera-public-view-project-registration-service/public/"
                  "projectregistartion/getBuildingWingUnitSummary")  # open, same {"projectId"} body (verified 2026-10-07)
+STATUS_API = ("https://maharerait.maharashtra.gov.in/api/maha-rera-public-view-project-registration-service/public/"
+              "projectregistartion/getProjectCurrentStatus")  # open, same {"projectId"} body (verified 2026-11-27)
 VIEW = "https://maharerait.maharashtra.gov.in/public/project/view/"
 TIMEOUT_S = 30.0
 TRIES = 3
@@ -155,3 +157,24 @@ def make_fetch_buildings(transport: Optional[httpx.AsyncBaseTransport] = None) -
     """The open building/wing summary (no login, no captcha). MahaRERA's other detail endpoints (amenities, land, geo, unit
     types) need its login and captcha: never used."""
     return _make(BUILDINGS_API, "buildings", transport)
+
+
+def make_fetch_status(transport: Optional[httpx.AsyncBaseTransport] = None) -> Fetch:
+    """The open current-status answer (no login, no captcha): whether MahaRERA has the project Active, deregistered or in
+    abeyance. The documents, quarterly reports and litigation endpoints all need a login (verified 2026-11-27): never used."""
+    return _make(STATUS_API, "status", transport)
+
+
+def parse_status(body: dict, maharera_id: int) -> Optional[dict]:
+    """MahaRERA's current-status answer -> {status, deregistered, abeyance}. None when the answer is missing, malformed or for
+    another project. `deregistered` and `abeyance` are a buyer's red flags; `status` is MahaRERA's own label (Active, Lapsed)."""
+    if not isinstance(body, dict) or str(body.get("status")) != "1" or not isinstance(body.get("responseObject"), dict):
+        return None
+    r = body["responseObject"]
+    if _int(r.get("projectId")) != int(maharera_id):
+        return None
+    core = r.get("coreStatus")
+    if not isinstance(core, dict):
+        return None
+    return {"status": str(core.get("statusName") or "").strip() or None,
+            "deregistered": bool(core.get("isDeregistered")), "abeyance": bool(core.get("isAbeyance"))}

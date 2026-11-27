@@ -218,13 +218,15 @@ function HeroLine({ p, where, linkless }: { p: RegisterProject; where: string; l
  *  the builder's own picture, never an AI illustration standing in for a real one. With no picture (most projects, 2026-10-31),
  *  a street map around the project's pin takes its place with the builder's logo over it (backend areastats/locmap.py,
  *  logos.py), else the logo alone. Over a photo the builder's logo sits in a white badge (owner 2026-11-03). */
-function Hero({ p, price, photo, linkless = false, closed = false, callback, emi, whatsappAsk, fromAboveYears = null }: { p: RegisterProject; fromAboveYears?: [number, number] | null; price: { from: string; bhks: string } | null; photo: ProfilePicture | null; linkless?: boolean; closed?: boolean
+function Hero({ p, price, photo, linkless = false, closed = false, callback, emi, whatsappAsk, fromAboveYears = null, ctaHidden = false }: { p: RegisterProject; fromAboveYears?: [number, number] | null; price: { from: string; bhks: string } | null; photo: ProfilePicture | null; linkless?: boolean; closed?: boolean
   /** the price-sheet ask on WhatsApp (lib/site/links pageWhatsApp): when set it is the first button and the form comes after it */
   whatsappAsk?: string | null
   /** the example EMI on the price the chip quotes (homes only): buyers weigh a flat by the monthly payment first */
   emi?: { emi: number; rate: number; years: number } | null
   /** who the "Call me back" button's lead goes to, and what about: the same as the page's enquiry form */
-  callback?: { agentSlug: string; agentName: string; topic: string } }) {
+  callback?: { agentSlug: string; agentName: string; topic: string }
+  /** hide every "enquire" call to action: the project carries a MahaRERA warning, so the page never pushes an enquiry */
+  ctaHidden?: boolean }) {
   const stats: { label: string; value: React.ReactNode; sub?: React.ReactNode; id: string }[] = []
   // the agent's live sheet when there is one, else the portals' prices: one price on the page, never both
   const asked = price ?? askedPrices(p)
@@ -343,7 +345,7 @@ function Hero({ p, price, photo, linkless = false, closed = false, callback, emi
           {stats.map((s) => <Stat key={s.id} testId={s.id} label={s.label} value={s.value} sub={s.sub} />)}
         </dl>
       )}
-      {closed ? (
+      {ctaHidden ? null : closed ? (
         <div className="mt-6">
           <a href="#same-title" className="inline-flex min-h-[48px] items-center rounded-full bg-amber-400 px-6 font-bold text-slate-900 no-underline" data-testid="see-building">
             See projects still being built nearby
@@ -589,6 +591,33 @@ function Checks({ p, offer }: { p: RegisterProject; offer: Offer | null }) {
 }
 
 /** 'Check before you book': the weak points the record shows, each with what to ask (backend areastats/cautions.py). */
+/** MahaRERA's own warning, led at the top of the page: the project is deregistered or in abeyance (backend pages.status_flag).
+ *  States only what MahaRERA's record says, with the date we read it and a link, and tells the buyer to confirm before booking. */
+function StatusWarning({ p }: { p: RegisterProject }) {
+  if (!p.maharera_status) return null
+  const headline = p.maharera_status === 'deregistered'
+    ? 'MahaRERA has deregistered this project.'
+    : 'MahaRERA has put this project in abeyance (its registration is on hold).'
+  return (
+    <div role="alert" data-testid="maharera-status" className="mb-6 rounded-2xl border-2 border-red-300 bg-red-50 p-4 text-slate-900">
+      <p className="flex items-start gap-2 text-lg font-bold text-red-800">
+        <span aria-hidden>⚠</span><span>{headline}</span>
+      </p>
+      <p className="mt-2 text-sm text-slate-800">
+        This is what MahaRERA&apos;s public record showed{p.details_read_at ? ` when we read it on ${longDay(p.details_read_at)}` : ''}.
+        A deregistered or paused registration is a serious warning: do not pay anything before you confirm the current status with
+        MahaRERA and the builder.
+      </p>
+      {p.maharera_url && (
+        <a href={p.maharera_url} target="_blank" rel="noopener noreferrer" data-testid="status-rera"
+          className="mt-3 inline-flex min-h-[44px] items-center font-semibold text-red-800 underline underline-offset-2">
+          Open this project on MahaRERA<span className="sr-only"> (opens in a new tab)</span>
+        </a>
+      )}
+    </div>
+  )
+}
+
 function Cautions({ p }: { p: RegisterProject }) {
   const rows = p.cautions ?? []
   if (!rows.length) return null
@@ -1002,6 +1031,10 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
   // form, ask box or phone bar, and the projects still being built nearby come straight after the answer; an agent's listing of
   // one (a resale flat) keeps its form
   const closed = !!p.finished && !seller && !offer
+  // MahaRERA has deregistered the project or put it in abeyance (backend pages.status_flag): the page leads with the warning and
+  // takes no enquiry, on Avasetu's own page. An agent's own listing of it (seller) stays the agent's responsibility.
+  const flagged = !seller && !!p.maharera_status
+  const notActive = closed || flagged
   // only Avasetu's own page of a project still being built, out of search, and an agent not selling it (their sheet is the details)
   const gaps = !p.indexable && !closed && !seller && !offer && !soldOutOf(p) ? missingDetails(p) : []
   const backs: Backing = backing(p, { closed, offer: !!liveOffer(facts)?.price_inr, seller: !!seller })
@@ -1078,7 +1111,9 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
       </nav>
       )}
 
-      <Hero p={p} price={price} photo={heroPhoto} linkless={!!seller} closed={closed} emi={closed ? null : heroEmi} callback={{ agentSlug: leadSlug, agentName: leadName, topic: enquiryTopic }} whatsappAsk={seller ? null : waAsk}
+      {flagged && <StatusWarning p={p} />}
+
+      <Hero p={p} price={price} photo={heroPhoto} linkless={!!seller} closed={closed} ctaHidden={flagged} emi={closed || flagged ? null : heroEmi} callback={{ agentSlug: leadSlug, agentName: leadName, topic: enquiryTopic }} whatsappAsk={seller ? null : waAsk}
         fromAboveYears={fromAboveView ? [fromAboveView.frames[0].year, fromAboveView.frames[fromAboveView.frames.length - 1].year] : null} />
 
       {/* a partner agent's listing names them at the top and opens their own page for it (owner 2026-10-30); on that page itself
@@ -1165,7 +1200,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
 
           <RecordSection p={p} shown={shown} facts={facts} linkless={!!seller} />
 
-          {!closed && <AskPrompt name={shown} whatsappUrl={waAsk} label={PROJECT_CTA.today} />}
+          {!notActive && <AskPrompt name={shown} whatsappUrl={waAsk} label={PROJECT_CTA.today} />}
 
           {seller && (seller.others ?? []).length > 0 && (
             <section aria-labelledby="more-title" data-testid="more-from-agent">
@@ -1208,14 +1243,14 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
 
         <aside className="min-w-0 space-y-6 lg:sticky lg:top-20 lg:self-start">
           {/* the side column stays in view on desktop, so the ask does too; phones get the bottom bar instead */}
-          {!closed && <div className="hidden lg:block"><AskPrompt name={shown} whatsappUrl={waAsk} label={PROJECT_CTA.short} compact /></div>}
+          {!notActive && <div className="hidden lg:block"><AskPrompt name={shown} whatsappUrl={waAsk} label={PROJECT_CTA.short} compact /></div>}
         </aside>
       </div>
 
       <div className="mt-10 space-y-8">
       {/* One form for the hero's two actions (two side-by-side copies read as a duplicate): the buyer picks price sheet or visit in
           it, `#visit` opens it on the visit, and a visit carries its own topic so the team knows what to arrange. */}
-      {!closed && <div className="max-w-2xl">
+      {!notActive && <div className="max-w-2xl">
         <EnquiryForm agentSlug={leadSlug} agentName={leadName} note={askNote} topic={enquiryTopic} listingId={seller?.listingId}
           waMessage={`Hi, I want to know about ${p.name} (MahaRERA ${p.regno}): ${url}`}
           choices={[
@@ -1232,7 +1267,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
         {' '}Facts can change; check the record and your agreement before you book.
       </footer>
       </div>
-      {!closed && <StickyJoinBar watchId="project-hero" formId="enquire" label={PROJECT_CTA.short} whatsappUrl={waAsk} whatsappLabel={seller ? 'WhatsApp' : PROJECT_CTA.whatsappShort} whatsappFirst={!seller} />}
+      {!notActive && <StickyJoinBar watchId="project-hero" formId="enquire" label={PROJECT_CTA.short} whatsappUrl={waAsk} whatsappLabel={seller ? 'WhatsApp' : PROJECT_CTA.whatsappShort} whatsappFirst={!seller} />}
     </div>
   )
 }

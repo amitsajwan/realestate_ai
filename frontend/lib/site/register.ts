@@ -31,6 +31,9 @@ export interface RegisterProject {
   units_total: number | null
   units_booked: number | null
   completion_passed?: boolean
+  /** MahaRERA's status when it is a warning: 'deregistered' or 'abeyance' (backend reads it on the project register). Absent or
+   *  null when the project is Active or no status has been read. The page leads with it and drops the enquiry form. */
+  maharera_status?: 'deregistered' | 'abeyance' | null
   details_read_at: string | null
   listed_or_updated: string | null
   maharera_url: string | null

@@ -133,6 +133,17 @@ def test_parse_general_handles_missing_and_wrong_answers():
     assert r["registered_on"] == "2025-01-13" and r["name"] == "MY HOME UPPER KHARADI"
 
 
+def test_parse_status_reads_the_red_flags_and_rejects_a_mismatch():
+    active = {"status": "1", "responseObject": {"projectId": 53311,
+             "coreStatus": {"statusName": "Active", "isDeregistered": 0, "isAbeyance": 0}}}
+    assert maharera.parse_status(active, 53311) == {"status": "Active", "deregistered": False, "abeyance": False}
+    gone = {"status": "1", "responseObject": {"projectId": 53311,
+            "coreStatus": {"statusName": "De-Registered", "isDeregistered": 1, "isAbeyance": 0}}}
+    assert maharera.parse_status(gone, 53311)["deregistered"] is True
+    assert maharera.parse_status(active, 99999) is None   # another project's answer
+    assert maharera.parse_status(None, 53311) is None and maharera.parse_status({"status": "0"}, 53311) is None
+
+
 async def test_sitemap_entries_list_live_projects_of_indexable_public_agents_only():
     svc, db, _ = make()
     profiles = db.get_collection("agent_public_profiles")

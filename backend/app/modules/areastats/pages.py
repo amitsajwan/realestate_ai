@@ -914,6 +914,16 @@ def checked_count(doc: dict) -> Optional[int]:
     return sum(1 for k in CHECK_LABELS if (steps.get(k) or {}).get("ok"))
 
 
+def status_flag(doc: dict) -> Optional[str]:
+    """MahaRERA's status when it is a buyer's warning: 'deregistered' or 'abeyance' (read by areastats.refresh). None when the
+    project is Active or we have not read a status. MahaRERA's own label and the date we read stay on the record for the report."""
+    if doc.get("maharera_deregistered"):
+        return "deregistered"
+    if doc.get("maharera_abeyance"):
+        return "abeyance"
+    return None
+
+
 def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None, ix: Optional["LoadIndex"] = None,
          scope: Optional[dict] = None) -> dict:
     area = BY_KEY.get(doc.get("locality") or "")
@@ -945,6 +955,8 @@ def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None, ix
         "pune_place": {"key": doc["pune_place"], "name": doc.get("pune_place_name")} if doc.get("pune_place") else None,
         "completion_now": _day(doc.get("completion_now")), "completion_at_registration": _day(doc.get("completion_at_registration")),
         "units_total": _count(doc.get("units_total")), "units_booked": booked(doc), "completion_passed": completion_passed(doc),
+        # MahaRERA's status when it is a warning (deregistered / in abeyance): the page leads with it; None when Active
+        "maharera_status": status_flag(doc),
         "stage": stage(doc), "sold_out": sold_out(doc), "extension_only": extension_only(doc),
         # offices or shops only: the page says units, not homes, and shows no flat prices
         "homes": homes(doc),

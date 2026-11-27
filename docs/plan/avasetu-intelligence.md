@@ -99,6 +99,21 @@ figure today.
 
 Order: 1 and the spike (2) first, because they start the clock. Monthly sales (3-4) after the report's first version.
 
+### Built 2026-11-27 (branch `intelligence/know-before-you-buy`)
+
+- **Weekly reads of selling projects.** `areastats.refresh._due` now re-reads a project with homes still to sell
+  (`0 <= units_booked < units_total`, not finished) every `SELLING_MAX_AGE_DAYS = 7`, where sold-out and finished stay on 30/180.
+  This is the clock for the only sales history we can have. Self-throttling: `details()` still reads at most `limit` per step,
+  PAUSE apart, so a longer due queue just stretches the cadence; it never floods MahaRERA.
+- **MahaRERA status flag.** `refresh.details` takes a `fetch_status` (`maharera.make_fetch_status`, the open
+  `getProjectCurrentStatus`) and keeps `maharera_status` / `maharera_deregistered` / `maharera_abeyance` / `maharera_status_at`
+  on the record. `pages.status_flag` turns that into `'deregistered'` / `'abeyance'` / None; the project view sends it as
+  `maharera_status`. The site (`RegisterProjectPage` `StatusWarning`) leads a flagged page with a red alert stating MahaRERA's
+  record, the date read and a link, and drops every enquiry CTA (an agent's own listing of it is left alone). Active projects
+  are unchanged.
+- **Not built:** complaints-by-project (endpoint open but we have not seen a populated response to parse safely — find one
+  first), and the monthly-sales figure (needs a few weeks of the new weekly readings).
+
 ### Spike result, 2026-11-27: what MahaRERA serves without login
 
 The public pages' code (`publicpage/main.js`) lists many endpoints. We called each once for project 43848 (Kosmic Kourtyard
