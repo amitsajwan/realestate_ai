@@ -1,6 +1,6 @@
 import React from 'react'
 import { act, fireEvent, render, screen } from '@testing-library/react'
-import ComingSoonDock, { FOLD_MS, SHOW_AFTER_MS, STILL_TURN_MS, TURN_MS } from '@/components/site/ComingSoonDock'
+import ComingSoonDock, { FOLD_MS, PHONE_MAX, SHOW_AFTER_MS, STILL_TURN_MS, TURN_MS } from '@/components/site/ComingSoonDock'
 import type { UpcomingBrief } from '@/lib/site/hubs'
 
 const u = (slug: string): UpcomingBrief => ({ slug, name: slug, builder: 'A builder', logo: '', area: 'wagholi', area_name: 'Wagholi', area_slug: 'wagholi', note: '2 & 3 BHK · coming soon' })
@@ -85,6 +85,23 @@ describe('coming-soon corner card', () => {
     fireEvent.click(screen.getByTestId('coming-soon-tab'))
     expect(screen.getByTestId('coming-soon-dock')).toBeInTheDocument()
     nextDay.unmount()
+  })
+
+  it('on a phone, waits for a scroll past the first screen, so it never covers the page a visitor lands on', () => {
+    const width = window.innerWidth
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: PHONE_MAX - 250 })
+    try {
+      render(<ComingSoonDock items={ITEMS} />)
+      pass(SHOW_AFTER_MS * 4)
+      expect(screen.queryByTestId('coming-soon-dock')).toBeNull()
+      act(() => { Object.defineProperty(window, 'scrollY', { configurable: true, value: 100 }); window.dispatchEvent(new Event('scroll')) })
+      expect(screen.queryByTestId('coming-soon-dock')).toBeNull()
+      act(() => { Object.defineProperty(window, 'scrollY', { configurable: true, value: window.innerHeight }); window.dispatchEvent(new Event('scroll')) })
+      expect(screen.getByTestId('coming-soon-dock')).toBeInTheDocument()
+    } finally {
+      Object.defineProperty(window, 'innerWidth', { configurable: true, value: width })
+      Object.defineProperty(window, 'scrollY', { configurable: true, value: 0 })
+    }
   })
 
   it('shows nothing when no project is coming', () => {

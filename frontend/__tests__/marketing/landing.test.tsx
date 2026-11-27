@@ -13,8 +13,8 @@ describe('landing page', () => {
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
     expect(screen.getByRole('heading', { level: 1 }).textContent).toMatch(/get more enquiries\.\s*know who to call first\./i)
     const hero = screen.getByRole('heading', { level: 1 }).closest('section')!
-    expect(within(hero).getByRole('link', { name: /claim your free trial/i })).toHaveAttribute('href', '/trial')
-    expect(within(screen.getByTestId('sticky-join')).getByRole('link', { name: /claim your free trial/i, hidden: true })).toHaveAttribute('href', '/trial')
+    expect(within(hero).getByRole('link', { name: /join free/i })).toHaveAttribute('href', '/trial')
+    expect(within(screen.getByTestId('sticky-join')).getByRole('link', { name: /join free/i, hidden: true })).toHaveAttribute('href', '/trial')
     expect(screen.getByTestId('header-cta')).toHaveAttribute('href', '/trial')
     expect(document.getElementById('invite')).not.toBeNull()
   })
@@ -35,7 +35,7 @@ describe('landing page', () => {
     for (const banned of [/testimonial/i, /rated/i, /\d+\s*\+?\s*(agents|customers|users|properties)/i, /trusted by/i, /five.star|5.star/i, /\[(confirm|pilot agent|agent name|founder|one line)/i]) {
       expect(text).not.toMatch(banned)
     }
-    expect(text).toMatch(/1 month free/i)
+    expect(text).toMatch(/open and free to join/i)
   })
 
   it('keeps it short: no publishing box, no "what is next" lists', () => {

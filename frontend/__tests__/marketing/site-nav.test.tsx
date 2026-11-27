@@ -52,10 +52,10 @@ describe('site header', () => {
     expect(within(screen.getByRole('banner')).getByTestId('header-cta').className).not.toContain('max-md:hidden')
   })
 
-  it('agent pages get "Claim your free trial"; the invite page itself gets no button', () => {
+  it('agent pages get "Join free"; the invite page itself gets no button', () => {
     const { unmount } = render(<SiteHeader businessName="Avasetu" cta="agent" />)
     const cta = within(screen.getByRole('banner')).getByTestId('header-cta')
-    expect(cta).toHaveTextContent('Claim your free trial')
+    expect(cta).toHaveTextContent('Join free')
     expect(cta).toHaveAttribute('href', '/trial')
     expect(within(screen.getByRole('banner')).queryByRole('link', { name: /tell us what you need/i })).toBeNull()
     unmount()
@@ -90,7 +90,7 @@ describe('site footer', () => {
     render(<SiteFooter cfg={cfg} />)
     const footer = screen.getByRole('contentinfo')
     for (const [name, href] of EXPECTED) expect(hrefOf(footer, name)).toBe(href)
-    expect(hrefOf(footer, /^claim your free trial$/i)).toBe('/trial')
+    expect(hrefOf(footer, /^join free$/i)).toBe('/trial')
     for (const [name, href] of [[/^privacy$/i, '/privacy'], [/^terms$/i, '/terms'], [/^data deletion$/i, '/data-deletion']] as const) {
       expect(hrefOf(footer, name)).toBe(href)
     }
@@ -115,9 +115,9 @@ describe('site footer', () => {
 })
 
 describe('landing hero', () => {
-  it('leads with "Claim your free trial" and offers "See a sample agent page" second', () => {
+  it('leads with "Join free" and offers "See a sample agent page" second', () => {
     render(<LandingPage />)
-    expect(screen.getAllByRole('link', { name: /^claim your free trial$/i })[0]).toHaveAttribute('href', '/trial') // WhatsApp TRIAL, code back at once
+    expect(screen.getAllByRole('link', { name: /^join free$/i })[0]).toHaveAttribute('href', '/trial') // WhatsApp TRIAL, code back at once
     expect(within(document.getElementById('hero-ctas')!).getByRole('link', { name: /^see a sample agent page$/i })).toHaveAttribute('href', '/agent/house-deal')
   })
 })

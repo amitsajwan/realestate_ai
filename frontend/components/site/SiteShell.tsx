@@ -1,7 +1,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { agentPath } from '@/lib/site/slug'
-import { displayName, monogram, resolveTheme, safeImage, safeRera, themeVars, MAHARERA_URL } from '@/lib/site/theme'
+import { displayName, monogram, reraVerified, resolveTheme, safeImage, safeRera, themeVars, MAHARERA_URL } from '@/lib/site/theme'
 import type { AgentProfile } from '@/lib/site/types'
 import ChatWidget from './ChatWidget'
 import ContactBlock from '@/components/marketing/ContactBlock'
@@ -67,7 +67,7 @@ export default function SiteShell({ agent, children, bottomPad = false }: { agen
             {b?.tagline && <p className="mt-1 text-[var(--site-accent)]">{b.tagline}</p>}
             {rera && (
               <p className="mt-3 text-slate-300">
-                RERA agent registration: <span className="font-semibold text-white">{rera}</span> (as stated by the agent; not verified by {BRAND_NAME}).{' '}
+                RERA agent registration: <span className="font-semibold text-white">{rera}</span> {reraVerified(b) ? `(MahaRERA verified: ${BRAND_NAME} checked it on the register).` : `(as stated by the agent; not verified by ${BRAND_NAME}).`}{' '}
                 <a href={MAHARERA_URL} target="_blank" rel="noopener noreferrer" className={fLink}>Check on MahaRERA</a>
               </p>
             )}

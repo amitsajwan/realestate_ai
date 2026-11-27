@@ -38,6 +38,14 @@ describe('JoinFlow', () => {
     expect(screen.getByRole('button', { name: /resend otp in 30s/i })).toBeDisabled()
   })
 
+  it('tells an agent without a code that joining is open and free, with no trial offer', () => {
+    render(<JoinFlow />)
+    const said = document.body.textContent ?? ''
+    expect(said).toContain('joining is open and free')
+    for (const banned of [/free trial/i, /1 month free/i, /first 20/i]) expect(said).not.toMatch(banned)
+    expect(screen.getByRole('link', { name: 'No code yet? Join free' })).toHaveAttribute('href', '/trial')
+  })
+
   it('autofill verifies and stores the session', async () => {
     requestOtp.mockResolvedValue({ sent: true, dev_code: '654321' })
     verifyOtp.mockResolvedValue({ access_token: 'tok', is_new_user: true, has_site: false, site_url: null })

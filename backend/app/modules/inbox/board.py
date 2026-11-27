@@ -24,10 +24,19 @@ that helps agents decide"): the pages in order with reading time, visits and day
 on WhatsApp or call. Never the name, the phone, or their own words, since a buyer's words often carry a name or a number.
 
 A card is named by `ref`, a hash of the lead id, so the board never shows the id that opens the lead in Studio.
-Asks (`lead_asks`, written only here): one per agent per lead, with an optional offer (a fee for the lead, or a share of the
-brokerage when the deal closes). Offers are sealed: an agent sees how many agents asked, never what they offered; the owner sees
-every ask and gives the lead to one of them, which is an ordinary pass (InboxService.pass_lead, by "board"), and the others are told
-it went.
+Asks (`lead_asks`, written only here): one per agent per lead, free, with an optional note. An agent sees how many agents asked;
+the owner sees every ask and gives the lead to one of them, which is an ordinary pass (InboxService.pass_lead, by "board"), and the
+others are told it went.
+
+Offers are off (owner, 2026-11-27, docs/plan/agent-network.md): asks used to carry a sealed offer (a fee for the lead, or a share
+of the brokerage). Nobody may pay for a higher place, and a fee for passing a buyer may need a MahaRERA agent registration, so new
+asks carry none and no screen shows one. Offers already stored stay in `lead_asks` untouched until the owner and a RERA lawyer
+decide.
+
+The board is for all of Pune (docs/plan/agent-network.md step 2): every MahaRERA-verified agent sees every open card
+(onboarding/verification.py); an agent not verified yet is told why, and sees no cards. Each card says why it fits the viewer,
+from the same signals as the owner's shortlist: a fresh listing in the project or the area, or an area they said they cover.
+Studio filters on it ("Fits you" / "All Pune"), and on area and BHK.
 """
 import hashlib
 import logging
@@ -37,6 +46,8 @@ from typing import Callable, Dict, Iterable, List, Optional
 
 from app.core import brand
 from app.modules.areastats import pages as project_pages
+from app.modules.listings.freshness import freshness_of
+from app.modules.onboarding import verification
 from app.modules.notifications.service import notify
 from app.modules.tracking import contact as contactmod
 from app.modules.tracking import live, scoring
@@ -55,7 +66,7 @@ PREVIEW = "agent-preview"
 OUR_NUMBERS = ("+919767971656", "+919834256406")
 MAX_NOTE = 200
 MANY_PAGES = 5
-OFFER_KINDS = ("none", "fee", "share")
+LIVE_LISTING = ("live", "under_offer")
 CHANNEL_WORDS = {"whatsapp": "WhatsApp", "messenger": "Messenger", "instagram": "Instagram", "website": "the website chat"}
 _TEST = re.compile(r"\btest", re.I)
 MAX_PAGES = 8
@@ -163,12 +174,25 @@ def _age(created: datetime, now: datetime) -> str:
     return "Came in yesterday" if days == 1 else f"Came in {days} days ago"
 
 
-def offer_text(kind: Optional[str], value: Optional[float]) -> Optional[str]:
-    if kind == "fee" and value:
-        return f"₹{int(value):,} for the lead"
-    if kind == "share" and value:
-        return f"{value:g}% of the brokerage on closing"
-    return None
+def _fold(v) -> str:
+    return str(v or "").strip().casefold()
+
+
+def fit(row: dict, project: Optional[dict], declared: Iterable[str], listings: List[dict]) -> List[str]:
+    """Why this card fits one agent, strongest first; empty when nothing we know says it does. `listings` are the agent's fresh
+    live ones, `declared` the areas they said they cover. Missing evidence says nothing, never a guess."""
+    areas = {_fold(a): a for a in row["areas"] if _fold(a)}
+    regno = _fold((project or {}).get("regno"))
+    out = []
+    if regno and any(_fold(l.get("rera_no")) == regno for l in listings):
+        out.append("You have a listing in this project")
+    here = [areas[_fold(l.get("locality"))] for l in listings if _fold(l.get("locality")) in areas]
+    if here and not out:
+        out.append(f"You have a listing in {here[0]}")
+    covered = [areas[d] for d in (_fold(a) for a in declared) if d in areas]
+    if covered:
+        out.append(f"You cover {covered[0]}")
+    return out
 
 
 def signals(lead: dict, convs: List[dict], act: dict) -> List[str]:
@@ -358,8 +382,16 @@ class LeadBoard:
     async def cards(self, viewer: str) -> dict:
         """The board for one viewer, newest lead first. An agent sees their own ask and how many asked; the owner sees every ask
         with the offer, and the lead id to open it."""
+        owner = self.is_owner(viewer)
+        me = None
+        if not owner and viewer != PREVIEW:
+            me = await self.c("agent_public_profiles").find_one({"agent_id": viewer})
+            locked = self._locked(me)
+            if locked:
+                return {"items": [], "owner": False, "preview": False, "locked": locked}
         leads = await self._leads()
         now = self.now()
+        declared, listings = await self._fit_evidence(me, now) if me else ([], [])
         convs = await contactmod.conversations_by_lead(self.db, leads)
         ids = [r["_id"] for r in leads]
         # their events: those tied to the lead, and the same browsers' visits that were not (before the enquiry on another page,
@@ -377,11 +409,12 @@ class LeadBoard:
         asks: Dict[str, List[dict]] = {i: [] for i in ids}
         for a in await self.c("lead_asks").find({"lead_id": {"$in": ids}, "status": "open"}).to_list(2000):
             asks[a["lead_id"]].append(a)
-        owner = self.is_owner(viewer)
         agents = await self._names({a["agent_id"] for rows in asks.values() for a in rows}) if owner else {}
         out = []
         for lead in leads:
-            row = card(lead, await self.inbox.project_of(lead), convs[lead["_id"]], events[lead["_id"]], names, now)
+            project = await self.inbox.project_of(lead)
+            row = card(lead, project, convs[lead["_id"]], events[lead["_id"]], names, now)
+            row["fit"] = fit(row, project, declared, listings) if me else []
             mine = next((a for a in asks[lead["_id"]] if a["agent_id"] == viewer), None)
             # given from the board to another agent: the others see how fast it went, and cannot ask any more
             h = lead.get("handover") or {}
@@ -400,41 +433,56 @@ class LeadBoard:
 
     @staticmethod
     def _ask_view(a: dict) -> dict:
-        return {"offer_kind": a.get("offer_kind") or "none", "offer_value": a.get("offer_value"),
-                "offer": offer_text(a.get("offer_kind"), a.get("offer_value")), "note": a.get("note"), "at": a["at"]}
+        # an offer stored before 2026-11-27 stays in lead_asks and is never shown (offers are off: see the module docstring)
+        return {"note": a.get("note"), "at": a["at"]}
+
+    @staticmethod
+    def _locked(profile: Optional[dict]) -> Optional[dict]:
+        """Why an agent cannot see the board yet, or None when they can: only MahaRERA-verified agents see it."""
+        if verification.is_verified(profile):
+            return None
+        status = verification.status_of(profile) if profile else "pending"
+        if not profile or not verification.number_of(profile):
+            reason = "Add your MahaRERA agent number to your profile. We check it on the MahaRERA register, then the board opens."
+        elif status == "rejected":
+            reason = "We could not match your MahaRERA agent number on the register. Check the number on your profile, or message us."
+        else:
+            reason = "We are checking your MahaRERA agent number on the register. The board opens as soon as it is verified."
+        return {"status": status, "reason": reason}
+
+    async def _fit_evidence(self, profile: dict, now: datetime):
+        """The areas the agent said they cover, and their fresh live listings (the shortlist's signals)."""
+        b = profile.get("branding_data") or {}
+        declared = list(b.get("areas") or profile.get("areas") or [])
+        rows = await self.c("listings").find({"agent_id": profile["agent_id"], "status": {"$in": list(LIVE_LISTING)}}).to_list(500)
+        # a listing with no date is not fresh evidence (the shortlist draws the same line)
+        return declared, [r for r in rows if freshness_of(r, now)[1] is not None and freshness_of(r, now)[0] == "fresh"]
 
     async def _names(self, agent_ids) -> Dict[str, str]:
         rows = await self.c("agent_public_profiles").find({"agent_id": {"$in": list(agent_ids)}}).to_list(500)
         return {str(p["agent_id"]): self.inbox._agent_name(p) for p in rows}
 
-    async def ask(self, agent_id: str, ref: str, offer_kind: str = "none", offer_value: Optional[float] = None,
-                  note: Optional[str] = None) -> dict:
-        """An agent asks for a lead (asking again changes their offer). The owner gets a Studio alert."""
+    async def ask(self, agent_id: str, ref: str, note: Optional[str] = None) -> dict:
+        """A verified agent asks for a lead, free (asking again changes their note). The owner gets a Studio alert."""
         if self.is_owner(agent_id):
             raise InboxError("These are your own leads. Give one to an agent from its card.", 409)
         prof = await self.inbox._live_agent(agent_id)   # a lead can only be passed to an agent with a live page
-        if offer_kind not in OFFER_KINDS:
-            raise InboxError("Unknown offer", 422)
-        if offer_kind == "share" and not (offer_value and 0 < offer_value <= 100):
-            raise InboxError("A share is a percent between 1 and 100", 422)
-        if offer_kind == "fee" and not (offer_value and 0 < offer_value <= 1_000_000):
-            raise InboxError("Say the fee in rupees", 422)
+        locked = self._locked(prof)
+        if locked:
+            raise InboxError(locked["reason"], 403)
         lead = await self._find(ref)
         owner = self._owner_of(lead)
         now = self.now()
         rid = f"{lead['_id']}:{agent_id}"
         doc = {"lead_id": lead["_id"], "owner_id": owner, "agent_id": agent_id, "status": "open",
-               "offer_kind": offer_kind, "offer_value": offer_value if offer_kind != "none" else None,
-               "note": (note or "").strip()[:MAX_NOTE] or None, "at": now}
+               "offer_kind": "none", "offer_value": None, "note": (note or "").strip()[:MAX_NOTE] or None, "at": now}
         if await self.c("lead_asks").find_one({"_id": rid}):
             await self.c("lead_asks").update_one({"_id": rid}, {"$set": doc})
         else:
             await self.c("lead_asks").insert_one({"_id": rid, **doc})
         row = card(lead, await self.inbox.project_of(lead), [], [], {}, now)
         what = " · ".join(p for p in (row["bhk"], row["project"] or ", ".join(row["areas"][:2])) if p) or "a buyer"
-        offer = offer_text(doc["offer_kind"], doc["offer_value"])
-        await notify(self.db, owner, "lead_asked",
-                     f"{self.inbox._agent_name(prof)} asked for the lead ({what}){': ' + offer if offer else ''}.",
+        await notify(self.db, owner, "lead_asked", f"{self.inbox._agent_name(prof)} asked for the lead ({what}).",
                      {"screen": "/studio/lead-board", "lead_id": lead["_id"]}, now)
         return self._ask_view(doc)
 

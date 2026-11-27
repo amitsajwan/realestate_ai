@@ -31,7 +31,7 @@ const GET = [
 ]
 
 const STEPS = [
-  ['Claim the trial', 'Send TRIAL to us on WhatsApp'],
+  ['Join free', 'Send TRIAL to us on WhatsApp'],
   ['Sign in', 'Your number plus the code on WhatsApp'],
   ['Set up your page', 'Name, photo, colours. Live in a minute'],
   ['List a project', 'Pick it, check your prices, post'],
@@ -59,16 +59,16 @@ const SCREENS = [
 ]
 
 const FAQ: [string, React.ReactNode][] = [
-  ['What does it cost?', <p key="cost">The first month is free for the first 20 Pune agents, with no card. After that it is a small monthly fee, and we tell you the price before anything changes. On the Lead Board an offer is your choice, and you can ask for a lead with no offer at all.</p>],
+  ['What does it cost?', <p key="cost">Joining is free, with no card, and so is asking for a buyer on the Lead Board. If we ever charge for something, we tell you the price before anything changes, and you decide.</p>],
   ['Who can see my leads?', <p key="own">Leads that come to you are yours: other agents never see them. We never sell a buyer’s details, and buyers tick a box agreeing to be contacted about their enquiry.</p>],
   ['Another agent lists the same project', <p key="two">That is allowed, and each of you keeps your own page and link. Avasetu’s project page shows the most complete listing: more sizes with prices come first, then more photos. So add every size, price and photo you can.</p>],
   ['Is my phone number shown on Avasetu’s project pages?', <p key="num">No agent’s number is shown there. Buyers who enquire there reach the Avasetu team. Your own page and your listing links carry your WhatsApp button, so share those.</p>],
-  ['I do not have a MahaRERA agent number', <p key="rera">You need one for a public page, because the law requires it to market projects. Without it your page does not stay live, but you can still see the Lead Board and sign in. Add it in Studio → Profile → My brand.</p>],
+  ['I do not have a MahaRERA agent number', <p key="rera">You need one for a public page, because the law requires it to market projects. Without it your page does not stay live and the Lead Board stays closed, because only agents whose number we have checked on the register can see it. You can still sign in. Add it in Studio → Profile → My brand.</p>],
   ['I want to use a different phone number', <>
     <p><b>For buyers to contact you:</b> keep signing in as now and change the WhatsApp number under Studio → Profile.</p>
     <p className="mt-2"><b>To sign in with:</b> send TRIAL from WhatsApp on the new number and you get a code for it. Do this before you set up your page: a new sign-in number starts a fresh, empty account.</p>
   </>],
-  ['I did not get a code', <p key="code">Your trial code is still in our WhatsApp chat, so scroll up. If you cannot find it, send TRIAL again from the same number. An hour after your last code, a new one comes for the same account.</p>],
+  ['I did not get a code', <p key="code">Your sign-up code is still in our WhatsApp chat, so scroll up. If you cannot find it, send TRIAL again from the same number. An hour after your last code, a new one comes for the same account.</p>],
   ['It says “too many wrong attempts”', <p key="wrong">Wait 30 minutes and try again. If it says your invite is locked, message us on WhatsApp and we will send a new code.</p>],
   ['Can I test my enquiry form?', <p key="test">Yes. Ask a friend to fill it on their phone, then check that it appears under Leads. A test from your own number also shows as a lead: mark it Lost so it does not stay on your list.</p>],
   ['Do I need to install an app?', <p key="app">No. Studio works in your phone browser at avasetu.in/studio. Add it to your home screen from the browser menu to open it in one tap, and turn on its alerts so a new buyer rings your phone.</p>],
@@ -117,7 +117,7 @@ export default function AgentGuidePage() {
             Pick a project, add your prices and it is live: your page, your link, posts and a Reel. Every buyer who enquires becomes a lead card
             on your phone. Here is what you get and how to do it all yourself, step by step.
           </p>
-          <p className="mt-4 text-sm text-slate-300">1 month free for the first 20 agents · No card · No app to install</p>
+          <p className="mt-4 text-sm text-slate-300">Free to join · No card · No app to install</p>
         </div>
       </section>
 
@@ -147,11 +147,11 @@ export default function AgentGuidePage() {
           </ol>
         </section>
 
-        <Step n="Step 1 · Claim the trial" title="Send TRIAL and your code comes back at once"
-          shot={<Phone src="/guide/trial.jpg" caption="avasetu.in/trial" alt="The avasetu.in/trial page on a phone with a gold Claim your free trial button." />}>
-          <p>Open avasetu.in/trial and tap <b>Claim your free trial</b>. WhatsApp opens with TRIAL already typed to our number, <b>{HELP}</b>. Send it, and our reply comes within seconds with your 6-digit sign-up code.</p>
+        <Step n="Step 1 · Join free" title="Send TRIAL and your code comes back at once"
+          shot={<Phone src="/guide/trial.jpg" caption="avasetu.in/trial" alt="The avasetu.in/trial page on a phone with a gold Join free button." />}>
+          <p>Open avasetu.in/trial and tap <b>Join free</b>. WhatsApp opens with TRIAL already typed to our number, <b>{HELP}</b>. Send it, and our reply comes within seconds with your 6-digit sign-up code.</p>
           <p className={note}><b>Send TRIAL from the number you want to sign in with.</b> Your code works only with the WhatsApp number that sent TRIAL. That is how we know the account is really yours.</p>
-          <p><a href={claim} className="font-semibold text-[#0f2340] underline">Claim your free trial on WhatsApp</a></p>
+          <p><a href={claim} className="font-semibold text-[#0f2340] underline">Join free on WhatsApp</a></p>
         </Step>
 
         <Step n="Step 2 · Sign in" title="Your number, then the code from WhatsApp"
@@ -168,7 +168,7 @@ export default function AgentGuidePage() {
         <Step n="Step 3 · Set up your page" title="“Tell us about you”, and your page is live"
           shot={<Phone src="/guide/agent-page.jpg" caption="A live agent page" alt="A sample agent page with the agent's photo, area badge, headline and I'm interested button." />}>
           <p>Add your name, area or pincode, a photo, your business name, what you deal in, your languages and a colour. Your page goes live straight away at avasetu.in/agent/your-name, with a short bio written for you. You can change anything later under Profile.</p>
-          <p className={note}><b>Add your MahaRERA agent number within 7 days</b> in Studio → Profile → My brand. Your public page needs it, and it shows on your page and posts so buyers can trust you.</p>
+          <p className={note}><b>Add your MahaRERA agent number within 7 days</b> in Studio → Profile → My brand. Your public page needs it, and it shows on your page and posts so buyers can trust you. We check it on the MahaRERA register: then your page says “MahaRERA verified” and the Lead Board opens for you.</p>
           <p className={note}><b>The number buyers see can be different.</b> You sign in with the number that sent TRIAL. Under Profile you can set another WhatsApp number for buyers, such as your office number.</p>
         </Step>
 
@@ -232,12 +232,12 @@ export default function AgentGuidePage() {
 
         <Step n="The Lead Board" title="More buyers than your own listings bring"
           shot={<Phone src="/guide/lead-board.jpg" caption="Studio → Leads → Lead Board" alt="A Lead Board card showing what a buyer wants, with no name or number, and an Ask for this lead button." />}>
-          <p>Buyers ask Avasetu about homes every day. Open <b>Leads</b> in Studio and tap <b>Lead Board</b> at the top to see them, newest first.</p>
+          <p>Buyers ask Avasetu about homes every day, from all over Pune. Once we have checked your MahaRERA number, open <b>Leads</b> in Studio and tap <b>Lead Board</b> at the top to see them, newest first.</p>
           <ul className="grid list-disc gap-1 pl-5">
             <li>Each card shows the project or area, BHK, budget, timing, how old the lead is and why it looks genuine.</li>
             <li>You also see what the buyer read on the site. Their name, number and words stay hidden.</li>
-            <li>Tap <b>Ask for this lead</b>. You can add an offer, a fee or a share of your brokerage when it closes, or send no offer at all.</li>
-            <li>Offers are sealed: other agents see how many asked, never what anyone offered.</li>
+            <li>Each card says why it fits you: a listing of yours in the project, a listing in the area, or an area you cover. <b>Fits you</b> shows only those; <b>All Pune</b> shows every buyer. You can also pick an area and a BHK.</li>
+            <li>Tap <b>Ask for this lead</b>. Asking is free, and nobody can pay for a higher place. Other agents see how many asked.</li>
             <li>The Avasetu team gives each lead to one agent. If it is you, it arrives in your Leads with everything we know.</li>
           </ul>
         </Step>

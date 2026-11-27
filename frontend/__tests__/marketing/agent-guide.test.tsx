@@ -16,6 +16,13 @@ describe('the guide for agents and channel partners', () => {
     for (const w of ['Lead cards', 'Lead Board', 'Your own page', 'Posts and a Reel', 'Results']) expect(t).toContain(w)
   })
 
+  it('says joining is free and offers no trial, while the WhatsApp word stays TRIAL', () => {
+    const t = text()
+    expect(t).toContain('Step 1 · Join free')
+    expect(t).toContain('Send TRIAL')
+    for (const banned of [/free trial/i, /claim the trial/i, /trial code/i, /1 month free/i, /first 20/i]) expect(t).not.toMatch(banned)
+  })
+
   it('starts a listing from the project, with resale as the other way in', () => {
     const t = text()
     expect(t).toContain('Pick the project')

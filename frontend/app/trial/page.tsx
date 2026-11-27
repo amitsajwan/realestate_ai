@@ -6,12 +6,12 @@ import { getMarketingConfig } from '@/lib/marketing/config'
 import { pageMetadata } from '@/lib/marketing/seo'
 import { claimHref } from '@/lib/marketing/trial'
 
-/** Claim your free trial. The main button opens WhatsApp with "TRIAL" typed in: the agent sends it, and our WhatsApp assistant replies
+/** Join free (the address stays /trial: posts and QR codes point here). The main button opens WhatsApp with "TRIAL" typed in: the agent sends it, and our WhatsApp assistant replies
  *  at once with his sign-up code (backend onboarding/trial.py). Without a platform WhatsApp number the button falls back to the request
  *  form. The ?src= tag travels along so the owner sees which post or group brought the agent. */
 export const metadata: Metadata = pageMetadata(getMarketingConfig(), {
-  title: 'Free trial for Pune agents: 1 month free | Avasetu',
-  description: 'Give Avasetu a property: get its page, Facebook and Instagram posts, a Reel and a WhatsApp message. Enquiries come to you. 1 month free for the first 20 Pune agents, no card.',
+  title: 'Join Avasetu: open and free for Pune agents | Avasetu',
+  description: 'Give Avasetu a property: get its page, Facebook and Instagram posts, a Reel and a WhatsApp message. Enquiries come to you. Open and free to join, no card.',
   path: '/trial',
   // agents reach it from /agents, our posts and WhatsApp; out of search so it never stands for the brand (buyers first, 2026-10-29)
   noindex: true,
@@ -21,7 +21,7 @@ export const metadata: Metadata = pageMetadata(getMarketingConfig(), {
 const tag = (v: unknown) => (typeof v === 'string' ? v.toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 40) : '')
 
 const POINTS = [
-  '1 month free, every property, no card',
+  'Free to join, every property, no card',
   'Your code comes back on WhatsApp at once',
   'No app to install: it works in your phone browser',
 ]
@@ -34,7 +34,7 @@ export default async function TrialPage({ searchParams }: { searchParams: Promis
       <section aria-labelledby="trial-title" className="bg-gradient-to-b from-[#0f2340] to-[#183a5d] text-white">
         <div className="mx-auto grid max-w-5xl items-center gap-8 px-4 py-10 sm:py-14 md:grid-cols-[1fr_0.9fr]">
           <div>
-            <p className="text-xs font-bold uppercase tracking-wide text-[#f0b440]">Free trial for Pune property agents</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-[#f0b440]">Open and free for Pune property agents</p>
             <h1 id="trial-title" className="mt-3 text-[2rem] font-extrabold leading-[1.15] tracking-tight sm:text-5xl">
               Give us one property. Watch it go live.
             </h1>
@@ -51,7 +51,7 @@ export default async function TrialPage({ searchParams }: { searchParams: Promis
             <div className="mt-6 flex flex-wrap gap-3">
               <a href={claim} data-testid="trial-claim"
                 className="inline-flex min-h-[52px] w-full items-center justify-center rounded-xl bg-[#f0b440] px-7 text-lg font-extrabold text-[#0f2340] no-underline hover:bg-[#f5c75e] sm:w-auto">
-                Claim your free trial
+                Join free
               </a>
               <Link href="/agent/house-deal"
                 className="inline-flex min-h-[52px] w-full items-center justify-center rounded-xl border-2 border-white/70 px-5 text-lg font-bold text-white no-underline hover:bg-white/10 sm:w-auto">

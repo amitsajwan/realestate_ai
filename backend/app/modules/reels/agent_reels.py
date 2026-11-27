@@ -1,7 +1,7 @@
 """Agent reels: 10 to 15 second Reels that recruit Pune property agents (not buyers). One reel = one message, in five scenes:
 
   HOOK (about 2 s, no logo: the viewer's problem, "for Pune property agents" on frame one) -> PAIN -> PRODUCT (a real Avasetu
-  screen in a phone) -> RESULT -> CTA ("Comment AGENT": the comment assistant answers with the free-trial link).
+  screen in a phone) -> RESULT -> CTA ("Comment AGENT": the comment assistant answers with the link to join free).
 Screens that show buyers or leads use made-up demo people (never a real buyer); the listing-reel screen (B3) is the opening frame
 of a reel of a real House Deal project (their consent, 2026-10-06), its builder's render labelled "Artist's impression".
 
@@ -85,7 +85,7 @@ SCRIPTS: Tuple[Script, ...] = (
            "WhatsApp pe *ek tap* mein bhejo.", "New property? See which of your buyers match it."),
     Script("D1", "result", "New agents", "Naye agent ho? *Shuruaat* yahan se.",
            "Website banwana *mehenga* lagta hai?", "12-site-home.jpg", "Aapki property *website*, aapke naam se",
-           "Ek mahina *free*.", "Just started as an agent? Get your own property website."),
+           "Judna *free* hai.", "Just started as an agent? Get your own property website."),
     Script("D2", "result", "Agents with many properties", "50+ properties? *Kisko* pehle call?",
            "Itne buyers. Itne messages. *Confusion.*", "30-home-actions.jpg", "Har subah: *aaj* kisko call karna hai",
            "Leads *sorted*, aapke liye.", "Managing 50+ properties? See who to call first, every morning."),
@@ -204,7 +204,7 @@ def scenes(s: Script) -> Tuple[List[Scene], Dict]:
         Scene(image=still, screen=True, layout="top", lines=[TextLine(s.screen_line, size=74, max_lines=2)],
               kicker="After: with Avasetu" if before_after else "With Avasetu", seconds=SCREEN_SECONDS, seed=f"agent-{s.code}-screen"),
         Scene(image=blurred, lines=[TextLine(s.result, size=112, max_lines=3)], seconds=RESULT_SECONDS, seed=f"agent-{s.code}-result"),
-        Scene(lines=[TextLine(f"*{CTA_WORD}* comment karein", size=112), TextLine("Free trial: ek mahina free", size=58)],
+        Scene(lines=[TextLine(f"*{CTA_WORD}* comment karein", size=112), TextLine("Judna free hai", size=58)],
               seconds=CTA_SECONDS, seed=f"agent-{s.code}-cta"),
     ]
     return out, {"transition": "fade", "xfade": XFADE, "hook_tag": False}
@@ -229,12 +229,12 @@ PRODUCT_LINE = ("Avasetu is made for Pune property agents: your listings, ready-
 
 
 def caption(code: str, channel: str) -> str:
-    """The caption: the one message, the free-trial offer, the comment keyword; Facebook also gets the tagged trial link.
+    """The caption: the one message, joining is free, the comment keyword; Facebook also gets the tagged join link.
     Hashtags are added at publish time by calendar.reach (agent tags)."""
     s = BY_CODE[code]
     lines = [s.caption,
              PRODUCT_LINE,
-             f"Comment {CTA_WORD} and we will send you the free trial link."]
+             f"Comment {CTA_WORD} and we will send you the link to join free."]
     if channel != "instagram":
         lines.append(f"Or claim it here: {pilot_link(code, channel)}")
     return "\n\n".join(lines)

@@ -119,6 +119,21 @@ export interface SiteVisit {
 
 export interface SiteVisitIn { project: string; visited_on: string; by?: string; text: string }
 
+/** One agent's MahaRERA check (backend onboarding/verification.py): only verified agents see the lead board. */
+export type AgentCheckStatus = 'pending' | 'verified' | 'rejected'
+export interface AgentCheck {
+  agent_id: string
+  slug: string | null
+  name: string
+  rera_agent_no: string | null
+  status: AgentCheckStatus
+  checked_at: string | null
+  register_url: string | null
+  note: string | null
+  /** Checked before, but the agent has changed the number since: pending again. */
+  number_changed: boolean
+}
+
 export interface AdminApi {
   overview(): Promise<AdminOverview>
   setControls(changes: Partial<Record<ControlFlag, boolean>>): Promise<AdminControls>
@@ -133,6 +148,8 @@ export interface AdminApi {
   siteVisits(): Promise<SiteVisit[]>
   addSiteVisit(body: SiteVisitIn): Promise<SiteVisit[]>
   withdrawSiteVisit(project: string, at: string): Promise<SiteVisit[]>
+  agentChecks(): Promise<AgentCheck[]>
+  setAgentCheck(agentId: string, body: { status: AgentCheckStatus; register_url?: string | null; note?: string | null }): Promise<AgentCheck>
 }
 
 /** What each pause switch does, in plain words (shown on the switch and in its confirmation). */
@@ -198,6 +215,8 @@ export function createAdminApi(opts: { getToken: () => string | null; baseUrl?: 
     setControls: (changes) => request<AdminControls>('/controls', { method: 'POST', json: changes }),
     inviteRequests: async () => (await request<{ items: InviteRequest[] }>('/invite-requests')).items ?? [],
     trialSignups: async () => (await request<{ items: TrialSignup[] }>('/trial-signups')).items ?? [],
+    agentChecks: async () => (await request<{ items: AgentCheck[] }>('/agent-checks')).items ?? [],
+    setAgentCheck: (agentId, body) => request<AgentCheck>(`/agent-checks/${encodeURIComponent(agentId)}`, { method: 'POST', json: body }),
     invite: (id) => request<InvitedRequest>(`${r(id)}/invite`, { method: 'POST' }),
     dismiss: (id) => request<InviteRequest>(`${r(id)}/dismiss`, { method: 'POST' }),
     spotlight: () => request<SpotlightConfig>('/spotlight'),
@@ -281,6 +300,13 @@ export function createFixtureAdminApi(): AdminApi {
     },
     inviteRequests: async () => [...state.invite_requests],
     trialSignups: async () => [],
+    agentChecks: async () => checks.map((c) => ({ ...c })),
+    setAgentCheck: async (agentId, body) => {
+      if (body.status === 'verified' && !/^https:\/\/maharera\./.test(body.register_url || '')) throw new ApiError(422, "Paste the agent's page on the MahaRERA register (an https maharera address)")
+      checks = checks.map((c) => (c.agent_id === agentId ? { ...c, status: body.status, register_url: body.register_url ?? null, note: body.note ?? null,
+        checked_at: body.status === 'pending' ? null : new Date().toISOString(), number_changed: false } : c))
+      return { ...checks.find((c) => c.agent_id === agentId)! }
+    },
     invite: async (id) => {
       const req = find(id)
       const created = await concierge.create({ name: req.name, mobile: '9876500021', label: `${req.name}, website request` })
@@ -316,6 +342,13 @@ export function createFixtureAdminApi(): AdminApi {
   }
 }
 
+let checks: AgentCheck[] = [
+  { agent_id: 'fx-a1', slug: 'rahul-sharma', name: 'Rahul Sharma', rera_agent_no: 'A52100012345', status: 'pending', checked_at: null, register_url: null, note: null, number_changed: false },
+  { agent_id: 'fx-a2', slug: 'house-deal', name: 'House Deal', rera_agent_no: 'A52100054321', status: 'verified', checked_at: new Date(Date.now() - 86_400_000).toISOString(),
+    register_url: 'https://maharera.maharashtra.gov.in/agents/A52100054321', note: null, number_changed: false },
+  { agent_id: 'fx-a3', slug: 'new-agent', name: 'New Agent', rera_agent_no: null, status: 'pending', checked_at: null, register_url: null, note: null, number_changed: false },
+]
+
 const real = createAdminApi({ getToken })
 let fake: AdminApi | null = null
 const impl = (): AdminApi => (isFixtureMode() ? (fake ??= createFixtureAdminApi()) : real)
@@ -335,4 +368,6 @@ export const adminApi: AdminApi = {
   siteVisits: () => impl().siteVisits(),
   addSiteVisit: (b) => impl().addSiteVisit(b),
   withdrawSiteVisit: (project, at) => impl().withdrawSiteVisit(project, at),
+  agentChecks: () => impl().agentChecks(),
+  setAgentCheck: (agentId, body) => impl().setAgentCheck(agentId, body),
 }

@@ -61,13 +61,13 @@ def mask(phone: str) -> str:
     return f"+{digits[:2]} {digits[2:4]}******{digits[-2:]}" if len(digits) >= 8 else "******"
 
 
-# an agent who is not signed up yet starts the free trial right here, by sending TRIAL
+# an agent who is not signed up yet joins right here, free, by sending TRIAL (the word stays: old posts and QR codes say it)
 TRIAL_HERE = {
-    "en": "Free trial for agents, 1 month free: reply TRIAL here and we send your sign-up code. Details: {url}",
-    "hi": "एजेंट्स के लिए फ्री ट्रायल, 1 महीना फ्री: यहीं TRIAL लिखकर भेजें, हम आपका साइन-अप कोड भेज देंगे। जानकारी: {url}",
-    "hinglish": "Agents ke liye free trial, 1 mahina free: yahin TRIAL likh kar bhejein, hum aapka sign-up code bhej denge. Details: {url}",
-    "mr": "एजंटसाठी फ्री ट्रायल, 1 महिना फ्री: इथेच TRIAL लिहून पाठवा, आम्ही तुमचा साइन-अप कोड पाठवू. माहिती: {url}",
-    "mr_latn": "Agents sathi free trial, 1 mahina free: ithech TRIAL lihun pathva, aamhi tumcha sign-up code pathvu. Mahiti: {url}",
+    "en": "For agents anywhere in Pune, open and free to join: reply TRIAL here and we send your sign-up code. Details: {url}",
+    "hi": "पुणे के एजेंट्स के लिए जुड़ना फ्री है: यहीं TRIAL लिखकर भेजें, हम आपका साइन-अप कोड भेज देंगे। जानकारी: {url}",
+    "hinglish": "Pune ke agents ke liye judna free hai: yahin TRIAL likh kar bhejein, hum aapka sign-up code bhej denge. Details: {url}",
+    "mr": "पुण्यातील एजंटसाठी सामील होणं फ्री आहे: इथेच TRIAL लिहून पाठवा, आम्ही तुमचा साइन-अप कोड पाठवू. माहिती: {url}",
+    "mr_latn": "Punyatil agents sathi samil hona free aahe: ithech TRIAL lihun pathva, aamhi tumcha sign-up code pathvu. Mahiti: {url}",
 }
 
 

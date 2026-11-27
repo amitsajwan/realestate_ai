@@ -161,19 +161,19 @@ async def test_a_buyer_page_never_offers_the_agents_answers():
 async def test_the_agents_page_greets_agents_and_answers_with_the_pitch():
     s = await service()
     tr = await talk(s, ["hi", "I'm an agent", "what is avasetu?"], context={"page": "agents"}, path="/agents")
-    assert tr[0]["reply"] == phrases.say("greet_agent") and tr[0]["quick_replies"] == ["Free trial", "Pricing", "How do I start?"]
-    assert "first month is free" in tr[1]["reply"] and "/trial" in tr[1]["reply"]
+    assert tr[0]["reply"] == phrases.say("greet_agent") and tr[0]["quick_replies"] == ["Join free", "Pricing", "How do I start?"]
+    assert "open and free" in tr[1]["reply"] and "/trial" in tr[1]["reply"]
     assert "real estate agents" in tr[2]["reply"] and "/trial" in tr[2]["reply"]
     r = (await talk(s, ["Pricing"], context={"page": "agents"}))[0]
-    assert "small monthly fee" in r["reply"]
+    assert "Joining is free" in r["reply"] and "price first" in r["reply"]
 
 
-async def test_on_whatsapp_an_agent_still_hears_the_trial():
+async def test_on_whatsapp_an_agent_still_hears_how_to_join():
     from app.modules.whatsapp.adapters import new_chat_state
     d = new_chat_state("919822012345", "Sharad")
     assert d["audience"] is None
     t = await engine.turn(d, "I'm an agent", None)
-    assert "first month is free" in t.reply and "/trial" in t.reply
+    assert "open and free" in t.reply and "/trial" in t.reply
     assert (await engine.turn(d, "what is avasetu?", None)).reply.startswith("Avasetu (आवास + सेतु: home + bridge) helps you find a new home")
 
 
@@ -209,9 +209,9 @@ async def test_a_model_that_reads_an_agent_on_a_buyer_page_gets_the_agents_line_
 async def test_on_a_buyer_page_the_model_is_not_given_the_agents_answers():
     d = engine.new_data()
     d["audience"] = "buyer"
-    assert "first month is free" not in chat_agent._knowledge(d, None)
+    assert "Joining is open and free" not in chat_agent._knowledge(d, None)
     d["audience"] = "agent"
-    assert "first month is free" in chat_agent._knowledge(d, None)
+    assert "Joining is open and free" in chat_agent._knowledge(d, None)
 
 
 def test_every_new_page_sentence_is_written_in_all_five_languages():

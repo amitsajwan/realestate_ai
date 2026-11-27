@@ -91,9 +91,9 @@ def render(code: str, dest, composer=None) -> Path:
 def caption(code: str, channel: str) -> str:
     s = BY_CODE[code]
     lines = [s.caption,
-             "Founding offer: the first 20 Pune agents get one month free, every property, no card.",
+             "Joining is open and free for agents anywhere in Pune, no card.",
              PRODUCT_LINE,
-             f"Comment {CTA_WORD} and we will send you the free trial link."]
+             f"Comment {CTA_WORD} and we will send you the link to join free."]
     if channel != "instagram":
         lines.append(f"Or join here: {pilot_link(code, channel)}")
     return "\n\n".join(lines)

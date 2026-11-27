@@ -16,6 +16,8 @@ export interface BrandingDoc {
   branding_data: AgentBranding
   /** When his MahaRERA agent number is due (ISO), while he has not given it; null once given. */
   rera_due_at?: string | null
+  /** Our check of his MahaRERA number on the register (onboarding/verification.py): only verified agents see the lead board. */
+  rera_status?: 'pending' | 'verified' | 'rejected'
 }
 
 export type BrandingPatch = Pick<SiteUpdateInput, 'business_name' | 'tagline' | 'about' | 'banner' | 'logo' | 'preset' | 'custom_primary' | 'rera_agent_no' | 'areas' | 'languages' | 'years_experience'>

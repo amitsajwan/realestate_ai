@@ -28,11 +28,11 @@ need: question = asks for information (a scheme, the post, a project, a home, an
      gives what they want (area, BHK, budget); person = wants a call or a person; greeting = hello, thanks; complaint = unhappy, rude or says
      fraud; spam = ads, links, nonsense; other = anything else."""
 TRIAL_LINE = {
-    "en": "Free trial for agents, 1 month free: {url}",
-    "hi": "एजेंट्स के लिए फ्री ट्रायल, 1 महीना फ्री: {url}",
-    "hinglish": "Agents ke liye free trial, 1 mahina free: {url}",
-    "mr": "एजंटसाठी फ्री ट्रायल, 1 महिना फ्री: {url}",
-    "mr_latn": "Agents sathi free trial, 1 mahina free: {url}",
+    "en": "For agents, open and free to join: {url}",
+    "hi": "एजेंट्स के लिए जुड़ना फ्री है: {url}",
+    "hinglish": "Agents ke liye judna free hai: {url}",
+    "mr": "एजंटसाठी सामील होणं फ्री आहे: {url}",
+    "mr_latn": "Agents sathi samil hona free aahe: {url}",
 }
 SHARED_ASK = ("(They shared this post with us without writing anything.) What is this post about? Say it in one or two sentences, "
               "then ask what they would like to know.")

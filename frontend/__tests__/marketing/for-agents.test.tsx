@@ -12,7 +12,7 @@ describe('/for-agents brochure', () => {
   it('has one h1 and every section, in the brochure order', () => {
     const { container } = render(<ForAgentsPage />)
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
-    const order = [/problem every agent knows/i, /four steps/i, /what you get/i, /what it costs/i, /set up with you/i, /keep it honest/i, /see it live/i, /claim your free trial/i]
+    const order = [/problem every agent knows/i, /four steps/i, /what you get/i, /what it costs/i, /set up with you/i, /keep it honest/i, /see it live/i, /join the network/i]
     const h2s = Array.from(container.querySelectorAll('article h2')).map((h) => h.textContent || '')
     let at = -1
     for (const re of order) {
@@ -28,18 +28,18 @@ describe('/for-agents brochure', () => {
     expect(steps).toEqual(['Create', 'Attract', 'Qualify', 'Close'])
     const text = container.textContent || ''
     for (const must of [/hindi voice/i, /tap-to-show-interest/i, /BHK, budget, timing/i, /RERA agent number/i, /instagram and facebook with your name/i, /weekly results/i,
-      /1 month free/i, /tell you the price before anything changes/i, /own WhatsApp number/i, /your name, photo and maharera number on your page and posts/i,
+      /open and free to join/i, /tell you the price before anything changes/i, /lead board/i, /MahaRERA verified/i, /nobody can pay for a higher place/i, /own WhatsApp number/i, /your name, photo and maharera number on your page and posts/i,
       /nothing is sent to a buyer without you/i, /labelled as samples/i, /no invented AI percentages/i, /consent .* recorded/i]) {
       expect(text).toMatch(must)
     }
   })
 
-  it('links to the free-trial page, the sample agent page, Instagram, /go and /news', () => {
+  it('links to the sign-up page, the sample agent page, Instagram, /go and /news', () => {
     render(<ForAgentsPage />)
     const article = screen.getByRole('article')
     const hrefs = within(article).getAllByRole('link').map((a) => a.getAttribute('href'))
     expect(hrefs).toEqual(expect.arrayContaining(['/trial', '/agent/house-deal', socialLinks().instagram, '/go', '/news']))
-    expect(within(article).getAllByRole('link', { name: /claim your free trial/i }).length).toBeGreaterThanOrEqual(2)
+    expect(within(article).getAllByRole('link', { name: /join free/i }).length).toBeGreaterThanOrEqual(2)
   })
 
   it('prints the links as addresses and keeps the brand colours in print', () => {
@@ -74,6 +74,13 @@ describe('/for-agents brochure', () => {
     for (const banned of [/testimonial/i, /\brated\b/i, /trusted by/i, /\d+\s*%/, /(?<!first\s)\b\d+\s*\+?\s*(agents|customers|users|leads)\b/i, /guarantee/i]) {
       expect(text).not.toMatch(banned)
     }
+  })
+
+  it('says joining is open and free, with no trial, offer or first-N-agents wording, title and description included', () => {
+    const { container } = render(<ForAgentsPage />)
+    const said = [container.textContent || '', String(metadata.title), String(metadata.description), String(metadata.openGraph?.title)].join(' ').replace(/\/trial/g, '')   // the sign-up address keeps its path
+    for (const banned of [/trial/i, /1 month free/i, /first 20/i, /\boffer/i]) expect(said).not.toMatch(banned)
+    expect(String(metadata.title)).toMatch(/open and free/i)
   })
 
   it('has Hindi and Marathi one-line summaries and Avasetu metadata', () => {

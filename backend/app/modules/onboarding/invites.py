@@ -22,7 +22,7 @@ log = logging.getLogger(__name__)
 LOCK_AFTER = 5
 LOCK_FOR = timedelta(minutes=30)
 HARD_STOP_AFTER = 15
-NOT_INVITED = "This number has no free trial yet. Claim yours at avasetu.in/trial and we will send your sign-up code on WhatsApp."
+NOT_INVITED = "This number has not signed up yet. Join free at avasetu.in/trial and we will send your sign-up code on WhatsApp."
 
 
 class _CodeSender:

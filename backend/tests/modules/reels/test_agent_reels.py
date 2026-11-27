@@ -76,7 +76,7 @@ def test_the_demo_phone_number_on_the_lead_screen_is_covered():
 
 def test_captions_carry_the_keyword_and_on_facebook_the_tagged_trial_link():
     fb, ig = ar.caption("B2", "facebook_page"), ar.caption("B2", "instagram")
-    assert "Comment AGENT" in fb and fb.endswith("/trial?src=reel_b2_fb") and ar.PRODUCT_LINE in fb and "free trial" in fb
+    assert "Comment AGENT" in fb and fb.endswith("/trial?src=reel_b2_fb") and ar.PRODUCT_LINE in fb and "join free" in fb
     assert "Comment AGENT" in ig and "http" not in ig
     assert not ar.BANNED.search(fb)
 

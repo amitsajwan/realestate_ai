@@ -72,7 +72,7 @@ async def test_trial_on_whatsapp_replies_with_the_code_and_makes_no_buyer_lead(m
     r = await say(svc, "TRIAL")
     assert r["status"] == "trial" and r["lead_id"] is None
     reply = r["reply"]
-    assert "free trial is ready" in reply and "1 month free" in reply and "/join?phone=9876543210" in reply
+    assert "Joining is free" in reply and "1 month" not in reply and "/join?phone=9876543210" in reply
     assert await db.get_collection("contacts").count_documents({}) == 0          # an agent, not a buyer lead
     assert (await db.get_collection("invites").find_one({"_id": "+" + BUYER}))["plan"] == "trial"
 

@@ -152,11 +152,11 @@ P: Dict[str, Dict[str, str]] = {
         "mr_latn": "{builder} che project pahat aahat? Konta project, kiwa konta bhag hava te sanga.",
     },
     "greet_agent": {   # only on the pages for agents (/agents, /trial, /request-invite, /for-agents)
-        "en": f"Hi! I am the {brand.NAME} assistant for agents. Ask me how we bring you buyer leads, what it costs, or how to start your free trial.",
-        "hinglish": f"Namaste! Main agents ke liye {brand.NAME} ka assistant hoon. Mujhse poochhiye hum aapko buyer leads kaise dete hain, kitna lagta hai, ya free trial kaise shuru karein.",
-        "hi": f"नमस्ते! मैं एजेंटों के लिए {brand.NAME_DEVANAGARI} का सहायक हूँ। मुझसे पूछिए कि हम आपको खरीदारों की लीड कैसे देते हैं, इसका खर्च कितना है, या फ्री ट्रायल कैसे शुरू करें।",
-        "mr": f"नमस्कार! मी एजंटसाठी {brand.NAME_DEVANAGARI} चा सहाय्यक आहे. आम्ही तुम्हाला खरेदीदारांच्या लीड कशा देतो, खर्च किती आहे, किंवा फ्री ट्रायल कसा सुरू करायचा ते मला विचारा.",
-        "mr_latn": f"Namaskar! Mi agent sathi {brand.NAME} cha sahayyak aahe. Aamhi tumhala buyer leads kasha deto, kharch kiti aahe, kiwa free trial kasa suru karaycha te mala vichara.",
+        "en": f"Hi! I am the {brand.NAME} assistant for agents. Ask me how we bring you buyer leads, what it costs, or how to join, free.",
+        "hinglish": f"Namaste! Main agents ke liye {brand.NAME} ka assistant hoon. Mujhse poochhiye hum aapko buyer leads kaise dete hain, kitna lagta hai, ya free mein kaise judein.",
+        "hi": f"नमस्ते! मैं एजेंटों के लिए {brand.NAME_DEVANAGARI} का सहायक हूँ। मुझसे पूछिए कि हम आपको खरीदारों की लीड कैसे देते हैं, इसका खर्च कितना है, या फ्री में कैसे जुड़ें।",
+        "mr": f"नमस्कार! मी एजंटसाठी {brand.NAME_DEVANAGARI} चा सहाय्यक आहे. आम्ही तुम्हाला खरेदीदारांच्या लीड कशा देतो, खर्च किती आहे, किंवा फ्री कसं सामील व्हायचं ते मला विचारा.",
+        "mr_latn": f"Namaskar! Mi agent sathi {brand.NAME} cha sahayyak aahe. Aamhi tumhala buyer leads kasha deto, kharch kiti aahe, kiwa free madhe kasa samil vhaycha te mala vichara.",
     },
     "for_agents": {   # someone says they are an agent on a page for buyers: one line, then the chat stays a buyer chat
         "en": "For agents, see /agents.",
@@ -453,7 +453,7 @@ QUICK = {
     "try_plan": {"en": "Try the home plan", "hinglish": "Home plan try karein", "hi": "होम प्लान आज़माएँ", "mr": "होम प्लॅन वापरून पहा",
                  "mr_latn": "Home plan vaprun paha"},
     # an agent page's asks: English only, since each is a keyword of its answer in knowledge/site.py
-    "agent_trial": {"en": "Free trial"},
+    "agent_trial": {"en": "Join free"},
     "agent_price": {"en": "Pricing"},
     "agent_start": {"en": "How do I start?"},
 }

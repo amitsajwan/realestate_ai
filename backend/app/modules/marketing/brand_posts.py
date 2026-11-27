@@ -64,15 +64,15 @@ POSTS: List[Dict] = [
             "\U0001F4A1 Tip: compare flats by price per sq ft of CARPET area, so you compare like with like.\n\n" + TAGS),
     },
     {
-        "slug": "agents", "kicker": "FOR PUNE AGENTS", "title": "Property agent in Pune? Claim your free trial",
+        "slug": "agents", "kicker": "FOR PUNE AGENTS", "title": "Property agent in Pune? Join free",
         "points": ["Your own website in minutes", "Ready-made posts for Facebook, Instagram and WhatsApp", "Buyers tracked in one simple inbox",
-                   "Free trial: 1 month free"],
+                   "Open and free to join"],
         "caption": (
-            "\U0001F91D Property agent in Pune? Claim your free trial\n\n"
+            "\U0001F91D Property agent in Pune? Join free\n\n"
             "✅ Your own website in minutes\n"
             "✅ Ready-made posts for Facebook, Instagram and WhatsApp\n"
             "✅ Buyers tracked in one simple inbox\n\n"
-            "Claim your free trial: 1 month free, every property, no card:\n"
+            "Joining is open and free, no card:\n"
             f"\U0001F517 {SITE}/trial\n\n" + TAGS),
     },
     {
@@ -128,7 +128,7 @@ POSTS: List[Dict] = [
             "\u2705 Ready-made posts for Facebook, Instagram and WhatsApp\n"
             "\u2705 Comments like INTERESTED are answered for you\n"
             "\u2705 Every buyer summarised: budget, BHK, timing and how warm they are\n\n"
-            "Claim your free trial (1 month free):\n"
+            "Joining is open and free, no card:\n"
             f"\U0001F517 {SITE}/trial\n\n" + TAGS + " #RealEstateAgent #PuneAgents"),
     },
     {
@@ -136,12 +136,12 @@ POSTS: List[Dict] = [
         "points": ["मोबाइल से प्रॉपर्टी डालें, वेबसाइट अपने-आप तैयार", "फेसबुक, इंस्टाग्राम और व्हाट्सऐप के लिए तैयार पोस्ट",
                    "कमेंट में INTERESTED लिखने वालों को जवाब", "हर खरीदार का सार: बजट, BHK, समय, कितना गंभीर"],
         "caption": (
-            "\U0001F91D पुणे के प्रॉपर्टी एजेंट? हमारे पायलट से जुड़ें\n\n"
+            "\U0001F91D पुणे के प्रॉपर्टी एजेंट? Avasetu से जुड़ें\n\n"
             "\u2705 मोबाइल से प्रॉपर्टी डालें, आपकी अपनी वेबसाइट अपने-आप तैयार\n"
             "\u2705 फेसबुक, इंस्टाग्राम और व्हाट्सऐप के लिए तैयार पोस्ट\n"
             "\u2705 कमेंट में INTERESTED लिखने वालों को जवाब हम देते हैं\n"
             "\u2705 हर खरीदार का सार: बजट, BHK, समय और कितना गंभीर\n\n"
-            "पायलट मुफ़्त है और सिर्फ़ इन्विटेशन से। अपना इन्विटेशन माँगें:\n"
+            "जुड़ना मुफ़्त है और सबके लिए खुला। यहाँ से जुड़ें:\n"
             f"\U0001F517 {SITE}/trial\n\n" + TAGS + " #PuneAgents"),
     },
     {
@@ -149,12 +149,12 @@ POSTS: List[Dict] = [
         "points": ["मोबाईलवरून प्रॉपर्टी टाका, वेबसाइट आपोआप तयार", "फेसबुक, इंस्टाग्राम आणि व्हॉट्सअ‍ॅपसाठी तयार पोस्ट",
                    "कमेंटमध्ये INTERESTED लिहिणाऱ्यांना उत्तर", "प्रत्येक खरेदीदाराचा सारांश: बजेट, BHK, वेळ, किती गंभीर"],
         "caption": (
-            "\U0001F91D पुण्यातील प्रॉपर्टी एजंट? आमच्या पायलटमध्ये सामील व्हा\n\n"
+            "\U0001F91D पुण्यातील प्रॉपर्टी एजंट? Avasetu मध्ये सामील व्हा\n\n"
             "\u2705 मोबाईलवरून प्रॉपर्टी टाका, तुमची स्वतःची वेबसाइट आपोआप तयार\n"
             "\u2705 फेसबुक, इंस्टाग्राम आणि व्हॉट्सअ‍ॅपसाठी तयार पोस्ट\n"
             "\u2705 कमेंटमध्ये INTERESTED लिहिणाऱ्यांना आम्ही उत्तर देतो\n"
             "\u2705 प्रत्येक खरेदीदाराचा सारांश: बजेट, BHK, वेळ आणि किती गंभीर\n\n"
-            "पायलट मोफत आहे आणि फक्त आमंत्रणाने. तुमचे आमंत्रण मागवा:\n"
+            "सामील होणे मोफत आणि सर्वांसाठी खुले आहे. इथून सामील व्हा:\n"
             f"\U0001F517 {SITE}/trial\n\n" + TAGS + " #PuneAgents"),
     },
 ]

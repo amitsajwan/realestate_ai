@@ -74,6 +74,18 @@ describe('themed agent site', () => {
     expect(screen.getByTestId('rera-agent')).toHaveTextContent(/has not verified it/)
   })
 
+  it('says MahaRERA verified only when we checked the number the page shows now', () => {
+    const checked = { ...kulkarni, branding_data: { ...kulkarni.branding_data, rera_verified_no: 'A52100023456' } }
+    const { unmount } = render(<AboutAgent agent={checked} />)
+    expect(screen.getByTestId('rera-verified')).toHaveTextContent('MahaRERA verified')
+    expect(screen.getByTestId('rera-agent')).toHaveTextContent(/checked this number on the MahaRERA register/)
+    unmount()
+    const changed = { ...checked, branding_data: { ...checked.branding_data, rera_agent_no: 'A52100099999' } }
+    const { container } = render(<SiteShell agent={changed}><AboutAgent agent={changed} /></SiteShell>)
+    expect(screen.queryByTestId('rera-verified')).toBeNull()
+    expect(container.querySelector('footer')!).toHaveTextContent(/not verified by Avasetu/)
+  })
+
   it('without a RERA number nothing is claimed', () => {
     render(<AboutAgent agent={{ ...kulkarni, branding_data: { ...kulkarni.branding_data, rera_agent_no: null } }} />)
     expect(screen.queryByTestId('rera-agent')).toBeNull()

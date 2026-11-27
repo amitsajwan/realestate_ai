@@ -106,3 +106,8 @@ Steps 1-3 change nothing a buyer sees. Step 4 is the first live change and start
   from the rules, marked low confidence or older than 7 days. Briefs exist only with `BUYER_MIND=true` or after "Think about
   this lead". The website chat does not read them yet (it has no lead until the number is given).
 
+- 2026-11-27: the switch is on in production (`BUYER_MIND=true`, backend and conversations), but only 1 of the 5 leads since
+  2026-11-21 had a brief. Each was a WhatsApp or ChatGPT lead the bot had answered, so its contact status read "in touch" and
+  `fresh_briefs` skipped it (it took only not_contacted / waiting_you). Now a lead whose last word is the bot's is briefed too,
+  from the buyer's last message (`tracking.contact.last_heard`), so each new buyer message gets one fresh brief. Of the 5 briefs
+  before the fix: 2 done, 2 stopped at the round cap ("forced"), 1 failed. Watch those outcomes on the next leads.

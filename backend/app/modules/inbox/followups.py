@@ -22,7 +22,8 @@ Every INTERVAL_S:
      enquiries reach them on WhatsApp through Avasetu). Tried once per lead (`agent_wa_at`, `agent_wa_status`). The owner follows
      these like passes: `watched_by` puts the lead in their Leads > Passed (read only) and they get one 'agent_site_enquiry' alert.
   5. Buyer mind (BUYER_MIND=true; docs/plan/buyer-mind.md). A lead that came in, or whose buyer wrote, since the mind last
-     thought about it gets a fresh Lead Brief for its agent: `think`, passed in by app.wiring (the buyer mind sits above the
+     thought about it gets a fresh Lead Brief for its agent, also when only the bot has answered them (owner, 2026-11-27: the bot
+     answers every WhatsApp lead, and 4 of the first 5 got no brief because they read as in touch): `think`, passed in by app.wiring (the buyer mind sits above the
      Inbox), decides whether its brief is older than that moment. At most BRIEFS_PER_CYCLE a cycle, and none started after
      BRIEF_BUDGET, so a slow model never holds up the follow-ups and alerts above (it runs last).
 Each lead is handled on its own: an error is logged and the rest go on.
@@ -211,6 +212,10 @@ async def fresh_briefs(db, now: datetime, think: Optional[Think] = None, clock: 
         s = contactmod.state_of(c, convs[c["_id"]])
         if s["state"] in ("not_contacted", "waiting_you") and s["at"]:
             due.append((s["at"], c))
+        elif s["by"] == "bot":     # the bot answered, no person has yet: the brief follows the buyer's last message
+            since = contactmod.last_heard(convs[c["_id"]]) or c.get("created_at")
+            if since:
+                due.append((since, c))
     due.sort(key=lambda x: x[0], reverse=True)
     start, done = clock(), 0
     for since, c in due:

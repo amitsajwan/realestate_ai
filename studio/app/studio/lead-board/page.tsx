@@ -6,12 +6,14 @@ import { Btn, ErrorBox, PageTitle, Spinner, TempChip, inputCls } from '@/compone
 import { errorMessage } from '@/lib/app/client'
 import { timeAgo } from '@/lib/app/format'
 import type { PassResult } from '@/lib/app/inbox'
-import { BOARD_PATH, activityLine, areaCounts, boardApi, type BoardDemand, boardTitle, shareText, type BoardCard, type OfferKind } from '@/lib/app/leadBoard'
+import { BOARD_PATH, activityLine, areaCounts, bhkOptions, boardApi, type BoardDemand, type BoardLock, type BoardScope, boardTitle, filterCards, shareText, type BoardCard } from '@/lib/app/leadBoard'
 import { useAsync } from '@/lib/app/useAsync'
 
 /**
- * Lead board (owner, 2026-10-31): our open buyer leads without the buyer's name or number. An agent asks for the ones they can
- * serve, with an offer if they like; the owner gives each lead to one agent, and only then do the name and number reach them.
+ * Lead board (owner, 2026-10-31; all of Pune, 2026-11-27): our open buyer leads without the buyer's name or number, for every
+ * MahaRERA-verified agent in Pune. An agent asks for the ones they can serve, free (offers are off: nobody pays for a higher
+ * place); the owner gives each lead to one agent, and only then do the name and number reach them. "Fits you" keeps the cards
+ * with a reason they fit the agent (a listing in the project or area, an area they cover); "All Pune" shows every card.
  * The owner sends this page's link to agents on WhatsApp; the page is live (owner: "a realtime page for leads, not a WhatsApp
  * message only"): it reads the board again every LIVE_MS while open, and marks leads that came in since the viewer last looked.
  */
@@ -30,6 +32,8 @@ export default function LeadBoardPage() {
   const [asAgent, setAsAgent] = useState(false)
   const { data, error, loading, reload } = useAsync(() => boardApi.get(asAgent), [asAgent])
   const [area, setArea] = useState<string | null>(null)
+  const [bhk, setBhk] = useState<string | null>(null)
+  const [scope, setScope] = useState<BoardScope | null>(null)
   const [updated, setUpdated] = useState<Date | null>(null)
   const [, tick] = useState(0)
   const seen = useRef<number | null>(null)
@@ -51,15 +55,28 @@ export default function LeadBoardPage() {
   const isNew = (c: BoardCard) => !!seen.current && Date.parse(c.created_at.endsWith('Z') ? c.created_at : `${c.created_at}Z`) > seen.current
   // lead counts per area, busiest first (owner, 2026-10-31: "show numbers against areas")
   const areas = useMemo(() => areaCounts(data?.items ?? []), [data])
-  const items = (data?.items ?? []).filter((c) => !area || c.areas.includes(area))
+  const bhks = useMemo(() => bhkOptions(data?.items ?? []), [data])
+  const agentView = !!data && !data.owner && !data.preview
+  const fitting = (data?.items ?? []).filter((c) => c.fit?.length).length
+  // an agent opens on "Fits you" when anything fits them, else on "All Pune"; the owner always sees all
+  const shownScope: BoardScope = !agentView ? 'all' : scope ?? (fitting ? 'fits' : 'all')
+  const items = filterCards((data?.items ?? []).map((c) => ({ ...c, fit: c.fit ?? [] })), shownScope, area, bhk)
+
+  if (data?.locked) return <Locked lock={data.locked} />
 
   return (
     <div className="space-y-4">
       <PageTitle action={updated && <span className="flex items-center gap-1.5 text-xs font-semibold text-green-700"><span className="h-2 w-2 animate-pulse rounded-full bg-green-600" />Live · {timeAgo(updated.toISOString())}</span>}>Lead board</PageTitle>
       <p className="text-sm text-gray-700">
-        Every buyer who asked {data?.owner ? 'us' : 'Avasetu'} about a home, newest first. Their name and number stay
-        hidden: {data?.owner ? 'agents ask for a lead, you give it to one of them.' : 'ask for the ones you can serve, and when a lead is given to you it comes to your Leads with the full details.'}
+        Every buyer in Pune who asked {data?.owner ? 'us' : 'Avasetu'} about a home, newest first. Their name and number stay
+        hidden: {data?.owner ? 'verified agents ask for a lead, free, and you give it to one of them.' : 'ask for the ones you can serve, free. When a lead is given to you it comes to your Leads with the full details.'}
       </p>
+      {agentView && (
+        <p className="inline-flex items-center gap-1.5 rounded-full bg-[#F0B13B] px-3 py-1 text-xs font-bold text-[#102340]">
+          <svg width="12" height="12" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 10.5l3.5 3.5L15 7" stroke="currentColor" strokeWidth="2.6" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          MahaRERA verified
+        </p>
+      )}
       <button type="button" onClick={() => setAsAgent((v) => !v)}
         className={`min-h-[44px] w-full rounded-xl border px-4 text-sm font-semibold ${asAgent ? 'border-[#0f2340] bg-[#0f2340] text-white' : 'border-gray-300 bg-white text-gray-800'}`}>
         {asAgent ? 'Viewing as an agent · back to my view' : 'View as an agent'}
@@ -67,6 +84,16 @@ export default function LeadBoardPage() {
       {asAgent && <p className="rounded-xl bg-sky-50 p-3 text-sm text-sky-900">This is the board exactly as another agent sees it. Buttons are off here.</p>}
       {data?.demand && <DemandStrip d={data.demand} />}
       {data?.owner && <ShareBox items={data.items} />}
+      {agentView && (
+        <div className="flex gap-2" role="group" aria-label="Which buyers">
+          {([['fits', `Fits you · ${fitting}`], ['all', `All Pune · ${data?.items.length ?? 0}`]] as const).map(([k, label]) => (
+            <button key={k} type="button" aria-pressed={shownScope === k} onClick={() => setScope(k)}
+              className={`min-h-[44px] flex-1 rounded-full border px-3 text-sm font-semibold ${shownScope === k ? 'border-[#0f2340] bg-[#0f2340] text-white' : 'border-gray-300 bg-white text-gray-800'}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
       {areas.length > 1 && (
         <div className="-mx-1 flex flex-wrap gap-2" role="group" aria-label="Area">
           {[{ area: null as string | null, count: data?.items.length ?? 0 }, ...areas].map(({ area: a, count }) => (
@@ -77,12 +104,41 @@ export default function LeadBoardPage() {
           ))}
         </div>
       )}
+      {bhks.length > 1 && (
+        <div className="-mx-1 flex flex-wrap gap-2" role="group" aria-label="BHK">
+          {[null, ...bhks].map((b) => (
+            <button key={b ?? 'any'} type="button" aria-pressed={bhk === b} onClick={() => setBhk(b)}
+              className={`min-h-[40px] rounded-full border px-3 text-sm font-semibold ${bhk === b ? 'border-[#0f2340] bg-[#0f2340] text-white' : 'border-gray-300 bg-white text-gray-800'}`}>
+              {b ?? 'Any BHK'}
+            </button>
+          ))}
+        </div>
+      )}
       {loading && !data && <Spinner />}
       {error && <ErrorBox message={error} onRetry={reload} />}
-      {data && items.length === 0 && <p className="rounded-2xl bg-gray-50 p-4 text-sm text-gray-700">No open leads right now. New ones come up here as buyers ask.</p>}
+      {data && items.length === 0 && (
+        <p className="rounded-2xl bg-gray-50 p-4 text-sm text-gray-700">
+          {data.items.length === 0 ? 'No open leads right now. New ones come up here as buyers ask.'
+            : shownScope === 'fits' ? 'Nothing here fits your listings or areas yet. Try All Pune.' : 'No lead matches these filters.'}
+        </p>
+      )}
       <ul className="space-y-3">
         {items.map((c) => <BoardRow key={c.ref} card={c} owner={data!.owner} preview={!!data!.preview} fresh={isNew(c)} onChange={reload} />)}
       </ul>
+    </div>
+  )
+}
+
+/** An agent whose MahaRERA agent number is not verified yet: why, and what to do. */
+function Locked({ lock }: { lock: BoardLock }) {
+  return (
+    <div className="space-y-4">
+      <PageTitle>Lead board</PageTitle>
+      <section aria-label="MahaRERA check" className={`space-y-2 rounded-2xl border p-4 ${lock.status === 'rejected' ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50'}`}>
+        <p className="font-semibold text-gray-900">{lock.status === 'rejected' ? 'Your MahaRERA number did not match' : 'Only MahaRERA-verified agents see the board'}</p>
+        <p className="text-sm text-gray-800">{lock.reason}</p>
+        <Link href="/studio/profile" className="inline-flex min-h-[44px] items-center text-sm font-semibold text-blue-700 underline">Open my profile</Link>
+      </section>
     </div>
   )
 }
@@ -227,6 +283,7 @@ function BoardRow({ card: c, owner, preview, fresh, onChange }: { card: BoardCar
       <Looked card={c} />
       {c.given && <p className="rounded-lg bg-gray-900 px-2 py-1.5 text-xs font-semibold text-white">{c.given}</p>}
       {c.caution && <p className="rounded-lg bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-800">⚠ {c.caution}</p>}
+      {(c.fit ?? []).length > 0 && <p className="rounded-lg bg-[#FFF1CC] px-2 py-1 text-xs font-semibold text-[#6b4a00]">Fits you: {c.fit.join(' · ')}</p>}
       <p className="text-xs text-gray-500">{c.age} · from {c.came_from} · active {timeAgo(c.last_active_at)}{c.asked ? ` · ${c.asked} agent${c.asked === 1 ? '' : 's'} asked` : ''}</p>
       {preview || c.given ? <Btn disabled>{c.given ? 'Taken' : 'Ask for this lead'}</Btn> : owner ? <OwnerAsks card={c} onChange={onChange} /> : <AskBox card={c} onChange={onChange} />}
     </li>
@@ -259,8 +316,6 @@ function Looked({ card: c }: { card: BoardCard }) {
 
 function AskBox({ card: c, onChange }: { card: BoardCard; onChange: () => void }) {
   const [open, setOpen] = useState(false)
-  const [kind, setKind] = useState<OfferKind>(c.mine?.offer_kind ?? 'none')
-  const [value, setValue] = useState(c.mine?.offer_value ? String(c.mine.offer_value) : '')
   const [note, setNote] = useState(c.mine?.note ?? '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -282,7 +337,7 @@ function AskBox({ card: c, onChange }: { card: BoardCard; onChange: () => void }
   if (!open) {
     return c.mine ? (
       <div className="space-y-2 rounded-xl bg-sky-50 p-3 text-sm text-sky-900">
-        <p className="font-semibold">You asked {timeAgo(c.mine.at)}{c.mine.offer ? `: ${c.mine.offer}` : ''}</p>
+        <p className="font-semibold">You asked {timeAgo(c.mine.at)}</p>
         <p>We will tell you here and on WhatsApp if it is given to you.</p>
         <div className="flex gap-2">
           <Btn variant="secondary" onClick={() => setOpen(true)}>Change</Btn>
@@ -292,25 +347,15 @@ function AskBox({ card: c, onChange }: { card: BoardCard; onChange: () => void }
       </div>
     ) : <Btn onClick={() => setOpen(true)}>Ask for this lead</Btn>
   }
-  const num = Number(value)
-  const ok = kind === 'none' || (num > 0 && (kind === 'fee' || num <= 100))
   return (
     <section aria-label="Ask for this lead" className="space-y-3 rounded-xl border border-gray-200 p-3">
-      <fieldset className="space-y-1 text-sm text-gray-800">
-        <legend className="font-semibold">Your offer (only we see it)</legend>
-        {([['none', 'No offer, just interested'], ['fee', 'A fee for the lead (₹)'], ['share', 'A share of my brokerage when it closes (%)']] as const).map(([k, label]) => (
-          <label key={k} className="flex min-h-[40px] items-center gap-2">
-            <input type="radio" name={`offer-${c.ref}`} checked={kind === k} onChange={() => setKind(k)} /> {label}
-          </label>
-        ))}
-      </fieldset>
-      {kind !== 'none' && (
-        <input className={inputCls} inputMode="numeric" aria-label={kind === 'fee' ? 'Fee in rupees' : 'Share in percent'}
-          placeholder={kind === 'fee' ? 'e.g. 2000' : 'e.g. 25'} value={value} onChange={(e) => setValue(e.target.value.replace(/[^\d.]/g, ''))} />
-      )}
-      <input className={inputCls} maxLength={200} placeholder="Why you (optional): e.g. I have 3 resale 2 BHKs there" value={note} onChange={(e) => setNote(e.target.value)} />
+      <p className="text-sm text-gray-700">Asking is free. Nobody can pay for a higher place.</p>
+      <label className="block space-y-1 text-sm font-semibold text-gray-800">
+        <span>Why you (optional)</span>
+        <input className={inputCls} maxLength={200} placeholder="e.g. I have 3 resale 2 BHKs there" value={note} onChange={(e) => setNote(e.target.value)} />
+      </label>
       {error && <p role="alert" className="text-sm font-semibold text-red-700">{error}</p>}
-      <Btn disabled={busy || !ok} onClick={() => run(() => boardApi.ask(c.ref, kind, kind === 'none' ? null : num, note))}>{busy ? 'Sending...' : 'Send'}</Btn>
+      <Btn disabled={busy} onClick={() => run(() => boardApi.ask(c.ref, note))}>{busy ? 'Sending...' : 'Ask for this buyer'}</Btn>
       <button type="button" className="min-h-[44px] w-full text-sm font-semibold text-gray-600" onClick={() => setOpen(false)}>Cancel</button>
     </section>
   )
@@ -361,7 +406,7 @@ function OwnerAsks({ card: c, onChange }: { card: BoardCard; onChange: () => voi
         <ul className="space-y-2">
           {c.asks!.map((a) => (
             <li key={a.agent_id} className="space-y-2 rounded-xl bg-gray-50 p-3 text-sm">
-              <p><b>{a.agent_name}</b> · {timeAgo(a.at)} · {a.offer ?? 'no offer'}</p>
+              <p><b>{a.agent_name}</b> · {timeAgo(a.at)}</p>
               {a.note && <p className="text-gray-700">“{a.note}”</p>}
               <Btn disabled={!!busy} onClick={() => give(a.agent_id)}>{busy === a.agent_id ? 'Giving...' : `Give to ${a.agent_name}`}</Btn>
             </li>

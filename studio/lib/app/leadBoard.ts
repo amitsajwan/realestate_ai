@@ -1,4 +1,5 @@
-/** Lead board (backend /lead-board, inbox/board.py): the owner's open buyer leads without name or number, for signed-in agents to ask for. */
+/** Lead board (backend /lead-board, inbox/board.py): the owner's open buyer leads without name or number, for MahaRERA-verified
+ *  agents across Pune to ask for, free. Offers are off (2026-11-27): no screen asks for or shows one. */
 import { API_BASE_URL } from '@shared/config/api'
 import { ApiError, fetchOnceMore, parseErrorBody } from './api'
 import type { PassResult } from './inbox'
@@ -6,13 +7,7 @@ import { getToken } from './session'
 import { isFixtureMode } from './client'
 import { boardFixture } from './fixtures-owner'
 
-export type OfferKind = 'none' | 'fee' | 'share'
-
 export interface BoardAsk {
-  offer_kind: OfferKind
-  offer_value: number | null
-  /** "₹2,000 for the lead", "25% of the brokerage on closing", or null for no offer. */
-  offer: string | null
   note: string | null
   at: string
 }
@@ -68,7 +63,9 @@ export interface BoardCard {
   activity: BoardActivity
   /** A reason to look twice, e.g. they also opened our pages for agents. */
   caution: string | null
-  /** How many agents asked (offers stay sealed). */
+  /** Why this buyer fits the viewer ("You have a listing in this project", "You cover Wagholi"); empty = nothing we know says so. */
+  fit: string[]
+  /** How many agents asked. */
   asked: number
   mine: BoardAsk | null
   /** "Given to an agent 2 hours after it came in": another agent has it, so it cannot be asked for. */
@@ -93,7 +90,17 @@ export interface BoardDemand {
   areas: { area: string; readers: number; enquiries: number }[]
 }
 
-export interface Board { items: BoardCard[]; owner: boolean; /** "View as an agent": read only. */ preview?: boolean; demand?: BoardDemand }
+/** An agent whose MahaRERA agent number is not verified yet sees why, and no cards. */
+export interface BoardLock { status: 'pending' | 'rejected'; reason: string }
+
+export interface Board {
+  items: BoardCard[]
+  owner: boolean
+  /** "View as an agent": read only. */
+  preview?: boolean
+  demand?: BoardDemand
+  locked?: BoardLock
+}
 
 /** The link the owner sends to agents. */
 export const BOARD_PATH = '/studio/lead-board'
@@ -131,8 +138,7 @@ async function call<T>(path: string, init: { method?: string; json?: unknown } =
 export const boardApi = {
   /** asAgent: the board as any other agent sees it. */
   get: (asAgent = false) => call<Board>(asAgent ? '?as_agent=true' : ''),
-  ask: (ref: string, offer_kind: OfferKind, offer_value: number | null, note: string) =>
-    call<BoardAsk>(`/${encodeURIComponent(ref)}/ask`, { method: 'POST', json: { offer_kind, offer_value, note: note || null } }),
+  ask: (ref: string, note: string) => call<BoardAsk>(`/${encodeURIComponent(ref)}/ask`, { method: 'POST', json: { note: note || null } }),
   withdraw: (ref: string) => call<{ ok: boolean }>(`/${encodeURIComponent(ref)}/ask`, { method: 'DELETE' }),
   /** Owner: take a lead off the board. */
   remove: (ref: string) => call<{ ok: boolean }>(`/${encodeURIComponent(ref)}/remove`, { method: 'POST' }),
@@ -146,6 +152,18 @@ export function areaCounts(items: Pick<BoardCard, 'areas'>[]): { area: string; c
   const n = new Map<string, number>()
   for (const c of items) for (const a of new Set(c.areas)) n.set(a, (n.get(a) ?? 0) + 1)
   return Array.from(n, ([area, count]) => ({ area, count })).sort((x, y) => y.count - x.count || x.area.localeCompare(y.area))
+}
+
+/** BHKs on the board in order ("1 BHK", "2 BHK", ...): the BHK chips. */
+export function bhkOptions(items: Pick<BoardCard, 'bhk'>[]): string[] {
+  return Array.from(new Set(items.map((c) => c.bhk).filter(Boolean) as string[])).sort((a, b) => parseFloat(a) - parseFloat(b) || a.localeCompare(b))
+}
+
+export type BoardScope = 'fits' | 'all'
+
+/** The cards a filter keeps: "Fits you" (a reason it fits) or "All Pune", then an area and a BHK if picked. */
+export function filterCards<T extends Pick<BoardCard, 'fit' | 'areas' | 'bhk'>>(items: T[], scope: BoardScope, area: string | null, bhk: string | null): T[] {
+  return items.filter((c) => (scope === 'all' || c.fit.length > 0) && (!area || c.areas.includes(area)) && (!bhk || c.bhk === bhk))
 }
 
 /** The card's headline: the project they asked about, else what and where. */

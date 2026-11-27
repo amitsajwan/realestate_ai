@@ -1,15 +1,17 @@
 /**
- * Copy for /for-agents, the agent brochure. Plain and honest: no invented numbers, no testimonials, no "verified" claims.
- * Kept apart from the page so tests can pin what we promise.
+ * Copy for /for-agents, the agent brochure. Plain and honest: no invented numbers, no testimonials. "MahaRERA verified" is said
+ * only of the check we really make (onboarding/verification.py). Joining is open and free (2026-11-27): no trial, no offer and no
+ * "first N agents", because every shared link shows the title and description. Kept apart from the page so tests can pin what
+ * we promise.
  */
 import { BRAND_NAME } from '@/lib/brand'
 
 export const FOR_AGENTS = {
-  metaTitle: `For agents: what ${BRAND_NAME} does for you | Free trial in Pune`,
+  metaTitle: `For agents: join the ${BRAND_NAME} network in Pune | Open and free`,
   metaDescription:
-    `${BRAND_NAME} for real estate agents in Pune: add a home from your phone, get posts, reels and your own page, and see every enquiry as a lead card. 1 month free for the first 20 agents.`,
+    `${BRAND_NAME} for real estate agents anywhere in Pune: your own page with your MahaRERA number checked on the register, posts and reels made for you, every enquiry as a lead card, and a lead board of Pune buyers you can ask for. Open and free to join.`,
   eyebrow: 'For real estate agents in Pune',
-  pilot: 'Free trial: 1 month free',
+  pilot: 'Open and free to join',
   title: 'Every enquiry in one place, and the right buyer to call first.',
   lead:
     `${BRAND_NAME} turns the homes you list into posts, reels and your own branded page, and turns every buyer who shows interest into a lead card you can act on.`,
@@ -40,13 +42,15 @@ export const FOR_AGENTS = {
       { title: 'Your own branded page', body: 'Your logo, your colours, your business name and your RERA agent number, with your homes and an enquiry form.' },
       { title: 'Your listings, posted for you', body: `Posts and reels on ${BRAND_NAME}'s Instagram and Facebook with your name, after you approve each one, and a link and WhatsApp message to share yourself.` },
       { title: 'Leads in your inbox', body: 'Every buyer who taps interest or writes in arrives as a lead card in your studio, on your phone.' },
+      { title: 'The Pune lead board', body: `Buyers who asked ${BRAND_NAME}, from across Pune: what they want, their budget band and the pages they read, with no name or number. Ask for the ones that fit you, free. The ${BRAND_NAME} team passes each buyer to one agent.` },
+      { title: 'Your MahaRERA number, checked', body: 'We check your MahaRERA agent number on the register. Once it is checked, your page says "MahaRERA verified" and the lead board opens for you.' },
       { title: 'Weekly results', body: 'Each week: how many people viewed your homes, how many enquired, and what to do next.' },
     ],
   },
   cost: {
     heading: 'What it costs',
-    title: '1 month free, first 20 agents',
-    body: 'No card for the trial. After it, Avasetu stays low-cost: a small monthly fee, not a big subscription. We tell you the price before anything changes.',
+    title: 'Open and free to join',
+    body: 'No card, and nothing to pay to join or to ask for a buyer on the lead board. If we ever charge for something, we tell you the price before anything changes, and you decide.',
   },
   coming: {
     heading: 'Set up with you',
@@ -59,6 +63,7 @@ export const FOR_AGENTS = {
   trust: {
     heading: 'How we keep it honest',
     items: [
+      'Nobody can pay for a higher place on the lead board.',
       'Nothing is sent to a buyer without you.',
       'Sample homes are always labelled as samples.',
       'No invented AI percentages or made-up numbers.',
@@ -70,10 +75,10 @@ export const FOR_AGENTS = {
     lead: 'Open these on your phone.',
   },
   cta: {
-    heading: 'Claim your free trial',
-    body: 'For agents in Pune. Tap Claim at avasetu.in/trial, send TRIAL on WhatsApp and your sign-up code comes back at once. The first month is free (first 20 Pune agents).',
-    button: 'Claim your free trial',
+    heading: 'Join the network',
+    body: 'For agents anywhere in Pune. Open avasetu.in/trial and send the sign-up word on WhatsApp: your sign-up code comes back at once. Then add your MahaRERA agent number, and we check it on the register.',
+    button: 'Join free',
     demo: 'See a sample agent page',
-    qr: 'Scan to claim your free trial',
+    qr: 'Scan to join',
   },
 } as const
