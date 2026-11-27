@@ -69,6 +69,30 @@ Missing evidence scores 0, never a guess. Version the rule and keep writing `age
 7. **Buyer side.** A consent line on the enquiry form, a "who will call you" message, and the next-day rating. Ratings are
    stored, never invented, and shown only when there are enough of them.
 
+## Recruiting posts: the Studio session owns them too (owner, 2026-11-27)
+
+The same session that builds the board also makes and puts out the posts that bring agents in. The owner should not have to
+draft or post anything except the founder's own LinkedIn post.
+
+| When | Post | Where | How |
+|---|---|---|---|
+| Week of 27 Nov | "Looking for property agents across Pune": text in `docs/content/linkedin/agents-01-founding-network.md`, image = canvas artboard "LinkedIn post image" | LinkedIn (founder profile, then shared by the company page) | **By the owner.** There is no LinkedIn API in the code. Give the owner the final text and the PNG, ready to paste |
+| Same week | Same message, cut for buyers' channels: one image plus a short caption that says "for agents" in its first line | Avasetu Facebook page and Instagram | Through `social.distribution.send` only (CLAUDE.md rule 6), key `recruit:agents-01:<platform>`. Dry run first, then live. Send the owner the links of what went out |
+| Week 2 | "How it works" carousel: the canvas screens (lead board, one buyer opened, owner pick, handover) as 4–5 slides | LinkedIn (owner), FB/IG (send) | As above. Say on the first slide that it's being built with the first agents |
+| Week 4 | First agents on the network (name, area, page link), **only with each agent's written OK** | LinkedIn, FB/IG | As above |
+| Every week | One-to-one messages to the prospect list (short version in the post file) | WhatsApp / LinkedIn DM from the owner | Draft them; the owner sends. Business-initiated WhatsApp needs an approved template |
+
+Rules for the posts:
+- Name the audience first (agents, not buyers), as every piece of content does.
+- Claim only what is live that day. The board, the ask window and picking by points are "being built with our first agents"
+  until they ship.
+- No lead numbers and no promise of buyers. Never say anyone can pay to rank. No made-up agents or quotes.
+- Company channels sign as the Avasetu team. Only the founder's LinkedIn post is in the founder's voice.
+- The agent recruitment reels of Oct 2026 brought no agents. Posts back up the direct messages; they don't replace them. Count
+  replies per channel in the prospect list.
+- Images are drawn in code where the reel and post renderers can do it. Otherwise export them from the canvas. Keep the brand
+  look: navy `#102340`, gold `#F0B13B`, Inter.
+
 ## Decisions still open (ask the owner, don't assume)
 
 - **Offers on the board.** `ask` takes a sealed offer today (`fee` for the lead, or a `share` of brokerage; owner 2026-10-31).
