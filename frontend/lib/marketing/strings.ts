@@ -2,8 +2,8 @@
 import type { MarketingConfig } from './config'
 import { BRAND_NAME, TAGLINE } from '@/lib/brand'
 
-export const LEGAL_LAST_UPDATED_ISO = '2026-11-15'
-export const LEGAL_LAST_UPDATED = '15 November 2026'
+export const LEGAL_LAST_UPDATED_ISO = '2026-11-27'
+export const LEGAL_LAST_UPDATED = '27 November 2026'
 export const LEGAL_NOTICE =
   'This page is written in plain language to explain how the service works. It is not legal advice.'
 
@@ -310,6 +310,12 @@ export function privacyDoc(cfg: MarketingConfig): LegalDoc {
           'We see it as the service provider running the platform.',
           'Service providers that help us run the service (for example hosting, and AI services that help agents write listing text or marketing from what the agent types or says) process data on our behalf.',
           'We do not sell your personal data.',
+        ],
+      },
+      {
+        id: 'google-analytics', heading: 'Google Analytics',
+        paragraphs: [
+          'Our public pages also use Google Analytics, a Google service that counts visits for us: which pages are opened, how fast they load, and the taps on Call, WhatsApp and Share, with the kind of device and an approximate location. It sets its own cookies (named _ga) in your browser. We never send it your name, phone number or message. We have turned off Google signals, so Google does not link these visits to your Google account for advertising, and Google keeps the data for 14 months. You can block it with the Google Analytics opt-out add-on (tools.google.com/dlpage/gaoptout) or the cookie settings of your browser; the site works the same without it.',
         ],
       },
       {
