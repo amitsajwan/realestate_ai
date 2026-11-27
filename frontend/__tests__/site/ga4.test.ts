@@ -89,3 +89,14 @@ describe('events reaching gtag', () => {
     expect(sent).not.toMatch(/Asha|9800000000|call me/)
   })
 })
+
+describe('one tag', () => {
+  it('loads gtag.js only through TrackingBeacon, so page views are not counted twice and Studio-side pages never load it', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require('fs')
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const path = require('path')
+    const layout = fs.readFileSync(path.join(__dirname, '../../app/layout.tsx'), 'utf8')
+    expect(layout).not.toMatch(/googletagmanager|gtag\(/)
+  })
+})

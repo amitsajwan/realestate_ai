@@ -4,7 +4,6 @@ import { SkipLink } from '@/lib/accessibility'
 import type { Metadata } from 'next'
 import { ThemeProvider } from 'next-themes'
 import { Inter } from 'next/font/google'
-import Script from 'next/script'
 import React from 'react'
 import { Toaster } from 'react-hot-toast'
 import '../styles/agent-website.css'
@@ -22,8 +21,6 @@ import { BRAND_NAME, DEFAULT_DESCRIPTION, DEFAULT_TITLE, LOGO, NAVY } from '@/li
 import { getMarketingConfig } from '@/lib/marketing/config'
 
 const inter = Inter({ subsets: ['latin'] })
-/** The avasetu.in property in Google Analytics. A Measurement ID is public: every page that loads the tag shows it. */
-const GA_ID = 'G-3MYR5F1C05'
 
 // Google Search Console: paste the code from its "HTML tag" method (only the content="..." value) into this variable.
 const googleVerification = (process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || '').trim()
@@ -83,11 +80,6 @@ export default function RootLayout({
             </main>
           </ErrorBoundary>
         </ThemeProvider>
-        {/* Google Analytics for the public site: page views only, never a form's name or number (privacy page, "What we collect"). */}
-        <Script src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`} strategy="afterInteractive" />
-        <Script id="ga" strategy="afterInteractive">
-          {`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','${GA_ID}');`}
-        </Script>
         <Toaster
           position="top-right"
           toastOptions={{
