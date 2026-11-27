@@ -17,6 +17,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from app.core import brand
 from app.core.areas import BY_KEY
+from app.modules.listings import projectlive
 from app.modules.newsroom.store import Store
 
 from . import brands, clusters, esripast_view, fromabove_view, pagefacts, plans3d, priceidea, sitevisits
@@ -1249,6 +1250,9 @@ async def project_page(db, slug: str, now: Optional[datetime] = None) -> Optiona
     for row, s in zip(out["same_area"], similar):
         shown = homes_only(prices_public(s.get("prices"), now), floor)
         row["price_from"], row["bhk"] = pagefacts.price_from(shown), pagefacts.sizes_label(shown)
+    # a project an agent sells leads its own page with the agent's sheet, so its card says the same: Lodha Camelot's card on Godrej
+    # Ivara's page said "4 BHK from ₹2.6 Cr" from the sites while its page and the hot banner said "3 & 4 BHK from ₹2.25 Cr" (2026-11-27)
+    await agent_prices(db, out["same_area"], similar, ix)
     # the builder's other projects the same way, from their size rows only: they may be in another area, whose overall prices
     # this area's floor cannot judge (a studio or booking amount read as "Homes from")
     for row, s in zip(out["same_promoter"], promoter_pages(doc, docs, ix)):
@@ -1284,6 +1288,26 @@ async def project_page(db, slug: str, now: Optional[datetime] = None) -> Optiona
     from app.modules.agentprojects.groups import public_group
     out["group"] = await public_group(db, out["regno"])
     return out
+
+
+def _regnos(d: dict, ix: Optional["LoadIndex"]) -> List[str]:
+    """Every MahaRERA number a page stands for: its registrations' when it is one of several, else its own."""
+    cid = d.get("cluster_id")
+    group = (ix.by_cluster.get(cid) if ix and cid else None) or [d]
+    return list(dict.fromkeys(x.get("regno") or x["_id"] for x in [d, *group]))
+
+
+async def agent_prices(db, rows: List[dict], docs: List[dict], ix: Optional["LoadIndex"] = None) -> None:
+    """Sets price_from and bhk on each card row (rows[i] is docs[i]'s card) from the most complete live listing of any of its
+    registrations, when an agent sells it; a card with no such listing keeps the sites' prices."""
+    regnos = {id(d): _regnos(d, ix) for d in docs}
+    live = await projectlive.live_for_projects(db, (r for rs in regnos.values() for r in rs))
+    if not live:
+        return
+    for row, d in zip(rows, docs):
+        low, sizes = projectlive.card_price(projectlive.best([x for r in regnos[id(d)] for x in live.get(r, [])]))
+        if low:
+            row["price_from"], row["bhk"] = low, sizes or row.get("bhk")
 
 
 async def page_for(db, regno: str) -> Optional[dict]:

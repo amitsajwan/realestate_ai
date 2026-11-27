@@ -172,6 +172,10 @@ describe('asking about a project without scrolling to the end', () => {
   it('makes WhatsApp the first action, with the form after it', () => {
     render(<RegisterProjectPage p={P} siteUrl="https://avasetu.in" facts={null} whatsappUrl="https://wa.me/919800000000" />)
     expect(screen.getByTestId('hero-whatsapp')).toHaveTextContent("Get today's price sheet on WhatsApp")
+    // on a phone the full label wrapped to two lines inside the button: the short one there
+    expect(within(screen.getByTestId('hero-whatsapp')).getByText('Price sheet on WhatsApp')).toHaveClass('sm:hidden')
+    // and the side column's box, a narrow one, says the short action, which fits on one line
+    expect(within(screen.getByTestId('ask-prompt-side')).getByRole('link', { name: 'Get price & plans' })).toHaveAttribute('href', '#enquire')
     expect(screen.getByTestId('hero-form')).toHaveAttribute('href', '#enquire')
     expect(within(screen.getByTestId('sticky-join')).getByText('Form').closest('a')).toHaveAttribute('href', '#enquire')
   })

@@ -354,7 +354,9 @@ function Hero({ p, price, photo, linkless = false, closed = false, callback, emi
         {whatsappAsk ? (
           <a href={whatsappAsk} target="_blank" rel="noopener noreferrer" data-testid="hero-whatsapp"
             className="inline-flex min-h-[48px] items-center rounded-full bg-[#25D366] px-6 font-bold text-[#053b1a] no-underline">
-            {PROJECT_CTA.whatsapp}<span className="sr-only"> (opens WhatsApp)</span>
+            {/* the full label wraps to two lines in the button on a phone (Godrej Ivara, 2026-11-27) */}
+            <span className="sm:hidden">{PROJECT_CTA.whatsappShort}</span><span className="hidden sm:inline">{PROJECT_CTA.whatsapp}</span>
+            <span className="sr-only"> (opens WhatsApp)</span>
           </a>
         ) : (
           <a href="#enquire" className="inline-flex min-h-[48px] items-center rounded-full bg-amber-400 px-6 font-bold text-slate-900 no-underline">{PROJECT_CTA.today}</a>
@@ -1206,7 +1208,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
 
         <aside className="min-w-0 space-y-6 lg:sticky lg:top-20 lg:self-start">
           {/* the side column stays in view on desktop, so the ask does too; phones get the bottom bar instead */}
-          {!closed && <div className="hidden lg:block"><AskPrompt name={shown} whatsappUrl={waAsk} label={PROJECT_CTA.today} compact /></div>}
+          {!closed && <div className="hidden lg:block"><AskPrompt name={shown} whatsappUrl={waAsk} label={PROJECT_CTA.short} compact /></div>}
         </aside>
       </div>
 

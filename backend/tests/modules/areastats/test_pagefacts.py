@@ -161,6 +161,21 @@ async def test_compared_projects_show_their_lowest_price_and_sizes():
     assert got == {"sized": (7_000_000, "2, 3 BHK"), "overall-only": (8_000_000, None), "unpriced": (None, None)}
 
 
+async def test_a_compared_project_an_agent_sells_shows_the_agents_price_as_its_own_page_does():
+    # Lodha Camelot's card said "4 BHK from ₹2.6 Cr" from the sites while its page said House Deal's "3 & 4 BHK from ₹2.25 Cr"
+    db = await seeded(("P1", "Our Project", {}),
+                      ("P2", "Listed", {"prices": priced(("4 BHK", 26_000_000, "4 BHK from ₹ 2.6 Cr"))}),
+                      ("P3", "Rented", {"prices": priced(("2 BHK", 7_000_000, "2 BHK from ₹ 70 L"))}))
+    listings = db.get_collection("listings")
+    await listings.insert_one({"_id": "L1", "rera_no": "P2", "status": "live", "price_inr": 22_500_000, "configurations": [
+        {"bhk": 4, "carpet_sqft": 1800, "price_inr": 30_000_000}, {"bhk": 3, "carpet_sqft": 1400, "price_inr": 22_500_000}]})
+    await listings.insert_one({"_id": "L2", "rera_no": "P2", "status": "draft", "price_inr": 10_000_000})
+    await listings.insert_one({"_id": "L3", "rera_no": "P3", "status": "live", "transaction": "rent", "price_inr": 40_000})
+    page = await pages.project_page(db, "our-project", now=NOW)
+    got = {s["slug"]: (s["price_from"], s["bhk"]) for s in page["same_area"]}
+    assert got == {"listed": (22_500_000, "3, 4 BHK"), "rented": (7_000_000, "2 BHK")}
+
+
 async def test_the_builders_other_projects_show_their_lowest_size_price_never_an_overall_one():
     db = await seeded(("P1", "Our Project", {}),
                       ("P2", "Far Sized", {"locality": "baner", "prices": priced(("2 BHK", 9_500_000, "2 BHK from ₹ 95 L"),

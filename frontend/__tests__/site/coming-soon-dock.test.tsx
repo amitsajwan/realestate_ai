@@ -1,6 +1,6 @@
 import React from 'react'
 import { act, fireEvent, render, screen } from '@testing-library/react'
-import ComingSoonDock, { FOLD_MS, PHONE_MAX, SHOW_AFTER_MS, STILL_TURN_MS, TURN_MS } from '@/components/site/ComingSoonDock'
+import ComingSoonDock, { FOLD_MS, SHOW_AFTER_MS, STILL_TURN_MS, TURN_MS } from '@/components/site/ComingSoonDock'
 import type { UpcomingBrief } from '@/lib/site/hubs'
 
 const u = (slug: string): UpcomingBrief => ({ slug, name: slug, builder: 'A builder', logo: '', area: 'wagholi', area_name: 'Wagholi', area_slug: 'wagholi', note: '2 & 3 BHK · coming soon' })
@@ -8,18 +8,21 @@ const ITEMS = [u('one'), u('two'), u('three')]
 const NOW = new Date('2026-11-02T10:00:00Z').getTime()
 
 const pass = (ms: number) => act(() => { jest.advanceTimersByTime(ms) })
+const scrollTo = (y: number) => act(() => { Object.defineProperty(window, 'scrollY', { configurable: true, value: y }); window.dispatchEvent(new Event('scroll')) })
+/** past the first screen and the moment: where the card shows */
+const arrive = () => { scrollTo(window.innerHeight); pass(SHOW_AFTER_MS) }
 const link = () => screen.getByTestId('coming-soon-link').getAttribute('href')
 
 describe('coming-soon corner card', () => {
   beforeEach(() => { jest.useFakeTimers({ now: NOW }); window.localStorage.clear() })
   // the test setup may define matchMedia as a property that cannot be deleted: put the original back
   const original = window.matchMedia
-  afterEach(() => { jest.useRealTimers(); window.matchMedia = original })
+  afterEach(() => { jest.useRealTimers(); window.matchMedia = original; Object.defineProperty(window, 'scrollY', { configurable: true, value: 0 }) })
 
   it('slides in after a moment, says not registered, and takes its turns', () => {
     render(<ComingSoonDock items={ITEMS} />)
     expect(screen.queryByTestId('coming-soon-dock')).toBeNull()
-    pass(SHOW_AFTER_MS)
+    arrive()
     expect(screen.getByTestId('coming-soon-dock')).toHaveTextContent('Not yet MahaRERA registered')
     expect(link()).toBe('/projects/upcoming/one#enquire')
     pass(TURN_MS)
@@ -30,7 +33,7 @@ describe('coming-soon corner card', () => {
 
   it('stops turning while the pointer is on it', () => {
     render(<ComingSoonDock items={ITEMS} />)
-    pass(SHOW_AFTER_MS)
+    arrive()
     fireEvent.mouseEnter(screen.getByTestId('coming-soon-dock'))
     pass(TURN_MS * 3)
     expect(link()).toBe('/projects/upcoming/one#enquire')
@@ -39,7 +42,7 @@ describe('coming-soon corner card', () => {
   it('still turns, more slowly, when animations are turned off', () => {
     window.matchMedia = jest.fn(() => ({ matches: true })) as unknown as typeof window.matchMedia
     render(<ComingSoonDock items={ITEMS} />)
-    pass(SHOW_AFTER_MS)
+    arrive()
     pass(TURN_MS)
     expect(link()).toBe('/projects/upcoming/one#enquire')
     pass(STILL_TURN_MS - TURN_MS)
@@ -48,7 +51,7 @@ describe('coming-soon corner card', () => {
 
   it('keeps turning after a tap on a phone', () => {
     render(<ComingSoonDock items={ITEMS} />)
-    pass(SHOW_AFTER_MS)
+    arrive()
     const dock = screen.getByTestId('coming-soon-dock')
     fireEvent.touchStart(dock)
     fireEvent.mouseEnter(dock)
@@ -58,7 +61,7 @@ describe('coming-soon corner card', () => {
 
   it('leaves while someone types in a form, and comes back after', () => {
     render(<><input aria-label="Name" /><ComingSoonDock items={ITEMS} /></>)
-    pass(SHOW_AFTER_MS)
+    arrive()
     fireEvent.focusIn(screen.getByLabelText('Name'))
     expect(screen.queryByTestId('coming-soon-dock')).toBeNull()
     fireEvent.focusOut(screen.getByLabelText('Name'))
@@ -67,19 +70,19 @@ describe('coming-soon corner card', () => {
 
   it('folds to a tab that stays for a day, and the tab opens it again', () => {
     const first = render(<ComingSoonDock items={ITEMS} />)
-    pass(SHOW_AFTER_MS)
+    arrive()
     fireEvent.click(screen.getByTestId('coming-soon-fold'))
     expect(screen.getByTestId('coming-soon-tab')).toHaveTextContent('3 launching soon')
     first.unmount()
 
     const later = render(<ComingSoonDock items={ITEMS} />)
-    pass(SHOW_AFTER_MS)
+    arrive()
     expect(screen.getByTestId('coming-soon-tab')).toBeInTheDocument()
     later.unmount()
 
     jest.setSystemTime(NOW + FOLD_MS + SHOW_AFTER_MS * 2)
     const nextDay = render(<ComingSoonDock items={ITEMS} />)
-    pass(SHOW_AFTER_MS)
+    arrive()
     expect(screen.getByTestId('coming-soon-dock')).toBeInTheDocument()
     fireEvent.click(screen.getByTestId('coming-soon-fold'))
     fireEvent.click(screen.getByTestId('coming-soon-tab'))
@@ -87,21 +90,21 @@ describe('coming-soon corner card', () => {
     nextDay.unmount()
   })
 
-  it('on a phone, waits for a scroll past the first screen, so it never covers the page a visitor lands on', () => {
-    const width = window.innerWidth
-    Object.defineProperty(window, 'innerWidth', { configurable: true, value: PHONE_MAX - 250 })
-    try {
-      render(<ComingSoonDock items={ITEMS} />)
-      pass(SHOW_AFTER_MS * 4)
-      expect(screen.queryByTestId('coming-soon-dock')).toBeNull()
-      act(() => { Object.defineProperty(window, 'scrollY', { configurable: true, value: 100 }); window.dispatchEvent(new Event('scroll')) })
-      expect(screen.queryByTestId('coming-soon-dock')).toBeNull()
-      act(() => { Object.defineProperty(window, 'scrollY', { configurable: true, value: window.innerHeight }); window.dispatchEvent(new Event('scroll')) })
-      expect(screen.getByTestId('coming-soon-dock')).toBeInTheDocument()
-    } finally {
-      Object.defineProperty(window, 'innerWidth', { configurable: true, value: width })
-      Object.defineProperty(window, 'scrollY', { configurable: true, value: 0 })
-    }
+  it('waits for a scroll past the first screen on every screen, so it never covers the page a visitor lands on', () => {
+    render(<ComingSoonDock items={ITEMS} />)
+    pass(SHOW_AFTER_MS * 4)
+    expect(screen.queryByTestId('coming-soon-dock')).toBeNull()
+    scrollTo(100)
+    expect(screen.queryByTestId('coming-soon-dock')).toBeNull()
+    scrollTo(window.innerHeight)
+    expect(screen.getByTestId('coming-soon-dock')).toBeInTheDocument()
+  })
+
+  it('shows after the moment on a page opened already scrolled down', () => {
+    Object.defineProperty(window, 'scrollY', { configurable: true, value: window.innerHeight * 2 })
+    render(<ComingSoonDock items={ITEMS} />)
+    pass(SHOW_AFTER_MS)
+    expect(screen.getByTestId('coming-soon-dock')).toBeInTheDocument()
   })
 
   it('shows nothing when no project is coming', () => {

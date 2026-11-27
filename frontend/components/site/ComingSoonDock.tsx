@@ -5,7 +5,7 @@ import Link from 'next/link'
 import type { UpcomingBrief } from '@/lib/site/hubs'
 
 /** The East Pune band as a small card in the corner, so the page keeps its place and nobody has to scroll to find it (owner
- *  2026-11-02). It slides in after a moment and shows one project at a time, each for a few seconds. It stops while a mouse or
+ *  2026-11-02). It slides in after a moment, once the reader has scrolled past the first screen, and shows one project at a time, each for a few seconds. It stops while a mouse or
  *  the keyboard is on it (a tap on a phone does not stop it), and leaves while someone types so it never covers a form on a phone.
  *  With animations turned off (Windows "Show animations", reduce motion) it still turns, more slowly and without sliding: it stood
  *  on its first project for the owner on 2026-11-03.
@@ -13,8 +13,6 @@ import type { UpcomingBrief } from '@/lib/site/hubs'
 export const TURN_MS = 5000
 export const STILL_TURN_MS = 8000
 export const SHOW_AFTER_MS = 2500
-/** Narrower than this is a phone, where the card waits for a scroll past the first screen (Tailwind's `sm`). */
-export const PHONE_MAX = 640
 export const FOLD_MS = 24 * 60 * 60 * 1000
 const FOLD_KEY = 'coming-soon-folded-at'
 
@@ -54,13 +52,15 @@ export default function ComingSoonDock({ items, bottomBar = false }: { items: Up
   useEffect(() => {
     still.current = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
     setFolded(foldedRecently(Date.now()))
-    // on a phone it waits until the reader has scrolled past the first screen too: there it covers the top of the page, and a
-    // card over the content a visitor from search lands on is what Google counts against a page on mobile (2026-11-23)
+    // it waits until the reader has scrolled past the first screen too, on every screen: a card over the content a visitor from
+    // search lands on is what Google counts against a page on mobile (2026-11-23), and on a laptop it sat on a project's price
+    // and its WhatsApp button (Godrej Ivara, 2026-11-27)
     let timed = false
-    let scrolled = window.innerWidth >= PHONE_MAX
+    const past = () => window.scrollY >= window.innerHeight * 0.8
+    let scrolled = past()
     const show = () => { if (timed && scrolled) setShown(true) }
     const onScroll = () => {
-      if (window.scrollY < window.innerHeight * 0.8) return
+      if (!past()) return
       scrolled = true
       window.removeEventListener('scroll', onScroll)
       show()
