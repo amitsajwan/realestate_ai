@@ -97,6 +97,11 @@ Missing evidence scores 0, never a guess. Version the rule and keep writing `age
 - 2026-11-27: steps 1–2 and the wording are LIVE (d130fd04, 16e97490). The call-back form's consent text ("about joining
   Avasetu", b4a80292) is on main but NOT live: the owner paused deploys the same day (`AUTO_DEPLOY=false`) to release
   several pieces together.
+- 2026-11-27: the pass box shows the owner **Agent fit suggestions** (`inbox.service.agent_shortlist`, rule `agent-fit-v1`):
+  up to 5 agents ranked by fit signals only (their declared areas, fresh live listings in the lead's area, the asked BHK, a
+  price in the buyer's budget), each with what is not known (availability, opt-in, language). The owner still picks. Every
+  pass writes `agent_recommendation_events` (the candidates, their reasons, the pick and whether it came from the list; no
+  phone or message text). Next-step item 1 below grows this scorer.
 
 ### Next: what the board screen still lacks (steps 3, 4, 6 in screen terms)
 
@@ -106,8 +111,8 @@ with one tap. What is missing, most important first:
 
 1. **The owner chooses blind.** An ask shows only the agent's name and note. Show each ask's points with the breakdown
    (listing in the project 30, covers the area 20, called fast 20, buyer ratings 15, fewer recent leads 10, language 5;
-   missing evidence scores 0) and rank the asks by it. Grow `agent_shortlist` into this scorer if its owner commits it
-   (uncommitted in the main checkout, owner unknown); otherwise score in `inbox/board.py`. One scorer, no model.
+   missing evidence scores 0) and rank the asks by it. Grow `agent_shortlist` (inbox/service.py, on main) into this
+   scorer. One scorer, no model.
 2. **No deadline.** The 30-minute ask window from a card's first appearance: a countdown on the card ("closes in 18 min"),
    and a **Ready to decide** tab at the top of the owner's board with the closed windows that have asks.
 3. **Agents are not told the outcome.** A **My asks** list for agents (waiting, given to you, went to another agent), and a

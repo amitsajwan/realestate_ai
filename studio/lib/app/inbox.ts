@@ -71,6 +71,13 @@ export interface HandoverCard {
 
 export interface PassRule { id: string; agent_id: string; kind: 'area' | 'project'; label: string }
 
+/** Owner-only candidate evidence; missing operational data is surfaced rather than inferred. */
+export interface AgentShortlistItem extends PassAgent {
+  reasons: string[]
+  evidence_count: number
+  unknowns: string[]
+}
+
 export interface Handover {
   card: HandoverCard
   project: { slug: string; name: string; area: string | null; regno: string } | null
@@ -78,6 +85,8 @@ export interface Handover {
   rule: PassRule | null
   /** The lead's areas: the project's first, then the ones they named. */
   areas: string[]
+  /** Deterministic operator guidance. This never passes or messages a lead. */
+  shortlist?: AgentShortlistItem[]
 }
 
 export interface PassResult {

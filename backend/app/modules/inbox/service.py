@@ -19,6 +19,7 @@ template says the team will call instead. Messaging a New lead moves it to Conta
 """
 import base64
 import binascii
+import logging
 import re
 from datetime import datetime, timedelta
 from typing import Callable, List, Optional
@@ -26,10 +27,12 @@ from urllib.parse import quote
 
 from app.core import brand
 from app.modules.areastats import pages as project_pages
+from app.modules.listings import freshness_of
 from app.modules.whatsapp.service import mask
 
 from . import handover
 
+log = logging.getLogger(__name__)
 _ask_post = None   # app.wiring: the boost, keep or remove question (propertyfacts.run_news), a domain above this one
 
 
@@ -45,6 +48,7 @@ MAX_REPLY = 1000
 MAX_COMMENTS = 300
 COMMENT_CHANNEL = {"facebook": "facebook_comment", "instagram": "instagram_comment"}
 COMMENT_TROUBLE = ("capped", "failed")   # the bot could not answer: a person should
+AGENT_FIT_VERSION = "agent-fit-v1"
 TEMPLATE_GAP = timedelta(hours=24)
 FOLLOWUP_OLD = "enquiry_followup_v1"       # approved UTILITY template on our WABA; each body below must match Meta's copy
 FOLLOWUP_OLD_BODY = ("Namaste {} ji, this is Avasetu. You asked about a {} in Pune ({}). Thank you!\n\n"
@@ -451,7 +455,106 @@ class InboxService:
         project = await self.project_of(lead)
         tids = await self._lead_tids(owner_id, lead)
         return {"card": await self._card(owner_id, lead, project, tids), "project": project,
-                "rule": await self.route_for(owner_id, lead, project), "areas": self._areas(lead, project)}
+                "rule": await self.route_for(owner_id, lead, project), "areas": self._areas(lead, project),
+                "shortlist": await self.agent_shortlist(owner_id, lead, project)}
+
+    async def agent_shortlist(self, owner_id: str, lead: dict, project: Optional[dict] = None,
+                              include_unmatched: bool = False) -> List[dict]:
+        """A deterministic, owner-facing shortlist. It ranks only observable area and current-listing fit signals.
+
+        Availability, capacity, and recommendation opt-in are not captured reliably yet, so every candidate says that
+        those facts are unknown. This is an aid to the owner, not an automatic assignment or a claim of agent quality.
+        """
+        areas = [str(a).strip().casefold() for a in self._areas(lead, project) if str(a).strip()]
+        req = lead.get("requirement") or {}
+        rows = []
+        for candidate in await self.agents(owner_id):
+            agent_id = candidate["agent_id"]
+            profile = await self.c("agent_public_profiles").find_one({"agent_id": agent_id}) or {}
+            branding = profile.get("branding_data") or {}
+            declared_areas = branding.get("areas") or []
+            if not declared_areas:
+                declared_areas = profile.get("areas") or []
+            declared = {str(a).strip().casefold() for a in declared_areas if str(a).strip()}
+            listings = await self.c("listings").find(
+                {"agent_id": agent_id, "status": {"$in": ["live", "under_offer"]}}
+            ).to_list(200)
+            area_listings = []
+            unconfirmed_area_listings = []
+            hidden_area_listings = 0
+            for listing in listings:
+                if str(listing.get("locality") or "").strip().casefold() not in areas:
+                    continue
+                freshness, age_days = freshness_of(listing, self.now())
+                if freshness == "hidden":
+                    hidden_area_listings += 1
+                elif freshness == "fresh" and age_days is not None:
+                    area_listings.append(listing)
+                else:
+                    # The listing either needs agent confirmation or has no freshness timestamp. Neither is fresh evidence.
+                    unconfirmed_area_listings.append(listing)
+            reasons = []
+            if areas and declared.intersection(areas):
+                matched = next(str(a) for a in self._areas(lead, project) if str(a).casefold() in declared)
+                reasons.append(f"Agent-declared service area: {matched}")
+            if area_listings:
+                localities = list(dict.fromkeys(str(l.get("locality")) for l in area_listings if l.get("locality")))
+                reasons.append(f"{len(area_listings)} fresh active listing{'s' if len(area_listings) != 1 else ''} in " + ", ".join(localities))
+                bhk = req.get("bhk")
+                def same_bhk(value) -> bool:
+                    try:
+                        return bhk is not None and value is not None and float(value) == float(bhk)
+                    except (TypeError, ValueError):
+                        return False
+                if bhk is not None and any(
+                    same_bhk(l.get("bhk")) or any(isinstance(c, dict) and same_bhk(c.get("bhk"))
+                                                   for c in (l.get("configurations") or []))
+                    for l in area_listings
+                ):
+                    reasons.append(f"Has an active listing in the requested {float(bhk):g} BHK configuration")
+                lo, hi = req.get("budget_min_inr"), req.get("budget_max_inr")
+                if lo is not None or hi is not None:
+                    def in_budget(listing: dict) -> bool:
+                        prices = [listing.get("price_inr")]
+                        prices += [c.get("price_inr") for c in listing.get("configurations") or [] if isinstance(c, dict)]
+                        return any(isinstance(p, int) and (lo is None or p >= lo) and (hi is None or p <= hi) for p in prices)
+                    if any(in_budget(l) for l in area_listings):
+                        reasons.append("Has an active listing within the buyer's stated budget")
+            unknowns = ["Current availability and capacity are not recorded",
+                        "Agent recommendation opt-in is not recorded",
+                        "Buyer language preference is not recorded"]
+            if unconfirmed_area_listings:
+                unknowns.append(f"{len(unconfirmed_area_listings)} area listing(s) need freshness confirmation or have no freshness date")
+            if hidden_area_listings:
+                unknowns.append(f"{hidden_area_listings} area listing(s) excluded by freshness rules")
+            rows.append({**candidate, "reasons": reasons, "evidence_count": len(reasons), "unknowns": unknowns})
+        rows.sort(key=lambda a: (-a["evidence_count"], a["name"].casefold(), a["agent_id"]))
+        rows = rows if include_unmatched else [row for row in rows if row["evidence_count"] > 0]
+        return rows if include_unmatched else rows[:5]
+
+    async def _record_agent_choice(self, owner_id: str, lead_id: str, selected_agent: str, by: str,
+                                   candidates: List[dict], shown_agent_ids: List[str], now: datetime,
+                                   rule: Optional[dict] = None) -> None:
+        """Keep a minimal snapshot for evaluating operator choices. Never copy buyer contact details or conversation text."""
+        selected = next((a for a in candidates if a["agent_id"] == selected_agent
+                         and a["agent_id"] in shown_agent_ids and a["evidence_count"] > 0), None)
+        await self.c("agent_recommendation_events").insert_one({
+            "owner_id": owner_id,
+            "lead_id": lead_id,
+            "event": "lead_passed",
+            "fit_version": AGENT_FIT_VERSION,
+            "candidate_count": len(candidates),
+            "candidates": [{"agent_id": a["agent_id"], "reasons": list(a["reasons"]),
+                            "evidence_count": a["evidence_count"], "unknowns": list(a["unknowns"])}
+                           for a in candidates],
+            "selected_agent_id": selected_agent,
+            "selected_from_shortlist": selected is not None,
+            "selected_reasons": list(selected["reasons"]) if selected else [],
+            "decision_by": by,
+            "route_rule": {k: rule[k] for k in ("kind", "label") if rule and rule.get(k)},
+            "at": now,
+            "outcome": None,
+        })
 
     async def _card(self, agent_id: str, lead: dict, project: Optional[dict], tids: List[str]) -> dict:
         chats = []
@@ -477,6 +580,8 @@ class InboxService:
         prof = await self._live_agent(to_agent)
         now = self.now()
         project = await self.project_of(lead)
+        candidates = await self.agent_shortlist(owner_id, lead, project, include_unmatched=True)
+        shown_agent_ids = [a["agent_id"] for a in candidates if a["evidence_count"] > 0][:5]
         tids = await self._lead_tids(owner_id, lead)
         card = await self._card(owner_id, lead, project, tids)   # read before anything moves: the chats are still the owner's
         mark = {"passed_by": owner_id, "passed_to": to_agent, "passed_at": now}
@@ -490,6 +595,11 @@ class InboxService:
         sent = await self._tell_agent(prof, card, now)
         await self.c("contacts").update_one({"_id": kept}, {"$set": {"handover": {
             "to": to_agent, "by": by, "rule": rule, "at": now, "text": card["text"], **sent}}})
+        try:
+            await self._record_agent_choice(owner_id, lead_id, to_agent, by, candidates, shown_agent_ids, now, rule)
+        except Exception:
+            # A failed audit write must not turn a completed lead transfer into an apparent failed pass.
+            log.exception("agent recommendation audit write failed for lead %s", lead_id)
         who = (lead.get("name") or "A buyer").strip()
         about = next((x["value"] for x in card["lines"] if x["label"] == "Project"), "")
         from app.modules.notifications.service import notify
