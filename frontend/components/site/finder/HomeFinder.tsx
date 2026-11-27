@@ -5,6 +5,7 @@ import FinderCard from './FinderCard'
 import CopyLink from './CopyLink'
 import TrackedLink from '@/components/site/TrackedLink'
 import { withParam } from '@/lib/site/links'
+import { COMPARE_MAX, comparePath } from '@/lib/site/picks'
 import { formatArea, formatPrice } from '@/lib/site/format'
 import { monthYear } from '@/lib/site/register'
 import {
@@ -62,6 +63,7 @@ function Choices({ label, dim, options, q, base, anchor }: { label: string; dim:
 /** The chosen projects side by side: each home type's price, possession, the date's moves, homes booked. */
 function Compare({ items, q, base, anchor }: { items: FinderItem[]; q: FinderQuery; base: string; anchor: string }) {
   if (items.length < 2) return null
+  const full = items.filter((i) => i.href.startsWith('/projects/')).map((i) => i.id).slice(0, COMPARE_MAX)
   const bhks = Array.from(new Set(items.flatMap((i) => i.homes.map((h) => h.bhk)))).sort((a, b) => (a ?? 0) - (b ?? 0))
   const cheapest = (i: FinderItem, b: number | null) => i.homes.filter((h) => h.bhk === b && h.price != null).sort((x, y) => x.price! - y.price!)[0]
   const rows: [string, (i: FinderItem) => React.ReactNode][] = [
@@ -81,6 +83,12 @@ function Compare({ items, q, base, anchor }: { items: FinderItem[]; q: FinderQue
         <h3 id="compare-title" className="text-lg font-bold text-slate-900">Comparing {items.length} projects</h3>
         <Link href={base + toSearch(q, { compare: undefined }) + anchor} scroll={false} rel="nofollow" className="text-sm font-semibold text-[var(--site-primary,#0f2340)] underline">Clear comparison</Link>
       </div>
+      {/* project pages only (an agent's listing has no register record): the full side by side, with the all-in cost and the builder's record */}
+      {full.length >= 2 && (
+        <Link href={comparePath(full)} rel="nofollow" className="mt-1 inline-flex min-h-[44px] items-center text-sm font-semibold text-[var(--site-primary,#0f2340)] underline" data-testid="compare-full">
+          Full comparison: all-in cost, builder&apos;s record, homes left
+        </Link>
+      )}
       <div className="mt-3 overflow-x-auto">
         <table className="w-full min-w-[32rem] text-left text-sm">
           <thead>

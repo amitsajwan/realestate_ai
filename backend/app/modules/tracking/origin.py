@@ -18,6 +18,17 @@ AI_REFERRERS = (
 AI_UTM = {"chatgpt.com": "chatgpt", "chatgpt": "chatgpt", "openai": "chatgpt", "perplexity": "perplexity", "perplexity.ai": "perplexity",
           "copilot": "copilot", "copilot.com": "copilot", "gemini": "gemini", "claude": "claude", "claude.ai": "claude"}
 AI_NAMES = {key: name for _, name, key in AI_REFERRERS}
+
+# Paid clicks (visibility-base.md step 2, Google Ads): a paid Google click arrives from google.com like a search one, so without
+# this the lead read "Google search". Google's auto-tagging adds a click id; a hand-tagged ad link says utm_medium=cpc.
+# fbclid is not here: Facebook adds it to every outbound link, paid or not.
+CLICK_IDS = ("gclid", "gbraid", "wbraid")
+PAID_MEDIUMS = frozenset({"cpc", "ppc", "paid", "paidsearch", "paid_search", "paid-search", "paidsocial", "paid_social", "paid-social",
+                          "cpm", "display"})
+PAID_SOURCES = {"google": "google_ads", "adwords": "google_ads", "googleads": "google_ads", "google_ads": "google_ads",
+                "facebook": "meta_ads", "fb": "meta_ads", "instagram": "meta_ads", "ig": "meta_ads", "meta": "meta_ads",
+                "bing": "bing_ads", "microsoft": "bing_ads"}
+PAID_NAMES = {"google_ads": "Google Ads", "meta_ads": "Facebook / Instagram ads", "bing_ads": "Microsoft Ads", "paid_ads": "A paid ad"}
 AI_SOURCES = frozenset(AI_NAMES)
 
 # host fragment -> source name (checked in order; the first match wins)
@@ -65,6 +76,22 @@ def ai_utm(utm: Optional[Dict[str, str]]) -> Optional[str]:
     return AI_UTM.get(str((utm or {}).get("utm_source") or "").strip().lower())
 
 
+def paid_utm(utm: Optional[Dict[str, str]]) -> Optional[str]:
+    """The paid source a link's tags name: a Google click id -> 'google_ads'; utm_medium=cpc with utm_source=google ->
+    'google_ads', facebook or instagram -> 'meta_ads', anything else -> 'paid_ads'. None for a link that is not an ad."""
+    u = {str(k).lower(): str(v or "").strip().lower() for k, v in (utm or {}).items()}
+    if any(u.get(k) for k in CLICK_IDS):
+        return "google_ads"
+    if u.get("utm_medium") not in PAID_MEDIUMS:
+        return None
+    return PAID_SOURCES.get(u.get("utm_source") or "", "paid_ads")
+
+
+def utm_source(utm: Optional[Dict[str, str]]) -> Optional[str]:
+    """What a link's tags say about where it came from: an ad first, then an AI assistant; None when they say neither."""
+    return paid_utm(utm) or ai_utm(utm)
+
+
 def referrer_source(referrer: Optional[str]) -> Optional[str]:
     """'https://www.google.com/' -> 'google'; an AI assistant -> its key ('gemini'); an unknown site -> its host; nothing -> None."""
     if not referrer:
@@ -86,9 +113,9 @@ def referrer_source(referrer: Optional[str]) -> Optional[str]:
 
 
 def source_key(source: Optional[str], referrer: Optional[str], utm: Optional[Dict[str, str]] = None) -> str:
-    """One name to group by: a tagged link (src=) wins, then an AI assistant's utm_source (its app often sends no referrer), then
-    the referring site, else 'direct' (typed, bookmarked, or an app that hides it)."""
-    return (source or ai_utm(utm) or referrer_source(referrer) or "direct").lower()
+    """One name to group by: a tagged link (src=) wins, then an ad's tags or an AI assistant's utm_source (its app often sends no
+    referrer), then the referring site, else 'direct' (typed, bookmarked, or an app that hides it)."""
+    return (source or utm_source(utm) or referrer_source(referrer) or "direct").lower()
 
 
 async def leads_from_ai(contacts, since: datetime) -> Dict[str, int]:

@@ -36,7 +36,8 @@ SITE_BODY = ("New buyer enquiry on your {} website.\n\n"
              "Avasetu team")
 FINANCING_LABEL = {"home_loan": "Home loan", "own_funds": "Own funds", "undecided": "Not decided"}
 SOURCE_LABEL = {"google": "Google search", "bing": "Bing search", "instagram": "Instagram", "facebook": "Facebook",
-                "whatsapp": "WhatsApp", "direct": "Opened the link directly", "youtube": "YouTube", **origin.AI_NAMES}
+                "whatsapp": "WhatsApp", "direct": "Opened the link directly", "youtube": "YouTube", **origin.AI_NAMES,
+                **origin.PAID_NAMES, "qr": "A QR code on print", "answer": "A Reddit or Quora answer", "bio": "Your Instagram or WhatsApp bio"}
 MAX_SAID = 300
 MAX_BODY = 1024   # WhatsApp's limit on a template body with its parameters filled in
 PRIVATE_LINE = "This buyer's details are for you only. Please do not share or forward them."
@@ -83,7 +84,7 @@ def ask_of(message: Optional[str]) -> dict:
 
 def source_text(lead: dict) -> str:
     ft = lead.get("first_touch") or {}
-    key = origin.source_key(lead.get("source") or origin.ai_utm(lead.get("utm")) or (lead.get("utm") or {}).get("utm_source")
+    key = origin.source_key(lead.get("source") or origin.utm_source(lead.get("utm")) or (lead.get("utm") or {}).get("utm_source")
                             or ft.get("app"), ft.get("referrer"))
     key = "chatgpt" if "chatgpt" in (key or "") else key
     return SOURCE_LABEL.get(key or "", key or "Not known")

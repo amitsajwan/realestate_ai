@@ -154,3 +154,20 @@ async def decide_split(body: SplitDecision, user: User = Depends(owner_only), db
         return await splits.decide(Store(db), body.regnos, body.decision)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+# ---- answers to post on Reddit and Quora (Studio → SEO → Answers; seo/answers.py) --------------------------------------------
+from datetime import datetime, timezone  # noqa: E402
+
+from app.core.config import settings  # noqa: E402
+
+from . import answers  # noqa: E402
+
+
+@owner_router.get("/insights/answers")
+async def answers_to_post(user: User = Depends(owner_only), db=Depends(get_db)) -> dict:
+    """This week's questions buyers ask about our areas' projects, each with the answer its page holds, a draft and where to
+    find a thread. Read only: the owner posts by hand."""
+    now = datetime.now(timezone.utc)
+    items = answers.to_post(await Store(db).shared_projects(), settings.public_site_url, now)
+    return {"week": now.isocalendar()[1], "items": items}

@@ -177,12 +177,24 @@ function audit(): AuditView {
 }
 
 /** What GET/POST /newsroom/insights/<path> answers in demo mode. */
+const ANSWERS = {
+  week: 47,
+  items: [{
+    project: 'Godrej Ivara', area: 'Upper Kharadi', regno: 'P52100055555', topic: 'possession',
+    question: 'When is Godrej Ivara possession?', answer: 'The completion date Godrej Ivara filed with MahaRERA is 31 December 2030.',
+    source: 'MahaRERA', page: 'https://avasetu.in/projects/godrej-ivara-pune?src=answer',
+    draft: 'The completion date Godrej Ivara filed with MahaRERA is 31 December 2030.\n\nThe dates, homes booked and the MahaRERA record are on this page: https://avasetu.in/projects/godrej-ivara-pune?src=answer',
+    find: { reddit: 'https://www.reddit.com/r/pune/search/?q=Godrej+Ivara', quora: 'https://www.quora.com/search?q=Godrej+Ivara+Upper+Kharadi' },
+  }],
+}
+
 export function insightsFixture(path: string, body?: unknown): unknown {
   const p = path.split('?')[0]
   if (p === 'rankings') return rankings()
   if (p === 'rankings/revert') return { reverted: 1 }
   if (p === 'rankings/split') return { decision: (body as { decision?: string })?.decision ?? 'same' }
   if (p === 'hot') return HOT
+  if (p === 'answers') return ANSWERS
   if (p.startsWith('hot/')) return { queued: true }
   if (p === 'found') return FOUND
   if (p === 'system') return SYSTEM

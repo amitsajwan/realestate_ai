@@ -32,6 +32,8 @@ export function getAnonId(): string {
 }
 
 const SRC_KEY = 'site_attribution'
+/** Google Ads' auto-tagging ids (gclid; gbraid and wbraid on iOS) */
+const CLICK_IDS = ['gclid', 'gbraid', 'wbraid']
 
 /** Source + utm_* from the URL. First-touch is remembered for the tab session so navigation keeps attribution. */
 export function readAttribution(search?: string): Attribution {
@@ -42,7 +44,8 @@ export function readAttribution(search?: string): Attribution {
     const src = q.get('src')
     if (src) source = src.slice(0, 40)
     q.forEach((v, k) => {
-      if (k.indexOf('utm_') === 0 && v) utm[k] = v.slice(0, 100)
+      // an ad's click id rides with the utm tags, so a paid Google click is not counted as a search one (backend tracking/origin.paid_utm)
+      if ((k.indexOf('utm_') === 0 || CLICK_IDS.includes(k)) && v) utm[k] = v.slice(0, 100)
     })
     if (source || Object.keys(utm).length) {
       try {

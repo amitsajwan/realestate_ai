@@ -3,6 +3,9 @@ import ListThisProject from '@/components/site/ListThisProject'
 import Link from 'next/link'
 import AskPrompt from '@/components/site/AskPrompt'
 import CallbackButton from '@/components/site/CallbackButton'
+import PickButtons from '@/components/site/PickButtons'
+import { soonerNearby } from '@/lib/site/projectCompare'
+import { comparePath } from '@/lib/site/picks'
 import EnquiryForm from '@/components/site/EnquiryForm'
 import ListingCard from '@/components/site/ListingCard'
 import SourceKind from '@/components/site/SourceKind'
@@ -333,6 +336,8 @@ function Hero({ p, price, photo, linkless = false, closed = false, callback, emi
         </p>
       )}
       <HeroLine p={p} where={where} linkless={linkless} />
+      {/* compare and save, Avasetu's own page only: an agent's copy is theirs (components/site/PickButtons) */}
+      {!linkless && !closed && <div className="mt-4"><PickButtons slug={p.slug} name={heading} dark /></div>}
       {stats.length > 0 && (
         <dl className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4">
           {stats.map((s) => <Stat key={s.id} testId={s.id} label={s.label} value={s.value} sub={s.sub} />)}
@@ -998,6 +1003,8 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
   // only Avasetu's own page of a project still being built, out of search, and an agent not selling it (their sheet is the details)
   const gaps = !p.indexable && !closed && !seller && !offer && !soldOutOf(p) ? missingDetails(p) : []
   const backs: Backing = backing(p, { closed, offer: !!liveOffer(facts)?.price_inr, seller: !!seller })
+  // "possession sooner" from the same list: filed dates at least a year before this project's (lib/site/projectCompare)
+  const sooner = closed ? [] : soonerNearby(p)
   const others = !seller && (p.same_area.length > 0 || closed) && (p.area || placeName) ? (
             <section aria-labelledby="same-title" data-testid="compare">
               <h2 id="same-title" className={H2}>{closed ? `Still being built in ${p.area?.name ?? placeName}` : `Other projects in ${p.area?.name ?? placeName}`}</h2>
@@ -1005,6 +1012,17 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
                 <p className="mt-2 text-slate-800" data-testid="finished-note">
                   {shown} is finished{filed.date || filed.to ? ` (completion filed for ${monthYear(filed.to ?? filed.date)})` : ''}, so we do not take
                   enquiries for it. These projects nearby still have homes to book, the soonest possession first.
+                </p>
+              )}
+              {sooner.length > 0 && (
+                <p className="mt-2 text-slate-800" data-testid="sooner-nearby">
+                  Want possession sooner? {sooner.map((s, i) => (
+                    <React.Fragment key={s.slug}>
+                      {i > 0 && ' Or '}
+                      {`${s.name} is filed for ${monthYear(s.on)}, ${s.months >= 24 ? `${Math.floor(s.months / 12)} years` : `${s.months} months`} earlier: `}
+                      <Link href={comparePath([p.slug, s.slug])} className="font-semibold text-[#0f2340] underline underline-offset-2">compare the two</Link>.
+                    </React.Fragment>
+                  ))}
                 </p>
               )}
               {p.same_area.length > 0 && (

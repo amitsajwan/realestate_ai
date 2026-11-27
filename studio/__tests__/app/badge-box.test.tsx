@@ -15,6 +15,7 @@ describe('BadgeBox', () => {
     expect(code).toContain('/projects/godrej-ivara-pune"')
     expect(code).toContain('/badge/PR1260002502426.svg')
     expect(box).toHaveTextContent('Copy the code')
+    expect(screen.getByTestId('badge-qr').getAttribute('href')).toMatch(/\/qr\/godrej-ivara-pune\.svg$/)
   })
 
   it('shows nothing for a number we do not hold', async () => {

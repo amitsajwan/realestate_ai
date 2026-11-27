@@ -1,6 +1,6 @@
 'use client'
 import React, { useEffect, useState } from 'react'
-import { badgeEmbed, badgeUrl } from '@shared/site/badge'
+import { badgeEmbed, badgeUrl, qrUrl } from '@shared/site/badge'
 
 /**
  * "Badge for your website" on a listing with a MahaRERA number (docs/plan/visibility-base.md step 3): the agent pastes it on their
@@ -46,6 +46,12 @@ export function BadgeBox({ regno, name }: { regno: string; name: string }) {
       <button type="button" onClick={copy} className="min-h-[44px] rounded-xl border border-[#0f2340] px-4 text-sm font-semibold text-[#0f2340]">
         {copied ? 'Copied' : 'Copy the code'}
       </button>
+      {/* the same page as a QR card to print for the office and site visits; scans count as "QR code" in lead sources */}
+      <p className="text-sm text-gray-600">
+        <a href={qrUrl(site, slug)} target="_blank" rel="noopener noreferrer" download={`${slug}-qr.svg`} data-testid="badge-qr"
+          className="inline-flex min-h-[44px] items-center font-semibold text-[#0f2340] underline underline-offset-2">QR code to print</a>
+        {' '}for the office and site-visit sheets: a buyer scans it and opens this project&apos;s page.
+      </p>
     </section>
   )
 }
