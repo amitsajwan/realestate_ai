@@ -116,7 +116,7 @@ export function AgentsScreen() {
         checks.loading && !checks.data ? <Spinner /> : <ReraChecks items={checks.data ?? []} onChange={checks.reload} />
       ) : tab === 'signedup' ? (
         <>
-          <p className="text-sm text-gray-600">Agents who took the free trial themselves (TRIAL on WhatsApp). Reach out on WhatsApp and help with the first property.</p>
+          <p className="text-sm text-gray-600">Agents who joined themselves (TRIAL on WhatsApp). Reach out on WhatsApp and help with the first property.</p>
           {signups.loading && !signups.data ? <Spinner /> : (signups.data ?? []).length === 0 ? (
             <p className="rounded-2xl bg-white p-6 text-center text-gray-600">Nobody has taken the trial yet.</p>
           ) : (

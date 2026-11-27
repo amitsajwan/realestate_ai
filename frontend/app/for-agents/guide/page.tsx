@@ -31,7 +31,7 @@ const GET = [
 ]
 
 const STEPS = [
-  ['Claim the trial', 'Send TRIAL to us on WhatsApp'],
+  ['Join free', 'Send TRIAL to us on WhatsApp'],
   ['Sign in', 'Your number plus the code on WhatsApp'],
   ['Set up your page', 'Name, photo, colours. Live in a minute'],
   ['List a project', 'Pick it, check your prices, post'],
@@ -68,7 +68,7 @@ const FAQ: [string, React.ReactNode][] = [
     <p><b>For buyers to contact you:</b> keep signing in as now and change the WhatsApp number under Studio → Profile.</p>
     <p className="mt-2"><b>To sign in with:</b> send TRIAL from WhatsApp on the new number and you get a code for it. Do this before you set up your page: a new sign-in number starts a fresh, empty account.</p>
   </>],
-  ['I did not get a code', <p key="code">Your trial code is still in our WhatsApp chat, so scroll up. If you cannot find it, send TRIAL again from the same number. An hour after your last code, a new one comes for the same account.</p>],
+  ['I did not get a code', <p key="code">Your sign-up code is still in our WhatsApp chat, so scroll up. If you cannot find it, send TRIAL again from the same number. An hour after your last code, a new one comes for the same account.</p>],
   ['It says “too many wrong attempts”', <p key="wrong">Wait 30 minutes and try again. If it says your invite is locked, message us on WhatsApp and we will send a new code.</p>],
   ['Can I test my enquiry form?', <p key="test">Yes. Ask a friend to fill it on their phone, then check that it appears under Leads. A test from your own number also shows as a lead: mark it Lost so it does not stay on your list.</p>],
   ['Do I need to install an app?', <p key="app">No. Studio works in your phone browser at avasetu.in/studio. Add it to your home screen from the browser menu to open it in one tap, and turn on its alerts so a new buyer rings your phone.</p>],
@@ -147,7 +147,7 @@ export default function AgentGuidePage() {
           </ol>
         </section>
 
-        <Step n="Step 1 · Claim the trial" title="Send TRIAL and your code comes back at once"
+        <Step n="Step 1 · Join free" title="Send TRIAL and your code comes back at once"
           shot={<Phone src="/guide/trial.jpg" caption="avasetu.in/trial" alt="The avasetu.in/trial page on a phone with a gold Join free button." />}>
           <p>Open avasetu.in/trial and tap <b>Join free</b>. WhatsApp opens with TRIAL already typed to our number, <b>{HELP}</b>. Send it, and our reply comes within seconds with your 6-digit sign-up code.</p>
           <p className={note}><b>Send TRIAL from the number you want to sign in with.</b> Your code works only with the WhatsApp number that sent TRIAL. That is how we know the account is really yours.</p>

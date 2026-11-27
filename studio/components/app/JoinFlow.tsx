@@ -149,9 +149,9 @@ export function JoinFlow() {
             {error && <ErrorBox message={error} />}
             <Btn type="submit" disabled={busy}>{busy ? t('loading') : t('sendOtp')}</Btn>
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-gray-800">
-              <p className="font-semibold">Free trial for agents in Pune: 1 month free, first 20 agents. No code yet? Claim it at avasetu.in/trial.</p>
+              <p className="font-semibold">For agents anywhere in Pune: joining is open and free. No code yet? Get one at avasetu.in/trial.</p>
               <p className="mt-1">Your phone number is never shown publicly. No app to install.</p>
-              <a href="/trial" className="mt-2 flex min-h-[44px] items-center font-semibold text-blue-800 underline">No code yet? Claim your free trial</a>
+              <a href="/trial" className="mt-2 flex min-h-[44px] items-center font-semibold text-blue-800 underline">No code yet? Join free</a>
             </div>
           </form>
         )}

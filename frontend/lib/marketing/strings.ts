@@ -300,7 +300,7 @@ export function privacyDoc(cfg: MarketingConfig): LegalDoc {
       {
         id: 'consent', heading: 'Consent',
         paragraphs: [
-          'Buyers are asked to agree to be contacted on the enquiry form before anything is sent. People who ask us to call them tick a box to agree we may contact them about their free trial. An agent who sends TRIAL to us on WhatsApp asks us to reply there with his sign-up code. You can withdraw your consent at any time (see "Your rights").',
+          'Buyers are asked to agree to be contacted on the enquiry form before anything is sent. People who ask us to call them tick a box to agree we may contact them about joining Avasetu. An agent who sends TRIAL to us on WhatsApp asks us to reply there with his sign-up code. You can withdraw your consent at any time (see "Your rights").',
         ],
       },
       {

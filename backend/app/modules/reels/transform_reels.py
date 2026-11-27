@@ -226,7 +226,7 @@ def scenes(s: Script) -> Tuple[List[Scene], Dict]:
         Scene(image=out, screen=True, layout="top", kicker="STEP 3 · READY",
               lines=[TextLine(s.output_line, size=74, max_lines=2)], seconds=OUTPUT_SECONDS, seed=f"transform-{s.code}-out"),
         Scene(image=blurred, lines=[TextLine(s.result, size=112, max_lines=3)], seconds=RESULT_SECONDS, seed=f"transform-{s.code}-result"),
-        Scene(lines=[TextLine(f"*{CTA_WORD}* comment karein", size=112), TextLine("Pune agents ke liye free trial", size=58)],
+        Scene(lines=[TextLine(f"*{CTA_WORD}* comment karein", size=112), TextLine("Pune agents ke liye judna free", size=58)],
               seconds=CTA_SECONDS, seed=f"transform-{s.code}-cta"),
     ], {"transition": "fade", "xfade": XFADE, "hook_tag": False}
 
@@ -242,7 +242,7 @@ def caption(code: str, channel: str) -> str:
     s = BY_CODE[code]
     lines = [s.caption,
              PRODUCT_LINE,
-             f"Comment {CTA_WORD} and we will send you the free trial link."]
+             f"Comment {CTA_WORD} and we will send you the link to join free."]
     if channel != "instagram":
         lines.append(f"Or join here: {pilot_link(code, channel)}")
     return "\n\n".join(lines)

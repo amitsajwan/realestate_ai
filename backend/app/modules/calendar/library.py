@@ -409,18 +409,18 @@ ENTRIES: List[Entry] = [
 
     # ---------------------------------------------------------------- agent pitch
     _e("agent-consistent-posting", "agent", "FOR PUNE AGENTS", "Posting regularly is hard when you are busy showing flats",
-       ["Post a property from your phone", "Ready-made posts for Facebook, Instagram and WhatsApp", "Your own website is ready", "Free trial: 1 month free"],
+       ["Post a property from your phone", "Ready-made posts for Facebook, Instagram and WhatsApp", "Your own website is ready", "Open and free to join"],
        "\U0001F91D Property agent in Pune? Posting regularly is hard when you are busy showing flats \U0001F447\n\n"
        "✅ Post a property from your phone\n✅ Get ready-made posts for Facebook, Instagram and WhatsApp\n✅ Your own website is ready\n\n"
-       "Claim your free trial: 1 month free, every property. \U0001F4E4 Know an agent who would like this? Share this post.",
+       "Joining is open and free, no card. \U0001F4E4 Know an agent who would like this? Share this post.",
        (B, "#RealEstateAgent", "#PuneAgents", "#PuneRealEstate"),
-       "Claims mirror the published brand posts (agents, agents-problem). No pricing or result claims. Free trial (1 month free, no card) per brand copy of 2026-10-07.",
+       "Claims mirror the published brand posts (agents, agents-problem). No pricing or result claims. Open and free to join, no card (owner, 2026-11-27).",
        link="/trial"),
     _e("agent-buyer-summary", "agent", "FOR PUNE AGENTS", "Which enquiry is serious? A summary for each buyer",
-       ["Comments like INTERESTED are answered for you", "Each buyer summarised: budget, BHK, timing", "How warm they are, at a glance", "Free trial: 1 month free"],
+       ["Comments like INTERESTED are answered for you", "Each buyer summarised: budget, BHK, timing", "How warm they are, at a glance", "Open and free to join"],
        "\U0001F4CA When enquiries arrive as comments and messages, it is hard to tell which buyer is serious \U0001F447\n\n"
        "✅ Comments like INTERESTED are answered for you\n✅ Each buyer summarised: budget, BHK and timing\n✅ How warm they are, at a glance\n\n"
-       "Claim your free trial: 1 month free. \U0001F4AC Agents: what is your biggest enquiry headache?",
+       "Joining is open and free. \U0001F4AC Agents: what is your biggest enquiry headache?",
        (B, "#RealEstateAgent", "#PuneAgents", "#PuneRealEstate"),
        "Claims mirror published brand post agents-problem. No result claims.",
        link="/trial"),
@@ -430,20 +430,20 @@ ENTRIES: List[Entry] = [
        "\U0001F91D पुणे के प्रॉपर्टी एजेंट, एक सवाल: पूछताछ करने वाले कितने खरीदार कमेंट में खो जाते हैं?\n\n"
        "✅ मोबाइल से प्रॉपर्टी डालें, आपकी अपनी वेबसाइट अपने-आप तैयार\n✅ फेसबुक, इंस्टाग्राम और व्हाट्सऐप के लिए तैयार पोस्ट\n"
        "✅ हर खरीदार का सार: बजट, BHK और समय\n\n"
-       "फ्री ट्रायल: आपकी पहली 3 प्रॉपर्टी की मार्केटिंग मुफ़्त, कोई कार्ड नहीं। किसी एजेंट दोस्त को यह पोस्ट शेयर करें।",
+       "जुड़ना मुफ़्त है, कोई कार्ड नहीं। किसी एजेंट दोस्त को यह पोस्ट शेयर करें।",
        (B, "#PuneAgents", "#RealEstateAgent", "#PuneRealEstate"),
        "Hindi text adapted from the already-published brand post agents-hindi; have a Hindi reader approve before seeding. Card is the pre-rendered Chrome card (Pillow cannot shape Devanagari).",
-       link="/trial", cta_ig="इन्विटेशन के लिए बायो में दिया लिंक (link in our bio) देखें।", card_from="agents-hindi"),
+       link="/trial", cta_ig="जुड़ने के लिए बायो में दिया लिंक (link in our bio) देखें।", card_from="agents-hindi"),
     _e("agent-marathi", "agent", "पुण्यातील एजंट्ससाठी", "एक प्रॉपर्टी द्या, पूर्ण मार्केटिंग कॅम्पेन मिळवा",
        ["मोबाईलवरून प्रॉपर्टी टाका, वेबसाइट आपोआप तयार", "फेसबुक, इंस्टाग्राम आणि व्हॉट्सअ‍ॅपसाठी तयार पोस्ट", "कमेंटमध्ये INTERESTED लिहिणाऱ्यांना उत्तर",
         "प्रत्येक खरेदीदाराचा सारांश: बजेट, BHK, वेळ, किती गंभीर"],
        "\U0001F91D पुण्यातील प्रॉपर्टी एजंट, एक प्रश्न: चौकशी करणाऱ्या खरेदीदारांपैकी किती जण कमेंटमध्ये हरवून जातात?\n\n"
        "✅ मोबाईलवरून प्रॉपर्टी टाका, तुमची स्वतःची वेबसाइट आपोआप तयार\n✅ फेसबुक, इंस्टाग्राम आणि व्हॉट्सअ‍ॅपसाठी तयार पोस्ट\n"
        "✅ प्रत्येक खरेदीदाराचा सारांश: बजेट, BHK आणि वेळ\n\n"
-       "पायलट मोफत आहे आणि फक्त आमंत्रणाने. एखाद्या एजंट मित्राला हे पोस्ट शेअर करा.",
+       "सामील होणे मोफत आहे, कोणतेही कार्ड नाही. एखाद्या एजंट मित्राला हे पोस्ट शेअर करा.",
        (B, "#PuneAgents", "#RealEstateAgent", "#PuneRealEstate"),
        "Marathi text adapted from the already-published brand post agents-marathi; have a Marathi reader approve before seeding. Card is the pre-rendered Chrome card.",
-       link="/trial", cta_ig="आमंत्रणासाठी बायोमधील लिंक (link in our bio) पाहा.", card_from="agents-marathi"),
+       link="/trial", cta_ig="सामील होण्यासाठी बायोमधील लिंक (link in our bio) पाहा.", card_from="agents-marathi"),
     # ---------------------------------------------------------------- brand story (docs/brand/avasetu/copy-pack.md)
     _e("brand-name-meaning", "explainer", "WHAT DOES AVASETU MEAN?", "Avas means home. Setu means bridge.",
        ["Avas = home", "Setu = bridge", "Clear price, carpet area, possession and RERA", "A trusted local agent on the other side"],
@@ -455,12 +455,12 @@ ENTRIES: List[Entry] = [
        GENERAL + ". Name meaning per docs/brand/avasetu/README.md. Card text is Latin; Devanagari stays in the caption (Pillow cannot shape it).",
        link="/go", cta_ig="Homes, news and agents: link in our bio."),
     _e("brand-two-sides", "agent", "FOR PUNE AGENTS", "Every bridge has two sides",
-       ["One side: a family looking for a home", "Other side: the agent who knows the area", "Avasetu is the bridge between them", "Free trial: 1 month free"],
+       ["One side: a family looking for a home", "Other side: the agent who knows the area", "Avasetu is the bridge between them", "Open and free to join"],
        "\U0001F309 Every bridge has two sides.\n\nOn one side, a family looking for the right home. On the other, the agent who knows the area. "
        "Avasetu is the bridge: your website, posts and reels made for you, and every enquiry with the buyer's budget and need.\n\n"
-       "Claim your free trial: 1 month free, every property. \U0001F4E4 Know an agent who would like this? Share this post.",
+       "Joining is open and free, no card. \U0001F4E4 Know an agent who would like this? Share this post.",
        (B, "#PuneAgents", "#RealEstateAgent", "#PuneRealEstate"),
-       "Claims mirror agent-consistent-posting and agent-buyer-summary (free trial per brand copy of 2026-10-07). No result claims.",
+       "Claims mirror agent-consistent-posting and agent-buyer-summary (open and free to join, owner 2026-11-27). No result claims.",
        link="/trial"),
     _e("brand-check-the-bridge", "checklist", "BEFORE YOU PAY A TOKEN", "Check the bridge before you cross",
        ["Carpet area, not only super built-up", "Possession date in writing", "MahaRERA number, checked on the site", "Total price with all charges"],

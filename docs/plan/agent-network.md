@@ -89,9 +89,11 @@ Missing evidence scores 0, never a guess. Version the rule and keep writing `age
   for a higher place". The guide (`/for-agents/guide`) lost its offer lines and says the board opens once the number is
   checked. The same day the rest of the sign-up path followed: `/trial`, `/agents`, the header, footer and sticky buttons
   ("Join free"), terms and privacy, and the replies agents read (WhatsApp sign-up and code messages, comment and DM replies,
-  the chat's agent answers). The word agents send is still TRIAL, because old posts and QR codes say it. Still saying "free
-  trial": the older brand post, reel and calendar templates (`marketing/brand_posts.py`, `text_posts.py`, `calendar/library.py`,
-  `reels/*_reels.py`); change them before any of them is scheduled again.
+  the chat's agent answers). The word agents send is still TRIAL, because old posts and QR codes say it.
+- 2026-11-27, before the LinkedIn push: the last trial wording went. Studio's sign-in page (`/join`, `JoinFlow.tsx`) said "1
+  month free, first 20 agents"; the guide's step 1 said "Claim the trial"; the privacy page said "about their free trial"; the
+  brand post, text post, calendar and reel templates (Hindi and Marathi "pilot, invite only" too) said "Claim your free trial".
+  All now say open and free to join. `tests/modules/test_join_free_wording.py` fails if a post or reel offers a trial again.
 - 2026-11-27: steps 1–2 and the wording are LIVE (d130fd04, 16e97490). The call-back form's consent text ("about joining
   Avasetu", b4a80292) is on main but NOT live: the owner paused deploys the same day (`AUTO_DEPLOY=false`) to release
   several pieces together.
@@ -196,5 +198,4 @@ Rules for the posts:
   copy guards.
 - A buyer's name, number or own words never reach an agent before the give.
 - Never show a rank or rating to buyers until it rests on real ratings. Nothing paid touches the order.
-- The `/for-agents` page still says "1 month free, first 20 agents" and "Claim your free trial". The owner wants "open and
-  free to join" with no trial wording.
+- Joining is "open and free" with no trial wording anywhere an agent reads (done 2026-11-27); keep it that way.
