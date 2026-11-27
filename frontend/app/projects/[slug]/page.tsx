@@ -105,11 +105,13 @@ export default async function SharedProjectPage({ params }: Props) {
   if (!p || !p.agents.length) {
     const r = await loadRegister(params)
     if (!r) notFound()
-    if (r.slug !== slug) permanentRedirect(`/projects/${r.slug}`)
     // an agent lists this project: its shared page (with the agents) is the project's page
     const regnos = new Set([r.regno, ...(r.towers ?? []).map((t) => t.regno)])   // any tower of the project
     const listed = (await getCatalog()).find((x) => regnos.has(x.rera_no) && x.agents.length)
+    // one redirect to where the project lives, never a chain: a tower's or an old address went to its primary's page and then on
+    // to the shared page (docs/plan/one-project-one-page.md 1d)
     if (listed) permanentRedirect(`/projects/${listed.slug}`)
+    if (r.slug !== slug) permanentRedirect(`/projects/${r.slug}`)
     const facts = await getPropertyFacts({ rera: r.regno, project: r.name, locality: r.area?.name }).catch(() => null)
     return (
       <MarketingShell hot={{ area: r.area?.slug, exclude: r.slug }} stickyBar>

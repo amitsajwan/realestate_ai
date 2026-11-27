@@ -152,7 +152,10 @@ class Settings(BaseSettings):
     enable_email_notifications: bool = False
     enable_analytics: bool = True
     enable_ai_features: bool = True
-    
+    # project page addresses moved to their selling name each day (areastats.pages.rename_addresses; 0 stops it).
+    # docs/plan/one-project-one-page.md 1c: a steady trickle, never a site-wide move
+    project_renames_per_day: int = 25
+
     # =============================================================================
     # EXTERNAL SERVICES
     # =============================================================================

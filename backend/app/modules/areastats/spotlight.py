@@ -75,6 +75,9 @@ async def set_config(db, body: Dict, by: str, now: datetime) -> Dict:
     if len(items) > MAX_PICKS:
         raise SpotlightError(f"Pick at most {MAX_PICKS} projects")
     pages = {d["page_slug"]: d for d in _primaries(await Store(db).shared_projects()) if d.get("page_slug")}
+    for d in list(pages.values()):   # an old address the owner pasted is saved as the page's address now
+        for old in d.get("old_slugs") or []:
+            pages.setdefault(old, d)
     clean, seen = [], set()
     for it in items:
         slug = str(it.get("slug") or "").strip().strip("/").removeprefix("projects/")
@@ -87,6 +90,8 @@ async def set_config(db, body: Dict, by: str, now: datetime) -> Dict:
             raise SpotlightError(f"No project page /projects/{slug}")
         elif not indexable(pages[slug]):
             raise SpotlightError(f"/projects/{slug} is not in search yet (no filed completion date or promoter): it cannot be shown")
+        else:
+            slug = pages[slug]["page_slug"]
         area = it.get("area") or None
         if area and area_key(area) is None:
             raise SpotlightError(f"We do not cover the area {area!r}")
@@ -124,6 +129,10 @@ async def public(db, area: Optional[str] = None, now: Optional[datetime] = None,
     cfg = await get_config(db)
     every = await Store(db).shared_projects()
     docs = {d["page_slug"]: d for d in _primaries(every) if d.get("page_slug") and indexable(d) and not is_old(d)}
+    # a pick saved under an address the page has since left (a rename keeps it in old_slugs) still finds its project
+    for d in list(docs.values()):
+        for old in d.get("old_slugs") or []:
+            docs.setdefault(old, d)
     regnos: Dict[str, List[str]] = {}
     for d in every:
         if d.get("cluster_primary"):
@@ -140,7 +149,7 @@ async def public(db, area: Optional[str] = None, now: Optional[datetime] = None,
             d = docs[it["slug"]]
             out.append(_upcoming_entry(it["slug"], d["upcoming"], it.get("note") or "") if "upcoming" in d
                        else _entry(d, now, own(d), it.get("note") or "", picked=True))
-            seen.add(it["slug"])
+            seen.update({it["slug"], d.get("page_slug")} - {None})
     if cfg["auto"] and len(out) < limit:
         hot_docs = sorted((d for d in docs.values() if "upcoming" not in d and (d.get("hot_score") or 0) >= hot.HOT_MIN and d["page_slug"] not in seen),
                           key=lambda d: (not (key and d.get("locality") == key), -(d.get("hot_score") or 0), d.get("name", "")))

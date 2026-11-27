@@ -69,7 +69,8 @@ async def find(db, key: str) -> Optional[dict]:
     if doc:
         return doc
     slug = k.split("/projects/")[-1].split("?")[0].split("#")[0]
-    return await db.get_collection("projects").find_one({"page_slug": slug})
+    projects = db.get_collection("projects")
+    return await projects.find_one({"page_slug": slug}) or await projects.find_one({"old_slugs": slug})   # a renamed page's old address
 
 
 async def add(db, key: str, text: str, visited_on: date, by: Optional[str], user_id: str, now: datetime) -> dict:

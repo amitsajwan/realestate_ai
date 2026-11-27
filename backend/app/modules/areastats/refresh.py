@@ -222,7 +222,9 @@ async def step(store: Store, get, fetch: project_api.Fetch, now: datetime, pages
     out: dict = {"mode": "catch-up" if catching_up else "steady"}
     for name, part in (("sweep", lambda: sweep(store, get, now, pages)), ("relabel", lambda: relabel(store)),
                        ("discover", lambda: discover.resolve(store, get, now)), ("watch", lambda: watchlist.sync(store, now)), ("details", lambda: details(store, fetch, now, limit)),
-                       ("pages", lambda: project_pages.assign_all(store))):
+                       ("pages", lambda: project_pages.assign_all(store)),
+                       # after the groups: a page moves to its selling name's address, a few a day (one-project-one-page.md 1c)
+                       ("addresses", lambda: project_pages.rename_addresses(store, now))):
         try:
             out[name] = await part()
         except Exception as e:

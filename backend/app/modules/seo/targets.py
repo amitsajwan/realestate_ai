@@ -135,7 +135,8 @@ async def run_once(store: Store, now: datetime, force: bool = False) -> Optional
             conflicts.append({**row, "pages": pages})
     docs = await store.all_projects()
     hosted = {d["_id"] for d in docs if can_host(d)}
-    slug_cluster = {d["page_slug"]: d.get("cluster_id") for d in docs if d.get("page_slug")}
+    # which project each address is: a renamed page's old addresses are the same page, and a cluster's towers one project
+    slug_cluster = {p.split("/projects/", 1)[1]: d.get("cluster_id") or d["_id"] for d in docs for p in searchconsole.page_paths(d)}
     targeted = changed = 0
     for doc in () if held else docs:
         if not _served(doc) or doc.get("cluster_primary") in hosted:
@@ -146,7 +147,8 @@ async def run_once(store: Store, now: datetime, force: bool = False) -> Optional
                           note="names something else: words the record does not call the project by")
             await store.set_project(doc["_id"], search_name=None, search_name_at=now)
             doc = {**doc, "search_name": None}
-        best = pick(doc, by_path.get(f"/projects/{doc['page_slug']}", []))
+        # the phrases of every address the page has had (docs/plan/one-project-one-page.md 1b)
+        best = pick(doc, [r for p in searchconsole.page_paths(doc) for r in by_path.get(p, [])])
         if best is None:
             continue
         targeted += 1

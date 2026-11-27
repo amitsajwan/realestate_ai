@@ -136,7 +136,45 @@ def compute_clusters(docs: List[dict], confirmed: Dict[str, List[str]],
             regs |= set(clusters.pop(ck))
         clusters[f"web:{min(regs)}"] = sorted(regs)
 
-    return clusters
+    return same_project(clusters, by_id)
+
+
+def identity_key(doc: dict) -> Optional[str]:
+    """Which project a registration belongs to by its stable name: promoter + the name it is sold under (the owner's, else the
+    one sites printing its MahaRERA number use) or its registered name without tower and phase words + its place. None without
+    a promoter or a name. Never the search name, which the rank loop changes (docs/plan/one-project-one-page.md)."""
+    pk = promoter_key(doc.get("promoter"))
+    name = " ".join(str(doc.get("marketed_name_override") or doc.get("market_name") or "").split()) or doc.get("name") or ""
+    bn = squash(base_name(name))
+    place = doc.get("locality") or doc.get("pune_place")
+    return f"{pk}\t{bn}\t{place}" if pk and bn and place else None
+
+
+def same_project(clusters: Dict[str, List[str]], by_id: Dict[str, dict]) -> Dict[str, List[str]]:
+    """Joins the groups, and single registrations, that one identity_key names: Lodha Camelot's confirmed group listed towers 1-4
+    and 11, and tower 5, registered later under the same promoter and sold as "Lodha Camelot" too, kept a page and a price of its
+    own (2026-11-27). A confirmed group takes in what joins it and keeps its id; two confirmed groups are never joined (each is a
+    decision); a registration the owner split off (`cluster_skip`) stays alone."""
+    of: Dict[str, str] = {r: cid for cid, ms in clusters.items() for r in ms}
+    by_key: Dict[str, List[str]] = {}
+    for regno, doc in by_id.items():
+        k = None if doc.get("cluster_skip") else identity_key(doc)
+        if k:
+            by_key.setdefault(k, []).append(regno)
+    out = {cid: list(ms) for cid, ms in clusters.items()}
+    for regnos in by_key.values():
+        units = list(dict.fromkeys(of.get(r) or f"one:{r}" for r in regnos))   # the groups and single registrations it names
+        if len(units) < 2:
+            continue
+        confirmed = [u for u in units if u.startswith("group:")]
+        if len(confirmed) > 1:
+            continue
+        keep = confirmed[0] if confirmed else next((u for u in units if not u.startswith("one:")), f"same:{min(regnos)}")
+        members = [m for u in units for m in (out.pop(u, None) or ([u[4:]] if u.startswith("one:") else []))]
+        out[keep] = sorted(set(out.get(keep, [])) | set(members))
+        for m in members:
+            of[m] = keep
+    return out
 
 
 def commercial(doc: dict) -> bool:

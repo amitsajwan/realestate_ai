@@ -7,6 +7,7 @@ when it has a filed completion date and a promoter or pincode; bookings are opti
 Other modules get a project's page with `page_for(db, regno)`; a project the register does not have yet is added through the watch
 list first (areastats.watch), and then has its page at once.
 """
+import logging
 import re
 import time
 from functools import lru_cache
@@ -16,6 +17,7 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from app.core import brand
+from app.core.config import settings
 from app.core.areas import BY_KEY
 from app.modules.listings import projectlive
 from app.modules.newsroom.store import Store
@@ -23,6 +25,8 @@ from app.modules.newsroom.store import Store
 from . import brands, clusters, esripast_view, fromabove_view, pagefacts, plans3d, priceidea, sitevisits
 from .service import _count, _day
 from .text import ascii_text, builder_slug, promoter_key, words
+
+log = logging.getLogger(__name__)
 
 SAME_AREA = 6
 SAME_AREA_FINISHED = 10   # a finished project's page has no form: the projects still being built are what it offers
@@ -58,6 +62,88 @@ def base_slug(doc: dict) -> str:
     if " ".join(tail) not in " ".join(picked):
         picked += tail
     return "-".join(picked)[:80].strip("-")
+
+
+def address_name(doc: dict) -> Optional[str]:
+    """The stable name a page's address is made of (docs/plan/one-project-one-page.md): the owner's name for it, else the name
+    sites printing its MahaRERA number sell it under, else the name its registrations share; with the builder's brand in front
+    when buyers search it that way and the name lacks it. Never the search name, which the rank loop changes as it tunes titles.
+    None when only the registered name is known, or when the name is only place and filler words ("Kharadi New Project", Lodha
+    Camelot's registrations): then the address stays as first given."""
+    name = next((" ".join(str(v).split()) for v in (doc.get("marketed_name_override"), doc.get("market_name"), doc.get("group_name"))
+                 if v and str(v).strip()), None)
+    if not name:
+        return None
+    # what a site adds to the selling name: "Majestique 27 Grand Residences Tower 1 in Balewadi", "Geras Planet of Joy Project"
+    bare = re.sub(r"\s+in\s+\S+(?:\s+\S+){0,2}$", "", name, flags=re.I) if len(name.split()) > 3 else name
+    last = ""
+    while bare != last:
+        last, bare = bare, re.sub(r"\s+(?:ph|phase|part|towers?|wing|building|bldg|block)\.?(?:\s+[a-z0-9]{1,3})?$", "",
+                                  _REGISTRATION_TAIL.sub("", bare).strip(), flags=re.I)
+    name = bare if len(re.findall(r"[a-z0-9]+", bare.lower())) >= 2 else name
+    places = set(re.findall(r"[a-z]+", f"{doc.get('pune_place_name') or ''} {doc.get('pune_place') or ''} {doc.get('locality') or ''} "
+                                       f"{(BY_KEY.get(doc.get('locality') or '') or None) and BY_KEY[doc['locality']].name or ''}".lower()))
+    if not (doc.get("marketed_name_override") or "").strip():
+        b = brands.of(doc)
+        have = set(re.findall(r"[a-z0-9]+", name.lower()))
+        if b and not b.search.search(" ".join(re.findall(r"[a-z0-9]+", name.lower()))) and not have & set(re.findall(r"[a-z0-9]+", brand_word(b).lower())):
+            name = f"{brand_word(b)} {name}"
+    own = set(re.findall(r"[a-z0-9]+", name.lower())) - places - _GENERIC
+    # one word names nothing a buyer types ("Bramha", read off a site); the owner's own name is taken as it is
+    if not own or (len(own) < 2 and not (doc.get("marketed_name_override") or "").strip()):
+        return None
+    return name
+
+
+def address_slug(doc: dict) -> str:
+    """The address a page should have: from its stable name (address_name) when it has one, else from its registered name."""
+    name = address_name(doc)
+    return base_slug({**doc, "name": name}) if name else base_slug(doc)
+
+
+RENAME_MARK = "project_renames"
+
+
+async def rename_addresses(store: Store, now: datetime, limit: Optional[int] = None, docs: Optional[List[dict]] = None) -> dict:
+    """Moves up to `limit` (settings.project_renames_per_day) project pages a day to the address their stable name gives
+    (address_slug), the pages Google shows least first, so a mistake shows where it matters least and Google sees a trickle. The old
+    address stays in `old_slugs` and answers 308; the sitemap, links and Search Console counts follow (searchconsole.page_paths).
+    Only a project's own page (a group's primary or a page standing alone), once by code (`address_from` marks it); never onto an
+    address another page has or had, or an agent catalog page's. Returns {renamed, left, day}."""
+    cap = settings.project_renames_per_day if limit is None else limit
+    day = now.date().isoformat()
+    mark = await store.get_mark(RENAME_MARK)
+    done = int(mark.get("done") or 0) if mark.get("day") == day else 0
+    if cap <= done:
+        return {"renamed": 0, "left": None, "day": day}
+    docs = docs if docs is not None else await store.all_projects()
+    taken = {s for d in docs for s in [d.get("page_slug"), *(d.get("old_slugs") or [])] if s}
+    taken |= {d.get("slug") for d in await store.db.get_collection(clusters.AGENTPROJECTS).find({}, {"slug": 1}).to_list(None) if d.get("slug")}
+    due = []
+    for d in docs:
+        if not d.get("page_slug") or d.get("cluster_primary") or d.get("address_from") or not in_register(d):
+            continue
+        if address_name(d) is None:   # no selling name: the address stays (a wrong area is the place check's to fix)
+            continue
+        new = address_slug(d)
+        was, now_words = set(d["page_slug"].split("-")), set(new.split("-"))
+        b = brands.of(d)
+        if was <= now_words and now_words - was <= set(re.findall(r"[a-z0-9]+", brand_word(b).lower()) if b else []):
+            continue   # only the brand added: not worth a redirect
+        if new != d["page_slug"] and new not in taken:
+            due.append((int(d.get("gsc_impressions") or 0), d.get("regno") or d["_id"], d, new))
+    due.sort(key=lambda x: (x[0], x[1]))
+    renamed = 0
+    for _, _, d, new in due[:cap - done]:
+        if new in taken:   # two pages wanting one address today: the first takes it
+            continue
+        await store.projects.update_one({"_id": d["_id"]}, {"$set": {"page_slug": new, "address_from": d["page_slug"], "address_at": now},
+                                                            "$addToSet": {"old_slugs": d["page_slug"]}})
+        taken.add(new)
+        renamed += 1
+        log.info("project address: %s now at /projects/%s (was %s)", d.get("name"), new, d["page_slug"])
+    await store.set_mark(RENAME_MARK, day=day, done=done + renamed, at=now)
+    return {"renamed": renamed, "left": max(len(due) - renamed, 0), "day": day}
 
 
 async def assign_slug(store: Store, doc: dict) -> str:
@@ -1195,9 +1281,11 @@ def _area_of(doc: dict) -> tuple:
 async def chat_brief(db, slug: str) -> Optional[dict]:
     """A project page as the website chat sees it: the name shown on the page, its area, the MahaRERA number and the page's own
     paragraph. One record is read, never the whole register (a chat message must stay cheap). None when the slug is not a page."""
-    doc = await Store(db).projects.find_one({"page_slug": slug})
+    projects = Store(db).projects
+    doc = await projects.find_one({"page_slug": slug}) or await projects.find_one({"old_slugs": slug})   # a renamed page's old address
     if doc is None or not in_register(doc):
         return None
+    slug = doc["page_slug"]
     area = BY_KEY.get(doc.get("locality") or "")
     # a page for several registrations: its group's records only (a handful), so the chat says the whole project's counts
     group = [d async for d in Store(db).projects.find({"cluster_id": doc["cluster_id"]})] if doc.get("cluster_id") else []

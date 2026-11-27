@@ -112,3 +112,25 @@ async def test_a_failed_weekly_read_leaves_the_daily_read_standing(monkeypatch):
     await searchconsole.refresh(store, NOW, transport=google([]))
     p1 = await store.project("P1")
     assert p1["gsc_impressions"] == 40 and "gsc_week" not in p1
+
+
+def test_a_renamed_page_keeps_the_counts_google_still_reports_under_its_old_address():
+    # Google reports a renamed page under both addresses for weeks; read at the new one only it looked like a page that lost
+    # every impression, and the rank loop reacts to that (docs/plan/one-project-one-page.md 1b)
+    doc = {"page_slug": "lodha-camelot-upper-kharadi", "old_slugs": ["kharadi-new-project-tower-1-wagholi"]}
+    assert searchconsole.page_paths(doc) == ["/projects/lodha-camelot-upper-kharadi", "/projects/kharadi-new-project-tower-1-wagholi"]
+    counts = {"/projects/kharadi-new-project-tower-1-wagholi": {"impressions": 300, "clicks": 6, "position": 12.0},
+              "/projects/lodha-camelot-upper-kharadi": {"impressions": 100, "clicks": 4, "position": 8.0}}
+    assert searchconsole.summed(counts, searchconsole.page_paths(doc)) == {"impressions": 400, "clicks": 10, "position": 11.0}
+    assert searchconsole.summed(counts, ["/projects/elsewhere"]) is None
+    assert searchconsole.summed(counts, ["/projects/lodha-camelot-upper-kharadi"]) == counts["/projects/lodha-camelot-upper-kharadi"]
+
+
+async def test_a_renamed_page_on_the_record_sums_its_addresses(monkeypatch):
+    monkeypatch.setenv("GSC_SA_KEY_B64", base64.b64encode(json.dumps(fake_key()).encode()).decode())
+    db, store = await seeded(("P1", "Rohan Abhilasha 4", "wagholi", FULL))
+    await pages.assign_all(store)
+    await store.set_project("P1", page_slug="rohan-abhilasha-wagholi", old_slugs=["rohan-abhilasha-4-wagholi"])
+    await searchconsole.refresh(store, NOW, transport=google([]))
+    p1 = await store.project("P1")
+    assert (p1["gsc_impressions"], p1["gsc_clicks"]) == (40, 3)   # Google's rows still name the old address

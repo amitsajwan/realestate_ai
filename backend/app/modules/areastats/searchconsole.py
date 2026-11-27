@@ -113,6 +113,28 @@ async def week_counts(sa: dict, today: date, transport: Optional[httpx.AsyncBase
         return None
 
 
+def page_paths(doc: dict) -> List[str]:
+    """Every address a record's page has had: its own, then the ones it was renamed from (`old_slugs`, which answer 308 to it).
+    Google reports a renamed page under both for weeks, so its counts are the sum (docs/plan/one-project-one-page.md 1b)."""
+    slugs = [doc.get("page_slug"), *(doc.get("old_slugs") or [])]
+    return [f"/projects/{s}" for s in dict.fromkeys(x for x in slugs if x)]
+
+
+def summed(counts: Dict[str, dict], paths: List[str]) -> Optional[dict]:
+    """One page's counts over its addresses: impressions and clicks added, the position weighted by impressions. None when no
+    address has a row."""
+    rows = [counts[p] for p in paths if counts.get(p)]
+    if not rows:
+        return None
+    if len(rows) == 1:
+        return rows[0]
+    shown = sum(int(r.get("impressions") or 0) for r in rows)
+    placed = [(float(r["position"]), int(r.get("impressions") or 0)) for r in rows if r.get("position") is not None]
+    weight = sum(w for _, w in placed)
+    pos = round(sum(p * w for p, w in placed) / weight, 1) if weight else (placed[0][0] if placed else None)
+    return {"impressions": shown, "clicks": sum(int(r.get("clicks") or 0) for r in rows), "position": pos}
+
+
 def _plain(counts: Optional[dict]) -> dict:
     return {"impressions": int((counts or {}).get("impressions") or 0), "clicks": int((counts or {}).get("clicks") or 0)}
 
@@ -136,15 +158,14 @@ async def refresh(store: Store, now: datetime, transport: Optional[httpx.AsyncBa
     weeks = await week_counts(sa, now.date(), transport)
     updated = 0
     for d in await store.all_projects():
-        slug = d.get("page_slug")
-        c = counts.get(f"/projects/{slug}") if slug else None
+        paths = page_paths(d)
+        c = summed(counts, paths)
         if c or d.get("gsc_impressions"):
             c = c or {"impressions": 0, "clicks": 0, "position": None}
             hist = (list(d.get("gsc_history") or []) + [{"at": now, "impressions": c["impressions"]}])[-HISTORY:]
             fresh = {}
             if weeks:
-                path = f"/projects/{slug}"
-                fresh = {"gsc_week": _plain(weeks[0].get(path)), "gsc_week_before": _plain(weeks[1].get(path))}
+                fresh = {"gsc_week": _plain(summed(weeks[0], paths)), "gsc_week_before": _plain(summed(weeks[1], paths))}
             await store.set_project(d["_id"], gsc_impressions=c["impressions"], gsc_clicks=c["clicks"], gsc_position=c.get("position"),
                                     gsc_read_at=now, gsc_history=hist, gsc_impressions_prev=_previous(hist, now), **fresh)
             updated += 1

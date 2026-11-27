@@ -279,3 +279,51 @@ def test_registrations_already_on_one_page_are_left_out_and_our_areas_come_first
     far = [_reg("G1", "Hill Crest Tower 1", units_total=900), _reg("G2", "Hill Crest Tower 2")]
     near = [_reg("H1", "River Bend Tower 1", pincode="412207", locality="wagholi", units_total=10), _reg("H2", "River Bend Tower 2", pincode="412207")]
     assert [r["name"] for r in split_candidates(far + near)] == ["River Bend", "Hill Crest"]
+
+
+# ---------------------------------------------------------------------------
+# same_project: one stable name, one promoter, one place = one project (docs/plan/one-project-one-page.md 1a)
+# ---------------------------------------------------------------------------
+
+def _at(regno, name, promoter, pincode, place, **extra):
+    return {**_doc(regno, name, promoter, pincode), "locality": place, **extra}
+
+
+def test_a_confirmed_group_takes_in_a_tower_registered_later_under_the_same_name():
+    # Lodha Camelot's confirmed list had towers 1-4 and 11; tower 5, filed later in another pincode, kept its own page and price
+    docs = [_at("T1", "Kharadi New Project - Tower 1", "Lodha Developers Limited", "412207", "upper_kharadi"),
+            _at("T2", "Kharadi New Project -Tower 2", "Lodha Developers Limited", "412207", "upper_kharadi"),
+            _at("T5", "KHARADI NEW PROJECT -TOWER 5", "Lodha Developers Limited", "411014", "upper_kharadi")]
+    clusters = compute_clusters(docs, {"group:T1": ["T1", "T2"]})
+    assert clusters["group:T1"] == ["T1", "T2", "T5"]
+    assert not [cid for cid in clusters if cid != "group:T1" and "T5" in clusters[cid]]
+
+
+def test_two_single_pages_sold_under_one_name_by_one_promoter_in_one_place_become_one():
+    docs = [_at("A1", "ADITYA VIVAAZ", "ADITYA PROMOTERS", "411044", "ravet"),
+            _at("A3", "Aditya Vivaaz Project Three", "ADITYA PROMOTERS", "411033", "ravet", market_name="Aditya Vivaaz")]
+    assert compute_clusters(docs, {}) == {"same:A1": ["A1", "A3"]}
+
+
+def test_the_same_name_is_not_one_project_across_promoters_or_places_or_after_the_owner_split_it():
+    docs = [_at("P1", "Aria", "OM ASSOCIATES", "410506", "talegaon"),
+            _at("P2", "Aria", "Another Builder LLP", "410506", "talegaon"),        # another promoter
+            _at("P3", "Aria", "OM ASSOCIATES", "411045", "baner"),                 # another place
+            _at("P4", "Aria", "OM ASSOCIATES", "410506", "talegaon", cluster_skip=True)]
+    clusters = compute_clusters(docs, {})
+    assert [ms for ms in clusters.values() if "P1" in ms] in ([], [["P1", "P4"]]) and all("P4" not in ms for ms in clusters.values())
+    assert all(not ({"P1", "P2"} <= set(ms) or {"P1", "P3"} <= set(ms)) for ms in clusters.values())
+
+
+def test_two_confirmed_groups_are_never_joined_by_a_name():
+    docs = [_at("X1", "Green Hive Wing A1", "Ram India Shelters", "412308", "phursungi"),
+            _at("X2", "Green Hive Wing A2", "Ram India Shelters", "412308", "phursungi")]
+    clusters = compute_clusters(docs, {"group:X1": ["X1"], "group:owner:X2": ["X2"]})
+    assert clusters["group:X1"] == ["X1"] and clusters["group:owner:X2"] == ["X2"]
+
+
+def test_the_search_name_never_decides_which_project_a_registration_is():
+    # the rank loop changes search names as it tunes titles; a page's project must not move with them
+    docs = [_at("S1", "Sky One", "Sky Builders", "411057", "hinjawadi", search_name="Sky Towers Hinjawadi"),
+            _at("S2", "Sky Two", "Sky Builders", "411057", "hinjawadi", search_name="Sky Towers Hinjawadi")]
+    assert compute_clusters(docs, {}) == {}

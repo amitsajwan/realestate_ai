@@ -254,7 +254,7 @@ async def readdress(store: Store, doc: dict) -> Optional[str]:
     if was is None:
         return None
     old = doc["page_slug"]
-    new = pages.base_slug(doc)
+    new = pages.address_slug(doc)   # its selling name's address when it has one, so a rename is never undone
     other = await store.projects.find_one({"page_slug": new})
     if other and other["_id"] != doc["_id"]:
         new = f"{new}-{ascii_text(doc['_id'])[-5:]}"
