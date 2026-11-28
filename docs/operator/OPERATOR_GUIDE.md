@@ -439,6 +439,14 @@ Steps: `docs/MESSENGER_SETUP.md`. Same Meta app and Page token as posting.
 | `NEIGHBOURHOOD_ROUTES` | on when `GOOGLE_MAPS_API_KEY` is set | Drive times with Google's Routes API (computeRouteMatrix, typical traffic). **The key must have the Routes API allowed**: on 2026-11-28 it answered 403 PERMISSION_DENIED, so no drive times are measured until it is enabled for the key in Google Cloud. |
 | `NEIGHBOURHOOD_ROUTE_ELEMENTS_PER_MONTH` | `2000` | Route reads a month at most (counted in `area_research` under `commute_budget|YYYY-MM`). A place costs 20 (5 hubs x 9 am and 6 pm x Google's low and high), so about 100 places a month; at the traffic-aware price (about $15 per 1,000 after the free 1,000) this is about Rs 1,000-1,300 a month. Over the cap, places wait for next month and pages keep the last times. |
 | `NEIGHBOURHOOD_SCHOOLS`, `NEIGHBOURHOOD_RENT` | on | The schools and rent researchers (see docs/plan/pune-intelligence.md). |
+### Neighbourhood research: schools and rent (docs/plan/pune-intelligence.md B)
+| Variable | Default | What it does |
+|---|---|---|
+| `NEIGHBOURHOOD_SCHOOLS` | on | The schools researcher: CBSE (SARAS) and CISCE lists for Pune district every 90 days, each school placed on Google Maps (needs `GOOGLE_MAPS_API_KEY`; without it only CISCE's own positions are shown). Runs every 6 hours until every school is placed, then makes no outside call until a list or a position is due. |
+| `NEIGHBOURHOOD_SCHOOL_GEOCODES_PER_RUN` | `300` | Google Places calls a schools run (Text Search to place a school, Place Details to re-read a position after 30 days as Google's terms ask). About 500 schools: the first fill is about $16 once, re-reads about $3 a month. |
+| `NEIGHBOURHOOD_SCHOOL_DETAILS_PER_RUN` | `100` | CBSE details pages read a run, one per school, for its pincode (read once per school). |
+| `NEIGHBOURHOOD_RENT` | on | The rent researcher: asked rent per place from MagicBricks, NoBroker and Square Yards (and our agents' rent listings) every 30 days, at most `NEIGHBOURHOOD_PLACES_PER_CYCLE` places an hour. |
+| `NEIGHBOURHOOD_RENT_SEARCHES_PER_RUN` | `10` | Serper searches an hour the rent researcher may spend finding a portal's page for a place whose address it cannot guess (uses `SERPER_API_KEY`; each found address is kept, so a place costs one search at most once). |
 
 ### Photo quality
 | Variable | Default | What it does |

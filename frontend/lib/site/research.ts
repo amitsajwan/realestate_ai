@@ -56,6 +56,7 @@ export interface School {
 export interface SchoolsBlock extends BlockBase {
   schools: School[]
   total_within_km: { km: number; count: number; by_board: Partial<Record<Board, number>> }
+  all?: School[] // the /schools page's list: up to 40 within 5 km, nearest first
 }
 
 /** Asked rent from listings (never what was paid), by flat size, for one month. */
@@ -71,6 +72,7 @@ export interface RentBlock extends BlockBase {
   month: string // YYYY-MM
   rows: RentRow[]
   within_km?: number // on a project page: listings this close to the project
+  listings_within_km?: number // how many listings with a position are within within_km of the project (10 or more)
 }
 
 /** Who lives and works around here, from facts we hold (never religion, caste or community). */

@@ -65,6 +65,12 @@ INDEXES: Iterable[Tuple[str, list, dict]] = [
     # verified Meta webhook payloads: durable intake and oldest queued work
     ("conversation_webhook_jobs", [("status", ASC), ("created_at", ASC)], {}),
     ("conversation_webhook_jobs", [("finished_at", ASC)], {"expireAfterSeconds": 30 * 86400}),  # handled jobs go after 30 days
+    # neighbourhood research (modules/neighbourhood): the loop reads one researcher's places (`tried`), a page one place's
+    # results and the city's (`for_place`); the schools researcher reads one board's schools, or every listed one
+    ("area_research", [("kind", ASC)], {}),
+    ("area_research", [("place", ASC)], {}),
+    ("schools", [("source", ASC), ("listed", ASC)], {}),
+    ("schools", [("listed", ASC)], {}),
 ]
 
 
