@@ -15,8 +15,8 @@
     "en": "The MHADA Pune board's 2026 lottery: 4,462 homes in Pune, Pimpri-Chinchwad and the PMRDA area. Last date, documents, the certificate outage and draw updates in one place."
   },
   "status_line": {
-    "mr": "अर्ज 22 ऑक्टोबरला बंद झाले. सोडतीच्या तारखेबद्दल बातम्यांमध्ये वेगवेगळ्या तारखा आहेत (26 नोव्हेंबर, 1 डिसेंबर, 4 डिसेंबर). निश्चित तारीख आणि निकाल फक्त म्हाडाच्या अधिकृत साइटवर.",
-    "en": "Applications closed on 22 October. News reports give different draw dates (26 November, 1 December, 4 December). The confirmed date and the results come only on MHADA's official site."
+    "mr": "अर्ज बंद झाले (शेवटची मुदतवाढ 30 ऑक्टोबरपर्यंत). 4,462 घरांसाठी 2 लाखांहून अधिक अर्ज आले. सोडत 10 डिसेंबरनंतर होणार असल्याचं बातम्यांत आहे; निश्चित तारीख आणि निकाल फक्त म्हाडाच्या अधिकृत साइटवर.",
+    "en": "Applications are closed (the last extension ran to 30 October). Over 2 lakh people applied for the 4,462 homes. News reports say the draw will be after 10 December; the confirmed date and the results come only on MHADA's official site."
   },
   "dates": [
     {
@@ -25,30 +25,8 @@
         "en": "Apply and pay the deposit (EMD) online"
       },
       "value": {
-        "mr": "22 ऑक्टोबर 2026, रात्री 11:59",
-        "en": "22 October 2026, 11:59 pm"
-      },
-      "state": "confirmed"
-    },
-    {
-      "label": {
-        "mr": "RTGS / NEFT ने पैसे भरणे",
-        "en": "Deposit by RTGS / NEFT"
-      },
-      "value": {
-        "mr": "23 ऑक्टोबर 2026, दुपारी 3:59",
-        "en": "23 October 2026, 3:59 pm"
-      },
-      "state": "confirmed"
-    },
-    {
-      "label": {
-        "mr": "दाखले मंजुरी बंद (MahaIT देखभाल)",
-        "en": "Certificate approvals paused (MahaIT maintenance)"
-      },
-      "value": {
-        "mr": "16 ऑक्टोबर दुपारी 4 ते 20 ऑक्टोबर (मुख्य साइटवर 21 ऑक्टोबर)",
-        "en": "16 October 4 pm to 20 October (the main site says 21 October)"
+        "mr": "30 ऑक्टोबर 2026 (शेवटची मुदतवाढ)",
+        "en": "30 October 2026 (the last extension)"
       },
       "state": "confirmed"
     },
@@ -58,8 +36,8 @@
         "en": "Draw"
       },
       "value": {
-        "mr": "निश्चित नाही; बातम्यांमध्ये 26 नोव्हेंबर, 1 डिसेंबर किंवा 4 डिसेंबर",
-        "en": "Not confirmed; news reports give 26 November, 1 December or 4 December"
+        "mr": "10 डिसेंबरनंतर, असं बातम्यांत; म्हाडाने तारीख अजून निश्चित केलेली नाही",
+        "en": "After 10 December, news reports say; MHADA has not fixed the date yet"
       },
       "state": "unconfirmed"
     }
@@ -176,8 +154,8 @@
         "en": "Can I still apply?"
       },
       "a": {
-        "mr": "नाही. ऑनलाइन अर्ज आणि पैसे भरण्याची मुदत 22 ऑक्टोबर रात्री 11:59 ला आणि RTGS/NEFT ची 23 ऑक्टोबर दुपारी 3:59 ला संपली. पुढची सोडत म्हाडा आपल्या अधिकृत साइटवर जाहीर करेल.",
-        "en": "No. Applying and paying online closed on 22 October at 11:59 pm, and RTGS/NEFT on 23 October at 3:59 pm. MHADA announces its next lottery on its official site."
+        "mr": "नाही. 22 ऑक्टोबरची मुदत 30 ऑक्टोबरपर्यंत वाढवली होती; आता अर्ज बंद आहेत. पुढची सोडत म्हाडा आपल्या अधिकृत साइटवर जाहीर करेल.",
+        "en": "No. The 22 October deadline was extended to 30 October, and applications are now closed. MHADA announces its next lottery on its official site."
       }
     },
     {
@@ -186,8 +164,8 @@
         "en": "When is the draw?"
       },
       "a": {
-        "mr": "बातम्यांमध्ये 26 नोव्हेंबर, 1 डिसेंबर आणि 4 डिसेंबर अशा वेगवेगळ्या तारखा आल्या आहेत. निश्चित तारीख म्हाडाच्या अधिकृत साइटवर पाहा.",
-        "en": "News reports have given different dates: 26 November, 1 December and 4 December. Check the confirmed date on MHADA's official site."
+        "mr": "21 ऑक्टोबर आणि 11 नोव्हेंबरच्या बातम्यांनुसार सोडत 10 डिसेंबरनंतर होईल. म्हाडाने तारीख जाहीर केल्यावर ती इथे देऊ; निश्चित तारीख म्हाडाच्या अधिकृत साइटवर पाहा.",
+        "en": "News reports on 21 October and 11 November said the draw will be after 10 December. We will put the date here when MHADA announces it; check the confirmed date on MHADA's official site."
       }
     },
     {
@@ -198,6 +176,16 @@
       "a": {
         "mr": "नोंदणीच्या युजरनेमने housing.mhada.gov.in वर लॉग-इन करा. विजेत्यांची आणि प्रतीक्षा यादीही तिथेच येते. निकाल फोन किंवा मेसेजवर विचारणाऱ्या कोणालाही तुमचा पासवर्ड किंवा OTP देऊ नका.",
         "en": "Log in at housing.mhada.gov.in with the username you registered with. The winners' list and the waiting list are published there too. Never give your password or OTP to anyone who calls or messages about the result."
+      }
+    },
+    {
+      "q": {
+        "mr": "सोडतीत घर मिळवून देतो म्हणणाऱ्यांचं काय?",
+        "en": "Someone says they can get me a home in the draw. Is that real?"
+      },
+      "a": {
+        "mr": "नाही. सोडत संगणकाद्वारे होते आणि कोणीही ती बदलू शकत नाही. नोव्हेंबरमध्ये पुण्यात IAS अधिकारी असल्याचं भासवून म्हाडा घराच्या नावाखाली 35 लाख रुपये उकळल्याचं प्रकरण समोर आलं. कोणालाही पैसे देऊ नका.",
+        "en": "No. The draw is done by computer and nobody can change it. In November a man in Pune posed as an IAS officer and took Rs 35 lakh from people with a promise of MHADA homes. Never pay anyone."
       }
     },
     {
@@ -282,8 +270,23 @@
       "read_on": "2026-10-18"
     },
     {
-      "name": "News18 Marathi: MHADA Pune draw date moved, new schedule",
-      "url": "https://news18marathi.com/pune/pune-mhada-lottery-2026-application-extension-new-draw-date-schedule-local18-1785535.html",
+      "name": "Punekar News: deadline extended again to 30 October",
+      "url": "https://www.punekarnews.in/pune-mhada-lottery-application-deadline-extended-again-to-october-30/",
+      "read_on": "2026-11-28"
+    },
+    {
+      "name": "Punekar News: draw delayed beyond 10 December, over 2.11 lakh applications",
+      "url": "https://www.punekarnews.in/pune-mhada-pune-housing-lottery-draw-for-4462-homes-delayed-beyond-december-10-over-2-11-lakh/",
+      "read_on": "2026-11-28"
+    },
+    {
+      "name": "Punekar News: 61 applicants for every home",
+      "url": "https://www.punekarnews.in/61-applicants-vie-for-every-home-as-mhada-pune-lottery-sees-record-response/",
+      "read_on": "2026-11-28"
+    },
+    {
+      "name": "Punekar News: man posing as IAS officer cheated people with MHADA lottery promise",
+      "url": "https://www.punekarnews.in/pune-21-year-old-poses-as-ias-officer-cheats-people-with-mhada-lottery-promise-siphons-of-rs-35-lakh-from-housing-society/",
       "read_on": "2026-11-28"
     }
   ]

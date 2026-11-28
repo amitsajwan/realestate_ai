@@ -46,5 +46,6 @@ async def test_a_failed_run_keeps_the_last_good_data():
 
 
 @pytest.mark.asyncio
-async def test_a_place_with_nothing_researched_has_no_view():
+async def test_a_place_with_nothing_researched_has_no_view(monkeypatch):
+    monkeypatch.setattr(views, "_changes", None)   # no tracker lines either (wiring passes newsroom's in)
     assert await views.area_view(FakeDb(), "kharadi", NOW) is None

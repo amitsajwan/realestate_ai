@@ -113,6 +113,7 @@ export async function buildSitemap(): Promise<Grouped> {
     // neighbouring areas side by side (lib/site/compare.ts): 13 pairs, each made of the two areas' own figures
     ...pairs.map((p) => core(at(comparePath(p.slug), 0.6))),
     core(at('/news', 0.8)),
+    ...(trackers.length ? [core(at('/news/track', 0.8))] : []),
     ...trackers.map((t) => core(at(trackerPath(t.slug), 0.8, t.updated))),
     ...news.items.map((n) => core(at(`/news/${n.id}`, 0.6, n.published_at ?? n.as_of))),
     core(at('/insights', 0.7)),
