@@ -1,0 +1,19 @@
+{
+  "slug": "pmc-bridges-2027",
+  "name": "PMC bridges and flyovers due in 2027",
+  "title": "Pune bridges and flyovers opening in 2027: status",
+  "summary": "The bridges, flyovers and ramps the Pune Municipal Corporation says will open in early 2027: the Sadhu Vaswani bridge, the Ghorpadi flyover, the Karvenagar-Sun City bridge, a ramp from the Pashan-Sus flyover to the NH-48 service road, and others in Koregaon Park, Cantonment, Kalyani Nagar and Baner.",
+  "kind": "project",
+  "areas": ["baner"],
+  "places": ["camp", "kalyani-nagar", "karve-nagar", "baner", "bavdhan"],
+  "stages": [],
+  "match": {"any": ["sadhu vaswani bridge|ghorpadi flyover|(bridges?|flyovers?).{0,40}(open|ready).{0,20}2027|pashan.?sus flyover"],
+            "not": ["bengaluru|mumbai|nashik|delhi|hyderabad|vishrantwadi|keshav ?nagar|sun ?city"]},
+  "queries": ["Pune flyovers open 2027", "Sadhu Vaswani bridge Pune", "Ghorpadi flyover"],
+  "means": "These dates are the civic body's targets, and bridge targets in Pune have slipped before. Count one in a home's commute only once this page says it is open.",
+  "next": {"date": "2027-01", "what": "The Sadhu Vaswani bridge and the Ghorpadi flyover are expected to open; another bridge is due in March 2027."},
+  "history": [
+    {"date": "2026-11-19", "status": "The Pune Municipal Corporation expects four to five bridges and flyovers to be finished by the end of December 2026 and opened in early 2027, among them the Sadhu Vaswani bridge (likely January 2027) and the Ghorpadi flyover, about 90% built. Another bridge is due in March 2027.",
+     "sources": ["PUNE PULSE"]}
+  ]
+}

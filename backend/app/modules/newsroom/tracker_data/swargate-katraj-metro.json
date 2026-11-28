@@ -1,0 +1,19 @@
+{
+  "slug": "swargate-katraj-metro",
+  "name": "Swargate-Katraj metro extension",
+  "title": "Swargate-Katraj underground metro extension: status",
+  "summary": "The underground extension of the Pimpri Chinchwad-Swargate metro line south from Swargate to Katraj, through Market Yard and Padmavati.",
+  "kind": "project",
+  "areas": [],
+  "places": ["peth-areas", "bibwewadi", "dhankawadi", "katraj"],
+  "stages": ["Approved", "Construction", "Open"],
+  "match": {"all": ["metro"], "any": ["swargate.{0,15}katraj|katraj.{0,15}swargate|padmavati metro|katraj chowk|market yard"]},
+  "queries": ["Swargate Katraj metro", "Katraj metro extension TBM"],
+  "means": "Tunnelling had not started by November 2026, so trains to Katraj are years away; meanwhile expect diversions at Market Yard, Satara Road and Katraj Chowk.",
+  "history": [
+    {"date": "2026-10-21", "stage": 1, "status": "Construction: traffic was diverted around Market Yard, Bibvewadi and Satara Road for the extension's work.",
+     "sources": ["Punekar News", "Times of India"]},
+    {"date": "2026-11-06", "stage": 1, "status": "Construction: the first tunnel boring machine has arrived and tunnelling is to begin in January. The two machines that will tunnel towards Katraj are expected in six to eight months, and the corporation is handing over land for the Padmavati station.",
+     "sources": ["Punekar News", "Hindustan Times"]}
+  ]
+}

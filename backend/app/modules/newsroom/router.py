@@ -12,7 +12,7 @@ from app.core.auth_backend import current_active_user
 from app.core.database import get_database
 from app.models.user import User
 
-from . import codec, preview, trackers
+from . import codec, preview, topic_finder, trackers
 from .config import load
 from .store import Store
 
@@ -37,6 +37,19 @@ class TrackerStatusBody(BaseModel):
 
 class HideBody(BaseModel):
     hidden: bool = True
+
+
+class NewTrackerBody(BaseModel):
+    """The owner's edits to a topic finder draft; anything left out keeps the draft's."""
+    name: Optional[str] = None
+    status: Optional[str] = None
+    date: Optional[str] = None
+    stage: Optional[int] = None
+    stages: Optional[List[str]] = None
+    kind: Optional[str] = None
+    places: List[str] = []
+    means: Optional[str] = None
+    summary: Optional[str] = None
 
 
 async def owner_only(user: User = Depends(current_active_user)) -> User:
@@ -217,9 +230,36 @@ async def tracker_list(user: User = Depends(owner_only), store: Store = Depends(
     return await trackers.studio_views(store)
 
 
+@router.get("/trackers/candidates")
+async def tracker_candidates(user: User = Depends(owner_only), store: Store = Depends(get_store)) -> List[dict]:
+    """The topic finder's "new tracker?" items this week: subjects with several reports that no tracker follows, each with a
+    draft definition (topic_finder.py)."""
+    return await topic_finder.candidates(store)
+
+
+@router.post("/trackers/candidates/{key}/add")
+async def tracker_candidate_add(key: str, body: NewTrackerBody, user: User = Depends(owner_only), store: Store = Depends(get_store)) -> dict:
+    """Add a draft as a tracker (saved in Mongo beside the files): its page is live at once, with the reports it matches."""
+    now = datetime.now(timezone.utc)
+    try:
+        slug = await topic_finder.add(store, key, body.model_dump(exclude_none=True), now)
+    except trackers.StatusError as e:
+        raise HTTPException(422, str(e))
+    return trackers.studio_view(trackers.get(slug), await store.tracker_state(slug), await store.tracker_reports(slug))
+
+
+@router.post("/trackers/candidates/{key}/dismiss")
+async def tracker_candidate_dismiss(key: str, user: User = Depends(owner_only), store: Store = Depends(get_store)) -> dict:
+    """Not a tracker: the subject is not suggested again."""
+    if not await topic_finder.dismiss(store, key):
+        raise HTTPException(404, "That suggestion is gone")
+    return {"key": key, "dismissed": True}
+
+
 @router.post("/trackers/{slug}/status")
 async def tracker_status(slug: str, body: TrackerStatusBody, user: User = Depends(owner_only), store: Store = Depends(get_store)) -> dict:
     """The owner's new status line: it becomes the tracker's status on the public page at once (the site caches a minute)."""
+    await trackers.refresh(store)
     defn = _tracker(slug)
     now = datetime.now(timezone.utc)
     try:
@@ -234,6 +274,7 @@ async def tracker_status(slug: str, body: TrackerStatusBody, user: User = Depend
 @router.post("/trackers/{slug}/checked")
 async def tracker_checked(slug: str, user: User = Depends(owner_only), store: Store = Depends(get_store)) -> dict:
     """The owner read the new reports and the status still holds: they stop counting as new."""
+    await trackers.refresh(store)
     defn = _tracker(slug)
     await store.set_tracker_checked(slug, datetime.now(timezone.utc))
     return trackers.studio_view(defn, await store.tracker_state(slug), await store.tracker_reports(slug))
@@ -242,6 +283,7 @@ async def tracker_checked(slug: str, user: User = Depends(owner_only), store: St
 @router.post("/trackers/{slug}/reports/{item_id}/hide")
 async def tracker_hide(slug: str, item_id: str, body: HideBody, user: User = Depends(owner_only), store: Store = Depends(get_store)) -> dict:
     """Take a wrongly matched report off the tracker's page (or put it back)."""
+    await trackers.refresh(store)
     defn = _tracker(slug)
     if not await store.hide_tracker_report(slug, item_id, body.hidden):
         raise HTTPException(404, "That report is not on this tracker")

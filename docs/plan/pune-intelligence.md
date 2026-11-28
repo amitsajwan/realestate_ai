@@ -22,16 +22,25 @@ Status labels as seo-system.md: **BUILT** (on main, not deployed) · **LIVE** ·
 ## The pieces
 
 ### A. Topics that update themselves (newsroom, trackers)
-1. A tracker's suggested status line that passes the existing checks goes live by itself (the old line stays in the timeline). A
-   move to a tracker's last stage ("open", "running") still waits for the owner in Studio.
-2. Each tracker has its own Google News searches, so its news comes in even when no area is named.
-3. From 8 trackers to about 20, written from the reports we already hold (roads, flyovers, metro phase 2, Patal Lok tunnel,
-   PMC building rules, property tax, stamp duty, PMRDA plan, MHADA lotteries).
-4. A weekly topic finder groups reports no tracker matches; a subject with 3+ reports in 30 days goes to Studio To do as a draft
-   tracker, added with one click.
-5. Every tracker names the place slugs it touches; `neighbourhood` shows them on those places and their projects (`changes`).
-6. Tracker pages are status pages for search: what it is, where it stands, next date, route/stations, areas that gain, timeline,
-   FAQ, Article + BreadcrumbList data, dateModified from the last status.
+1. **BUILT** A tracker's suggested status line that passes the existing checks goes live by itself (`trackers.apply_due`, the old
+   line stays in the history), switch `NEWSROOM_TRACKER_AUTO` (on). A move to a tracker's last stage, or a line saying it opened,
+   was inaugurated, runs or started operations, still waits for the owner in Studio (`needs_owner`, shown as "Waiting for you").
+   The suggestions already waiting (Ring Road survey, Purandar stage 2, merged villages' water) apply on the first run.
+2. **BUILT** Each tracker has its own Google News searches (`queries` in its JSON, `tracker_topics.queries()` added to
+   `sources/google_news.py`), so its news comes in even when no area is named; its headlines pass the area gate as tracker news.
+3. **BUILT** From 8 trackers to 20, written from the reports we hold: Vishrantwadi flyover, Keshavnagar-Kharadi bridge,
+   Suncity-Karvenagar flyover, PMC bridges due in 2027, Patal Lok underground road, Metro phase 2, Swargate-Katraj metro, metro
+   station parking, PMC FSI/TDR rules, PMC property tax, the merged villages' development plan, MHADA Pune lottery. Stamp duty
+   stays inside `ready-reckoner` (one new dated line). No Mundhwa junction flyover: no report to write it from.
+4. **BUILT** A weekly topic finder (`topic_finder.py`) groups the last 30 days' Pune reports no tracker matches; a subject with 3+
+   reports from 2+ publishers shows on Studio's Trackers desk as "To do: new tracker?" with a draft (a guarded model draft, each
+   part checked, else the headlines' shared words). Add is one click (it saves the definition on `newsroom_trackers`; the files
+   and Mongo trackers merge in `trackers.definitions()`); "Not a tracker" keeps it from coming back.
+5. **BUILT** Every tracker names the place slugs it touches (`places`); `newsroom.changes_for_place(db, place)` gives the
+   neighbourhood pages their `changes` (wired in `app/wiring.py`).
+6. **BUILT** Tracker pages are status pages for search: H1 "<name> status", "Where it stands (<date>)", next expected date, stages,
+   places linking `/projects/area/<place>`, timeline, FAQ, Article (dateModified = last status) + BreadcrumbList + FAQPage,
+   canonical, last-updated line; hub `/news/track`.
 
 ### B. Neighbourhood research (`backend/app/modules/neighbourhood`, owns `area_research`, `schools`, `work_hub_research`)
 One researcher per kind of fact in `researchers/`, run by the `neighbourhood` loop (newsroom role) when due:
@@ -91,3 +100,4 @@ the backend still has to add (until then none are listed); hubs carry optional `
 | 2026-11-28 | pi/research | Places and centres, 14 work hubs, commute (Routes API, monthly cap), being built, profile, jobs; places of worship out of every nearby list; research passages in the chat; `/research/pages`, hub `ready`/`page_ready`. Routes API not enabled for the key yet. |
 | 2026-11-28 | this | C built on the site: "Around <name>" on project pages, "Living in <place>" on place pages, `/schools`, `/commute`, `/rent` per place, `/work-hubs` and `/work-hubs/<slug>`, sitemap and llms.txt entries, places of worship out of Nearby. |
 | 2026-11-28 | pi/schools-rent | `schools` and `rent` researchers BUILT. Measured from the VM: CBSE list 357 Pune schools, 14 of 16 sample schools placed by Google (2 refused: name and pincode); rent 132-138 listings per place for Kharadi, Wagholi, Hinjawadi (1/2/3 BHK each 35+): Kharadi 2 BHK median Rs 38,000 (33,000-43,500), Wagholi Rs 25,000, Hinjawadi Rs 29,000. Contract: optional `SchoolsBlock.all` (the /schools page list) and `RentBlock.listings_within_km`. |
+| 2026-11-28 | (pi/topics) | A built: trackers update themselves from checked lines (opening waits for the owner), per-tracker Google News searches, 20 trackers with places, weekly topic finder with Studio add, `changes_for_place`, tracker status pages and `/news/track`. |

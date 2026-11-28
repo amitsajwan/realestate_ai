@@ -1,0 +1,24 @@
+{
+  "slug": "mhada-pune-lottery",
+  "name": "MHADA Pune housing lottery",
+  "title": "MHADA Pune housing lottery (4,462 homes): status and draw date",
+  "summary": "The MHADA Pune board's lottery for 4,462 homes in Pune, Pimpri-Chinchwad and the district. Information only: Avasetu takes no applications or payments.",
+  "kind": "project",
+  "areas": [],
+  "places": [],
+  "stages": ["Applications open", "Applications closed, draw due", "Draw held"],
+  "match": {"all": ["mhada"], "any": ["lottery|draw|applica"], "not": ["mumbai|konkan|nagpur|aurangabad|nashik|cheat|duped|fraud|poses"]},
+  "queries": ["MHADA Pune lottery", "MHADA Pune draw date"],
+  "means": "Apply and pay only on MHADA's own website. Nobody can get you a home outside the draw: people offering that have cheated applicants in Pune.",
+  "faq": [
+    {"q": "When is the MHADA Pune lottery draw?", "a": "It was delayed beyond 10 December 2026, as reported on 21 October. This page changes when MHADA gives the date."},
+    {"q": "How many applied?", "a": "Over 2.11 lakh applications for 4,462 homes, about 61 applicants for every home, a record response."}
+  ],
+  "history": [
+    {"date": "2026-10-20", "stage": 0, "status": "The application deadline was extended again, to 30 October.", "sources": ["Punekar News"]},
+    {"date": "2026-10-21", "stage": 1, "status": "Over 2.11 lakh applications came in for 4,462 homes, and the draw is delayed beyond 10 December.",
+     "sources": ["Punekar News"]},
+    {"date": "2026-11-11", "stage": 1, "status": "Applications are closed with a record response, about 61 applicants for every home; the draw for the 4,462 homes is due after 10 December.",
+     "sources": ["Punekar News"]}
+  ]
+}

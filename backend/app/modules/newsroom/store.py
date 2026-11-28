@@ -13,7 +13,7 @@ ITEMS = "newsroom_items"
 STATUS = "newsroom_status"
 PLACED = ("position", "sources")  # register records placed by something better than their pincode
 PROJECTS = "projects"  # one document per MahaRERA registration number in our areas (_id = the number)
-TRACKERS = "newsroom_trackers"  # _id = tracker slug: {updates: [...], checked_at}
+TRACKERS = "newsroom_trackers"  # _id = tracker slug: {updates: [...], checked_at, suggestion, definition (a Studio-added tracker)}
 TRACKER_REPORTS = "newsroom_tracker_reports"  # _id = "<slug>|<item id>": one report attached to one tracker
 DONE = ("scheduled", "published")
 
@@ -277,6 +277,14 @@ class Store:
     async def set_tracker_suggestion(self, slug: str, suggestion: dict) -> None:
         """The model's suggested status for the reports in `for_ids` (trackers.suggest_due); `ok` is False when it failed the checks."""
         await self._tracker_set(slug, {"$set": {"suggestion": suggestion}})
+
+    async def add_tracker_definition(self, slug: str, definition: dict, at: datetime) -> bool:
+        """Save a tracker the owner added in Studio (topic_finder.add); False when that slug already has one."""
+        have = await self.trackers.find_one({"_id": slug})
+        if have is not None and have.get("definition"):
+            return False
+        await self._tracker_set(slug, {"$set": {"definition": definition, "defined_at": at, "checked_at": at}})
+        return True
 
     async def add_tracker_report(self, row: dict) -> bool:
         """Attach one report to one tracker once; False when it was already attached."""

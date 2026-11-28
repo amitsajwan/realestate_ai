@@ -5,11 +5,15 @@
   "summary": "The government's ready reckoner rates, which set the lowest value stamp duty is paid on, and the stamp duty itself.",
   "kind": "rate",
   "areas": [],
+  "places": [],
   "stages": [],
   "match": {"any": ["ready reckoner|\\brr rate|stamp duty"], "not": ["high court|lease registration|adjudication"]},
+  "queries": ["Maharashtra ready reckoner rates", "Maharashtra stamp duty Pune"],
   "means": "Stamp duty is worked out on the agreement value or the ready reckoner value, whichever is higher. Ask for the total with stamp duty and registration before you sign.",
   "history": [
     {"date": "2026-10-10", "status": "There was no ready reckoner rate rise this year; Maharashtra's stamp duty collections are near half of the annual target of Rs 68,500 crore.",
-     "sources": ["The Times of India", "ET Realty", "Prop News Time"]}
+     "sources": ["The Times of India", "ET Realty", "Prop News Time"]},
+    {"date": "2026-11-23", "status": "There was no ready reckoner rate rise this year. The state plans to set ready reckoner rates by micro-zone on a map, first as a pilot in Mumbai, with Pune later.",
+     "sources": ["ET Realty", "Times of India"]}
   ]
 }

@@ -5,8 +5,10 @@
   "summary": "The outer ring road around Pune built by MSRDC, in an eastern and a western arm.",
   "kind": "project",
   "areas": [],
+  "places": [],
   "stages": [],
   "match": {"all": ["ring road"], "any": ["pune|msrdc|pmrda|soratapwadi|varve"], "not": ["inner ring road", "bengaluru|peripheral|delhi|mumbai|hyderabad"]},
+  "queries": ["Pune ring road MSRDC", "Pune ring road land acquisition"],
   "means": "Ring Road news is mostly money and land so far. Before you count it in a home's location, ask how far the nearest planned entry point is and check the latest stage here.",
   "history": [
     {"date": "2026-09-28", "status": "The state approved Rs 10,502 crore for the 32 km Soratapwadi to Varve Budruk stretch of the eastern arm, to be built by MSRDC.",

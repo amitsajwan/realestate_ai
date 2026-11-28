@@ -1,0 +1,24 @@
+{
+  "slug": "vishrantwadi-flyover",
+  "name": "Vishrantwadi flyover",
+  "title": "Vishrantwadi Chowk flyover: status and opening date",
+  "summary": "The flyover the Pune Municipal Corporation is building at Vishrantwadi Chowk so traffic for Lohegaon airport can pass over the junction, with a separate grade separator for traffic from Alandi towards the RTO.",
+  "kind": "project",
+  "areas": ["lohegaon"],
+  "places": ["vishrantwadi", "dhanori", "lohegaon", "airport-road"],
+  "stages": ["Being built", "Open"],
+  "match": {"all": ["vishrantwadi"], "any": ["flyover|grade separator|chowk"]},
+  "queries": ["Vishrantwadi flyover", "Vishrantwadi grade separator"],
+  "means": "Until it opens, the Vishrantwadi Chowk junction stays a slow point between Dhanori, Lohegaon and the city. Count the flyover in a home's commute only once this page says it is open.",
+  "next": {"date": "2027-01", "what": "The Pune Municipal Corporation's target to open the flyover; the grade separator is due about two months later."},
+  "faq": [
+    {"q": "When will the Vishrantwadi flyover open?", "a": "The Pune Municipal Corporation's target is January 2027, as reported in November 2026. This page changes when it opens."},
+    {"q": "What is the Vishrantwadi grade separator?", "a": "A separate structure at the same junction for traffic from Alandi towards the RTO and the Bombay Engineer Group. It is being built at the same time and is due about two months after the flyover."}
+  ],
+  "history": [
+    {"date": "2026-11-08", "stage": 0, "status": "Being built: the Pune Municipal Corporation set a January 2027 deadline to finish the flyover, which will ease the commute to the airport.",
+     "sources": ["Times of India", "Urban Acres"]},
+    {"date": "2026-11-18", "stage": 0, "status": "Being built, with a January 2027 opening target. Structures in the way of the alignment have slowed the work, and the separate grade separator for Alandi Road traffic needs about two more months.",
+     "sources": ["Construction World"]}
+  ]
+}

@@ -5,8 +5,10 @@
   "summary": "The 100-bed sub-district hospital built in Lohegaon.",
   "kind": "project",
   "areas": ["lohegaon"],
+  "places": ["lohegaon"],
   "stages": ["Being built", "Built, waiting to open", "Open"],
   "match": {"all": ["lohe?gaon"], "any": ["hospital|opd"]},
+  "queries": ["Lohegaon hospital"],
   "means": "Until it opens, plan on the hospitals you can reach today; check this page before you count it in a Lohegaon home's location.",
   "history": [
     {"date": "2026-10-13", "stage": 1, "status": "The hospital was reported ready to start OPD services.", "sources": ["Hindustan Times", "Pune Mirror"]},

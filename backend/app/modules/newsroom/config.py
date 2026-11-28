@@ -28,6 +28,7 @@ class NewsroomConfig:
     owner_ids: Tuple[str, ...] = ()  # user ids allowed to review and approve; empty = superusers only
     read_articles: bool = False  # fetch the article page when a source gives only a headline and a line
     research: bool = True  # before writing: read the full report, other publishers' reports of the story, and our area guide
+    tracker_auto: bool = True  # NEWSROOM_TRACKER_AUTO, on unless set false: a tracker's checked suggested status goes live by itself (trackers.apply_due; owner, 2026-11-28)
     auto_approve: bool = False  # NEWSROOM_AUTO_APPROVE, on unless set false: a full report and the weekly digest that pass every check are published without the owner's review (owner, 2026-10-17 and 2026-11-15)
 
 
@@ -42,4 +43,5 @@ def load() -> NewsroomConfig:
         read_articles=_env("NEWSROOM_READ_ARTICLES").lower() in TRUE,
         research=_env("NEWSROOM_RESEARCH", "true").lower() in TRUE,
         auto_approve=_env("NEWSROOM_AUTO_APPROVE", "true").lower() in TRUE,
+        tracker_auto=_env("NEWSROOM_TRACKER_AUTO", "true").lower() in TRUE,
     )

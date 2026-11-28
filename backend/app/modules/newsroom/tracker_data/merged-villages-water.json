@@ -5,8 +5,10 @@
   "summary": "Who must supply water to new homes in the villages merged into the Pune Municipal Corporation, such as Wagholi, and the rules for new buildings.",
   "kind": "rule",
   "areas": ["wagholi"],
+  "places": ["wagholi", "lohegaon", "keshav-nagar"],
   "stages": [],
   "match": {"any": ["merged villages?.*water|water.*merged villages?|assured water|wagholi.*water|water.*wagholi"]},
+  "queries": ["merged villages water Pune", "Wagholi water tanker"],
   "means": "Ask the builder in writing how the building gets water, who pays for tankers, and until when. Under the new rules that is the builder's job until the corporation takes over.",
   "history": [
     {"date": "2026-10-12", "status": "The Pune Municipal Corporation made developers responsible for supplying water to residents in 32 newly merged villages until it takes over.",

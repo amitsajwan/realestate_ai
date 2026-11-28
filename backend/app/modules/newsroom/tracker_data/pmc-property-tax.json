@@ -1,0 +1,19 @@
+{
+  "slug": "pmc-property-tax",
+  "name": "PMC property tax",
+  "title": "Pune Municipal Corporation property tax: latest rules and changes",
+  "summary": "The property tax the Pune Municipal Corporation charges homes, how new homes are registered for it, and the penalties it adds.",
+  "kind": "rule",
+  "areas": [],
+  "places": [],
+  "stages": [],
+  "match": {"all": ["property tax"], "any": ["pune|pmc|civic|sinhgad|mhada"], "not": ["mumbai|bmc|thane|bengaluru|delhi|hyderabad"]},
+  "queries": ["Pune property tax PMC", "PMC property tax new homes"],
+  "means": "A new home must be registered for property tax before the first bill. Ask the builder who files it and from which date the tax runs, and keep the assessment receipt.",
+  "history": [
+    {"date": "2026-10-13", "status": "The Pune Municipal Corporation will levy extra property tax on developers of illegal constructions, to recover what demolishing them costs.",
+     "sources": ["Punekar News", "ET Realty", "Times of India"]},
+    {"date": "2026-10-27", "status": "New property tax registrations have fallen well behind this year because the department is short of staff; the corporation also adds a penalty tax on developers of illegal constructions.",
+     "sources": ["ET Realty"]}
+  ]
+}

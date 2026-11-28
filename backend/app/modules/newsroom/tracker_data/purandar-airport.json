@@ -5,8 +5,10 @@
   "summary": "Pune's planned second airport at Purandar, south-east of the city, separate from the airport at Lohegaon.",
   "kind": "project",
   "areas": [],
+  "places": ["saswad", "jejuri", "hadapsar"],
   "stages": ["Site chosen", "Land acquisition", "Feasibility and design", "Construction", "Open"],
   "match": {"all": ["purandar|new airport"], "any": ["airport"], "not": ["navi mumbai"]},
+  "queries": ["Purandar airport", "Purandar airport land acquisition", "Pune new airport MADC"],
   "means": "A new airport is years away: it does not change travel times from any area we cover today. Treat a flat ad that sells it as nearby as a claim to check.",
   "history": [
     {"date": "2026-09-24", "stage": 1, "status": "The Bombay High Court dismissed the farmers' plea against the chosen site, so land acquisition can go on.",

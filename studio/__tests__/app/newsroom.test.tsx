@@ -400,3 +400,37 @@ describe('Newsroom screen: tracker suggestions', () => {
     expect(within(row).queryByTestId('tracker-suggestion')).toBeNull()
   })
 })
+
+describe('Newsroom screen: new trackers from the topic finder', () => {
+  it('adds a proposed tracker with one click and it joins the desk', async () => {
+    window.history.replaceState({}, '', '/studio/newsroom?tab=trackers')
+    render(<NewsroomPage />)
+    const card = await screen.findByTestId('tracker-candidate')
+    expect(within(card).getByText(/3 reports from 3 publishers/)).toBeInTheDocument()
+    expect(within(card).getByLabelText(/Status, in our words/)).toHaveValue('The civic body has floated a tender for the skywalk.')
+    fireEvent.change(within(card).getByLabelText('Places it touches'), { target: { value: 'Hadapsar' } })
+    fireEvent.click(within(card).getByRole('button', { name: 'Add this tracker' }))
+    await waitFor(() => expect(screen.queryByTestId('tracker-candidate')).toBeNull())
+    expect(screen.getAllByTestId('tracker-row').map((r) => r.textContent)).toEqual(
+      expect.arrayContaining([expect.stringContaining('Hadapsar Gadital skywalk')]))
+  })
+
+  it('a dismissed subject leaves the to-do list', async () => {
+    window.history.replaceState({}, '', '/studio/newsroom?tab=trackers')
+    render(<NewsroomPage />)
+    const card = await screen.findByTestId('tracker-candidate')
+    fireEvent.click(within(card).getByRole('button', { name: 'Not a tracker' }))
+    await waitFor(() => expect(screen.queryByTestId('tracker-candidate')).toBeNull())
+  })
+
+  it('a suggestion held for the owner says why it waits', async () => {
+    const seed = jest.requireActual('@/lib/app/trackers')
+    mockTrackers.api = seed.createFixtureTrackersApi(seed.FIXTURE_TRACKERS.map((t: import('@/lib/app/trackers').DeskTracker) => ({
+      ...t, suggestion: { ...t.suggestion!, stage: 4, status: 'The airport has opened.', held: 'moves it to the last stage (Open)' } })), [])
+    window.history.replaceState({}, '', '/studio/newsroom?tab=trackers')
+    render(<NewsroomPage />)
+    const row = await screen.findByTestId('tracker-row')
+    fireEvent.click(within(row).getAllByRole('button')[0])
+    expect(within(row).getByTestId('tracker-held')).toHaveTextContent('Waiting for you: it moves it to the last stage (Open).')
+  })
+})

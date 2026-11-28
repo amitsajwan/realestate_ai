@@ -1,0 +1,21 @@
+{
+  "slug": "keshavnagar-kharadi-bridge",
+  "name": "Keshavnagar-Kharadi bridge",
+  "title": "Keshavnagar-Kharadi bridge: status",
+  "summary": "The bridge over the Mula-Mutha between Keshav Nagar (Mundhwa) and Kharadi, talked about since about 2015 as the short link between the two.",
+  "kind": "project",
+  "areas": ["keshav_nagar", "kharadi"],
+  "places": ["keshav-nagar", "kharadi", "mundhwa", "manjari"],
+  "stages": ["Being built", "Built, not formally open", "Open"],
+  "match": {"any": ["keshav ?nagar.{0,30}(bridge|flyover)|(bridge|flyover).{0,30}keshav ?nagar|kharadi.{0,15}keshav ?nagar|keshav ?nagar.{0,3}kharadi"], "not": ["locality guide"]},
+  "queries": ["Keshavnagar Kharadi bridge", "Keshav Nagar Kharadi flyover"],
+  "means": "The bridge is the short way between Keshav Nagar and Kharadi's offices. Until it is formally open, plan the commute over the Chanchala Kodre bridge and Mundhwa Chowk, which jam at peak hours.",
+  "faq": [
+    {"q": "Is the Keshavnagar-Kharadi bridge open?", "a": "As of 25 November 2026 the bridge was built but residents said it was unclear whether it was officially open; barricades near it were being taken down by locals."},
+    {"q": "Which way do people go meanwhile?", "a": "Over the Chanchala Kodre bridge, through Mundhwa Chowk and Mahatma Phule Chowk, which are reported to jam at office and school hours."}
+  ],
+  "history": [
+    {"date": "2026-11-25", "stage": 1, "status": "Built, but residents say it is unclear whether the bridge is officially open: barricades near it keep being taken down by locals, and traffic still crowds the Chanchala Kodre bridge and Mundhwa Chowk.",
+     "sources": ["PUNE PULSE"]}
+  ]
+}

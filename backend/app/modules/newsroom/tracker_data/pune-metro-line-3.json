@@ -5,8 +5,10 @@
   "summary": "The metro line from Hinjawadi to Shivajinagar, built by PMRDA.",
   "kind": "project",
   "areas": ["hinjawadi", "wakad", "baner"],
+  "places": ["hinjawadi", "baner", "balewadi", "aundh", "shivajinagar"],
   "stages": ["Construction", "Safety clearance", "Open"],
   "match": {"all": ["metro"], "any": ["hinj[ae]wadi|line 3|line-3|metro 3|metro-3"], "not": ["mumbai"]},
+  "queries": ["Hinjewadi Shivajinagar metro", "Pune metro line 3", "Pune metro pink line"],
   "means": "The line runs from Hinjawadi to District Court at 17 of its 23 stations. Before you count on it, check that the station near the home is one of the 17 open ones; Baner's and Shivajinagar's are still to open.",
   "history": [
     {"date": "2026-07-17", "stage": 0, "status": "The line missed its 15 July opening target.", "sources": ["News18"]},

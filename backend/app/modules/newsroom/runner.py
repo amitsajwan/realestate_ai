@@ -7,7 +7,7 @@ from app.core.database import get_database
 from app.platform.controls import is_paused
 from app.platform.heartbeats import heartbeat
 
-from . import adapters, digest, trackers
+from . import adapters, digest, topic_finder, trackers
 from .config import load
 from .pipeline import default_stages, run_once
 from .store import Store
@@ -60,20 +60,32 @@ async def _wide_cards(store: Store, counts: dict) -> None:
         log.exception("newsroom: wide cards step failed")
 
 
-async def _track(store: Store, llm, now: datetime, counts: dict) -> None:
-    """Attach the newly collected reports to the trackers they are about (trackers.py), whatever the filter made of them, then ask
-    the model for a suggested status where new reports wait (shown to the owner in Studio, never put on the site by itself)."""
+async def _track(store: Store, llm, now: datetime, counts: dict, auto: bool = True) -> None:
+    """Attach the newly collected reports to the trackers they are about (trackers.py), whatever the filter made of them, ask the
+    model for a suggested status where new reports wait, and with NEWSROOM_TRACKER_AUTO on put the checked ones live (a line
+    that says it opened, or a move to the last stage, still waits for the owner). Once a week the topic finder looks for
+    subjects no tracker follows yet (topic_finder.py)."""
     try:
         counts["tracked"] = await trackers.attach_new(store, now)
         counts["suggested"] = await trackers.suggest_due(store, llm, now)
+        if auto:
+            counts["tracker_updates"] = await trackers.apply_due(store, now)
     except Exception:
         log.exception("newsroom: trackers step failed")
+    try:
+        counts["topics_found"] = await topic_finder.find_due(store, llm, now)
+    except Exception:
+        log.exception("newsroom: topic finder failed")
 
 
 async def cycle(store: Store, cfg, hb=None) -> dict:
     """One guarded cycle; records last_run_at / last_error. Never raises except cancellation."""
     now = datetime.now(timezone.utc)
     try:
+        try:   # the Studio-added trackers, so the filter and the Google News searches know them this cycle
+            await trackers.refresh(store, force=True)
+        except Exception:
+            log.exception("newsroom: trackers refresh failed")
         stages = default_stages()
         stages["get"] = adapters.make_fetcher()
         sources, publisher, llm = load_sources(cfg.sources), adapters.SocialPublisher(checker=stages["check"], db=store.db), adapters.default_llm()
@@ -83,7 +95,7 @@ async def cycle(store: Store, cfg, hb=None) -> dict:
                 break
             more = await run_once(store, [], stages, publisher, llm, datetime.now(timezone.utc), cfg)
             counts = {k: counts.get(k, 0) + more.get(k, 0) for k in set(counts) | set(more)}
-        await _track(store, llm, now, counts)
+        await _track(store, llm, now, counts, getattr(cfg, "tracker_auto", True))
         await _wide_cards(store, counts)
         await _weekly_digest(store, stages, now, counts, cfg.auto_approve)
         await _area_records(store, stages, cfg, counts)
