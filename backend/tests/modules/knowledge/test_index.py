@@ -62,3 +62,26 @@ def test_a_projects_sections_are_indexed_once_and_its_record_paragraph_opens():
     # an older writer's summary still opens the project's passages
     old = {**doc, "page_text": "Park Eden Phase I is a housing project in Kharadi."}
     assert index.project_chunks(old)[0]["text"].startswith("Park Eden Phase I is a housing project in Kharadi.")
+
+
+async def test_each_places_research_becomes_passages_from_the_reader_wiring_passes_in():
+    async def passages(db):
+        return [{"id": "research:kharadi:commute", "title": "Kharadi: drive times to work", "text": "EON 8 to 12 min at 9 am.",
+                 "url": "https://avasetu.in/projects/area/kharadi", "area": "kharadi"}]
+    index.configure_research(passages)
+    try:
+        got = await index.research_chunks(None)
+        assert got[0]["kind"] == "research" and got[0]["id"] == "research:kharadi:commute" and got[0]["area"] == "kharadi"
+    finally:
+        index.configure_research(None)
+    assert await index.research_chunks(None) == []
+
+
+async def test_a_failing_research_reader_leaves_the_rest_of_the_index_alone():
+    async def broken(db):
+        raise RuntimeError("mongo down")
+    index.configure_research(broken)
+    try:
+        assert await index.research_chunks(None) == []
+    finally:
+        index.configure_research(None)

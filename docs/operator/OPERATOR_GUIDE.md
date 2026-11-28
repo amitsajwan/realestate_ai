@@ -431,6 +431,15 @@ Steps: `docs/MESSENGER_SETUP.md`. Same Meta app and Page token as posting.
 | `SERPER_API_KEY` | empty | **Secret.** Google results through Serper.dev (about 20 searches a day; 2,500 free, then about $50 per 50,000). Off without it. Google's own search API is closed to new customers. |
 | `YOUTUBE_API_KEY` | empty | **Secret.** YouTube Data API key: videos about the hottest projects (20 searches a day of the free 10,000-unit quota). Off without it. |
 
+### Neighbourhood research (`modules/neighbourhood`, newsroom worker role)
+| Variable | Default | What it does |
+|---|---|---|
+| `NEIGHBOURHOOD_ENABLED` | on | Runs the research loop once an hour: each researcher (commute, schools, rent, profile, being built, jobs) for the places whose data is due, at most `NEIGHBOURHOOD_PLACES_PER_CYCLE` places each. Reads only; publishes nothing. |
+| `NEIGHBOURHOOD_PLACES_PER_CYCLE` | `10` | Places one researcher handles per cycle, so a cycle stays short. |
+| `NEIGHBOURHOOD_ROUTES` | on when `GOOGLE_MAPS_API_KEY` is set | Drive times with Google's Routes API (computeRouteMatrix, typical traffic). **The key must have the Routes API allowed**: on 2026-11-28 it answered 403 PERMISSION_DENIED, so no drive times are measured until it is enabled for the key in Google Cloud. |
+| `NEIGHBOURHOOD_ROUTE_ELEMENTS_PER_MONTH` | `2000` | Route reads a month at most (counted in `area_research` under `commute_budget|YYYY-MM`). A place costs 20 (5 hubs x 9 am and 6 pm x Google's low and high), so about 100 places a month; at the traffic-aware price (about $15 per 1,000 after the free 1,000) this is about Rs 1,000-1,300 a month. Over the cap, places wait for next month and pages keep the last times. |
+| `NEIGHBOURHOOD_SCHOOLS`, `NEIGHBOURHOOD_RENT` | on | The schools and rent researchers (see docs/plan/pune-intelligence.md). |
+
 ### Photo quality
 | Variable | Default | What it does |
 |---|---|---|

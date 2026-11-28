@@ -24,6 +24,12 @@ async def project_research(slug: str):
     return out
 
 
+@public_router.get("/research/pages")
+async def ready_pages():
+    """The place sub-pages worth indexing, for the sitemap: {"pages": [{place, kind, updated}]}."""
+    return {"pages": await views.ready_pages(get_database())}
+
+
 @public_router.get("/research/hubs")
 async def hubs():
     return {"hubs": await views.hubs_view(get_database())}

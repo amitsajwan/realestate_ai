@@ -40,7 +40,7 @@ NEARBY_FIELDS = "places.displayName,places.location,places.googleMapsUri,places.
 # small clinic and a closed school on a Camelot post. An unknown type ("clinic", "college") fails the whole call.
 GOOGLE_TYPES: Dict[str, Tuple[str, ...]] = {
     "hospital": ("hospital",), "school": ("school", "primary_school", "secondary_school"), "college": ("university",),
-    "railway": ("train_station",), "bus": ("bus_station",), "temple": ("hindu_temple",),
+    "railway": ("train_station",), "bus": ("bus_station",),
     "market": ("shopping_mall", "supermarket")}
 WORK_QUERY = "IT park"   # "Near work" wants the places people drive to, not an OSM polygon named "CTR"
 KNOWN_REVIEWS = 100      # a place with this many Google reviews is one buyers know; schools show none, so popularity alone ranks them
@@ -56,10 +56,17 @@ CATEGORIES: Dict[str, Tuple[str, Tuple[str, ...], str]] = {
     "railway": ("Railway station", ('["railway"="station"]',), "railway station"),
     "bus": ("Bus stand", ('["amenity"="bus_station"]',), "bus station"),
     "industry": ("Industrial area", ('["landuse"="industrial"]',), "industrial"),
-    "temple": ("Temple", ('["amenity"="place_of_worship"]["religion"="hindu"]',), "temple"),
     "market": ("Shopping", ('["shop"~"^(mall|supermarket)$"]', '["amenity"="marketplace"]'), "supermarket"),
     "bank": ("Bank", ('["amenity"="bank"]',), "bank"),
 }
+# Never on a nearby list, not even from facts gathered before 2026-11-28: listing places of worship beside a home says who is
+# expected to live there (owner 2026-11-28, docs/plan/pune-intelligence.md). Readers drop these kinds with `shown`.
+NEVER_SHOWN = frozenset({"temple", "place_of_worship", "church", "mosque", "gurudwara"})
+
+
+def shown(key: str) -> bool:
+    """Whether a nearby kind ("nearby.hospital" or "hospital") may be shown or posted."""
+    return key.split(".", 1)[-1] not in NEVER_SHOWN
 
 
 def query(lat: float, lon: float, radius_m: int = RADIUS_M) -> str:
@@ -89,8 +96,6 @@ def category(tags: Dict[str, str]) -> Optional[str]:
         return "bus"
     if tags.get("landuse") == "industrial":
         return "industry"
-    if a == "place_of_worship" and tags.get("religion") == "hindu":
-        return "temple"
     if shop in ("mall", "supermarket") or a == "marketplace":
         return "market"
     if a == "bank":
@@ -131,8 +136,6 @@ def from_nominatim(cat: str, rows: Any, lat: float, lon: float, best: Dict[str, 
     for r in rows if isinstance(rows, list) else []:
         name = (r.get("name") or "").strip()
         tags = {r.get("category", ""): r.get("type", "")}
-        if tags.get("amenity") == "place_of_worship":
-            tags["religion"] = "hindu"  # Nominatim gives no religion; the search phrase was "temple"
         if not name or category(tags) != cat:
             continue
         try:
@@ -161,6 +164,8 @@ def from_local(lat: float, lon: float) -> Optional[Dict[str, List[Dict[str, Any]
     best: Dict[str, List[Dict[str, Any]]] = {}
     dlat = RADIUS_M / 111000
     for cat, name, plat, plon, kind, oid in rows:
+        if cat not in CATEGORIES:   # our copy still holds kinds we no longer show (NEVER_SHOWN)
+            continue
         if abs(plat - lat) > dlat or abs(plon - lon) > dlat * 1.1:
             continue
         d = km(lat, lon, plat, plon)
@@ -284,6 +289,7 @@ async def around(get_json: GetJson, lat: float, lon: float, now=None,
                 checked = checked or isinstance(rows, list)
                 from_nominatim(cat, rows, lat, lon, osm)
         best.update({k: osm[k] for k in missing if k in osm})
+    best = {k: v for k, v in best.items() if shown(k)}
     rs = [Reading(f"nearby.{k}", [{"name": i["name"], "km": i["km"]} for i in v],
                   "google" if k in from_google else "osm", v[0]["url"], now) for k, v in best.items()]
     gone = [CATEGORIES[k][0].lower() for k in CATEGORIES if k not in best]

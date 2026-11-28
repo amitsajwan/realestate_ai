@@ -8,6 +8,8 @@ Sources (read only), each passage {id, kind, title, text, url, area, regno, hash
   project  the MahaRERA project pages we serve (areastats.pages): the page paragraph with its numbers, each writer section,
            each search FAQ pair and the checked web facts. One passage set per tower group (its primary record).
   post     our published posts and reels (content_calendar), the caption as the post's page shows it
+  research each place's neighbourhood research (drive times, schools, asked rent, being built), from the reader app/wiring.py
+           passes in (`configure_research`: neighbourhood sits above conversations, so it is never imported here)
 Passages are short on purpose: the meaning model reads about 128 words; BM25 reads all of it.
 
 `loop` (worker role newsroom): every INTERVAL_S builds the passages, embeds only new or changed ones (hash), at most
@@ -17,7 +19,7 @@ import asyncio
 import hashlib
 import logging
 from datetime import datetime
-from typing import Any, Callable, Dict, Iterable, List, Optional
+from typing import Any, Awaitable, Callable, Dict, Iterable, List, Optional
 
 from . import site, vectors
 from .areas import AREAS
@@ -36,6 +38,29 @@ _content: Dict[str, Any] = {"topics": dict, "caption_text": str, "caption_title"
 
 def configure(topics: Callable[[], Dict[str, dict]], caption_text: Callable[[str], str], caption_title: Callable[[str], str]) -> None:
     _content.update(topics=topics, caption_text=caption_text, caption_title=caption_title)
+
+
+# async (db) -> [{id, title, text, url, area}]: neighbourhood research as passages (neighbourhood.views.knowledge_passages)
+_research: Dict[str, Optional[Callable[[Any], Awaitable[List[dict]]]]] = {"passages": None}
+
+
+def configure_research(passages: Optional[Callable[[Any], Awaitable[List[dict]]]]) -> None:
+    _research["passages"] = passages
+
+
+async def research_chunks(db) -> List[dict]:
+    """The places' research as passages; none when no reader is wired or it fails (the rest of the index still builds)."""
+    fn = _research["passages"]
+    if fn is None:
+        return []
+    try:
+        rows = list(await fn(db) or [])
+    except Exception:
+        log.exception("knowledge index: research passages failed")
+        return []
+    return [_chunk(r["id"], "research", r.get("title") or "", r.get("text") or "", r.get("url") or "", r.get("area") or "")
+            for r in rows if r.get("id")]
+
 PROJECT_FIELDS = {"_id": 1, "regno": 1, "name": 1, "promoter": 1, "pincode": 1, "taluka": 1, "locality": 1, "pune_place": 1,
                   "pune_place_name": 1, "page_slug": 1, "source": 1, "completion_now": 1, "completion_at_registration": 1,
                   "units_total": 1, "units_booked": 1, "details_checked_at": 1, "registered_on": 1, "last_modified": 1,
@@ -185,6 +210,7 @@ async def post_chunks(db) -> List[dict]:
 async def build(db) -> List[dict]:
     chunks = [*site_chunks(), *area_chunks(), *topic_chunks()]
     chunks += await post_chunks(db)
+    chunks += await research_chunks(db)
     chunks += await project_all(db)
     seen: Dict[str, dict] = {}
     same = set()   # one passage per wording: a post published on Facebook and Instagram is one caption
@@ -203,7 +229,7 @@ async def refresh(db) -> dict:
     have = await vectors.stored()
     todo = [c for c in chunks if have.get(c["id"]) != c["hash"]]
     # our own words first (site, areas, topics), then posts, then projects: the small sources are searchable within one cycle
-    order = {"site": 0, "topic": 1, "area": 2, "post": 3, "project": 4}
+    order = {"site": 0, "topic": 1, "area": 2, "post": 3, "research": 3, "project": 4}
     todo.sort(key=lambda c: order.get(c["kind"], 9))
     done = 0
     for i in range(0, min(len(todo), MAX_PER_CYCLE), BATCH):

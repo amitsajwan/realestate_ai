@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from .calc import COMMERCIAL
-from .surroundings import label
+from .surroundings import label, shown
 
 NEARBY_MAX = 5
 OSM_COPYRIGHT = "https://www.openstreetmap.org/copyright"
@@ -53,7 +53,7 @@ def view(doc: Optional[dict]) -> Optional[dict]:
     # only distances measured from the project's own pin (pin.py); a sheet measured from the locality's centre gave every
     # project in the area the same list
     for k, fact in (f.items() if _val(f, "located_at") == "project" else ()):
-        if k.startswith("nearby.") and isinstance(fact.get("value"), list):
+        if k.startswith("nearby.") and shown(k) and isinstance(fact.get("value"), list):   # never a place of worship
             near += [{"label": label(k), "name": p.get("name"), "km": p.get("km")} for p in fact["value"] if p.get("name")]
             src = ((fact.get("readings") or [{}])[0]).get("source") or "osm"
             if src not in used:

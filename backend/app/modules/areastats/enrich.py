@@ -867,7 +867,8 @@ def fact_sheet(doc: dict, gathered: Optional[dict], web: Optional[dict], prof: O
                 add(f"size_{str(r['bhk']).replace(' ', '')}", f"{r['bhk']} size from {sqft} sq ft, {size_kind(quote)}", where, src.get("url"), quote)
     if pinned:
         for i, x in enumerate(((gathered or {}).get("nearby") or [])[:10]):
-            if x.get("name") and isinstance(x.get("km"), (int, float)):
+            # never a place of worship (owner 2026-11-28), even on a sheet gathered before propertyfacts dropped them
+            if x.get("name") and isinstance(x.get("km"), (int, float)) and str(x.get("label") or "").lower() != "temple":
                 add(f"near{i}", f"{str(x.get('label') or 'place').capitalize()}: {x['name']}, {x['km']} km in a straight line", "Google Maps")
     for i, line in enumerate(worth_asking(doc, web)):
         add(f"ask{i}", line.replace("Worth asking: ", ""), "worked out from MahaRERA")

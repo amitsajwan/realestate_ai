@@ -458,14 +458,15 @@ def _km(x: float) -> str:
 
 def _near(c: Ctx) -> List[Tuple[str, Dict[str, Any]]]:
     """(category key, place) for every nearby place, nearest first."""
-    out = [(k, p) for k, v in c.v.items() if k.startswith("nearby.") and isinstance(v, list) for p in v]
+    out = [(k, p) for k, v in c.v.items() if k.startswith("nearby.") and surroundings.shown(k) and isinstance(v, list) for p in v]
     return sorted(out, key=lambda kp: kp[1]["km"])
 
 
 # Map data names any clinic, school or shop near a site ("More", "Shree Hospital", "Sai Clinic"): true, but not why anyone
 # buys there, and a fragment such as "More" (a supermarket) reads like a typo. Such a kind is posted when its name has two
-# words of its own ("Columbia Asia Hospital", "Phoenix Marketcity"); a bank or temple only when the builder names it.
-CLAIMED_ONLY = {"bank", "temple"}
+# words of its own ("Columbia Asia Hospital", "Phoenix Marketcity"); a bank only when the builder names it. Places of worship
+# are never posted (surroundings.NEVER_SHOWN).
+CLAIMED_ONLY = {"bank"}
 NAMED_ONLY = {"hospital", "school", "college", "market"}
 _PLAIN_WORDS = {"hospital", "hospitals", "clinic", "nursing", "home", "multispeciality", "multispecialty", "school", "high",
                 "public", "english", "medium", "international", "primary", "secondary", "college", "university", "market",
@@ -489,7 +490,7 @@ def buyer_place(c: Ctx, key: str, p: Dict[str, Any]) -> str:
 OVERVIEW_PLACES = {"railway", "airport", "industry"}
 
 # what a buyer asks about first; one place of each kind before a second of any kind
-NEARBY_ORDER = ("bus", "railway", "airport", "hospital", "school", "college", "market", "industry", "temple", "bank")
+NEARBY_ORDER = ("bus", "railway", "airport", "hospital", "school", "college", "market", "industry", "bank")
 
 
 def nearby(c: Ctx) -> Optional[Brief]:
