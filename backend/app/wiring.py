@@ -58,6 +58,10 @@ def wire() -> None:
     # a published story also goes to our YouTube channel as a Short drawn from its cards, with reels' slide renderer
     from app.modules.newsroom import adapters as news_adapters
     news_adapters.configure(render_short=_render_news_short)
+    # the neighbourhood pages say what is changing near a place: the newsroom's trackers that name it (pune-intelligence.md A.5)
+    from app.modules.neighbourhood import views as neighbourhood_views
+    from app.modules.newsroom import changes_for_place as tracker_changes
+    neighbourhood_views.set_changes(tracker_changes)
     # comment replies know which posts are our agent promos (content's rule, calendar.reach)
     from app.modules.reels.agent_reels import source_tag as agent_reel_source
     engage_service.configure(listing_facts=Facts.from_docs, audience=calendar_reach.audience, reel_source=agent_reel_source)

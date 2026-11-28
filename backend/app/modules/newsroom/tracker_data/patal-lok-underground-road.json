@@ -1,0 +1,24 @@
+{
+  "slug": "patal-lok-underground-road",
+  "name": "Patal Lok underground road (Bhosari to Undri)",
+  "title": "Patal Lok underground road, Bhosari to Undri: status",
+  "summary": "The Pune Municipal Corporation's planned network of road tunnels under the city ('Patal Lok'), led by a 23 km tunnel from Bhosari to Undri through Kondhwa's Khadi Machine Chowk, with an 8 km Bhugaon-Erandwane tunnel and a Swargate-Shaniwarwada study.",
+  "kind": "project",
+  "areas": [],
+  "places": ["bhosari", "kondhwa", "undri", "deccan", "pirangut", "peth-areas"],
+  "stages": ["Proposed", "Project report (DPR)", "Approved and tendered", "Construction", "Open"],
+  "match": {"any": ["patal lok|underground (road|tunnel)|tunnel road|bhosari.{0,20}undri|undri.{0,20}bhosari|bhugaon.{0,20}erandwane"],
+            "not": ["mumbai|bengaluru|thane|hyderabad|delhi"]},
+  "queries": ["Patal Lok Pune underground road", "Bhosari Undri tunnel", "Pune underground tunnel PMC"],
+  "means": "This is a plan at the project-report stage, not a road being built. A flat ad that counts on it is selling a plan; check this page for the stage.",
+  "faq": [
+    {"q": "What is Patal Lok in Pune?", "a": "The Pune Municipal Corporation's plan for road tunnels under the city. Its first priority is a 23 km tunnel from Bhosari to Undri through Kondhwa's Khadi Machine Chowk."},
+    {"q": "Has construction started?", "a": "No. As of November 2026 a consultant was being hired to prepare the detailed project report for the Bhosari-Undri tunnel."}
+  ],
+  "history": [
+    {"date": "2026-11-13", "stage": 0, "status": "The Pune Municipal Corporation plans a 31 km network of underground road tunnels connecting Bhosari, Undri, Bhugaon and Erandwane.",
+     "sources": ["Punekar News", "Urban Acres"]},
+    {"date": "2026-11-17", "stage": 1, "status": "Plan reworked: the 23 km Bhosari-Undri tunnel through Khadi Machine Chowk is now the priority, and the civic body approved hiring a consultant for its detailed project report. A project report for an 8 km Bhugaon-Erandwane tunnel was approved, and a Swargate-Shaniwarwada tunnel is being studied.",
+     "sources": ["Hindustan Times", "Swarajya", "PUNE PULSE"]}
+  ]
+}

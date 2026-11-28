@@ -1,0 +1,19 @@
+{
+  "slug": "pune-development-plan",
+  "name": "Development plan for merged villages",
+  "title": "Pune development plan for the merged villages (Lohegaon and others): status",
+  "summary": "The Pune Municipal Corporation's development plan for the villages merged into the city: which land is for roads, schools and parks, and where homes can be built.",
+  "kind": "rule",
+  "areas": ["lohegaon"],
+  "places": ["lohegaon", "undri"],
+  "stages": [],
+  "match": {"any": ["\\bdevelopment plan|\\bdp\\b.{0,30}(village|road|revis|lohe?gaon|undri)|pune dp"], "not": ["mumbai|thane|nagpur|nashik"]},
+  "queries": ["Pune development plan merged villages", "PMC DP revision Lohegaon"],
+  "means": "A plot reserved for a road or a public use in the plan cannot be built on. Before you buy in a merged village, ask for the plot's zone and reservations in the latest development plan.",
+  "history": [
+    {"date": "2026-11-07", "status": "The Pune Municipal Corporation revised the development plan for nine merged villages with 143 changes; Lohegaon has the most.",
+     "sources": ["Punekar News", "Urban Acres"]},
+    {"date": "2026-11-10", "status": "The revised development plan for nine merged villages makes 143 changes, the most in Lohegaon, and narrows about 50 planned roads, among them the highway at Undri.",
+     "sources": ["Urban Acres", "Punekar News"]}
+  ]
+}

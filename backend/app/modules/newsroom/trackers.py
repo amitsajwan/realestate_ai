@@ -2,28 +2,37 @@
 a hospital, a water rule, the repo rate). Decided 2026-10-20 in docs/plan/news-strategy.md: one-day news does not rank and goes
 stale; a page that says where a thing stands today, with the dated reports behind it, stays true and is what people search for.
 
-What a tracker is lives in tracker_data/<slug>.json (name, stages, which areas it touches, the matching rules, what it means for a
-buyer, and the dated status history we wrote from the reports). Two things change at run time and live in Mongo (store.py):
+What a tracker is lives in tracker_data/<slug>.json (name, stages, which areas and places it touches, the matching rules, its own
+Google News searches, what it means for a buyer, and the dated status history we wrote from the reports). A tracker the owner adds
+in Studio from the topic finder (topic_finder.py) has the same shape and lives in Mongo (`definition` on its newsroom_trackers
+document); definitions() merges both, and a file wins over a Studio one of the same slug. Three things change at run time and live
+in Mongo (store.py):
 - reports: every collected report whose headline matches a tracker's rules is attached to it, whatever the news filter decided
   (most were dropped as 'no target area', yet a Purandar airport report is exactly what the airport's page needs). Rules only,
   no model: a wrong match is a cited headline on the wrong page, and the owner can hide it in Studio.
-- status updates: the status line is ours and changes only when the owner writes a new one in Studio. No model writes it, so a
-  page never says 'open' because a headline did.
 - suggestions: when new reports arrive, a model reads them with the current status and suggests the next line, or says it still
-  holds (`suggest_due`). The answer goes through stages.check.check_status_line and is only shown to the owner in Studio, who
-  accepts or edits it; a failed or missing answer means no suggestion, and the owner works from the headlines as before.
+  holds (`suggest_due`). The answer goes through check_suggestion (stages.check.check_status_line: every figure, date and name
+  must be in the reports, no copied headline, 'opened' only when a report says so); a failed or missing answer means no suggestion.
+- status updates: a checked suggestion becomes the status by itself (`apply_due`, NEWSROOM_TRACKER_AUTO, on by default since
+  2026-11-28: until then every tracker's status had stayed as first written, because suggestions only waited in Studio). The old
+  line stays in the history. The model never decides that a thing is open: a move to the tracker's last stage, or a line that
+  says it opened, was inaugurated, runs or started operations, waits for the owner in Studio (`needs_owner`). The owner can
+  still write any line in Studio, and it wins over the model's on the same day.
 """
 import json
 import logging
 import re
+import time
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List, Optional
 
 from app.core import areas as core_areas
+from app.core import pune_places
 
 from . import presentation as pr
+from . import tracker_topics
 from .stages.check import check_status_line
 from .stages.filter import same_story
 from .store import Store
@@ -48,19 +57,61 @@ def _utc(d: Optional[datetime]) -> Optional[datetime]:
     return d if d is None or d.tzinfo else d.replace(tzinfo=timezone.utc)
 
 
+REFRESH_SECONDS = 60  # how long the Studio-added trackers read from Mongo are trusted before they are read again
+NEXT_MAX = 160
+FAQ_MAX = 8
+_DEFINED: Dict[str, dict] = {}
+_DEFINED_FOR: List[tuple] = [(None, 0.0)]  # (the db they were read from, until when): a test's fake db is never another's
+
+
+def prepare(d: dict) -> dict:
+    """A tracker definition checked and its rules compiled; raises on a broken one (a slug, a kind, a status history and rules
+    that compile are required)."""
+    assert re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", str(d.get("slug") or "")), "slug"
+    assert d.get("kind") in KINDS and d.get("history") and all(h.get("status") for h in d["history"]), "kind and history are required"
+    return {**d, "_rules": tracker_topics.compile_rules(d.get("match", {}))}
+
+
 @lru_cache(maxsize=1)
-def definitions() -> Dict[str, dict]:
+def file_definitions() -> Dict[str, dict]:
     """Every tracker file, by slug, in file-name order. A broken file is skipped with a warning, never a crash of the newsroom."""
     out = {}
     for path in sorted(DATA.glob("*.json")):
         try:
             d = json.loads(path.read_text(encoding="utf-8"))
-            assert d["slug"] == path.stem and d["kind"] in KINDS and d["history"], "slug, kind and history are required"
-            d["_rules"] = {k: [re.compile(p, re.I) for p in d.get("match", {}).get(k, [])] for k in ("all", "any", "not")}
-            out[d["slug"]] = d
+            assert d.get("slug") == path.stem, "the slug is the file name"
+            out[d["slug"]] = prepare(d)
         except Exception as e:
             log.warning("trackers: %s skipped: %s", path.name, e)
     return out
+
+
+def definitions() -> Dict[str, dict]:
+    """Every tracker: the files in file-name order, then the ones the owner added in Studio (as last read by `refresh`)."""
+    files = file_definitions()
+    return {**files, **{k: v for k, v in _DEFINED.items() if k not in files}}
+
+
+async def refresh(store: Store, force: bool = False) -> int:
+    """Read the Studio-added trackers from Mongo (at most once a minute per database) and hand their rules and searches to
+    tracker_topics, so the news filter and the Google News searches know them too. Returns how many there are."""
+    db, until = _DEFINED_FOR[0]
+    if not force and db is store.db and time.monotonic() < until:
+        return len(_DEFINED)
+    out: Dict[str, dict] = {}
+    for st in await store.tracker_states():
+        d = st.get("definition")
+        if not isinstance(d, dict):
+            continue
+        try:
+            out[st["_id"]] = prepare({**d, "slug": st["_id"], "from_studio": True})
+        except Exception as e:
+            log.warning("trackers: Studio tracker %s skipped: %s", st.get("_id"), e)
+    _DEFINED.clear()
+    _DEFINED.update(out)
+    tracker_topics.set_defined(out)
+    _DEFINED_FOR[0] = (store.db, time.monotonic() + REFRESH_SECONDS)
+    return len(out)
 
 
 def get(slug: str) -> Optional[dict]:
@@ -97,6 +148,22 @@ async def attach_new(store: Store, now: datetime) -> int:
                     "source": pr.one_line(raw.source)[:80], "url": raw.url, "date": _utc(raw.published_at or raw.fetched_at), "attached_at": now,
                     "hidden": False})
     await store.set_mark(MARK, scanned_to=now)
+    return added
+
+
+async def attach_past(store: Store, slug: str, now: datetime) -> int:
+    """A new tracker (added in Studio) gets the reports of the last FIRST_SCAN days that its rules match, as the first run gave
+    the file trackers theirs; returns how many were attached."""
+    defn = get(slug)
+    if defn is None:
+        return 0
+    added = 0
+    for raw in await store.recent_raw("", now - FIRST_SCAN, SCAN_LIMIT):
+        if (raw.source or "").strip().lower() != "maharera" and matches(defn, raw.title):
+            added += await store.add_tracker_report({
+                "_id": f"{slug}|{raw.id}", "slug": slug, "item_id": raw.id, "title": pr.one_line(raw.title)[:300],
+                "source": pr.one_line(raw.source)[:80], "url": raw.url, "date": _utc(raw.published_at or raw.fetched_at), "attached_at": now,
+                "hidden": False})
     return added
 
 
@@ -138,11 +205,43 @@ def groups(reports: List[dict]) -> List[dict]:
     return [{k: v for k, v in g.items() if not k.startswith("_")} for g in out]
 
 
+def place_slugs(defn: dict) -> List[str]:
+    """The Pune places (app.core.pune_places, the /projects/area/<place> pages) the tracker touches, as page slugs; a key
+    ('keshav_nagar') is taken too and an unknown place is dropped."""
+    out = []
+    for p in defn.get("places") or []:
+        found = pune_places.BY_SLUG.get(str(p)) or pune_places.BY_KEY.get(str(p))
+        if found and found.slug not in out:
+            out.append(found.slug)
+    return out
+
+
+def current_stage(defn: dict, hist: List[dict]) -> Optional[int]:
+    """The newest stage the history names (a line without a stage keeps the one before)."""
+    return next((_stage(defn, h.get("stage")) for h in reversed(hist) if _stage(defn, h.get("stage")) is not None), None)
+
+
+def _next(defn: dict, status_day: str) -> Optional[dict]:
+    """The next date the file expects ({date: 'YYYY-MM[-DD]', what}), shown only while it is still ahead of the status: once the
+    status is newer than it, whatever was expected has happened or slipped, and the status says which."""
+    n = defn.get("next")
+    if not isinstance(n, dict) or not re.fullmatch(r"\d{4}-\d{2}(-\d{2})?", str(n.get("date") or "")) or not n.get("what"):
+        return None
+    if str(n["date"]) < status_day[:len(str(n["date"]))]:
+        return None
+    return {"date": str(n["date"]), "what": pr.one_line(str(n["what"]))[:NEXT_MAX]}
+
+
+def _faq(defn: dict) -> List[dict]:
+    return [{"q": pr.one_line(str(f["q"])), "a": pr.one_line(str(f["a"]))} for f in (defn.get("faq") or [])[:FAQ_MAX]
+            if isinstance(f, dict) and f.get("q") and f.get("a")]
+
+
 def view(defn: dict, state: Optional[dict], reports: List[dict], full: bool = True) -> dict:
     """The public shape of one tracker. `full` adds the history and the timeline the tracker page shows."""
     hist = history(defn, state)
     now_row = hist[-1]
-    stage = next((_stage(defn, h.get("stage")) for h in reversed(hist) if _stage(defn, h.get("stage")) is not None), None)
+    stage = current_stage(defn, hist)
     tl = groups(reports)
     status_day = _day(now_row.get("date"))
     newer = [g for g in tl if g["date"] > status_day]
@@ -150,8 +249,10 @@ def view(defn: dict, state: Optional[dict], reports: List[dict], full: bool = Tr
         "slug": defn["slug"], "name": defn["name"], "title": defn.get("title") or defn["name"], "summary": defn.get("summary", ""),
         "kind": defn["kind"],
         "areas": [{"key": a, "slug": core_areas.BY_KEY[a].slug, "name": core_areas.BY_KEY[a].name} for a in defn.get("areas", []) if a in core_areas.BY_KEY],
+        "places": [{"slug": p, "name": pune_places.BY_SLUG[p].name} for p in place_slugs(defn)],
         "stages": list(defn.get("stages") or []), "stage": stage,
         "status": pr.one_line(now_row["status"]), "status_date": status_day, "status_sources": list(now_row.get("sources") or []),
+        "next": _next(defn, status_day),
         "means": pr.one_line(defn.get("means", "")),
         "updated": max([status_day] + [g["date"] for g in tl[:1]]),
         "report_count": sum(1 + len(g["also"]) for g in tl), "newer_reports": len(newer),
@@ -162,6 +263,7 @@ def view(defn: dict, state: Optional[dict], reports: List[dict], full: bool = Tr
         out["history"] = [{"date": _day(h.get("date")), "stage": _stage(defn, h.get("stage")), "status": pr.one_line(h["status"]),
                            "sources": list(h.get("sources") or [])} for h in reversed(hist)]
         out["timeline"] = tl[:PUBLIC_GROUPS]
+        out["faq"] = _faq(defn)
     return out
 
 
@@ -174,6 +276,7 @@ async def all_views(store: Store, area: Optional[str] = None, full: bool = False
         if not found:
             return []
         key = found.key
+    await refresh(store)
     states = {d["_id"]: d for d in await store.tracker_states()}
     out = []
     for slug, defn in definitions().items():
@@ -184,6 +287,7 @@ async def all_views(store: Store, area: Optional[str] = None, full: bool = False
 
 
 async def one_view(store: Store, slug: str) -> Optional[dict]:
+    await refresh(store)
     defn = get(slug)
     if defn is None:
         return None
@@ -220,7 +324,10 @@ def studio_view(defn: dict, state: Optional[dict], reports: List[dict]) -> dict:
     sug = (state or {}).get("suggestion") or {}
     # only about reports that are still new: once the owner has dealt with them, the suggestion is gone
     ok = bool(fresh) and bool(sug.get("ok")) and set(sug.get("for_ids") or []) <= fresh
-    v["suggestion"] = {k: sug.get(k) for k in ("changed", "status", "stage", "date", "sources", "reason")} if ok else None
+    v["suggestion"] = {k: sug.get(k) for k in ("changed", "status", "stage", "date", "sources", "reason", "held")} if ok else None
+    last = ((state or {}).get("updates") or [None])[-1] or {}
+    v["auto_updated"] = last.get("by") == AUTO_BY and _day(last.get("date")) == v["status_date"]   # the line on the site is the model's
+    v["from_studio"] = bool(defn.get("from_studio"))
     return v
 
 
@@ -305,7 +412,85 @@ async def suggest_due(store: Store, llm, now: datetime) -> int:
     return made
 
 
+AUTO_BY = "auto"  # `by` on a status update that a checked suggestion made by itself
+# a line that says the thing opened or runs is for the owner to put on the site: approved is not built and built is not open
+_OPEN_CLAIM = re.compile(r"\b(open\w*|inaugurat\w*|running|runs|start(s|ed)?\s+operations?|operational|commissioned)\b", re.I)
+
+
+def needs_owner(defn: dict, state: Optional[dict], suggestion: dict) -> Optional[str]:
+    """Why a checked suggestion still waits for the owner, or None when it may go live by itself: a move to the tracker's last
+    stage ('Open'), or a line that says it opened, was inaugurated, runs or started operations."""
+    stages = defn.get("stages") or []
+    last = len(stages) - 1
+    if stages and suggestion.get("stage") == last and current_stage(defn, history(defn, state)) != last:
+        return f"moves it to the last stage ({stages[last]})"
+    m = _OPEN_CLAIM.search(str(suggestion.get("status") or ""))
+    if m:
+        return f"says '{m.group(0)}'"
+    return None
+
+
+async def apply_due(store: Store, now: datetime) -> int:
+    """Put the checked suggestions live as the trackers' new status (the old line stays in the history), unless `needs_owner`
+    holds one back for Studio; returns how many went live. A suggestion goes live only while the reports it read are still new
+    (the owner has not dealt with them), once, and never to a date older than the status it replaces."""
+    states = {d["_id"]: d for d in await store.tracker_states()}
+    applied = 0
+    for slug, defn in definitions().items():
+        state = states.get(slug)
+        sug = (state or {}).get("suggestion") or {}
+        if not (sug.get("ok") and sug.get("changed") is True) or sug.get("applied_at") or sug.get("held"):
+            continue
+        fresh = {r["item_id"] for r in new_reports(defn, state, await store.tracker_reports(slug))}
+        if not fresh or not set(sug.get("for_ids") or []) <= fresh:
+            continue
+        if str(sug.get("date") or "") < _day(history(defn, state)[-1].get("date")):
+            continue
+        why = needs_owner(defn, state, sug)
+        if why:
+            await store.set_tracker_suggestion(slug, {**sug, "held": why})
+            log.info("trackers: %s suggestion waits for the owner: %s", slug, why)
+            continue
+        try:
+            row = check_update(defn, str(sug.get("status") or ""), sug.get("stage"), str(sug.get("date") or ""), now)
+        except StatusError:
+            continue
+        await store.add_tracker_update(slug, {**row, "sources": list(sug.get("sources") or [])[:6], "at": now, "by": AUTO_BY,
+                                              "reason": pr.one_line(str(sug.get("reason") or ""))[:200]})
+        await store.set_tracker_suggestion(slug, {**sug, "applied_at": now})
+        applied += 1
+        log.info("trackers: %s status updated by itself (%s)", slug, row["date"])
+    return applied
+
+
+CHANGES_MAX = 6
+
+
+async def changes_for_place(db, place: str) -> List[dict]:
+    """What is changing near one Pune place, for the neighbourhood pages (wired in app/wiring.py): the trackers whose `places`
+    include it, newest status first, at most CHANGES_MAX, as {slug, name, status, date (YYYY-MM-DD), stage (its label, left out
+    when the tracker has no stage)}. An unknown place gives []."""
+    found = pune_places.BY_SLUG.get(place or "") or pune_places.BY_KEY.get(place or "")
+    if found is None:
+        return []
+    store = Store(db)
+    await refresh(store)
+    states = {d["_id"]: d for d in await store.tracker_states()}
+    rows = []
+    for slug, defn in definitions().items():
+        if found.slug not in place_slugs(defn):
+            continue
+        hist = history(defn, states.get(slug))
+        row = {"slug": slug, "name": defn["name"], "status": pr.one_line(hist[-1]["status"]), "date": _day(hist[-1].get("date"))}
+        stage = current_stage(defn, hist)
+        if stage is not None:
+            row["stage"] = defn["stages"][stage]
+        rows.append(row)
+    return sorted(rows, key=lambda r: r["date"], reverse=True)[:CHANGES_MAX]
+
+
 async def studio_views(store: Store) -> List[dict]:
+    await refresh(store)
     states = {d["_id"]: d for d in await store.tracker_states()}
     out = [studio_view(defn, states.get(slug), await store.tracker_reports(slug)) for slug, defn in definitions().items()]
     return sorted(out, key=lambda v: (-v["new_count"], v["name"]))

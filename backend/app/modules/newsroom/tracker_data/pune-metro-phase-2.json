@@ -1,0 +1,27 @@
+{
+  "slug": "pune-metro-phase-2",
+  "name": "Pune Metro phase 2 (four new corridors)",
+  "title": "Pune Metro phase 2: Kharadi-Khadakwasla, Ramwadi-Wagholi and two more corridors, status",
+  "summary": "Maha Metro's second phase: about 44 km on four corridors costing about Rs 13,500 crore. Line 4 Kharadi to Khadakwasla (about 25.5 km), Line 4A Nal Stop to Manik Baug, Line 2A Vanaz to Chandani Chowk and Line 2B Ramwadi to Wagholi.",
+  "kind": "project",
+  "areas": ["kharadi", "wagholi"],
+  "places": ["kharadi", "wagholi", "hadapsar", "warje", "kirkatwadi", "sinhagad-road", "kothrud", "peth-areas"],
+  "stages": ["Approved", "Foundation stone and tenders", "Construction", "Open"],
+  "match": {"all": ["metro"], "any": ["phase.?(2|ii)\\b|phase-ii|four new corridors|13,?500|kharadi.{0,25}khadakwasla|khadakwasla.{0,25}kharadi|ramwadi.{0,20}wagholi|wagholi.{0,20}ramwadi|vanaz.{0,20}chandani|chandani chowk|sndt.{0,10}warje|nal stop.{0,20}manik"],
+            "not": ["mumbai|bengaluru|nagpur|delhi"]},
+  "queries": ["Pune Metro phase 2", "Kharadi Khadakwasla metro", "Ramwadi Wagholi metro", "Vanaz Chandani Chowk metro"],
+  "means": "Phase 2 has a five-year target from November 2026: no train runs on it yet. Near Kharadi, Wagholi or Sinhagad Road, expect years of construction traffic before any station opens.",
+  "faq": [
+    {"q": "Which corridors are in Pune Metro phase 2?", "a": "Line 4 Kharadi to Khadakwasla, Line 4A Nal Stop to Manik Baug, Line 2A Vanaz to Chandani Chowk and Line 2B Ramwadi to Wagholi: about 44 km in all."},
+    {"q": "When will phase 2 be ready?", "a": "The target reported at the foundation stone on 3 November 2026 is five years. This page follows each tender and stretch."},
+    {"q": "Will the Ramwadi-Wagholi metro be a double-decker?", "a": "Maha Metro is likely to build the Ramwadi-Wagholi stretch as one double-decker structure, metro above a road flyover, with MSIDC paying for the road part (reported 16 November 2026)."}
+  ],
+  "history": [
+    {"date": "2026-11-03", "stage": 1, "status": "The Prime Minister laid the foundation stone for phase 2: four corridors of about 44 km costing about Rs 13,500 crore, with a five-year target.",
+     "sources": ["Free Press Journal", "Metro Rail Today", "Punekar News", "Hindustan Times"]},
+    {"date": "2026-11-16", "stage": 1, "status": "Foundation stone laid on 3 November. Maha Metro is likely to build the Ramwadi-Wagholi stretch itself as a double-decker, metro above a road flyover, with MSIDC paying for the road part.",
+     "sources": ["Hindustan Times"]},
+    {"date": "2026-11-27", "stage": 1, "status": "Tenders have begun: Maha Metro invited bids for the 6.5 km SNDT-Warje stretch, with two flyovers planned at Karve Putala Chowk and Ambedkar Chowk. The Ramwadi-Wagholi stretch is likely to be built as a double-decker.",
+     "sources": ["Times of India", "Hindustan Times"]}
+  ]
+}

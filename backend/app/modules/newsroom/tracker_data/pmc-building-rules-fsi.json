@@ -1,0 +1,19 @@
+{
+  "slug": "pmc-building-rules-fsi",
+  "name": "PMC building rules (FSI and TDR)",
+  "title": "Pune building rules: FSI, TDR and road widening, latest",
+  "summary": "The Pune Municipal Corporation's rules on how much a builder may build on a plot (FSI), the development rights it may buy or load (TDR), and the conditions tied to road widening.",
+  "kind": "rule",
+  "areas": [],
+  "places": [],
+  "stages": [],
+  "match": {"any": ["\\bfsi\\b|\\btdr\\b|building (norms|rules|bylaws)|udcpr"], "not": ["mumbai|bmc|thane|navi mumbai|bengaluru|cantonment|cantt"]},
+  "queries": ["Pune FSI rules PMC", "Pune TDR road widening", "PMC building norms"],
+  "means": "Extra floors built on premium FSI or TDR need their approvals. For a building on a road marked for widening, ask the builder for the sanctioned plan and whether its extra FSI was granted before 27 November 2026.",
+  "history": [
+    {"date": "2026-10-01", "status": "The Bombay High Court issued notice to the state and the Pune Municipal Corporation on a public interest petition challenging the rules that allow more FSI in Pune.",
+     "sources": ["Times of India", "Punekar News"]},
+    {"date": "2026-11-28", "status": "Premium FSI and TDR along roads earmarked for widening are withheld until the whole stretch is widened on the ground, under a Pune Municipal Corporation circular for building proposals submitted from 27 November 2026.",
+     "sources": ["Punekar News", "Hindustan Times", "Times of India", "ET Realty"]}
+  ]
+}

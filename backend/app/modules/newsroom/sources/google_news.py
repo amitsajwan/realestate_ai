@@ -1,9 +1,9 @@
-"""Google News RSS search feeds for our areas and corridors. Nothing is resolved over the network:
+"""Google News RSS search feeds for our areas and corridors, and for each tracker. Nothing is resolved over the network:
 the item url is the news.google.com article link as given in the feed."""
 from typing import Iterable, List
 from urllib.parse import quote_plus
 
-from app.modules.newsroom import policy
+from app.modules.newsroom import policy, tracker_topics
 from app.modules.newsroom.sources._util import canonical_url, item_id, now_utc, parse_rfc822, strip_html
 from app.modules.newsroom.sources.rss import ET, _text
 from app.modules.newsroom.types import Fetcher, RawItem
@@ -17,13 +17,15 @@ BUYER_QUERIES = ["Pune property prices", "Pune housing sales", "Pune real estate
 
 
 def build_queries() -> List[str]:
-    """Area and corridor phrases from policy plus a few combinations, de-duplicated, order kept."""
+    """Area and corridor phrases from policy, a few combinations, the buyer searches and every tracker's own searches
+    (tracker_topics.queries), de-duplicated, order kept."""
     terms: List[str] = []
     for words in policy.AREA_KEYWORDS.values():
         terms.extend(words)
     terms.extend(policy.CORRIDOR_KEYWORDS)
     terms.extend(EXTRA_QUERIES)
     terms.extend(BUYER_QUERIES)
+    terms.extend(tracker_topics.queries())
     seen, out = set(), []
     for t in terms:
         key = t.strip().lower()

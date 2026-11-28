@@ -1,0 +1,19 @@
+{
+  "slug": "metro-station-parking",
+  "name": "Parking at Pune metro stations",
+  "title": "Parking at Pune metro stations: what is built and what is planned",
+  "summary": "The pay-and-park lots the Pune Municipal Corporation and PMRDA are building near metro stations, for people who drive or ride to the train.",
+  "kind": "project",
+  "areas": [],
+  "places": [],
+  "stages": [],
+  "match": {"all": ["metro"], "any": ["parking"], "not": ["mumbai|bengaluru|delhi|nagpur"]},
+  "queries": ["Pune metro station parking", "PMC parking metro stations"],
+  "means": "Most stations have no parking yet. If you plan to ride or drive to the metro from a home, check whether the nearest station has a lot, or plan a feeder bus or auto.",
+  "history": [
+    {"date": "2026-11-04", "status": "PMRDA is seeking land from the corporations for parking lots at eight metro stations.",
+     "sources": ["Times of India"]},
+    {"date": "2026-11-26", "status": "The Pune Municipal Corporation has built two pay-and-park lots near metro stations, has tenders out for two more, and expects two further sites ready by March. It plans parking across the network of about 81 stations; PMRDA is seeking land for eight more lots.",
+     "sources": ["Hindustan Times"]}
+  ]
+}

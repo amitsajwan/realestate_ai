@@ -78,6 +78,13 @@ def other_locality_named(text: str) -> bool:
     return any(p.search(low) for p in _OTHER_RE)
 
 
+def pune_named(text: str) -> bool:
+    """True when `text` names Pune, Pimpri-Chinchwad, PMC/PMRDA or one of Pune's places as whole words (the topic finder keeps
+    only these: a Bengaluru flyover is not a Pune subject)."""
+    low = (text or "").lower()
+    return _hits(_HINT_RE, low) > 0 or _hits(_PLACE_RE, low) > 0 or bool(named_areas(low))
+
+
 def _news_named(text: str) -> List[str]:
     """Areas in the news scope (policy.AREA_KEYWORDS, landmarks do not count) named in `text`."""
     low = (text or "").lower()

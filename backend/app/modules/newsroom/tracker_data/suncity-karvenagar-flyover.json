@@ -1,0 +1,20 @@
+{
+  "slug": "suncity-karvenagar-flyover",
+  "name": "Suncity-Karvenagar flyover",
+  "title": "Suncity-Karvenagar flyover (Sinhagad Road): status",
+  "summary": "The bridge and flyover the Pune Municipal Corporation is building to link Sinhagad Road at Suncity directly with Karvenagar.",
+  "kind": "project",
+  "areas": [],
+  "places": ["karve-nagar", "sinhagad-road", "warje"],
+  "stages": ["Being built", "Open"],
+  "match": {"any": ["sun ?city.{0,25}karve ?nagar|karve ?nagar.{0,25}sun ?city"]},
+  "queries": ["Suncity Karvenagar flyover", "Karvenagar Sun City bridge"],
+  "means": "It would give Sinhagad Road a direct crossing to Karvenagar. Residents warn of a bottleneck if it opens before the approach roads are widened, so check the roads at both ends, not only the bridge.",
+  "next": {"date": "2027-01", "what": "Early 2027: when the Pune Municipal Corporation expects it to open, after finishing it in December 2026."},
+  "history": [
+    {"date": "2026-11-19", "stage": 0, "status": "Being built: the Pune Municipal Corporation expects to finish the Karvenagar-Sun City bridge in December 2026 and open it to traffic in early 2027.",
+     "sources": ["PUNE PULSE"]},
+    {"date": "2026-11-21", "stage": 0, "status": "Being built and due to be finished in December 2026, with the opening expected in early 2027. Land for the approach roads on both sides is still being acquired, and residents asked Maha Metro to hold its Khadakwasla-Kharadi work on Sinhagad Road until the flyover opens.",
+     "sources": ["PUNE PULSE"]}
+  ]
+}
