@@ -431,6 +431,15 @@ Steps: `docs/MESSENGER_SETUP.md`. Same Meta app and Page token as posting.
 | `SERPER_API_KEY` | empty | **Secret.** Google results through Serper.dev (about 20 searches a day; 2,500 free, then about $50 per 50,000). Off without it. Google's own search API is closed to new customers. |
 | `YOUTUBE_API_KEY` | empty | **Secret.** YouTube Data API key: videos about the hottest projects (20 searches a day of the free 10,000-unit quota). Off without it. |
 
+### Neighbourhood research: schools and rent (docs/plan/pune-intelligence.md B)
+| Variable | Default | What it does |
+|---|---|---|
+| `NEIGHBOURHOOD_SCHOOLS` | on | The schools researcher: CBSE (SARAS) and CISCE lists for Pune district every 90 days, each school placed on Google Maps (needs `GOOGLE_MAPS_API_KEY`; without it only CISCE's own positions are shown). Runs every 6 hours until every school is placed, then makes no outside call until a list or a position is due. |
+| `NEIGHBOURHOOD_SCHOOL_GEOCODES_PER_RUN` | `300` | Google Places calls a schools run (Text Search to place a school, Place Details to re-read a position after 30 days as Google's terms ask). About 500 schools: the first fill is about $16 once, re-reads about $3 a month. |
+| `NEIGHBOURHOOD_SCHOOL_DETAILS_PER_RUN` | `100` | CBSE details pages read a run, one per school, for its pincode (read once per school). |
+| `NEIGHBOURHOOD_RENT` | on | The rent researcher: asked rent per place from MagicBricks, NoBroker and Square Yards (and our agents' rent listings) every 30 days, at most `NEIGHBOURHOOD_PLACES_PER_CYCLE` places an hour. |
+| `NEIGHBOURHOOD_RENT_SEARCHES_PER_RUN` | `10` | Serper searches an hour the rent researcher may spend finding a portal's page for a place whose address it cannot guess (uses `SERPER_API_KEY`; each found address is kept, so a place costs one search at most once). |
+
 ### Photo quality
 | Variable | Default | What it does |
 |---|---|---|
