@@ -23,6 +23,9 @@ import CostBreakdown from '@/components/site/CostBreakdown'
 import PriceBox from '@/components/site/PriceBox'
 import PriceIdea from '@/components/site/PriceIdea'
 import LocationMapSwitch from '@/components/site/LocationMapSwitch'
+import AroundProject from '@/components/site/research/AroundProject'
+import type { PlaceResearch, ProjectResearch } from '@/lib/site/research'
+import { withoutPlacesOfWorship } from '@/lib/site/researchPages'
 import ProjectFromAbove from '@/components/site/ProjectFromAbove'
 import EsriPastPictures from '@/components/site/EsriPastPictures'
 import { esriPastFrom, type EsriPast } from '@/lib/site/esriPast'
@@ -982,7 +985,11 @@ export interface Seller {
   photos?: string[]
 }
 
-export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], whatsappUrl, seller }: { p: RegisterProject; siteUrl: string; facts: PropertyFactsView | null; lists?: FacetLink[]; whatsappUrl?: string | null; seller?: Seller }) {
+/** What the neighbourhood research measured around the project (lib/site/research.ts), and which of its place's research pages
+ *  are worth linking. Absent on an agent's copy of the page and when nothing is measured yet. */
+export interface Around { project: ProjectResearch | null; pages?: PlaceResearch['pages'] | null }
+
+export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], whatsappUrl, seller, around = null }: { p: RegisterProject; siteUrl: string; facts: PropertyFactsView | null; lists?: FacetLink[]; whatsappUrl?: string | null; seller?: Seller; around?: Around | null }) {
   // the site from above (the daily pass, areastats.fromabove), only while the checked pin is where the pictures were taken
   const fromAboveView = forPin(fromRecord(p.from_above, p.slug), p.map)
   // Esri's sharp past pictures at the checked pin (areastats.esripast): in the from-space section, else under the location map
@@ -1011,7 +1018,8 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
   // the hero's picture: the first one; the gallery below starts from the next, so it is not shown twice
   const heroPhoto = ownPhotos[0] ?? null
   const gallery = listed.length ? { read_at: null, highlights: [], plans: [], ...p.profile, photos: [...listed, ...(p.profile?.photos ?? [])] } : p.profile
-  const nearby = (facts as unknown as { nearby?: Near[] } | null)?.nearby ?? []
+  // places of worship never go in the list (owner 2026-11-28: no religion on our pages); the backend drops them too
+  const nearby = withoutPlacesOfWorship((facts as unknown as { nearby?: Near[] } | null)?.nearby ?? [])
   // the agent's live price sheet is the page's one price: the hero quotes it and the portals' prices are not shown beside it
   const price = offerPrice(offer)
   // the lowest price the page quotes: the hero's example EMI and the neighbours' "starts ₹20 L lower" are both from it
@@ -1182,6 +1190,8 @@ export default function RegisterProjectPage({ p, siteUrl, facts, lists = [], wha
           {!closed && <ProjectProfile profile={p.profile} name={shown} part="plans" plans3d={p.plans_3d?.items ?? []} lead={{ agentSlug: leadSlug, agentName: leadName,
             topic: enquiryTopic, waMessage: `Hi, I want to know about ${shown} (MahaRERA ${p.regno}): ${url}` }} />}
           <LocationSection p={p} shown={shown} nearby={nearby} sources={facts?.nearby_sources ?? []} esriPast={fromAboveView ? null : esriPast} />
+          {/* what is around it, measured from data with sources and dates (docs/plan/pune-intelligence.md C) */}
+          {around?.project && <AroundProject research={around.project} name={shown} placeName={placeName ?? p.area?.name ?? 'Pune'} pages={around.pages} />}
           <ProjectProfile profile={p.profile} name={shown} part="highlights" omit={heroBhks ? ['homes'] : []} />
 
           {/* the model's sections only: the answer above already says the facts, so with no sections there is no About */}

@@ -16,6 +16,8 @@ import { agentPath } from '@/lib/site/slug'
 import { projectForListing } from '@/lib/site/listingProject'
 import { isHouseAgent } from '@/lib/brand'
 import { comparePath, getAreaPairs } from '@/lib/site/compare'
+import { getHubs, getResearchPages } from '@/lib/site/research'
+import { researchSitemap } from '@/lib/site/researchPages'
 
 const day = (d?: string | null): Date | undefined => {
   const t = d ? new Date(d) : null
@@ -52,7 +54,8 @@ export async function buildSitemap(): Promise<Grouped> {
   const at = (path: string, priority: number, date?: string | null): SitemapEntry => ({ url: base + path, lastModified: day(date), priority })
   // the small lists first: started beside the register's 8.5 MB read, their 4-second timers ran out before they were even sent
   // (2026-10-31: no request reached the backend while the large reads did), and the sitemap lost them
-  const [newsRead, buildersRead, topicsRead, trackersRead, pairsRead] = await Promise.all([fetchNews(50), getBuilders(), fetchTopics(), fetchTrackers(), getAreaPairs()])
+  const [newsRead, buildersRead, topicsRead, trackersRead, pairsRead, researchRead, hubsRead] = await Promise.all([fetchNews(50), getBuilders(), fetchTopics(), fetchTrackers(), getAreaPairs(),
+    getResearchPages().catch(() => []), getHubs().catch(() => [])])
   const [agents, projects, register, placesRead, facets] = await Promise.all([getSitemapEntries(), getCatalog(), getRegisterProjects(undefined, true), getRegisterPlaces(), getFacets()])
   // Without the places every project page falls into projects.xml and the area pages drop out, while the lists still make
   // area sitemaps, so the build looked good: the coverage check of 2026-11-05 counted Kharadi as its 5 lists and every project
@@ -61,6 +64,9 @@ export async function buildSitemap(): Promise<Grouped> {
   if (!places.length) holder.__avasetuSitemapNoPlaces = true
   const news = { items: lastGood('news', newsRead.items) }
   const [builders, topics, trackers, pairs] = [lastGood('builders', buildersRead), lastGood('topics', topicsRead), lastGood('trackers', trackersRead), lastGood('pairs', pairsRead)]
+  // the place research pages worth indexing (one list read, never one per place) and the work hub pages
+  // (docs/plan/pune-intelligence.md C); not through lastGood, since an empty list is normal until the research has run
+  const research = researchSitemap(researchRead, hubsRead)
   const placeSlug = new Map(places.map((p) => [p.key, p.slug]))
   const placeByName = new Map(places.flatMap((p) => [[p.slug, p.slug], [localitySlug(p.name), p.slug]]))
   const area = (slug?: string | null) => (slug ? 'area-' + slug : 'projects')
@@ -131,6 +137,8 @@ export async function buildSitemap(): Promise<Grouped> {
     ...register.filter((r) => r.indexable && !listedRegnos.has(r.regno))
       .map((r) => ({ group: area(r.place ? placeSlug.get(r.place) : null),
         entry: at('/projects/' + r.slug, r.active === false ? 0.4 : 0.7, r.page_updated) })),   // our own page date only; MahaRERA's old dates never
+    // each place's /schools, /commute and /rent once the backend says it has enough (pages.<kind>), and the work hub pages
+    ...research.map((r) => ({ group: r.group, entry: at(r.path, 0.6, r.date) })),
     // one page per builder with two or more indexable projects (docs/plan/rank-loop.md R6)
     core(at('/builders', 0.6)),
     ...builders.filter((b) => b.indexable).map((b) => ({ group: 'builders', entry: at('/builders/' + b.slug, b.brand ? 0.8 : 0.6, b.page_updated) })),
@@ -166,6 +174,7 @@ export function datedHubs(all: Grouped): Grouped {
     '/news': under('/news/'),
     '/insights': under('/insights/'),
     '/builders': (g) => g.group === 'builders',
+    '/work-hubs': under('/work-hubs/'),
   }
   return all.map((g) => {
     if (g.entry.lastModified) return g

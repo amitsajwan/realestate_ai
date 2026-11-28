@@ -20,7 +20,8 @@ import { breadcrumbJsonLd, jsonLdString } from '@/lib/marketing/seo'
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
 import { getCatalog, getCatalogProject, getPropertyFacts } from '@/lib/site/api'
 import { getFacets } from '@/lib/site/facets'
-import RegisterProjectPage, { ASK_NOTE } from '@/components/site/RegisterProjectPage'
+import RegisterProjectPage, { ASK_NOTE, type Around } from '@/components/site/RegisterProjectPage'
+import { getPlaceResearch, getProjectResearch } from '@/lib/site/research'
 import { pageMetadata } from '@/lib/marketing/seo'
 import { getRegisterProject, getRegisterProjectByRegno, longDay, offerPrice, registerOfListing, type RegisterProject } from '@/lib/site/register'
 import ListThisProject from '@/components/site/ListThisProject'
@@ -100,13 +101,23 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return r.indexable || listed ? meta : { ...meta, robots: { index: false, follow: true } }
 }
 
+/** "Around this project": the project's research and its place's page flags. Research is an extra: an outage or nothing
+ *  measured yet leaves the section out, never the page. */
+async function aroundOf(slug: string): Promise<Around | null> {
+  const got = await getProjectResearch(slug).catch(() => null)
+  const project = got?.ok ? got.data : null
+  if (!project) return null
+  const place = await getPlaceResearch(project.place, true).catch(() => null)
+  return { project, pages: place?.ok ? place.data?.pages ?? null : null }
+}
+
 /** Avasetu's project page drawn from the register record: every project's one layout, agent-listed or not. */
 async function RegisterView({ r }: { r: RegisterProject }) {
-  const facts = await getPropertyFacts({ rera: r.regno, project: r.name, locality: r.area?.name }).catch(() => null)
+  const [facts, around] = await Promise.all([getPropertyFacts({ rera: r.regno, project: r.name, locality: r.area?.name }).catch(() => null), aroundOf(r.slug)])
   return (
     <MarketingShell hot={{ area: r.area?.slug, exclude: r.slug }} stickyBar>
       <RegisterProjectPage p={r} siteUrl={getMarketingConfig().siteUrl} facts={facts} whatsappUrl={chatWhatsAppUrl()}
-        lists={r.pune_place ? (await getFacets()).filter((f) => f.place === r.pune_place?.key && f.indexable && !f.builder) : []} />
+        lists={r.pune_place ? (await getFacets()).filter((f) => f.place === r.pune_place?.key && f.indexable && !f.builder) : []} around={around} />
       <ComingSoonDock items={await comingSoonFor(r.pune_place?.key)} bottomBar />
     </MarketingShell>
   )
