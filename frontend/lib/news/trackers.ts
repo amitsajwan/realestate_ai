@@ -7,6 +7,11 @@ export interface TrackerLink { name: string; url: string | null; is_redirect: bo
 /** One line of a tracker's timeline: a report's headline as its publisher wrote it, and the other publishers with the same story. */
 export interface TrackerReport { date: string; headline: string; source: string; url: string | null; is_redirect: boolean; also: TrackerLink[] }
 export interface TrackerStatusRow { date: string; stage: number | null; status: string; sources: string[] }
+/** A Pune place the tracker touches: its page is /projects/area/<slug>. */
+export interface TrackerPlace { slug: string; name: string }
+/** The next date the tracker expects ('2027-01' or '2027-01-15') and what is expected then; only while it is still ahead. */
+export interface TrackerNext { date: string; what: string }
+export interface TrackerFaq { q: string; a: string }
 
 /** One tracker (GET /api/v1/public/trackers[/{slug}]): a thing in Pune that keeps changing, with where it stands today in our words. */
 export interface Tracker {
@@ -16,6 +21,7 @@ export interface Tracker {
   summary: string
   kind: 'project' | 'rule' | 'rate'
   areas: NewsArea[]
+  places: TrackerPlace[]
   /** The stages a project goes through ([] for rules and rates, or when the stage is not known for sure) and the current one. */
   stages: string[]
   stage: number | null
@@ -23,6 +29,7 @@ export interface Tracker {
   /** The day the status is true from (YYYY-MM-DD) and the publishers it was written from. */
   status_date: string
   status_sources: string[]
+  next: TrackerNext | null
   means: string
   updated: string
   report_count: number
@@ -32,6 +39,7 @@ export interface Tracker {
   /** Detail only. */
   history: TrackerStatusRow[]
   timeline: TrackerReport[]
+  faq: TrackerFaq[]
 }
 
 const https = (u: unknown): u is string => typeof u === 'string' && /^https:\/\//.test(u)
@@ -68,6 +76,11 @@ export function cleanTracker(raw: unknown): Tracker | null {
       const o = a as Record<string, unknown>
       return o && typeof o.slug === 'string' && typeof o.name === 'string' ? [{ key: str(o.key) || undefined, slug: o.slug, name: o.name }] : []
     }),
+    places: (Array.isArray(r.places) ? r.places : []).flatMap((p): TrackerPlace[] => {
+      const o = p as Record<string, unknown>
+      return o && typeof o.slug === 'string' && /^[a-z0-9-]+$/.test(o.slug) && str(o.name).trim() ? [{ slug: o.slug, name: str(o.name).trim() }] : []
+    }),
+    next: nextOf(r.next),
     stages, stage, status: str(r.status).trim(), status_date: day(r.status_date), status_sources: names(r.status_sources),
     means: str(r.means), updated: day(r.updated), report_count: num(r.report_count), newer_reports: num(r.newer_reports),
     latest: report(r.latest),
@@ -78,7 +91,16 @@ export function cleanTracker(raw: unknown): Tracker | null {
         : []
     }),
     timeline: (Array.isArray(r.timeline) ? r.timeline : []).flatMap((t) => { const x = report(t); return x ? [x] : [] }),
+    faq: (Array.isArray(r.faq) ? r.faq : []).flatMap((f): TrackerFaq[] => {
+      const o = f as Record<string, unknown>
+      return o && str(o.q).trim() && str(o.a).trim() ? [{ q: str(o.q).trim(), a: str(o.a).trim() }] : []
+    }),
   }
+}
+
+function nextOf(raw: unknown): TrackerNext | null {
+  const o = raw as Record<string, unknown> | null
+  return o && typeof o.date === 'string' && /^\d{4}-\d{2}(-\d{2})?$/.test(o.date) && str(o.what).trim() ? { date: o.date, what: str(o.what).trim() } : null
 }
 
 async function getJson(path: string): Promise<{ status: number; body: unknown } | null> {
@@ -95,6 +117,9 @@ async function getJson(path: string): Promise<{ status: number; body: unknown } 
 }
 
 export const trackerPath = (slug: string): string => `/news/track/${slug}`
+export const TRACKERS_PATH = '/news/track'
+/** A place's own page on the site (the projects there, and what is changing near it). */
+export const placePath = (slug: string): string => `/projects/area/${slug}`
 
 /** Every tracker, most recently changed first; `area` (an area key or page slug) keeps those that touch it plus the city-wide rates.
  *  An outage gives [] and the page renders without the block (never fake content). */
@@ -118,10 +143,21 @@ export async function fetchTracker(slug: string): Promise<TrackerResult> {
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-/** '2026-10-23' as '23 Oct 2026' (a calendar day: no time zone to shift it). */
+/** '2026-10-23' as '23 Oct 2026' (a calendar day: no time zone to shift it); a month alone ('2027-01') as 'Jan 2027'. */
 export function trackerDate(iso: string): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '')
-  return m ? `${Number(m[3])} ${MONTHS[Number(m[2]) - 1]} ${m[1]}` : ''
+  if (m) return `${Number(m[3])} ${MONTHS[Number(m[2]) - 1]} ${m[1]}`
+  const mo = /^(\d{4})-(\d{2})$/.exec(iso || '')
+  return mo ? `${MONTHS[Number(mo[2]) - 1]} ${mo[1]}` : ''
+}
+
+/** The questions a tracker page shows, as FAQPage data with the same words; null when the tracker has none. */
+export function trackerFaqJsonLd(t: Tracker): Record<string, unknown> | null {
+  if (!t.faq.length) return null
+  return {
+    '@context': 'https://schema.org', '@type': 'FAQPage',
+    mainEntity: t.faq.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
+  }
 }
 
 export const KIND_LABEL: Record<Tracker['kind'], string> = { project: 'Project', rule: 'Rule', rate: 'Rate' }
@@ -140,8 +176,18 @@ export const TRACKER_TEXT = {
   also: 'Also reported by',
   sources: 'From reports by',
   how: 'How we keep these pages',
-  howLead: 'Every report about a tracked thing is added to its page as it comes in. The status line is ours: we change it only when the reports show the stage has moved, and we keep the older lines so you can see what changed. Approved is not the same as built, and built is not the same as open: we say which one it is.',
+  howLead: 'Every report about a tracked thing is added to its page as it comes in. The status line is rewritten from those reports when they show something moved, and checked before it goes up: every figure, date and name in it must be in a report. A line saying a thing has opened goes up only after we check it ourselves. We keep the older lines so you can see what changed. Approved is not the same as built, and built is not the same as open: we say which one it is.',
   all: 'All trackers',
   areaHeading: (area: string) => `What is changing near ${area}`,
   areaLead: 'Projects and rules that touch this area, and the loan and stamp duty rates every buyer pays.',
+  h1: (name: string) => `${name} status`,
+  whereItStands: (date: string) => `Where it stands (${date})`,
+  next: 'Next expected',
+  places: 'Places it touches',
+  placesLead: 'Homes and projects in these places, with what is changing near each.',
+  faq: 'Questions buyers ask',
+  updated: (date: string) => `Last updated ${date}`,
+  indexTitle: 'Pune infrastructure and rules tracker: what is changing, status today',
+  indexHeading: 'What is changing in Pune',
+  indexLead: 'Every road, bridge, metro line, airport, rule and rate we follow, with where it stands today and the dated reports behind it. Newest change first.',
 }

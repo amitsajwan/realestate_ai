@@ -1,6 +1,6 @@
 import React from 'react'
 import Link from 'next/link'
-import { KIND_LABEL, TRACKER_TEXT, trackerDate, trackerPath, type Tracker, type TrackerLink, type TrackerReport } from '@/lib/news/trackers'
+import { KIND_LABEL, TRACKER_TEXT, TRACKERS_PATH, placePath, trackerDate, trackerPath, type Tracker, type TrackerLink, type TrackerReport } from '@/lib/news/trackers'
 import { areaGuidePath } from '@/lib/site/areaGuide'
 
 /** Where a project stands: one segment per stage, done ones filled, the current one gold. Only the current stage is named on a phone
@@ -65,23 +65,34 @@ function Outlink({ l, children }: { l: TrackerLink | TrackerReport; children: Re
     : <>{children}</>
 }
 
-/** The tracker page: where it stands, what it means, the reports and how the status changed. */
+/** The tracker page, a status page for search ("<thing> status"): the answer first (where it stands, on which day, what is
+ *  expected next), then what it means, the places it touches, the reports, how the status changed and the questions buyers ask. */
 export function TrackerPage({ t }: { t: Tracker }) {
   return (
     <article data-testid="tracker-page" className="mx-auto max-w-3xl px-4 py-8 sm:py-12">
-      <p className="text-sm"><Link href="/news" className="text-[#0f2340] underline underline-offset-2">{TRACKER_TEXT.all}</Link></p>
+      <nav aria-label="Breadcrumb" className="text-sm text-slate-600">
+        <Link href="/news" className="text-[#0f2340] underline underline-offset-2">News</Link>
+        <span aria-hidden="true"> / </span>
+        <Link href={TRACKERS_PATH} className="text-[#0f2340] underline underline-offset-2">{TRACKER_TEXT.all}</Link>
+      </nav>
       <div className="mt-4"><Kicker t={t} linkAreas /></div>
-      <h1 className="mt-3 text-3xl font-extrabold leading-tight tracking-tight text-[#0f2340] sm:text-4xl">{t.title}</h1>
+      <h1 className="mt-3 text-3xl font-extrabold leading-tight tracking-tight text-[#0f2340] sm:text-4xl">{TRACKER_TEXT.h1(t.name)}</h1>
       {t.summary && <p className="mt-3 text-lg leading-relaxed text-slate-700">{t.summary}</p>}
+      <p className="mt-2 text-xs font-medium text-slate-600" data-testid="tracker-updated">{TRACKER_TEXT.updated(trackerDate(t.updated || t.status_date))}</p>
 
       <section aria-labelledby="now-h" className="mt-7 rounded-3xl bg-[#0f2340] p-5 text-white sm:p-7">
-        <h2 id="now-h" className="text-xs font-bold uppercase tracking-[0.14em] text-[#f6d58a]">Where it stands</h2>
+        <h2 id="now-h" className="text-xs font-bold uppercase tracking-[0.14em] text-[#f6d58a]">{TRACKER_TEXT.whereItStands(trackerDate(t.status_date))}</h2>
         {t.stage !== null && <div className="mt-3"><StageBar stages={t.stages} stage={t.stage} tone="dark" /></div>}
         <p className="mt-4 text-lg font-semibold leading-relaxed sm:text-xl" data-testid="tracker-status">{t.status}</p>
         <p className="mt-3 text-sm text-white/75">
           {TRACKER_TEXT.statusAsOf} <time dateTime={t.status_date}>{trackerDate(t.status_date)}</time>
           {t.status_sources.length > 0 && <> &middot; {TRACKER_TEXT.sources} {t.status_sources.join(', ')}</>}
         </p>
+        {t.next && (
+          <p className="mt-3 text-sm text-white" data-testid="tracker-next">
+            <span className="font-bold text-[#f6d58a]">{TRACKER_TEXT.next}: <time dateTime={t.next.date}>{trackerDate(t.next.date)}</time></span> &middot; {t.next.what}
+          </p>
+        )}
         {t.newer_reports > 0 && <p className="mt-3 rounded-xl bg-[#f0b440] px-3 py-2 text-sm font-semibold text-[#0f2340]">{TRACKER_TEXT.newer(t.newer_reports)}</p>}
       </section>
 
@@ -89,6 +100,20 @@ export function TrackerPage({ t }: { t: Tracker }) {
         <section aria-labelledby="means-h" className="mt-6 rounded-xl border-l-4 border-[#f0b440] bg-[#fbf6ea] p-4">
           <h2 id="means-h" className="text-sm font-bold uppercase tracking-wide text-[#0f2340]">{TRACKER_TEXT.means}</h2>
           <p className="mt-1 leading-relaxed text-slate-800">{t.means}</p>
+        </section>
+      )}
+
+      {t.places.length > 0 && (
+        <section aria-labelledby="places-h" className="mt-8" data-testid="tracker-places">
+          <h2 id="places-h" className="text-xl font-bold text-[#0f2340]">{TRACKER_TEXT.places}</h2>
+          <p className="mt-1 text-sm text-slate-600">{TRACKER_TEXT.placesLead}</p>
+          <ul className="mt-3 flex list-none flex-wrap gap-2 p-0">
+            {t.places.map((p) => (
+              <li key={p.slug}>
+                <Link href={placePath(p.slug)} className="inline-flex min-h-[40px] items-center rounded-full border border-slate-300 bg-white px-3.5 text-sm font-semibold text-[#0f2340] no-underline hover:border-[#0f2340]">{p.name}</Link>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 
@@ -126,6 +151,20 @@ export function TrackerPage({ t }: { t: Tracker }) {
               </li>
             ))}
           </ul>
+        </section>
+      )}
+
+      {t.faq.length > 0 && (
+        <section aria-labelledby="faq-h" className="mt-10" data-testid="tracker-faq">
+          <h2 id="faq-h" className="text-xl font-bold text-[#0f2340]">{TRACKER_TEXT.faq}</h2>
+          <dl className="mt-4 space-y-4">
+            {t.faq.map((f) => (
+              <div key={f.q}>
+                <dt className="font-semibold text-slate-900">{f.q}</dt>
+                <dd className="mt-1 leading-relaxed text-slate-700">{f.a}</dd>
+              </div>
+            ))}
+          </dl>
         </section>
       )}
 
