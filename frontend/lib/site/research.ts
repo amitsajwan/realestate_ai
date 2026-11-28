@@ -6,8 +6,13 @@
  * GET /api/v1/public/research/projects/{slug}   "Around this project" on a project page
  * GET /api/v1/public/research/hubs              the work hubs with pages
  * GET /api/v1/public/research/hubs/{slug}       one work hub page (/work-hubs/<slug>)
+ * GET /api/v1/public/research/pages             every place sub-page worth indexing, for the sitemap (one read, not one per place)
  * These types are the contract with backend/app/modules/neighbourhood/views.py and each researcher's `present`: change both.
+ * A page read is { ok: true, data: null } on a 404 (no research yet) and { ok: false } on an outage, which is never kept in the
+ * cache; a list read comes back empty on any failure.
  */
+import { dontCacheThisRender } from './noCacheOnError'
+import { serverApiBase } from './api'
 
 export interface Source {
   name: string
@@ -127,6 +132,8 @@ export interface HubCard {
   name: string
   place: string
   kind: 'it_park' | 'business_district' | 'airport' | 'station' | 'industrial'
+  ready?: boolean // optional: false while the hub's page has too little (left out of the list and the sitemap); absent = ready
+  updated?: string // optional: YYYY-MM-DD the hub's page last changed (its sitemap date)
 }
 
 export interface HubPage extends HubCard {
@@ -139,4 +146,98 @@ export interface HubPage extends HubCard {
   changes: ChangeLine[]
   sources: Source[]
   updated: string
+  page_ready?: boolean // optional: enough for search; absent, the site decides from what the page holds (hubIndexable)
 }
+
+export type ResearchKind = 'schools' | 'commute' | 'rent'
+export const RESEARCH_KINDS: ResearchKind[] = ['schools', 'commute', 'rent']
+
+/** GET /public/research/pages -> { pages: ResearchPageRow[] }: one row per place sub-page whose `pages.<kind>` is true. */
+export interface ResearchPageRow {
+  place: string // place slug
+  kind: ResearchKind
+  updated?: string // YYYY-MM-DD the block was measured
+}
+
+// ---- reads ----
+
+export type ResearchRead<T> = { ok: true; data: T | null } | { ok: false }
+
+const SLUG = /^[a-z0-9-]{1,80}$/
+const REVALIDATE = 3600   // research changes at most daily; an hour keeps a page in step without a read per visit
+
+async function getJson(path: string): Promise<{ status: number; body: unknown } | null> {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), 4000)
+  try {
+    const res = await fetch(`${serverApiBase()}/api/v1/public/research${path}`, {
+      headers: { Accept: 'application/json' }, next: { revalidate: REVALIDATE }, signal: ctrl.signal,
+    } as RequestInit)
+    return { status: res.status, body: res.ok ? await res.json() : null }
+  } catch {
+    return null
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/** `extra`: the read is one section of a page that stands without it (a project page's "Around", a place page's strip), so an
+ *  outage leaves the section out and the page is still kept; a page made of the research is not kept on an outage. */
+async function readOne<T>(path: string, extra: boolean): Promise<ResearchRead<T>> {
+  const res = await getJson(path)
+  if (res?.status === 404) return { ok: true, data: null }
+  if (!res || res.status >= 400 || !res.body || typeof res.body !== 'object') {
+    if (!extra) await dontCacheThisRender()
+    return { ok: false }
+  }
+  return { ok: true, data: res.body as T }
+}
+
+export async function getPlaceResearch(place: string, extra = false): Promise<ResearchRead<PlaceResearch>> {
+  if (!SLUG.test(place)) return { ok: true, data: null }
+  const got = await readOne<PlaceResearch>(`/places/${place}`, extra)
+  if (!got.ok || !got.data) return got
+  const d = got.data
+  const pages = d.pages ?? {}
+  return { ok: true, data: { ...d, blocks: d.blocks ?? {}, changes: d.changes ?? [],
+    pages: { schools: pages.schools === true, commute: pages.commute === true, rent: pages.rent === true } } }
+}
+
+/** Always an extra: a project page is never held back by its research. */
+export async function getProjectResearch(slug: string): Promise<ResearchRead<ProjectResearch>> {
+  if (!SLUG.test(slug)) return { ok: true, data: null }
+  const got = await readOne<ProjectResearch>(`/projects/${slug}`, true)
+  if (!got.ok || !got.data) return got
+  return { ok: true, data: { ...got.data, blocks: got.data.blocks ?? {}, changes: got.data.changes ?? [] } }
+}
+
+export async function getHub(slug: string): Promise<ResearchRead<HubPage>> {
+  if (!SLUG.test(slug)) return { ok: true, data: null }
+  const got = await readOne<HubPage>(`/hubs/${slug}`, false)
+  if (!got.ok || !got.data) return got
+  const h = got.data
+  return { ok: true, data: { ...h, companies: h.companies ?? [], commute_from: h.commute_from ?? [], homes_nearby: h.homes_nearby ?? [],
+    changes: h.changes ?? [], sources: h.sources ?? [] } }
+}
+
+/** The work hubs with pages: the backend answers { hubs: [...] }; a hub marked not ready is left out. */
+export async function getHubs(): Promise<HubCard[]> {
+  const res = await getJson('/hubs')
+  const body = res && res.status < 400 ? res.body : null
+  const list = Array.isArray(body) ? body : (body as { hubs?: unknown } | null)?.hubs
+  return Array.isArray(list) ? (list as HubCard[]).filter((h) => h && SLUG.test(h.slug) && h.ready !== false) : []
+}
+
+/** The place sub-pages worth indexing (GET /public/research/pages); empty until the backend has that route. */
+export async function getResearchPages(): Promise<ResearchPageRow[]> {
+  const res = await getJson('/pages')
+  const body = res && res.status < 400 ? res.body : null
+  const list = Array.isArray(body) ? body : (body as { pages?: unknown } | null)?.pages
+  return Array.isArray(list)
+    ? (list as ResearchPageRow[]).filter((r) => r && SLUG.test(r.place) && RESEARCH_KINDS.includes(r.kind))
+    : []
+}
+
+export const researchPath = (place: string, kind: ResearchKind) => `/projects/area/${place}/${kind}`
+export const hubPath = (slug: string) => `/work-hubs/${slug}`
+export const HUBS_PATH = '/work-hubs'

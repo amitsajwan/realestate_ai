@@ -7,6 +7,7 @@ import { formatPrice } from '@/lib/site/format'
 import { priceRange } from '@/lib/site/projects'
 import { displayName, getRegisterPlaces, getRegisterProjects, placePath, projectSummary } from '@/lib/site/register'
 import { areaGuidePath } from '@/lib/site/areaGuide'
+import { getHubs, getResearchPages, hubPath, HUBS_PATH, researchPath } from '@/lib/site/research'
 
 /** /llms.txt (llmstxt.org): a short map of the site for AI assistants, written from the same lists as the sitemap. It is a hint
  *  some assistants read, not a ranking signal; the pages themselves are what they quote (docs/plan/seo-system.md "AI search"). */
@@ -15,11 +16,13 @@ export const revalidate = 3600
 const PLACES_LISTED = 40
 // project pages in our areas: the ones agents sell first, then the register's being built, priced ones and the newest changes first
 const PROJECTS_LISTED = 60
+// place research pages (schools, commute, rent) in search, our areas first
+const RESEARCH_LISTED = 40
 
 export async function GET(): Promise<Response> {
   const site = getMarketingConfig().siteUrl
-  const [places, facets, catalog, register] = await Promise.all([getRegisterPlaces().catch(() => []), getFacets().catch(() => []),
-    getCatalog().catch(() => []), getRegisterProjects().catch(() => [])])
+  const [places, facets, catalog, register, researchPages, hubs] = await Promise.all([getRegisterPlaces().catch(() => []), getFacets().catch(() => []),
+    getCatalog().catch(() => []), getRegisterProjects().catch(() => []), getResearchPages().catch(() => []), getHubs().catch(() => [])])
   // each guide's dated metro line (nearest running station, a nearer one being built), the fact assistants are asked for most
   const metro = new Map(await Promise.all(LOCALITIES.map(async (l) => {
     const d = await getAreaLandmarks(l.slug).catch(() => null)
@@ -42,6 +45,23 @@ export async function GET(): Promise<Response> {
     .sort((a, b) => Number(!ours.has(a.slug)) - Number(!ours.has(b.slug)) || b.projects - a.projects).slice(0, PLACES_LISTED)
   const lists = facets.filter((f) => f.indexable && ours.has(f.place_slug) && !f.builder && !f.possession)
   const nameOf = new Map(places.map((p) => [p.slug, p.name]))
+  // the research pages (docs/plan/pune-intelligence.md C): measured facts around each area, each with its source and date
+  const KIND = { schools: 'Schools in', commute: 'Commute from', rent: 'Asked rent in' } as const
+  const research = (): string[] => {
+    const rows = [...researchPages].sort((a, b) => Number(!ours.has(a.place)) - Number(!ours.has(b.place))).slice(0, RESEARCH_LISTED)
+    if (!rows.length && !hubs.length) return []
+    return [
+      '## Around each area: schools, drive times, asked rent, work hubs',
+      "> Measured from data, never written by a model: schools from the boards' lists of affiliated schools (board, classes, "
+        + "distance; no fees or ratings), drive times as Google's typical weekday traffic at 9 am and 6 pm, asked rent from rental "
+        + 'listings (a range with the number of listings and the month, not rent paid), and the companies at each work hub. Each '
+        + 'page shows its sources and the day it was measured.',
+      ...rows.map((r) => `- [${KIND[r.kind]} ${nameOf.get(r.place) ?? r.place}, Pune](${site}${researchPath(r.place, r.kind)})`),
+      ...(hubs.length ? [`- [Work hubs in Pune: IT parks and job centres](${site}${HUBS_PATH})`,
+        ...hubs.map((h) => `- [${h.name}, ${nameOf.get(h.place) ?? h.place}: companies, drive times, homes nearby](${site}${hubPath(h.slug)})`)] : []),
+      '',
+    ]
+  }
   const lines = [
     '# Avasetu',
     '',
@@ -56,6 +76,7 @@ export async function GET(): Promise<Response> {
     '## Lists by area',
     ...lists.map((f) => `- [${f.label} in ${nameOf.get(f.place_slug) ?? f.place_slug}, Pune](${site}${f.path}): ${f.count} projects`),
     '',
+    ...research(),
     ...(projects.length ? ['## Projects: MahaRERA number, possession date, homes booked, price', ...projects, ''] : []),
     '## Area guides',
     ...LOCALITIES.map((l) => `- [Living in ${l.name}, Pune: area guide](${site}${areaGuidePath(l.slug)})${metro.get(l.slug) ? `: ${metro.get(l.slug)}` : ''}`),

@@ -26,6 +26,8 @@ import { displayName, getRegisterPlacesOrThrow, longDay, getRegisterProjects, pl
 import type { RegisterListItem, RegisterPlace } from '@/lib/site/register'
 import { UsualBands } from '@/components/site/PriceIdea'
 import { areaGuidePath } from '@/lib/site/areaGuide'
+import LivingHere from '@/components/site/research/LivingHere'
+import { getPlaceResearch } from '@/lib/site/research'
 
 export const revalidate = 300
 
@@ -158,8 +160,8 @@ export default async function PlaceProjectsPage({ params }: Props) {
   const { place, projects } = got
   const cfg = getMarketingConfig()
   const comingSoon = await comingSoonFor(place.slug)
-  const [active, facets, catalog, prices, map, listed] = await Promise.all([getActive({ place: place.key }), getFacets(), getCatalog().catch(() => []),
-    getPlacePrices(place.slug), getAreaMap(place.key), getListed()])
+  const [active, facets, catalog, prices, map, listed, research] = await Promise.all([getActive({ place: place.key }), getFacets(), getCatalog().catch(() => []),
+    getPlacePrices(place.slug), getAreaMap(place.key), getListed(), getPlaceResearch(place.slug, true).catch(() => null)])
   const chips = placeChips(place, facets, livePages(catalog), getLocality(place.slug) ? areaGuidePath(place.slug) : null)
   const launches = facets.some((f) => f.place === place.key && f.intent === 'new-launches' && !f.possession && !f.builder && f.indexable)
   // rows of cards into the place's own lists (top, new launches, ready to move): only lists that are live in search
@@ -237,6 +239,9 @@ export default async function PlaceProjectsPage({ params }: Props) {
         {readyList && <ProjectRail id="ready" title={READY_TITLE} sub={READY_SUB} href={readyList.path} count={readyList.count} rows={readyList.rows} />}
 
         {prices && (prices.sizes.length > 0 || (prices.usual ?? []).length > 0) && <Prices place={place} prices={prices} />}
+
+        {/* the place's research pages (schools, commute, rent), its work hubs and what is changing (docs/plan/pune-intelligence.md C) */}
+        <LivingHere research={research?.ok ? research.data : null} placeName={place.name} />
 
         <GoodToKnow place={place} good={know.good} check={know.check} />
 

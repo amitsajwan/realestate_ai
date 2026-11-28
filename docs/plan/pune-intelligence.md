@@ -48,7 +48,13 @@ One researcher per kind of fact in `researchers/`, run by the `neighbourhood` lo
 Public reads: `/public/research/places/{place}`, `/public/research/projects/{slug}`, `/public/research/hubs[/{slug}]`, shapes in
 `frontend/lib/site/research.ts`.
 
-### C. Pages
+### C. Pages (BUILT 2026-11-28 on `pi/site`, not deployed; against fixtures until the researchers fill the data)
+Built in `frontend/`: reads in `lib/site/research.ts` (`getPlaceResearch`, `getProjectResearch`, `getHubs`, `getHub`,
+`getResearchPages`; a 404 is "nothing yet", an outage is never kept), words and structured data in `lib/site/researchPages.ts`,
+blocks in `components/site/research/`. A sub-page needs its own block (404 without it) and is noindex until `pages.<kind>`.
+The sitemap lists the sub-pages from one read, `GET /public/research/pages` -> `{ pages: [{ place, kind, updated? }] }`, which
+the backend still has to add (until then none are listed); hubs carry optional `ready` and `updated`, a hub page optional
+`page_ready`.
 - Project page: **Around this project** (commute, schools, rent, being built, what is changing, jobs), measured from the pin.
 - Place sub-pages beside /top and /new-launches: `/projects/area/<place>/schools`, `/commute`, `/rent`; indexed only when
   `page_ready`, in the sitemap, linked from the place page and its projects.
@@ -61,3 +67,4 @@ Public reads: `/public/research/places/{place}`, `/public/research/projects/{slu
 | Date | Commit | What |
 |---|---|---|
 | 2026-11-28 | — | Plan; the `neighbourhood` module's frame (registry, store, loop, views, routes) and the site contract. |
+| 2026-11-28 | this | C built on the site: "Around <name>" on project pages, "Living in <place>" on place pages, `/schools`, `/commute`, `/rent` per place, `/work-hubs` and `/work-hubs/<slug>`, sitemap and llms.txt entries, places of worship out of Nearby. |
