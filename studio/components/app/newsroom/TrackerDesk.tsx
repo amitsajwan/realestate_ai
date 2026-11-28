@@ -3,7 +3,7 @@ import React, { useState } from 'react'
 import { Btn, Chip, ErrorBox, Spinner } from '@/components/app/ui'
 import { StatusPill } from '@/components/app/list'
 import { friendlyNewsroomError } from '@/lib/app/newsroom'
-import { trackersApi, type DeskTracker, type Suggestion } from '@/lib/app/trackers'
+import { trackersApi, type DeskTracker, type Suggestion, type TrackerCandidate } from '@/lib/app/trackers'
 import { useAsync } from '@/lib/app/useAsync'
 
 const KIND = { project: 'Project', rule: 'Rule', rate: 'Rate' } as const
@@ -70,6 +70,7 @@ export function TrackerRow({ t, open, onToggle, onChange }: { t: DeskTracker; op
             <Chip tone="blue" className="!px-2 !py-0.5">{KIND[t.kind]}</Chip>
             {t.stage !== null && <span>{t.stages[t.stage]}</span>}
             <span>status {t.status_date}</span>
+            {t.auto_updated && <StatusPill tone="info">Updated by itself</StatusPill>}
             {t.new_count > 0 ? <StatusPill tone="bad">{t.new_count} new report{t.new_count === 1 ? '' : 's'}</StatusPill> : <StatusPill tone="ok">Up to date</StatusPill>}
           </span>
         </span>
@@ -112,6 +113,7 @@ export function TrackerRow({ t, open, onToggle, onChange }: { t: DeskTracker; op
               <p className="text-xs font-bold uppercase tracking-wide text-amber-900">
                 {sug.changed ? 'Suggested new status' : 'Suggested: the status still holds'} · written by AI from the new reports, check it
               </p>
+              {sug.held && <p className="mt-1 text-sm font-semibold text-amber-950" data-testid="tracker-held">Waiting for you: it {sug.held}. Only you put that on the site.</p>}
               {sug.changed && (
                 <>
                   <p className="mt-1 text-sm leading-relaxed text-gray-900">{sug.status}</p>
@@ -171,6 +173,82 @@ export function TrackerRow({ t, open, onToggle, onChange }: { t: DeskTracker; op
   )
 }
 
+/** One "new tracker?" item: the reports behind it, the draft, and a form to add it (name, status, date, places) or dismiss it. */
+export function CandidateRow({ c, onDone }: { c: TrackerCandidate; onDone: (added: DeskTracker | null) => void }) {
+  const [name, setName] = useState(c.name)
+  const [status, setStatus] = useState(c.status ?? '')
+  const [date, setDate] = useState(c.status_date || today())
+  const [places, setPlaces] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  async function act(fn: () => Promise<DeskTracker | null>) {
+    setBusy(true)
+    setError(null)
+    try {
+      onDone(await fn())
+    } catch (e) {
+      setError(friendlyNewsroomError(e))
+      setBusy(false)
+    }
+  }
+  const add = () => act(() => trackersApi().addCandidate(c.key, {
+    name: name.trim(), status: status.trim(), date, places: places.split(',').map((p) => p.trim().toLowerCase().replace(/\s+/g, '-')).filter(Boolean),
+  }))
+  const id = `cand-${c.key}`
+  return (
+    <li className="list-none space-y-3 rounded-2xl border border-amber-300 bg-white p-3" data-testid="tracker-candidate">
+      <div>
+        <p className="text-[15px] font-semibold text-gray-900">{c.name}</p>
+        <p className="text-xs text-gray-600">{c.report_count} reports from {c.publishers} publishers in 30 days that no tracker follows{c.stages.length > 0 && ` · stages: ${c.stages.join(', ')}`}</p>
+      </div>
+      <ul className="space-y-1 p-0">
+        {c.reports.slice(0, 4).map((r) => (
+          <li key={r.url} className="list-none text-sm"><span className="text-xs text-gray-500">{r.date} · {r.source} · </span>
+            <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-blue-800 underline">{r.title}</a></li>
+        ))}
+      </ul>
+      <div>
+        <label htmlFor={`${id}-name`} className="mb-1 block text-sm font-medium text-gray-700">Name</label>
+        <input id={`${id}-name`} type="text" value={name} onChange={(e) => setName(e.target.value)} className={`${field} min-h-[52px]`} />
+      </div>
+      <div>
+        <label htmlFor={`${id}-status`} className="mb-1 block text-sm font-medium text-gray-700">Status, in our words{c.status ? ' (written by AI from the reports, check it)' : ''}</label>
+        <textarea id={`${id}-status`} rows={3} value={status} onChange={(e) => setStatus(e.target.value)} className={field} />
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <label htmlFor={`${id}-date`} className="mb-1 block text-sm font-medium text-gray-700">True as of</label>
+          <input id={`${id}-date`} type="date" value={date} max={today()} onChange={(e) => setDate(e.target.value)} className={`${field} min-h-[52px]`} />
+        </div>
+        <div>
+          <label htmlFor={`${id}-places`} className="mb-1 block text-sm font-medium text-gray-700">Places it touches</label>
+          <input id={`${id}-places`} type="text" value={places} onChange={(e) => setPlaces(e.target.value)} placeholder="hadapsar, magarpatta" className={`${field} min-h-[52px]`} />
+        </div>
+      </div>
+      {error && <ErrorBox message={error} />}
+      <Btn onClick={add} disabled={busy || status.trim().length < 12 || !name.trim()} className="!bg-blue-900 active:!bg-blue-950 disabled:!bg-blue-300">{busy ? 'Adding...' : 'Add this tracker'}</Btn>
+      <Btn variant="ghost" onClick={() => act(async () => { await trackersApi().dismissCandidate(c.key); return null })} disabled={busy}>Not a tracker</Btn>
+    </li>
+  )
+}
+
+/** To do on the desk: the topic finder's "new tracker?" items; nothing when there are none. */
+function Candidates({ onAdded }: { onAdded: (t: DeskTracker) => void }) {
+  const { data, setData } = useAsync(() => trackersApi().candidates(), [])
+  if (!data || data.length === 0) return null
+  const done = (key: string) => (added: DeskTracker | null) => {
+    setData((rows) => (rows ?? []).filter((x) => x.key !== key))
+    if (added) onAdded(added)
+  }
+  return (
+    <section aria-label="To do: new trackers" className="space-y-2 rounded-2xl border border-amber-300 bg-amber-50 p-3">
+      <h2 className="font-bold text-amber-950">To do: new tracker?</h2>
+      <p className="text-xs text-amber-950">Subjects the news keeps coming back to that no tracker follows yet. Add one and its page goes live with these reports.</p>
+      <ul className="space-y-2 p-0">{data.map((c) => <CandidateRow key={c.key} c={c} onDone={done(c.key)} />)}</ul>
+    </section>
+  )
+}
+
 /** The Trackers tab: every tracker, the ones with new reports first. `onCount` tells the tab bar how many reports are new. */
 export function TrackerDesk({ onCount }: { onCount?: (n: number) => void }) {
   const { data, error, loading, reload, setData } = useAsync(async () => {
@@ -190,8 +268,9 @@ export function TrackerDesk({ onCount }: { onCount?: (n: number) => void }) {
   return (
     <>
       <p className="text-xs text-gray-600">
-        One page per thing that keeps changing. Reports attach by themselves; the status line changes only when you write one here. Check the new reports, then update the status or mark it still true.
+        One page per thing that keeps changing. Reports attach by themselves, and the AI&apos;s new status line goes on the site by itself once it passes the checks. A line saying something opened waits for you here. You can always write your own.
       </p>
+      <Candidates onAdded={(t) => setData((rows) => [...(rows ?? []), t])} />
       <ul className="space-y-2 p-0">
         {data.map((t) => (
           <TrackerRow key={t.slug} t={t} open={openSlug === t.slug} onToggle={() => setOpenSlug((o) => (o === t.slug ? null : t.slug))} onChange={replace} />
