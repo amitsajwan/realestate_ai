@@ -37,7 +37,7 @@ async def test_nominatim_is_the_fallback_when_overpass_fails():
         return []
     rs, notes = await surroundings.around(get_json, LAT, LON)
     got = {r.key: r.value for r in rs}
-    assert got["nearby.industry"][0]["name"] == "IndoSpace Industrial Park Ranjangaon" and "nearby.temple" in got
+    assert got["nearby.industry"][0]["name"] == "IndoSpace Industrial Park Ranjangaon" and "nearby.temple" not in got
     assert notes and "hospital" in notes[0]
 
 

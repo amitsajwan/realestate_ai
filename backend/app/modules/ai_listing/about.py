@@ -75,6 +75,9 @@ _NEAR_GENERIC = (
     ("market", re.compile(r"market (?:nearby|near by|close|paas|ke paas)|(?:nearby|paas mein|paas me) market|shopping nearby")),
     ("park", re.compile(r"park (?:nearby|near by|close|paas|ke paas)|(?:nearby|paas mein|paas me) (?:park|garden)")),
 )
+# a place of worship never goes on a nearby list, even when the agent names one: listing them beside a home says who is
+# expected to live there (owner 2026-11-28, docs/plan/pune-intelligence.md)
+_WORSHIP = re.compile(r"\b(?:temple|mandir|church|mosque|masjid|gurudwara|gurdwara|dargah|chapel|synagogue|monastery)\b", re.I)
 _GENERIC_NAME = {"school": "School nearby", "hospital": "Hospital nearby", "market": "Market nearby", "park": "Park nearby"}
 _NEAR_TYPE = (("school", "school|college"), ("hospital", "hospital"), ("market", "market|mall"), ("park", "park|garden"),
               ("transit", "metro|bus|railway"))
@@ -171,7 +174,7 @@ def extract_about(text: str) -> dict[str, Any]:
     nearby: list[dict] = []
     for m in _NEAR.finditer(raw):
         name = " ".join(m.group("name").split())
-        if _PHONEISH.search(name):
+        if _PHONEISH.search(name) or _WORSHIP.search(name):
             continue
         low = name.lower()
         typ = next((ty for ty, p in _NEAR_TYPE if re.search(p, low)), "other")
@@ -241,7 +244,7 @@ def sanitise_llm_about(raw: Any, text: str) -> dict[str, Any]:
     for n in (raw.get("nearby") or [])[:10]:
         if isinstance(n, dict):
             name = s(n.get("name"))
-            if name:
+            if name and not _WORSHIP.search(name):
                 nb.append({"type": n.get("type") if n.get("type") in _TYPES else "other", "name": name})
     if nb:
         out["nearby"] = nb[:6]
