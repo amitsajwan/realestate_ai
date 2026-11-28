@@ -122,7 +122,9 @@ async def test_writes_from_facts_and_publishes_only_a_checked_article():
     # but the page's own data keeps every fact in full, each nearby place linked to its OpenStreetMap page
     nearby = saved["facts"]["nearby"]
     assert all(n["url"] and n["url"].startswith("https://www.openstreetmap.org/") for n in nearby)
-    assert sorted(n["km"] for n in nearby) == [0.2, 0.3, 0.3, 0.8, 0.8]
+    # the Shiv Mandir in NEARBY is left out: places of worship are never listed (owner, 2026-11-28)
+    assert sorted(n["km"] for n in nearby) == [0.2, 0.3, 0.8, 0.8]
+    assert not any("mandir" in n["name"].lower() for n in nearby)
 
 
 async def test_a_nearby_metro_station_says_whether_it_is_running():
