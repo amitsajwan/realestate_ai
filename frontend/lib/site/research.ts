@@ -29,9 +29,13 @@ export interface CommuteRow {
   km: number // road distance
   am: [number, number] // weekday 9 am, low-high minutes
   pm: [number, number] // weekday 6 pm, back
+  pin_km?: number // on a project page with a pin: straight-line km from the project's own pin to this hub
 }
 export interface CommuteBlock extends BlockBase {
   rows: CommuteRow[]
+  measured_from?: 'place' | 'pin' // drive times are measured from the place centre ("place"), never scaled to a pin
+  place_name?: string
+  from?: string // "the Kharadi centre"
 }
 
 export type Board = 'CBSE' | 'ICSE' | 'ISC' | 'State' | 'IB' | 'IGCSE'
@@ -74,6 +78,7 @@ export interface ProfileBlock extends BlockBase {
     km: number
   }>
   lines: string[] // plain sentences built from the numbers above, e.g. "Most homes being built here are 2 BHK."
+  measured_from?: 'place' | 'pin' // nearby km from the place centre or the project's pin
 }
 
 export interface BeingBuiltBlock extends BlockBase {
@@ -82,7 +87,9 @@ export interface BeingBuiltBlock extends BlockBase {
   homes: number
   due_from: number // year
   due_to: number
-  biggest: Array<{ slug: string; name: string; homes: number; due: string }>
+  biggest: Array<{ slug: string; name: string; homes: number; due: string }> // due "YYYY-MM"
+  measured_from?: 'place' | 'pin' // "place": filed under the place plus pinned ones within_km of its centre; "pin": pinned ones within_km of the project
+  note?: string // says which of the two, in words
 }
 
 export interface JobsBlock extends BlockBase {
@@ -109,6 +116,7 @@ export interface ResearchBlocks {
 
 export interface PlaceResearch {
   place: string
+  place_name?: string
   blocks: ResearchBlocks
   changes: ChangeLine[]
   pages: { schools: boolean; commute: boolean; rent: boolean } // which sub-pages are worth indexing
@@ -117,6 +125,7 @@ export interface PlaceResearch {
 export interface ProjectResearch {
   slug: string
   place: string
+  place_name?: string
   pinned: boolean // measured from the project's own Google pin, else from the place centre
   blocks: ResearchBlocks
   changes: ChangeLine[]
@@ -127,6 +136,8 @@ export interface HubCard {
   name: string
   place: string
   kind: 'it_park' | 'business_district' | 'airport' | 'station' | 'industrial'
+  ready?: boolean // its page is worth indexing: 3+ companies from its own list, or drive times from 3+ places
+  updated?: string // YYYY-MM-DD of its last research, "" before the first
 }
 
 export interface HubPage extends HubCard {
@@ -139,4 +150,10 @@ export interface HubPage extends HubCard {
   changes: ChangeLine[]
   sources: Source[]
   updated: string
+  page_ready?: boolean // the same rule as HubCard.ready
+}
+
+/** GET /api/v1/public/research/pages: the place sub-pages worth indexing, for the sitemap. */
+export interface ResearchPages {
+  pages: Array<{ place: string; kind: 'schools' | 'commute' | 'rent'; updated: string }>
 }

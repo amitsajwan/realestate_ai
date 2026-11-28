@@ -52,6 +52,9 @@ def wire() -> None:
     from app.modules.calendar import topics as calendar_topics
     from app.modules.knowledge import index as knowledge_index
     knowledge_index.configure(topics=calendar_topics.load, caption_text=calendar_public._text, caption_title=calendar_public._title)
+    # the chat knows each place's research (drive times, schools, rent, being built) as passages
+    from app.modules.neighbourhood.views import knowledge_passages
+    knowledge_index.configure_research(knowledge_passages)
     # newsroom research gives a story background from our verified area guide (conversations' knowledge)
     from app.modules.newsroom.stages import research as news_research
     news_research.configure(area_facts=_area_guide_facts)

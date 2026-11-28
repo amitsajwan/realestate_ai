@@ -36,17 +36,38 @@ Status labels as seo-system.md: **BUILT** (on main, not deployed) · **LIVE** ·
 ### B. Neighbourhood research (`backend/app/modules/neighbourhood`, owns `area_research`, `schools`, `work_hub_research`)
 One researcher per kind of fact in `researchers/`, run by the `neighbourhood` loop (newsroom role) when due:
 
-| Researcher | What | Source | Refresh |
-|---|---|---|---|
-| `commute` | drive times to the nearest work hubs, 9 am and 6 pm | Google Routes API, typical traffic | 30 days |
-| `schools` | schools with board, level, affiliation number, distance | CBSE (SARAS) and CISCE official lists, placed on the map | 90 days |
-| `rent` | asked rent by flat size: low, median, high, listings, yield | rental listings on the portals and our agents' listings | 30 days |
-| `profile` | home mix being built, homes finished by year, nearby work/college/hospital/government/defence/industrial | MahaRERA register, places | 30 days |
-| `being_built` | projects and homes being built within 2 km, due years, biggest | MahaRERA register | 7 days |
-| `jobs` | companies at each work hub, homes near it | the hubs' own tenant lists | 90 days |
+| Researcher | What | Source | Refresh | Status |
+|---|---|---|---|---|
+| `commute` | drive times to the nearest work hubs, 9 am and 6 pm | Google Routes API, typical traffic | 30 days | **BUILT**; off in effect until the key allows the Routes API (403 on 2026-11-28) |
+| `schools` | schools with board, level, affiliation number, distance | CBSE (SARAS) and CISCE official lists, placed on the map | 90 days | schools workstream |
+| `rent` | asked rent by flat size: low, median, high, listings, yield | rental listings on the portals and our agents' listings | 30 days | rent workstream |
+| `profile` | home mix being built, homes finished by year, nearby work/college/hospital/government/defence/industrial | MahaRERA register, places | 30 days | **BUILT**; home mix empty (the register has no homes per size) |
+| `being_built` | projects and homes being built within 2 km, due years, biggest | MahaRERA register | 7 days | **BUILT** |
+| `jobs` | companies at each work hub, homes near it | the hubs' own tenant lists | 30 days | **BUILT**; no hub has a tenant list we can read yet, so companies are empty |
 
-Public reads: `/public/research/places/{place}`, `/public/research/projects/{slug}`, `/public/research/hubs[/{slug}]`, shapes in
-`frontend/lib/site/research.ts`.
+Public reads: `/public/research/places/{place}`, `/public/research/projects/{slug}`, `/public/research/hubs[/{slug}]`,
+`/public/research/pages` (the place sub-pages worth indexing, for the sitemap), shapes in `frontend/lib/site/research.ts`.
+
+How each is measured (BUILT 2026-11-28, branch pi/research):
+- **Places and centres** (`places.py`): the site's place pages (areastats `pages.places`), those in search first. A centre is the
+  median of the place's own Google pins (3+), else the area's checked middle (areastats.landmarks), else the median of 1-2 pins.
+  Only 1,153 of 12,975 register records have a pin (2026-11-28).
+- **Commute**: from the place centre to the 4 nearest hubs plus the airport. 9 am out, 6 pm back, next weekday; each asked with
+  Google's OPTIMISTIC and PESSIMISTIC traffic models, so a row is Google's low-high minutes for that hour (4 reads a hub, 20 a
+  place). A project page shows the place's times "from the <place> centre" with the straight-line km from its own pin.
+- **Being built**: one row per project page (towers summed), projects filed under the place plus pinned ones within 2 km of its
+  centre; on a pinned project page, pinned projects within 2 km of the pin when there are 3+.
+- **Profile**: homes finished by year since 2015 (filed completion passed), checked places within 10 km (hubs, areastats
+  landmarks, the nearest running metro), and 2-4 sentences by code. No government or defence list yet (no checked positions).
+- **Jobs / hubs**: 14 hubs in `data/hubs.json` (positions from OpenStreetMap, each with how it was checked). Companies only
+  from a hub's own published list (`companies_url` + `companies_pattern`); none found for any hub on 2026-11-28, so none shown.
+  Homes for sale within 5 km from the project pages with pins; drive times from every place that measured the hub. A hub page
+  is ready to index with 3+ companies or drive times from 3+ places.
+- **Places of worship** left every nearby list: propertyfacts surroundings no longer gathers temples and its fact sheets,
+  posts and the project page's Location "Nearby" (propertyfacts/public.py) drop old ones; an agent's listing text naming one
+  is not kept (ai_listing/about.py); areastats' fact sheet skips them (areastats/enrich.py).
+- **Chat**: each place's commute, schools, rent, being built and profile go into the knowledge index as one passage each
+  (`views.knowledge_passages`, wired in `app/wiring.py`).
 
 ### C. Pages
 - Project page: **Around this project** (commute, schools, rent, being built, what is changing, jobs), measured from the pin.
@@ -61,3 +82,4 @@ Public reads: `/public/research/places/{place}`, `/public/research/projects/{slu
 | Date | Commit | What |
 |---|---|---|
 | 2026-11-28 | — | Plan; the `neighbourhood` module's frame (registry, store, loop, views, routes) and the site contract. |
+| 2026-11-28 | pi/research | Places and centres, 14 work hubs, commute (Routes API, monthly cap), being built, profile, jobs; places of worship out of every nearby list; research passages in the chat; `/research/pages`, hub `ready`/`page_ready`. Routes API not enabled for the key yet. |

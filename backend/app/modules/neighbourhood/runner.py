@@ -1,6 +1,7 @@
 """The research loop (.claude/skills/add-background-loop): once an hour, every researcher that is switched on runs for the
 places whose data is older than its `every`, at most cfg.places_per_cycle places each, important places first. A failure for
-one place is noted on that place and never stops the others; the last good data stays on the page.
+one place is noted on that place and never stops the others; the last good data stays on the page. A researcher that has
+spent its monthly budget (budget.NotNow) stops for this cycle without marking the place tried, so it runs first next month.
 """
 import asyncio
 import logging
@@ -13,6 +14,7 @@ from app.core.database import get_database
 from app.platform.heartbeats import heartbeat
 
 from . import config, places
+from .budget import NotNow
 from .researchers import REGISTRY, Context, Researcher
 from .store import CITY, Store
 
@@ -54,6 +56,11 @@ async def run_once(db, now: datetime, http=None, cfg=None) -> Dict[str, dict]:
                 c["ran"] += 1
                 try:
                     found = await r.run(ctx, place)
+                except NotNow as e:
+                    log.info("neighbourhood: %s waits: %s", r.kind, e)
+                    c["ran"] -= 1
+                    c["waiting"] = c.get("waiting", 0) + 1
+                    break
                 except Exception as e:
                     log.warning("neighbourhood: %s for %s failed: %s", r.kind, place, e)
                     await store.put(r.kind, place, None, [], now, ok=False, note=str(e)[:300])
