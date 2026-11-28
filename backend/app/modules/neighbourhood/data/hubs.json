@@ -1,0 +1,6 @@
+[
+  {"slug": "eon-it-park-kharadi", "name": "EON IT Park, Kharadi", "place": "kharadi", "lat": 18.5532, "lon": 73.9497, "kind": "it_park", "companies_url": ""},
+  {"slug": "world-trade-center-kharadi", "name": "World Trade Center, Kharadi", "place": "kharadi", "lat": 18.5520, "lon": 73.9484, "kind": "business_district", "companies_url": ""},
+  {"slug": "magarpatta-city", "name": "Magarpatta City", "place": "hadapsar", "lat": 18.5155, "lon": 73.9280, "kind": "it_park", "companies_url": ""},
+  {"slug": "hinjawadi-phase-1", "name": "Hinjawadi Phase 1 (Rajiv Gandhi Infotech Park)", "place": "hinjawadi", "lat": 18.5915, "lon": 73.7385, "kind": "it_park", "companies_url": ""}
+]

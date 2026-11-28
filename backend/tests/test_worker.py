@@ -118,6 +118,7 @@ def test_the_worker_runs_the_fifteen_loops_under_the_api_lease_names():
     from app.modules.areaphotos.runner import loop as area_photo_scout_loop
     from app.modules.whatsapp.alerts import loop as whatsapp_alerts_loop
     from app.modules.propertyfacts.daily import loop as listing_daily_loop
+    from app.modules.neighbourhood.runner import loop as neighbourhood_loop
     table = worker.loops()
     watch = table.pop("system_watch")         # made with the worker's own intervals, so a new function each time
     assert callable(watch) and watch.__qualname__.startswith("loop_with")
@@ -132,7 +133,7 @@ def test_the_worker_runs_the_fifteen_loops_under_the_api_lease_names():
                               "video_cleanup": video_cleanup_loop, "geoip": geoip_loop,
                               "press": press_loop, "area_pictures": area_pictures_loop,
                               "area_photo_scout": area_photo_scout_loop, "whatsapp_alerts": whatsapp_alerts_loop,
-                              "listing_daily": listing_daily_loop}
+                              "listing_daily": listing_daily_loop, "neighbourhood": neighbourhood_loop}
 
 
 def test_worker_roles_partition_every_loop_once():

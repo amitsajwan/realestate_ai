@@ -37,7 +37,7 @@ type = layers
 containers =
     app.modules
 layers =
-    admin : concierge : propertyfacts
+    admin : concierge : propertyfacts : neighbourhood
     newsroom : calendar : insights : showcase : marketing : creative : reels : photoquality : areaphotos : buyermind : engage : chat : whatsapp : knowledge : notifications
     social
     tracking : interest : report
