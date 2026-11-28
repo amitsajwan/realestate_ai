@@ -22,16 +22,25 @@ Status labels as seo-system.md: **BUILT** (on main, not deployed) · **LIVE** ·
 ## The pieces
 
 ### A. Topics that update themselves (newsroom, trackers)
-1. A tracker's suggested status line that passes the existing checks goes live by itself (the old line stays in the timeline). A
-   move to a tracker's last stage ("open", "running") still waits for the owner in Studio.
-2. Each tracker has its own Google News searches, so its news comes in even when no area is named.
-3. From 8 trackers to about 20, written from the reports we already hold (roads, flyovers, metro phase 2, Patal Lok tunnel,
-   PMC building rules, property tax, stamp duty, PMRDA plan, MHADA lotteries).
-4. A weekly topic finder groups reports no tracker matches; a subject with 3+ reports in 30 days goes to Studio To do as a draft
-   tracker, added with one click.
-5. Every tracker names the place slugs it touches; `neighbourhood` shows them on those places and their projects (`changes`).
-6. Tracker pages are status pages for search: what it is, where it stands, next date, route/stations, areas that gain, timeline,
-   FAQ, Article + BreadcrumbList data, dateModified from the last status.
+1. **BUILT** A tracker's suggested status line that passes the existing checks goes live by itself (`trackers.apply_due`, the old
+   line stays in the history), switch `NEWSROOM_TRACKER_AUTO` (on). A move to a tracker's last stage, or a line saying it opened,
+   was inaugurated, runs or started operations, still waits for the owner in Studio (`needs_owner`, shown as "Waiting for you").
+   The suggestions already waiting (Ring Road survey, Purandar stage 2, merged villages' water) apply on the first run.
+2. **BUILT** Each tracker has its own Google News searches (`queries` in its JSON, `tracker_topics.queries()` added to
+   `sources/google_news.py`), so its news comes in even when no area is named; its headlines pass the area gate as tracker news.
+3. **BUILT** From 8 trackers to 20, written from the reports we hold: Vishrantwadi flyover, Keshavnagar-Kharadi bridge,
+   Suncity-Karvenagar flyover, PMC bridges due in 2027, Patal Lok underground road, Metro phase 2, Swargate-Katraj metro, metro
+   station parking, PMC FSI/TDR rules, PMC property tax, the merged villages' development plan, MHADA Pune lottery. Stamp duty
+   stays inside `ready-reckoner` (one new dated line). No Mundhwa junction flyover: no report to write it from.
+4. **BUILT** A weekly topic finder (`topic_finder.py`) groups the last 30 days' Pune reports no tracker matches; a subject with 3+
+   reports from 2+ publishers shows on Studio's Trackers desk as "To do: new tracker?" with a draft (a guarded model draft, each
+   part checked, else the headlines' shared words). Add is one click (it saves the definition on `newsroom_trackers`; the files
+   and Mongo trackers merge in `trackers.definitions()`); "Not a tracker" keeps it from coming back.
+5. **BUILT** Every tracker names the place slugs it touches (`places`); `newsroom.changes_for_place(db, place)` gives the
+   neighbourhood pages their `changes` (wired in `app/wiring.py`).
+6. **BUILT** Tracker pages are status pages for search: H1 "<name> status", "Where it stands (<date>)", next expected date, stages,
+   places linking `/projects/area/<place>`, timeline, FAQ, Article (dateModified = last status) + BreadcrumbList + FAQPage,
+   canonical, last-updated line; hub `/news/track`.
 
 ### B. Neighbourhood research (`backend/app/modules/neighbourhood`, owns `area_research`, `schools`, `work_hub_research`)
 One researcher per kind of fact in `researchers/`, run by the `neighbourhood` loop (newsroom role) when due:
@@ -61,3 +70,4 @@ Public reads: `/public/research/places/{place}`, `/public/research/projects/{slu
 | Date | Commit | What |
 |---|---|---|
 | 2026-11-28 | — | Plan; the `neighbourhood` module's frame (registry, store, loop, views, routes) and the site contract. |
+| 2026-11-28 | (pi/topics) | A built: trackers update themselves from checked lines (opening waits for the owner), per-tracker Google News searches, 20 trackers with places, weekly topic finder with Studio add, `changes_for_place`, tracker status pages and `/news/track`. |

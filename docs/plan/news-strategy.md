@@ -71,9 +71,11 @@ Decided and built (N1, most of N2 and N3):
 - **Reports attach by rules, not by a model** (`trackers.attach_new`, every newsroom cycle): every collected headline is matched to the
   trackers' `all`/`any`/`not` patterns, whatever the news filter decided; MahaRERA records never. A dry run over all 1,478 stored headlines
   matched 114, none wrong (the Bengaluru and Delhi "ring road" stories and "Mumbai Metro Line 4" are excluded by `not`).
-- **The status line is ours and only the owner changes it** (Studio, Newsroom, **Trackers** tab): the new reports since the last check,
-  "Update the status" (stage, sentence, date, sources), "Read them: the status still holds", and "Not about this: hide it" for a wrong
-  match. The older lines stay as "How the status changed". No model writes a status: a page must never say "open" because a headline did.
+- **The status line is ours** (Studio, Newsroom, **Trackers** tab): the new reports since the last check, "Update the status" (stage,
+  sentence, date, sources), "Read them: the status still holds", and "Not about this: hide it" for a wrong match. The older lines stay
+  as "How the status changed". Since 2026-11-28 (pune-intelligence.md A.1, `NEWSROOM_TRACKER_AUTO`) the model's suggested line goes
+  up by itself once it passes the checks; a line saying the thing opened or runs, or a move to the last stage, still waits for the
+  owner: a page must never say "open" because a headline did.
 - **Pages:** `/news/track/<slug>` (where it stands, stage bar, what it means, reports newest first with the same story from several
   publishers as one line, status history), `/news` leads with the trackers and keeps "Our full reports" below, area pages show
   "What is changing near <area>" when a tracker names the area (the city-wide rate trackers come along, never alone).
